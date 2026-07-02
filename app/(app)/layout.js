@@ -5,6 +5,7 @@ import { usePathname, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
 import Toast from '@/components/Toast';
+import OnboardingModal from '@/components/OnboardingModal';
 
 export default function AppLayout({ children }) {
   const supabase = createClient();
@@ -12,6 +13,7 @@ export default function AppLayout({ children }) {
   const router = useRouter();
   const [user, setUser] = useState(null);
   const [myOrg, setMyOrg] = useState(null);
+  const [needsOnboarding, setNeedsOnboarding] = useState(false);
 
   useEffect(() => {
     let active = true;
@@ -23,14 +25,16 @@ export default function AppLayout({ children }) {
         .select('*')
         .eq('id', data.user.id)
         .single();
+      if (!active) return;
       setUser(profile);
+      setNeedsOnboarding(!!profile && !profile.onboarding_completed);
 
       const { data: membership } = await supabase
         .from('organization_members')
         .select('organization_id, organizations(slug, name)')
         .eq('user_id', data.user.id)
         .maybeSingle();
-      if (membership) setMyOrg(membership);
+      if (active && membership) setMyOrg(membership);
     }
     load();
     return () => {
@@ -41,6 +45,12 @@ export default function AppLayout({ children }) {
   async function signOut() {
     await supabase.auth.signOut();
     router.push('/login');
+  }
+
+  function handleOnboardingComplete() {
+    // Recarga completa para que toda la app (nav incluida) refleje
+    // los nuevos datos de perfil sin tener que replicar el estado a mano.
+    window.location.reload();
   }
 
   const initial = user ? (user.first_name?.[0] || 'U').toUpperCase() : '';
@@ -90,6 +100,10 @@ export default function AppLayout({ children }) {
 
       {children}
       <Toast />
+
+      {needsOnboarding && user && (
+        <OnboardingModal userId={user.id} onComplete={handleOnboardingComplete} />
+      )}
     </div>
   );
 }
