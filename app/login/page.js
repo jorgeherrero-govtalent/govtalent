@@ -29,7 +29,7 @@ export default function LoginPage() {
       const { error } = await supabase.auth.signUp({ email, password });
       setLoading(false);
       if (error) return setError(traducirError(error.message));
-      window.location.href = '/onboarding';
+      window.location.href = '/jobs';
       return;
     }
     const { error } = await supabase.auth.signInWithPassword({ email, password });
