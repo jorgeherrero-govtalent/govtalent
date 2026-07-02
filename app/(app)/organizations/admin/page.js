@@ -29,6 +29,8 @@ export default function OrganizationAdminPage() {
   const [applications, setApplications] = useState({});
   const [showEdit, setShowEdit] = useState(false);
   const [posting, setPosting] = useState(false);
+  const [uploadingLogo, setUploadingLogo] = useState(false);
+  const [uploadingOrgCover, setUploadingOrgCover] = useState(false);
 
   useEffect(() => {
     load();
@@ -57,6 +59,44 @@ export default function OrganizationAdminPage() {
       .eq('organization_id', orgId)
       .order('created_at', { ascending: false });
     setJobs(data || []);
+  }
+
+  async function handleLogoUpload(e) {
+    const file = e.target.files?.[0];
+    if (!file || !org) return;
+    setUploadingLogo(true);
+    const ext = file.name.split('.').pop();
+    const path = `${org.id}/logo.${ext}`;
+    const { error: upErr } = await supabase.storage.from('logos').upload(path, file, { upsert: true });
+    setUploadingLogo(false);
+    if (upErr) {
+      toast('No se pudo subir el logo. Comprueba que existe el bucket "logos".');
+      return;
+    }
+    const { data } = supabase.storage.from('logos').getPublicUrl(path);
+    const logoUrl = `${data.publicUrl}?t=${Date.now()}`;
+    await supabase.from('organizations').update({ logo_url: logoUrl }).eq('id', org.id);
+    setOrg({ ...org, logo_url: logoUrl });
+    toast('Logo actualizado ✓');
+  }
+
+  async function handleOrgCoverUpload(e) {
+    const file = e.target.files?.[0];
+    if (!file || !org) return;
+    setUploadingOrgCover(true);
+    const ext = file.name.split('.').pop();
+    const path = `${org.id}/cover.${ext}`;
+    const { error: upErr } = await supabase.storage.from('logos').upload(path, file, { upsert: true });
+    setUploadingOrgCover(false);
+    if (upErr) {
+      toast('No se pudo subir la portada. Comprueba que existe el bucket "logos".');
+      return;
+    }
+    const { data } = supabase.storage.from('logos').getPublicUrl(path);
+    const coverUrl = `${data.publicUrl}?t=${Date.now()}`;
+    await supabase.from('organizations').update({ cover_url: coverUrl }).eq('id', org.id);
+    setOrg({ ...org, cover_url: coverUrl });
+    toast('Portada actualizada ✓');
   }
 
   async function toggleApplications(jobId) {
@@ -173,18 +213,64 @@ export default function OrganizationAdminPage() {
   return (
     <div className="sec">
       <div className="card" style={{ maxWidth: 1080, margin: '0 auto 13px' }}>
-        <div className="co-cover">
-          <div className="co-logo">{org.logo_url ? <img src={org.logo_url} alt="" /> : '🏛️'}</div>
-          <div style={{ position: 'absolute', top: 11, right: 11 }}>
-            <button className="btn-g" onClick={() => setShowEdit(true)}>
-              <i className="ti ti-edit"></i> Editar
-            </button>
-          </div>
+        <div
+          className="co-cover"
+          style={
+            org.cover_url
+              ? { backgroundImage: `url(${org.cover_url})`, backgroundSize: 'cover', backgroundPosition: 'center' }
+              : undefined
+          }
+        >
+          <label
+            title="Cambiar portada"
+            style={{
+              position: 'absolute',
+              top: 11,
+              right: 11,
+              width: 32,
+              height: 32,
+              borderRadius: '50%',
+              background: 'rgba(0,0,0,.45)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              cursor: 'pointer',
+              color: '#fff',
+            }}
+          >
+            {uploadingOrgCover ? <i className="ti ti-loader-2" style={{ fontSize: 15 }}></i> : <i className="ti ti-camera" style={{ fontSize: 15 }}></i>}
+            <input type="file" accept="image/*" hidden onChange={handleOrgCoverUpload} disabled={uploadingOrgCover} />
+          </label>
+
+          <label className="co-logo" style={{ cursor: 'pointer' }} title="Cambiar logo">
+            {org.logo_url ? <img src={org.logo_url} alt="" /> : '🏛️'}
+            <div
+              style={{
+                position: 'absolute',
+                bottom: 1,
+                right: 1,
+                width: 22,
+                height: 22,
+                borderRadius: '50%',
+                background: '#1d6f5c',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+            >
+              {uploadingLogo ? (
+                <i className="ti ti-loader-2" style={{ fontSize: 12, color: '#fff' }}></i>
+              ) : (
+                <i className="ti ti-camera" style={{ fontSize: 12, color: '#fff' }}></i>
+              )}
+            </div>
+            <input type="file" accept="image/*" hidden onChange={handleLogoUpload} disabled={uploadingLogo} />
+          </label>
         </div>
         <div className="co-info">
           <div style={{ fontSize: 19, fontWeight: 700, marginBottom: 4 }}>{org.name}</div>
           <div style={{ fontSize: 13, color: '#555', marginBottom: 10 }}>{org.bio || org.sector || 'Añade una descripción'}</div>
-          <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', fontSize: 12.5, color: '#888' }}>
+          <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', fontSize: 12.5, color: '#888', marginBottom: 14 }}>
             {org.location && (
               <span>
                 <i className="ti ti-map-pin" style={{ fontSize: 12 }}></i> {org.location}
@@ -195,6 +281,14 @@ export default function OrganizationAdminPage() {
                 <i className="ti ti-users" style={{ fontSize: 12 }}></i> {org.size_range} empleados
               </span>
             )}
+          </div>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <button className="btn-p" onClick={() => setShowEdit(true)}>
+              <i className="ti ti-edit"></i> Editar
+            </button>
+            <a href={`/organizations/${org.slug}`} target="_blank" rel="noreferrer" className="btn-o" style={{ textDecoration: 'none' }}>
+              <i className="ti ti-eye"></i> Ver como candidato
+            </a>
           </div>
         </div>
       </div>
@@ -329,6 +423,20 @@ export default function OrganizationAdminPage() {
                 )}
               </div>
             ))}
+          </div>
+
+          <div className="sw" style={{ borderColor: '#1d6f5c', background: 'linear-gradient(160deg,#f0f8f5,#fff)' }}>
+            <h4>Eventos</h4>
+            <div style={{ fontSize: 12.5, color: '#666', lineHeight: 1.65, marginBottom: 13 }}>
+              Publica congresos, jornadas o foros de tu organización. Solo las organizaciones pueden crear eventos en GovTalent.
+            </div>
+            <a
+              href="/events"
+              className="btn-p"
+              style={{ width: '100%', textAlign: 'center', display: 'block', textDecoration: 'none' }}
+            >
+              <i className="ti ti-calendar-plus"></i> Publicar un evento
+            </a>
           </div>
         </div>
       </div>
