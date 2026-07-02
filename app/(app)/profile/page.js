@@ -17,8 +17,8 @@ export default function ProfilePage() {
   const [followedOrgs, setFollowedOrgs] = useState([]);
 
   const [tab, setTab] = useState('e');
-  const [editingBio, setEditingBio] = useState(false);
-  const [bioDraft, setBioDraft] = useState('');
+  const [showEditProfile, setShowEditProfile] = useState(false);
+  const [savingProfile, setSavingProfile] = useState(false);
   const [showExpForm, setShowExpForm] = useState(false);
   const [showEduForm, setShowEduForm] = useState(false);
   const [skillInput, setSkillInput] = useState('');
@@ -67,7 +67,6 @@ export default function ProfilePage() {
         }
       );
       setProfile(p || { bio: '' });
-      setBioDraft(p?.bio || '');
       setExperiences(rExp.status === 'fulfilled' ? rExp.value.data || [] : []);
       setEducation(rEdu.status === 'fulfilled' ? rEdu.value.data || [] : []);
       setSkills(rSk.status === 'fulfilled' ? rSk.value.data || [] : []);
@@ -81,14 +80,35 @@ export default function ProfilePage() {
     }
   }
 
-  async function saveBio() {
-    await supabase
-      .from('candidate_profiles')
-      .update({ bio: bioDraft })
-      .eq('user_id', userId);
-    setProfile({ ...profile, bio: bioDraft });
-    setEditingBio(false);
-    toast('Biografía actualizada ✓');
+  async function saveProfileEdit(e) {
+    e.preventDefault();
+    setSavingProfile(true);
+    const f = new FormData(e.target);
+    const userUpdates = {
+      first_name: f.get('first_name'),
+      last_name: f.get('last_name'),
+      professional_title: f.get('professional_title') || null,
+    };
+    const profileUpdates = {
+      website_url: f.get('website_url') || null,
+      linkedin_url: f.get('linkedin_url') || null,
+      bio: f.get('bio') || null,
+    };
+
+    const [{ error: uErr }, { error: pErr }] = await Promise.all([
+      supabase.from('users').update(userUpdates).eq('id', userId),
+      supabase.from('candidate_profiles').update(profileUpdates).eq('user_id', userId),
+    ]);
+
+    setSavingProfile(false);
+    if (uErr || pErr) {
+      toast('No se pudieron guardar los cambios');
+      return;
+    }
+    setUser({ ...user, ...userUpdates });
+    setProfile({ ...profile, ...profileUpdates });
+    setShowEditProfile(false);
+    toast('Perfil actualizado ✓');
   }
 
   async function handleAvatarUpload(e) {
@@ -293,51 +313,120 @@ export default function ProfilePage() {
                 <i className="ti ti-briefcase" style={{ fontSize: 12 }}></i> Buscando empleo activamente
               </span>
             )}
+            {profile?.website_url && (
+              <span>
+                <i className="ti ti-world" style={{ fontSize: 12 }}></i>{' '}
+                <a
+                  href={profile.website_url.startsWith('http') ? profile.website_url : `https://${profile.website_url}`}
+                  target="_blank"
+                  rel="noreferrer"
+                  style={{ color: '#1d6f5c' }}
+                >
+                  {profile.website_url.replace(/^https?:\/\//, '')}
+                </a>
+              </span>
+            )}
+            {profile?.linkedin_url && (
+              <span>
+                <i className="ti ti-brand-linkedin" style={{ fontSize: 12 }}></i>{' '}
+                <a
+                  href={profile.linkedin_url.startsWith('http') ? profile.linkedin_url : `https://${profile.linkedin_url}`}
+                  target="_blank"
+                  rel="noreferrer"
+                  style={{ color: '#1d6f5c' }}
+                >
+                  LinkedIn
+                </a>
+              </span>
+            )}
           </div>
         </div>
         <div className="p-sec" style={{ borderBottom: 'none' }}>
           <h3>
             Acerca de
-            {!editingBio && (
-              <button className="btn-g" style={{ fontSize: 12 }} onClick={() => setEditingBio(true)}>
-                <i className="ti ti-edit"></i> Editar
-              </button>
-            )}
+            <button className="btn-g" style={{ fontSize: 12 }} onClick={() => setShowEditProfile(true)}>
+              <i className="ti ti-edit"></i> Editar
+            </button>
           </h3>
-          {editingBio ? (
-            <>
-              <textarea
-                style={{
-                  width: '100%',
-                  minHeight: 90,
-                  padding: '10px 12px',
-                  border: '1px solid #e0dfd8',
-                  borderRadius: 8,
-                  fontSize: 13.5,
-                  fontFamily: 'inherit',
-                  outline: 'none',
-                  resize: 'vertical',
-                }}
-                value={bioDraft}
-                onChange={(e) => setBioDraft(e.target.value)}
-              />
-              <div style={{ marginTop: 8 }}>
-                <button className="btn-p" style={{ fontSize: 12.5, padding: '6px 14px' }} onClick={saveBio}>
-                  Guardar
-                </button>{' '}
-                <button className="btn-g" style={{ fontSize: 12.5 }} onClick={() => setEditingBio(false)}>
-                  Cancelar
-                </button>
-              </div>
-            </>
-          ) : (
-            <div style={{ fontSize: 13.5, color: '#555', lineHeight: 1.7 }}>
-              {profile?.bio || 'Añade una biografía para que otros profesionales sepan más sobre ti.'}
-            </div>
-          )}
+          <div style={{ fontSize: 13.5, color: '#555', lineHeight: 1.7 }}>
+            {profile?.bio || 'Añade una biografía para que otros profesionales sepan más sobre ti.'}
+          </div>
         </div>
       </div>
 
+      {showEditProfile && (
+        <div className="modal-ov on" onClick={(e) => e.target === e.currentTarget && setShowEditProfile(false)}>
+          <div className="modal-box" style={{ maxWidth: 640 }}>
+            <div className="modal-head">
+              <h2>Editar perfil</h2>
+              <div className="modal-x" onClick={() => setShowEditProfile(false)}>
+                <i className="ti ti-x"></i>
+              </div>
+            </div>
+            <form onSubmit={saveProfileEdit}>
+              <div className="two">
+                <div className="field">
+                  <label>Nombre</label>
+                  <input name="first_name" defaultValue={user.first_name || ''} required />
+                </div>
+                <div className="field">
+                  <label>Apellidos</label>
+                  <input name="last_name" defaultValue={user.last_name || ''} required />
+                </div>
+              </div>
+              <div className="field">
+                <label>Título profesional</label>
+                <input
+                  name="professional_title"
+                  defaultValue={user.professional_title || ''}
+                  placeholder="Ej: Public Affairs Manager"
+                />
+              </div>
+              <div className="two">
+                <div className="field">
+                  <label>Sitio web</label>
+                  <input name="website_url" defaultValue={profile?.website_url || ''} placeholder="https://tuweb.com" />
+                </div>
+                <div className="field">
+                  <label>LinkedIn URL</label>
+                  <input
+                    name="linkedin_url"
+                    defaultValue={profile?.linkedin_url || ''}
+                    placeholder="https://linkedin.com/in/..."
+                  />
+                </div>
+              </div>
+              <div className="field">
+                <label>Biografía</label>
+                <textarea
+                  name="bio"
+                  defaultValue={profile?.bio || ''}
+                  style={{
+                    width: '100%',
+                    minHeight: 100,
+                    padding: '10px 12px',
+                    border: '1px solid #e0dfd8',
+                    borderRadius: 9,
+                    fontSize: 13.5,
+                    fontFamily: 'inherit',
+                    outline: 'none',
+                    resize: 'vertical',
+                  }}
+                  placeholder="Cuenta tu experiencia y especialización..."
+                ></textarea>
+              </div>
+              <div className="m-foot">
+                <button type="button" className="m-back" onClick={() => setShowEditProfile(false)}>
+                  Cancelar
+                </button>
+                <button className="m-next" disabled={savingProfile}>
+                  <i className="ti ti-check"></i> {savingProfile ? 'Guardando...' : 'Guardar cambios'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
       <div style={{ display: 'grid', gridTemplateColumns: '3fr 2fr', gap: 13, maxWidth: 1080, margin: '0 auto' }}>
         <div className="card">
           <div className="p-tabs">
@@ -599,12 +688,13 @@ export default function ProfilePage() {
 
 function computeCompletion(user, profile, exp, edu, skills) {
   let pts = 0;
-  const total = 8;
+  const total = 9;
   if (user?.avatar_url) pts++;
   if (profile?.cover_url) pts++;
   if (profile?.cv_url) pts++;
   if (profile?.bio) pts++;
   if (user?.professional_title) pts++;
+  if (profile?.website_url || profile?.linkedin_url) pts++;
   if (exp.length > 0) pts++;
   if (edu.length > 0) pts++;
   if (skills.length > 0) pts++;
