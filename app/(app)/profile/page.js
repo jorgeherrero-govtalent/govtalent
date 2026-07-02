@@ -28,43 +28,54 @@ export default function ProfilePage() {
   }, []);
 
   async function load() {
-    const { data: authData } = await supabase.auth.getUser();
-    if (!authData.user) return;
-    const uid = authData.user.id;
-    setUserId(uid);
+    try {
+      const { data: authData } = await supabase.auth.getUser();
+      if (!authData.user) return;
+      const uid = authData.user.id;
+      setUserId(uid);
 
-    const [
-      { data: u },
-      { data: p },
-      { data: exp },
-      { data: edu },
-      { data: sk },
-      { data: saved },
-      { data: follows },
-    ] = await Promise.all([
-      supabase.from('users').select('*').eq('id', uid).single(),
-      supabase.from('candidate_profiles').select('*').eq('user_id', uid).single(),
-      supabase.from('experiences').select('*').eq('user_id', uid).order('start_date', { ascending: false }),
-      supabase.from('education').select('*').eq('user_id', uid).order('start_date', { ascending: false }),
-      supabase.from('skills').select('*').eq('user_id', uid),
-      supabase
-        .from('saved_jobs')
-        .select('jobs(id, title, organizations(name))')
-        .eq('user_id', uid),
-      supabase
-        .from('organization_follows')
-        .select('organizations(id, slug, name)')
-        .eq('user_id', uid),
-    ]);
+      const results = await Promise.allSettled([
+        supabase.from('users').select('*').eq('id', uid).single(),
+        supabase.from('candidate_profiles').select('*').eq('user_id', uid).single(),
+        supabase.from('experiences').select('*').eq('user_id', uid).order('start_date', { ascending: false }),
+        supabase.from('education').select('*').eq('user_id', uid).order('start_date', { ascending: false }),
+        supabase.from('skills').select('*').eq('user_id', uid),
+        supabase.from('saved_jobs').select('jobs(id, title, organizations(name))').eq('user_id', uid),
+        supabase.from('organization_follows').select('organizations(id, slug, name)').eq('user_id', uid),
+      ]);
 
-    setUser(u);
-    setProfile(p);
-    setBioDraft(p?.bio || '');
-    setExperiences(exp || []);
-    setEducation(edu || []);
-    setSkills(sk || []);
-    setSavedJobs(saved || []);
-    setFollowedOrgs(follows || []);
+      const [rUser, rProfile, rExp, rEdu, rSk, rSaved, rFollows] = results;
+
+      results.forEach((r, i) => {
+        if (r.status === 'rejected') console.error('Profile load query', i, 'rejected:', r.reason);
+        else if (r.value?.error) console.error('Profile load query', i, 'error:', r.value.error);
+      });
+
+      const u = rUser.status === 'fulfilled' ? rUser.value.data : null;
+      const p = rProfile.status === 'fulfilled' ? rProfile.value.data : null;
+
+      // Si por lo que sea no existe fila en "users" todavía, usamos los datos
+      // básicos de auth para no dejar la pantalla colgada.
+      setUser(
+        u || {
+          id: uid,
+          first_name: authData.user.email?.split('@')[0] || 'Usuario',
+          last_name: '',
+        }
+      );
+      setProfile(p || { bio: '' });
+      setBioDraft(p?.bio || '');
+      setExperiences(rExp.status === 'fulfilled' ? rExp.value.data || [] : []);
+      setEducation(rEdu.status === 'fulfilled' ? rEdu.value.data || [] : []);
+      setSkills(rSk.status === 'fulfilled' ? rSk.value.data || [] : []);
+      setSavedJobs(rSaved.status === 'fulfilled' ? rSaved.value.data || [] : []);
+      setFollowedOrgs(rFollows.status === 'fulfilled' ? rFollows.value.data || [] : []);
+    } catch (err) {
+      console.error('Error inesperado cargando el perfil:', err);
+      // Aseguramos que la pantalla no se quede colgada aunque algo falle.
+      setUser((prev) => prev || { id: userId, first_name: 'Usuario', last_name: '' });
+      setProfile((prev) => prev || { bio: '' });
+    }
   }
 
   async function saveBio() {
