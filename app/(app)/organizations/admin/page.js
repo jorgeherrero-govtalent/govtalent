@@ -180,7 +180,9 @@ export default function OrganizationAdminPage() {
     if (!applications[jobId]) {
       const { data } = await supabase
         .from('job_applications')
-        .select('id, status, applied_at, users(first_name, last_name, professional_title, email)')
+        .select(
+          'id, status, applied_at, cover_note, cv_url_snapshot, users(first_name, last_name, professional_title, email, phone)'
+        )
         .eq('job_id', jobId)
         .order('applied_at', { ascending: false });
       setApplications((prev) => ({ ...prev, [jobId]: data || [] }));
@@ -482,25 +484,60 @@ export default function OrganizationAdminPage() {
                       <div style={{ fontSize: 12, color: '#999' }}>Sin solicitudes todavía.</div>
                     )}
                     {(applications[j.id] || []).map((a) => (
-                      <div key={a.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 0', borderBottom: '.5px solid #f0f0eb' }}>
-                        <div className="sp-av">{a.users?.first_name?.[0]}</div>
-                        <div style={{ flex: 1 }}>
-                          <div style={{ fontSize: 12.5, fontWeight: 500 }}>
-                            {a.users?.first_name} {a.users?.last_name}
+                      <div key={a.id} style={{ padding: '10px 0', borderBottom: '.5px solid #f0f0eb' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                          <div className="sp-av">{a.users?.first_name?.[0]}</div>
+                          <div style={{ flex: 1 }}>
+                            <div style={{ fontSize: 12.5, fontWeight: 500 }}>
+                              {a.users?.first_name} {a.users?.last_name}
+                            </div>
+                            <div style={{ fontSize: 11, color: '#888' }}>{a.users?.professional_title}</div>
                           </div>
-                          <div style={{ fontSize: 11, color: '#888' }}>{a.users?.professional_title}</div>
+                          <select
+                            value={a.status}
+                            onChange={(e) => updateStatus(a.id, j.id, e.target.value)}
+                            style={{ fontSize: 11, padding: '4px 6px', borderRadius: 6, border: '.5px solid #e0dfd8' }}
+                          >
+                            {Object.entries(APPLICATION_STATUS_LABELS).map(([k, v]) => (
+                              <option key={k} value={k}>
+                                {v}
+                              </option>
+                            ))}
+                          </select>
                         </div>
-                        <select
-                          value={a.status}
-                          onChange={(e) => updateStatus(a.id, j.id, e.target.value)}
-                          style={{ fontSize: 11, padding: '4px 6px', borderRadius: 6, border: '.5px solid #e0dfd8' }}
-                        >
-                          {Object.entries(APPLICATION_STATUS_LABELS).map(([k, v]) => (
-                            <option key={k} value={k}>
-                              {v}
-                            </option>
-                          ))}
-                        </select>
+                        <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', fontSize: 11.5, color: '#666', marginTop: 6, marginLeft: 42 }}>
+                          {a.users?.email && (
+                            <span>
+                              <i className="ti ti-mail" style={{ fontSize: 11 }}></i> {a.users.email}
+                            </span>
+                          )}
+                          {a.users?.phone && (
+                            <span>
+                              <i className="ti ti-phone" style={{ fontSize: 11 }}></i> {a.users.phone}
+                            </span>
+                          )}
+                          {a.cv_url_snapshot && (
+                            <a href={a.cv_url_snapshot} target="_blank" rel="noreferrer" style={{ color: '#1d6f5c', fontWeight: 500 }}>
+                              <i className="ti ti-file-cv" style={{ fontSize: 11 }}></i> Ver CV
+                            </a>
+                          )}
+                        </div>
+                        {a.cover_note && (
+                          <div
+                            style={{
+                              marginLeft: 42,
+                              marginTop: 8,
+                              fontSize: 12,
+                              color: '#555',
+                              background: '#f8faf9',
+                              borderRadius: 8,
+                              padding: '8px 10px',
+                              lineHeight: 1.6,
+                            }}
+                          >
+                            {a.cover_note}
+                          </div>
+                        )}
                       </div>
                     ))}
                   </div>
