@@ -70,7 +70,14 @@ export default function OrganizationPublicPage() {
       </div>
 
       <div className="card" style={{ maxWidth: 1080, margin: '0 auto 13px' }}>
-        <div className="co-cover">
+        <div
+          className="co-cover"
+          style={
+            org.cover_url
+              ? { backgroundImage: `url(${org.cover_url})`, backgroundSize: 'cover', backgroundPosition: 'center' }
+              : undefined
+          }
+        >
           <div className="co-logo">
             {org.logo_url ? <img src={org.logo_url} alt="" /> : '🏛️'}
           </div>
