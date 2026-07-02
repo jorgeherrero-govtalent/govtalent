@@ -22,6 +22,9 @@ export default function ProfilePage() {
   const [showExpForm, setShowExpForm] = useState(false);
   const [showEduForm, setShowEduForm] = useState(false);
   const [skillInput, setSkillInput] = useState('');
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
+  const [uploadingCover, setUploadingCover] = useState(false);
+  const [uploadingCv, setUploadingCv] = useState(false);
 
   useEffect(() => {
     load();
@@ -86,6 +89,76 @@ export default function ProfilePage() {
     setProfile({ ...profile, bio: bioDraft });
     setEditingBio(false);
     toast('Biografía actualizada ✓');
+  }
+
+  async function handleAvatarUpload(e) {
+    const file = e.target.files?.[0];
+    if (!file || !userId) return;
+    setUploadingAvatar(true);
+    const ext = file.name.split('.').pop();
+    const path = `${userId}/avatar.${ext}`;
+    const { error: upErr } = await supabase.storage
+      .from('avatars')
+      .upload(path, file, { upsert: true });
+    setUploadingAvatar(false);
+    if (upErr) {
+      toast('No se pudo subir la foto. Comprueba que existe el bucket "avatars".');
+      return;
+    }
+    const { data } = supabase.storage.from('avatars').getPublicUrl(path);
+    const avatarUrl = `${data.publicUrl}?t=${Date.now()}`;
+    await supabase.from('users').update({ avatar_url: avatarUrl }).eq('id', userId);
+    setUser({ ...user, avatar_url: avatarUrl });
+    toast('Foto de perfil actualizada ✓');
+  }
+
+  async function handleCoverUpload(e) {
+    const file = e.target.files?.[0];
+    if (!file || !userId) return;
+    setUploadingCover(true);
+    const ext = file.name.split('.').pop();
+    const path = `${userId}/cover.${ext}`;
+    const { error: upErr } = await supabase.storage
+      .from('covers')
+      .upload(path, file, { upsert: true });
+    setUploadingCover(false);
+    if (upErr) {
+      toast('No se pudo subir la portada. Comprueba que existe el bucket "covers".');
+      return;
+    }
+    const { data } = supabase.storage.from('covers').getPublicUrl(path);
+    const coverUrl = `${data.publicUrl}?t=${Date.now()}`;
+    await supabase.from('candidate_profiles').update({ cover_url: coverUrl }).eq('user_id', userId);
+    setProfile({ ...profile, cover_url: coverUrl });
+    toast('Portada actualizada ✓');
+  }
+
+  async function handleCvUpload(e) {
+    const file = e.target.files?.[0];
+    if (!file || !userId) return;
+    if (file.type !== 'application/pdf') {
+      toast('El CV debe estar en formato PDF');
+      return;
+    }
+    setUploadingCv(true);
+    const path = `${userId}/cv.pdf`;
+    const { error: upErr } = await supabase.storage
+      .from('cvs')
+      .upload(path, file, { upsert: true });
+    setUploadingCv(false);
+    if (upErr) {
+      toast('No se pudo subir el CV. Comprueba que existe el bucket "cvs".');
+      return;
+    }
+    const { data } = supabase.storage.from('cvs').getPublicUrl(path);
+    const cvUrl = `${data.publicUrl}?t=${Date.now()}`;
+    const uploadedAt = new Date().toISOString();
+    await supabase
+      .from('candidate_profiles')
+      .update({ cv_url: cvUrl, cv_uploaded_at: uploadedAt })
+      .eq('user_id', userId);
+    setProfile({ ...profile, cv_url: cvUrl, cv_uploaded_at: uploadedAt });
+    toast('CV subido correctamente ✓');
   }
 
   async function addExperience(e) {
@@ -159,10 +232,50 @@ export default function ProfilePage() {
   return (
     <div className="sec">
       <div className="card" style={{ maxWidth: 1080, margin: '0 auto 13px' }}>
-        <div className="p-cover">
-          <div className="p-av">
+        <div
+          className="p-cover"
+          style={
+            profile?.cover_url
+              ? {
+                  backgroundImage: `url(${profile.cover_url})`,
+                  backgroundSize: 'cover',
+                  backgroundPosition: 'center',
+                }
+              : undefined
+          }
+        >
+          <label
+            title="Cambiar portada"
+            style={{
+              position: 'absolute',
+              top: 11,
+              right: 11,
+              width: 32,
+              height: 32,
+              borderRadius: '50%',
+              background: 'rgba(0,0,0,.45)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              cursor: 'pointer',
+              color: '#fff',
+            }}
+          >
+            {uploadingCover ? (
+              <i className="ti ti-loader-2" style={{ fontSize: 15 }}></i>
+            ) : (
+              <i className="ti ti-camera" style={{ fontSize: 15 }}></i>
+            )}
+            <input type="file" accept="image/*" hidden onChange={handleCoverUpload} disabled={uploadingCover} />
+          </label>
+
+          <label className="p-av" style={{ cursor: 'pointer' }} title="Cambiar foto de perfil">
             {user.avatar_url ? <img src={user.avatar_url} alt="" /> : user.first_name?.[0]}
-          </div>
+            <div className="av-c">
+              {uploadingAvatar ? <i className="ti ti-loader-2"></i> : <i className="ti ti-camera"></i>}
+            </div>
+            <input type="file" accept="image/*" hidden onChange={handleAvatarUpload} disabled={uploadingAvatar} />
+          </label>
         </div>
         <div className="p-info">
           <div className="p-name">
@@ -390,6 +503,50 @@ export default function ProfilePage() {
 
         <div>
           <div className="sw">
+            <h4>Currículum (CV)</h4>
+            {profile?.cv_url ? (
+              <>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
+                  <i className="ti ti-file-cv" style={{ fontSize: 18, color: '#1d6f5c' }}></i>
+                  <div style={{ fontSize: 12.5, color: '#555', flex: 1 }}>
+                    CV subido
+                    {profile.cv_uploaded_at && (
+                      <div style={{ fontSize: 11, color: '#999' }}>
+                        {new Date(profile.cv_uploaded_at).toLocaleDateString('es-ES')}
+                      </div>
+                    )}
+                  </div>
+                </div>
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <a
+                    href={profile.cv_url}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="btn-o"
+                    style={{ flex: 1, textAlign: 'center', textDecoration: 'none', fontSize: 12.5 }}
+                  >
+                    Ver CV
+                  </a>
+                  <label className="btn-g" style={{ cursor: 'pointer', fontSize: 12.5 }}>
+                    {uploadingCv ? 'Subiendo...' : 'Reemplazar'}
+                    <input type="file" accept="application/pdf" hidden onChange={handleCvUpload} disabled={uploadingCv} />
+                  </label>
+                </div>
+              </>
+            ) : (
+              <>
+                <div style={{ fontSize: 12.5, color: '#999', marginBottom: 10 }}>
+                  Sube tu CV en PDF para que los reclutadores te encuentren más rápido.
+                </div>
+                <label className="btn-p" style={{ width: '100%', textAlign: 'center', display: 'block', cursor: 'pointer' }}>
+                  {uploadingCv ? 'Subiendo...' : 'Subir CV'}
+                  <input type="file" accept="application/pdf" hidden onChange={handleCvUpload} disabled={uploadingCv} />
+                </label>
+              </>
+            )}
+          </div>
+
+          <div className="sw">
             <h4>Tu visibilidad</h4>
             <div style={{ fontSize: 13, color: '#555', marginBottom: 7 }}>
               Perfil completado al <b style={{ color: '#1d6f5c' }}>{completion}%</b>
@@ -442,8 +599,10 @@ export default function ProfilePage() {
 
 function computeCompletion(user, profile, exp, edu, skills) {
   let pts = 0;
-  const total = 6;
+  const total = 8;
   if (user?.avatar_url) pts++;
+  if (profile?.cover_url) pts++;
+  if (profile?.cv_url) pts++;
   if (profile?.bio) pts++;
   if (user?.professional_title) pts++;
   if (exp.length > 0) pts++;
