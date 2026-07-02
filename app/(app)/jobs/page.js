@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { toast } from '@/lib/toast';
+import ApplyModal from '@/components/ApplyModal';
 
 const AREAS = [
   'Public Affairs',
@@ -20,7 +21,7 @@ export default function JobsPage() {
   const [userId, setUserId] = useState(null);
   const [savedIds, setSavedIds] = useState(new Set());
   const [appliedIds, setAppliedIds] = useState(new Set());
-  const [applying, setApplying] = useState(false);
+  const [applyingJob, setApplyingJob] = useState(null);
 
   const [filters, setFilters] = useState({ area: '', modality: '', location: '' });
 
@@ -92,19 +93,35 @@ export default function JobsPage() {
     }
   }
 
-  async function apply(jobId) {
-    if (!userId || appliedIds.has(jobId)) return;
-    setApplying(true);
+  function openApply(job) {
+    if (!userId) return;
+    setApplyingJob(job);
+  }
+
+  function handleApplySuccess() {
+    setAppliedIds((prev) => new Set(prev).add(applyingJob.id));
+    setApplyingJob(null);
+  }
+
+  async function withdrawApplication(jobId) {
+    if (!userId) return;
+    const confirmed = window.confirm('¿Seguro que quieres retirar tu solicitud a esta oferta?');
+    if (!confirmed) return;
     const { error } = await supabase
       .from('job_applications')
-      .insert({ job_id: jobId, candidate_id: userId });
-    setApplying(false);
+      .delete()
+      .eq('job_id', jobId)
+      .eq('candidate_id', userId);
     if (error) {
-      toast('No se pudo enviar la solicitud');
+      toast('No se pudo retirar la solicitud');
       return;
     }
-    setAppliedIds((prev) => new Set(prev).add(jobId));
-    toast('Solicitud enviada ✓');
+    setAppliedIds((prev) => {
+      const n = new Set(prev);
+      n.delete(jobId);
+      return n;
+    });
+    toast('Solicitud retirada');
   }
 
   function copyLink(jobId) {
@@ -236,11 +253,18 @@ export default function JobsPage() {
                   </div>
                   <div style={{ display: 'flex', gap: 8, marginBottom: 14, flexWrap: 'wrap' }}>
                     <button
-                      className="btn-p"
-                      disabled={appliedIds.has(selected.id) || applying}
-                      onClick={() => apply(selected.id)}
+                      className={appliedIds.has(selected.id) ? 'btn-o' : 'btn-p'}
+                      onClick={() =>
+                        appliedIds.has(selected.id) ? withdrawApplication(selected.id) : openApply(selected)
+                      }
                     >
-                      {appliedIds.has(selected.id) ? 'Solicitud enviada ✓' : 'Solicitud sencilla'}
+                      {appliedIds.has(selected.id) ? (
+                        <>
+                          <i className="ti ti-x"></i> Retirar solicitud
+                        </>
+                      ) : (
+                        'Solicitud sencilla'
+                      )}
                     </button>
                     <button className="btn-g" onClick={() => toggleSave(selected.id)}>
                       <i className="ti ti-bookmark"></i>{' '}
@@ -307,6 +331,14 @@ export default function JobsPage() {
             )}
           </div>
         </div>
+      )}
+
+      {applyingJob && (
+        <ApplyModal
+          job={applyingJob}
+          onClose={() => setApplyingJob(null)}
+          onSuccess={handleApplySuccess}
+        />
       )}
     </div>
   );
