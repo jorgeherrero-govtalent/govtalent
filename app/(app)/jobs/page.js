@@ -66,10 +66,13 @@ export default function JobsPage() {
     if (filters.location) q = q.ilike('location', `%${filters.location}%`);
 
     const { data, error } = await q;
-    if (!error) {
-      setJobs(data || []);
-      if (data && data.length > 0) setSelected((s) => s || data[0]);
+    if (error) {
+      console.error('Error cargando empleos:', error);
+      setJobs([]);
+      return;
     }
+    setJobs(data || []);
+    if (data && data.length > 0) setSelected((s) => s || data[0]);
   }
 
   async function toggleSave(jobId) {
