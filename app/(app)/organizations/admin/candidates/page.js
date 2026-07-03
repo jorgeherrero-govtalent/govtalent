@@ -1,6 +1,7 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, Suspense } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import { toast } from '@/lib/toast';
 
@@ -20,12 +21,21 @@ const SCORE_FILTERS = [
 ];
 
 export default function CandidatesBoardPage() {
+  return (
+    <Suspense fallback={<div className="spinner"></div>}>
+      <CandidatesBoardInner />
+    </Suspense>
+  );
+}
+
+function CandidatesBoardInner() {
   const supabase = createClient();
   const [org, setOrg] = useState(null);
   const [jobs, setJobs] = useState([]);
   const [applications, setApplications] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [jobFilter, setJobFilter] = useState('');
+  const searchParams = useSearchParams();
+  const [jobFilter, setJobFilter] = useState(searchParams.get('job') || '');
   const [scoreFilter, setScoreFilter] = useState('');
   const [nameFilter, setNameFilter] = useState('');
   const [dragId, setDragId] = useState(null);
