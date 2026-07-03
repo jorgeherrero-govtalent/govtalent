@@ -34,6 +34,8 @@ export default function OrganizationAdminPage() {
   const [savingJobEdit, setSavingJobEdit] = useState(false);
   const [aiPrompt, setAiPrompt] = useState('');
   const [generatingDesc, setGeneratingDesc] = useState(false);
+  const [orgAiPrompt, setOrgAiPrompt] = useState('');
+  const [generatingOrgDesc, setGeneratingOrgDesc] = useState(false);
 
   const titleRef = useRef(null);
   const areaRef = useRef(null);
@@ -43,6 +45,9 @@ export default function OrganizationAdminPage() {
   const responsibilitiesRef = useRef(null);
   const requirementsRef = useRef(null);
   const tagsRef = useRef(null);
+  const orgNameRef = useRef(null);
+  const orgSectorRef = useRef(null);
+  const orgBioRef = useRef(null);
 
   useEffect(() => {
     load();
@@ -180,6 +185,33 @@ export default function OrganizationAdminPage() {
     loadJobs(org.id);
   }
 
+  async function generateOrgDescription() {
+    if (!orgAiPrompt.trim()) {
+      toast('Describe brevemente la organización para poder generarlo');
+      return;
+    }
+    setGeneratingOrgDesc(true);
+    try {
+      const res = await fetch('/api/ai/org-description', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          prompt: orgAiPrompt,
+          name: orgNameRef.current?.value,
+          sector: orgSectorRef.current?.value,
+          orgType: org?.org_type,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Error desconocido');
+      if (orgBioRef.current) orgBioRef.current.value = data.bio;
+      toast('Descripción generada ✓ revísala antes de guardar');
+    } catch (err) {
+      toast('No se pudo generar la descripción: ' + err.message);
+    }
+    setGeneratingOrgDesc(false);
+  }
+
   async function generateJobDescription() {
     if (!aiPrompt.trim()) {
       toast('Describe brevemente el puesto para poder generarlo');
@@ -283,6 +315,7 @@ export default function OrganizationAdminPage() {
     await supabase.from('organizations').update(updates).eq('id', org.id);
     setOrg({ ...org, ...updates });
     setShowEdit(false);
+    setOrgAiPrompt('');
     toast('Página de organización actualizada ✓ (visible para ti y para los candidatos)');
   }
 
@@ -592,12 +625,12 @@ export default function OrganizationAdminPage() {
               </div>
               <div className="field">
                 <label>Nombre de la organización</label>
-                <input name="name" defaultValue={org.name} required />
+                <input ref={orgNameRef} name="name" defaultValue={org.name} required />
               </div>
               <div className="two">
                 <div className="field">
                   <label>Sector de especialización</label>
-                  <input name="sector" defaultValue={org.sector || ''} placeholder="Energía, Tecnología..." />
+                  <input ref={orgSectorRef} name="sector" defaultValue={org.sector || ''} placeholder="Energía, Tecnología..." />
                 </div>
                 <div className="field">
                   <label>Nº de empleados</label>
@@ -621,9 +654,53 @@ export default function OrganizationAdminPage() {
                   <input name="founded_year" type="number" defaultValue={org.founded_year || ''} />
                 </div>
               </div>
+
+              <div
+                style={{
+                  background: '#faf9ff',
+                  border: '1px solid #d8d3fb',
+                  borderRadius: 10,
+                  padding: 12,
+                  marginBottom: 14,
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
+                  <i className="ti ti-bolt" style={{ color: '#6d5aef', fontSize: 15 }}></i>
+                  <span style={{ fontSize: 12.5, fontWeight: 600 }}>Redactar con IA</span>
+                  <span className="badge-ai" style={{ fontSize: 9.5, padding: '1px 6px' }}>BETA</span>
+                </div>
+                <textarea
+                  value={orgAiPrompt}
+                  onChange={(e) => setOrgAiPrompt(e.target.value)}
+                  placeholder="Describe brevemente qué hace la organización y qué la diferencia, ej: consultora boutique especializada en energía y transición ecológica, con equipo de exdirectivos del sector..."
+                  style={{
+                    width: '100%',
+                    minHeight: 60,
+                    padding: '8px 10px',
+                    border: '1px solid #e0dfd8',
+                    borderRadius: 8,
+                    fontSize: 12.5,
+                    fontFamily: 'inherit',
+                    outline: 'none',
+                    resize: 'vertical',
+                    marginBottom: 8,
+                  }}
+                ></textarea>
+                <button
+                  type="button"
+                  className="btn-ai-o"
+                  style={{ width: '100%', fontSize: 12 }}
+                  disabled={generatingOrgDesc}
+                  onClick={generateOrgDescription}
+                >
+                  <i className="ti ti-bolt"></i> {generatingOrgDesc ? 'Generando...' : 'Generar descripción'}
+                </button>
+              </div>
+
               <div className="field">
                 <label>Descripción de la organización</label>
                 <textarea
+                  ref={orgBioRef}
                   name="bio"
                   defaultValue={org.bio || ''}
                   style={{
