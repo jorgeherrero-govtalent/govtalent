@@ -320,6 +320,22 @@ export default function ProfilePage() {
     await Promise.all(withOrder.map((item, i) => supabase.from(table).update({ sort_order: i }).eq('id', item.id)));
   }
 
+  // ── Sustituye el "fantasma" por defecto del navegador (una foto
+  // semitransparente de toda la tarjeta, con la que se ve el texto de
+  // debajo) por una pequeña etiqueta limpia que sigue al cursor.
+  function handleCardDragStart(e, index, label) {
+    setDragIndex(index);
+    const pill = document.createElement('div');
+    pill.textContent = label;
+    pill.style.cssText =
+      'position:fixed;top:-999px;left:-999px;background:#1d6f5c;color:#fff;padding:7px 16px;' +
+      'border-radius:20px;font-size:13px;font-weight:500;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;' +
+      'white-space:nowrap;box-shadow:0 4px 12px rgba(0,0,0,.25);';
+    document.body.appendChild(pill);
+    e.dataTransfer.setDragImage(pill, 16, 16);
+    setTimeout(() => pill.remove(), 0);
+  }
+
   async function addExperience(e) {
     e.preventDefault();
     const f = new FormData(e.target);
@@ -751,7 +767,7 @@ export default function ProfilePage() {
                     className="exp-item"
                     key={exp.id}
                     draggable
-                    onDragStart={() => setDragIndex(i)}
+                    onDragStart={(e) => handleCardDragStart(e, i, exp.title)}
                     onDragOver={(e) => e.preventDefault()}
                     onDrop={() => {
                       reorderByDrag('experiences', experiences, setExperiences, dragIndex, i);
@@ -870,7 +886,7 @@ export default function ProfilePage() {
                     className="exp-item"
                     key={ed.id}
                     draggable
-                    onDragStart={() => setDragIndex(i)}
+                    onDragStart={(e) => handleCardDragStart(e, i, ed.degree)}
                     onDragOver={(e) => e.preventDefault()}
                     onDrop={() => {
                       reorderByDrag('education', education, setEducation, dragIndex, i);
@@ -939,7 +955,7 @@ export default function ProfilePage() {
                     className="skill"
                     key={s.id}
                     draggable
-                    onDragStart={() => setDragIndex(i)}
+                    onDragStart={(e) => handleCardDragStart(e, i, s.skill_name)}
                     onDragOver={(e) => e.preventDefault()}
                     onDrop={() => {
                       reorderByDrag('skills', skills, setSkills, dragIndex, i);
@@ -1010,7 +1026,7 @@ export default function ProfilePage() {
                   className="exp-item"
                   key={l.id}
                   draggable
-                  onDragStart={() => setDragIndex(i)}
+                  onDragStart={(e) => handleCardDragStart(e, i, l.language_name)}
                   onDragOver={(e) => e.preventDefault()}
                   onDrop={() => {
                     reorderByDrag('languages', languages, setLanguages, dragIndex, i);
