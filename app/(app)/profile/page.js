@@ -27,6 +27,7 @@ export default function ProfilePage() {
   const [skillInput, setSkillInput] = useState('');
   const [langName, setLangName] = useState('');
   const [langLevel, setLangLevel] = useState('B2');
+  const [dragIndex, setDragIndex] = useState(null);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const [uploadingCover, setUploadingCover] = useState(false);
   const [uploadingCv, setUploadingCv] = useState(false);
@@ -305,6 +306,18 @@ export default function ProfilePage() {
       supabase.from(table).update({ sort_order: aOrder }).eq('id', b.id),
       supabase.from(table).update({ sort_order: bOrder }).eq('id', a.id),
     ]);
+  }
+
+  // ── Reordenar arrastrando: mueve el elemento a cualquier posición y
+  // renumera el sort_order de toda la lista de una vez.
+  async function reorderByDrag(table, list, setList, fromIndex, toIndex) {
+    if (fromIndex === toIndex || fromIndex == null || toIndex == null) return;
+    const newList = [...list];
+    const [moved] = newList.splice(fromIndex, 1);
+    newList.splice(toIndex, 0, moved);
+    const withOrder = newList.map((item, i) => ({ ...item, sort_order: i }));
+    setList(withOrder);
+    await Promise.all(withOrder.map((item, i) => supabase.from(table).update({ sort_order: i }).eq('id', item.id)));
   }
 
   async function addExperience(e) {
@@ -734,7 +747,19 @@ export default function ProfilePage() {
                     </button>
                   </form>
                 ) : (
-                  <div className="exp-item" key={exp.id}>
+                  <div
+                    className="exp-item"
+                    key={exp.id}
+                    draggable
+                    onDragStart={() => setDragIndex(i)}
+                    onDragOver={(e) => e.preventDefault()}
+                    onDrop={() => {
+                      reorderByDrag('experiences', experiences, setExperiences, dragIndex, i);
+                      setDragIndex(null);
+                    }}
+                    style={{ cursor: 'grab', opacity: dragIndex === i ? 0.5 : 1 }}
+                  >
+                    <i className="ti ti-grip-vertical" style={{ color: '#ccc', fontSize: 16, marginTop: 3 }}></i>
                     <div className="exp-logo">🏛️</div>
                     <div className="exp-body" style={{ flex: 1 }}>
                       <div className="et">{exp.title}</div>
@@ -841,7 +866,19 @@ export default function ProfilePage() {
                     </button>
                   </form>
                 ) : (
-                  <div className="exp-item" key={ed.id}>
+                  <div
+                    className="exp-item"
+                    key={ed.id}
+                    draggable
+                    onDragStart={() => setDragIndex(i)}
+                    onDragOver={(e) => e.preventDefault()}
+                    onDrop={() => {
+                      reorderByDrag('education', education, setEducation, dragIndex, i);
+                      setDragIndex(null);
+                    }}
+                    style={{ cursor: 'grab', opacity: dragIndex === i ? 0.5 : 1 }}
+                  >
+                    <i className="ti ti-grip-vertical" style={{ color: '#ccc', fontSize: 16 }}></i>
                     <div className="exp-logo">🎓</div>
                     <div className="exp-body" style={{ flex: 1 }}>
                       <div className="et">{ed.degree}</div>
@@ -898,7 +935,18 @@ export default function ProfilePage() {
               </form>
               <div>
                 {skills.map((s, i) => (
-                  <span className="skill" key={s.id} style={{ display: 'inline-flex', alignItems: 'center' }}>
+                  <span
+                    className="skill"
+                    key={s.id}
+                    draggable
+                    onDragStart={() => setDragIndex(i)}
+                    onDragOver={(e) => e.preventDefault()}
+                    onDrop={() => {
+                      reorderByDrag('skills', skills, setSkills, dragIndex, i);
+                      setDragIndex(null);
+                    }}
+                    style={{ display: 'inline-flex', alignItems: 'center', cursor: 'grab', opacity: dragIndex === i ? 0.5 : 1 }}
+                  >
                     <button
                       onClick={() => moveItem('skills', skills, setSkills, s.id, 'up')}
                       disabled={i === 0}
@@ -958,7 +1006,19 @@ export default function ProfilePage() {
               </form>
               {languages.length === 0 && <div style={{ fontSize: 13, color: '#999' }}>Sin idiomas añadidos.</div>}
               {languages.map((l, i) => (
-                <div className="exp-item" key={l.id} style={{ alignItems: 'center' }}>
+                <div
+                  className="exp-item"
+                  key={l.id}
+                  draggable
+                  onDragStart={() => setDragIndex(i)}
+                  onDragOver={(e) => e.preventDefault()}
+                  onDrop={() => {
+                    reorderByDrag('languages', languages, setLanguages, dragIndex, i);
+                    setDragIndex(null);
+                  }}
+                  style={{ alignItems: 'center', cursor: 'grab', opacity: dragIndex === i ? 0.5 : 1 }}
+                >
+                  <i className="ti ti-grip-vertical" style={{ color: '#ccc', fontSize: 16 }}></i>
                   <div className="exp-logo">🌐</div>
                   <div className="exp-body" style={{ flex: 1 }}>
                     <div className="et">
