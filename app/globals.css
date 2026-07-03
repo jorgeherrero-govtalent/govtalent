@@ -92,6 +92,13 @@ a{color:inherit}
 .btn-p{background:#1d6f5c;color:#fff;border:none;padding:9px 18px;border-radius:8px;font-size:13px;font-weight:500}
 .btn-p:hover{background:#165c4b}
 .btn-p:disabled{opacity:.6;cursor:not-allowed}
+.btn-ai{background:#6d5aef;color:#fff;border:none;padding:9px 18px;border-radius:8px;font-size:13px;font-weight:500;display:inline-flex;align-items:center;gap:6px;justify-content:center}
+.btn-ai:hover{background:#5a47dc}
+.btn-ai:disabled{opacity:.6;cursor:not-allowed}
+.btn-ai-o{background:#fff;color:#6d5aef;border:1px solid #6d5aef;padding:8px 16px;border-radius:8px;font-size:13px;transition:all .15s;display:inline-flex;align-items:center;gap:6px;justify-content:center}
+.btn-ai-o:hover{background:#6d5aef;color:#fff}
+.btn-ai-o:disabled{opacity:.6;cursor:not-allowed}
+.badge-ai{display:inline-flex;align-items:center;gap:3px;padding:3px 8px;border-radius:10px;font-size:11.5px;font-weight:500;background:#eeecfd;color:#6d5aef}
 .btn-o{background:#fff;color:#1d6f5c;border:1px solid #1d6f5c;padding:8px 16px;border-radius:8px;font-size:13px;transition:all .15s}
 .btn-o:hover{background:#1d6f5c;color:#fff}
 .btn-g{background:transparent;border:.5px solid #e0dfd8;padding:7px 13px;border-radius:8px;font-size:12.5px;color:#555;transition:all .15s}
