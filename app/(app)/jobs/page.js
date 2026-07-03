@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
 import { toast } from '@/lib/toast';
 import ApplyModal from '@/components/ApplyModal';
@@ -92,7 +93,7 @@ export default function JobsPage() {
       .select(
         `id, title, area, location, modality, employment_type, salary_min, salary_max,
          description, is_featured, created_at,
-         organizations ( id, name, logo_url ),
+         organizations ( id, name, logo_url, slug ),
          job_tags ( tag ),
          job_requirements ( content, sort_order ),
          job_responsibilities ( content, sort_order ),
@@ -244,7 +245,10 @@ export default function JobsPage() {
             {selected && (
               <>
                 <div className="jdh">
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
+                  <Link
+                    href={selected.organizations?.slug ? `/organizations/${selected.organizations.slug}` : '#'}
+                    style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10, textDecoration: 'none', color: 'inherit' }}
+                  >
                     <div
                       style={{
                         width: 44,
@@ -270,11 +274,11 @@ export default function JobsPage() {
                     </div>
                     <div>
                       <div style={{ fontWeight: 600, fontSize: 13 }}>
-                        {selected.organizations?.name}
+                        {selected.organizations?.name} <i className="ti ti-external-link" style={{ fontSize: 11, color: '#aaa' }}></i>
                       </div>
                       <div style={{ fontSize: 12, color: '#888' }}>{selected.location}</div>
                     </div>
-                  </div>
+                  </Link>
                   <h2>{selected.title}</h2>
                   <div
                     style={{
