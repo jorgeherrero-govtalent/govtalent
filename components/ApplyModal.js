@@ -28,11 +28,10 @@ export default function ApplyModal({ job, onClose, onSuccess }) {
     const { data: authData } = await supabase.auth.getUser();
     if (!authData.user) return;
     setUserId(authData.user.id);
-    setEmail(authData.user.email || '');
 
     const [{ data: u }, { data: p }] = await Promise.all([
       supabase.from('users').select('first_name, last_name, professional_title, phone').eq('id', authData.user.id).single(),
-      supabase.from('candidate_profiles').select('cv_url').eq('user_id', authData.user.id).single(),
+      supabase.from('candidate_profiles').select('cv_url, contact_email').eq('user_id', authData.user.id).single(),
     ]);
 
     if (u) {
@@ -40,6 +39,7 @@ export default function ApplyModal({ job, onClose, onSuccess }) {
       setTitle(u.professional_title || '');
       setPhone(u.phone || '');
     }
+    setEmail(p?.contact_email || authData.user.email || '');
     if (p) setCvUrl(p.cv_url || null);
     setLoading(false);
   }
@@ -151,7 +151,7 @@ export default function ApplyModal({ job, onClose, onSuccess }) {
                 </div>
                 <div className="two">
                   <div className="field">
-                    <label>Email</label>
+                    <label>Email de contacto</label>
                     <input value={email} disabled style={{ background: '#f4f4f0', color: '#888' }} />
                   </div>
                   <div className="field">
