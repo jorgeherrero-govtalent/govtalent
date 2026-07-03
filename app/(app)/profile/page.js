@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
 import { toast } from '@/lib/toast';
@@ -28,6 +28,9 @@ export default function ProfilePage() {
   const [langName, setLangName] = useState('');
   const [langLevel, setLangLevel] = useState('B2');
   const [dragIndex, setDragIndex] = useState(null);
+  const [bioAiPrompt, setBioAiPrompt] = useState('');
+  const [generatingBio, setGeneratingBio] = useState(false);
+  const bioRef = useRef(null);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const [uploadingCover, setUploadingCover] = useState(false);
   const [uploadingCv, setUploadingCv] = useState(false);
@@ -94,6 +97,32 @@ export default function ProfilePage() {
     }
   }
 
+  async function generateBio() {
+    if (!bioAiPrompt.trim()) {
+      toast('Cuenta brevemente tu trayectoria para poder generarlo');
+      return;
+    }
+    setGeneratingBio(true);
+    try {
+      const res = await fetch('/api/ai/candidate-bio', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          prompt: bioAiPrompt,
+          firstName: user?.first_name,
+          professionalTitle: user?.professional_title,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Error desconocido');
+      if (bioRef.current) bioRef.current.value = data.bio;
+      toast('Biografía generada ✓ revísala antes de guardar');
+    } catch (err) {
+      toast('No se pudo generar la biografía: ' + err.message);
+    }
+    setGeneratingBio(false);
+  }
+
   async function saveProfileEdit(e) {
     e.preventDefault();
     setSavingProfile(true);
@@ -123,6 +152,7 @@ export default function ProfilePage() {
     setUser({ ...user, ...userUpdates });
     setProfile({ ...profile, ...profileUpdates });
     setShowEditProfile(false);
+    setBioAiPrompt('');
     toast('Perfil actualizado ✓');
   }
 
@@ -627,9 +657,52 @@ export default function ProfilePage() {
                   />
                 </div>
               </div>
+              <div
+                style={{
+                  background: '#faf9ff',
+                  border: '1px solid #d8d3fb',
+                  borderRadius: 10,
+                  padding: 12,
+                  marginBottom: 14,
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
+                  <i className="ti ti-bolt" style={{ color: '#6d5aef', fontSize: 15 }}></i>
+                  <span style={{ fontSize: 12.5, fontWeight: 600 }}>Redactar biografía con IA</span>
+                  <span className="badge-ai" style={{ fontSize: 9.5, padding: '1px 6px' }}>BETA</span>
+                </div>
+                <textarea
+                  value={bioAiPrompt}
+                  onChange={(e) => setBioAiPrompt(e.target.value)}
+                  placeholder="Cuenta brevemente tu trayectoria y lo que buscas, ej: 6 años en asuntos públicos del sector energético, especializado en política europea..."
+                  style={{
+                    width: '100%',
+                    minHeight: 60,
+                    padding: '8px 10px',
+                    border: '1px solid #e0dfd8',
+                    borderRadius: 8,
+                    fontSize: 12.5,
+                    fontFamily: 'inherit',
+                    outline: 'none',
+                    resize: 'vertical',
+                    marginBottom: 8,
+                  }}
+                ></textarea>
+                <button
+                  type="button"
+                  className="btn-ai-o"
+                  style={{ width: '100%', fontSize: 12 }}
+                  disabled={generatingBio}
+                  onClick={generateBio}
+                >
+                  <i className="ti ti-bolt"></i> {generatingBio ? 'Generando...' : 'Generar biografía'}
+                </button>
+              </div>
+
               <div className="field">
                 <label>Biografía</label>
                 <textarea
+                  ref={bioRef}
                   name="bio"
                   defaultValue={profile?.bio || ''}
                   style={{
