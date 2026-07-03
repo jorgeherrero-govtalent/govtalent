@@ -22,6 +22,7 @@ export default function JobsPage() {
   const [savedIds, setSavedIds] = useState(new Set());
   const [appliedIds, setAppliedIds] = useState(new Set());
   const [applyingJob, setApplyingJob] = useState(null);
+  const [alertKeys, setAlertKeys] = useState(new Set());
 
   const [filters, setFilters] = useState({ area: '', modality: '', location: '' });
 
@@ -45,7 +46,45 @@ export default function JobsPage() {
       .select('job_id')
       .eq('candidate_id', userId)
       .then(({ data }) => data && setAppliedIds(new Set(data.map((r) => r.job_id))));
+    supabase
+      .from('job_alerts')
+      .select('area, location')
+      .eq('user_id', userId)
+      .then(({ data }) => data && setAlertKeys(new Set(data.map((r) => alertKey(r.area, r.location)))));
   }, [userId]);
+
+  function alertKey(area, location) {
+    return `${area}|||${location || ''}`;
+  }
+
+  async function toggleAlert(job) {
+    if (!userId) return;
+    const key = alertKey(job.area, job.location);
+    if (alertKeys.has(key)) {
+      await supabase
+        .from('job_alerts')
+        .delete()
+        .eq('user_id', userId)
+        .eq('area', job.area)
+        .eq('location', job.location);
+      setAlertKeys((prev) => {
+        const n = new Set(prev);
+        n.delete(key);
+        return n;
+      });
+      toast('Alerta desactivada');
+    } else {
+      const { error } = await supabase
+        .from('job_alerts')
+        .insert({ user_id: userId, area: job.area, location: job.location });
+      if (error) {
+        toast('No se pudo crear la alerta');
+        return;
+      }
+      setAlertKeys((prev) => new Set(prev).add(key));
+      toast(`Alerta activada para "${job.area}" en ${job.location} ✓`);
+    }
+  }
 
   async function loadJobs() {
     let q = supabase
@@ -272,6 +311,12 @@ export default function JobsPage() {
                     </button>
                     <button className="btn-g" onClick={() => copyLink(selected.id)}>
                       <i className="ti ti-share"></i> Copiar y recomendar
+                    </button>
+                    <button className="btn-g" onClick={() => toggleAlert(selected)}>
+                      <i className={`ti ${alertKeys.has(alertKey(selected.area, selected.location)) ? 'ti-bell-off' : 'ti-bell-plus'}`}></i>{' '}
+                      {alertKeys.has(alertKey(selected.area, selected.location))
+                        ? 'Alerta activada'
+                        : 'Establecer una alerta para empleos similares'}
                     </button>
                   </div>
                 </div>
