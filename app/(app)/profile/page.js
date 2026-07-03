@@ -323,6 +323,9 @@ export default function ProfilePage() {
   // ── Sustituye el "fantasma" por defecto del navegador (una foto
   // semitransparente de toda la tarjeta, con la que se ve el texto de
   // debajo) por una pequeña etiqueta limpia que sigue al cursor.
+  // Se elimina en dos "frames" después, para darle tiempo al navegador
+  // a capturar la imagen antes de borrarla (si se borra demasiado
+  // pronto, algunos navegadores no llegan a usarla).
   function handleCardDragStart(e, index, label) {
     setDragIndex(index);
     const pill = document.createElement('div');
@@ -333,7 +336,7 @@ export default function ProfilePage() {
       'white-space:nowrap;box-shadow:0 4px 12px rgba(0,0,0,.25);';
     document.body.appendChild(pill);
     e.dataTransfer.setDragImage(pill, 16, 16);
-    setTimeout(() => pill.remove(), 0);
+    requestAnimationFrame(() => requestAnimationFrame(() => pill.remove()));
   }
 
   async function addExperience(e) {
@@ -773,7 +776,7 @@ export default function ProfilePage() {
                       reorderByDrag('experiences', experiences, setExperiences, dragIndex, i);
                       setDragIndex(null);
                     }}
-                    style={{ cursor: 'grab', opacity: dragIndex === i ? 0.5 : 1 }}
+                    style={{ cursor: 'grab' }}
                   >
                     <i className="ti ti-grip-vertical" style={{ color: '#ccc', fontSize: 16, marginTop: 3 }}></i>
                     <div className="exp-logo">🏛️</div>
@@ -892,7 +895,7 @@ export default function ProfilePage() {
                       reorderByDrag('education', education, setEducation, dragIndex, i);
                       setDragIndex(null);
                     }}
-                    style={{ cursor: 'grab', opacity: dragIndex === i ? 0.5 : 1 }}
+                    style={{ cursor: 'grab' }}
                   >
                     <i className="ti ti-grip-vertical" style={{ color: '#ccc', fontSize: 16 }}></i>
                     <div className="exp-logo">🎓</div>
@@ -961,7 +964,7 @@ export default function ProfilePage() {
                       reorderByDrag('skills', skills, setSkills, dragIndex, i);
                       setDragIndex(null);
                     }}
-                    style={{ display: 'inline-flex', alignItems: 'center', cursor: 'grab', opacity: dragIndex === i ? 0.5 : 1 }}
+                    style={{ display: 'inline-flex', alignItems: 'center', cursor: 'grab' }}
                   >
                     <button
                       onClick={() => moveItem('skills', skills, setSkills, s.id, 'up')}
@@ -1032,7 +1035,7 @@ export default function ProfilePage() {
                     reorderByDrag('languages', languages, setLanguages, dragIndex, i);
                     setDragIndex(null);
                   }}
-                  style={{ alignItems: 'center', cursor: 'grab', opacity: dragIndex === i ? 0.5 : 1 }}
+                  style={{ alignItems: 'center', cursor: 'grab' }}
                 >
                   <i className="ti ti-grip-vertical" style={{ color: '#ccc', fontSize: 16 }}></i>
                   <div className="exp-logo">🌐</div>
