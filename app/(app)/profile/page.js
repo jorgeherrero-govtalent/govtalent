@@ -13,6 +13,7 @@ export default function ProfilePage() {
   const [experiences, setExperiences] = useState([]);
   const [education, setEducation] = useState([]);
   const [skills, setSkills] = useState([]);
+  const [languages, setLanguages] = useState([]);
   const [savedJobs, setSavedJobs] = useState([]);
   const [followedOrgs, setFollowedOrgs] = useState([]);
 
@@ -21,7 +22,11 @@ export default function ProfilePage() {
   const [savingProfile, setSavingProfile] = useState(false);
   const [showExpForm, setShowExpForm] = useState(false);
   const [showEduForm, setShowEduForm] = useState(false);
+  const [editingExpId, setEditingExpId] = useState(null);
+  const [editingEduId, setEditingEduId] = useState(null);
   const [skillInput, setSkillInput] = useState('');
+  const [langName, setLangName] = useState('');
+  const [langLevel, setLangLevel] = useState('B2');
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const [uploadingCover, setUploadingCover] = useState(false);
   const [uploadingCv, setUploadingCv] = useState(false);
@@ -46,14 +51,15 @@ export default function ProfilePage() {
       const results = await Promise.allSettled([
         supabase.from('users').select('*').eq('id', uid).single(),
         supabase.from('candidate_profiles').select('*').eq('user_id', uid).single(),
-        supabase.from('experiences').select('*').eq('user_id', uid).order('start_date', { ascending: false }),
-        supabase.from('education').select('*').eq('user_id', uid).order('start_date', { ascending: false }),
-        supabase.from('skills').select('*').eq('user_id', uid),
+        supabase.from('experiences').select('*').eq('user_id', uid).order('sort_order', { ascending: true }),
+        supabase.from('education').select('*').eq('user_id', uid).order('sort_order', { ascending: true }),
+        supabase.from('skills').select('*').eq('user_id', uid).order('sort_order', { ascending: true }),
+        supabase.from('languages').select('*').eq('user_id', uid).order('sort_order', { ascending: true }),
         supabase.from('saved_jobs').select('jobs(id, title, organizations(name))').eq('user_id', uid),
         supabase.from('organization_follows').select('organizations(id, slug, name)').eq('user_id', uid),
       ]);
 
-      const [rUser, rProfile, rExp, rEdu, rSk, rSaved, rFollows] = results;
+      const [rUser, rProfile, rExp, rEdu, rSk, rLang, rSaved, rFollows] = results;
 
       results.forEach((r, i) => {
         if (r.status === 'rejected') console.error('Profile load query', i, 'rejected:', r.reason);
@@ -76,6 +82,7 @@ export default function ProfilePage() {
       setExperiences(rExp.status === 'fulfilled' ? rExp.value.data || [] : []);
       setEducation(rEdu.status === 'fulfilled' ? rEdu.value.data || [] : []);
       setSkills(rSk.status === 'fulfilled' ? rSk.value.data || [] : []);
+      setLanguages(rLang.status === 'fulfilled' ? rLang.value.data || [] : []);
       setSavedJobs(rSaved.status === 'fulfilled' ? rSaved.value.data || [] : []);
       setFollowedOrgs(rFollows.status === 'fulfilled' ? rFollows.value.data || [] : []);
     } catch (err) {
@@ -277,6 +284,29 @@ export default function ProfilePage() {
     toast('Perfil actualizado a partir de tu CV ✓');
   }
 
+  // ── Ayudante genérico para mover un elemento arriba/abajo intercambiando
+  // su sort_order con el vecino, tanto en la base de datos como en pantalla.
+  async function moveItem(table, list, setList, id, direction) {
+    const idx = list.findIndex((x) => x.id === id);
+    const swapIdx = direction === 'up' ? idx - 1 : idx + 1;
+    if (idx === -1 || swapIdx < 0 || swapIdx >= list.length) return;
+
+    const a = list[idx];
+    const b = list[swapIdx];
+    const aOrder = a.sort_order ?? idx;
+    const bOrder = b.sort_order ?? swapIdx;
+
+    const newList = [...list];
+    newList[idx] = { ...b, sort_order: aOrder };
+    newList[swapIdx] = { ...a, sort_order: bOrder };
+    setList(newList);
+
+    await Promise.all([
+      supabase.from(table).update({ sort_order: aOrder }).eq('id', b.id),
+      supabase.from(table).update({ sort_order: bOrder }).eq('id', a.id),
+    ]);
+  }
+
   async function addExperience(e) {
     e.preventDefault();
     const f = new FormData(e.target);
@@ -288,12 +318,30 @@ export default function ProfilePage() {
       start_date: f.get('start_date'),
       end_date: f.get('end_date') || null,
       description: f.get('description'),
+      sort_order: experiences.length,
     };
     const { data } = await supabase.from('experiences').insert(row).select().single();
-    if (data) setExperiences([data, ...experiences]);
+    if (data) setExperiences([...experiences, data]);
     setShowExpForm(false);
     e.target.reset();
     toast('Experiencia añadida ✓');
+  }
+
+  async function updateExperience(e) {
+    e.preventDefault();
+    const f = new FormData(e.target);
+    const updates = {
+      title: f.get('title'),
+      organization_name: f.get('organization_name'),
+      location: f.get('location'),
+      start_date: f.get('start_date'),
+      end_date: f.get('end_date') || null,
+      description: f.get('description'),
+    };
+    await supabase.from('experiences').update(updates).eq('id', editingExpId);
+    setExperiences(experiences.map((x) => (x.id === editingExpId ? { ...x, ...updates } : x)));
+    setEditingExpId(null);
+    toast('Experiencia actualizada ✓');
   }
 
   async function deleteExperience(id) {
@@ -310,12 +358,28 @@ export default function ProfilePage() {
       institution: f.get('institution'),
       start_date: f.get('start_date') || null,
       end_date: f.get('end_date') || null,
+      sort_order: education.length,
     };
     const { data } = await supabase.from('education').insert(row).select().single();
-    if (data) setEducation([data, ...education]);
+    if (data) setEducation([...education, data]);
     setShowEduForm(false);
     e.target.reset();
     toast('Educación añadida ✓');
+  }
+
+  async function updateEducation(e) {
+    e.preventDefault();
+    const f = new FormData(e.target);
+    const updates = {
+      degree: f.get('degree'),
+      institution: f.get('institution'),
+      start_date: f.get('start_date') || null,
+      end_date: f.get('end_date') || null,
+    };
+    await supabase.from('education').update(updates).eq('id', editingEduId);
+    setEducation(education.map((x) => (x.id === editingEduId ? { ...x, ...updates } : x)));
+    setEditingEduId(null);
+    toast('Educación actualizada ✓');
   }
 
   async function deleteEducation(id) {
@@ -329,7 +393,7 @@ export default function ProfilePage() {
     if (!name) return;
     const { data, error } = await supabase
       .from('skills')
-      .insert({ user_id: userId, skill_name: name })
+      .insert({ user_id: userId, skill_name: name, sort_order: skills.length })
       .select()
       .single();
     if (!error && data) setSkills([...skills, data]);
@@ -339,6 +403,26 @@ export default function ProfilePage() {
   async function deleteSkill(id) {
     await supabase.from('skills').delete().eq('id', id);
     setSkills(skills.filter((s) => s.id !== id));
+  }
+
+  const LANGUAGE_LEVELS = ['Nativo', 'C2', 'C1', 'B2', 'B1', 'A2', 'A1'];
+
+  async function addLanguage(e) {
+    e.preventDefault();
+    const name = langName.trim();
+    if (!name) return;
+    const { data, error } = await supabase
+      .from('languages')
+      .insert({ user_id: userId, language_name: name, proficiency: langLevel, sort_order: languages.length })
+      .select()
+      .single();
+    if (!error && data) setLanguages([...languages, data]);
+    setLangName('');
+  }
+
+  async function deleteLanguage(id) {
+    await supabase.from('languages').delete().eq('id', id);
+    setLanguages(languages.filter((l) => l.id !== id));
   }
 
   if (!user) return <div className="spinner"></div>;
@@ -554,6 +638,9 @@ export default function ProfilePage() {
             <button className={`p-tab ${tab === 'sk' ? 'on' : ''}`} onClick={() => setTab('sk')}>
               Habilidades
             </button>
+            <button className={`p-tab ${tab === 'lang' ? 'on' : ''}`} onClick={() => setTab('lang')}>
+              Idiomas
+            </button>
           </div>
 
           {tab === 'e' && (
@@ -603,22 +690,89 @@ export default function ProfilePage() {
               {experiences.length === 0 && !showExpForm && (
                 <div style={{ fontSize: 13, color: '#999' }}>Aún no has añadido experiencia.</div>
               )}
-              {experiences.map((exp) => (
-                <div className="exp-item" key={exp.id}>
-                  <div className="exp-logo">🏛️</div>
-                  <div className="exp-body" style={{ flex: 1 }}>
-                    <div className="et">{exp.title}</div>
-                    <div className="eo">{exp.organization_name}</div>
-                    <div className="ep">
-                      {exp.start_date} – {exp.end_date || 'Actualidad'}
+              {experiences.map((exp, i) =>
+                editingExpId === exp.id ? (
+                  <form
+                    key={exp.id}
+                    onSubmit={updateExperience}
+                    style={{ marginBottom: 14, background: '#f8faf9', padding: 14, borderRadius: 10 }}
+                  >
+                    <div className="form-row">
+                      <div className="form-g">
+                        <label>Puesto</label>
+                        <input name="title" defaultValue={exp.title} required />
+                      </div>
+                      <div className="form-g">
+                        <label>Organización</label>
+                        <input name="organization_name" defaultValue={exp.organization_name} required />
+                      </div>
                     </div>
-                    <div className="ed">{exp.description}</div>
+                    <div className="form-row">
+                      <div className="form-g">
+                        <label>Ubicación</label>
+                        <input name="location" defaultValue={exp.location || ''} />
+                      </div>
+                      <div className="form-g"></div>
+                    </div>
+                    <div className="form-row">
+                      <div className="form-g">
+                        <label>Fecha inicio</label>
+                        <input type="date" name="start_date" defaultValue={exp.start_date} required />
+                      </div>
+                      <div className="form-g">
+                        <label>Fecha fin (vacío = actualidad)</label>
+                        <input type="date" name="end_date" defaultValue={exp.end_date || ''} />
+                      </div>
+                    </div>
+                    <div className="form-g">
+                      <label>Descripción</label>
+                      <textarea name="description" defaultValue={exp.description || ''}></textarea>
+                    </div>
+                    <button className="btn-p">Guardar cambios</button>{' '}
+                    <button type="button" className="btn-g" onClick={() => setEditingExpId(null)}>
+                      Cancelar
+                    </button>
+                  </form>
+                ) : (
+                  <div className="exp-item" key={exp.id}>
+                    <div className="exp-logo">🏛️</div>
+                    <div className="exp-body" style={{ flex: 1 }}>
+                      <div className="et">{exp.title}</div>
+                      <div className="eo">{exp.organization_name}</div>
+                      <div className="ep">
+                        {exp.start_date} – {exp.end_date || 'Actualidad'}
+                      </div>
+                      <div className="ed">{exp.description}</div>
+                    </div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 4, height: 'fit-content' }}>
+                      <div style={{ display: 'flex', gap: 4 }}>
+                        <button
+                          className="btn-g"
+                          style={{ padding: '5px 7px' }}
+                          disabled={i === 0}
+                          onClick={() => moveItem('experiences', experiences, setExperiences, exp.id, 'up')}
+                        >
+                          <i className="ti ti-arrow-up"></i>
+                        </button>
+                        <button
+                          className="btn-g"
+                          style={{ padding: '5px 7px' }}
+                          disabled={i === experiences.length - 1}
+                          onClick={() => moveItem('experiences', experiences, setExperiences, exp.id, 'down')}
+                        >
+                          <i className="ti ti-arrow-down"></i>
+                        </button>
+                        <button className="btn-g" style={{ padding: '5px 7px' }} onClick={() => setEditingExpId(exp.id)}>
+                          <i className="ti ti-edit"></i>
+                        </button>
+                        <button className="btn-g" style={{ padding: '5px 7px' }} onClick={() => deleteExperience(exp.id)}>
+                          <i className="ti ti-trash"></i>
+                        </button>
+                      </div>
+                    </div>
                   </div>
-                  <button className="btn-g" style={{ height: 'fit-content' }} onClick={() => deleteExperience(exp.id)}>
-                    <i className="ti ti-trash"></i>
-                  </button>
-                </div>
-              ))}
+                )
+              )}
             </div>
           )}
 
@@ -656,18 +810,70 @@ export default function ProfilePage() {
               {education.length === 0 && !showEduForm && (
                 <div style={{ fontSize: 13, color: '#999' }}>Aún no has añadido educación.</div>
               )}
-              {education.map((ed) => (
-                <div className="exp-item" key={ed.id}>
-                  <div className="exp-logo">🎓</div>
-                  <div className="exp-body" style={{ flex: 1 }}>
-                    <div className="et">{ed.degree}</div>
-                    <div className="eo">{ed.institution}</div>
+              {education.map((ed, i) =>
+                editingEduId === ed.id ? (
+                  <form
+                    key={ed.id}
+                    onSubmit={updateEducation}
+                    style={{ marginBottom: 14, background: '#f8faf9', padding: 14, borderRadius: 10 }}
+                  >
+                    <div className="form-g">
+                      <label>Titulación</label>
+                      <input name="degree" defaultValue={ed.degree} required />
+                    </div>
+                    <div className="form-g">
+                      <label>Institución</label>
+                      <input name="institution" defaultValue={ed.institution} required />
+                    </div>
+                    <div className="form-row">
+                      <div className="form-g">
+                        <label>Año inicio</label>
+                        <input type="date" name="start_date" defaultValue={ed.start_date || ''} />
+                      </div>
+                      <div className="form-g">
+                        <label>Año fin</label>
+                        <input type="date" name="end_date" defaultValue={ed.end_date || ''} />
+                      </div>
+                    </div>
+                    <button className="btn-p">Guardar cambios</button>{' '}
+                    <button type="button" className="btn-g" onClick={() => setEditingEduId(null)}>
+                      Cancelar
+                    </button>
+                  </form>
+                ) : (
+                  <div className="exp-item" key={ed.id}>
+                    <div className="exp-logo">🎓</div>
+                    <div className="exp-body" style={{ flex: 1 }}>
+                      <div className="et">{ed.degree}</div>
+                      <div className="eo">{ed.institution}</div>
+                    </div>
+                    <div style={{ display: 'flex', gap: 4, height: 'fit-content' }}>
+                      <button
+                        className="btn-g"
+                        style={{ padding: '5px 7px' }}
+                        disabled={i === 0}
+                        onClick={() => moveItem('education', education, setEducation, ed.id, 'up')}
+                      >
+                        <i className="ti ti-arrow-up"></i>
+                      </button>
+                      <button
+                        className="btn-g"
+                        style={{ padding: '5px 7px' }}
+                        disabled={i === education.length - 1}
+                        onClick={() => moveItem('education', education, setEducation, ed.id, 'down')}
+                      >
+                        <i className="ti ti-arrow-down"></i>
+                      </button>
+                      <button className="btn-g" style={{ padding: '5px 7px' }} onClick={() => setEditingEduId(ed.id)}>
+                        <i className="ti ti-edit"></i>
+                      </button>
+                      <button className="btn-g" style={{ padding: '5px 7px' }} onClick={() => deleteEducation(ed.id)}>
+                        <i className="ti ti-trash"></i>
+                      </button>
+                    </div>
                   </div>
-                  <button className="btn-g" style={{ height: 'fit-content' }} onClick={() => deleteEducation(ed.id)}>
-                    <i className="ti ti-trash"></i>
-                  </button>
-                </div>
-              ))}
+                )
+              )}
             </div>
           )}
 
@@ -676,7 +882,7 @@ export default function ProfilePage() {
               <h3>Habilidades</h3>
               <form onSubmit={addSkill} style={{ display: 'flex', gap: 8, marginBottom: 14 }}>
                 <input
-                  placeholder="Ej: Lobbying, Inglés C2..."
+                  placeholder="Ej: Lobbying, Negociación..."
                   value={skillInput}
                   onChange={(e) => setSkillInput(e.target.value)}
                   style={{
@@ -691,9 +897,25 @@ export default function ProfilePage() {
                 <button className="btn-p">Añadir</button>
               </form>
               <div>
-                {skills.map((s) => (
-                  <span className="skill" key={s.id}>
+                {skills.map((s, i) => (
+                  <span className="skill" key={s.id} style={{ display: 'inline-flex', alignItems: 'center' }}>
+                    <button
+                      onClick={() => moveItem('skills', skills, setSkills, s.id, 'up')}
+                      disabled={i === 0}
+                      title="Mover antes"
+                      style={{ opacity: i === 0 ? 0.3 : 0.6 }}
+                    >
+                      <i className="ti ti-chevron-left"></i>
+                    </button>
                     {s.skill_name}
+                    <button
+                      onClick={() => moveItem('skills', skills, setSkills, s.id, 'down')}
+                      disabled={i === skills.length - 1}
+                      title="Mover después"
+                      style={{ opacity: i === skills.length - 1 ? 0.3 : 0.6 }}
+                    >
+                      <i className="ti ti-chevron-right"></i>
+                    </button>
                     <button onClick={() => deleteSkill(s.id)}>
                       <i className="ti ti-x"></i>
                     </button>
@@ -701,6 +923,71 @@ export default function ProfilePage() {
                 ))}
                 {skills.length === 0 && <div style={{ fontSize: 13, color: '#999' }}>Sin habilidades añadidas.</div>}
               </div>
+            </div>
+          )}
+
+          {tab === 'lang' && (
+            <div className="p-sec" style={{ borderBottom: 'none' }}>
+              <h3>Idiomas</h3>
+              <form onSubmit={addLanguage} style={{ display: 'flex', gap: 8, marginBottom: 14 }}>
+                <input
+                  placeholder="Ej: Inglés, Francés..."
+                  value={langName}
+                  onChange={(e) => setLangName(e.target.value)}
+                  style={{
+                    flex: 1,
+                    padding: '9px 12px',
+                    border: '1px solid #e0dfd8',
+                    borderRadius: 8,
+                    fontSize: 13,
+                    outline: 'none',
+                  }}
+                />
+                <select
+                  value={langLevel}
+                  onChange={(e) => setLangLevel(e.target.value)}
+                  style={{ padding: '9px 10px', border: '1px solid #e0dfd8', borderRadius: 8, fontSize: 13 }}
+                >
+                  {LANGUAGE_LEVELS.map((lvl) => (
+                    <option key={lvl} value={lvl}>
+                      {lvl}
+                    </option>
+                  ))}
+                </select>
+                <button className="btn-p">Añadir</button>
+              </form>
+              {languages.length === 0 && <div style={{ fontSize: 13, color: '#999' }}>Sin idiomas añadidos.</div>}
+              {languages.map((l, i) => (
+                <div className="exp-item" key={l.id} style={{ alignItems: 'center' }}>
+                  <div className="exp-logo">🌐</div>
+                  <div className="exp-body" style={{ flex: 1 }}>
+                    <div className="et">
+                      {l.language_name} <span className="badge bg" style={{ marginLeft: 6 }}>{l.proficiency}</span>
+                    </div>
+                  </div>
+                  <div style={{ display: 'flex', gap: 4, height: 'fit-content' }}>
+                    <button
+                      className="btn-g"
+                      style={{ padding: '5px 7px' }}
+                      disabled={i === 0}
+                      onClick={() => moveItem('languages', languages, setLanguages, l.id, 'up')}
+                    >
+                      <i className="ti ti-arrow-up"></i>
+                    </button>
+                    <button
+                      className="btn-g"
+                      style={{ padding: '5px 7px' }}
+                      disabled={i === languages.length - 1}
+                      onClick={() => moveItem('languages', languages, setLanguages, l.id, 'down')}
+                    >
+                      <i className="ti ti-arrow-down"></i>
+                    </button>
+                    <button className="btn-g" style={{ padding: '5px 7px' }} onClick={() => deleteLanguage(l.id)}>
+                      <i className="ti ti-trash"></i>
+                    </button>
+                  </div>
+                </div>
+              ))}
             </div>
           )}
         </div>
