@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { toast } from '@/lib/toast';
 
@@ -25,8 +25,6 @@ export default function OrganizationAdminPage() {
   const supabase = createClient();
   const [org, setOrg] = useState(null);
   const [jobs, setJobs] = useState([]);
-  const [expandedJob, setExpandedJob] = useState(null);
-  const [applications, setApplications] = useState({});
   const [showEdit, setShowEdit] = useState(false);
   const [posting, setPosting] = useState(false);
   const [uploadingLogo, setUploadingLogo] = useState(false);
@@ -34,6 +32,17 @@ export default function OrganizationAdminPage() {
   const [editingJob, setEditingJob] = useState(null);
   const [loadingEditJob, setLoadingEditJob] = useState(false);
   const [savingJobEdit, setSavingJobEdit] = useState(false);
+  const [aiPrompt, setAiPrompt] = useState('');
+  const [generatingDesc, setGeneratingDesc] = useState(false);
+
+  const titleRef = useRef(null);
+  const areaRef = useRef(null);
+  const modalityRef = useRef(null);
+  const employmentTypeRef = useRef(null);
+  const descriptionRef = useRef(null);
+  const responsibilitiesRef = useRef(null);
+  const requirementsRef = useRef(null);
+  const tagsRef = useRef(null);
 
   useEffect(() => {
     load();
@@ -171,30 +180,37 @@ export default function OrganizationAdminPage() {
     loadJobs(org.id);
   }
 
-  async function toggleApplications(jobId) {
-    if (expandedJob === jobId) {
-      setExpandedJob(null);
+  async function generateJobDescription() {
+    if (!aiPrompt.trim()) {
+      toast('Describe brevemente el puesto para poder generarlo');
       return;
     }
-    setExpandedJob(jobId);
-    if (!applications[jobId]) {
-      const { data } = await supabase
-        .from('job_applications')
-        .select(
-          'id, status, applied_at, cover_note, cv_url_snapshot, users(first_name, last_name, professional_title, email, phone)'
-        )
-        .eq('job_id', jobId)
-        .order('applied_at', { ascending: false });
-      setApplications((prev) => ({ ...prev, [jobId]: data || [] }));
-    }
-  }
+    setGeneratingDesc(true);
+    try {
+      const res = await fetch('/api/ai/job-description', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          prompt: aiPrompt,
+          title: titleRef.current?.value,
+          area: areaRef.current?.value,
+          modality: modalityRef.current?.value,
+          employmentType: employmentTypeRef.current?.value,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Error desconocido');
 
-  async function updateStatus(appId, jobId, status) {
-    await supabase.from('job_applications').update({ status }).eq('id', appId);
-    setApplications((prev) => ({
-      ...prev,
-      [jobId]: prev[jobId].map((a) => (a.id === appId ? { ...a, status } : a)),
-    }));
+      if (descriptionRef.current) descriptionRef.current.value = data.description;
+      if (responsibilitiesRef.current) responsibilitiesRef.current.value = data.responsibilities.join('\n');
+      if (requirementsRef.current) requirementsRef.current.value = data.requirements.join('\n');
+      if (tagsRef.current) tagsRef.current.value = data.tags.join(', ');
+
+      toast('Contenido generado ✓ revísalo antes de publicar');
+    } catch (err) {
+      toast('No se pudo generar el contenido: ' + err.message);
+    }
+    setGeneratingDesc(false);
   }
 
   async function publishJob(e) {
@@ -246,6 +262,7 @@ export default function OrganizationAdminPage() {
 
     setPosting(false);
     e.target.reset();
+    setAiPrompt('');
     toast('Oferta publicada correctamente ✓');
     loadJobs(org.id);
   }
@@ -356,17 +373,23 @@ export default function OrganizationAdminPage() {
               </span>
             )}
           </div>
-          <div style={{ display: 'flex', gap: 8 }}>
+          <div style={{ display: 'flex', gap: 8, marginBottom: 8 }}>
             <button className="btn-p" onClick={() => setShowEdit(true)}>
               <i className="ti ti-edit"></i> Editar
             </button>
-            <a href={`/organizations/${org.slug}`} target="_blank" rel="noreferrer" className="btn-o" style={{ textDecoration: 'none' }}>
-              <i className="ti ti-eye"></i> Ver como candidato
-            </a>
-            <a href="/organizations/admin/candidates" className="btn-o" style={{ textDecoration: 'none' }}>
+            <a href="/organizations/admin/candidates" className="btn-o" style={{ textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 6 }}>
               <i className="ti ti-layout-kanban"></i> Tablero de candidatos
+              <span className="badge by" style={{ fontSize: 9.5, padding: '1px 6px' }}>BETA</span>
             </a>
           </div>
+          <a
+            href={`/organizations/${org.slug}`}
+            target="_blank"
+            rel="noreferrer"
+            style={{ fontSize: 12.5, color: '#1d6f5c', textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 4 }}
+          >
+            <i className="ti ti-eye" style={{ fontSize: 13 }}></i> Ver como candidato
+          </a>
         </div>
       </div>
 
@@ -378,11 +401,11 @@ export default function OrganizationAdminPage() {
               <div className="form-row">
                 <div className="form-g">
                   <label>Título del puesto</label>
-                  <input name="title" required placeholder="Ej: Senior Public Affairs Manager" />
+                  <input ref={titleRef} name="title" required placeholder="Ej: Senior Public Affairs Manager" />
                 </div>
                 <div className="form-g">
                   <label>Área</label>
-                  <select name="area" required>
+                  <select ref={areaRef} name="area" required>
                     {AREAS.map((a) => (
                       <option key={a} value={a}>
                         {a}
@@ -398,7 +421,7 @@ export default function OrganizationAdminPage() {
                 </div>
                 <div className="form-g">
                   <label>Modalidad</label>
-                  <select name="modality" required>
+                  <select ref={modalityRef} name="modality" required>
                     <option value="presencial">Presencial</option>
                     <option value="hibrido">Híbrido</option>
                     <option value="remoto">Remoto</option>
@@ -408,7 +431,7 @@ export default function OrganizationAdminPage() {
               <div className="form-row">
                 <div className="form-g">
                   <label>Tipo de jornada</label>
-                  <select name="employment_type" required>
+                  <select ref={employmentTypeRef} name="employment_type" required>
                     <option value="jornada_completa">Jornada completa</option>
                     <option value="media_jornada">Media jornada</option>
                     <option value="practicas">Prácticas</option>
@@ -423,21 +446,65 @@ export default function OrganizationAdminPage() {
                   </div>
                 </div>
               </div>
+
+              <div
+                style={{
+                  background: '#fff',
+                  border: '1px solid #c0e4d8',
+                  borderRadius: 10,
+                  padding: 12,
+                  marginBottom: 14,
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
+                  <i className="ti ti-sparkles" style={{ color: '#1d6f5c', fontSize: 15 }}></i>
+                  <span style={{ fontSize: 12.5, fontWeight: 600 }}>Redactar con IA</span>
+                  <span className="badge by" style={{ fontSize: 9.5, padding: '1px 6px' }}>BETA</span>
+                </div>
+                <textarea
+                  value={aiPrompt}
+                  onChange={(e) => setAiPrompt(e.target.value)}
+                  placeholder="Describe brevemente el puesto y lo que buscas, ej: consultor junior para llevar cuentas del sector energético, con inglés alto y ganas de aprender..."
+                  style={{
+                    width: '100%',
+                    minHeight: 60,
+                    padding: '8px 10px',
+                    border: '1px solid #e0dfd8',
+                    borderRadius: 8,
+                    fontSize: 12.5,
+                    fontFamily: 'inherit',
+                    outline: 'none',
+                    resize: 'vertical',
+                    marginBottom: 8,
+                  }}
+                ></textarea>
+                <button
+                  type="button"
+                  className="btn-o"
+                  style={{ width: '100%', fontSize: 12 }}
+                  disabled={generatingDesc}
+                  onClick={generateJobDescription}
+                >
+                  <i className="ti ti-sparkles"></i>{' '}
+                  {generatingDesc ? 'Generando...' : 'Generar descripción, responsabilidades y requisitos'}
+                </button>
+              </div>
+
               <div className="form-g">
                 <label>Descripción</label>
-                <textarea name="description" required placeholder="Describe las responsabilidades, requisitos y condiciones..."></textarea>
+                <textarea ref={descriptionRef} name="description" required placeholder="Describe las responsabilidades, requisitos y condiciones..."></textarea>
               </div>
               <div className="form-g">
                 <label>Responsabilidades (una por línea)</label>
-                <textarea name="responsibilities" placeholder={'Liderar la estrategia...\nRepresentar a la empresa...'}></textarea>
+                <textarea ref={responsibilitiesRef} name="responsibilities" placeholder={'Liderar la estrategia...\nRepresentar a la empresa...'}></textarea>
               </div>
               <div className="form-g">
                 <label>Requisitos (uno por línea)</label>
-                <textarea name="requirements" placeholder={'5+ años de experiencia...\nInglés fluido...'}></textarea>
+                <textarea ref={requirementsRef} name="requirements" placeholder={'5+ años de experiencia...\nInglés fluido...'}></textarea>
               </div>
               <div className="form-g">
                 <label>Etiquetas (separadas por comas)</label>
-                <input name="tags" placeholder="Public Affairs, Regulación, Liderazgo" />
+                <input ref={tagsRef} name="tags" placeholder="Public Affairs, Regulación, Liderazgo" />
               </div>
               <button className="btn-p" style={{ width: '100%' }} disabled={posting}>
                 <i className="ti ti-send"></i> {posting ? 'Publicando...' : 'Publicar oferta'}
@@ -451,100 +518,38 @@ export default function OrganizationAdminPage() {
             <h4>Ofertas activas</h4>
             {jobs.length === 0 && <div style={{ fontSize: 12.5, color: '#999' }}>Aún no has publicado ofertas.</div>}
             {jobs.map((j) => (
-              <div key={j.id} style={{ marginBottom: 10 }}>
-                <div
-                  className="ji on"
-                  style={{ borderLeft: '3px solid #1d6f5c', borderRadius: 8, cursor: 'pointer' }}
-                  onClick={() => toggleApplications(j.id)}
-                >
-                  <div className="jt">{j.title}</div>
-                  <div className="jo">
-                    {org.name} · {j.location}
-                  </div>
-                  <div className="jm">
-                    <span style={{ color: '#1d6f5c' }}>{j.job_applications?.[0]?.count || 0} solicitudes</span>
-                    <span>·</span>
-                    <span className="badge bg" style={{ fontSize: 10 }}>
-                      {j.status}
-                    </span>
-                  </div>
-                  <div style={{ marginTop: 8 }}>
-                    <button
-                      className="btn-o"
-                      style={{ fontSize: 11.5, padding: '5px 10px' }}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        openEditJob(j.id);
-                      }}
-                    >
-                      <i className="ti ti-edit"></i> Actualizar mi oferta
-                    </button>
-                  </div>
+              <div
+                key={j.id}
+                className="ji on"
+                style={{ borderLeft: '3px solid #1d6f5c', borderRadius: 8, marginBottom: 10 }}
+              >
+                <div className="jt">{j.title}</div>
+                <div className="jo">
+                  {org.name} · {j.location}
                 </div>
-                {expandedJob === j.id && (
-                  <div style={{ padding: '8px 6px' }}>
-                    {(applications[j.id] || []).length === 0 && (
-                      <div style={{ fontSize: 12, color: '#999' }}>Sin solicitudes todavía.</div>
-                    )}
-                    {(applications[j.id] || []).map((a) => (
-                      <div key={a.id} style={{ padding: '10px 0', borderBottom: '.5px solid #f0f0eb' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                          <div className="sp-av">{a.users?.first_name?.[0]}</div>
-                          <div style={{ flex: 1 }}>
-                            <div style={{ fontSize: 12.5, fontWeight: 500 }}>
-                              {a.users?.first_name} {a.users?.last_name}
-                            </div>
-                            <div style={{ fontSize: 11, color: '#888' }}>{a.users?.professional_title}</div>
-                          </div>
-                          <select
-                            value={a.status}
-                            onChange={(e) => updateStatus(a.id, j.id, e.target.value)}
-                            style={{ fontSize: 11, padding: '4px 6px', borderRadius: 6, border: '.5px solid #e0dfd8' }}
-                          >
-                            {Object.entries(APPLICATION_STATUS_LABELS).map(([k, v]) => (
-                              <option key={k} value={k}>
-                                {v}
-                              </option>
-                            ))}
-                          </select>
-                        </div>
-                        <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', fontSize: 11.5, color: '#666', marginTop: 6, marginLeft: 42 }}>
-                          {a.users?.email && (
-                            <span>
-                              <i className="ti ti-mail" style={{ fontSize: 11 }}></i> {a.users.email}
-                            </span>
-                          )}
-                          {a.users?.phone && (
-                            <span>
-                              <i className="ti ti-phone" style={{ fontSize: 11 }}></i> {a.users.phone}
-                            </span>
-                          )}
-                          {a.cv_url_snapshot && (
-                            <a href={a.cv_url_snapshot} target="_blank" rel="noreferrer" style={{ color: '#1d6f5c', fontWeight: 500 }}>
-                              <i className="ti ti-file-cv" style={{ fontSize: 11 }}></i> Ver CV
-                            </a>
-                          )}
-                        </div>
-                        {a.cover_note && (
-                          <div
-                            style={{
-                              marginLeft: 42,
-                              marginTop: 8,
-                              fontSize: 12,
-                              color: '#555',
-                              background: '#f8faf9',
-                              borderRadius: 8,
-                              padding: '8px 10px',
-                              lineHeight: 1.6,
-                            }}
-                          >
-                            {a.cover_note}
-                          </div>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                )}
+                <div className="jm">
+                  <span style={{ color: '#1d6f5c' }}>{j.job_applications?.[0]?.count || 0} solicitudes</span>
+                  <span>·</span>
+                  <span className="badge bg" style={{ fontSize: 10 }}>
+                    {j.status}
+                  </span>
+                </div>
+                <div style={{ marginTop: 8, display: 'flex', gap: 6 }}>
+                  <button
+                    className="btn-o"
+                    style={{ fontSize: 11.5, padding: '5px 10px' }}
+                    onClick={() => openEditJob(j.id)}
+                  >
+                    <i className="ti ti-edit"></i> Actualizar mi oferta
+                  </button>
+                  <a
+                    href={`/organizations/admin/candidates?job=${j.id}`}
+                    className="btn-o"
+                    style={{ fontSize: 11.5, padding: '5px 10px', textDecoration: 'none' }}
+                  >
+                    <i className="ti ti-users"></i> Ver candidatos
+                  </a>
+                </div>
               </div>
             ))}
           </div>
