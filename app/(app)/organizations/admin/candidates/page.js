@@ -75,7 +75,7 @@ function CandidatesBoardInner() {
     const { data: apps } = await supabase
       .from('job_applications')
       .select(
-        `id, status, applied_at, cover_note, cv_url_snapshot, notes,
+        `id, status, applied_at, cover_note, cv_url_snapshot, notes, candidate_id,
          ai_summary, ai_score, ai_rationale, ai_analyzed_at,
          job_id, jobs(title),
          users(first_name, last_name, professional_title, email, phone)`
@@ -84,7 +84,26 @@ function CandidatesBoardInner() {
       .neq('status', 'retirada')
       .order('applied_at', { ascending: false });
 
-    setApplications(apps || []);
+    // El email "de cuenta" (con el que el candidato inicia sesión) es
+    // privado; a las organizaciones les mostramos el de contacto para
+    // contrataciones que el candidato haya configurado en su perfil,
+    // cayendo de vuelta al de la cuenta solo si no ha puesto ninguno.
+    const candidateIds = [...new Set((apps || []).map((a) => a.candidate_id).filter(Boolean))];
+    let contactEmailByUser = {};
+    if (candidateIds.length > 0) {
+      const { data: profiles } = await supabase
+        .from('candidate_profiles')
+        .select('user_id, contact_email')
+        .in('user_id', candidateIds);
+      contactEmailByUser = Object.fromEntries((profiles || []).map((p) => [p.user_id, p.contact_email]));
+    }
+
+    const appsWithContactEmail = (apps || []).map((a) => ({
+      ...a,
+      contact_email: contactEmailByUser[a.candidate_id] || a.users?.email || null,
+    }));
+
+    setApplications(appsWithContactEmail);
     setLoading(false);
   }
 
@@ -333,9 +352,9 @@ function CandidatesBoardInner() {
             <div style={{ fontSize: 12, color: '#1d6f5c', marginBottom: 14 }}>{detailApp.jobs?.title}</div>
 
             <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap', fontSize: 12.5, color: '#666', marginBottom: 14 }}>
-              {detailApp.users?.email && (
+              {detailApp.contact_email && (
                 <span>
-                  <i className="ti ti-mail"></i> {detailApp.users.email}
+                  <i className="ti ti-mail"></i> {detailApp.contact_email}
                 </span>
               )}
               {detailApp.users?.phone && (
