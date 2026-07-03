@@ -12,6 +12,13 @@ const COLUMNS = [
   ['rechazada', 'Rechazada'],
 ];
 
+const SCORE_FILTERS = [
+  ['', 'Todas las puntuaciones'],
+  ['high', 'Alto encaje (70+)'],
+  ['mid', 'Encaje medio (40-69)'],
+  ['low', 'Encaje bajo (<40)'],
+];
+
 export default function CandidatesBoardPage() {
   const supabase = createClient();
   const [org, setOrg] = useState(null);
@@ -19,9 +26,14 @@ export default function CandidatesBoardPage() {
   const [applications, setApplications] = useState([]);
   const [loading, setLoading] = useState(true);
   const [jobFilter, setJobFilter] = useState('');
+  const [scoreFilter, setScoreFilter] = useState('');
+  const [nameFilter, setNameFilter] = useState('');
   const [dragId, setDragId] = useState(null);
   const [ranking, setRanking] = useState(false);
-  const [summaryFor, setSummaryFor] = useState(null);
+
+  const [detailApp, setDetailApp] = useState(null);
+  const [notesDraft, setNotesDraft] = useState('');
+  const [savingNotes, setSavingNotes] = useState(false);
   const [summaryLoading, setSummaryLoading] = useState(false);
 
   useEffect(() => {
@@ -53,7 +65,8 @@ export default function CandidatesBoardPage() {
     const { data: apps } = await supabase
       .from('job_applications')
       .select(
-        `id, status, applied_at, cover_note, cv_url_snapshot, ai_summary, ai_score, ai_rationale, ai_analyzed_at,
+        `id, status, applied_at, cover_note, cv_url_snapshot, notes,
+         ai_summary, ai_score, ai_rationale, ai_analyzed_at,
          job_id, jobs(title),
          users(first_name, last_name, professional_title, email, phone)`
       )
@@ -77,8 +90,31 @@ export default function CandidatesBoardPage() {
     setDragId(null);
   }
 
+  function openDetail(app) {
+    setDetailApp(app);
+    setNotesDraft(app.notes || '');
+  }
+
+  function closeDetail() {
+    setDetailApp(null);
+    setNotesDraft('');
+  }
+
+  async function saveNotes() {
+    if (!detailApp) return;
+    setSavingNotes(true);
+    const { error } = await supabase.from('job_applications').update({ notes: notesDraft }).eq('id', detailApp.id);
+    setSavingNotes(false);
+    if (error) {
+      toast('No se pudieron guardar las notas');
+      return;
+    }
+    setApplications((prev) => prev.map((a) => (a.id === detailApp.id ? { ...a, notes: notesDraft } : a)));
+    setDetailApp((prev) => ({ ...prev, notes: notesDraft }));
+    toast('Notas guardadas ✓');
+  }
+
   async function generateSummary(app) {
-    setSummaryFor(app.id);
     setSummaryLoading(true);
     try {
       const res = await fetch('/api/ai/summary', {
@@ -91,6 +127,7 @@ export default function CandidatesBoardPage() {
       setApplications((prev) =>
         prev.map((a) => (a.id === app.id ? { ...a, ai_summary: data.summary, ai_analyzed_at: new Date().toISOString() } : a))
       );
+      setDetailApp((prev) => (prev && prev.id === app.id ? { ...prev, ai_summary: data.summary } : prev));
     } catch (err) {
       toast('No se pudo generar el resumen: ' + err.message);
     }
@@ -126,11 +163,27 @@ export default function CandidatesBoardPage() {
     setRanking(false);
   }
 
-  const filtered = jobFilter ? applications.filter((a) => a.job_id === jobFilter) : applications;
+  function passesFilters(a) {
+    if (jobFilter && a.job_id !== jobFilter) return false;
+    if (nameFilter) {
+      const full = `${a.users?.first_name || ''} ${a.users?.last_name || ''}`.toLowerCase();
+      if (!full.includes(nameFilter.toLowerCase())) return false;
+    }
+    if (scoreFilter && jobFilter) {
+      const s = a.ai_score;
+      if (s == null) return false;
+      if (scoreFilter === 'high' && s < 70) return false;
+      if (scoreFilter === 'mid' && (s < 40 || s >= 70)) return false;
+      if (scoreFilter === 'low' && s >= 40) return false;
+    }
+    return true;
+  }
+
+  const filtered = applications.filter(passesFilters);
 
   function sortedForColumn(list) {
     if (!jobFilter) return list;
-    return [...list].sort((a, b) => (b.ai_score || -1) - (a.ai_score || -1));
+    return [...list].sort((a, b) => (b.ai_score ?? -1) - (a.ai_score ?? -1));
   }
 
   if (loading) return <div className="spinner"></div>;
@@ -148,13 +201,20 @@ export default function CandidatesBoardPage() {
 
   return (
     <div className="sec" style={{ maxWidth: 1400 }}>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 10, marginBottom: 16 }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 10, marginBottom: 12 }}>
         <div>
           <h2 style={{ fontSize: 19, fontWeight: 700 }}>Candidatos</h2>
-          <p style={{ fontSize: 13, color: '#888' }}>Arrastra las tarjetas entre columnas para actualizar su fase</p>
+          <p style={{ fontSize: 13, color: '#888' }}>Arrastra las tarjetas entre columnas, o haz clic en una para ver el detalle</p>
         </div>
-        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-          <select className="fsel" value={jobFilter} onChange={(e) => setJobFilter(e.target.value)}>
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+          <input
+            className="fsel"
+            placeholder="Buscar por nombre..."
+            value={nameFilter}
+            onChange={(e) => setNameFilter(e.target.value)}
+            style={{ minWidth: 150 }}
+          />
+          <select className="fsel" value={jobFilter} onChange={(e) => { setJobFilter(e.target.value); setScoreFilter(''); }}>
             <option value="">Todas las ofertas</option>
             {jobs.map((j) => (
               <option key={j.id} value={j.id}>
@@ -162,6 +222,15 @@ export default function CandidatesBoardPage() {
               </option>
             ))}
           </select>
+          {jobFilter && (
+            <select className="fsel" value={scoreFilter} onChange={(e) => setScoreFilter(e.target.value)}>
+              {SCORE_FILTERS.map(([k, l]) => (
+                <option key={k} value={k}>
+                  {l}
+                </option>
+              ))}
+            </select>
+          )}
           <button className="btn-p" disabled={ranking || !jobFilter} onClick={rankCandidates} title={!jobFilter ? 'Elige una oferta concreta primero' : ''}>
             <i className="ti ti-sparkles"></i> {ranking ? 'Ordenando...' : 'Ordenar con IA'}
           </button>
@@ -187,13 +256,14 @@ export default function CandidatesBoardPage() {
                   key={a.id}
                   draggable
                   onDragStart={() => setDragId(a.id)}
+                  onClick={() => openDetail(a)}
                   style={{
                     background: '#fff',
                     border: '1px solid #e0dfd8',
                     borderRadius: 10,
                     padding: 10,
                     marginBottom: 8,
-                    cursor: 'grab',
+                    cursor: 'pointer',
                   }}
                 >
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 6 }}>
@@ -216,32 +286,19 @@ export default function CandidatesBoardPage() {
                   </div>
                   <div style={{ fontSize: 11, color: '#888', marginBottom: 4 }}>{a.users?.professional_title}</div>
                   {!jobFilter && <div style={{ fontSize: 10.5, color: '#1d6f5c', marginBottom: 4 }}>{a.jobs?.title}</div>}
-                  <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', fontSize: 10.5, color: '#999', marginBottom: 6 }}>
+                  <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', fontSize: 10.5, color: '#999' }}>
                     {a.users?.phone && <span>{a.users.phone}</span>}
-                    {a.cv_url_snapshot && (
-                      <a href={a.cv_url_snapshot} target="_blank" rel="noreferrer" style={{ color: '#1d6f5c' }}>
-                        Ver CV
-                      </a>
+                    {a.notes && (
+                      <span style={{ color: '#1d6f5c' }}>
+                        <i className="ti ti-note" style={{ fontSize: 11 }}></i> Con notas
+                      </span>
+                    )}
+                    {a.ai_summary && (
+                      <span style={{ color: '#1d6f5c' }}>
+                        <i className="ti ti-sparkles" style={{ fontSize: 11 }}></i> Resumen IA
+                      </span>
                     )}
                   </div>
-                  {a.ai_summary && summaryFor !== a.id && (
-                    <div style={{ fontSize: 10.5, color: '#666', background: '#f8faf9', borderRadius: 6, padding: 6, marginBottom: 6, lineHeight: 1.5 }}>
-                      {a.ai_summary}
-                    </div>
-                  )}
-                  <button
-                    className="btn-g"
-                    style={{ fontSize: 10.5, padding: '4px 8px', width: '100%' }}
-                    disabled={summaryLoading && summaryFor === a.id}
-                    onClick={() => generateSummary(a)}
-                  >
-                    <i className="ti ti-sparkles" style={{ fontSize: 11 }}></i>{' '}
-                    {summaryLoading && summaryFor === a.id
-                      ? 'Generando...'
-                      : a.ai_summary
-                      ? 'Regenerar resumen IA'
-                      : 'Generar resumen IA'}
-                  </button>
                 </div>
               ))}
               {items.length === 0 && <div style={{ fontSize: 11, color: '#bbb', textAlign: 'center', padding: 20 }}>Sin candidatos</div>}
@@ -249,6 +306,97 @@ export default function CandidatesBoardPage() {
           );
         })}
       </div>
+
+      {detailApp && (
+        <div className="modal-ov on" onClick={(e) => e.target === e.currentTarget && closeDetail()}>
+          <div className="modal-box" style={{ maxWidth: 620 }}>
+            <div className="modal-head">
+              <h2>
+                {detailApp.users?.first_name} {detailApp.users?.last_name}
+              </h2>
+              <div className="modal-x" onClick={closeDetail}>
+                <i className="ti ti-x"></i>
+              </div>
+            </div>
+
+            <div style={{ fontSize: 13, color: '#666', marginBottom: 4 }}>{detailApp.users?.professional_title}</div>
+            <div style={{ fontSize: 12, color: '#1d6f5c', marginBottom: 14 }}>{detailApp.jobs?.title}</div>
+
+            <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap', fontSize: 12.5, color: '#666', marginBottom: 14 }}>
+              {detailApp.users?.email && (
+                <span>
+                  <i className="ti ti-mail"></i> {detailApp.users.email}
+                </span>
+              )}
+              {detailApp.users?.phone && (
+                <span>
+                  <i className="ti ti-phone"></i> {detailApp.users.phone}
+                </span>
+              )}
+              {detailApp.cv_url_snapshot && (
+                <a href={detailApp.cv_url_snapshot} target="_blank" rel="noreferrer" style={{ color: '#1d6f5c', fontWeight: 500 }}>
+                  <i className="ti ti-file-cv"></i> Ver CV
+                </a>
+              )}
+            </div>
+
+            {detailApp.cover_note && (
+              <div style={{ marginBottom: 16 }}>
+                <div style={{ fontSize: 12.5, fontWeight: 600, marginBottom: 5 }}>Carta de presentación</div>
+                <div style={{ fontSize: 12.5, color: '#555', background: '#f8faf9', borderRadius: 8, padding: 10, lineHeight: 1.6 }}>
+                  {detailApp.cover_note}
+                </div>
+              </div>
+            )}
+
+            <div style={{ marginBottom: 16 }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 5 }}>
+                <div style={{ fontSize: 12.5, fontWeight: 600 }}>Resumen con IA</div>
+                <button className="btn-g" style={{ fontSize: 11, padding: '4px 9px' }} disabled={summaryLoading} onClick={() => generateSummary(detailApp)}>
+                  <i className="ti ti-sparkles" style={{ fontSize: 11 }}></i>{' '}
+                  {summaryLoading ? 'Generando...' : detailApp.ai_summary ? 'Regenerar' : 'Generar'}
+                </button>
+              </div>
+              {detailApp.ai_summary ? (
+                <div style={{ fontSize: 12.5, color: '#555', background: '#f0f8f5', borderRadius: 8, padding: 10, lineHeight: 1.6 }}>
+                  {detailApp.ai_summary}
+                </div>
+              ) : (
+                <div style={{ fontSize: 12, color: '#999' }}>Todavía no se ha generado un resumen para este candidato.</div>
+              )}
+            </div>
+
+            <div>
+              <div style={{ fontSize: 12.5, fontWeight: 600, marginBottom: 5 }}>Tus notas privadas</div>
+              <p style={{ fontSize: 11, color: '#999', marginBottom: 6 }}>
+                Útil para apuntar impresiones de una llamada o entrevista. Solo lo ve tu equipo.
+              </p>
+              <textarea
+                value={notesDraft}
+                onChange={(e) => setNotesDraft(e.target.value)}
+                placeholder="Escribe aquí tus notas..."
+                style={{
+                  width: '100%',
+                  minHeight: 110,
+                  padding: '10px 12px',
+                  border: '1px solid #e0dfd8',
+                  borderRadius: 9,
+                  fontSize: 13,
+                  fontFamily: 'inherit',
+                  outline: 'none',
+                  resize: 'vertical',
+                }}
+              ></textarea>
+              <div className="m-foot">
+                <div></div>
+                <button className="m-next" disabled={savingNotes} onClick={saveNotes}>
+                  <i className="ti ti-check"></i> {savingNotes ? 'Guardando...' : 'Guardar notas'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
