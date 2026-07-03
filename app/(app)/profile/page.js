@@ -1,920 +1,412 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import Link from 'next/link';
+import { useEffect, useState, Suspense } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import { toast } from '@/lib/toast';
 
-export default function ProfilePage() {
-  const supabase = createClient();
-  const [userId, setUserId] = useState(null);
-  const [user, setUser] = useState(null);
-  const [profile, setProfile] = useState(null);
-  const [experiences, setExperiences] = useState([]);
-  const [education, setEducation] = useState([]);
-  const [skills, setSkills] = useState([]);
-  const [savedJobs, setSavedJobs] = useState([]);
-  const [followedOrgs, setFollowedOrgs] = useState([]);
+const COLUMNS = [
+  ['enviada', 'Enviada'],
+  ['en_revision', 'En revisión'],
+  ['entrevista', 'Entrevista'],
+  ['oferta', 'Oferta'],
+  ['rechazada', 'Rechazada'],
+];
 
-  const [tab, setTab] = useState('e');
-  const [showEditProfile, setShowEditProfile] = useState(false);
-  const [savingProfile, setSavingProfile] = useState(false);
-  const [showExpForm, setShowExpForm] = useState(false);
-  const [showEduForm, setShowEduForm] = useState(false);
-  const [skillInput, setSkillInput] = useState('');
-  const [uploadingAvatar, setUploadingAvatar] = useState(false);
-  const [uploadingCover, setUploadingCover] = useState(false);
-  const [uploadingCv, setUploadingCv] = useState(false);
-  const [extractingCv, setExtractingCv] = useState(false);
-  const [cvExtractResult, setCvExtractResult] = useState(null);
-  const [applyingExtract, setApplyingExtract] = useState(false);
-  const [selectedExpIdx, setSelectedExpIdx] = useState(new Set());
-  const [selectedEduIdx, setSelectedEduIdx] = useState(new Set());
-  const [selectedSkills, setSelectedSkills] = useState(new Set());
+const SCORE_FILTERS = [
+  ['', 'Todas las puntuaciones'],
+  ['high', 'Alto encaje (70+)'],
+  ['mid', 'Encaje medio (40-69)'],
+  ['low', 'Encaje bajo (<40)'],
+];
+
+export default function CandidatesBoardPage() {
+  return (
+    <Suspense fallback={<div className="spinner"></div>}>
+      <CandidatesBoardInner />
+    </Suspense>
+  );
+}
+
+function CandidatesBoardInner() {
+  const supabase = createClient();
+  const [org, setOrg] = useState(null);
+  const [jobs, setJobs] = useState([]);
+  const [applications, setApplications] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const searchParams = useSearchParams();
+  const [jobFilter, setJobFilter] = useState(searchParams.get('job') || '');
+  const [scoreFilter, setScoreFilter] = useState('');
+  const [nameFilter, setNameFilter] = useState('');
+  const [dragId, setDragId] = useState(null);
+  const [ranking, setRanking] = useState(false);
+
+  const [detailApp, setDetailApp] = useState(null);
+  const [notesDraft, setNotesDraft] = useState('');
+  const [savingNotes, setSavingNotes] = useState(false);
+  const [summaryLoading, setSummaryLoading] = useState(false);
 
   useEffect(() => {
     load();
   }, []);
 
   async function load() {
+    setLoading(true);
+    const { data: authData } = await supabase.auth.getUser();
+    const uid = authData.user?.id;
+    if (!uid) return setLoading(false);
+
+    const { data: membership } = await supabase
+      .from('organization_members')
+      .select('organizations(*)')
+      .eq('user_id', uid)
+      .maybeSingle();
+
+    if (!membership) return setLoading(false);
+    setOrg(membership.organizations);
+
+    const { data: jobsData } = await supabase
+      .from('jobs')
+      .select('id, title')
+      .eq('organization_id', membership.organizations.id)
+      .order('created_at', { ascending: false });
+    setJobs(jobsData || []);
+
+    const { data: apps } = await supabase
+      .from('job_applications')
+      .select(
+        `id, status, applied_at, cover_note, cv_url_snapshot, notes,
+         ai_summary, ai_score, ai_rationale, ai_analyzed_at,
+         job_id, jobs(title),
+         users(first_name, last_name, professional_title, email, phone)`
+      )
+      .in('job_id', (jobsData || []).map((j) => j.id))
+      .neq('status', 'retirada')
+      .order('applied_at', { ascending: false });
+
+    setApplications(apps || []);
+    setLoading(false);
+  }
+
+  async function updateStatus(appId, newStatus) {
+    setApplications((prev) => prev.map((a) => (a.id === appId ? { ...a, status: newStatus } : a)));
+    const { error } = await supabase.from('job_applications').update({ status: newStatus }).eq('id', appId);
+    if (error) toast('No se pudo mover el candidato');
+  }
+
+  function onDrop(newStatus) {
+    if (!dragId) return;
+    updateStatus(dragId, newStatus);
+    setDragId(null);
+  }
+
+  function openDetail(app) {
+    setDetailApp(app);
+    setNotesDraft(app.notes || '');
+  }
+
+  function closeDetail() {
+    setDetailApp(null);
+    setNotesDraft('');
+  }
+
+  async function saveNotes() {
+    if (!detailApp) return;
+    setSavingNotes(true);
+    const { error } = await supabase.from('job_applications').update({ notes: notesDraft }).eq('id', detailApp.id);
+    setSavingNotes(false);
+    if (error) {
+      toast('No se pudieron guardar las notas');
+      return;
+    }
+    setApplications((prev) => prev.map((a) => (a.id === detailApp.id ? { ...a, notes: notesDraft } : a)));
+    setDetailApp((prev) => ({ ...prev, notes: notesDraft }));
+    toast('Notas guardadas ✓');
+  }
+
+  async function generateSummary(app) {
+    setSummaryLoading(true);
     try {
-      const { data: authData } = await supabase.auth.getUser();
-      if (!authData.user) return;
-      const uid = authData.user.id;
-      setUserId(uid);
-
-      const results = await Promise.allSettled([
-        supabase.from('users').select('*').eq('id', uid).single(),
-        supabase.from('candidate_profiles').select('*').eq('user_id', uid).single(),
-        supabase.from('experiences').select('*').eq('user_id', uid).order('start_date', { ascending: false }),
-        supabase.from('education').select('*').eq('user_id', uid).order('start_date', { ascending: false }),
-        supabase.from('skills').select('*').eq('user_id', uid),
-        supabase.from('saved_jobs').select('jobs(id, title, organizations(name))').eq('user_id', uid),
-        supabase.from('organization_follows').select('organizations(id, slug, name)').eq('user_id', uid),
-      ]);
-
-      const [rUser, rProfile, rExp, rEdu, rSk, rSaved, rFollows] = results;
-
-      results.forEach((r, i) => {
-        if (r.status === 'rejected') console.error('Profile load query', i, 'rejected:', r.reason);
-        else if (r.value?.error) console.error('Profile load query', i, 'error:', r.value.error);
-      });
-
-      const u = rUser.status === 'fulfilled' ? rUser.value.data : null;
-      const p = rProfile.status === 'fulfilled' ? rProfile.value.data : null;
-
-      // Si por lo que sea no existe fila en "users" todavía, usamos los datos
-      // básicos de auth para no dejar la pantalla colgada.
-      setUser(
-        u || {
-          id: uid,
-          first_name: authData.user.email?.split('@')[0] || 'Usuario',
-          last_name: '',
-        }
-      );
-      setProfile(p || { bio: '' });
-      setExperiences(rExp.status === 'fulfilled' ? rExp.value.data || [] : []);
-      setEducation(rEdu.status === 'fulfilled' ? rEdu.value.data || [] : []);
-      setSkills(rSk.status === 'fulfilled' ? rSk.value.data || [] : []);
-      setSavedJobs(rSaved.status === 'fulfilled' ? rSaved.value.data || [] : []);
-      setFollowedOrgs(rFollows.status === 'fulfilled' ? rFollows.value.data || [] : []);
-    } catch (err) {
-      console.error('Error inesperado cargando el perfil:', err);
-      // Aseguramos que la pantalla no se quede colgada aunque algo falle.
-      setUser((prev) => prev || { id: userId, first_name: 'Usuario', last_name: '' });
-      setProfile((prev) => prev || { bio: '' });
-    }
-  }
-
-  async function saveProfileEdit(e) {
-    e.preventDefault();
-    setSavingProfile(true);
-    const f = new FormData(e.target);
-    const userUpdates = {
-      first_name: f.get('first_name'),
-      last_name: f.get('last_name'),
-      professional_title: f.get('professional_title') || null,
-    };
-    const profileUpdates = {
-      website_url: f.get('website_url') || null,
-      linkedin_url: f.get('linkedin_url') || null,
-      bio: f.get('bio') || null,
-      contact_email: f.get('contact_email') || null,
-    };
-
-    const [{ error: uErr }, { error: pErr }] = await Promise.all([
-      supabase.from('users').update(userUpdates).eq('id', userId),
-      supabase.from('candidate_profiles').update(profileUpdates).eq('user_id', userId),
-    ]);
-
-    setSavingProfile(false);
-    if (uErr || pErr) {
-      toast('No se pudieron guardar los cambios');
-      return;
-    }
-    setUser({ ...user, ...userUpdates });
-    setProfile({ ...profile, ...profileUpdates });
-    setShowEditProfile(false);
-    toast('Perfil actualizado ✓');
-  }
-
-  async function handleAvatarUpload(e) {
-    const file = e.target.files?.[0];
-    if (!file || !userId) return;
-    setUploadingAvatar(true);
-    const ext = file.name.split('.').pop();
-    const path = `${userId}/avatar.${ext}`;
-    const { error: upErr } = await supabase.storage
-      .from('avatars')
-      .upload(path, file, { upsert: true });
-    setUploadingAvatar(false);
-    if (upErr) {
-      toast('No se pudo subir la foto. Comprueba que existe el bucket "avatars".');
-      return;
-    }
-    const { data } = supabase.storage.from('avatars').getPublicUrl(path);
-    const avatarUrl = `${data.publicUrl}?t=${Date.now()}`;
-    await supabase.from('users').update({ avatar_url: avatarUrl }).eq('id', userId);
-    setUser({ ...user, avatar_url: avatarUrl });
-    toast('Foto de perfil actualizada ✓');
-  }
-
-  async function handleCoverUpload(e) {
-    const file = e.target.files?.[0];
-    if (!file || !userId) return;
-    setUploadingCover(true);
-    const ext = file.name.split('.').pop();
-    const path = `${userId}/cover.${ext}`;
-    const { error: upErr } = await supabase.storage
-      .from('covers')
-      .upload(path, file, { upsert: true });
-    setUploadingCover(false);
-    if (upErr) {
-      toast('No se pudo subir la portada. Comprueba que existe el bucket "covers".');
-      return;
-    }
-    const { data } = supabase.storage.from('covers').getPublicUrl(path);
-    const coverUrl = `${data.publicUrl}?t=${Date.now()}`;
-    await supabase.from('candidate_profiles').update({ cover_url: coverUrl }).eq('user_id', userId);
-    setProfile({ ...profile, cover_url: coverUrl });
-    toast('Portada actualizada ✓');
-  }
-
-  async function handleCvUpload(e) {
-    const file = e.target.files?.[0];
-    if (!file || !userId) return;
-    if (file.type !== 'application/pdf') {
-      toast('El CV debe estar en formato PDF');
-      return;
-    }
-    setUploadingCv(true);
-    const path = `${userId}/cv.pdf`;
-    const { error: upErr } = await supabase.storage
-      .from('cvs')
-      .upload(path, file, { upsert: true });
-    setUploadingCv(false);
-    if (upErr) {
-      toast('No se pudo subir el CV. Comprueba que existe el bucket "cvs".');
-      return;
-    }
-    const { data } = supabase.storage.from('cvs').getPublicUrl(path);
-    const cvUrl = `${data.publicUrl}?t=${Date.now()}`;
-    const uploadedAt = new Date().toISOString();
-    await supabase
-      .from('candidate_profiles')
-      .update({ cv_url: cvUrl, cv_uploaded_at: uploadedAt })
-      .eq('user_id', userId);
-    setProfile({ ...profile, cv_url: cvUrl, cv_uploaded_at: uploadedAt });
-    toast('CV subido correctamente ✓');
-  }
-
-  async function extractFromCv() {
-    if (!profile?.cv_url) return;
-    setExtractingCv(true);
-    try {
-      const res = await fetch('/api/ai/extract-cv', {
+      const res = await fetch('/api/ai/summary', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ cvUrl: profile.cv_url }),
+        body: JSON.stringify({ applicationId: app.id }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Error desconocido');
-      setCvExtractResult(data);
-      setSelectedExpIdx(new Set(data.experiences.map((_, i) => i)));
-      setSelectedEduIdx(new Set(data.education.map((_, i) => i)));
-      setSelectedSkills(new Set(data.skills));
+      setApplications((prev) =>
+        prev.map((a) => (a.id === app.id ? { ...a, ai_summary: data.summary, ai_analyzed_at: new Date().toISOString() } : a))
+      );
+      setDetailApp((prev) => (prev && prev.id === app.id ? { ...prev, ai_summary: data.summary } : prev));
     } catch (err) {
-      toast('No se pudo leer el CV: ' + err.message);
+      toast('No se pudo generar el resumen: ' + err.message);
     }
-    setExtractingCv(false);
+    setSummaryLoading(false);
   }
 
-  function toggleSetIdx(setter, set, idx) {
-    setter((prev) => {
-      const n = new Set(prev);
-      n.has(idx) ? n.delete(idx) : n.add(idx);
-      return n;
-    });
-  }
-
-  async function applyCvExtract() {
-    if (!cvExtractResult) return;
-    setApplyingExtract(true);
-
-    const userUpdates = {};
-    if (cvExtractResult.professional_title && !user.professional_title) {
-      userUpdates.professional_title = cvExtractResult.professional_title;
+  async function rankCandidates() {
+    if (!jobFilter) {
+      toast('Elige primero una oferta concreta para poder ordenarla');
+      return;
     }
-    if (Object.keys(userUpdates).length > 0) {
-      await supabase.from('users').update(userUpdates).eq('id', userId);
+    setRanking(true);
+    try {
+      const res = await fetch('/api/ai/rank', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ jobId: jobFilter }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Error desconocido');
+      const scoreMap = new Map(data.rankings.map((r) => [r.applicationId, r]));
+      setApplications((prev) =>
+        prev.map((a) =>
+          scoreMap.has(a.id)
+            ? { ...a, ai_score: scoreMap.get(a.id).score, ai_rationale: scoreMap.get(a.id).rationale, ai_analyzed_at: new Date().toISOString() }
+            : a
+        )
+      );
+      toast('Candidatos ordenados con IA ✓');
+    } catch (err) {
+      toast('No se pudo generar el ranking: ' + err.message);
     }
+    setRanking(false);
+  }
 
-    if (cvExtractResult.bio && !profile?.bio) {
-      await supabase.from('candidate_profiles').update({ bio: cvExtractResult.bio }).eq('user_id', userId);
+  function passesFilters(a) {
+    if (jobFilter && a.job_id !== jobFilter) return false;
+    if (nameFilter) {
+      const full = `${a.users?.first_name || ''} ${a.users?.last_name || ''}`.toLowerCase();
+      if (!full.includes(nameFilter.toLowerCase())) return false;
     }
-
-    const expToInsert = cvExtractResult.experiences
-      .filter((_, i) => selectedExpIdx.has(i))
-      .map((e) => ({
-        user_id: userId,
-        title: e.title,
-        organization_name: e.organization_name,
-        location: e.location || null,
-        start_date: e.start_date,
-        end_date: e.end_date || null,
-        description: e.description || null,
-      }));
-    const eduToInsert = cvExtractResult.education
-      .filter((_, i) => selectedEduIdx.has(i))
-      .map((e) => ({
-        user_id: userId,
-        degree: e.degree,
-        institution: e.institution,
-        start_date: e.start_date || null,
-        end_date: e.end_date || null,
-      }));
-    const skillsToInsert = [...selectedSkills].map((s) => ({ user_id: userId, skill_name: s }));
-
-    const [expRes, eduRes] = await Promise.all([
-      expToInsert.length > 0 ? supabase.from('experiences').insert(expToInsert).select() : Promise.resolve({ data: [] }),
-      eduToInsert.length > 0 ? supabase.from('education').insert(eduToInsert).select() : Promise.resolve({ data: [] }),
-    ]);
-    if (skillsToInsert.length > 0) {
-      // Ignoramos errores de duplicado (habilidad ya existente para este usuario)
-      await supabase.from('skills').insert(skillsToInsert).select();
+    if (scoreFilter && jobFilter) {
+      const s = a.ai_score;
+      if (s == null) return false;
+      if (scoreFilter === 'high' && s < 70) return false;
+      if (scoreFilter === 'mid' && (s < 40 || s >= 70)) return false;
+      if (scoreFilter === 'low' && s >= 40) return false;
     }
-
-    if (expRes.data?.length) setExperiences((prev) => [...expRes.data, ...prev]);
-    if (eduRes.data?.length) setEducation((prev) => [...eduRes.data, ...prev]);
-    if (userUpdates.professional_title) setUser((prev) => ({ ...prev, ...userUpdates }));
-    if (cvExtractResult.bio && !profile?.bio) setProfile((prev) => ({ ...prev, bio: cvExtractResult.bio }));
-
-    const { data: freshSkills } = await supabase.from('skills').select('*').eq('user_id', userId);
-    if (freshSkills) setSkills(freshSkills);
-
-    setApplyingExtract(false);
-    setCvExtractResult(null);
-    toast('Perfil actualizado a partir de tu CV ✓');
+    return true;
   }
 
-  async function addExperience(e) {
-    e.preventDefault();
-    const f = new FormData(e.target);
-    const row = {
-      user_id: userId,
-      title: f.get('title'),
-      organization_name: f.get('organization_name'),
-      location: f.get('location'),
-      start_date: f.get('start_date'),
-      end_date: f.get('end_date') || null,
-      description: f.get('description'),
-    };
-    const { data } = await supabase.from('experiences').insert(row).select().single();
-    if (data) setExperiences([data, ...experiences]);
-    setShowExpForm(false);
-    e.target.reset();
-    toast('Experiencia añadida ✓');
+  const filtered = applications.filter(passesFilters);
+
+  function sortedForColumn(list) {
+    if (!jobFilter) return list;
+    return [...list].sort((a, b) => (b.ai_score ?? -1) - (a.ai_score ?? -1));
   }
 
-  async function deleteExperience(id) {
-    await supabase.from('experiences').delete().eq('id', id);
-    setExperiences(experiences.filter((x) => x.id !== id));
+  if (loading) return <div className="spinner"></div>;
+
+  if (!org) {
+    return (
+      <div className="sec">
+        <div className="empty-state">
+          <i className="ti ti-building-off"></i>
+          Todavía no administras ninguna organización.
+        </div>
+      </div>
+    );
   }
-
-  async function addEducation(e) {
-    e.preventDefault();
-    const f = new FormData(e.target);
-    const row = {
-      user_id: userId,
-      degree: f.get('degree'),
-      institution: f.get('institution'),
-      start_date: f.get('start_date') || null,
-      end_date: f.get('end_date') || null,
-    };
-    const { data } = await supabase.from('education').insert(row).select().single();
-    if (data) setEducation([data, ...education]);
-    setShowEduForm(false);
-    e.target.reset();
-    toast('Educación añadida ✓');
-  }
-
-  async function deleteEducation(id) {
-    await supabase.from('education').delete().eq('id', id);
-    setEducation(education.filter((x) => x.id !== id));
-  }
-
-  async function addSkill(e) {
-    e.preventDefault();
-    const name = skillInput.trim();
-    if (!name) return;
-    const { data, error } = await supabase
-      .from('skills')
-      .insert({ user_id: userId, skill_name: name })
-      .select()
-      .single();
-    if (!error && data) setSkills([...skills, data]);
-    setSkillInput('');
-  }
-
-  async function deleteSkill(id) {
-    await supabase.from('skills').delete().eq('id', id);
-    setSkills(skills.filter((s) => s.id !== id));
-  }
-
-  if (!user) return <div className="spinner"></div>;
-
-  const completion = computeCompletion(user, profile, experiences, education, skills);
 
   return (
-    <div className="sec">
-      <div className="card" style={{ maxWidth: 1080, margin: '0 auto 13px' }}>
-        <div
-          className="p-cover"
-          style={
-            profile?.cover_url
-              ? {
-                  backgroundImage: `url(${profile.cover_url})`,
-                  backgroundSize: 'cover',
-                  backgroundPosition: 'center',
-                }
-              : undefined
-          }
-        >
-          <label
-            title="Cambiar portada"
-            style={{
-              position: 'absolute',
-              top: 11,
-              right: 11,
-              width: 32,
-              height: 32,
-              borderRadius: '50%',
-              background: 'rgba(0,0,0,.45)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              cursor: 'pointer',
-              color: '#fff',
-            }}
-          >
-            {uploadingCover ? (
-              <i className="ti ti-loader-2" style={{ fontSize: 15 }}></i>
-            ) : (
-              <i className="ti ti-camera" style={{ fontSize: 15 }}></i>
-            )}
-            <input type="file" accept="image/*" hidden onChange={handleCoverUpload} disabled={uploadingCover} />
-          </label>
-
-          <label className="p-av" style={{ cursor: 'pointer' }} title="Cambiar foto de perfil">
-            {user.avatar_url ? <img src={user.avatar_url} alt="" /> : user.first_name?.[0]}
-            <div className="av-c">
-              {uploadingAvatar ? <i className="ti ti-loader-2"></i> : <i className="ti ti-camera"></i>}
-            </div>
-            <input type="file" accept="image/*" hidden onChange={handleAvatarUpload} disabled={uploadingAvatar} />
-          </label>
+    <div className="sec" style={{ maxWidth: 1400 }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 10, marginBottom: 12 }}>
+        <div>
+          <h2 style={{ fontSize: 19, fontWeight: 700 }}>Candidatos</h2>
+          <p style={{ fontSize: 13, color: '#888' }}>Arrastra las tarjetas entre columnas, o haz clic en una para ver el detalle</p>
         </div>
-        <div className="p-info">
-          <div className="p-name">
-            {user.first_name} {user.last_name}
-          </div>
-          <div className="p-title">{user.professional_title || 'Añade tu título profesional'}</div>
-          <div className="p-meta">
-            {user.location && (
-              <span>
-                <i className="ti ti-map-pin" style={{ fontSize: 12 }}></i> {user.location}
-              </span>
-            )}
-            {user.looking_for_job && (
-              <span style={{ color: '#1d6f5c', fontWeight: 500 }}>
-                <i className="ti ti-briefcase" style={{ fontSize: 12 }}></i> Buscando empleo activamente
-              </span>
-            )}
-            {profile?.website_url && (
-              <span>
-                <i className="ti ti-world" style={{ fontSize: 12 }}></i>{' '}
-                <a
-                  href={profile.website_url.startsWith('http') ? profile.website_url : `https://${profile.website_url}`}
-                  target="_blank"
-                  rel="noreferrer"
-                  style={{ color: '#1d6f5c' }}
-                >
-                  {profile.website_url.replace(/^https?:\/\//, '')}
-                </a>
-              </span>
-            )}
-            {profile?.linkedin_url && (
-              <span>
-                <i className="ti ti-brand-linkedin" style={{ fontSize: 12 }}></i>{' '}
-                <a
-                  href={profile.linkedin_url.startsWith('http') ? profile.linkedin_url : `https://${profile.linkedin_url}`}
-                  target="_blank"
-                  rel="noreferrer"
-                  style={{ color: '#1d6f5c' }}
-                >
-                  LinkedIn
-                </a>
-              </span>
-            )}
-          </div>
-        </div>
-        <div className="p-sec" style={{ borderBottom: 'none' }}>
-          <h3>
-            Acerca de
-            <button className="btn-g" style={{ fontSize: 12 }} onClick={() => setShowEditProfile(true)}>
-              <i className="ti ti-edit"></i> Editar
-            </button>
-          </h3>
-          <div style={{ fontSize: 13.5, color: '#555', lineHeight: 1.7 }}>
-            {profile?.bio || 'Añade una biografía para que otros profesionales sepan más sobre ti.'}
-          </div>
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+          <input
+            className="fsel"
+            placeholder="Buscar por nombre..."
+            value={nameFilter}
+            onChange={(e) => setNameFilter(e.target.value)}
+            style={{ minWidth: 150 }}
+          />
+          <select className="fsel" value={jobFilter} onChange={(e) => { setJobFilter(e.target.value); setScoreFilter(''); }}>
+            <option value="">Todas las ofertas</option>
+            {jobs.map((j) => (
+              <option key={j.id} value={j.id}>
+                {j.title}
+              </option>
+            ))}
+          </select>
+          {jobFilter && (
+            <select className="fsel" value={scoreFilter} onChange={(e) => setScoreFilter(e.target.value)}>
+              {SCORE_FILTERS.map(([k, l]) => (
+                <option key={k} value={k}>
+                  {l}
+                </option>
+              ))}
+            </select>
+          )}
+          <button className="btn-ai" disabled={ranking || !jobFilter} onClick={rankCandidates} title={!jobFilter ? 'Elige una oferta concreta primero' : ''}>
+            <i className="ti ti-bolt"></i> {ranking ? 'Ordenando...' : 'Ordenar con IA'}
+          </button>
         </div>
       </div>
 
-      {showEditProfile && (
-        <div className="modal-ov on" onClick={(e) => e.target === e.currentTarget && setShowEditProfile(false)}>
-          <div className="modal-box" style={{ maxWidth: 640 }}>
-            <div className="modal-head">
-              <h2>Editar perfil</h2>
-              <div className="modal-x" onClick={() => setShowEditProfile(false)}>
-                <i className="ti ti-x"></i>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 12, overflowX: 'auto' }}>
+        {COLUMNS.map(([key, label]) => {
+          const items = sortedForColumn(filtered.filter((a) => a.status === key));
+          return (
+            <div
+              key={key}
+              onDragOver={(e) => e.preventDefault()}
+              onDrop={() => onDrop(key)}
+              style={{ background: '#f4f4f0', borderRadius: 10, padding: 10, minHeight: 300 }}
+            >
+              <div style={{ fontSize: 12.5, fontWeight: 600, color: '#555', marginBottom: 10, display: 'flex', justifyContent: 'space-between' }}>
+                {label}
+                <span style={{ color: '#aaa' }}>{items.length}</span>
               </div>
-            </div>
-            <form onSubmit={saveProfileEdit}>
-              <div className="two">
-                <div className="field">
-                  <label>Nombre</label>
-                  <input name="first_name" defaultValue={user.first_name || ''} required />
-                </div>
-                <div className="field">
-                  <label>Apellidos</label>
-                  <input name="last_name" defaultValue={user.last_name || ''} required />
-                </div>
-              </div>
-              <div className="field">
-                <label>Email de la cuenta</label>
-                <input type="email" defaultValue={user.email || ''} disabled style={{ background: '#f4f4f0', color: '#888' }} />
-                <p style={{ fontSize: 11, color: '#999', marginTop: 4 }}>
-                  Es el email con el que inicias sesión. No se puede editar aquí.
-                </p>
-              </div>
-              <div className="field">
-                <label>Email de contacto para contrataciones</label>
-                <input
-                  type="email"
-                  name="contact_email"
-                  defaultValue={profile?.contact_email || user.email || ''}
-                  placeholder="nombre@ejemplo.com"
-                />
-                <p style={{ fontSize: 11, color: '#999', marginTop: 4 }}>
-                  Es el email que verán las organizaciones al recibir tus solicitudes. Puede ser distinto al de tu cuenta.
-                </p>
-              </div>
-              <div className="field">
-                <label>Título profesional</label>
-                <input
-                  name="professional_title"
-                  defaultValue={user.professional_title || ''}
-                  placeholder="Ej: Public Affairs Manager"
-                />
-              </div>
-              <div className="two">
-                <div className="field">
-                  <label>Sitio web</label>
-                  <input name="website_url" defaultValue={profile?.website_url || ''} placeholder="https://tuweb.com" />
-                </div>
-                <div className="field">
-                  <label>LinkedIn URL</label>
-                  <input
-                    name="linkedin_url"
-                    defaultValue={profile?.linkedin_url || ''}
-                    placeholder="https://linkedin.com/in/..."
-                  />
-                </div>
-              </div>
-              <div className="field">
-                <label>Biografía</label>
-                <textarea
-                  name="bio"
-                  defaultValue={profile?.bio || ''}
+              {items.map((a) => (
+                <div
+                  key={a.id}
+                  draggable
+                  onDragStart={() => setDragId(a.id)}
+                  onClick={() => openDetail(a)}
                   style={{
-                    width: '100%',
-                    minHeight: 100,
-                    padding: '10px 12px',
+                    background: '#fff',
                     border: '1px solid #e0dfd8',
-                    borderRadius: 9,
-                    fontSize: 13.5,
-                    fontFamily: 'inherit',
-                    outline: 'none',
-                    resize: 'vertical',
+                    borderRadius: 10,
+                    padding: 10,
+                    marginBottom: 8,
+                    cursor: 'pointer',
                   }}
-                  placeholder="Cuenta tu experiencia y especialización..."
-                ></textarea>
-              </div>
-              <div className="m-foot">
-                <button type="button" className="m-back" onClick={() => setShowEditProfile(false)}>
-                  Cancelar
-                </button>
-                <button className="m-next" disabled={savingProfile}>
-                  <i className="ti ti-check"></i> {savingProfile ? 'Guardando...' : 'Guardar cambios'}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-      <div style={{ display: 'grid', gridTemplateColumns: '3fr 2fr', gap: 13, maxWidth: 1080, margin: '0 auto' }}>
-        <div className="card">
-          <div className="p-tabs">
-            <button className={`p-tab ${tab === 'e' ? 'on' : ''}`} onClick={() => setTab('e')}>
-              Experiencia
-            </button>
-            <button className={`p-tab ${tab === 'ed' ? 'on' : ''}`} onClick={() => setTab('ed')}>
-              Educación
-            </button>
-            <button className={`p-tab ${tab === 'sk' ? 'on' : ''}`} onClick={() => setTab('sk')}>
-              Habilidades
-            </button>
-          </div>
-
-          {tab === 'e' && (
-            <div className="p-sec" style={{ borderBottom: 'none' }}>
-              <h3>
-                Experiencia
-                <button className="btn-g" style={{ fontSize: 12 }} onClick={() => setShowExpForm(!showExpForm)}>
-                  <i className="ti ti-plus"></i> Añadir
-                </button>
-              </h3>
-              {showExpForm && (
-                <form onSubmit={addExperience} style={{ marginBottom: 16, background: '#f8faf9', padding: 14, borderRadius: 10 }}>
-                  <div className="form-row">
-                    <div className="form-g">
-                      <label>Puesto</label>
-                      <input name="title" required />
+                >
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 6 }}>
+                    <div style={{ fontSize: 12.5, fontWeight: 600 }}>
+                      {a.users?.first_name} {a.users?.last_name}
                     </div>
-                    <div className="form-g">
-                      <label>Organización</label>
-                      <input name="organization_name" required />
-                    </div>
+                    {a.ai_score != null && (
+                      <span
+                        className="badge"
+                        style={{
+                          background: a.ai_score >= 70 ? '#e8f4f0' : a.ai_score >= 40 ? '#fff8e1' : '#fdecea',
+                          color: a.ai_score >= 70 ? '#1d6f5c' : a.ai_score >= 40 ? '#b8860b' : '#b3261e',
+                          fontSize: 10.5,
+                        }}
+                        title={a.ai_rationale || ''}
+                      >
+                        {a.ai_score}/100
+                      </span>
+                    )}
                   </div>
-                  <div className="form-row">
-                    <div className="form-g">
-                      <label>Ubicación</label>
-                      <input name="location" />
-                    </div>
-                    <div className="form-g"></div>
-                  </div>
-                  <div className="form-row">
-                    <div className="form-g">
-                      <label>Fecha inicio</label>
-                      <input type="date" name="start_date" required />
-                    </div>
-                    <div className="form-g">
-                      <label>Fecha fin (vacío = actualidad)</label>
-                      <input type="date" name="end_date" />
-                    </div>
-                  </div>
-                  <div className="form-g">
-                    <label>Descripción</label>
-                    <textarea name="description"></textarea>
-                  </div>
-                  <button className="btn-p">Guardar experiencia</button>
-                </form>
-              )}
-              {experiences.length === 0 && !showExpForm && (
-                <div style={{ fontSize: 13, color: '#999' }}>Aún no has añadido experiencia.</div>
-              )}
-              {experiences.map((exp) => (
-                <div className="exp-item" key={exp.id}>
-                  <div className="exp-logo">🏛️</div>
-                  <div className="exp-body" style={{ flex: 1 }}>
-                    <div className="et">{exp.title}</div>
-                    <div className="eo">{exp.organization_name}</div>
-                    <div className="ep">
-                      {exp.start_date} – {exp.end_date || 'Actualidad'}
-                    </div>
-                    <div className="ed">{exp.description}</div>
-                  </div>
-                  <button className="btn-g" style={{ height: 'fit-content' }} onClick={() => deleteExperience(exp.id)}>
-                    <i className="ti ti-trash"></i>
-                  </button>
-                </div>
-              ))}
-            </div>
-          )}
-
-          {tab === 'ed' && (
-            <div className="p-sec" style={{ borderBottom: 'none' }}>
-              <h3>
-                Educación
-                <button className="btn-g" style={{ fontSize: 12 }} onClick={() => setShowEduForm(!showEduForm)}>
-                  <i className="ti ti-plus"></i> Añadir
-                </button>
-              </h3>
-              {showEduForm && (
-                <form onSubmit={addEducation} style={{ marginBottom: 16, background: '#f8faf9', padding: 14, borderRadius: 10 }}>
-                  <div className="form-g">
-                    <label>Titulación</label>
-                    <input name="degree" required />
-                  </div>
-                  <div className="form-g">
-                    <label>Institución</label>
-                    <input name="institution" required />
-                  </div>
-                  <div className="form-row">
-                    <div className="form-g">
-                      <label>Año inicio</label>
-                      <input type="date" name="start_date" />
-                    </div>
-                    <div className="form-g">
-                      <label>Año fin</label>
-                      <input type="date" name="end_date" />
-                    </div>
-                  </div>
-                  <button className="btn-p">Guardar educación</button>
-                </form>
-              )}
-              {education.length === 0 && !showEduForm && (
-                <div style={{ fontSize: 13, color: '#999' }}>Aún no has añadido educación.</div>
-              )}
-              {education.map((ed) => (
-                <div className="exp-item" key={ed.id}>
-                  <div className="exp-logo">🎓</div>
-                  <div className="exp-body" style={{ flex: 1 }}>
-                    <div className="et">{ed.degree}</div>
-                    <div className="eo">{ed.institution}</div>
-                  </div>
-                  <button className="btn-g" style={{ height: 'fit-content' }} onClick={() => deleteEducation(ed.id)}>
-                    <i className="ti ti-trash"></i>
-                  </button>
-                </div>
-              ))}
-            </div>
-          )}
-
-          {tab === 'sk' && (
-            <div className="p-sec" style={{ borderBottom: 'none' }}>
-              <h3>Habilidades</h3>
-              <form onSubmit={addSkill} style={{ display: 'flex', gap: 8, marginBottom: 14 }}>
-                <input
-                  placeholder="Ej: Lobbying, Inglés C2..."
-                  value={skillInput}
-                  onChange={(e) => setSkillInput(e.target.value)}
-                  style={{
-                    flex: 1,
-                    padding: '9px 12px',
-                    border: '1px solid #e0dfd8',
-                    borderRadius: 8,
-                    fontSize: 13,
-                    outline: 'none',
-                  }}
-                />
-                <button className="btn-p">Añadir</button>
-              </form>
-              <div>
-                {skills.map((s) => (
-                  <span className="skill" key={s.id}>
-                    {s.skill_name}
-                    <button onClick={() => deleteSkill(s.id)}>
-                      <i className="ti ti-x"></i>
-                    </button>
-                  </span>
-                ))}
-                {skills.length === 0 && <div style={{ fontSize: 13, color: '#999' }}>Sin habilidades añadidas.</div>}
-              </div>
-            </div>
-          )}
-        </div>
-
-        <div>
-          <div className="sw">
-            <h4>Currículum (CV)</h4>
-            {profile?.cv_url ? (
-              <>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
-                  <i className="ti ti-file-cv" style={{ fontSize: 18, color: '#1d6f5c' }}></i>
-                  <div style={{ fontSize: 12.5, color: '#555', flex: 1 }}>
-                    CV subido
-                    {profile.cv_uploaded_at && (
-                      <div style={{ fontSize: 11, color: '#999' }}>
-                        {new Date(profile.cv_uploaded_at).toLocaleDateString('es-ES')}
-                      </div>
+                  <div style={{ fontSize: 11, color: '#888', marginBottom: 4 }}>{a.users?.professional_title}</div>
+                  {!jobFilter && <div style={{ fontSize: 10.5, color: '#1d6f5c', marginBottom: 4 }}>{a.jobs?.title}</div>}
+                  <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', fontSize: 10.5, color: '#999' }}>
+                    {a.users?.phone && <span>{a.users.phone}</span>}
+                    {a.notes && (
+                      <span style={{ color: '#1d6f5c' }}>
+                        <i className="ti ti-note" style={{ fontSize: 11 }}></i> Con notas
+                      </span>
+                    )}
+                    {a.ai_summary && (
+                      <span style={{ color: '#6d5aef' }}>
+                        <i className="ti ti-bolt" style={{ fontSize: 11 }}></i> Resumen IA
+                      </span>
                     )}
                   </div>
                 </div>
-                <div style={{ display: 'flex', gap: 8, marginBottom: 8 }}>
-                  <a
-                    href={profile.cv_url}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="btn-o"
-                    style={{ flex: 1, textAlign: 'center', textDecoration: 'none', fontSize: 12.5 }}
-                  >
-                    Ver CV
-                  </a>
-                  <label className="btn-g" style={{ cursor: 'pointer', fontSize: 12.5 }}>
-                    {uploadingCv ? 'Subiendo...' : 'Reemplazar'}
-                    <input type="file" accept="application/pdf" hidden onChange={handleCvUpload} disabled={uploadingCv} />
-                  </label>
-                </div>
-                <button className="btn-p" style={{ width: '100%', fontSize: 12.5 }} disabled={extractingCv} onClick={extractFromCv}>
-                  <i className="ti ti-sparkles"></i> {extractingCv ? 'Leyendo tu CV...' : 'Autocompletar perfil con IA'}
-                </button>
-              </>
-            ) : (
-              <>
-                <div style={{ fontSize: 12.5, color: '#999', marginBottom: 10 }}>
-                  Sube tu CV en PDF para que los reclutadores te encuentren más rápido.
-                </div>
-                <label className="btn-p" style={{ width: '100%', textAlign: 'center', display: 'block', cursor: 'pointer' }}>
-                  {uploadingCv ? 'Subiendo...' : 'Subir CV'}
-                  <input type="file" accept="application/pdf" hidden onChange={handleCvUpload} disabled={uploadingCv} />
-                </label>
-              </>
-            )}
-          </div>
-
-          <div className="sw">
-            <h4>Tu visibilidad</h4>
-            <div style={{ fontSize: 13, color: '#555', marginBottom: 7 }}>
-              Perfil completado al <b style={{ color: '#1d6f5c' }}>{completion}%</b>
+              ))}
+              {items.length === 0 && <div style={{ fontSize: 11, color: '#bbb', textAlign: 'center', padding: 20 }}>Sin candidatos</div>}
             </div>
-            <div style={{ background: '#f0efe9', borderRadius: 6, height: 6, marginBottom: 10 }}>
-              <div style={{ background: '#1d6f5c', borderRadius: 6, height: 6, width: `${completion}%` }}></div>
-            </div>
-            <div style={{ fontSize: 12, color: '#888' }}>Añade foto, bio y experiencia para aumentar tu visibilidad.</div>
-          </div>
-
-          <div className="sw">
-            <h4>Empleos guardados</h4>
-            {savedJobs.length === 0 && <div style={{ fontSize: 12.5, color: '#999' }}>Ninguno todavía.</div>}
-            {savedJobs.map((sj, i) => (
-              <div className="sp" key={i}>
-                <div className="sp-av" style={{ borderRadius: 8 }}>
-                  <i className="ti ti-briefcase"></i>
-                </div>
-                <div>
-                  <div style={{ fontSize: 13, fontWeight: 500 }}>{sj.jobs?.title}</div>
-                  <div style={{ fontSize: 11.5, color: '#888' }}>{sj.jobs?.organizations?.name}</div>
-                </div>
-              </div>
-            ))}
-            <Link href="/jobs" style={{ fontSize: 12.5, color: '#1d6f5c' }}>
-              Ver todos los empleos
-            </Link>
-          </div>
-
-          <div className="sw">
-            <h4>Organizaciones que sigues</h4>
-            {followedOrgs.length === 0 && <div style={{ fontSize: 12.5, color: '#999' }}>Ninguna todavía.</div>}
-            {followedOrgs.map((f, i) => (
-              <Link href={`/organizations/${f.organizations?.slug}`} className="sp" key={i} style={{ textDecoration: 'none', color: 'inherit' }}>
-                <div className="sp-av" style={{ borderRadius: 8 }}>
-                  <i className="ti ti-building"></i>
-                </div>
-                <div style={{ fontSize: 13, fontWeight: 500 }}>{f.organizations?.name}</div>
-              </Link>
-            ))}
-            <Link href="/organizations" style={{ fontSize: 12.5, color: '#1d6f5c' }}>
-              Ver directorio
-            </Link>
-          </div>
-        </div>
+          );
+        })}
       </div>
 
-      {cvExtractResult && (
-        <div className="modal-ov on" onClick={(e) => e.target === e.currentTarget && setCvExtractResult(null)}>
+      {detailApp && (
+        <div className="modal-ov on" onClick={(e) => e.target === e.currentTarget && closeDetail()}>
           <div className="modal-box" style={{ maxWidth: 620 }}>
             <div className="modal-head">
-              <h2>Revisa lo que hemos leído de tu CV</h2>
-              <div className="modal-x" onClick={() => setCvExtractResult(null)}>
+              <h2>
+                {detailApp.users?.first_name} {detailApp.users?.last_name}
+              </h2>
+              <div className="modal-x" onClick={closeDetail}>
                 <i className="ti ti-x"></i>
               </div>
             </div>
-            <p style={{ fontSize: 12.5, color: '#888', marginBottom: 16 }}>
-              Desmarca lo que no quieras añadir. Esto se sumará a lo que ya tienes en tu perfil (no se borra nada).
-            </p>
 
-            {cvExtractResult.professional_title && !user.professional_title && (
-              <div style={{ fontSize: 13, marginBottom: 12 }}>
-                <b>Título profesional:</b> {cvExtractResult.professional_title}
-              </div>
-            )}
-            {cvExtractResult.bio && !profile?.bio && (
-              <div style={{ fontSize: 13, marginBottom: 16, background: '#f8faf9', borderRadius: 8, padding: 10 }}>
-                <b>Biografía:</b> {cvExtractResult.bio}
-              </div>
-            )}
+            <div style={{ fontSize: 13, color: '#666', marginBottom: 4 }}>{detailApp.users?.professional_title}</div>
+            <div style={{ fontSize: 12, color: '#1d6f5c', marginBottom: 14 }}>{detailApp.jobs?.title}</div>
 
-            {cvExtractResult.experiences.length > 0 && (
+            <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap', fontSize: 12.5, color: '#666', marginBottom: 14 }}>
+              {detailApp.users?.email && (
+                <span>
+                  <i className="ti ti-mail"></i> {detailApp.users.email}
+                </span>
+              )}
+              {detailApp.users?.phone && (
+                <span>
+                  <i className="ti ti-phone"></i> {detailApp.users.phone}
+                </span>
+              )}
+              {detailApp.cv_url_snapshot && (
+                <a href={detailApp.cv_url_snapshot} target="_blank" rel="noreferrer" style={{ color: '#1d6f5c', fontWeight: 500 }}>
+                  <i className="ti ti-file-cv"></i> Ver CV
+                </a>
+              )}
+            </div>
+
+            {detailApp.cover_note && (
               <div style={{ marginBottom: 16 }}>
-                <div style={{ fontSize: 12.5, fontWeight: 600, marginBottom: 6 }}>Experiencia detectada</div>
-                {cvExtractResult.experiences.map((e, i) => (
-                  <label key={i} style={{ display: 'flex', gap: 8, alignItems: 'flex-start', fontSize: 12.5, marginBottom: 8, cursor: 'pointer' }}>
-                    <input
-                      type="checkbox"
-                      checked={selectedExpIdx.has(i)}
-                      onChange={() => toggleSetIdx(setSelectedExpIdx, selectedExpIdx, i)}
-                      style={{ marginTop: 3 }}
-                    />
-                    <div>
-                      <b>{e.title}</b> · {e.organization_name}
-                      <div style={{ color: '#999', fontSize: 11 }}>
-                        {e.start_date} – {e.end_date || 'Actualidad'}
-                      </div>
-                    </div>
-                  </label>
-                ))}
-              </div>
-            )}
-
-            {cvExtractResult.education.length > 0 && (
-              <div style={{ marginBottom: 16 }}>
-                <div style={{ fontSize: 12.5, fontWeight: 600, marginBottom: 6 }}>Educación detectada</div>
-                {cvExtractResult.education.map((e, i) => (
-                  <label key={i} style={{ display: 'flex', gap: 8, alignItems: 'flex-start', fontSize: 12.5, marginBottom: 8, cursor: 'pointer' }}>
-                    <input
-                      type="checkbox"
-                      checked={selectedEduIdx.has(i)}
-                      onChange={() => toggleSetIdx(setSelectedEduIdx, selectedEduIdx, i)}
-                      style={{ marginTop: 3 }}
-                    />
-                    <div>
-                      <b>{e.degree}</b> · {e.institution}
-                    </div>
-                  </label>
-                ))}
-              </div>
-            )}
-
-            {cvExtractResult.skills.length > 0 && (
-              <div style={{ marginBottom: 16 }}>
-                <div style={{ fontSize: 12.5, fontWeight: 600, marginBottom: 6 }}>Habilidades detectadas</div>
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-                  {cvExtractResult.skills.map((s) => (
-                    <div
-                      key={s}
-                      onClick={() =>
-                        setSelectedSkills((prev) => {
-                          const n = new Set(prev);
-                          n.has(s) ? n.delete(s) : n.add(s);
-                          return n;
-                        })
-                      }
-                      className={`tp ${selectedSkills.has(s) ? 'on' : ''}`}
-                    >
-                      {s}
-                    </div>
-                  ))}
+                <div style={{ fontSize: 12.5, fontWeight: 600, marginBottom: 5 }}>Carta de presentación</div>
+                <div style={{ fontSize: 12.5, color: '#555', background: '#f8faf9', borderRadius: 8, padding: 10, lineHeight: 1.6 }}>
+                  {detailApp.cover_note}
                 </div>
               </div>
             )}
 
-            <div className="m-foot">
-              <button type="button" className="m-back" onClick={() => setCvExtractResult(null)}>
-                Cancelar
-              </button>
-              <button className="m-next" disabled={applyingExtract} onClick={applyCvExtract}>
-                <i className="ti ti-check"></i> {applyingExtract ? 'Aplicando...' : 'Añadir a mi perfil'}
-              </button>
+            <div style={{ marginBottom: 16 }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 5 }}>
+                <div style={{ fontSize: 12.5, fontWeight: 600 }}>Resumen con IA</div>
+                <button className="btn-ai-o" style={{ fontSize: 11, padding: '4px 9px' }} disabled={summaryLoading} onClick={() => generateSummary(detailApp)}>
+                  <i className="ti ti-bolt" style={{ fontSize: 11 }}></i>{' '}
+                  {summaryLoading ? 'Generando...' : detailApp.ai_summary ? 'Regenerar' : 'Generar'}
+                </button>
+              </div>
+              {detailApp.ai_summary ? (
+                <div style={{ fontSize: 12.5, color: '#555', background: '#faf9ff', border: '1px solid #d8d3fb', borderRadius: 8, padding: 10, lineHeight: 1.6 }}>
+                  {detailApp.ai_summary}
+                </div>
+              ) : (
+                <div style={{ fontSize: 12, color: '#999' }}>Todavía no se ha generado un resumen para este candidato.</div>
+              )}
+            </div>
+
+            <div>
+              <div style={{ fontSize: 12.5, fontWeight: 600, marginBottom: 5 }}>Tus notas privadas</div>
+              <p style={{ fontSize: 11, color: '#999', marginBottom: 6 }}>
+                Útil para apuntar impresiones de una llamada o entrevista. Solo lo ve tu equipo.
+              </p>
+              <textarea
+                value={notesDraft}
+                onChange={(e) => setNotesDraft(e.target.value)}
+                placeholder="Escribe aquí tus notas..."
+                style={{
+                  width: '100%',
+                  minHeight: 110,
+                  padding: '10px 12px',
+                  border: '1px solid #e0dfd8',
+                  borderRadius: 9,
+                  fontSize: 13,
+                  fontFamily: 'inherit',
+                  outline: 'none',
+                  resize: 'vertical',
+                }}
+              ></textarea>
+              <div className="m-foot">
+                <div></div>
+                <button className="m-next" disabled={savingNotes} onClick={saveNotes}>
+                  <i className="ti ti-check"></i> {savingNotes ? 'Guardando...' : 'Guardar notas'}
+                </button>
+              </div>
             </div>
           </div>
         </div>
       )}
     </div>
   );
-}
-
-function computeCompletion(user, profile, exp, edu, skills) {
-  let pts = 0;
-  const total = 9;
-  if (user?.avatar_url) pts++;
-  if (profile?.cover_url) pts++;
-  if (profile?.cv_url) pts++;
-  if (profile?.bio) pts++;
-  if (user?.professional_title) pts++;
-  if (profile?.website_url || profile?.linkedin_url) pts++;
-  if (exp.length > 0) pts++;
-  if (edu.length > 0) pts++;
-  if (skills.length > 0) pts++;
-  return Math.round((pts / total) * 100);
 }
