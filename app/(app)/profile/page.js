@@ -716,7 +716,10 @@ export default function ProfilePage() {
                     <label>Descripción</label>
                     <textarea name="description"></textarea>
                   </div>
-                  <button className="btn-p">Guardar experiencia</button>
+                  <button className="btn-p">Guardar experiencia</button>{' '}
+                  <button type="button" className="btn-g" onClick={() => setShowExpForm(false)}>
+                    Cancelar
+                  </button>
                 </form>
               )}
               {experiences.length === 0 && !showExpForm && (
@@ -848,7 +851,10 @@ export default function ProfilePage() {
                       <input type="date" name="end_date" />
                     </div>
                   </div>
-                  <button className="btn-p">Guardar educación</button>
+                  <button className="btn-p">Guardar educación</button>{' '}
+                  <button type="button" className="btn-g" onClick={() => setShowEduForm(false)}>
+                    Cancelar
+                  </button>
                 </form>
               )}
               {education.length === 0 && !showEduForm && (
