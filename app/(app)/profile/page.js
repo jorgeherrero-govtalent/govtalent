@@ -25,6 +25,12 @@ export default function ProfilePage() {
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const [uploadingCover, setUploadingCover] = useState(false);
   const [uploadingCv, setUploadingCv] = useState(false);
+  const [extractingCv, setExtractingCv] = useState(false);
+  const [cvExtractResult, setCvExtractResult] = useState(null);
+  const [applyingExtract, setApplyingExtract] = useState(false);
+  const [selectedExpIdx, setSelectedExpIdx] = useState(new Set());
+  const [selectedEduIdx, setSelectedEduIdx] = useState(new Set());
+  const [selectedSkills, setSelectedSkills] = useState(new Set());
 
   useEffect(() => {
     load();
@@ -93,6 +99,7 @@ export default function ProfilePage() {
       website_url: f.get('website_url') || null,
       linkedin_url: f.get('linkedin_url') || null,
       bio: f.get('bio') || null,
+      contact_email: f.get('contact_email') || null,
     };
 
     const [{ error: uErr }, { error: pErr }] = await Promise.all([
@@ -179,6 +186,95 @@ export default function ProfilePage() {
       .eq('user_id', userId);
     setProfile({ ...profile, cv_url: cvUrl, cv_uploaded_at: uploadedAt });
     toast('CV subido correctamente ✓');
+  }
+
+  async function extractFromCv() {
+    if (!profile?.cv_url) return;
+    setExtractingCv(true);
+    try {
+      const res = await fetch('/api/ai/extract-cv', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ cvUrl: profile.cv_url }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Error desconocido');
+      setCvExtractResult(data);
+      setSelectedExpIdx(new Set(data.experiences.map((_, i) => i)));
+      setSelectedEduIdx(new Set(data.education.map((_, i) => i)));
+      setSelectedSkills(new Set(data.skills));
+    } catch (err) {
+      toast('No se pudo leer el CV: ' + err.message);
+    }
+    setExtractingCv(false);
+  }
+
+  function toggleSetIdx(setter, set, idx) {
+    setter((prev) => {
+      const n = new Set(prev);
+      n.has(idx) ? n.delete(idx) : n.add(idx);
+      return n;
+    });
+  }
+
+  async function applyCvExtract() {
+    if (!cvExtractResult) return;
+    setApplyingExtract(true);
+
+    const userUpdates = {};
+    if (cvExtractResult.professional_title && !user.professional_title) {
+      userUpdates.professional_title = cvExtractResult.professional_title;
+    }
+    if (Object.keys(userUpdates).length > 0) {
+      await supabase.from('users').update(userUpdates).eq('id', userId);
+    }
+
+    if (cvExtractResult.bio && !profile?.bio) {
+      await supabase.from('candidate_profiles').update({ bio: cvExtractResult.bio }).eq('user_id', userId);
+    }
+
+    const expToInsert = cvExtractResult.experiences
+      .filter((_, i) => selectedExpIdx.has(i))
+      .map((e) => ({
+        user_id: userId,
+        title: e.title,
+        organization_name: e.organization_name,
+        location: e.location || null,
+        start_date: e.start_date,
+        end_date: e.end_date || null,
+        description: e.description || null,
+      }));
+    const eduToInsert = cvExtractResult.education
+      .filter((_, i) => selectedEduIdx.has(i))
+      .map((e) => ({
+        user_id: userId,
+        degree: e.degree,
+        institution: e.institution,
+        start_date: e.start_date || null,
+        end_date: e.end_date || null,
+      }));
+    const skillsToInsert = [...selectedSkills].map((s) => ({ user_id: userId, skill_name: s }));
+
+    const [expRes, eduRes] = await Promise.all([
+      expToInsert.length > 0 ? supabase.from('experiences').insert(expToInsert).select() : Promise.resolve({ data: [] }),
+      eduToInsert.length > 0 ? supabase.from('education').insert(eduToInsert).select() : Promise.resolve({ data: [] }),
+    ]);
+    if (skillsToInsert.length > 0) {
+      // Ignoramos errores de duplicado (habilidad ya existente para este usuario)
+      await supabase.from('skills').insert(skillsToInsert).select();
+    }
+
+    if (expRes.data?.length) setExperiences((prev) => [...expRes.data, ...prev]);
+    if (eduRes.data?.length) setEducation((prev) => [...eduRes.data, ...prev]);
+    if (userUpdates.professional_title) setUser((prev) => ({ ...prev, ...userUpdates }));
+    if (cvExtractResult.bio && !profile?.bio) setProfile((prev) => ({ ...prev, bio: cvExtractResult.bio }));
+
+    const { data: freshSkills } = await supabase.from('skills').select('*').eq('user_id', userId);
+    if (freshSkills) setSkills(freshSkills);
+
+    setApplyingExtract(false);
+    setCvExtractResult(null);
+    toast('Perfil actualizado a partir de tu CV ✓');
   }
 
   async function addExperience(e) {
@@ -373,6 +469,25 @@ export default function ProfilePage() {
                   <label>Apellidos</label>
                   <input name="last_name" defaultValue={user.last_name || ''} required />
                 </div>
+              </div>
+              <div className="field">
+                <label>Email de la cuenta</label>
+                <input type="email" defaultValue={user.email || ''} disabled style={{ background: '#f4f4f0', color: '#888' }} />
+                <p style={{ fontSize: 11, color: '#999', marginTop: 4 }}>
+                  Es el email con el que inicias sesión. No se puede editar aquí.
+                </p>
+              </div>
+              <div className="field">
+                <label>Email de contacto para contrataciones</label>
+                <input
+                  type="email"
+                  name="contact_email"
+                  defaultValue={profile?.contact_email || user.email || ''}
+                  placeholder="nombre@ejemplo.com"
+                />
+                <p style={{ fontSize: 11, color: '#999', marginTop: 4 }}>
+                  Es el email que verán las organizaciones al recibir tus solicitudes. Puede ser distinto al de tu cuenta.
+                </p>
               </div>
               <div className="field">
                 <label>Título profesional</label>
@@ -606,7 +721,7 @@ export default function ProfilePage() {
                     )}
                   </div>
                 </div>
-                <div style={{ display: 'flex', gap: 8 }}>
+                <div style={{ display: 'flex', gap: 8, marginBottom: 8 }}>
                   <a
                     href={profile.cv_url}
                     target="_blank"
@@ -621,6 +736,9 @@ export default function ProfilePage() {
                     <input type="file" accept="application/pdf" hidden onChange={handleCvUpload} disabled={uploadingCv} />
                   </label>
                 </div>
+                <button className="btn-p" style={{ width: '100%', fontSize: 12.5 }} disabled={extractingCv} onClick={extractFromCv}>
+                  <i className="ti ti-sparkles"></i> {extractingCv ? 'Leyendo tu CV...' : 'Autocompletar perfil con IA'}
+                </button>
               </>
             ) : (
               <>
@@ -682,6 +800,106 @@ export default function ProfilePage() {
           </div>
         </div>
       </div>
+
+      {cvExtractResult && (
+        <div className="modal-ov on" onClick={(e) => e.target === e.currentTarget && setCvExtractResult(null)}>
+          <div className="modal-box" style={{ maxWidth: 620 }}>
+            <div className="modal-head">
+              <h2>Revisa lo que hemos leído de tu CV</h2>
+              <div className="modal-x" onClick={() => setCvExtractResult(null)}>
+                <i className="ti ti-x"></i>
+              </div>
+            </div>
+            <p style={{ fontSize: 12.5, color: '#888', marginBottom: 16 }}>
+              Desmarca lo que no quieras añadir. Esto se sumará a lo que ya tienes en tu perfil (no se borra nada).
+            </p>
+
+            {cvExtractResult.professional_title && !user.professional_title && (
+              <div style={{ fontSize: 13, marginBottom: 12 }}>
+                <b>Título profesional:</b> {cvExtractResult.professional_title}
+              </div>
+            )}
+            {cvExtractResult.bio && !profile?.bio && (
+              <div style={{ fontSize: 13, marginBottom: 16, background: '#f8faf9', borderRadius: 8, padding: 10 }}>
+                <b>Biografía:</b> {cvExtractResult.bio}
+              </div>
+            )}
+
+            {cvExtractResult.experiences.length > 0 && (
+              <div style={{ marginBottom: 16 }}>
+                <div style={{ fontSize: 12.5, fontWeight: 600, marginBottom: 6 }}>Experiencia detectada</div>
+                {cvExtractResult.experiences.map((e, i) => (
+                  <label key={i} style={{ display: 'flex', gap: 8, alignItems: 'flex-start', fontSize: 12.5, marginBottom: 8, cursor: 'pointer' }}>
+                    <input
+                      type="checkbox"
+                      checked={selectedExpIdx.has(i)}
+                      onChange={() => toggleSetIdx(setSelectedExpIdx, selectedExpIdx, i)}
+                      style={{ marginTop: 3 }}
+                    />
+                    <div>
+                      <b>{e.title}</b> · {e.organization_name}
+                      <div style={{ color: '#999', fontSize: 11 }}>
+                        {e.start_date} – {e.end_date || 'Actualidad'}
+                      </div>
+                    </div>
+                  </label>
+                ))}
+              </div>
+            )}
+
+            {cvExtractResult.education.length > 0 && (
+              <div style={{ marginBottom: 16 }}>
+                <div style={{ fontSize: 12.5, fontWeight: 600, marginBottom: 6 }}>Educación detectada</div>
+                {cvExtractResult.education.map((e, i) => (
+                  <label key={i} style={{ display: 'flex', gap: 8, alignItems: 'flex-start', fontSize: 12.5, marginBottom: 8, cursor: 'pointer' }}>
+                    <input
+                      type="checkbox"
+                      checked={selectedEduIdx.has(i)}
+                      onChange={() => toggleSetIdx(setSelectedEduIdx, selectedEduIdx, i)}
+                      style={{ marginTop: 3 }}
+                    />
+                    <div>
+                      <b>{e.degree}</b> · {e.institution}
+                    </div>
+                  </label>
+                ))}
+              </div>
+            )}
+
+            {cvExtractResult.skills.length > 0 && (
+              <div style={{ marginBottom: 16 }}>
+                <div style={{ fontSize: 12.5, fontWeight: 600, marginBottom: 6 }}>Habilidades detectadas</div>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                  {cvExtractResult.skills.map((s) => (
+                    <div
+                      key={s}
+                      onClick={() =>
+                        setSelectedSkills((prev) => {
+                          const n = new Set(prev);
+                          n.has(s) ? n.delete(s) : n.add(s);
+                          return n;
+                        })
+                      }
+                      className={`tp ${selectedSkills.has(s) ? 'on' : ''}`}
+                    >
+                      {s}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            <div className="m-foot">
+              <button type="button" className="m-back" onClick={() => setCvExtractResult(null)}>
+                Cancelar
+              </button>
+              <button className="m-next" disabled={applyingExtract} onClick={applyCvExtract}>
+                <i className="ti ti-check"></i> {applyingExtract ? 'Aplicando...' : 'Añadir a mi perfil'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
