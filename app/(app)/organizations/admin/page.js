@@ -449,17 +449,17 @@ export default function OrganizationAdminPage() {
 
               <div
                 style={{
-                  background: '#fff',
-                  border: '1px solid #c0e4d8',
+                  background: '#faf9ff',
+                  border: '1px solid #d8d3fb',
                   borderRadius: 10,
                   padding: 12,
                   marginBottom: 14,
                 }}
               >
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
-                  <i className="ti ti-sparkles" style={{ color: '#1d6f5c', fontSize: 15 }}></i>
+                  <i className="ti ti-bolt" style={{ color: '#6d5aef', fontSize: 15 }}></i>
                   <span style={{ fontSize: 12.5, fontWeight: 600 }}>Redactar con IA</span>
-                  <span className="badge by" style={{ fontSize: 9.5, padding: '1px 6px' }}>BETA</span>
+                  <span className="badge-ai" style={{ fontSize: 9.5, padding: '1px 6px' }}>BETA</span>
                 </div>
                 <textarea
                   value={aiPrompt}
@@ -480,12 +480,12 @@ export default function OrganizationAdminPage() {
                 ></textarea>
                 <button
                   type="button"
-                  className="btn-o"
+                  className="btn-ai-o"
                   style={{ width: '100%', fontSize: 12 }}
                   disabled={generatingDesc}
                   onClick={generateJobDescription}
                 >
-                  <i className="ti ti-sparkles"></i>{' '}
+                  <i className="ti ti-bolt"></i>{' '}
                   {generatingDesc ? 'Generando...' : 'Generar descripción, responsabilidades y requisitos'}
                 </button>
               </div>
