@@ -32,6 +32,8 @@ export default function OrganizationAdminPage() {
   const [editingJob, setEditingJob] = useState(null);
   const [loadingEditJob, setLoadingEditJob] = useState(false);
   const [savingJobEdit, setSavingJobEdit] = useState(false);
+  const [openJobMenuId, setOpenJobMenuId] = useState(null);
+  const [togglingStatusId, setTogglingStatusId] = useState(null);
   const [aiPrompt, setAiPrompt] = useState('');
   const [generatingDesc, setGeneratingDesc] = useState(false);
   const [orgAiPrompt, setOrgAiPrompt] = useState('');
@@ -114,6 +116,20 @@ export default function OrganizationAdminPage() {
     await supabase.from('organizations').update({ cover_url: coverUrl }).eq('id', org.id);
     setOrg({ ...org, cover_url: coverUrl });
     toast('Portada actualizada ✓');
+  }
+
+  async function toggleJobStatus(job) {
+    const newStatus = job.status === 'activa' ? 'pausada' : 'activa';
+    setTogglingStatusId(job.id);
+    const { error } = await supabase.from('jobs').update({ status: newStatus }).eq('id', job.id);
+    setTogglingStatusId(null);
+    setOpenJobMenuId(null);
+    if (error) {
+      toast('No se pudo actualizar el estado de la oferta');
+      return;
+    }
+    setJobs((prev) => prev.map((j) => (j.id === job.id ? { ...j, status: newStatus } : j)));
+    toast(newStatus === 'activa' ? 'Oferta activada ✓' : 'Oferta desactivada ✓');
   }
 
   async function openEditJob(jobId) {
@@ -567,13 +583,13 @@ export default function OrganizationAdminPage() {
                     {j.status}
                   </span>
                 </div>
-                <div style={{ marginTop: 8, display: 'flex', gap: 6 }}>
+                <div style={{ marginTop: 8, display: 'flex', gap: 6, position: 'relative' }}>
                   <button
                     className="btn-o"
                     style={{ fontSize: 11.5, padding: '5px 10px' }}
-                    onClick={() => openEditJob(j.id)}
+                    onClick={() => setOpenJobMenuId(openJobMenuId === j.id ? null : j.id)}
                   >
-                    <i className="ti ti-edit"></i> Actualizar mi oferta
+                    <i className="ti ti-eye"></i> Ver oferta
                   </button>
                   <a
                     href={`/organizations/admin/candidates?job=${j.id}`}
@@ -582,6 +598,74 @@ export default function OrganizationAdminPage() {
                   >
                     <i className="ti ti-users"></i> Ver candidatos
                   </a>
+
+                  {openJobMenuId === j.id && (
+                    <>
+                      <div
+                        onClick={() => setOpenJobMenuId(null)}
+                        style={{ position: 'fixed', inset: 0, zIndex: 10 }}
+                      ></div>
+                      <div
+                        style={{
+                          position: 'absolute',
+                          top: '100%',
+                          left: 0,
+                          marginTop: 6,
+                          background: '#fff',
+                          border: '1px solid #e0dfd8',
+                          borderRadius: 9,
+                          boxShadow: '0 4px 16px rgba(0,0,0,.1)',
+                          zIndex: 11,
+                          minWidth: 170,
+                          overflow: 'hidden',
+                        }}
+                      >
+                        <button
+                          onClick={() => {
+                            setOpenJobMenuId(null);
+                            openEditJob(j.id);
+                          }}
+                          style={{
+                            width: '100%',
+                            textAlign: 'left',
+                            padding: '10px 14px',
+                            fontSize: 12.5,
+                            background: 'none',
+                            border: 'none',
+                            borderBottom: '.5px solid #f0f0eb',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: 8,
+                          }}
+                        >
+                          <i className="ti ti-edit" style={{ color: '#555' }}></i> Actualizar oferta
+                        </button>
+                        <button
+                          onClick={() => toggleJobStatus(j)}
+                          disabled={togglingStatusId === j.id}
+                          style={{
+                            width: '100%',
+                            textAlign: 'left',
+                            padding: '10px 14px',
+                            fontSize: 12.5,
+                            background: 'none',
+                            border: 'none',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: 8,
+                            color: j.status === 'activa' ? '#b3261e' : '#1d6f5c',
+                          }}
+                        >
+                          <i className={`ti ${j.status === 'activa' ? 'ti-player-pause' : 'ti-player-play'}`}></i>{' '}
+                          {togglingStatusId === j.id
+                            ? 'Actualizando...'
+                            : j.status === 'activa'
+                            ? 'Desactivar oferta'
+                            : 'Activar oferta'}
+                        </button>
+                      </div>
+                    </>
+                  )}
                 </div>
               </div>
             ))}
