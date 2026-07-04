@@ -565,8 +565,10 @@ export default function OrganizationAdminPage() {
         <div>
           <div className="sw">
             <h4>Ofertas activas</h4>
-            {jobs.length === 0 && <div style={{ fontSize: 12.5, color: '#999' }}>Aún no has publicado ofertas.</div>}
-            {jobs.map((j) => (
+            {jobs.filter((j) => j.status === 'activa').length === 0 && (
+              <div style={{ fontSize: 12.5, color: '#999', marginBottom: 10 }}>No tienes ofertas activas ahora mismo.</div>
+            )}
+            {jobs.filter((j) => j.status === 'activa').map((j) => (
               <div
                 key={j.id}
                 className="ji on"
@@ -669,6 +671,12 @@ export default function OrganizationAdminPage() {
                 </div>
               </div>
             ))}
+            <a
+              href="/organizations/admin/jobs"
+              style={{ fontSize: 12.5, color: '#1d6f5c', textDecoration: 'none', display: 'inline-block', marginTop: 6 }}
+            >
+              Ver todas las ofertas →
+            </a>
           </div>
 
           <div className="sw" style={{ borderColor: '#1d6f5c', background: 'linear-gradient(160deg,#f0f8f5,#fff)' }}>
