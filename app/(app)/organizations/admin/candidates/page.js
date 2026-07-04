@@ -2,6 +2,7 @@
 
 import { useEffect, useState, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
+import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
 import { toast } from '@/lib/toast';
 
@@ -45,6 +46,8 @@ function CandidatesBoardInner() {
   const [notesDraft, setNotesDraft] = useState('');
   const [savingNotes, setSavingNotes] = useState(false);
   const [summaryLoading, setSummaryLoading] = useState(false);
+  const [savedCandidateIds, setSavedCandidateIds] = useState(new Set());
+  const [savingCandidateId, setSavingCandidateId] = useState(null);
 
   useEffect(() => {
     load();
@@ -104,6 +107,13 @@ function CandidatesBoardInner() {
     }));
 
     setApplications(appsWithContactEmail);
+
+    const { data: savedRows } = await supabase
+      .from('saved_candidates')
+      .select('candidate_id')
+      .eq('organization_id', membership.organizations.id);
+    setSavedCandidateIds(new Set((savedRows || []).map((r) => r.candidate_id)));
+
     setLoading(false);
   }
 
@@ -127,6 +137,30 @@ function CandidatesBoardInner() {
   function closeDetail() {
     setDetailApp(null);
     setNotesDraft('');
+  }
+
+  async function toggleSaveCandidate(candidateId) {
+    if (!org) return;
+    setSavingCandidateId(candidateId);
+    if (savedCandidateIds.has(candidateId)) {
+      await supabase.from('saved_candidates').delete().eq('organization_id', org.id).eq('candidate_id', candidateId);
+      setSavedCandidateIds((prev) => {
+        const n = new Set(prev);
+        n.delete(candidateId);
+        return n;
+      });
+      toast('Candidato eliminado de guardados');
+    } else {
+      const { data: authData } = await supabase.auth.getUser();
+      const { error } = await supabase
+        .from('saved_candidates')
+        .insert({ organization_id: org.id, candidate_id: candidateId, saved_by: authData.user?.id });
+      if (!error) {
+        setSavedCandidateIds((prev) => new Set(prev).add(candidateId));
+        toast('Candidato guardado ✓');
+      }
+    }
+    setSavingCandidateId(null);
   }
 
   async function saveNotes() {
@@ -230,6 +264,11 @@ function CandidatesBoardInner() {
 
   return (
     <div className="sec" style={{ maxWidth: 1400 }}>
+      <div style={{ marginBottom: 10 }}>
+        <Link href="/organizations/admin" style={{ fontSize: 12.5, color: '#1d6f5c', textDecoration: 'none' }}>
+          <i className="ti ti-arrow-left"></i> Volver a mi organización
+        </Link>
+      </div>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 10, marginBottom: 12 }}>
         <div>
           <h2 style={{ fontSize: 19, fontWeight: 700 }}>Candidatos</h2>
@@ -350,6 +389,24 @@ function CandidatesBoardInner() {
 
             <div style={{ fontSize: 13, color: '#666', marginBottom: 4 }}>{detailApp.users?.professional_title}</div>
             <div style={{ fontSize: 12, color: '#1d6f5c', marginBottom: 14 }}>{detailApp.jobs?.title}</div>
+
+            <div style={{ display: 'flex', gap: 8, marginBottom: 14, flexWrap: 'wrap' }}>
+              <a href={`/candidates/${detailApp.candidate_id}`} target="_blank" rel="noreferrer" className="btn-o" style={{ textDecoration: 'none' }}>
+                <i className="ti ti-user"></i> Ver perfil completo
+              </a>
+              <button
+                className={savedCandidateIds.has(detailApp.candidate_id) ? 'btn-o' : 'btn-p'}
+                disabled={savingCandidateId === detailApp.candidate_id}
+                onClick={() => toggleSaveCandidate(detailApp.candidate_id)}
+              >
+                <i className={`ti ${savedCandidateIds.has(detailApp.candidate_id) ? 'ti-bookmark-filled' : 'ti-bookmark'}`}></i>{' '}
+                {savingCandidateId === detailApp.candidate_id
+                  ? 'Guardando...'
+                  : savedCandidateIds.has(detailApp.candidate_id)
+                  ? 'Guardado'
+                  : 'Guardar candidato'}
+              </button>
+            </div>
 
             <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap', fontSize: 12.5, color: '#666', marginBottom: 14 }}>
               {detailApp.contact_email && (
