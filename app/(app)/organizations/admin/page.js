@@ -36,6 +36,7 @@ export default function OrganizationAdminPage() {
   const [viewingJob, setViewingJob] = useState(null);
   const [loadingViewJob, setLoadingViewJob] = useState(false);
   const [aiPrompt, setAiPrompt] = useState('');
+  const [showAiJobModal, setShowAiJobModal] = useState(false);
   const [generatingDesc, setGeneratingDesc] = useState(false);
   const [orgAiPrompt, setOrgAiPrompt] = useState('');
   const [generatingOrgDesc, setGeneratingOrgDesc] = useState(false);
@@ -271,6 +272,7 @@ export default function OrganizationAdminPage() {
       if (requirementsRef.current) requirementsRef.current.value = data.requirements.join('\n');
       if (tagsRef.current) tagsRef.current.value = data.tags.join(', ');
 
+      setShowAiJobModal(false);
       toast('Contenido generado ✓ revísalo antes de publicar');
     } catch (err) {
       toast('No se pudo generar el contenido: ' + err.message);
@@ -443,9 +445,9 @@ export default function OrganizationAdminPage() {
             <button className="btn-p" onClick={() => setShowEdit(true)}>
               <i className="ti ti-edit"></i> Editar
             </button>
-            <a href="/organizations/admin/candidates" className="btn-o" style={{ textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+            <a href="/organizations/admin/candidates" className="btn-ai" style={{ textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 6 }}>
               <i className="ti ti-layout-kanban"></i> Tablero de candidatos
-              <span className="badge by" style={{ fontSize: 9.5, padding: '1px 6px' }}>BETA</span>
+              <span style={{ fontSize: 9.5, padding: '1px 6px', background: 'rgba(255,255,255,.25)', borderRadius: 10, fontWeight: 600 }}>BETA</span>
             </a>
           </div>
           <a
@@ -462,7 +464,12 @@ export default function OrganizationAdminPage() {
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 320px', gap: 13, maxWidth: 1080, margin: '0 auto' }}>
         <div className="card">
           <div className="cp">
-            <div style={{ fontWeight: 600, fontSize: 14, marginBottom: 13 }}>Publicar oferta de empleo</div>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 13 }}>
+              <div style={{ fontWeight: 600, fontSize: 14 }}>Publicar oferta de empleo</div>
+              <button type="button" className="btn-ai-o" style={{ fontSize: 12 }} onClick={() => setShowAiJobModal(true)}>
+                <i className="ti ti-bolt"></i> Redactar con IA
+              </button>
+            </div>
             <form onSubmit={publishJob} style={{ background: '#f8faf9', borderRadius: 10, padding: 15 }}>
               <div className="form-row">
                 <div className="form-g">
@@ -511,49 +518,6 @@ export default function OrganizationAdminPage() {
                     <input name="salary_max" type="number" placeholder="45000" />
                   </div>
                 </div>
-              </div>
-
-              <div
-                style={{
-                  background: '#faf9ff',
-                  border: '1px solid #d8d3fb',
-                  borderRadius: 10,
-                  padding: 12,
-                  marginBottom: 14,
-                }}
-              >
-                <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
-                  <i className="ti ti-bolt" style={{ color: '#6d5aef', fontSize: 15 }}></i>
-                  <span style={{ fontSize: 12.5, fontWeight: 600 }}>Redactar con IA</span>
-                  <span className="badge-ai" style={{ fontSize: 9.5, padding: '1px 6px' }}>BETA</span>
-                </div>
-                <textarea
-                  value={aiPrompt}
-                  onChange={(e) => setAiPrompt(e.target.value)}
-                  placeholder="Describe brevemente el puesto y lo que buscas, ej: consultor junior para llevar cuentas del sector energético, con inglés alto y ganas de aprender..."
-                  style={{
-                    width: '100%',
-                    minHeight: 60,
-                    padding: '8px 10px',
-                    border: '1px solid #e0dfd8',
-                    borderRadius: 8,
-                    fontSize: 12.5,
-                    fontFamily: 'inherit',
-                    outline: 'none',
-                    resize: 'vertical',
-                    marginBottom: 8,
-                  }}
-                ></textarea>
-                <button
-                  type="button"
-                  className="btn-ai-o"
-                  style={{ width: '100%', fontSize: 12 }}
-                  disabled={generatingDesc}
-                  onClick={generateJobDescription}
-                >
-                  <i className="ti ti-bolt"></i>{' '}
-                  {generatingDesc ? 'Generando...' : 'Generar descripción, responsabilidades y requisitos'}
-                </button>
               </div>
 
               <div className="form-g">
@@ -768,6 +732,51 @@ export default function OrganizationAdminPage() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {showAiJobModal && (
+        <div className="modal-ov on" onClick={(e) => e.target === e.currentTarget && setShowAiJobModal(false)}>
+          <div className="modal-box" style={{ maxWidth: 520 }}>
+            <div className="modal-head">
+              <h2 style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <i className="ti ti-bolt" style={{ color: '#6d5aef' }}></i> Redactar con IA
+                <span className="badge-ai" style={{ fontSize: 10 }}>BETA</span>
+              </h2>
+              <div className="modal-x" onClick={() => setShowAiJobModal(false)}>
+                <i className="ti ti-x"></i>
+              </div>
+            </div>
+            <p style={{ fontSize: 12.5, color: '#888', marginBottom: 14 }}>
+              Describe brevemente el puesto y lo que buscas. Rellenaremos la descripción, responsabilidades, requisitos
+              y etiquetas del formulario — podrás revisarlo todo antes de publicar.
+            </p>
+            <textarea
+              value={aiPrompt}
+              onChange={(e) => setAiPrompt(e.target.value)}
+              placeholder="Ej: consultor junior para llevar cuentas del sector energético, con inglés alto y ganas de aprender..."
+              style={{
+                width: '100%',
+                minHeight: 100,
+                padding: '10px 12px',
+                border: '1px solid #e0dfd8',
+                borderRadius: 9,
+                fontSize: 13,
+                fontFamily: 'inherit',
+                outline: 'none',
+                resize: 'vertical',
+                marginBottom: 14,
+              }}
+            ></textarea>
+            <div className="m-foot">
+              <button type="button" className="m-back" onClick={() => setShowAiJobModal(false)}>
+                Cancelar
+              </button>
+              <button type="button" className="btn-ai" style={{ marginLeft: 'auto' }} disabled={generatingDesc} onClick={generateJobDescription}>
+                <i className="ti ti-bolt"></i> {generatingDesc ? 'Generando...' : 'Generar contenido'}
+              </button>
+            </div>
           </div>
         </div>
       )}
