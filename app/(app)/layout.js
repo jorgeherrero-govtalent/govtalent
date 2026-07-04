@@ -64,9 +64,9 @@ export default function AppLayout({ children }) {
         <Link href="/jobs" className={`ni ${pathname.startsWith('/jobs') ? 'on' : ''}`}>
           <i className="ti ti-briefcase"></i>Empleos
         </Link>
-        <Link href="/events" className={`ni ${pathname.startsWith('/events') ? 'on' : ''}`}>
-          <i className="ti ti-calendar-event"></i>Eventos
-        </Link>
+        <div className="ni" style={{ cursor: 'default', color: '#bbb' }} title="Próximamente">
+          <i className="ti ti-calendar-event"></i>Eventos (Próximamente)
+        </div>
         <Link
           href="/organizations"
           className={`ni ${pathname.startsWith('/organizations') && !pathname.includes('admin') ? 'on' : ''}`}
