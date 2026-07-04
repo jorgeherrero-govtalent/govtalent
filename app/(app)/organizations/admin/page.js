@@ -32,8 +32,9 @@ export default function OrganizationAdminPage() {
   const [editingJob, setEditingJob] = useState(null);
   const [loadingEditJob, setLoadingEditJob] = useState(false);
   const [savingJobEdit, setSavingJobEdit] = useState(false);
-  const [openJobMenuId, setOpenJobMenuId] = useState(null);
   const [togglingStatusId, setTogglingStatusId] = useState(null);
+  const [viewingJob, setViewingJob] = useState(null);
+  const [loadingViewJob, setLoadingViewJob] = useState(false);
   const [aiPrompt, setAiPrompt] = useState('');
   const [generatingDesc, setGeneratingDesc] = useState(false);
   const [orgAiPrompt, setOrgAiPrompt] = useState('');
@@ -129,7 +130,23 @@ export default function OrganizationAdminPage() {
       return;
     }
     setJobs((prev) => prev.map((j) => (j.id === job.id ? { ...j, status: newStatus } : j)));
+    setViewingJob((prev) => (prev && prev.id === job.id ? { ...prev, status: newStatus } : prev));
     toast(newStatus === 'activa' ? 'Oferta activada ✓' : 'Oferta desactivada ✓');
+  }
+
+  async function openViewJob(jobId) {
+    setLoadingViewJob(true);
+    const { data, error } = await supabase
+      .from('jobs')
+      .select(`*, job_requirements(content, sort_order), job_responsibilities(content, sort_order), job_tags(tag)`)
+      .eq('id', jobId)
+      .single();
+    setLoadingViewJob(false);
+    if (error || !data) {
+      toast('No se pudo cargar la oferta');
+      return;
+    }
+    setViewingJob(data);
   }
 
   async function openEditJob(jobId) {
@@ -585,11 +602,12 @@ export default function OrganizationAdminPage() {
                     {j.status}
                   </span>
                 </div>
-                <div style={{ marginTop: 8, display: 'flex', gap: 6, position: 'relative' }}>
+                <div style={{ marginTop: 8, display: 'flex', gap: 6 }}>
                   <button
                     className="btn-o"
                     style={{ fontSize: 11.5, padding: '5px 10px' }}
-                    onClick={() => setOpenJobMenuId(openJobMenuId === j.id ? null : j.id)}
+                    disabled={loadingViewJob}
+                    onClick={() => openViewJob(j.id)}
                   >
                     <i className="ti ti-eye"></i> Ver oferta
                   </button>
@@ -600,74 +618,6 @@ export default function OrganizationAdminPage() {
                   >
                     <i className="ti ti-users"></i> Ver candidatos
                   </a>
-
-                  {openJobMenuId === j.id && (
-                    <>
-                      <div
-                        onClick={() => setOpenJobMenuId(null)}
-                        style={{ position: 'fixed', inset: 0, zIndex: 10 }}
-                      ></div>
-                      <div
-                        style={{
-                          position: 'absolute',
-                          top: '100%',
-                          left: 0,
-                          marginTop: 6,
-                          background: '#fff',
-                          border: '1px solid #e0dfd8',
-                          borderRadius: 9,
-                          boxShadow: '0 4px 16px rgba(0,0,0,.1)',
-                          zIndex: 11,
-                          minWidth: 170,
-                          overflow: 'hidden',
-                        }}
-                      >
-                        <button
-                          onClick={() => {
-                            setOpenJobMenuId(null);
-                            openEditJob(j.id);
-                          }}
-                          style={{
-                            width: '100%',
-                            textAlign: 'left',
-                            padding: '10px 14px',
-                            fontSize: 12.5,
-                            background: 'none',
-                            border: 'none',
-                            borderBottom: '.5px solid #f0f0eb',
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: 8,
-                          }}
-                        >
-                          <i className="ti ti-edit" style={{ color: '#555' }}></i> Actualizar oferta
-                        </button>
-                        <button
-                          onClick={() => toggleJobStatus(j)}
-                          disabled={togglingStatusId === j.id}
-                          style={{
-                            width: '100%',
-                            textAlign: 'left',
-                            padding: '10px 14px',
-                            fontSize: 12.5,
-                            background: 'none',
-                            border: 'none',
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: 8,
-                            color: j.status === 'activa' ? '#b3261e' : '#1d6f5c',
-                          }}
-                        >
-                          <i className={`ti ${j.status === 'activa' ? 'ti-player-pause' : 'ti-player-play'}`}></i>{' '}
-                          {togglingStatusId === j.id
-                            ? 'Actualizando...'
-                            : j.status === 'activa'
-                            ? 'Desactivar oferta'
-                            : 'Activar oferta'}
-                        </button>
-                      </div>
-                    </>
-                  )}
                 </div>
               </div>
             ))}
@@ -818,6 +768,107 @@ export default function OrganizationAdminPage() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {viewingJob && (
+        <div className="modal-ov on" onClick={(e) => e.target === e.currentTarget && setViewingJob(null)}>
+          <div className="modal-box" style={{ maxWidth: 620 }}>
+            <div className="modal-head">
+              <h2>{viewingJob.title}</h2>
+              <div className="modal-x" onClick={() => setViewingJob(null)}>
+                <i className="ti ti-x"></i>
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 14 }}>
+              <span className="badge bg">{viewingJob.area}</span>
+              <span className="badge bgr">
+                {viewingJob.modality === 'presencial' ? 'Presencial' : viewingJob.modality === 'hibrido' ? 'Híbrido' : 'Remoto'}
+              </span>
+              <span className="badge bgr">{viewingJob.location}</span>
+              <span className={`badge ${viewingJob.status === 'activa' ? 'bg' : 'bgr'}`}>{viewingJob.status}</span>
+            </div>
+
+            {(viewingJob.salary_min || viewingJob.salary_max) && (
+              <div style={{ fontSize: 13, color: '#555', marginBottom: 14 }}>
+                <i className="ti ti-cash" style={{ color: '#888' }}></i>{' '}
+                {viewingJob.salary_min?.toLocaleString('es-ES')} – {viewingJob.salary_max?.toLocaleString('es-ES')} €
+              </div>
+            )}
+
+            {viewingJob.job_tags?.length > 0 && (
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 16 }}>
+                {viewingJob.job_tags.map((t, i) => (
+                  <div
+                    key={i}
+                    style={{ padding: '5px 10px', borderRadius: 6, background: '#f4f4f0', color: '#555', fontSize: 12.5 }}
+                  >
+                    <i className="ti ti-tag" style={{ fontSize: 12 }}></i> {t.tag}
+                  </div>
+                ))}
+              </div>
+            )}
+
+            <div className="jd-sec">Descripción</div>
+            <div className="jd-txt">{viewingJob.description}</div>
+
+            {viewingJob.job_responsibilities?.length > 0 && (
+              <>
+                <div className="jd-sec">Responsabilidades</div>
+                <div className="jd-txt">
+                  <ul>
+                    {[...viewingJob.job_responsibilities]
+                      .sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0))
+                      .map((r, i) => (
+                        <li key={i}>{r.content}</li>
+                      ))}
+                  </ul>
+                </div>
+              </>
+            )}
+
+            {viewingJob.job_requirements?.length > 0 && (
+              <>
+                <div className="jd-sec">Requisitos</div>
+                <div className="jd-txt">
+                  <ul>
+                    {[...viewingJob.job_requirements]
+                      .sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0))
+                      .map((r, i) => (
+                        <li key={i}>{r.content}</li>
+                      ))}
+                  </ul>
+                </div>
+              </>
+            )}
+
+            <div className="m-foot">
+              <button
+                className="m-back"
+                disabled={togglingStatusId === viewingJob.id}
+                onClick={() => toggleJobStatus(viewingJob)}
+                style={{ color: viewingJob.status === 'activa' ? '#b3261e' : '#1d6f5c' }}
+              >
+                <i className={`ti ${viewingJob.status === 'activa' ? 'ti-player-pause' : 'ti-player-play'}`}></i>{' '}
+                {togglingStatusId === viewingJob.id
+                  ? 'Actualizando...'
+                  : viewingJob.status === 'activa'
+                  ? 'Desactivar oferta'
+                  : 'Activar oferta'}
+              </button>
+              <button
+                className="m-next"
+                onClick={() => {
+                  const jobId = viewingJob.id;
+                  setViewingJob(null);
+                  openEditJob(jobId);
+                }}
+              >
+                <i className="ti ti-edit"></i> Actualizar oferta
+              </button>
+            </div>
           </div>
         </div>
       )}
