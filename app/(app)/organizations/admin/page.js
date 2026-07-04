@@ -592,20 +592,6 @@ export default function OrganizationAdminPage() {
               Ver todas las ofertas →
             </a>
           </div>
-
-          <div className="sw" style={{ borderColor: '#1d6f5c', background: 'linear-gradient(160deg,#f0f8f5,#fff)' }}>
-            <h4>Eventos</h4>
-            <div style={{ fontSize: 12.5, color: '#666', lineHeight: 1.65, marginBottom: 13 }}>
-              Publica congresos, jornadas o foros de tu organización. Solo las organizaciones pueden crear eventos en GovTalent.
-            </div>
-            <a
-              href="/events"
-              className="btn-p"
-              style={{ width: '100%', textAlign: 'center', display: 'block', textDecoration: 'none' }}
-            >
-              <i className="ti ti-calendar-plus"></i> Publicar un evento
-            </a>
-          </div>
         </div>
       </div>
 
