@@ -105,9 +105,9 @@ export default function CandidateProfileViewPage() {
   return (
     <div className="sec">
       <div style={{ maxWidth: 1080, margin: '0 auto 10px' }}>
-        <button onClick={() => history.back()} style={{ fontSize: 12.5, color: '#1d6f5c', background: 'none', border: 'none', cursor: 'pointer' }}>
-          <i className="ti ti-arrow-left"></i> Volver
-        </button>
+        <Link href="/organizations/admin/candidates" style={{ fontSize: 12.5, color: '#1d6f5c', textDecoration: 'none' }}>
+          <i className="ti ti-arrow-left"></i> Volver al tablero de candidatos
+        </Link>
       </div>
 
       <div className="card" style={{ maxWidth: 1080, margin: '0 auto 13px' }}>
