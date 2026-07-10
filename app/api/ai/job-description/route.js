@@ -19,6 +19,22 @@ export async function POST(request) {
     return NextResponse.json({ error: 'Falta configurar ANTHROPIC_API_KEY en el servidor' }, { status: 500 });
   }
 
+  // AI Playbook: usamos el tono y contexto que la organización haya
+  // definido, si tiene una página administrada.
+  const { data: membership } = await supabase
+    .from('organization_members')
+    .select('organizations(ai_tone, ai_context)')
+    .eq('user_id', authData.user.id)
+    .maybeSingle();
+  const org = membership?.organizations;
+  const toneMap = {
+    profesional: 'un tono profesional pero cercano',
+    formal: 'un tono formal e institucional',
+    cercano: 'un tono cálido y cercano',
+    entusiasta: 'un tono entusiasta y positivo',
+  };
+  const toneText = toneMap[org?.ai_tone] || toneMap.profesional;
+
   const promptText = `Eres un experto en redacción de ofertas de empleo para el sector de asuntos públicos, política y gobierno en España.
 
 Datos ya conocidos de la oferta:
@@ -30,7 +46,9 @@ Datos ya conocidos de la oferta:
 Instrucciones del reclutador sobre lo que busca:
 "${prompt.trim()}"
 
-Redacta el contenido para publicar esta oferta de empleo en español, con un tono profesional pero cercano. Responde ÚNICAMENTE con un objeto JSON válido, sin texto adicional antes ni después, con este formato exacto:
+Redacta el contenido para publicar esta oferta de empleo en español, con ${toneText}.${
+    org?.ai_context ? ` Ten en cuenta este contexto sobre la organización: ${org.ai_context}` : ''
+  } Responde ÚNICAMENTE con un objeto JSON válido, sin texto adicional antes ni después, con este formato exacto:
 
 {
   "description": "un párrafo de 3-5 frases describiendo el puesto y la organización de forma atractiva",
