@@ -19,6 +19,7 @@ export default function ApplyModal({ job, onClose, onSuccess }) {
   const [phone, setPhone] = useState('');
   const [cvUrl, setCvUrl] = useState(null);
   const [coverNote, setCoverNote] = useState('');
+  const [generatingCoverLetter, setGeneratingCoverLetter] = useState(false);
 
   useEffect(() => {
     load();
@@ -67,6 +68,24 @@ export default function ApplyModal({ job, onClose, onSuccess }) {
       .eq('user_id', userId);
     setCvUrl(newUrl);
     toast('CV actualizado ✓');
+  }
+
+  async function generateCoverLetter() {
+    setGeneratingCoverLetter(true);
+    try {
+      const res = await fetch('/api/ai/cover-letter', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ jobId: job.id }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Error desconocido');
+      setCoverNote(data.coverLetter);
+      toast('Carta generada ✓ revísala antes de enviar');
+    } catch (err) {
+      toast('No se pudo generar la carta: ' + err.message);
+    }
+    setGeneratingCoverLetter(false);
   }
 
   function goStep2() {
@@ -223,6 +242,15 @@ export default function ApplyModal({ job, onClose, onSuccess }) {
                   <h3>Carta de presentación</h3>
                   <p>Opcional, pero ayuda a destacar tu candidatura</p>
                 </div>
+                <button
+                  type="button"
+                  className="btn-ai-o"
+                  style={{ width: '100%', marginBottom: 10, fontSize: 12.5 }}
+                  disabled={generatingCoverLetter}
+                  onClick={generateCoverLetter}
+                >
+                  <i className="ti ti-bolt"></i> {generatingCoverLetter ? 'Generando...' : 'Generar con IA'}
+                </button>
                 <textarea
                   value={coverNote}
                   onChange={(e) => setCoverNote(e.target.value)}
