@@ -6,6 +6,19 @@ import { createClient } from '@/lib/supabase/client';
 import { toast } from '@/lib/toast';
 import ApplyModal from '@/components/ApplyModal';
 
+const TYPE_LABELS = {
+  empresa: 'Empresa',
+  consultora_public_affairs: 'Consultora',
+  tercer_sector_ong: 'ONG / Tercer sector',
+  partido_politico: 'Partido político',
+  institucion_publica: 'Institución pública',
+  think_tank_fundacion: 'Think tank',
+  medios_comunicacion: 'Medios',
+  universidad_centro_educativo: 'Centro educativo',
+  asociacion_profesional: 'Asociación profesional',
+  otro: 'Otro',
+};
+
 const AREAS = [
   'Public Affairs',
   'Comunicación Política',
@@ -23,12 +36,22 @@ export default function JobsPage() {
   const [savedIds, setSavedIds] = useState(new Set());
   const [appliedIds, setAppliedIds] = useState(new Set());
   const [applyingJob, setApplyingJob] = useState(null);
+  const [followedOrgIds, setFollowedOrgIds] = useState(new Set());
+  const [followLoading, setFollowLoading] = useState(false);
   const [alertKeys, setAlertKeys] = useState(new Set());
 
   const [filters, setFilters] = useState({ area: '', modality: '', location: '' });
 
   useEffect(() => {
-    supabase.auth.getUser().then(({ data }) => data.user && setUserId(data.user.id));
+    supabase.auth.getUser().then(({ data }) => {
+      if (!data.user) return;
+      setUserId(data.user.id);
+      supabase
+        .from('organization_follows')
+        .select('organization_id')
+        .eq('user_id', data.user.id)
+        .then(({ data: follows }) => setFollowedOrgIds(new Set((follows || []).map((f) => f.organization_id))));
+    });
   }, []);
 
   useEffect(() => {
@@ -87,13 +110,36 @@ export default function JobsPage() {
     }
   }
 
+  async function toggleFollowOrg(orgId, orgName) {
+    if (!userId) {
+      toast('Inicia sesión para seguir organizaciones');
+      return;
+    }
+    setFollowLoading(true);
+    const isFollowing = followedOrgIds.has(orgId);
+    if (isFollowing) {
+      await supabase.from('organization_follows').delete().eq('user_id', userId).eq('organization_id', orgId);
+      setFollowedOrgIds((prev) => {
+        const n = new Set(prev);
+        n.delete(orgId);
+        return n;
+      });
+      toast(`Has dejado de seguir a ${orgName}`);
+    } else {
+      await supabase.from('organization_follows').insert({ user_id: userId, organization_id: orgId });
+      setFollowedOrgIds((prev) => new Set(prev).add(orgId));
+      toast(`Ahora sigues a ${orgName}`);
+    }
+    setFollowLoading(false);
+  }
+
   async function loadJobs() {
     let q = supabase
       .from('jobs')
       .select(
         `id, title, area, location, modality, employment_type, salary_min, salary_max,
          description, is_featured, created_at,
-         organizations ( id, name, logo_url, slug ),
+         organizations ( id, name, logo_url, slug, org_type ),
          job_tags ( tag ),
          job_requirements ( content, sort_order ),
          job_responsibilities ( content, sort_order ),
@@ -373,6 +419,72 @@ export default function JobsPage() {
                           <li key={i}>{r.content}</li>
                         ))}
                       </ul>
+                    </div>
+                  </>
+                )}
+
+                {selected.organizations && (
+                  <>
+                    <div className="jd-sec">Empleo en {selected.organizations.name}</div>
+                    <div
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 12,
+                        border: '1px solid #e0dfd8',
+                        borderRadius: 10,
+                        padding: 14,
+                      }}
+                    >
+                      <div
+                        style={{
+                          width: 48,
+                          height: 48,
+                          borderRadius: 8,
+                          background: '#e8f4f0',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          fontSize: 20,
+                          overflow: 'hidden',
+                          flexShrink: 0,
+                        }}
+                      >
+                        {selected.organizations.logo_url ? (
+                          <img
+                            src={selected.organizations.logo_url}
+                            alt=""
+                            style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                          />
+                        ) : (
+                          <i className="ti ti-building"></i>
+                        )}
+                      </div>
+                      <div style={{ flex: 1 }}>
+                        <Link
+                          href={selected.organizations.slug ? `/organizations/${selected.organizations.slug}` : '#'}
+                          style={{ fontWeight: 600, fontSize: 14, color: '#222', textDecoration: 'none' }}
+                        >
+                          {selected.organizations.name}
+                        </Link>
+                        <div style={{ fontSize: 12, color: '#888' }}>{TYPE_LABELS[selected.organizations.org_type]}</div>
+                      </div>
+                      <button
+                        className={followedOrgIds.has(selected.organizations.id) ? 'btn-o' : 'btn-p'}
+                        style={{ fontSize: 12.5, padding: '7px 14px' }}
+                        disabled={followLoading}
+                        onClick={() => toggleFollowOrg(selected.organizations.id, selected.organizations.name)}
+                      >
+                        {followedOrgIds.has(selected.organizations.id) ? (
+                          <>
+                            <i className="ti ti-check"></i> Siguiendo
+                          </>
+                        ) : (
+                          <>
+                            <i className="ti ti-plus"></i> Seguir
+                          </>
+                        )}
+                      </button>
                     </div>
                   </>
                 )}
