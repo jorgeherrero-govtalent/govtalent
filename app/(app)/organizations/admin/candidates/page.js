@@ -49,6 +49,24 @@ function CandidatesBoardInner() {
   const [savedCandidateIds, setSavedCandidateIds] = useState(new Set());
   const [savingCandidateId, setSavingCandidateId] = useState(null);
 
+  // Modal que aparece al mover un candidato a "Oferta" o "Rechazada"
+  const [statusAction, setStatusAction] = useState(null); // { appId, targetStatus, step }
+  const [rejectionReason, setRejectionReason] = useState('');
+  const [rejectionDetails, setRejectionDetails] = useState('');
+  const [draftMessage, setDraftMessage] = useState('');
+  const [generatingMessage, setGeneratingMessage] = useState(false);
+  const [savingStatusAction, setSavingStatusAction] = useState(false);
+
+  const REJECTION_REASONS = [
+    'No cumple los requisitos mínimos',
+    'Otro candidato más adecuado para el puesto',
+    'Expectativas salariales no alineadas',
+    'Falta de experiencia relevante',
+    'No superó la entrevista',
+    'El puesto se ha cubierto internamente',
+    'Otro motivo',
+  ];
+
   useEffect(() => {
     load();
   }, []);
@@ -78,7 +96,7 @@ function CandidatesBoardInner() {
     const { data: apps } = await supabase
       .from('job_applications')
       .select(
-        `id, status, applied_at, cover_note, cv_url_snapshot, notes, candidate_id,
+        `id, status, applied_at, cover_note, cv_url_snapshot, notes, candidate_id, rejection_reason, rejection_details,
          ai_summary, ai_score, ai_rationale, ai_analyzed_at,
          job_id, jobs(title),
          users(first_name, last_name, professional_title, email, phone)`
@@ -117,16 +135,67 @@ function CandidatesBoardInner() {
     setLoading(false);
   }
 
-  async function updateStatus(appId, newStatus) {
-    setApplications((prev) => prev.map((a) => (a.id === appId ? { ...a, status: newStatus } : a)));
-    const { error } = await supabase.from('job_applications').update({ status: newStatus }).eq('id', appId);
+  async function updateStatus(appId, newStatus, extra = {}) {
+    setApplications((prev) => prev.map((a) => (a.id === appId ? { ...a, status: newStatus, ...extra } : a)));
+    const { error } = await supabase.from('job_applications').update({ status: newStatus, ...extra }).eq('id', appId);
     if (error) toast('No se pudo mover el candidato');
   }
 
   function onDrop(newStatus) {
     if (!dragId) return;
-    updateStatus(dragId, newStatus);
+    if (newStatus === 'rechazada') {
+      setStatusAction({ appId: dragId, targetStatus: 'rechazada', step: 'reason' });
+    } else if (newStatus === 'oferta') {
+      updateStatus(dragId, 'oferta');
+      setStatusAction({ appId: dragId, targetStatus: 'oferta', step: 'message' });
+    } else {
+      updateStatus(dragId, newStatus);
+    }
     setDragId(null);
+  }
+
+  function closeStatusAction() {
+    setStatusAction(null);
+    setRejectionReason('');
+    setRejectionDetails('');
+    setDraftMessage('');
+  }
+
+  async function confirmRejectionReason() {
+    if (!rejectionReason) {
+      toast('Elige un motivo para continuar');
+      return;
+    }
+    setSavingStatusAction(true);
+    await updateStatus(statusAction.appId, 'rechazada', {
+      rejection_reason: rejectionReason,
+      rejection_details: rejectionDetails || null,
+    });
+    setSavingStatusAction(false);
+    setStatusAction((prev) => ({ ...prev, step: 'message' }));
+  }
+
+  async function generateStatusMessage() {
+    if (!statusAction) return;
+    setGeneratingMessage(true);
+    try {
+      const res = await fetch('/api/ai/candidate-message', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ applicationId: statusAction.appId, messageType: statusAction.targetStatus }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Error desconocido');
+      setDraftMessage(data.message);
+    } catch (err) {
+      toast('No se pudo generar el mensaje: ' + err.message);
+    }
+    setGeneratingMessage(false);
+  }
+
+  function copyDraftMessage() {
+    navigator.clipboard?.writeText(draftMessage);
+    toast('Mensaje copiado ✓');
   }
 
   function openDetail(app) {
@@ -480,6 +549,116 @@ function CandidatesBoardInner() {
                 </button>
               </div>
             </div>
+          </div>
+        </div>
+      )}
+
+      {statusAction && (
+        <div className="modal-ov on" onClick={(e) => e.target === e.currentTarget && closeStatusAction()}>
+          <div className="modal-box" style={{ maxWidth: 560 }}>
+            <div className="modal-head">
+              <h2>{statusAction.targetStatus === 'rechazada' ? 'Motivo del rechazo' : 'Comunicar oferta'}</h2>
+              <div className="modal-x" onClick={closeStatusAction}>
+                <i className="ti ti-x"></i>
+              </div>
+            </div>
+
+            {statusAction.step === 'reason' && (
+              <div>
+                <div className="field">
+                  <label>Motivo</label>
+                  <select value={rejectionReason} onChange={(e) => setRejectionReason(e.target.value)}>
+                    <option value="">Elige un motivo</option>
+                    {REJECTION_REASONS.map((r) => (
+                      <option key={r} value={r}>
+                        {r}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div className="field">
+                  <label>Detalles (opcional)</label>
+                  <textarea
+                    value={rejectionDetails}
+                    onChange={(e) => setRejectionDetails(e.target.value)}
+                    placeholder="Cualquier detalle adicional que quieras registrar internamente..."
+                    style={{
+                      width: '100%',
+                      minHeight: 80,
+                      padding: '10px 12px',
+                      border: '1px solid #e0dfd8',
+                      borderRadius: 9,
+                      fontSize: 13,
+                      fontFamily: 'inherit',
+                      outline: 'none',
+                      resize: 'vertical',
+                    }}
+                  ></textarea>
+                </div>
+                <p style={{ fontSize: 11.5, color: '#999', marginBottom: 14 }}>
+                  Esto es solo para uso interno de tu organización — el candidato no verá este motivo tal cual.
+                </p>
+                <div className="m-foot">
+                  <button className="m-back" onClick={closeStatusAction}>
+                    Cancelar
+                  </button>
+                  <button className="m-next" disabled={savingStatusAction} onClick={confirmRejectionReason}>
+                    {savingStatusAction ? 'Guardando...' : 'Continuar'}
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {statusAction.step === 'message' && (
+              <div>
+                <p style={{ fontSize: 12.5, color: '#888', marginBottom: 12 }}>
+                  Genera un borrador de mensaje para comunicárselo al candidato. Puedes editarlo antes de copiarlo.
+                </p>
+                {!draftMessage ? (
+                  <button className="btn-ai" style={{ width: '100%', marginBottom: 6 }} disabled={generatingMessage} onClick={generateStatusMessage}>
+                    <i className="ti ti-bolt"></i> {generatingMessage ? 'Generando...' : 'Generar mensaje con IA'}
+                  </button>
+                ) : (
+                  <>
+                    <textarea
+                      value={draftMessage}
+                      onChange={(e) => setDraftMessage(e.target.value)}
+                      style={{
+                        width: '100%',
+                        minHeight: 160,
+                        padding: '10px 12px',
+                        border: '1px solid #e0dfd8',
+                        borderRadius: 9,
+                        fontSize: 13,
+                        fontFamily: 'inherit',
+                        outline: 'none',
+                        resize: 'vertical',
+                        marginBottom: 10,
+                      }}
+                    ></textarea>
+                    <button
+                      type="button"
+                      className="btn-ai-o"
+                      style={{ width: '100%', fontSize: 12, marginBottom: 6 }}
+                      disabled={generatingMessage}
+                      onClick={generateStatusMessage}
+                    >
+                      <i className="ti ti-bolt"></i> Regenerar
+                    </button>
+                  </>
+                )}
+                <div className="m-foot">
+                  <button className="m-back" onClick={closeStatusAction}>
+                    Cerrar
+                  </button>
+                  {draftMessage && (
+                    <button className="m-next" onClick={copyDraftMessage}>
+                      <i className="ti ti-copy"></i> Copiar mensaje
+                    </button>
+                  )}
+                </div>
+              </div>
+            )}
           </div>
         </div>
       )}
