@@ -38,7 +38,6 @@ export default function OrganizationAdminPage() {
   const [aiPrompt, setAiPrompt] = useState('');
   const [showAiJobModal, setShowAiJobModal] = useState(false);
   const [generatingDesc, setGeneratingDesc] = useState(false);
-  const [orgAiPrompt, setOrgAiPrompt] = useState('');
   const [generatingOrgDesc, setGeneratingOrgDesc] = useState(false);
 
   const titleRef = useRef(null);
@@ -52,6 +51,11 @@ export default function OrganizationAdminPage() {
   const orgNameRef = useRef(null);
   const orgSectorRef = useRef(null);
   const orgBioRef = useRef(null);
+  const orgWebsiteRef = useRef(null);
+  const orgLinkedinRef = useRef(null);
+  const orgSizeRef = useRef(null);
+  const orgLocationRef = useRef(null);
+  const orgFoundedYearRef = useRef(null);
 
   useEffect(() => {
     load();
@@ -219,9 +223,10 @@ export default function OrganizationAdminPage() {
     loadJobs(org.id);
   }
 
-  async function generateOrgDescription() {
-    if (!orgAiPrompt.trim()) {
-      toast('Describe brevemente la organización para poder generarlo');
+  async function fillOrgWithAI() {
+    const websiteUrl = orgWebsiteRef.current?.value;
+    if (!websiteUrl || !websiteUrl.trim()) {
+      toast('Añade primero la web de la organización');
       return;
     }
     setGeneratingOrgDesc(true);
@@ -230,18 +235,24 @@ export default function OrganizationAdminPage() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          prompt: orgAiPrompt,
+          websiteUrl,
+          linkedinUrl: orgLinkedinRef.current?.value,
           name: orgNameRef.current?.value,
-          sector: orgSectorRef.current?.value,
           orgType: org?.org_type,
         }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Error desconocido');
-      if (orgBioRef.current) orgBioRef.current.value = data.bio;
-      toast('Descripción generada ✓ revísala antes de guardar');
+
+      if (data.sector && orgSectorRef.current) orgSectorRef.current.value = data.sector;
+      if (data.location && orgLocationRef.current) orgLocationRef.current.value = data.location;
+      if (data.founded_year && orgFoundedYearRef.current) orgFoundedYearRef.current.value = data.founded_year;
+      if (data.size_range && orgSizeRef.current) orgSizeRef.current.value = data.size_range;
+      if (data.bio && orgBioRef.current) orgBioRef.current.value = data.bio;
+
+      toast('Datos rellenados ✓ revísalos antes de guardar');
     } catch (err) {
-      toast('No se pudo generar la descripción: ' + err.message);
+      toast('No se pudo rellenar automáticamente: ' + err.message);
     }
     setGeneratingOrgDesc(false);
   }
@@ -350,7 +361,6 @@ export default function OrganizationAdminPage() {
     await supabase.from('organizations').update(updates).eq('id', org.id);
     setOrg({ ...org, ...updates });
     setShowEdit(false);
-    setOrgAiPrompt('');
     toast('Página de organización actualizada ✓ (visible para ti y para los candidatos)');
   }
 
@@ -605,16 +615,45 @@ export default function OrganizationAdminPage() {
               </div>
             </div>
             <form onSubmit={saveOrgEdit}>
-              <div className="two">
-                <div className="field">
-                  <label>Sitio web</label>
-                  <input name="website_url" defaultValue={org.website_url || ''} placeholder="https://organizacion.com" />
+              <div
+                style={{
+                  background: '#faf9ff',
+                  border: '1px solid #d8d3fb',
+                  borderRadius: 10,
+                  padding: 14,
+                  marginBottom: 16,
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
+                  <i className="ti ti-bolt" style={{ color: '#6d5aef', fontSize: 15 }}></i>
+                  <span style={{ fontSize: 13, fontWeight: 600 }}>Rellenar con IA</span>
+                  <span className="badge-ai" style={{ fontSize: 9.5, padding: '1px 6px' }}>BETA</span>
                 </div>
-                <div className="field">
-                  <label>LinkedIn URL</label>
-                  <input name="linkedin_url" defaultValue={org.linkedin_url || ''} placeholder="https://linkedin.com/company/..." />
+                <p style={{ fontSize: 11.5, color: '#888', marginBottom: 10 }}>
+                  Añade la web de la organización y rellenamos el resto de campos automáticamente (sector, sede, año de
+                  fundación, tamaño y descripción), leyendo el contenido real de la página.
+                </p>
+                <div className="two">
+                  <div className="field">
+                    <label>Sitio web</label>
+                    <input ref={orgWebsiteRef} name="website_url" defaultValue={org.website_url || ''} placeholder="https://organizacion.com" />
+                  </div>
+                  <div className="field">
+                    <label>LinkedIn URL</label>
+                    <input ref={orgLinkedinRef} name="linkedin_url" defaultValue={org.linkedin_url || ''} placeholder="https://linkedin.com/company/..." />
+                  </div>
                 </div>
+                <button
+                  type="button"
+                  className="btn-ai"
+                  style={{ width: '100%', fontSize: 12.5 }}
+                  disabled={generatingOrgDesc}
+                  onClick={fillOrgWithAI}
+                >
+                  <i className="ti ti-bolt"></i> {generatingOrgDesc ? 'Leyendo la web...' : 'Rellenar con IA'}
+                </button>
               </div>
+
               <div className="field">
                 <label>Nombre de la organización</label>
                 <input ref={orgNameRef} name="name" defaultValue={org.name} required />
@@ -626,7 +665,7 @@ export default function OrganizationAdminPage() {
                 </div>
                 <div className="field">
                   <label>Nº de empleados</label>
-                  <select name="size_range" defaultValue={org.size_range || ''}>
+                  <select ref={orgSizeRef} name="size_range" defaultValue={org.size_range || ''}>
                     <option value="">Sin especificar</option>
                     <option value="1-10">1-10 empleados</option>
                     <option value="11-50">11-50 empleados</option>
@@ -639,54 +678,12 @@ export default function OrganizationAdminPage() {
               <div className="two">
                 <div className="field">
                   <label>Sede</label>
-                  <input name="location" defaultValue={org.location || ''} />
+                  <input ref={orgLocationRef} name="location" defaultValue={org.location || ''} />
                 </div>
                 <div className="field">
                   <label>Año de fundación</label>
-                  <input name="founded_year" type="number" defaultValue={org.founded_year || ''} />
+                  <input ref={orgFoundedYearRef} name="founded_year" type="number" defaultValue={org.founded_year || ''} />
                 </div>
-              </div>
-
-              <div
-                style={{
-                  background: '#faf9ff',
-                  border: '1px solid #d8d3fb',
-                  borderRadius: 10,
-                  padding: 12,
-                  marginBottom: 14,
-                }}
-              >
-                <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
-                  <i className="ti ti-bolt" style={{ color: '#6d5aef', fontSize: 15 }}></i>
-                  <span style={{ fontSize: 12.5, fontWeight: 600 }}>Redactar con IA</span>
-                  <span className="badge-ai" style={{ fontSize: 9.5, padding: '1px 6px' }}>BETA</span>
-                </div>
-                <textarea
-                  value={orgAiPrompt}
-                  onChange={(e) => setOrgAiPrompt(e.target.value)}
-                  placeholder="Describe brevemente qué hace la organización y qué la diferencia, ej: consultora boutique especializada en energía y transición ecológica, con equipo de exdirectivos del sector..."
-                  style={{
-                    width: '100%',
-                    minHeight: 60,
-                    padding: '8px 10px',
-                    border: '1px solid #e0dfd8',
-                    borderRadius: 8,
-                    fontSize: 12.5,
-                    fontFamily: 'inherit',
-                    outline: 'none',
-                    resize: 'vertical',
-                    marginBottom: 8,
-                  }}
-                ></textarea>
-                <button
-                  type="button"
-                  className="btn-ai-o"
-                  style={{ width: '100%', fontSize: 12 }}
-                  disabled={generatingOrgDesc}
-                  onClick={generateOrgDescription}
-                >
-                  <i className="ti ti-bolt"></i> {generatingOrgDesc ? 'Generando...' : 'Generar descripción'}
-                </button>
               </div>
 
               <div className="field">
