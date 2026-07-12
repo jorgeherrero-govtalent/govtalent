@@ -28,6 +28,7 @@ export default function ProfilePage() {
   const [langName, setLangName] = useState('');
   const [langLevel, setLangLevel] = useState('B2');
   const [dragIndex, setDragIndex] = useState(null);
+  const [savingLookingForJob, setSavingLookingForJob] = useState(false);
   const [bioAiPrompt, setBioAiPrompt] = useState('');
   const [generatingBio, setGeneratingBio] = useState(false);
   const bioRef = useRef(null);
@@ -95,6 +96,19 @@ export default function ProfilePage() {
       setUser((prev) => prev || { id: userId, first_name: 'Usuario', last_name: '' });
       setProfile((prev) => prev || { bio: '' });
     }
+  }
+
+  async function toggleLookingForJob() {
+    const newValue = !user.looking_for_job;
+    setSavingLookingForJob(true);
+    const { error } = await supabase.from('users').update({ looking_for_job: newValue }).eq('id', userId);
+    setSavingLookingForJob(false);
+    if (error) {
+      toast('No se pudo actualizar');
+      return;
+    }
+    setUser((prev) => ({ ...prev, looking_for_job: newValue }));
+    toast(newValue ? 'Ahora apareces como buscando empleo activamente ✓' : 'Ya no apareces como buscando empleo activamente ✓');
   }
 
   async function generateBio() {
@@ -550,11 +564,27 @@ export default function ProfilePage() {
                 <i className="ti ti-map-pin" style={{ fontSize: 12 }}></i> {user.location}
               </span>
             )}
-            {user.looking_for_job && (
-              <span style={{ color: '#1d6f5c', fontWeight: 500 }}>
-                <i className="ti ti-briefcase" style={{ fontSize: 12 }}></i> Buscando empleo activamente
-              </span>
-            )}
+            <button
+              onClick={toggleLookingForJob}
+              disabled={savingLookingForJob}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 5,
+                border: 'none',
+                cursor: 'pointer',
+                borderRadius: 20,
+                padding: '3px 10px',
+                fontSize: 12.5,
+                fontWeight: 500,
+                background: user.looking_for_job ? '#e8f4f0' : '#f4f4f0',
+                color: user.looking_for_job ? '#1d6f5c' : '#999',
+              }}
+              title={user.looking_for_job ? 'Pulsa para quitar el aviso de búsqueda activa' : 'Pulsa para indicar que buscas empleo activamente'}
+            >
+              <i className="ti ti-briefcase" style={{ fontSize: 12 }}></i>{' '}
+              {user.looking_for_job ? 'Buscando empleo activamente' : 'No estoy buscando activamente'}
+            </button>
             {profile?.website_url && (
               <span>
                 <i className="ti ti-world" style={{ fontSize: 12 }}></i>{' '}
