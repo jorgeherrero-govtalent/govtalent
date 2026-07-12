@@ -29,6 +29,28 @@ export default function ProfilePage() {
   const [langLevel, setLangLevel] = useState('B2');
   const [dragIndex, setDragIndex] = useState(null);
   const [savingLookingForJob, setSavingLookingForJob] = useState(false);
+  const [showInterestsMenu, setShowInterestsMenu] = useState(false);
+
+  const INTEREST_OPTIONS = [
+    {
+      key: 'contrataciones',
+      icon: 'ti-users',
+      title: 'Contrataciones',
+      desc: 'Comparte que estás buscando personal y atrae a candidatos cualificados.',
+    },
+    {
+      key: 'buscar_empleo',
+      icon: 'ti-briefcase',
+      title: 'Encontrar un nuevo empleo',
+      desc: 'Muestra que buscas empleo a las organizaciones que ven tu perfil.',
+    },
+    {
+      key: 'ofrecer_servicios',
+      icon: 'ti-tool',
+      title: 'Ofrecer servicios',
+      desc: 'Muestra los servicios que ofreces para que nuevos clientes puedan descubrirte.',
+    },
+  ];
   const [bioAiPrompt, setBioAiPrompt] = useState('');
   const [generatingBio, setGeneratingBio] = useState(false);
   const bioRef = useRef(null);
@@ -98,17 +120,20 @@ export default function ProfilePage() {
     }
   }
 
-  async function toggleLookingForJob() {
-    const newValue = !user.looking_for_job;
+  async function toggleInterest(key) {
+    const current = user.interests || [];
+    const newInterests = current.includes(key) ? current.filter((i) => i !== key) : [...current, key];
     setSavingLookingForJob(true);
-    const { error } = await supabase.from('users').update({ looking_for_job: newValue }).eq('id', userId);
+    const { error } = await supabase
+      .from('users')
+      .update({ interests: newInterests, looking_for_job: newInterests.includes('buscar_empleo') })
+      .eq('id', userId);
     setSavingLookingForJob(false);
     if (error) {
       toast('No se pudo actualizar');
       return;
     }
-    setUser((prev) => ({ ...prev, looking_for_job: newValue }));
-    toast(newValue ? 'Ahora apareces como buscando empleo activamente ✓' : 'Ya no apareces como buscando empleo activamente ✓');
+    setUser((prev) => ({ ...prev, interests: newInterests, looking_for_job: newInterests.includes('buscar_empleo') }));
   }
 
   async function generateBio() {
@@ -564,27 +589,15 @@ export default function ProfilePage() {
                 <i className="ti ti-map-pin" style={{ fontSize: 12 }}></i> {user.location}
               </span>
             )}
-            <button
-              onClick={toggleLookingForJob}
-              disabled={savingLookingForJob}
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: 5,
-                border: 'none',
-                cursor: 'pointer',
-                borderRadius: 20,
-                padding: '3px 10px',
-                fontSize: 12.5,
-                fontWeight: 500,
-                background: user.looking_for_job ? '#e8f4f0' : '#f4f4f0',
-                color: user.looking_for_job ? '#1d6f5c' : '#999',
-              }}
-              title={user.looking_for_job ? 'Pulsa para quitar el aviso de búsqueda activa' : 'Pulsa para indicar que buscas empleo activamente'}
-            >
-              <i className="ti ti-briefcase" style={{ fontSize: 12 }}></i>{' '}
-              {user.looking_for_job ? 'Buscando empleo activamente' : 'No estoy buscando activamente'}
-            </button>
+            {(user.interests || []).map((key) => {
+              const opt = INTEREST_OPTIONS.find((o) => o.key === key);
+              if (!opt) return null;
+              return (
+                <span key={key} style={{ color: '#1d6f5c', fontWeight: 500 }}>
+                  <i className={`ti ${opt.icon}`} style={{ fontSize: 12 }}></i> {opt.title}
+                </span>
+              );
+            })}
             {profile?.website_url && (
               <span>
                 <i className="ti ti-world" style={{ fontSize: 12 }}></i>{' '}
@@ -610,6 +623,69 @@ export default function ProfilePage() {
                   LinkedIn
                 </a>
               </span>
+            )}
+          </div>
+
+          <div style={{ position: 'relative', marginTop: 10 }}>
+            <button
+              className="btn-o"
+              style={{ fontSize: 12.5 }}
+              onClick={() => setShowInterestsMenu(!showInterestsMenu)}
+            >
+              <i className="ti ti-target-arrow"></i> Tengo interés en...{' '}
+              <i className={`ti ${showInterestsMenu ? 'ti-chevron-up' : 'ti-chevron-down'}`}></i>
+            </button>
+
+            {showInterestsMenu && (
+              <>
+                <div onClick={() => setShowInterestsMenu(false)} style={{ position: 'fixed', inset: 0, zIndex: 10 }}></div>
+                <div
+                  style={{
+                    position: 'absolute',
+                    top: '100%',
+                    left: 0,
+                    marginTop: 6,
+                    background: '#fff',
+                    border: '1px solid #e0dfd8',
+                    borderRadius: 10,
+                    boxShadow: '0 8px 24px rgba(0,0,0,.12)',
+                    zIndex: 11,
+                    width: 320,
+                    padding: 6,
+                  }}
+                >
+                  {INTEREST_OPTIONS.map((opt) => {
+                    const active = (user.interests || []).includes(opt.key);
+                    return (
+                      <label
+                        key={opt.key}
+                        style={{
+                          display: 'flex',
+                          alignItems: 'flex-start',
+                          gap: 10,
+                          padding: '10px 10px',
+                          borderRadius: 8,
+                          cursor: 'pointer',
+                        }}
+                        onMouseEnter={(e) => (e.currentTarget.style.background = '#f8faf9')}
+                        onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={active}
+                          disabled={savingLookingForJob}
+                          onChange={() => toggleInterest(opt.key)}
+                          style={{ marginTop: 3 }}
+                        />
+                        <div>
+                          <div style={{ fontSize: 13.5, fontWeight: 600 }}>{opt.title}</div>
+                          <div style={{ fontSize: 12, color: '#888' }}>{opt.desc}</div>
+                        </div>
+                      </label>
+                    );
+                  })}
+                </div>
+              </>
             )}
           </div>
         </div>
