@@ -1,6 +1,7 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { usePathname, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
@@ -15,6 +16,14 @@ export default function AppLayout({ children }) {
   const [myOrg, setMyOrg] = useState(null);
   const [needsOnboarding, setNeedsOnboarding] = useState(false);
   const [showMeMenu, setShowMeMenu] = useState(false);
+  const [meMenuPos, setMeMenuPos] = useState({ top: 0, right: 0 });
+  const meBtnRef = useRef(null);
+
+  function openMeMenu() {
+    const rect = meBtnRef.current?.getBoundingClientRect();
+    if (rect) setMeMenuPos({ top: rect.bottom + 8, right: window.innerWidth - rect.right });
+    setShowMeMenu(true);
+  }
 
   useEffect(() => {
     let active = true;
@@ -59,62 +68,70 @@ export default function AppLayout({ children }) {
   return (
     <div>
       <nav className="nav">
-        <Link href="/jobs" className="nav-logo">
-          gov<span>talent</span>
-        </Link>
-        <Link href="/jobs" className={`ni ${pathname.startsWith('/jobs') ? 'on' : ''}`}>
-          <i className="ti ti-briefcase"></i>Empleos
-        </Link>
-        <div className="ni" style={{ cursor: 'default', color: '#bbb' }} title="Próximamente">
-          <i className="ti ti-calendar-event"></i>Eventos (Próximamente)
-        </div>
-        <Link
-          href="/organizations"
-          className={`ni ${pathname.startsWith('/organizations') && !pathname.includes('admin') ? 'on' : ''}`}
-        >
-          <i className="ti ti-building"></i>Organizaciones
-        </Link>
-        {myOrg && (
-          <Link
-            href="/organizations/admin"
-            className={`ni ${pathname.includes('/organizations/admin') ? 'on' : ''}`}
-          >
-            <i className="ti ti-settings"></i>Mi organización
+        <div className="nav-inner">
+          <Link href="/jobs" className="nav-logo">
+            gov<span>talent</span>
           </Link>
-        )}
-        <div className="nav-sp"></div>
-        <div className="nav-me">
-          <div className="ni" onClick={() => setShowMeMenu(!showMeMenu)}>
-            <div className="nav-av">{user?.avatar_url ? <img src={user.avatar_url} alt="" /> : initial || '·'}</div>
-            <span style={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-              Tú <i className={`ti ${showMeMenu ? 'ti-chevron-up' : 'ti-chevron-down'}`} style={{ fontSize: 12 }}></i>
-            </span>
+          <Link href="/jobs" className={`ni ${pathname.startsWith('/jobs') ? 'on' : ''}`}>
+            <i className="ti ti-briefcase"></i>Empleos
+          </Link>
+          <div className="ni" style={{ cursor: 'default', color: '#bbb' }} title="Próximamente">
+            <i className="ti ti-calendar-event"></i>Eventos (Próximamente)
           </div>
-          {showMeMenu && (
-            <>
-              <div onClick={() => setShowMeMenu(false)} style={{ position: 'fixed', inset: 0, zIndex: 199 }}></div>
-              <div className="nav-me-menu">
-                <Link href="/profile" className="nav-me-item" onClick={() => setShowMeMenu(false)}>
-                  <i className="ti ti-user"></i> Ver mi perfil
-                </Link>
-                <button
-                  className="nav-me-item"
-                  onClick={() => {
-                    setShowMeMenu(false);
-                    signOut();
-                  }}
-                >
-                  <i className="ti ti-logout"></i> Cerrar sesión
-                </button>
-              </div>
-            </>
-          )}
-        </div>
-        {!myOrg && (
-          <Link href="/organizations/new" className="nav-ebtn">
-            <i className="ti ti-building"></i> Para organizaciones
+          <Link
+            href="/organizations"
+            className={`ni ${pathname.startsWith('/organizations') && !pathname.includes('admin') ? 'on' : ''}`}
+          >
+            <i className="ti ti-building"></i>Organizaciones
           </Link>
-        )}
+
+          <div className="nav-sp"></div>
+
+          {myOrg ? (
+            <Link
+              href="/organizations/admin"
+              className={`ni ${pathname.includes('/organizations/admin') ? 'on' : ''}`}
+            >
+              <i className="ti ti-settings"></i>Mi organización
+            </Link>
+          ) : (
+            <Link href="/organizations/new" className="nav-ebtn">
+              <i className="ti ti-building"></i> Para empresas
+            </Link>
+          )}
+
+          <div className="nav-me">
+            <div className="ni" ref={meBtnRef} onClick={() => (showMeMenu ? setShowMeMenu(false) : openMeMenu())}>
+              <div className="nav-av">{user?.avatar_url ? <img src={user.avatar_url} alt="" /> : initial || '·'}</div>
+              <span style={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                Tú <i className={`ti ${showMeMenu ? 'ti-chevron-up' : 'ti-chevron-down'}`} style={{ fontSize: 12 }}></i>
+              </span>
+            </div>
+
+            {showMeMenu &&
+              typeof document !== 'undefined' &&
+              createPortal(
+                <>
+                  <div onClick={() => setShowMeMenu(false)} style={{ position: 'fixed', inset: 0, zIndex: 300 }}></div>
+                  <div className="nav-me-menu" style={{ position: 'fixed', top: meMenuPos.top, right: meMenuPos.right, zIndex: 301 }}>
+                    <Link href="/profile" className="nav-me-item" onClick={() => setShowMeMenu(false)}>
+                      <i className="ti ti-user"></i> Ver mi perfil
+                    </Link>
+                    <button
+                      className="nav-me-item"
+                      onClick={() => {
+                        setShowMeMenu(false);
+                        signOut();
+                      }}
+                    >
+                      <i className="ti ti-logout"></i> Cerrar sesión
+                    </button>
+                  </div>
+                </>,
+                document.body
+              )}
+          </div>
+        </div>
       </nav>
 
       {children}
