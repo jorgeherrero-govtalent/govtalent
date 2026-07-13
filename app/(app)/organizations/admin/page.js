@@ -41,6 +41,7 @@ export default function OrganizationAdminPage() {
   const [savingJobEdit, setSavingJobEdit] = useState(false);
   const [togglingStatusId, setTogglingStatusId] = useState(null);
   const [viewingJob, setViewingJob] = useState(null);
+  const [sharingJob, setSharingJob] = useState(null);
   const [loadingViewJob, setLoadingViewJob] = useState(false);
   const [aiPrompt, setAiPrompt] = useState('');
   const [showAiJobModal, setShowAiJobModal] = useState(false);
@@ -144,6 +145,23 @@ export default function OrganizationAdminPage() {
     setJobs((prev) => prev.map((j) => (j.id === job.id ? { ...j, status: newStatus } : j)));
     setViewingJob((prev) => (prev && prev.id === job.id ? { ...prev, status: newStatus } : prev));
     toast(newStatus === 'activa' ? 'Oferta activada ✓' : 'Oferta desactivada ✓');
+  }
+
+  function publicJobUrl(jobId) {
+    return `${window.location.origin}/empleo/${jobId}`;
+  }
+
+  function buildShareTemplates(job) {
+    const url = publicJobUrl(job.id);
+    const orgName = org?.name || 'nuestra organización';
+    return {
+      email: {
+        subject: `Oferta de empleo: ${job.title} en ${orgName}`,
+        body: `Hola,\n\nDesde ${orgName} estamos buscando incorporar a un/a ${job.title}.\n\nSi te interesa el sector de asuntos públicos y crees que puedes encajar, aquí tienes toda la información y puedes aplicar directamente:\n${url}\n\n¡Gracias por compartirlo con quien pueda estar interesado/a!\n\nUn saludo,\n${orgName}`,
+      },
+      linkedin: `📢 ${orgName} está contratando: buscamos un/a ${job.title} para nuestro equipo.\n\n📍 ${job.location} · ${job.modality === 'presencial' ? 'Presencial' : job.modality === 'hibrido' ? 'Híbrido' : 'Remoto'}\n\nSi te apasiona el sector de asuntos públicos y quieres formar parte de nuestro proyecto, aplica aquí (o comparte con alguien a quien le pueda interesar):\n${url}\n\n#EmpleoPublicAffairs #AsuntosPublicos #Contratando`,
+      whatsapp: `¡Hola! 👋 Desde ${orgName} buscamos un/a *${job.title}*. Si te interesa o conoces a alguien que pueda encajar, aquí está la oferta: ${url}`,
+    };
   }
 
   async function openViewJob(jobId) {
@@ -583,7 +601,7 @@ export default function OrganizationAdminPage() {
                     {j.status}
                   </span>
                 </div>
-                <div style={{ marginTop: 8, display: 'flex', gap: 6 }}>
+                <div style={{ marginTop: 8, display: 'flex', gap: 6, flexWrap: 'wrap' }}>
                   <button
                     className="btn-o"
                     style={{ fontSize: 11.5, padding: '5px 10px' }}
@@ -599,6 +617,13 @@ export default function OrganizationAdminPage() {
                   >
                     <i className="ti ti-users"></i> Ver candidatos
                   </a>
+                  <button
+                    className="btn-ai-o"
+                    style={{ fontSize: 11.5, padding: '5px 10px' }}
+                    onClick={() => setSharingJob(j)}
+                  >
+                    <i className="ti ti-share"></i> Compartir
+                  </button>
                 </div>
               </div>
             ))}
@@ -793,6 +818,146 @@ export default function OrganizationAdminPage() {
         </div>
       )}
 
+      {sharingJob && (
+        <div className="modal-ov on" onClick={(e) => e.target === e.currentTarget && setSharingJob(null)}>
+          <div className="modal-box" style={{ maxWidth: 560 }}>
+            <div className="modal-head">
+              <h2>
+                <i className="ti ti-share" style={{ color: '#6d5aef' }}></i> Compartir "{sharingJob.title}"
+              </h2>
+              <div className="modal-x" onClick={() => setSharingJob(null)}>
+                <i className="ti ti-x"></i>
+              </div>
+            </div>
+            <p style={{ fontSize: 12.5, color: '#888', marginBottom: 16 }}>
+              Esta es la página pública de la oferta — cualquiera puede verla y aplicar sin tener cuenta todavía en
+              GovTalent, se registran al aplicar.
+            </p>
+
+            <div className="field">
+              <label>Enlace público</label>
+              <div style={{ display: 'flex', gap: 8 }}>
+                <input readOnly value={publicJobUrl(sharingJob.id)} onClick={(e) => e.target.select()} />
+                <button
+                  type="button"
+                  className="btn-o"
+                  style={{ whiteSpace: 'nowrap' }}
+                  onClick={() => {
+                    navigator.clipboard?.writeText(publicJobUrl(sharingJob.id));
+                    toast('Enlace copiado ✓');
+                  }}
+                >
+                  <i className="ti ti-copy"></i> Copiar
+                </button>
+              </div>
+            </div>
+
+            {(() => {
+              const t = buildShareTemplates(sharingJob);
+              return (
+                <>
+                  <div style={{ background: '#f8faf9', borderRadius: 10, padding: 14, marginBottom: 12 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+                      <div style={{ fontSize: 13, fontWeight: 600 }}>
+                        <i className="ti ti-mail" style={{ color: '#888' }}></i> Email
+                      </div>
+                      <div style={{ display: 'flex', gap: 6 }}>
+                        <button
+                          type="button"
+                          className="btn-g"
+                          style={{ fontSize: 11.5, padding: '5px 9px' }}
+                          onClick={() => {
+                            navigator.clipboard?.writeText(`${t.email.subject}\n\n${t.email.body}`);
+                            toast('Texto copiado ✓');
+                          }}
+                        >
+                          Copiar
+                        </button>
+                        <a
+                          className="btn-p"
+                          style={{ fontSize: 11.5, padding: '5px 9px', textDecoration: 'none' }}
+                          href={`mailto:?subject=${encodeURIComponent(t.email.subject)}&body=${encodeURIComponent(t.email.body)}`}
+                        >
+                          Abrir email
+                        </a>
+                      </div>
+                    </div>
+                    <div style={{ fontSize: 12, color: '#666', whiteSpace: 'pre-wrap', maxHeight: 90, overflow: 'auto' }}>
+                      {t.email.body}
+                    </div>
+                  </div>
+
+                  <div style={{ background: '#f8faf9', borderRadius: 10, padding: 14, marginBottom: 12 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+                      <div style={{ fontSize: 13, fontWeight: 600 }}>
+                        <i className="ti ti-brand-linkedin" style={{ color: '#888' }}></i> LinkedIn
+                      </div>
+                      <div style={{ display: 'flex', gap: 6 }}>
+                        <button
+                          type="button"
+                          className="btn-g"
+                          style={{ fontSize: 11.5, padding: '5px 9px' }}
+                          onClick={() => {
+                            navigator.clipboard?.writeText(t.linkedin);
+                            toast('Texto copiado ✓ — pégalo al crear la publicación');
+                          }}
+                        >
+                          Copiar texto
+                        </button>
+                        <a
+                          className="btn-p"
+                          style={{ fontSize: 11.5, padding: '5px 9px', textDecoration: 'none' }}
+                          href={`https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(publicJobUrl(sharingJob.id))}`}
+                          target="_blank"
+                          rel="noreferrer"
+                        >
+                          Abrir LinkedIn
+                        </a>
+                      </div>
+                    </div>
+                    <div style={{ fontSize: 12, color: '#666', whiteSpace: 'pre-wrap', maxHeight: 90, overflow: 'auto' }}>{t.linkedin}</div>
+                    <p style={{ fontSize: 10.5, color: '#aaa', marginTop: 6 }}>
+                      LinkedIn no permite prerrellenar el texto de la publicación — cópialo y pégalo tú al abrir el editor.
+                    </p>
+                  </div>
+
+                  <div style={{ background: '#f8faf9', borderRadius: 10, padding: 14 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+                      <div style={{ fontSize: 13, fontWeight: 600 }}>
+                        <i className="ti ti-brand-whatsapp" style={{ color: '#888' }}></i> WhatsApp
+                      </div>
+                      <div style={{ display: 'flex', gap: 6 }}>
+                        <button
+                          type="button"
+                          className="btn-g"
+                          style={{ fontSize: 11.5, padding: '5px 9px' }}
+                          onClick={() => {
+                            navigator.clipboard?.writeText(t.whatsapp);
+                            toast('Mensaje copiado ✓');
+                          }}
+                        >
+                          Copiar
+                        </button>
+                        <a
+                          className="btn-p"
+                          style={{ fontSize: 11.5, padding: '5px 9px', textDecoration: 'none' }}
+                          href={`https://wa.me/?text=${encodeURIComponent(t.whatsapp)}`}
+                          target="_blank"
+                          rel="noreferrer"
+                        >
+                          Enviar
+                        </a>
+                      </div>
+                    </div>
+                    <div style={{ fontSize: 12, color: '#666', whiteSpace: 'pre-wrap' }}>{t.whatsapp}</div>
+                  </div>
+                </>
+              );
+            })()}
+          </div>
+        </div>
+      )}
+
       {viewingJob && (
         <div className="modal-ov on" onClick={(e) => e.target === e.currentTarget && setViewingJob(null)}>
           <div className="modal-box" style={{ maxWidth: 620 }}>
@@ -879,6 +1044,18 @@ export default function OrganizationAdminPage() {
                   ? 'Desactivar oferta'
                   : 'Activar oferta'}
               </button>
+              {viewingJob.status === 'activa' && (
+                <button
+                  type="button"
+                  className="btn-ai-o"
+                  onClick={() => {
+                    setSharingJob(viewingJob);
+                    setViewingJob(null);
+                  }}
+                >
+                  <i className="ti ti-share"></i> Compartir
+                </button>
+              )}
               <button
                 className="m-next"
                 onClick={() => {
