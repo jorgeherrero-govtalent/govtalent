@@ -155,11 +155,7 @@ export default function OrganizationAdminPage() {
     const url = publicJobUrl(job.id);
     const orgName = org?.name || 'nuestra organización';
     return {
-      email: {
-        subject: `Oferta de empleo: ${job.title} en ${orgName}`,
-        body: `Hola,\n\nDesde ${orgName} estamos buscando incorporar a un/a ${job.title}.\n\nSi te interesa el sector de asuntos públicos y crees que puedes encajar, aquí tienes toda la información y puedes aplicar directamente:\n${url}\n\n¡Gracias por compartirlo con quien pueda estar interesado/a!\n\nUn saludo,\n${orgName}`,
-      },
-      linkedin: `📢 ${orgName} está contratando: buscamos un/a ${job.title} para nuestro equipo.\n\n📍 ${job.location} · ${job.modality === 'presencial' ? 'Presencial' : job.modality === 'hibrido' ? 'Híbrido' : 'Remoto'}\n\nSi te apasiona el sector de asuntos públicos y quieres formar parte de nuestro proyecto, aplica aquí (o comparte con alguien a quien le pueda interesar):\n${url}\n\n#EmpleoPublicAffairs #AsuntosPublicos #Contratando`,
+      linkedin: `📢 ${orgName} está contratando: buscamos un/a ${job.title} para nuestro equipo.\n\n📍 ${job.location} · ${job.modality === 'presencial' ? 'Presencial' : job.modality === 'hibrido' ? 'Híbrido' : 'Remoto'}\n\nSi te apasiona el sector de asuntos públicos y quieres formar parte de nuestro proyecto, aplica aquí (o comparte con alguien a quien le pueda interesar):\n${url}`,
       whatsapp: `¡Hola! 👋 Desde ${orgName} buscamos un/a *${job.title}*. Si te interesa o conoces a alguien que pueda encajar, aquí está la oferta: ${url}`,
     };
   }
@@ -856,37 +852,6 @@ export default function OrganizationAdminPage() {
               const t = buildShareTemplates(sharingJob);
               return (
                 <>
-                  <div style={{ background: '#f8faf9', borderRadius: 10, padding: 14, marginBottom: 12 }}>
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
-                      <div style={{ fontSize: 13, fontWeight: 600 }}>
-                        <i className="ti ti-mail" style={{ color: '#888' }}></i> Email
-                      </div>
-                      <div style={{ display: 'flex', gap: 6 }}>
-                        <button
-                          type="button"
-                          className="btn-g"
-                          style={{ fontSize: 11.5, padding: '5px 9px' }}
-                          onClick={() => {
-                            navigator.clipboard?.writeText(`${t.email.subject}\n\n${t.email.body}`);
-                            toast('Texto copiado ✓');
-                          }}
-                        >
-                          Copiar
-                        </button>
-                        <a
-                          className="btn-p"
-                          style={{ fontSize: 11.5, padding: '5px 9px', textDecoration: 'none' }}
-                          href={`mailto:?subject=${encodeURIComponent(t.email.subject)}&body=${encodeURIComponent(t.email.body)}`}
-                        >
-                          Abrir email
-                        </a>
-                      </div>
-                    </div>
-                    <div style={{ fontSize: 12, color: '#666', whiteSpace: 'pre-wrap', maxHeight: 90, overflow: 'auto' }}>
-                      {t.email.body}
-                    </div>
-                  </div>
-
                   <div style={{ background: '#f8faf9', borderRadius: 10, padding: 14, marginBottom: 12 }}>
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
                       <div style={{ fontSize: 13, fontWeight: 600 }}>
