@@ -36,7 +36,7 @@ export default function MyJobsPage() {
     const [{ data: savedData }, { data: appsData }] = await Promise.all([
       supabase
         .from('saved_jobs')
-        .select('id, jobs(id, title, location, modality, organizations(name, logo_url, slug))')
+        .select('job_id, jobs(id, title, location, modality, organizations(name, logo_url, slug))')
         .eq('user_id', uid),
       supabase
         .from('job_applications')
@@ -50,9 +50,9 @@ export default function MyJobsPage() {
     setLoading(false);
   }
 
-  async function unsave(savedId) {
-    await supabase.from('saved_jobs').delete().eq('id', savedId);
-    setSaved((prev) => prev.filter((s) => s.id !== savedId));
+  async function unsave(jobId) {
+    await supabase.from('saved_jobs').delete().eq('user_id', userId).eq('job_id', jobId);
+    setSaved((prev) => prev.filter((s) => s.job_id !== jobId));
     toast('Empleo quitado de guardados');
   }
 
@@ -120,7 +120,7 @@ export default function MyJobsPage() {
 
           {tab === 'guardados' &&
             saved.map((s) => (
-              <div key={s.id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '14px 0', borderBottom: '.5px solid #f0f0eb' }}>
+              <div key={s.job_id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '14px 0', borderBottom: '.5px solid #f0f0eb' }}>
                 <div
                   style={{
                     width: 40,
@@ -149,7 +149,7 @@ export default function MyJobsPage() {
                     {s.jobs?.location} · {s.jobs?.modality === 'presencial' ? 'Presencial' : s.jobs?.modality === 'hibrido' ? 'Híbrido' : 'Remoto'}
                   </div>
                 </div>
-                <button className="btn-o" style={{ fontSize: 12 }} onClick={() => unsave(s.id)}>
+                <button className="btn-o" style={{ fontSize: 12 }} onClick={() => unsave(s.job_id)}>
                   <i className="ti ti-bookmark-off"></i> Quitar
                 </button>
               </div>
