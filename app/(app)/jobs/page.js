@@ -159,7 +159,11 @@ export default function JobsPage() {
       return;
     }
     setJobs(data || []);
-    if (data && data.length > 0) setSelected((s) => s || data[0]);
+    if (data && data.length > 0) {
+      const jobIdParam = typeof window !== 'undefined' ? new URLSearchParams(window.location.search).get('job') : null;
+      const fromParam = jobIdParam ? data.find((j) => j.id === jobIdParam) : null;
+      setSelected((s) => s || fromParam || data[0]);
+    }
   }
 
   async function toggleSave(jobId) {
