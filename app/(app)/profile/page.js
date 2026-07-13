@@ -1345,7 +1345,7 @@ export default function ProfilePage() {
                 </div>
               </div>
             ))}
-            <Link href="/jobs" style={{ fontSize: 12.5, color: '#1d6f5c' }}>
+            <Link href="/profile/jobs" style={{ fontSize: 12.5, color: '#1d6f5c' }}>
               Ver todos los empleos
             </Link>
           </div>
