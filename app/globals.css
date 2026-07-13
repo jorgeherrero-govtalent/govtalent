@@ -92,6 +92,12 @@ a{color:inherit}
 
 .sec{padding:16px 20px;max-width:1080px;margin:0 auto}
 
+.ft{border-top:.5px solid #e0dfd8;background:#fff;padding:18px 20px;margin-top:40px}
+.ft-inner{max-width:1080px;margin:0 auto;display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:8px;font-size:12px;color:#999;text-align:center}
+.ft-inner a{color:#999;text-decoration:none}
+.ft-inner a:hover{color:#1d6f5c;text-decoration:underline}
+.ft-sep{color:#ddd}
+
 .card{background:#fff;border:.5px solid #e0dfd8;border-radius:12px;overflow:hidden}
 .cp{padding:16px}
 
