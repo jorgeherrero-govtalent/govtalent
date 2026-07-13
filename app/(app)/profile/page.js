@@ -33,15 +33,14 @@ export default function ProfilePage() {
   const [showInterestsMenu, setShowInterestsMenu] = useState(false);
   const [showAiCvTip, setShowAiCvTip] = useState(true);
 
+  // Cada vez que se abre "Editar perfil", el aviso vuelve a aparecer,
+  // aunque se hubiera cerrado la vez anterior.
   useEffect(() => {
-    if (typeof window !== 'undefined' && localStorage.getItem('gt_hide_ai_cv_tip') === '1') {
-      setShowAiCvTip(false);
-    }
-  }, []);
+    if (showEditProfile) setShowAiCvTip(true);
+  }, [showEditProfile]);
 
   function dismissAiCvTip() {
     setShowAiCvTip(false);
-    if (typeof window !== 'undefined') localStorage.setItem('gt_hide_ai_cv_tip', '1');
   }
 
   const INTEREST_OPTIONS = [
