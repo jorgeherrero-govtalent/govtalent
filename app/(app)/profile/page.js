@@ -538,14 +538,16 @@ export default function ProfilePage() {
   return (
     <div className="sec">
 
-      <div className="card" style={{ maxWidth: 1080, margin: '0 auto 13px' }}>
-        <div
-          className="p-cover"
-          style={
-            profile?.cover_url
-              ? {
-                  backgroundImage: `url(${profile.cover_url})`,
-                  backgroundSize: 'cover',
+      <div style={{ display: 'grid', gridTemplateColumns: '3fr 2fr', gap: 13, maxWidth: 1080, margin: '0 auto' }}>
+        <div>
+          <div className="card" style={{ marginBottom: 13 }}>
+            <div
+              className="p-cover"
+              style={
+                profile?.cover_url
+                  ? {
+                      backgroundImage: `url(${profile.cover_url})`,
+                      backgroundSize: 'cover',
                   backgroundPosition: 'center',
                 }
               : undefined
@@ -914,7 +916,6 @@ export default function ProfilePage() {
           </div>
         </div>
       )}
-      <div style={{ display: 'grid', gridTemplateColumns: '3fr 2fr', gap: 13, maxWidth: 1080, margin: '0 auto' }}>
         <div className="card">
           <div className="p-tabs">
             <button className={`p-tab ${tab === 'e' ? 'on' : ''}`} onClick={() => setTab('e')}>
@@ -1387,6 +1388,7 @@ export default function ProfilePage() {
               )}
             </div>
           )}
+        </div>
         </div>
 
         <div>
