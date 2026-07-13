@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
 import { toast } from '@/lib/toast';
@@ -31,6 +32,14 @@ export default function ProfilePage() {
   const [dragIndex, setDragIndex] = useState(null);
   const [savingLookingForJob, setSavingLookingForJob] = useState(false);
   const [showInterestsMenu, setShowInterestsMenu] = useState(false);
+  const [interestsMenuPos, setInterestsMenuPos] = useState({ top: 0, left: 0 });
+  const interestsBtnRef = useRef(null);
+
+  function openInterestsMenu() {
+    const rect = interestsBtnRef.current?.getBoundingClientRect();
+    if (rect) setInterestsMenuPos({ top: rect.bottom + 6, left: rect.left });
+    setShowInterestsMenu(true);
+  }
   const [showAiCvTip, setShowAiCvTip] = useState(true);
 
   // Cada vez que se abre "Editar perfil", el aviso vuelve a aparecer,
@@ -625,65 +634,69 @@ export default function ProfilePage() {
 
           <div style={{ position: 'relative', marginTop: 10 }}>
             <button
+              ref={interestsBtnRef}
               className="btn-o"
               style={{ fontSize: 12.5 }}
-              onClick={() => setShowInterestsMenu(!showInterestsMenu)}
+              onClick={() => (showInterestsMenu ? setShowInterestsMenu(false) : openInterestsMenu())}
             >
               <i className="ti ti-target-arrow"></i> Tengo interés en...{' '}
               <i className={`ti ${showInterestsMenu ? 'ti-chevron-up' : 'ti-chevron-down'}`}></i>
             </button>
 
-            {showInterestsMenu && (
-              <>
-                <div onClick={() => setShowInterestsMenu(false)} style={{ position: 'fixed', inset: 0, zIndex: 10 }}></div>
-                <div
-                  style={{
-                    position: 'absolute',
-                    top: '100%',
-                    left: 0,
-                    marginTop: 6,
-                    background: '#fff',
-                    border: '1px solid #e0dfd8',
-                    borderRadius: 10,
-                    boxShadow: '0 8px 24px rgba(0,0,0,.12)',
-                    zIndex: 11,
-                    width: 320,
-                    padding: 6,
-                  }}
-                >
-                  {INTEREST_OPTIONS.map((opt) => {
-                    const active = (user.interests || []).includes(opt.key);
-                    return (
-                      <label
-                        key={opt.key}
-                        style={{
-                          display: 'flex',
-                          alignItems: 'flex-start',
-                          gap: 10,
-                          padding: '10px 10px',
-                          borderRadius: 8,
-                          cursor: 'pointer',
-                        }}
-                        onMouseEnter={(e) => (e.currentTarget.style.background = '#f8faf9')}
-                        onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
-                      >
-                        <input
-                          type="checkbox"
-                          checked={active}
-                          disabled={savingLookingForJob}
-                          onChange={() => toggleInterest(opt.key)}
-                          style={{ marginTop: 3 }}
-                        />
-                        <div>
-                          <div style={{ fontSize: 13.5, fontWeight: 600 }}>{opt.title}</div>
-                          <div style={{ fontSize: 12, color: '#888' }}>{opt.desc}</div>
-                        </div>
-                      </label>
-                    );
-                  })}
-                </div>
-              </>
-            )}
+            {showInterestsMenu &&
+              typeof document !== 'undefined' &&
+              createPortal(
+                <>
+                  <div onClick={() => setShowInterestsMenu(false)} style={{ position: 'fixed', inset: 0, zIndex: 200 }}></div>
+                  <div
+                    style={{
+                      position: 'fixed',
+                      top: interestsMenuPos.top,
+                      left: interestsMenuPos.left,
+                      background: '#fff',
+                      border: '1px solid #e0dfd8',
+                      borderRadius: 10,
+                      boxShadow: '0 8px 24px rgba(0,0,0,.16)',
+                      zIndex: 201,
+                      width: 320,
+                      maxWidth: 'calc(100vw - 32px)',
+                      padding: 6,
+                    }}
+                  >
+                    {INTEREST_OPTIONS.map((opt) => {
+                      const active = (user.interests || []).includes(opt.key);
+                      return (
+                        <label
+                          key={opt.key}
+                          style={{
+                            display: 'flex',
+                            alignItems: 'flex-start',
+                            gap: 10,
+                            padding: '10px 10px',
+                            borderRadius: 8,
+                            cursor: 'pointer',
+                          }}
+                          onMouseEnter={(e) => (e.currentTarget.style.background = '#f8faf9')}
+                          onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
+                        >
+                          <input
+                            type="checkbox"
+                            checked={active}
+                            disabled={savingLookingForJob}
+                            onChange={() => toggleInterest(opt.key)}
+                            style={{ marginTop: 3 }}
+                          />
+                          <div>
+                            <div style={{ fontSize: 13.5, fontWeight: 600 }}>{opt.title}</div>
+                            <div style={{ fontSize: 12, color: '#888' }}>{opt.desc}</div>
+                          </div>
+                        </label>
+                      );
+                    })}
+                  </div>
+                </>,
+                document.body
+              )}
           </div>
         </div>
         <div className="p-sec" style={{ borderBottom: 'none' }}>
