@@ -580,8 +580,6 @@ export default function OrganizationAdminPage() {
           <div
             className="sw"
             style={{
-              position: 'sticky',
-              top: 78,
               background: 'linear-gradient(160deg,#faf9ff,#fff)',
               borderColor: '#d8d3fb',
             }}
