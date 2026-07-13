@@ -458,17 +458,17 @@ export default function OrganizationAdminPage() {
           </label>
         </div>
         <div className="co-info">
-          <div style={{ fontSize: 19, fontWeight: 700, marginBottom: 4 }}>{org.name}</div>
-          <div style={{ fontSize: 13, color: '#555', marginBottom: 10 }}>{org.bio || org.sector || 'Añade una descripción'}</div>
-          <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', fontSize: 12.5, color: '#888', marginBottom: 14 }}>
+          <div style={{ fontSize: 17.5, fontWeight: 700, marginBottom: 3 }}>{org.name}</div>
+          <div style={{ fontSize: 12.5, color: '#555', marginBottom: 8 }}>{org.bio || org.sector || 'Añade una descripción'}</div>
+          <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', fontSize: 12, color: '#888', marginBottom: 11 }}>
             {org.location && (
               <span>
-                <i className="ti ti-map-pin" style={{ fontSize: 12 }}></i> {org.location}
+                <i className="ti ti-map-pin" style={{ fontSize: 11.5 }}></i> {org.location}
               </span>
             )}
             {org.size_range && (
               <span>
-                <i className="ti ti-users" style={{ fontSize: 12 }}></i> {org.size_range} empleados
+                <i className="ti ti-users" style={{ fontSize: 11.5 }}></i> {org.size_range} empleados
               </span>
             )}
           </div>
@@ -485,9 +485,9 @@ export default function OrganizationAdminPage() {
             href={`/organizations/${org.slug}`}
             target="_blank"
             rel="noreferrer"
-            style={{ fontSize: 12.5, color: '#1d6f5c', textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 4 }}
+            style={{ fontSize: 12, color: '#1d6f5c', textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 4 }}
           >
-            <i className="ti ti-eye" style={{ fontSize: 13 }}></i> Ver como candidato
+            <i className="ti ti-eye" style={{ fontSize: 12.5 }}></i> Ver como candidato
           </a>
         </div>
       </div>
@@ -575,6 +575,32 @@ export default function OrganizationAdminPage() {
         </div>
 
         <div>
+          <div
+            className="sw"
+            style={{
+              position: 'sticky',
+              top: 78,
+              background: 'linear-gradient(160deg,#faf9ff,#fff)',
+              borderColor: '#d8d3fb',
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
+              <i className="ti ti-headset" style={{ color: '#6d5aef', fontSize: 17 }}></i>
+              <h4 style={{ margin: 0 }}>¿Sacando todo el partido a GovTalent?</h4>
+            </div>
+            <p style={{ fontSize: 12.5, color: '#666', lineHeight: 1.6, marginBottom: 12 }}>
+              Agenda una llamada con nuestro equipo: te ayudamos a publicar mejores ofertas, sacarle partido a la IA y
+              conseguir más candidatos cualificados.
+            </p>
+            <a
+              href="mailto:hola@govtalent.app?subject=Quiero%20agendar%20una%20llamada"
+              className="btn-ai"
+              style={{ width: '100%', textAlign: 'center', display: 'block', textDecoration: 'none' }}
+            >
+              <i className="ti ti-calendar-event"></i> Agendar llamada
+            </a>
+          </div>
+
           <div className="sw">
             <h4>Ofertas activas</h4>
             {jobs.filter((j) => j.status === 'activa').length === 0 && (
