@@ -7,6 +7,7 @@ import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
 import Toast from '@/components/Toast';
 import OnboardingModal from '@/components/OnboardingModal';
+import Footer from '@/components/Footer';
 
 export default function AppLayout({ children }) {
   const supabase = createClient();
@@ -135,6 +136,7 @@ export default function AppLayout({ children }) {
       </nav>
 
       {children}
+      <Footer />
       <Toast />
 
       {needsOnboarding && user && (
