@@ -30,8 +30,9 @@ export async function middleware(request) {
   const path = request.nextUrl.pathname;
   const isAuthRoute = path === '/login' || path.startsWith('/auth');
   const isOnboarding = path.startsWith('/onboarding');
+  const isPublicJobPage = path.startsWith('/empleo/');
 
-  if (!user && !isAuthRoute) {
+  if (!user && !isAuthRoute && !isPublicJobPage) {
     const url = request.nextUrl.clone();
     url.pathname = '/login';
     return NextResponse.redirect(url);
