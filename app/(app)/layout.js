@@ -14,6 +14,7 @@ export default function AppLayout({ children }) {
   const [user, setUser] = useState(null);
   const [myOrg, setMyOrg] = useState(null);
   const [needsOnboarding, setNeedsOnboarding] = useState(false);
+  const [showMeMenu, setShowMeMenu] = useState(false);
 
   useEffect(() => {
     let active = true;
@@ -82,15 +83,33 @@ export default function AppLayout({ children }) {
           </Link>
         )}
         <div className="nav-sp"></div>
-        <i
-          className="ti ti-logout"
-          style={{ fontSize: 18, color: '#888', cursor: 'pointer' }}
-          title="Cerrar sesión"
-          onClick={signOut}
-        ></i>
-        <Link href="/profile" className="nav-av" title="Mi perfil">
-          {user?.avatar_url ? <img src={user.avatar_url} alt="" /> : initial || '·'}
-        </Link>
+        <div className="nav-me">
+          <div className="ni" onClick={() => setShowMeMenu(!showMeMenu)}>
+            <div className="nav-av">{user?.avatar_url ? <img src={user.avatar_url} alt="" /> : initial || '·'}</div>
+            <span style={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+              Tú <i className={`ti ${showMeMenu ? 'ti-chevron-up' : 'ti-chevron-down'}`} style={{ fontSize: 12 }}></i>
+            </span>
+          </div>
+          {showMeMenu && (
+            <>
+              <div onClick={() => setShowMeMenu(false)} style={{ position: 'fixed', inset: 0, zIndex: 199 }}></div>
+              <div className="nav-me-menu">
+                <Link href="/profile" className="nav-me-item" onClick={() => setShowMeMenu(false)}>
+                  <i className="ti ti-user"></i> Ver mi perfil
+                </Link>
+                <button
+                  className="nav-me-item"
+                  onClick={() => {
+                    setShowMeMenu(false);
+                    signOut();
+                  }}
+                >
+                  <i className="ti ti-logout"></i> Cerrar sesión
+                </button>
+              </div>
+            </>
+          )}
+        </div>
         {!myOrg && (
           <Link href="/organizations/new" className="nav-ebtn">
             <i className="ti ti-building"></i> Para organizaciones
