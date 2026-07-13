@@ -517,96 +517,6 @@ export default function ProfilePage() {
 
   return (
     <div className="sec">
-      {(!profile?.cv_url || experiences.length === 0) && (
-        <div
-          style={{
-            maxWidth: 1080,
-            margin: '0 auto 13px',
-            background: '#faf9ff',
-            border: '1px solid #d8d3fb',
-            borderRadius: 12,
-            padding: 16,
-          }}
-        >
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 10 }}>
-            <i className="ti ti-bolt" style={{ color: '#6d5aef', fontSize: 16 }}></i>
-            <span style={{ fontSize: 14, fontWeight: 700 }}>La forma más rápida de rellenar tu perfil</span>
-          </div>
-
-          <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10, marginBottom: 12 }}>
-            <div
-              style={{
-                width: 22,
-                height: 22,
-                borderRadius: '50%',
-                background: profile?.cv_url ? '#1d6f5c' : '#e0dfd8',
-                color: '#fff',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                fontSize: 12,
-                fontWeight: 700,
-                flexShrink: 0,
-              }}
-            >
-              {profile?.cv_url ? <i className="ti ti-check" style={{ fontSize: 13 }}></i> : '1'}
-            </div>
-            <div style={{ flex: 1 }}>
-              <div style={{ fontSize: 13.5, fontWeight: 600 }}>Sube tu CV</div>
-              {profile?.cv_url ? (
-                <div style={{ fontSize: 12.5, color: '#888', marginTop: 2 }}>
-                  CV subido ✓{' '}
-                  <label style={{ color: '#1d6f5c', cursor: 'pointer', fontWeight: 500 }}>
-                    Reemplazar
-                    <input type="file" accept="application/pdf" hidden onChange={handleCvUpload} disabled={uploadingCv} />
-                  </label>
-                </div>
-              ) : (
-                <label className="btn-o" style={{ display: 'inline-block', marginTop: 6, cursor: 'pointer', fontSize: 12.5 }}>
-                  {uploadingCv ? 'Subiendo...' : 'Elegir archivo PDF'}
-                  <input type="file" accept="application/pdf" hidden onChange={handleCvUpload} disabled={uploadingCv} />
-                </label>
-              )}
-            </div>
-          </div>
-
-          <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
-            <div
-              style={{
-                width: 22,
-                height: 22,
-                borderRadius: '50%',
-                background: '#e0dfd8',
-                color: '#fff',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                fontSize: 12,
-                fontWeight: 700,
-                flexShrink: 0,
-              }}
-            >
-              2
-            </div>
-            <div style={{ flex: 1 }}>
-              <div style={{ fontSize: 13.5, fontWeight: 600 }}>Autocompleta tu perfil con IA</div>
-              <div style={{ fontSize: 12.5, color: '#888', marginTop: 2, marginBottom: 8 }}>
-                Rellena experiencia, educación y habilidades leyendo tu CV, en segundos.
-              </div>
-              <button
-                type="button"
-                className="btn-ai"
-                style={{ fontSize: 12.5 }}
-                disabled={!profile?.cv_url || extractingCv}
-                onClick={extractFromCv}
-                title={!profile?.cv_url ? 'Sube tu CV primero' : ''}
-              >
-                <i className="ti ti-bolt"></i> {extractingCv ? 'Leyendo tu CV...' : 'Autocompletar perfil con IA'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
 
       <div className="card" style={{ maxWidth: 1080, margin: '0 auto 13px' }}>
         <div
@@ -1436,49 +1346,86 @@ export default function ProfilePage() {
         <div>
           <div className="sw">
             <h4>Currículum (CV)</h4>
-            {profile?.cv_url ? (
-              <>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
-                  <i className="ti ti-file-cv" style={{ fontSize: 18, color: '#1d6f5c' }}></i>
-                  <div style={{ fontSize: 12.5, color: '#555', flex: 1 }}>
+
+            <div style={{ display: 'flex', alignItems: 'flex-start', gap: 9, marginBottom: 14 }}>
+              <div
+                style={{
+                  width: 20,
+                  height: 20,
+                  borderRadius: '50%',
+                  background: profile?.cv_url ? '#1d6f5c' : '#e0dfd8',
+                  color: '#fff',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontSize: 11,
+                  fontWeight: 700,
+                  flexShrink: 0,
+                  marginTop: 1,
+                }}
+              >
+                {profile?.cv_url ? <i className="ti ti-check" style={{ fontSize: 11 }}></i> : '1'}
+              </div>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontSize: 12.5, fontWeight: 600 }}>Sube tu CV</div>
+                {profile?.cv_url ? (
+                  <div style={{ fontSize: 11.5, color: '#888', marginTop: 3 }}>
                     CV subido
-                    {profile.cv_uploaded_at && (
-                      <div style={{ fontSize: 11, color: '#999' }}>
-                        {new Date(profile.cv_uploaded_at).toLocaleDateString('es-ES')}
-                      </div>
-                    )}
+                    {profile.cv_uploaded_at && ` · ${new Date(profile.cv_uploaded_at).toLocaleDateString('es-ES')}`}
+                    <div style={{ display: 'flex', gap: 8, marginTop: 6 }}>
+                      <a href={profile.cv_url} target="_blank" rel="noreferrer" className="btn-o" style={{ fontSize: 11.5, padding: '5px 10px', textDecoration: 'none' }}>
+                        Ver CV
+                      </a>
+                      <label className="btn-g" style={{ fontSize: 11.5, padding: '5px 10px', cursor: 'pointer' }}>
+                        {uploadingCv ? 'Subiendo...' : 'Reemplazar'}
+                        <input type="file" accept="application/pdf" hidden onChange={handleCvUpload} disabled={uploadingCv} />
+                      </label>
+                    </div>
                   </div>
-                </div>
-                <div style={{ display: 'flex', gap: 8, marginBottom: 8 }}>
-                  <a
-                    href={profile.cv_url}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="btn-o"
-                    style={{ flex: 1, textAlign: 'center', textDecoration: 'none', fontSize: 12.5 }}
-                  >
-                    Ver CV
-                  </a>
-                  <label className="btn-g" style={{ cursor: 'pointer', fontSize: 12.5 }}>
-                    {uploadingCv ? 'Subiendo...' : 'Reemplazar'}
+                ) : (
+                  <label className="btn-p" style={{ display: 'inline-block', marginTop: 6, cursor: 'pointer', fontSize: 12 }}>
+                    {uploadingCv ? 'Subiendo...' : 'Subir CV'}
                     <input type="file" accept="application/pdf" hidden onChange={handleCvUpload} disabled={uploadingCv} />
                   </label>
+                )}
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', alignItems: 'flex-start', gap: 9 }}>
+              <div
+                style={{
+                  width: 20,
+                  height: 20,
+                  borderRadius: '50%',
+                  background: '#e0dfd8',
+                  color: '#fff',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontSize: 11,
+                  fontWeight: 700,
+                  flexShrink: 0,
+                  marginTop: 1,
+                }}
+              >
+                2
+              </div>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontSize: 12.5, fontWeight: 600 }}>Autocompleta con IA</div>
+                <div style={{ fontSize: 11.5, color: '#888', marginTop: 2, marginBottom: 7 }}>
+                  Rellena experiencia, educación y habilidades leyendo tu CV.
                 </div>
-                <button className="btn-ai" style={{ width: '100%', fontSize: 12.5 }} disabled={extractingCv} onClick={extractFromCv}>
+                <button
+                  className="btn-ai"
+                  style={{ width: '100%', fontSize: 12 }}
+                  disabled={!profile?.cv_url || extractingCv}
+                  onClick={extractFromCv}
+                  title={!profile?.cv_url ? 'Sube tu CV primero' : ''}
+                >
                   <i className="ti ti-bolt"></i> {extractingCv ? 'Leyendo tu CV...' : 'Autocompletar perfil con IA'}
                 </button>
-              </>
-            ) : (
-              <>
-                <div style={{ fontSize: 12.5, color: '#999', marginBottom: 10 }}>
-                  Sube tu CV en PDF para que los reclutadores te encuentren más rápido.
-                </div>
-                <label className="btn-p" style={{ width: '100%', textAlign: 'center', display: 'block', cursor: 'pointer' }}>
-                  {uploadingCv ? 'Subiendo...' : 'Subir CV'}
-                  <input type="file" accept="application/pdf" hidden onChange={handleCvUpload} disabled={uploadingCv} />
-                </label>
-              </>
-            )}
+              </div>
+            </div>
           </div>
 
           <div className="sw">
