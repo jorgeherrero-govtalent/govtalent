@@ -31,6 +31,18 @@ export default function ProfilePage() {
   const [dragIndex, setDragIndex] = useState(null);
   const [savingLookingForJob, setSavingLookingForJob] = useState(false);
   const [showInterestsMenu, setShowInterestsMenu] = useState(false);
+  const [showAiCvTip, setShowAiCvTip] = useState(true);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined' && localStorage.getItem('gt_hide_ai_cv_tip') === '1') {
+      setShowAiCvTip(false);
+    }
+  }, []);
+
+  function dismissAiCvTip() {
+    setShowAiCvTip(false);
+    if (typeof window !== 'undefined') localStorage.setItem('gt_hide_ai_cv_tip', '1');
+  }
 
   const INTEREST_OPTIONS = [
     {
@@ -697,18 +709,39 @@ export default function ProfilePage() {
                 <i className="ti ti-x"></i>
               </div>
             </div>
-            <div
-              style={{
-                background: '#faf9ff',
-                border: '1px solid #d8d3fb',
-                borderRadius: 10,
-                padding: 14,
-                marginBottom: 16,
-              }}
-            >
-              <div style={{ fontSize: 12.5, fontWeight: 600, marginBottom: 10, display: 'flex', alignItems: 'center', gap: 6 }}>
-                <i className="ti ti-bolt" style={{ color: '#6d5aef' }}></i> La forma más rápida de rellenar tu perfil
-              </div>
+            {showAiCvTip && (
+              <div
+                style={{
+                  background: '#faf9ff',
+                  border: '1px solid #d8d3fb',
+                  borderRadius: 10,
+                  padding: 14,
+                  marginBottom: 16,
+                  position: 'relative',
+                }}
+              >
+                <div
+                  onClick={dismissAiCvTip}
+                  title="Cerrar"
+                  style={{
+                    position: 'absolute',
+                    top: 10,
+                    right: 10,
+                    cursor: 'pointer',
+                    color: '#aaa',
+                    width: 22,
+                    height: 22,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    borderRadius: '50%',
+                  }}
+                >
+                  <i className="ti ti-x" style={{ fontSize: 14 }}></i>
+                </div>
+                <div style={{ fontSize: 12.5, fontWeight: 600, marginBottom: 10, display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <i className="ti ti-bolt" style={{ color: '#6d5aef' }}></i> La forma más rápida de rellenar tu perfil
+                </div>
 
               <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10, marginBottom: 12 }}>
                 <div
@@ -782,7 +815,7 @@ export default function ProfilePage() {
                   </button>
                 </div>
               </div>
-            </div>
+            )}
 
             <form onSubmit={saveProfileEdit}>
               <div className="two">
