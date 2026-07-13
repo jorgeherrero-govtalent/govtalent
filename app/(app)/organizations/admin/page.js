@@ -402,17 +402,19 @@ export default function OrganizationAdminPage() {
 
   return (
     <div className="sec">
-      <div className="card" style={{ maxWidth: 1080, margin: '0 auto 13px' }}>
-        <div
-          className="co-cover"
-          style={
-            org.cover_url
-              ? { backgroundImage: `url(${org.cover_url})`, backgroundSize: 'cover', backgroundPosition: 'center' }
-              : undefined
-          }
-        >
-          <label
-            title="Cambiar portada"
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 320px', gap: 13, maxWidth: 1080, margin: '0 auto' }}>
+        <div>
+          <div className="card" style={{ marginBottom: 13 }}>
+            <div
+              className="co-cover"
+              style={
+                org.cover_url
+                  ? { backgroundImage: `url(${org.cover_url})`, backgroundSize: 'cover', backgroundPosition: 'center' }
+                  : undefined
+              }
+            >
+              <label
+                title="Cambiar portada"
             style={{
               position: 'absolute',
               top: 11,
@@ -492,7 +494,6 @@ export default function OrganizationAdminPage() {
         </div>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 320px', gap: 13, maxWidth: 1080, margin: '0 auto' }}>
         <div className="card">
           <div className="cp">
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 13 }}>
@@ -572,6 +573,7 @@ export default function OrganizationAdminPage() {
               </button>
             </form>
           </div>
+        </div>
         </div>
 
         <div>
