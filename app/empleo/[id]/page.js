@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server';
 import Link from 'next/link';
 import PublicJobApplyButton from '@/components/PublicJobApplyButton';
+import Footer from '@/components/Footer';
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://govtalent.vercel.app';
 
@@ -65,12 +66,15 @@ export default async function PublicJobPage({ params }) {
 
   if (!job) {
     return (
-      <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: 14, padding: 20, textAlign: 'center' }}>
-        <div style={{ fontSize: 20, fontWeight: 700 }}>Esta oferta ya no está disponible</div>
-        <p style={{ color: '#888', fontSize: 14 }}>Puede que se haya cerrado o que el enlace no sea correcto.</p>
-        <Link href="/jobs" className="btn-p" style={{ textDecoration: 'none' }}>
-          Ver empleos disponibles
-        </Link>
+      <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
+        <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: 14, padding: 20, textAlign: 'center' }}>
+          <div style={{ fontSize: 20, fontWeight: 700 }}>Esta oferta ya no está disponible</div>
+          <p style={{ color: '#888', fontSize: 14 }}>Puede que se haya cerrado o que el enlace no sea correcto.</p>
+          <Link href="/jobs" className="btn-p" style={{ textDecoration: 'none' }}>
+            Ver empleos disponibles
+          </Link>
+        </div>
+        <Footer />
       </div>
     );
   }
@@ -80,7 +84,7 @@ export default async function PublicJobPage({ params }) {
   const responsibilities = [...(job.job_responsibilities || [])].sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0));
 
   return (
-    <div style={{ minHeight: '100vh', background: '#f4f3ee' }}>
+    <div style={{ minHeight: '100vh', background: '#f4f3ee', display: 'flex', flexDirection: 'column' }}>
       <div style={{ background: '#fff', borderBottom: '.5px solid #e0dfd8', padding: '14px 20px' }}>
         <div style={{ maxWidth: 760, margin: '0 auto', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <Link href="/jobs" style={{ fontWeight: 800, fontSize: 19, textDecoration: 'none', color: '#1a1a18' }}>
@@ -92,7 +96,7 @@ export default async function PublicJobPage({ params }) {
         </div>
       </div>
 
-      <div style={{ maxWidth: 760, margin: '20px auto', padding: '0 20px 60px' }}>
+      <div style={{ maxWidth: 760, margin: '20px auto', padding: '0 20px 60px', flex: 1, width: '100%' }}>
         <div className="card" style={{ padding: 24 }}>
           <Link
             href={org?.slug ? `/organizations/${org.slug}` : '#'}
@@ -194,6 +198,8 @@ export default async function PublicJobPage({ params }) {
           — la plataforma de talento para asuntos públicos, política y gobierno.
         </p>
       </div>
+
+      <Footer />
     </div>
   );
 }
