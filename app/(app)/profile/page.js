@@ -24,6 +24,7 @@ export default function ProfilePage() {
   const [showEduForm, setShowEduForm] = useState(false);
   const [editingExpId, setEditingExpId] = useState(null);
   const [editingEduId, setEditingEduId] = useState(null);
+  const [editingLangId, setEditingLangId] = useState(null);
   const [skillInput, setSkillInput] = useState('');
   const [langName, setLangName] = useState('');
   const [langLevel, setLangLevel] = useState('B2');
@@ -495,6 +496,19 @@ export default function ProfilePage() {
   async function deleteLanguage(id) {
     await supabase.from('languages').delete().eq('id', id);
     setLanguages(languages.filter((l) => l.id !== id));
+  }
+
+  async function updateLanguage(e) {
+    e.preventDefault();
+    const f = new FormData(e.target);
+    const updates = {
+      language_name: f.get('language_name'),
+      proficiency: f.get('proficiency'),
+    };
+    await supabase.from('languages').update(updates).eq('id', editingLangId);
+    setLanguages(languages.map((x) => (x.id === editingLangId ? { ...x, ...updates } : x)));
+    setEditingLangId(null);
+    toast('Idioma actualizado ✓');
   }
 
   if (!user) return <div className="spinner"></div>;
@@ -1249,49 +1263,81 @@ export default function ProfilePage() {
                   description="Indica qué idiomas hablas y tu nivel, arriba en el desplegable."
                 />
               )}
-              {languages.map((l, i) => (
-                <div
-                  className="exp-item"
-                  key={l.id}
-                  draggable
-                  onDragStart={(e) => handleCardDragStart(e, i, l.language_name)}
-                  onDragOver={(e) => e.preventDefault()}
-                  onDrop={() => {
-                    reorderByDrag('languages', languages, setLanguages, dragIndex, i);
-                    setDragIndex(null);
-                  }}
-                  style={{ alignItems: 'center', cursor: 'grab' }}
-                >
-                  <i className="ti ti-grip-vertical" style={{ color: '#ccc', fontSize: 16 }}></i>
-                  <div className="exp-logo">🌐</div>
-                  <div className="exp-body" style={{ flex: 1 }}>
-                    <div className="et">
-                      {l.language_name} <span className="badge bg" style={{ marginLeft: 6 }}>{l.proficiency}</span>
+              {languages.map((l, i) =>
+                editingLangId === l.id ? (
+                  <form
+                    key={l.id}
+                    onSubmit={updateLanguage}
+                    style={{ marginBottom: 14, background: '#f8faf9', padding: 14, borderRadius: 10 }}
+                  >
+                    <div className="form-row">
+                      <div className="form-g">
+                        <label>Idioma</label>
+                        <input name="language_name" defaultValue={l.language_name} required />
+                      </div>
+                      <div className="form-g">
+                        <label>Nivel</label>
+                        <select name="proficiency" defaultValue={l.proficiency}>
+                          {LANGUAGE_LEVELS.map((lvl) => (
+                            <option key={lvl} value={lvl}>
+                              {lvl}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                    </div>
+                    <button className="btn-p">Guardar cambios</button>{' '}
+                    <button type="button" className="btn-g" onClick={() => setEditingLangId(null)}>
+                      Cancelar
+                    </button>
+                  </form>
+                ) : (
+                  <div
+                    className="exp-item"
+                    key={l.id}
+                    draggable
+                    onDragStart={(e) => handleCardDragStart(e, i, l.language_name)}
+                    onDragOver={(e) => e.preventDefault()}
+                    onDrop={() => {
+                      reorderByDrag('languages', languages, setLanguages, dragIndex, i);
+                      setDragIndex(null);
+                    }}
+                    style={{ alignItems: 'center', cursor: 'grab' }}
+                  >
+                    <i className="ti ti-grip-vertical" style={{ color: '#ccc', fontSize: 16 }}></i>
+                    <div className="exp-logo">🌐</div>
+                    <div className="exp-body" style={{ flex: 1 }}>
+                      <div className="et">
+                        {l.language_name} <span className="badge bg" style={{ marginLeft: 6 }}>{l.proficiency}</span>
+                      </div>
+                    </div>
+                    <div style={{ display: 'flex', gap: 4, height: 'fit-content' }}>
+                      <button
+                        className="btn-g"
+                        style={{ padding: '5px 7px' }}
+                        disabled={i === 0}
+                        onClick={() => moveItem('languages', languages, setLanguages, l.id, 'up')}
+                      >
+                        <i className="ti ti-arrow-up"></i>
+                      </button>
+                      <button
+                        className="btn-g"
+                        style={{ padding: '5px 7px' }}
+                        disabled={i === languages.length - 1}
+                        onClick={() => moveItem('languages', languages, setLanguages, l.id, 'down')}
+                      >
+                        <i className="ti ti-arrow-down"></i>
+                      </button>
+                      <button className="btn-g" style={{ padding: '5px 7px' }} onClick={() => setEditingLangId(l.id)}>
+                        <i className="ti ti-edit"></i>
+                      </button>
+                      <button className="btn-g" style={{ padding: '5px 7px' }} onClick={() => deleteLanguage(l.id)}>
+                        <i className="ti ti-trash"></i>
+                      </button>
                     </div>
                   </div>
-                  <div style={{ display: 'flex', gap: 4, height: 'fit-content' }}>
-                    <button
-                      className="btn-g"
-                      style={{ padding: '5px 7px' }}
-                      disabled={i === 0}
-                      onClick={() => moveItem('languages', languages, setLanguages, l.id, 'up')}
-                    >
-                      <i className="ti ti-arrow-up"></i>
-                    </button>
-                    <button
-                      className="btn-g"
-                      style={{ padding: '5px 7px' }}
-                      disabled={i === languages.length - 1}
-                      onClick={() => moveItem('languages', languages, setLanguages, l.id, 'down')}
-                    >
-                      <i className="ti ti-arrow-down"></i>
-                    </button>
-                    <button className="btn-g" style={{ padding: '5px 7px' }} onClick={() => deleteLanguage(l.id)}>
-                      <i className="ti ti-trash"></i>
-                    </button>
-                  </div>
-                </div>
-              ))}
+                )
+              )}
             </div>
           )}
         </div>
