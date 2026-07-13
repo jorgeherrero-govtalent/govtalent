@@ -594,7 +594,7 @@ export default function OrganizationAdminPage() {
             </p>
             <a
               href="mailto:hola@govtalent.app?subject=Quiero%20agendar%20una%20llamada"
-              className="btn-ai"
+              className="btn-o"
               style={{ width: '100%', textAlign: 'center', display: 'block', textDecoration: 'none' }}
             >
               <i className="ti ti-calendar-event"></i> Agendar llamada
