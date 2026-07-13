@@ -80,8 +80,8 @@ export default function ProfilePage() {
         supabase.from('education').select('*').eq('user_id', uid).order('sort_order', { ascending: true }),
         supabase.from('skills').select('*').eq('user_id', uid).order('sort_order', { ascending: true }),
         supabase.from('languages').select('*').eq('user_id', uid).order('sort_order', { ascending: true }),
-        supabase.from('saved_jobs').select('jobs(id, title, organizations(name))').eq('user_id', uid),
-        supabase.from('organization_follows').select('organizations(id, slug, name)').eq('user_id', uid),
+        supabase.from('saved_jobs').select('jobs(id, title, organizations(name, logo_url))').eq('user_id', uid),
+        supabase.from('organization_follows').select('organizations(id, slug, name, logo_url)').eq('user_id', uid),
       ]);
 
       const [rUser, rProfile, rExp, rEdu, rSk, rLang, rSaved, rFollows] = results;
@@ -1332,12 +1332,20 @@ export default function ProfilePage() {
           </div>
 
           <div className="sw">
-            <h4>Empleos guardados</h4>
+            <h4>Mis empleos guardados y solicitados</h4>
             {savedJobs.length === 0 && <div style={{ fontSize: 12.5, color: '#999' }}>Ninguno todavía.</div>}
             {savedJobs.map((sj, i) => (
               <div className="sp" key={i}>
-                <div className="sp-av" style={{ borderRadius: 8 }}>
-                  <i className="ti ti-briefcase"></i>
+                <div className="sp-av" style={{ borderRadius: 8, overflow: 'hidden' }}>
+                  {sj.jobs?.organizations?.logo_url ? (
+                    <img
+                      src={sj.jobs.organizations.logo_url}
+                      alt=""
+                      style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                    />
+                  ) : (
+                    <i className="ti ti-briefcase"></i>
+                  )}
                 </div>
                 <div>
                   <div style={{ fontSize: 13, fontWeight: 500 }}>{sj.jobs?.title}</div>
@@ -1355,8 +1363,16 @@ export default function ProfilePage() {
             {followedOrgs.length === 0 && <div style={{ fontSize: 12.5, color: '#999' }}>Ninguna todavía.</div>}
             {followedOrgs.map((f, i) => (
               <Link href={`/organizations/${f.organizations?.slug}`} className="sp" key={i} style={{ textDecoration: 'none', color: 'inherit' }}>
-                <div className="sp-av" style={{ borderRadius: 8 }}>
-                  <i className="ti ti-building"></i>
+                <div className="sp-av" style={{ borderRadius: 8, overflow: 'hidden' }}>
+                  {f.organizations?.logo_url ? (
+                    <img
+                      src={f.organizations.logo_url}
+                      alt=""
+                      style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                    />
+                  ) : (
+                    <i className="ti ti-building"></i>
+                  )}
                 </div>
                 <div style={{ fontSize: 13, fontWeight: 500 }}>{f.organizations?.name}</div>
               </Link>
