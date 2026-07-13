@@ -918,7 +918,13 @@ export default function ProfilePage() {
                 </form>
               )}
               {experiences.length === 0 && !showExpForm && (
-                <div style={{ fontSize: 13, color: '#999' }}>Aún no has añadido experiencia.</div>
+                <EmptySection
+                  icon="ti-briefcase"
+                  title="Destaca con tu experiencia"
+                  description="Añade tu experiencia profesional para destacar ante organizaciones y reclutadores."
+                  ctaLabel="Añadir experiencia"
+                  onCta={() => setShowExpForm(true)}
+                />
               )}
               {experiences.map((exp, i) =>
                 editingExpId === exp.id ? (
@@ -1053,7 +1059,13 @@ export default function ProfilePage() {
                 </form>
               )}
               {education.length === 0 && !showEduForm && (
-                <div style={{ fontSize: 13, color: '#999' }}>Aún no has añadido educación.</div>
+                <EmptySection
+                  icon="ti-school"
+                  title="Añade tu formación"
+                  description="Comparte tu titulación e institución para dar más contexto a tu perfil."
+                  ctaLabel="Añadir educación"
+                  onCta={() => setShowEduForm(true)}
+                />
               )}
               {education.map((ed, i) =>
                 editingEduId === ed.id ? (
@@ -1189,7 +1201,13 @@ export default function ProfilePage() {
                     </button>
                   </span>
                 ))}
-                {skills.length === 0 && <div style={{ fontSize: 13, color: '#999' }}>Sin habilidades añadidas.</div>}
+                {skills.length === 0 && (
+                  <EmptySection
+                    icon="ti-bulb"
+                    title="Muestra tus puntos fuertes"
+                    description="Añade las habilidades que mejor te representan, arriba en el campo de texto."
+                  />
+                )}
               </div>
             </div>
           )}
@@ -1224,7 +1242,13 @@ export default function ProfilePage() {
                 </select>
                 <button className="btn-p">Añadir</button>
               </form>
-              {languages.length === 0 && <div style={{ fontSize: 13, color: '#999' }}>Sin idiomas añadidos.</div>}
+              {languages.length === 0 && (
+                <EmptySection
+                  icon="ti-language"
+                  title="Añade tus idiomas"
+                  description="Indica qué idiomas hablas y tu nivel, arriba en el desplegable."
+                />
+              )}
               {languages.map((l, i) => (
                 <div
                   className="exp-item"
@@ -1482,6 +1506,34 @@ export default function ProfilePage() {
             </div>
           </div>
         </div>
+      )}
+    </div>
+  );
+}
+
+function EmptySection({ icon, title, description, ctaLabel, onCta }) {
+  return (
+    <div style={{ textAlign: 'center', padding: '36px 20px' }}>
+      <div
+        style={{
+          width: 56,
+          height: 56,
+          borderRadius: 14,
+          background: '#e8f4f0',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          margin: '0 auto 16px',
+        }}
+      >
+        <i className={`ti ${icon}`} style={{ fontSize: 26, color: '#1d6f5c' }}></i>
+      </div>
+      <div style={{ fontSize: 15.5, fontWeight: 700, marginBottom: 6 }}>{title}</div>
+      <div style={{ fontSize: 13, color: '#888', maxWidth: 320, margin: '0 auto 18px', lineHeight: 1.6 }}>{description}</div>
+      {ctaLabel && (
+        <button className="btn-p" onClick={onCta}>
+          <i className="ti ti-plus"></i> {ctaLabel}
+        </button>
       )}
     </div>
   );
