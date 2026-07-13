@@ -4,7 +4,11 @@ import { useState } from 'react';
 import { createClient } from '@/lib/supabase/client';
 
 export default function LoginPage() {
-  const [view, setView] = useState('login'); // login | signup | reset | sent
+  const initialParams = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : null;
+  const redirectTo = initialParams?.get('redirect') || '/jobs';
+  const initialView = initialParams?.get('view') === 'signup' ? 'signup' : 'login';
+
+  const [view, setView] = useState(initialView); // login | signup | reset | sent
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPw, setShowPw] = useState(false);
@@ -16,7 +20,7 @@ export default function LoginPage() {
     setError('');
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
-      options: { redirectTo: `${window.location.origin}/auth/callback` },
+      options: { redirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent(redirectTo)}` },
     });
     if (error) setError(error.message);
   }
@@ -29,13 +33,13 @@ export default function LoginPage() {
       const { error } = await supabase.auth.signUp({ email, password });
       setLoading(false);
       if (error) return setError(traducirError(error.message));
-      window.location.href = '/jobs';
+      window.location.href = redirectTo;
       return;
     }
     const { error } = await supabase.auth.signInWithPassword({ email, password });
     setLoading(false);
     if (error) return setError(traducirError(error.message));
-    window.location.href = '/jobs';
+    window.location.href = redirectTo;
   }
 
   async function handleReset(e) {
