@@ -26,6 +26,13 @@ export default function OrganizationAdminPage() {
   const [org, setOrg] = useState(null);
   const [jobs, setJobs] = useState([]);
   const [showEdit, setShowEdit] = useState(false);
+  const [showAiOrgTip, setShowAiOrgTip] = useState(true);
+
+  // Cada vez que se abre "Editar página de la organización", el aviso
+  // de IA vuelve a aparecer, aunque se hubiera cerrado la vez anterior.
+  useEffect(() => {
+    if (showEdit) setShowAiOrgTip(true);
+  }, [showEdit]);
   const [posting, setPosting] = useState(false);
   const [uploadingLogo, setUploadingLogo] = useState(false);
   const [uploadingOrgCover, setUploadingOrgCover] = useState(false);
@@ -615,6 +622,7 @@ export default function OrganizationAdminPage() {
               </div>
             </div>
             <form onSubmit={saveOrgEdit}>
+              {showAiOrgTip && (
               <div
                 style={{
                   background: '#faf9ff',
@@ -622,8 +630,28 @@ export default function OrganizationAdminPage() {
                   borderRadius: 10,
                   padding: 14,
                   marginBottom: 16,
+                  position: 'relative',
                 }}
               >
+                <div
+                  onClick={() => setShowAiOrgTip(false)}
+                  title="Cerrar"
+                  style={{
+                    position: 'absolute',
+                    top: 10,
+                    right: 10,
+                    cursor: 'pointer',
+                    color: '#aaa',
+                    width: 22,
+                    height: 22,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    borderRadius: '50%',
+                  }}
+                >
+                  <i className="ti ti-x" style={{ fontSize: 14 }}></i>
+                </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
                   <i className="ti ti-bolt" style={{ color: '#6d5aef', fontSize: 15 }}></i>
                   <span style={{ fontSize: 13, fontWeight: 600 }}>Rellenar con IA</span>
@@ -653,6 +681,7 @@ export default function OrganizationAdminPage() {
                   <i className="ti ti-bolt"></i> {generatingOrgDesc ? 'Leyendo la web...' : 'Rellenar con IA'}
                 </button>
               </div>
+              )}
 
               <div className="field">
                 <label>Nombre de la organización</label>
