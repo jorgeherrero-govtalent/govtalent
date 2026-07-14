@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
 
@@ -17,11 +17,33 @@ const TYPE_LABELS = {
   otro: 'Otro',
 };
 
+const SORTS = {
+  recientes: { label: 'Más recientes', fn: (a, b) => new Date(b.created_at) - new Date(a.created_at) },
+  az: { label: 'Nombre A-Z', fn: (a, b) => a.name.localeCompare(b.name) },
+  tamano: { label: 'Nº de empleados', fn: (a, b) => sizeRank(b.size_range) - sizeRank(a.size_range) },
+};
+
+function sizeRank(r) {
+  return { '1-10': 1, '11-50': 2, '50-200': 3, '200-1000': 4, '+1000': 5 }[r] || 0;
+}
+
 export default function OrganizationsDirectory() {
   const supabase = createClient();
   const [orgs, setOrgs] = useState(null);
   const [name, setName] = useState('');
   const [type, setType] = useState('');
+  const [sort, setSort] = useState('recientes');
+  const [onlyPending, setOnlyPending] = useState(false);
+  const [view, setView] = useState('grid');
+
+  useEffect(() => {
+    const saved = localStorage.getItem('gt_dir_view');
+    if (saved === 'grid' || saved === 'list') setView(saved);
+  }, []);
+
+  useEffect(() => {
+    localStorage.setItem('gt_dir_view', view);
+  }, [view]);
 
   useEffect(() => {
     load();
@@ -34,7 +56,14 @@ export default function OrganizationsDirectory() {
     setOrgs(data || []);
   }
 
-  const filtered = orgs?.filter((o) => o.name.toLowerCase().includes(name.toLowerCase())) || [];
+  const filtered = useMemo(() => {
+    if (!orgs) return [];
+    let list = orgs.filter((o) => o.name.toLowerCase().includes(name.toLowerCase()));
+    if (onlyPending) list = list.filter((o) => o.claimed === false);
+    return [...list].sort(SORTS[sort].fn);
+  }, [orgs, name, onlyPending, sort]);
+
+  const pendingCount = orgs?.filter((o) => o.claimed === false).length || 0;
 
   return (
     <div className="sec">
@@ -73,47 +102,136 @@ export default function OrganizationsDirectory() {
 
       {orgs === null ? (
         <div className="spinner"></div>
-      ) : filtered.length === 0 ? (
-        <div className="card" style={{ maxWidth: 1080, margin: '0 auto' }}>
-          <div className="empty-state">
-            <i className="ti ti-building-off"></i>
-            Todavía no hay organizaciones que coincidan con tu búsqueda.
-          </div>
-        </div>
       ) : (
-        <div className="dir-grid">
-          {filtered.map((o) => (
-            <Link href={`/organizations/${o.slug}`} className="dir-card" key={o.id}>
-              <div className="dir-card-top">
-                <div className="dir-logo">
-                  {o.logo_url ? <img src={o.logo_url} alt="" /> : <i className="ti ti-building"></i>}
-                </div>
-                <div>
-                  <div className="dir-name">
-                    {o.name} {o.verified && <i className="ti ti-rosette-discount-check"></i>}
+        <>
+          <div className="dir-toolbar">
+            <div className="dir-count">
+              <b>{filtered.length}</b> organización{filtered.length === 1 ? '' : 'es'}
+            </div>
+            <div className="dir-chips">
+              <label className="dir-chip">
+                <i className="ti ti-arrows-sort"></i>
+                <select value={sort} onChange={(e) => setSort(e.target.value)}>
+                  {Object.entries(SORTS).map(([k, v]) => (
+                    <option key={k} value={k}>
+                      {v.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              {pendingCount > 0 && (
+                <button
+                  type="button"
+                  className={`dir-chip ${onlyPending ? 'on' : ''}`}
+                  onClick={() => setOnlyPending((v) => !v)}
+                >
+                  <i className="ti ti-clock"></i> Pendientes de verificar ({pendingCount})
+                </button>
+              )}
+              <div className="view-toggle">
+                <button type="button" className={view === 'grid' ? 'on' : ''} onClick={() => setView('grid')}>
+                  <i className="ti ti-layout-grid"></i> Tarjetas
+                </button>
+                <button type="button" className={view === 'list' ? 'on' : ''} onClick={() => setView('list')}>
+                  <i className="ti ti-list"></i> Listado
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {filtered.length === 0 ? (
+            <div className="card" style={{ maxWidth: 1080, margin: '0 auto' }}>
+              <div className="empty-state">
+                <i className="ti ti-building-off"></i>
+                Todavía no hay organizaciones que coincidan con tu búsqueda.
+              </div>
+            </div>
+          ) : view === 'grid' ? (
+            <div className="dir-grid">
+              {filtered.map((o) => (
+                <Link href={`/organizations/${o.slug}`} className="dir-card" key={o.id}>
+                  <div className="dir-card-top">
+                    <div className="dir-logo">
+                      {o.logo_url ? <img src={o.logo_url} alt="" /> : <i className="ti ti-building"></i>}
+                    </div>
+                    <div>
+                      <div className="dir-name">
+                        {o.name} {o.verified && <i className="ti ti-rosette-discount-check"></i>}
+                      </div>
+                    </div>
                   </div>
-                </div>
+                  {o.location && (
+                    <div className="dir-loc">
+                      <i className="ti ti-map-pin"></i> {o.location}
+                    </div>
+                  )}
+                  {o.claimed === false && (
+                    <div className="badge bgr" style={{ display: 'inline-flex', marginBottom: 8, width: 'fit-content' }}>
+                      <i className="ti ti-clock" style={{ fontSize: 11 }}></i> Pendiente de verificar
+                    </div>
+                  )}
+                  <div className="dir-tags">
+                    <div className="dir-tag">
+                      <i className="ti ti-briefcase"></i> {TYPE_LABELS[o.org_type]}
+                    </div>
+                    {o.sector && <div className="dir-tag">{o.sector}</div>}
+                  </div>
+                  <button className="dir-btn">Ver página</button>
+                </Link>
+              ))}
+            </div>
+          ) : (
+            <div className="dir-list">
+              <div className="dir-list-head">
+                <span>Organización</span>
+                <span>Ubicación</span>
+                <span>Tipo / Sector</span>
+                <span>Empleados</span>
+                <span></span>
+                <span></span>
               </div>
-              {o.location && (
-                <div className="dir-loc">
-                  <i className="ti ti-map-pin"></i> {o.location}
-                </div>
-              )}
-              {o.claimed === false && (
-                <div className="badge bgr" style={{ display: 'inline-flex', marginBottom: 8, width: 'fit-content' }}>
-                  <i className="ti ti-clock" style={{ fontSize: 11 }}></i> Pendiente de verificar
-                </div>
-              )}
-              <div className="dir-tags">
-                <div className="dir-tag">
-                  <i className="ti ti-briefcase"></i> {TYPE_LABELS[o.org_type]}
-                </div>
-                {o.sector && <div className="dir-tag">{o.sector}</div>}
-              </div>
-              <button className="dir-btn">Ver página</button>
-            </Link>
-          ))}
-        </div>
+              {filtered.map((o) => (
+                <Link href={`/organizations/${o.slug}`} className="dir-row" key={o.id}>
+                  <div className="dir-row-main">
+                    <div className="dir-row-logo">
+                      {o.logo_url ? <img src={o.logo_url} alt="" /> : <i className="ti ti-building"></i>}
+                    </div>
+                    <div style={{ minWidth: 0 }}>
+                      <div className="dir-row-name">
+                        {o.name}
+                        {o.verified && <i className="ti ti-rosette-discount-check"></i>}
+                      </div>
+                      {o.claimed === false && (
+                        <div className="badge bgr" style={{ marginTop: 3 }}>
+                          <i className="ti ti-clock" style={{ fontSize: 10 }}></i> Pendiente de verificar
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                  <div className="dir-row-loc">{o.location || '—'}</div>
+                  <div className="dir-row-meta">
+                    {TYPE_LABELS[o.org_type]}
+                    {o.sector ? ` · ${o.sector}` : ''}
+                  </div>
+                  <div className="dir-row-size">{o.size_range ? `${o.size_range} emp.` : '—'}</div>
+                  <div className="dir-row-links" onClick={(e) => e.stopPropagation()}>
+                    {o.website_url && (
+                      <a href={o.website_url} target="_blank" rel="noreferrer" title="Sitio web">
+                        <i className="ti ti-world"></i>
+                      </a>
+                    )}
+                    {o.linkedin_url && (
+                      <a href={o.linkedin_url} target="_blank" rel="noreferrer" title="LinkedIn">
+                        <i className="ti ti-brand-linkedin"></i>
+                      </a>
+                    )}
+                  </div>
+                  <i className="ti ti-chevron-right dir-row-arrow"></i>
+                </Link>
+              ))}
+            </div>
+          )}
+        </>
       )}
     </div>
   );
