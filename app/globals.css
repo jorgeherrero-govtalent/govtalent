@@ -246,7 +246,7 @@ a{color:inherit}
 .dir-logo{width:42px;height:42px;border-radius:9px;background:#f0f8f5;display:flex;align-items:center;justify-content:center;font-size:19px;flex-shrink:0;overflow:hidden}
 .dir-logo img{width:100%;height:100%;object-fit:cover}
 .dir-name{font-size:13.5px;font-weight:700;display:flex;align-items:center;gap:4px}
-.dir-name i{color:#1d6f5c;font-size:13px}
+.dir-name .verified-tick{font-size:13px}
 .dir-tags{display:flex;flex-wrap:wrap;gap:5px;margin-bottom:10px}
 .dir-tag{font-size:10.5px;color:#666;background:#f4f4f0;padding:3px 8px;border-radius:6px;display:flex;align-items:center;gap:3px}
 .dir-loc{font-size:11.5px;color:#888;margin-bottom:10px;display:flex;align-items:center;gap:4px}
@@ -263,6 +263,10 @@ a{color:inherit}
 .dir-chip i{font-size:13px;color:#999}
 .dir-chip.on{border-color:#1d6f5c;background:#f0f8f5;color:#1d6f5c}
 .dir-chip.on i{color:#1d6f5c}
+.dir-chip.premium{border-color:#e4defa;background:#faf9ff;color:#6d5aef}
+.dir-chip.premium:hover{border-color:#6d5aef}
+.dir-chip.premium i{color:#6d5aef}
+.premium-tag{background:#6d5aef;color:#fff;font-size:9px;font-weight:700;letter-spacing:.03em;padding:2px 5px;border-radius:5px;margin-left:2px}
 
 .view-toggle{display:flex;border:.5px solid #e0dfd8;border-radius:9px;overflow:hidden;background:#fff;flex-shrink:0}
 .view-toggle button{display:flex;align-items:center;gap:5px;padding:7px 13px;border:none;background:transparent;font-size:12.5px;color:#888;font-family:inherit}
@@ -270,13 +274,13 @@ a{color:inherit}
 .view-toggle button i{font-size:14px}
 
 .dir-list{display:flex;flex-direction:column;gap:1px;max-width:1080px;margin:0 auto;background:#e0dfd8;border:.5px solid #e0dfd8;border-radius:12px;overflow:hidden}
-.dir-row{display:grid;grid-template-columns:2.4fr 1.3fr 1.6fr 1fr auto auto;align-items:center;gap:14px;background:#fff;padding:11px 16px;text-decoration:none;color:inherit;transition:background .12s}
+.dir-row{display:grid;grid-template-columns:minmax(220px,2.4fr) 1.3fr 1.6fr 1fr auto auto;align-items:center;gap:14px;background:#fff;padding:11px 16px;text-decoration:none;color:inherit;transition:background .12s}
 .dir-row:hover{background:#fafaf7}
 .dir-row-main{display:flex;align-items:center;gap:10px;min-width:0}
 .dir-row-logo{width:32px;height:32px;border-radius:7px;background:#f0f8f5;display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0;overflow:hidden}
 .dir-row-logo img{width:100%;height:100%;object-fit:cover}
-.dir-row-name{font-size:13px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:flex;align-items:center;gap:5px}
-.dir-row-name i{color:#1d6f5c;font-size:12px;flex-shrink:0}
+.dir-row-name{font-size:13px;font-weight:700;white-space:normal;overflow-wrap:anywhere;display:flex;align-items:center;gap:5px}
+.verified-tick{color:#1d9d63;font-size:14px;flex-shrink:0}
 .dir-row-loc{font-size:12px;color:#888;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .dir-row-meta{font-size:11.5px;color:#666;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .dir-row-size{font-size:11.5px;color:#888;white-space:nowrap}
