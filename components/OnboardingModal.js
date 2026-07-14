@@ -148,6 +148,13 @@ export default function OnboardingModal({ userId, onComplete }) {
 
     setSaving(false);
     toast('¡Bienvenido/a a GovTalent! ✓');
+
+    fetch('/api/email/welcome', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ type: 'candidate' }),
+    }).catch((err) => console.error('Error enviando email de bienvenida:', err));
+
     if (onComplete) onComplete();
   }
 
