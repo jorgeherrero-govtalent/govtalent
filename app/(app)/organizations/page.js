@@ -99,6 +99,11 @@ export default function OrganizationsDirectory() {
                   <i className="ti ti-map-pin"></i> {o.location}
                 </div>
               )}
+              {o.claimed === false && (
+                <div className="badge bgr" style={{ display: 'inline-flex', marginBottom: 8, width: 'fit-content' }}>
+                  <i className="ti ti-clock" style={{ fontSize: 11 }}></i> Pendiente de verificar
+                </div>
+              )}
               <div className="dir-tags">
                 <div className="dir-tag">
                   <i className="ti ti-briefcase"></i> {TYPE_LABELS[o.org_type]}
