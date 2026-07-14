@@ -84,6 +84,11 @@ export default function OrganizationPublicPage() {
         </div>
         <div className="co-info">
           <div style={{ fontSize: 19, fontWeight: 700, marginBottom: 4 }}>{org.name}</div>
+          {org.claimed === false && (
+            <div className="badge bgr" style={{ display: 'inline-flex', marginBottom: 8, width: 'fit-content' }}>
+              <i className="ti ti-clock" style={{ fontSize: 11 }}></i> Pendiente de verificar por la organización
+            </div>
+          )}
           <div style={{ fontSize: 13, color: '#555', marginBottom: 10 }}>{org.bio || org.sector}</div>
           <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', fontSize: 12.5, color: '#888', marginBottom: 12 }}>
             {org.location && (
