@@ -108,6 +108,13 @@ export default function NewOrganizationPage() {
 
     setSaving(false);
     toast('Página creada correctamente ✓');
+
+    fetch('/api/email/welcome', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ type: 'organization', orgId: org.id }),
+    }).catch((err) => console.error('Error enviando email de bienvenida:', err));
+
     window.location.href = '/organizations/admin';
   }
 
