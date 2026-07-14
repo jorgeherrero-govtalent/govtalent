@@ -3,7 +3,7 @@ import Link from 'next/link';
 import PublicJobApplyButton from '@/components/PublicJobApplyButton';
 import Footer from '@/components/Footer';
 
-const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://govtalent.vercel.app';
+const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://govtalent.app';
 
 const MODALITY_LABELS = { presencial: 'Presencial', hibrido: 'Híbrido', remoto: 'Remoto' };
 const TYPE_LABELS = {
