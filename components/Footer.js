@@ -7,11 +7,15 @@ export default function Footer() {
       <div className="ft-inner">
         <span>© {year} GovTalent. Todos los derechos reservados</span>
         <span className="ft-sep">·</span>
-        <Link href="/legal">Aviso legal y Privacidad</Link>
+        <Link href="/legal">Aviso legal</Link>
         <span className="ft-sep">·</span>
-        <Link href="/cookies">Configuración y política de Cookies</Link>
+        <Link href="/privacidad">Privacidad</Link>
         <span className="ft-sep">·</span>
-        <a href="mailto:info@govtalent.io">Contacto: info@govtalent.io</a>
+        <Link href="/condiciones">Condiciones del servicio</Link>
+        <span className="ft-sep">·</span>
+        <Link href="/cookies">Cookies</Link>
+        <span className="ft-sep">·</span>
+        <a href="mailto:hola@govtalent.app">Contacto: hola@govtalent.app</a>
       </div>
     </footer>
   );
