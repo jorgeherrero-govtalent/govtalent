@@ -60,11 +60,11 @@ export default function OrganizationsDirectory() {
   const filtered = useMemo(() => {
     if (!orgs) return [];
     let list = orgs.filter((o) => o.name.toLowerCase().includes(name.toLowerCase()));
-    if (onlyPending) list = list.filter((o) => o.claimed === false);
-    return [...list].sort(SORTS[sort].fn);
+    if (onlyPending) list = list.filter((o) => !o.verified);
+    return [...list].sort((a, b) => (b.verified === a.verified ? SORTS[sort].fn(a, b) : b.verified - a.verified));
   }, [orgs, name, onlyPending, sort]);
 
-  const pendingCount = orgs?.filter((o) => o.claimed === false).length || 0;
+  const pendingCount = orgs?.filter((o) => !o.verified).length || 0;
 
   return (
     <div className="sec">
@@ -126,7 +126,7 @@ export default function OrganizationsDirectory() {
                   className={`dir-chip ${onlyPending ? 'on' : ''}`}
                   onClick={() => setOnlyPending((v) => !v)}
                 >
-                  <i className="ti ti-clock"></i> Pendientes de verificar ({pendingCount})
+                  <i className="ti ti-clock"></i> No verificadas ({pendingCount})
                 </button>
               )}
               <button
@@ -180,9 +180,9 @@ export default function OrganizationsDirectory() {
                       <i className="ti ti-map-pin"></i> {o.location}
                     </div>
                   )}
-                  {o.claimed === false && (
+                  {!o.verified && (
                     <div className="badge bgr" style={{ display: 'inline-flex', marginBottom: 8, width: 'fit-content' }}>
-                      <i className="ti ti-clock" style={{ fontSize: 11 }}></i> Pendiente de verificar
+                      <i className="ti ti-clock" style={{ fontSize: 11 }}></i> No verificada
                     </div>
                   )}
                   <div className="dir-tags">
@@ -216,9 +216,9 @@ export default function OrganizationsDirectory() {
                         {o.name}
                         {o.verified && <i className="ti ti-circle-check-filled verified-tick" title="Organización verificada"></i>}
                       </div>
-                      {o.claimed === false && (
+                      {!o.verified && (
                         <div className="badge bgr" style={{ marginTop: 3 }}>
-                          <i className="ti ti-clock" style={{ fontSize: 10 }}></i> Pendiente de verificar
+                          <i className="ti ti-clock" style={{ fontSize: 10 }}></i> No verificada
                         </div>
                       )}
                     </div>
