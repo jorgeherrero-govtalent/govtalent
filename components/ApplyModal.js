@@ -112,18 +112,30 @@ export default function ApplyModal({ job, onClose, onSuccess }) {
 
     await supabase.from('users').update({ phone: phone.trim() }).eq('id', userId);
 
-    const { error: appErr } = await supabase.from('job_applications').insert({
-      job_id: job.id,
-      candidate_id: userId,
-      cover_note: coverNote.trim() || null,
-      cv_url_snapshot: cvUrl,
-    });
+    const { data: application, error: appErr } = await supabase
+      .from('job_applications')
+      .insert({
+        job_id: job.id,
+        candidate_id: userId,
+        cover_note: coverNote.trim() || null,
+        cv_url_snapshot: cvUrl,
+      })
+      .select()
+      .single();
 
     setSubmitting(false);
     if (appErr) {
       setError('No se pudo enviar la solicitud. Inténtalo de nuevo.');
       return;
     }
+
+    // Envío de emails en segundo plano — si falla, no bloquea la confirmación al candidato.
+    fetch('/api/email/new-application', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ applicationId: application.id }),
+    }).catch((err) => console.error('Error notificando por email:', err));
+
     toast('Solicitud enviada ✓');
     onSuccess();
   }
