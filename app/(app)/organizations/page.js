@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
+import { toast } from '@/lib/toast';
 
 const TYPE_LABELS = {
   empresa: 'Empresa',
@@ -69,7 +70,7 @@ export default function OrganizationsDirectory() {
     <div className="sec">
       <div className="dir-hero">
         <h1>
-          El buscador de <em>organizaciones de asuntos públicos y gobierno</em>
+          La mayor base de datos de <em>organizaciones de asuntos públicos y gobierno</em> de España
         </h1>
         <p style={{ fontSize: 14, color: '#777', marginBottom: 26 }}>
           Encuentra cualquier tipo de organización vinculada al sector de los asuntos públicos, la
@@ -128,6 +129,20 @@ export default function OrganizationsDirectory() {
                   <i className="ti ti-clock"></i> Pendientes de verificar ({pendingCount})
                 </button>
               )}
+              <button
+                type="button"
+                className="dir-chip premium"
+                onClick={() => toast('Filtros avanzados — disponible próximamente en GovTalent Premium')}
+              >
+                <i className="ti ti-adjustments"></i> Filtros avanzados <span className="premium-tag">PRO</span>
+              </button>
+              <button
+                type="button"
+                className="dir-chip premium"
+                onClick={() => toast('Exportar datos — disponible próximamente en GovTalent Premium')}
+              >
+                <i className="ti ti-download"></i> Exportar datos <span className="premium-tag">PRO</span>
+              </button>
               <div className="view-toggle">
                 <button type="button" className={view === 'grid' ? 'on' : ''} onClick={() => setView('grid')}>
                   <i className="ti ti-layout-grid"></i> Tarjetas
@@ -156,7 +171,7 @@ export default function OrganizationsDirectory() {
                     </div>
                     <div>
                       <div className="dir-name">
-                        {o.name} {o.verified && <i className="ti ti-rosette-discount-check"></i>}
+                        {o.name} {o.verified && <i className="ti ti-circle-check-filled verified-tick" title="Organización verificada"></i>}
                       </div>
                     </div>
                   </div>
@@ -199,7 +214,7 @@ export default function OrganizationsDirectory() {
                     <div style={{ minWidth: 0 }}>
                       <div className="dir-row-name">
                         {o.name}
-                        {o.verified && <i className="ti ti-rosette-discount-check"></i>}
+                        {o.verified && <i className="ti ti-circle-check-filled verified-tick" title="Organización verificada"></i>}
                       </div>
                       {o.claimed === false && (
                         <div className="badge bgr" style={{ marginTop: 3 }}>
