@@ -31,6 +31,7 @@ export async function middleware(request) {
   const isAuthRoute = path === '/login' || path.startsWith('/auth');
   const isOnboarding = path.startsWith('/onboarding');
   const isPublicJobPage = path.startsWith('/empleo/');
+  const isBackoffice = path.startsWith('/backoffice');
 
   if (!user && !isAuthRoute && !isPublicJobPage) {
     const url = request.nextUrl.clone();
@@ -42,6 +43,15 @@ export async function middleware(request) {
     const url = request.nextUrl.clone();
     url.pathname = '/jobs';
     return NextResponse.redirect(url);
+  }
+
+  if (user && isBackoffice) {
+    const { data: profile } = await supabase.from('users').select('role').eq('id', user.id).single();
+    if (profile?.role !== 'platform_admin') {
+      const url = request.nextUrl.clone();
+      url.pathname = '/jobs';
+      return NextResponse.redirect(url);
+    }
   }
 
   return response;
