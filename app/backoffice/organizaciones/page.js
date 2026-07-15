@@ -29,6 +29,8 @@ export default function OrganizationsBackofficePage() {
   const [search, setSearch] = useState('');
   const [filter, setFilter] = useState('todas');
   const [busyId, setBusyId] = useState(null);
+  const [editing, setEditing] = useState(null);
+  const [saving, setSaving] = useState(false);
   const [toastMsg, setToastMsg] = useState('');
 
   useEffect(() => {
@@ -73,6 +75,40 @@ export default function OrganizationsBackofficePage() {
       no_reclamadas: orgs.filter(FILTERS.no_reclamadas).length,
     };
   }, [orgs]);
+
+  async function saveEdit(e) {
+    e.preventDefault();
+    setSaving(true);
+    const f = new FormData(e.target);
+    const updates = {
+      name: f.get('name'),
+      org_type: f.get('org_type'),
+      sector: f.get('sector') || null,
+      location: f.get('location') || null,
+      size_range: f.get('size_range') || null,
+      website_url: f.get('website_url') || null,
+      linkedin_url: f.get('linkedin_url') || null,
+      contact_email: f.get('contact_email') || null,
+      notification_email: f.get('notification_email') || null,
+    };
+
+    const res = await fetch(`/api/backoffice/organizations/${editing.id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(updates),
+    });
+    setSaving(false);
+
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      showToast(data.error || 'No se pudo guardar');
+      return;
+    }
+
+    setOrgs((prev) => prev.map((o) => (o.id === editing.id ? { ...o, ...updates } : o)));
+    setEditing(null);
+    showToast('Organización actualizada ✓');
+  }
 
   async function toggleVerified(org) {
     setBusyId(org.id);
@@ -236,6 +272,20 @@ export default function OrganizationsBackofficePage() {
                   </td>
                   <td style={{ padding: '9px 14px', whiteSpace: 'nowrap' }}>
                     <button
+                      onClick={() => setEditing(o)}
+                      style={{
+                        border: '.5px solid #e0dfd8',
+                        background: '#fff',
+                        borderRadius: 7,
+                        padding: '5px 10px',
+                        fontSize: 11.5,
+                        color: '#555',
+                        marginRight: 6,
+                      }}
+                    >
+                      <i className="ti ti-edit" style={{ fontSize: 12 }}></i> Editar
+                    </button>
+                    <button
                       onClick={() => toggleVerified(o)}
                       disabled={busyId === o.id}
                       style={{
@@ -274,6 +324,88 @@ export default function OrganizationsBackofficePage() {
         </div>
       )}
 
+      {editing && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(0,0,0,.4)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 50,
+            padding: 20,
+          }}
+          onClick={(e) => e.target === e.currentTarget && setEditing(null)}
+        >
+          <form
+            onSubmit={saveEdit}
+            style={{ background: '#fff', borderRadius: 14, padding: 24, width: 480, maxWidth: '90vw', maxHeight: '85vh', overflow: 'auto' }}
+          >
+            <h2 style={{ fontSize: 16, fontWeight: 700, marginBottom: 16 }}>Editar organización</h2>
+
+            <OrgField label="Nombre" name="name" defaultValue={editing.name} required />
+
+            <div style={{ marginBottom: 10 }}>
+              <label style={{ display: 'block', fontSize: 11.5, fontWeight: 600, color: '#555', marginBottom: 4 }}>Tipo</label>
+              <select
+                name="org_type"
+                defaultValue={editing.org_type}
+                required
+                style={{ width: '100%', padding: '8px 11px', border: '.5px solid #e0dfd8', borderRadius: 8, fontSize: 13, outline: 'none' }}
+              >
+                {Object.entries(TYPE_LABELS).map(([k, v]) => (
+                  <option key={k} value={k}>
+                    {v}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <OrgField label="Sector" name="sector" defaultValue={editing.sector} />
+            <OrgField label="Ubicación" name="location" defaultValue={editing.location} />
+
+            <div style={{ marginBottom: 10 }}>
+              <label style={{ display: 'block', fontSize: 11.5, fontWeight: 600, color: '#555', marginBottom: 4 }}>Nº de empleados</label>
+              <select
+                name="size_range"
+                defaultValue={editing.size_range || ''}
+                style={{ width: '100%', padding: '8px 11px', border: '.5px solid #e0dfd8', borderRadius: 8, fontSize: 13, outline: 'none' }}
+              >
+                <option value="">—</option>
+                {['1-10', '11-50', '50-200', '200-1000', '+1000'].map((s) => (
+                  <option key={s} value={s}>
+                    {s} empleados
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <OrgField label="Sitio web" name="website_url" defaultValue={editing.website_url} />
+            <OrgField label="LinkedIn" name="linkedin_url" defaultValue={editing.linkedin_url} />
+            <OrgField label="Email de contacto" name="contact_email" type="email" defaultValue={editing.contact_email} />
+            <OrgField label="Email de notificaciones" name="notification_email" type="email" defaultValue={editing.notification_email} />
+
+            <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', marginTop: 16 }}>
+              <button
+                type="button"
+                onClick={() => setEditing(null)}
+                style={{ padding: '9px 16px', borderRadius: 8, border: '.5px solid #e0dfd8', background: '#fff', fontSize: 13 }}
+              >
+                Cancelar
+              </button>
+              <button
+                type="submit"
+                disabled={saving}
+                style={{ padding: '9px 16px', borderRadius: 8, border: 'none', background: '#1d6f5c', color: '#fff', fontSize: 13, fontWeight: 600 }}
+              >
+                {saving ? 'Guardando...' : 'Guardar cambios'}
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
+
       {toastMsg && (
         <div
           style={{
@@ -291,6 +423,28 @@ export default function OrganizationsBackofficePage() {
           {toastMsg}
         </div>
       )}
+    </div>
+  );
+}
+
+function OrgField({ label, name, defaultValue, type = 'text', required }) {
+  return (
+    <div style={{ marginBottom: 10 }}>
+      <label style={{ display: 'block', fontSize: 11.5, fontWeight: 600, color: '#555', marginBottom: 4 }}>{label}</label>
+      <input
+        name={name}
+        type={type}
+        defaultValue={defaultValue || ''}
+        required={required}
+        style={{
+          width: '100%',
+          padding: '8px 11px',
+          border: '.5px solid #e0dfd8',
+          borderRadius: 8,
+          fontSize: 13,
+          outline: 'none',
+        }}
+      />
     </div>
   );
 }
