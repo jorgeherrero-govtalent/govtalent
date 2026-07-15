@@ -3,7 +3,8 @@
 import { useEffect, useMemo, useState } from 'react';
 
 const FIELDS = [
-  { key: 'name', label: 'Nombre completo' },
+  { key: 'first_name', label: 'Nombre' },
+  { key: 'last_name', label: 'Apellidos' },
   { key: 'professional_title', label: 'Título profesional' },
   { key: 'company', label: 'Empresa', derived: true },
   { key: 'sector', label: 'Sector', derived: true },
@@ -34,7 +35,7 @@ export default function UsersBackofficePage() {
       setUsers([]);
       return;
     }
-    setUsers((data.users || []).map((u) => ({ ...u, name: `${u.first_name} ${u.last_name}`.trim() })));
+    setUsers(data.users || []);
   }
 
   function showToast(msg) {
@@ -47,7 +48,7 @@ export default function UsersBackofficePage() {
     const q = search.toLowerCase();
     return users.filter(
       (u) =>
-        u.name.toLowerCase().includes(q) ||
+        `${u.first_name} ${u.last_name}`.toLowerCase().includes(q) ||
         (u.email || '').toLowerCase().includes(q) ||
         (u.company || '').toLowerCase().includes(q) ||
         (u.professional_title || '').toLowerCase().includes(q) ||
@@ -100,7 +101,7 @@ export default function UsersBackofficePage() {
     }
 
     setUsers((prev) =>
-      prev.map((u) => (u.id === editing.id ? { ...u, ...updates, name: `${updates.first_name} ${updates.last_name}`.trim() } : u))
+      prev.map((u) => (u.id === editing.id ? { ...u, ...updates } : u))
     );
     setEditing(null);
     showToast('Guardado ✓');
