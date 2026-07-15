@@ -17,7 +17,7 @@ export async function GET() {
 
   const admin = createAdminClient();
 
-  const [{ data: orgs }, { data: jobCounts }, { data: memberCounts }] = await Promise.all([
+  const [orgsRes, jobCountsRes, memberCountsRes] = await Promise.all([
     admin
       .from('organizations')
       .select(
@@ -27,6 +27,15 @@ export async function GET() {
     admin.from('jobs').select('organization_id'),
     admin.from('organization_members').select('organization_id'),
   ]);
+
+  if (orgsRes.error) {
+    console.error('Error backoffice/organizations:', orgsRes.error);
+    return NextResponse.json({ error: orgsRes.error.message }, { status: 500 });
+  }
+
+  const orgs = orgsRes.data;
+  const jobCounts = jobCountsRes.data;
+  const memberCounts = memberCountsRes.data;
 
   const jobCountByOrg = {};
   for (const j of jobCounts || []) jobCountByOrg[j.organization_id] = (jobCountByOrg[j.organization_id] || 0) + 1;
