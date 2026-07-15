@@ -237,8 +237,31 @@ export default function UsersBackofficePage() {
         >
           <form
             onSubmit={saveEdit}
-            style={{ background: '#fff', borderRadius: 14, padding: 24, width: 420, maxWidth: '90vw' }}
+            style={{ background: '#fff', borderRadius: 14, padding: 24, width: 420, maxWidth: '90vw', position: 'relative' }}
           >
+            <button
+              type="button"
+              onClick={() => setEditing(null)}
+              aria-label="Cerrar"
+              style={{
+                position: 'absolute',
+                top: 16,
+                right: 16,
+                width: 28,
+                height: 28,
+                borderRadius: '50%',
+                border: '.5px solid #e0dfd8',
+                background: '#fff',
+                color: '#888',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontSize: 15,
+              }}
+            >
+              <i className="ti ti-x"></i>
+            </button>
+
             <h2 style={{ fontSize: 16, fontWeight: 700, marginBottom: 16 }}>Editar candidato</h2>
 
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 10 }}>
