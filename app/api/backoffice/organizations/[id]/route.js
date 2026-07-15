@@ -2,7 +2,20 @@ import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 
-const EDITABLE_FIELDS = ['verified', 'notification_email', 'contact_email'];
+const EDITABLE_FIELDS = [
+  'name',
+  'org_type',
+  'sector',
+  'location',
+  'size_range',
+  'website_url',
+  'linkedin_url',
+  'verified',
+  'notification_email',
+  'contact_email',
+];
+
+const REQUIRED_FIELDS = ['name', 'org_type']; // NOT NULL en el esquema, no se pueden vaciar
 
 export async function PATCH(request, { params }) {
   const supabase = createClient();
@@ -17,7 +30,17 @@ export async function PATCH(request, { params }) {
   const body = await request.json();
   const updates = {};
   for (const key of EDITABLE_FIELDS) {
-    if (key in body) updates[key] = body[key];
+    if (!(key in body)) continue;
+    if (REQUIRED_FIELDS.includes(key)) {
+      if (!body[key]) {
+        return NextResponse.json({ error: `El campo "${key}" no puede quedar vacío` }, { status: 400 });
+      }
+      updates[key] = body[key];
+    } else if (key === 'verified') {
+      updates[key] = body[key];
+    } else {
+      updates[key] = body[key] || null;
+    }
   }
   if (Object.keys(updates).length === 0) {
     return NextResponse.json({ error: 'Nada que actualizar' }, { status: 400 });
