@@ -30,9 +30,13 @@ export default function LoginPage() {
     setError('');
     setLoading(true);
     if (view === 'signup') {
-      const { error } = await supabase.auth.signUp({ email, password });
+      const { data, error } = await supabase.auth.signUp({ email, password });
       setLoading(false);
       if (error) return setError(traducirError(error.message));
+      if (!data.session) {
+        setView('confirm');
+        return;
+      }
       window.location.href = redirectTo;
       return;
     }
@@ -66,7 +70,47 @@ export default function LoginPage() {
       </div>
 
       <div className="login-body">
-        {view === 'sent' ? (
+        {view === 'confirm' ? (
+          <div className="ob-card" style={{ maxWidth: 420, textAlign: 'center' }}>
+            <div
+              style={{
+                width: 60,
+                height: 60,
+                borderRadius: '50%',
+                background: '#e8f4f0',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                margin: '0 auto 14px',
+              }}
+            >
+              <i className="ti ti-mail-check" style={{ fontSize: 26, color: '#1d6f5c' }}></i>
+            </div>
+            <h1 style={{ fontSize: 19, fontWeight: 700, marginBottom: 6 }}>Confirma tu cuenta</h1>
+            <p style={{ fontSize: 13, color: '#888', marginBottom: 12 }}>
+              Te hemos enviado un enlace de confirmación a:
+            </p>
+            <div
+              style={{
+                background: '#f0f8f5',
+                border: '1px solid #c0e4d8',
+                borderRadius: 8,
+                padding: 10,
+                color: '#1d6f5c',
+                fontWeight: 500,
+                marginBottom: 18,
+              }}
+            >
+              {email}
+            </div>
+            <p style={{ fontSize: 12, color: '#aaa', marginBottom: 18 }}>
+              Revisa también tu carpeta de spam si no lo ves en unos minutos.
+            </p>
+            <button className="mbtn" onClick={() => setView('login')}>
+              Volver
+            </button>
+          </div>
+        ) : view === 'sent' ? (
           <div className="ob-card" style={{ maxWidth: 420, textAlign: 'center' }}>
             <div
               style={{
