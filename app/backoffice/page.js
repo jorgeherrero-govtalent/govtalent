@@ -17,8 +17,13 @@ export default async function BackofficeDashboard() {
       supabase
         .from('job_applications')
         .select('id', { count: 'exact', head: true })
-        .gte('created_at', new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString()),
+        .gte('applied_at', new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString()),
     ]);
+
+  const results = { candidates, orgs, orgsVerified, orgsUnverified, activeJobs, applications, applicationsThisWeek };
+  const errors = Object.entries(results)
+    .filter(([, r]) => r.error)
+    .map(([key, r]) => `${key}: ${r.error.message}`);
 
   const cards = [
     { label: 'Candidatos registrados', value: candidates.count ?? 0, icon: 'ti-users' },
@@ -34,6 +39,12 @@ export default async function BackofficeDashboard() {
     <div>
       <h1 style={{ fontSize: 22, fontWeight: 800, marginBottom: 4 }}>Dashboard</h1>
       <p style={{ fontSize: 13, color: '#888', marginBottom: 24 }}>Estado general de la plataforma, en tiempo real.</p>
+
+      {errors.length > 0 && (
+        <div style={{ background: '#fdecea', border: '.5px solid #f3c9c9', color: '#c0392b', borderRadius: 9, padding: '10px 14px', fontSize: 12.5, marginBottom: 20 }}>
+          <i className="ti ti-alert-triangle"></i> Algunas métricas no se pudieron cargar: {errors.join(' · ')}
+        </div>
+      )}
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(210px, 1fr))', gap: 14 }}>
         {cards.map((c) => (
