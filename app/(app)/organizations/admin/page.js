@@ -62,6 +62,7 @@ export default function OrganizationAdminPage() {
   const orgWebsiteRef = useRef(null);
   const orgLinkedinRef = useRef(null);
   const orgSizeRef = useRef(null);
+  const orgNotificationEmailRef = useRef(null);
   const orgLocationRef = useRef(null);
   const orgFoundedYearRef = useRef(null);
 
@@ -378,6 +379,7 @@ export default function OrganizationAdminPage() {
       location: f.get('location') || null,
       founded_year: f.get('founded_year') ? Number(f.get('founded_year')) : null,
       bio: f.get('bio') || null,
+      notification_email: f.get('notification_email') || null,
     };
     await supabase.from('organizations').update(updates).eq('id', org.id);
     setOrg({ ...org, ...updates });
@@ -760,6 +762,21 @@ export default function OrganizationAdminPage() {
                   <label>Año de fundación</label>
                   <input ref={orgFoundedYearRef} name="founded_year" type="number" defaultValue={org.founded_year || ''} />
                 </div>
+              </div>
+
+              <div className="field">
+                <label>Email de notificaciones</label>
+                <input
+                  ref={orgNotificationEmailRef}
+                  name="notification_email"
+                  type="email"
+                  defaultValue={org.notification_email || ''}
+                  placeholder="rrhh@organizacion.com"
+                />
+                <p style={{ fontSize: 11, color: '#999', marginTop: 4 }}>
+                  A esta dirección llegarán los avisos de nuevas candidaturas — puede ser distinta del email con el
+                  que gestionas esta página. Si lo dejas vacío, avisaremos a las cuentas con acceso de administrador.
+                </p>
               </div>
 
               <div className="field">
