@@ -54,12 +54,15 @@ export async function POST(request) {
 
   const admin = createAdminClient();
 
-  // Traemos los nombres existentes para detectar duplicados por nombre (insensible a mayúsculas)
-  const { data: existing, error: existingError } = await admin.from('organizations').select('name');
+  // Traemos también los slugs existentes — el bug anterior solo comprobaba duplicados
+  // por nombre, pero nunca contra los slugs (URLs) ya usados en la base de datos.
+  const { data: existingOrgs, error: existingError } = await admin.from('organizations').select('name, slug');
   if (existingError) {
     return NextResponse.json({ error: existingError.message }, { status: 500 });
   }
-  const existingNames = new Set((existing || []).map((o) => o.name.trim().toLowerCase()));
+  const normalize = (s) => s.trim().toLowerCase().replace(/\s+/g, ' ');
+  const existingNames = new Set((existingOrgs || []).map((o) => normalize(o.name)));
+  const usedSlugs = new Set((existingOrgs || []).map((o) => o.slug));
 
   const seenInBatch = new Set();
   const toInsert = [];
@@ -67,12 +70,12 @@ export async function POST(request) {
   let skippedNoName = 0;
 
   for (const row of rows) {
-    const name = (row.name || '').trim();
+    const name = (row.name || '').trim().replace(/\s+/g, ' ');
     if (!name) {
       skippedNoName++;
       continue;
     }
-    const key = name.toLowerCase();
+    const key = normalize(name);
     if (existingNames.has(key) || seenInBatch.has(key)) {
       skippedDuplicates++;
       continue;
@@ -82,9 +85,20 @@ export async function POST(request) {
     const sizeRaw = (row.size_range || '').trim();
     const size_range = VALID_SIZES.includes(sizeRaw) ? sizeRaw : null;
 
+    // Genera un slug único de verdad: comprueba contra los ya existentes en la BD
+    // y contra los que ya se han asignado en este mismo lote.
+    let baseSlug = slugify(name) || `org-${Math.random().toString(36).slice(2, 8)}`;
+    let finalSlug = baseSlug;
+    let suffix = 2;
+    while (usedSlugs.has(finalSlug)) {
+      finalSlug = `${baseSlug}-${suffix}`;
+      suffix++;
+    }
+    usedSlugs.add(finalSlug);
+
     toInsert.push({
       name,
-      slug: slugify(name) || `org-${Math.random().toString(36).slice(2, 8)}`,
+      slug: finalSlug,
       org_type,
       sector: row.sector?.trim() || null,
       location: row.location?.trim() || null,
@@ -96,15 +110,6 @@ export async function POST(request) {
       verified: false,
       source: source?.trim() || 'Carga masiva backoffice',
     });
-  }
-
-  // Deduplicar también por slug generado, por si dos nombres distintos generan el mismo slug
-  const slugCount = {};
-  for (const row of toInsert) {
-    slugCount[row.slug] = (slugCount[row.slug] || 0) + 1;
-    if (slugCount[row.slug] > 1) {
-      row.slug = `${row.slug}-${slugCount[row.slug]}`;
-    }
   }
 
   if (toInsert.length === 0) {
