@@ -25,6 +25,7 @@ const FILTERS = {
 
 export default function OrganizationsBackofficePage() {
   const [orgs, setOrgs] = useState(null);
+  const [loadError, setLoadError] = useState(null);
   const [search, setSearch] = useState('');
   const [filter, setFilter] = useState('todas');
   const [busyId, setBusyId] = useState(null);
@@ -37,6 +38,11 @@ export default function OrganizationsBackofficePage() {
   async function load() {
     const res = await fetch('/api/backoffice/organizations');
     const data = await res.json();
+    if (!res.ok) {
+      setLoadError(data.error || `Error ${res.status}`);
+      setOrgs([]);
+      return;
+    }
     setOrgs(data.organizations || []);
   }
 
@@ -124,6 +130,12 @@ export default function OrganizationsBackofficePage() {
       <p style={{ fontSize: 13, color: '#888', marginBottom: 20 }}>
         {orgs ? `${filtered.length} de ${orgs.length} organizaciones` : 'Cargando...'}
       </p>
+
+      {loadError && (
+        <div style={{ background: '#fdecea', border: '.5px solid #f3c9c9', color: '#c0392b', borderRadius: 9, padding: '10px 14px', fontSize: 12.5, marginBottom: 16 }}>
+          <i className="ti ti-alert-triangle"></i> Error al cargar: {loadError}
+        </div>
+      )}
 
       <div style={{ display: 'flex', gap: 8, marginBottom: 14, flexWrap: 'wrap' }}>
         {Object.entries({
