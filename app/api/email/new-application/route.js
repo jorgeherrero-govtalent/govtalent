@@ -19,7 +19,7 @@ export async function POST(request) {
   // La candidatura y la oferta son legibles por el propio candidato bajo RLS.
   const { data: application } = await supabase
     .from('job_applications')
-    .select('id, candidate_id, job_id, jobs(title, organization_id, organizations(name))')
+    .select('id, candidate_id, job_id, jobs(title, organization_id, organizations(name, contact_email, notification_email))')
     .eq('id', applicationId)
     .eq('candidate_id', authData.user.id)
     .single();
@@ -49,18 +49,30 @@ export async function POST(request) {
       await resend.emails.send({ from: EMAIL_FROM, to: candidate.email, subject, html });
     }
 
-    // 2) Notificación a los administradores de la organización (requiere service role,
-    // ya que el candidato no tiene permisos para leer los emails de otros usuarios).
-    const admin = createAdminClient();
-    const { data: members } = await admin
-      .from('organization_members')
-      .select('users(email)')
-      .eq('organization_id', application.jobs.organization_id);
+    // 2) Notificación a la organización. Prioridad:
+    //    a) notification_email configurado explícitamente por la organización (exclusivo)
+    //    b) si no está configurado, emails de los admins vinculados + contact_email (histórico)
+    let orgEmails;
+    if (application.jobs.organizations?.notification_email) {
+      orgEmails = new Set([application.jobs.organizations.notification_email]);
+    } else {
+      // Requiere service role, ya que el candidato no tiene permisos para leer
+      // los emails de otros usuarios.
+      const admin = createAdminClient();
+      const { data: members } = await admin
+        .from('organization_members')
+        .select('users(email)')
+        .eq('organization_id', application.jobs.organization_id);
 
-    const orgEmails = (members || []).map((m) => m.users?.email).filter(Boolean);
-    if (orgEmails.length > 0) {
+      orgEmails = new Set((members || []).map((m) => m.users?.email).filter(Boolean));
+      if (application.jobs.organizations?.contact_email) {
+        orgEmails.add(application.jobs.organizations.contact_email);
+      }
+    }
+
+    if (orgEmails.size > 0) {
       const { subject, html } = newCandidacyEmail({ jobTitle, candidateName, orgName });
-      await resend.emails.send({ from: EMAIL_FROM, to: orgEmails, subject, html });
+      await resend.emails.send({ from: EMAIL_FROM, to: [...orgEmails], subject, html });
     }
 
     return NextResponse.json({ ok: true });
