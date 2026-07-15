@@ -205,6 +205,25 @@ export default function OrganizationsBackofficePage() {
           onChange={(e) => setSearch(e.target.value)}
           style={{ flex: 1, padding: '9px 13px', border: '.5px solid #e0dfd8', borderRadius: 9, fontSize: 13, outline: 'none' }}
         />
+        <Link
+          href="/backoffice/organizaciones/importar"
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 6,
+            padding: '9px 16px',
+            borderRadius: 9,
+            border: '.5px solid #1d6f5c',
+            background: '#fff',
+            color: '#1d6f5c',
+            fontSize: 12.5,
+            fontWeight: 600,
+            whiteSpace: 'nowrap',
+            textDecoration: 'none',
+          }}
+        >
+          <i className="ti ti-upload"></i> Cargar organizaciones
+        </Link>
         <button
           onClick={exportCsv}
           disabled={!filtered.length}
