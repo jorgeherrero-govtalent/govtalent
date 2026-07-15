@@ -16,6 +16,7 @@ const FIELDS = [
 
 export default function UsersBackofficePage() {
   const [users, setUsers] = useState(null);
+  const [loadError, setLoadError] = useState(null);
   const [search, setSearch] = useState('');
   const [editing, setEditing] = useState(null);
   const [saving, setSaving] = useState(false);
@@ -28,6 +29,11 @@ export default function UsersBackofficePage() {
   async function load() {
     const res = await fetch('/api/backoffice/users');
     const data = await res.json();
+    if (!res.ok) {
+      setLoadError(data.error || `Error ${res.status}`);
+      setUsers([]);
+      return;
+    }
     setUsers((data.users || []).map((u) => ({ ...u, name: `${u.first_name} ${u.last_name}`.trim() })));
   }
 
@@ -106,6 +112,12 @@ export default function UsersBackofficePage() {
       <p style={{ fontSize: 13, color: '#888', marginBottom: 20 }}>
         {users ? `${filtered.length} de ${users.length} candidatos` : 'Cargando...'}
       </p>
+
+      {loadError && (
+        <div style={{ background: '#fdecea', border: '.5px solid #f3c9c9', color: '#c0392b', borderRadius: 9, padding: '10px 14px', fontSize: 12.5, marginBottom: 16 }}>
+          <i className="ti ti-alert-triangle"></i> Error al cargar: {loadError}
+        </div>
+      )}
 
       <div style={{ display: 'flex', gap: 10, marginBottom: 16 }}>
         <input
