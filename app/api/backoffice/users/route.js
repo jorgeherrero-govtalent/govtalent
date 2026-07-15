@@ -17,7 +17,7 @@ export async function GET() {
 
   const admin = createAdminClient();
 
-  const [{ data: users }, { data: profiles }, { data: experiences }] = await Promise.all([
+  const [usersRes, profilesRes, experiencesRes] = await Promise.all([
     admin
       .from('users')
       .select('id, first_name, last_name, email, professional_title, location, phone, linkedin_url, created_at')
@@ -29,6 +29,15 @@ export async function GET() {
       .select('user_id, organization_name, area_tag, end_date')
       .is('end_date', null),
   ]);
+
+  if (usersRes.error) {
+    console.error('Error backoffice/users:', usersRes.error);
+    return NextResponse.json({ error: usersRes.error.message }, { status: 500 });
+  }
+
+  const users = usersRes.data;
+  const profiles = profilesRes.data;
+  const experiences = experiencesRes.data;
 
   const profileByUser = Object.fromEntries((profiles || []).map((p) => [p.user_id, p]));
   const expByUser = {};
