@@ -28,10 +28,13 @@ export default function OrganizationsBackofficePage() {
   const [loadError, setLoadError] = useState(null);
   const [search, setSearch] = useState('');
   const [filter, setFilter] = useState('todas');
+  const [typeFilter, setTypeFilter] = useState('');
   const [busyId, setBusyId] = useState(null);
   const [editing, setEditing] = useState(null);
   const [saving, setSaving] = useState(false);
   const [toastMsg, setToastMsg] = useState('');
+  const [selectedIds, setSelectedIds] = useState(new Set());
+  const [bulkBusy, setBulkBusy] = useState(false);
 
   useEffect(() => {
     load();
@@ -58,13 +61,14 @@ export default function OrganizationsBackofficePage() {
     const q = search.toLowerCase();
     return orgs
       .filter(FILTERS[filter])
+      .filter((o) => !typeFilter || o.org_type === typeFilter)
       .filter(
         (o) =>
           o.name.toLowerCase().includes(q) ||
           (o.location || '').toLowerCase().includes(q) ||
           (o.contact_email || '').toLowerCase().includes(q)
       );
-  }, [orgs, search, filter]);
+  }, [orgs, search, filter, typeFilter]);
 
   const counts = useMemo(() => {
     if (!orgs) return {};
@@ -75,6 +79,24 @@ export default function OrganizationsBackofficePage() {
       no_reclamadas: orgs.filter(FILTERS.no_reclamadas).length,
     };
   }, [orgs]);
+
+  const allFilteredSelected = filtered.length > 0 && filtered.every((o) => selectedIds.has(o.id));
+
+  function toggleSelectAll() {
+    setSelectedIds((prev) => {
+      if (allFilteredSelected) return new Set();
+      return new Set(filtered.map((o) => o.id));
+    });
+  }
+
+  function toggleSelectOne(id) {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
 
   async function saveEdit(e) {
     e.preventDefault();
@@ -123,6 +145,20 @@ export default function OrganizationsBackofficePage() {
     showToast(!org.verified ? 'Organización verificada ✓' : 'Verificación retirada');
   }
 
+  async function updateOrgType(org, newType) {
+    if (newType === org.org_type) return;
+    setBusyId(org.id);
+    const res = await fetch(`/api/backoffice/organizations/${org.id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ org_type: newType }),
+    });
+    setBusyId(null);
+    if (!res.ok) return showToast('No se pudo actualizar el tipo');
+    setOrgs((prev) => prev.map((o) => (o.id === org.id ? { ...o, org_type: newType } : o)));
+    showToast('Tipo actualizado ✓');
+  }
+
   async function deleteOrg(org) {
     if (!confirm(`¿Eliminar "${org.name}"? Solo funcionará si no ha sido reclamada por nadie.`)) return;
     setBusyId(org.id);
@@ -136,20 +172,42 @@ export default function OrganizationsBackofficePage() {
     showToast('Organización eliminada ✓');
   }
 
+  async function bulkVerify() {
+    const ids = [...selectedIds];
+    if (ids.length === 0) return;
+    setBulkBusy(true);
+    await Promise.all(
+      ids.map((id) =>
+        fetch(`/api/backoffice/organizations/${id}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ verified: true }),
+        })
+      )
+    );
+    setBulkBusy(false);
+    setOrgs((prev) => prev.map((o) => (ids.includes(o.id) ? { ...o, verified: true } : o)));
+    setSelectedIds(new Set());
+    showToast(`${ids.length} organizaciones verificadas ✓`);
+  }
+
   function exportCsv() {
     const headers = ['Nombre', 'Tipo', 'Ubicación', 'Tamaño', 'Web', 'Email contacto', 'Verificada', 'Reclamada', 'Ofertas', 'Fuente'];
-    const rows = filtered.map((o) => [
-      o.name,
-      TYPE_LABELS[o.org_type] || o.org_type,
-      o.location || '',
-      o.size_range || '',
-      o.website_url || '',
-      o.contact_email || '',
-      o.verified ? 'Sí' : 'No',
-      o.claimed === false ? 'No' : 'Sí',
-      o.job_count,
-      o.source || '',
-    ].map(csvEscape));
+    const source = selectedIds.size > 0 ? filtered.filter((o) => selectedIds.has(o.id)) : filtered;
+    const rows = source
+      .map((o) => [
+        o.name,
+        TYPE_LABELS[o.org_type] || o.org_type,
+        o.location || '',
+        o.size_range || '',
+        o.website_url || '',
+        o.contact_email || '',
+        o.verified ? 'Sí' : 'No',
+        o.claimed === false ? 'No' : 'Sí',
+        o.job_count,
+        o.source || '',
+      ])
+      .map((r) => r.map(csvEscape));
     const csv = [headers, ...rows].map((r) => r.join(',')).join('\n');
     const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
@@ -198,12 +256,12 @@ export default function OrganizationsBackofficePage() {
         ))}
       </div>
 
-      <div style={{ display: 'flex', gap: 10, marginBottom: 16 }}>
+      <div style={{ display: 'flex', gap: 10, marginBottom: 16, flexWrap: 'wrap' }}>
         <input
           placeholder="Buscar por nombre, ciudad, email..."
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          style={{ flex: 1, padding: '9px 13px', border: '.5px solid #e0dfd8', borderRadius: 9, fontSize: 13, outline: 'none' }}
+          style={{ flex: 1, minWidth: 220, padding: '9px 13px', border: '.5px solid #e0dfd8', borderRadius: 9, fontSize: 13, outline: 'none' }}
         />
         <Link
           href="/backoffice/organizaciones/importar"
@@ -241,9 +299,41 @@ export default function OrganizationsBackofficePage() {
             whiteSpace: 'nowrap',
           }}
         >
-          <i className="ti ti-download"></i> Exportar CSV
+          <i className="ti ti-download"></i> Exportar CSV{selectedIds.size > 0 ? ` (${selectedIds.size})` : ''}
         </button>
       </div>
+
+      {selectedIds.size > 0 && (
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 12,
+            background: '#f0f8f5',
+            border: '.5px solid #c0e4d8',
+            borderRadius: 9,
+            padding: '9px 14px',
+            marginBottom: 12,
+            fontSize: 12.5,
+            color: '#1d6f5c',
+          }}
+        >
+          <b>{selectedIds.size}</b> seleccionadas
+          <button
+            onClick={bulkVerify}
+            disabled={bulkBusy}
+            style={{ padding: '6px 12px', borderRadius: 7, border: 'none', background: '#1d6f5c', color: '#fff', fontSize: 12, fontWeight: 600 }}
+          >
+            {bulkBusy ? 'Verificando...' : 'Verificar seleccionadas'}
+          </button>
+          <button
+            onClick={() => setSelectedIds(new Set())}
+            style={{ padding: '6px 12px', borderRadius: 7, border: '.5px solid #c0e4d8', background: '#fff', color: '#1d6f5c', fontSize: 12 }}
+          >
+            Deseleccionar
+          </button>
+        </div>
+      )}
 
       {orgs === null ? (
         <div style={{ padding: 40, textAlign: 'center', color: '#999' }}>Cargando organizaciones...</div>
@@ -252,22 +342,81 @@ export default function OrganizationsBackofficePage() {
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12.5 }}>
             <thead>
               <tr style={{ background: '#faf9f5', textAlign: 'left' }}>
-                {['Nombre', 'Tipo', 'Ubicación', 'Contacto', 'Ofertas', 'Miembros', 'Estado', 'Fuente', ''].map((h) => (
-                  <th key={h} style={{ padding: '10px 14px', fontWeight: 700, color: '#666', whiteSpace: 'nowrap' }}>
-                    {h}
-                  </th>
-                ))}
+                <th style={{ padding: '10px 12px', width: 32 }}>
+                  <input type="checkbox" checked={allFilteredSelected} onChange={toggleSelectAll} style={{ cursor: 'pointer' }} />
+                </th>
+                <th style={{ padding: '10px 14px', fontWeight: 700, color: '#666', whiteSpace: 'nowrap' }}>Nombre</th>
+                <th style={{ padding: '10px 14px', fontWeight: 700, color: '#666', whiteSpace: 'nowrap' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                    Tipo
+                    <select
+                      value={typeFilter}
+                      onChange={(e) => setTypeFilter(e.target.value)}
+                      onClick={(e) => e.stopPropagation()}
+                      style={{
+                        fontSize: 10.5,
+                        fontWeight: 600,
+                        border: typeFilter ? '1px solid #1d6f5c' : '.5px solid #e0dfd8',
+                        borderRadius: 6,
+                        padding: '2px 4px',
+                        color: typeFilter ? '#1d6f5c' : '#999',
+                        background: typeFilter ? '#f0f8f5' : '#fff',
+                      }}
+                    >
+                      <option value="">Todos</option>
+                      {Object.entries(TYPE_LABELS).map(([k, v]) => (
+                        <option key={k} value={k}>
+                          {v}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </th>
+                <th style={{ padding: '10px 14px', fontWeight: 700, color: '#666', whiteSpace: 'nowrap' }}>Ubicación</th>
+                <th style={{ padding: '10px 14px', fontWeight: 700, color: '#666', whiteSpace: 'nowrap' }}>Contacto</th>
+                <th style={{ padding: '10px 14px', fontWeight: 700, color: '#666', whiteSpace: 'nowrap' }}>Ofertas</th>
+                <th style={{ padding: '10px 14px', fontWeight: 700, color: '#666', whiteSpace: 'nowrap' }}>Miembros</th>
+                <th style={{ padding: '10px 14px', fontWeight: 700, color: '#666', whiteSpace: 'nowrap' }}>Estado</th>
+                <th style={{ padding: '10px 14px', fontWeight: 700, color: '#666', whiteSpace: 'nowrap' }}>Fuente</th>
+                <th style={{ padding: '10px 14px' }}></th>
               </tr>
             </thead>
             <tbody>
               {filtered.map((o) => (
-                <tr key={o.id} style={{ borderTop: '.5px solid #e0dfd8' }}>
+                <tr key={o.id} style={{ borderTop: '.5px solid #e0dfd8', background: selectedIds.has(o.id) ? '#f7fbf9' : 'transparent' }}>
+                  <td style={{ padding: '9px 12px' }}>
+                    <input type="checkbox" checked={selectedIds.has(o.id)} onChange={() => toggleSelectOne(o.id)} style={{ cursor: 'pointer' }} />
+                  </td>
                   <td style={{ padding: '9px 14px', fontWeight: 600, whiteSpace: 'nowrap' }}>
                     <Link href={`/organizations/${o.slug}`} target="_blank" style={{ color: '#1a1a18', textDecoration: 'none' }}>
                       {o.name}
                     </Link>
                   </td>
-                  <td style={{ padding: '9px 14px', whiteSpace: 'nowrap', color: '#666' }}>{TYPE_LABELS[o.org_type] || o.org_type}</td>
+                  <td style={{ padding: '5px 10px', whiteSpace: 'nowrap' }}>
+                    <select
+                      value={o.org_type}
+                      disabled={busyId === o.id}
+                      onChange={(e) => updateOrgType(o, e.target.value)}
+                      style={{
+                        border: 'none',
+                        background: 'transparent',
+                        color: '#555',
+                        fontSize: 12.5,
+                        padding: '4px 6px',
+                        borderRadius: 6,
+                        cursor: 'pointer',
+                        outline: 'none',
+                      }}
+                      onFocus={(e) => (e.target.style.background = '#f4f4f0')}
+                      onBlur={(e) => (e.target.style.background = 'transparent')}
+                    >
+                      {Object.entries(TYPE_LABELS).map(([k, v]) => (
+                        <option key={k} value={k}>
+                          {v}
+                        </option>
+                      ))}
+                    </select>
+                  </td>
                   <td style={{ padding: '9px 14px', whiteSpace: 'nowrap', color: '#666' }}>{o.location || '—'}</td>
                   <td style={{ padding: '9px 14px', whiteSpace: 'nowrap', color: '#666' }}>{o.contact_email || '—'}</td>
                   <td style={{ padding: '9px 14px', textAlign: 'center' }}>{o.job_count}</td>
