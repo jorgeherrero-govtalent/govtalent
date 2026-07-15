@@ -22,6 +22,7 @@ export default function UsersBackofficePage() {
   const [editing, setEditing] = useState(null);
   const [saving, setSaving] = useState(false);
   const [toastMsg, setToastMsg] = useState('');
+  const [selectedIds, setSelectedIds] = useState(new Set());
 
   useEffect(() => {
     load();
@@ -62,9 +63,25 @@ export default function UsersBackofficePage() {
     showToast('Copiado ✓');
   }
 
+  const allFilteredSelected = filtered.length > 0 && filtered.every((u) => selectedIds.has(u.id));
+
+  function toggleSelectAll() {
+    setSelectedIds((prev) => (allFilteredSelected ? new Set() : new Set(filtered.map((u) => u.id))));
+  }
+
+  function toggleSelectOne(id) {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
   function exportCsv() {
     const headers = FIELDS.map((f) => f.label);
-    const rows = filtered.map((u) => FIELDS.map((f) => csvEscape(u[f.key] || '')));
+    const source = selectedIds.size > 0 ? filtered.filter((u) => selectedIds.has(u.id)) : filtered;
+    const rows = source.map((u) => FIELDS.map((f) => csvEscape(u[f.key] || '')));
     const csv = [headers, ...rows].map((r) => r.join(',')).join('\n');
     const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
@@ -151,9 +168,34 @@ export default function UsersBackofficePage() {
             whiteSpace: 'nowrap',
           }}
         >
-          <i className="ti ti-download"></i> Exportar CSV
+          <i className="ti ti-download"></i> Exportar CSV{selectedIds.size > 0 ? ` (${selectedIds.size})` : ''}
         </button>
       </div>
+
+      {selectedIds.size > 0 && (
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 12,
+            background: '#f0f8f5',
+            border: '.5px solid #c0e4d8',
+            borderRadius: 9,
+            padding: '9px 14px',
+            marginBottom: 12,
+            fontSize: 12.5,
+            color: '#1d6f5c',
+          }}
+        >
+          <b>{selectedIds.size}</b> seleccionados
+          <button
+            onClick={() => setSelectedIds(new Set())}
+            style={{ padding: '6px 12px', borderRadius: 7, border: '.5px solid #c0e4d8', background: '#fff', color: '#1d6f5c', fontSize: 12 }}
+          >
+            Deseleccionar
+          </button>
+        </div>
+      )}
 
       {users === null ? (
         <div style={{ padding: 40, textAlign: 'center', color: '#999' }}>Cargando candidatos...</div>
@@ -162,6 +204,9 @@ export default function UsersBackofficePage() {
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12.5 }}>
             <thead>
               <tr style={{ background: '#faf9f5', textAlign: 'left' }}>
+                <th style={{ padding: '10px 12px', width: 32 }}>
+                  <input type="checkbox" checked={allFilteredSelected} onChange={toggleSelectAll} style={{ cursor: 'pointer' }} />
+                </th>
                 {FIELDS.map((f) => (
                   <th key={f.key} style={{ padding: '10px 14px', fontWeight: 700, color: '#666', whiteSpace: 'nowrap' }}>
                     {f.label}
@@ -172,7 +217,10 @@ export default function UsersBackofficePage() {
             </thead>
             <tbody>
               {filtered.map((u) => (
-                <tr key={u.id} style={{ borderTop: '.5px solid #e0dfd8' }}>
+                <tr key={u.id} style={{ borderTop: '.5px solid #e0dfd8', background: selectedIds.has(u.id) ? '#f7fbf9' : 'transparent' }}>
+                  <td style={{ padding: '9px 12px' }}>
+                    <input type="checkbox" checked={selectedIds.has(u.id)} onChange={() => toggleSelectOne(u.id)} style={{ cursor: 'pointer' }} />
+                  </td>
                   {FIELDS.map((f) => (
                     <td
                       key={f.key}
