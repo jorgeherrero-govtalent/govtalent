@@ -23,22 +23,29 @@ const FILTERS = {
   no_reclamadas: (o) => o.claimed === false,
 };
 
+const PAGE_SIZE_OPTIONS = [10, 25, 50, 100];
+
 export default function OrganizationsBackofficePage() {
   const [orgs, setOrgs] = useState(null);
   const [loadError, setLoadError] = useState(null);
   const [search, setSearch] = useState('');
   const [filter, setFilter] = useState('todas');
-  const [typeFilter, setTypeFilter] = useState('');
   const [busyId, setBusyId] = useState(null);
   const [editing, setEditing] = useState(null);
   const [saving, setSaving] = useState(false);
   const [toastMsg, setToastMsg] = useState('');
   const [selectedIds, setSelectedIds] = useState(new Set());
   const [bulkBusy, setBulkBusy] = useState(false);
+  const [pageSize, setPageSize] = useState(10);
+  const [page, setPage] = useState(0);
 
   useEffect(() => {
     load();
   }, []);
+
+  useEffect(() => {
+    setPage(0);
+  }, [search, filter, pageSize]);
 
   async function load() {
     const res = await fetch('/api/backoffice/organizations');
@@ -61,14 +68,23 @@ export default function OrganizationsBackofficePage() {
     const q = search.toLowerCase();
     return orgs
       .filter(FILTERS[filter])
-      .filter((o) => !typeFilter || o.org_type === typeFilter)
       .filter(
         (o) =>
           o.name.toLowerCase().includes(q) ||
           (o.location || '').toLowerCase().includes(q) ||
-          (o.contact_email || '').toLowerCase().includes(q)
+          (o.contact_email || '').toLowerCase().includes(q) ||
+          (o.sector || '').toLowerCase().includes(q)
       );
-  }, [orgs, search, filter, typeFilter]);
+  }, [orgs, search, filter]);
+
+  const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
+  const currentPage = Math.min(page, totalPages - 1);
+  const pageStart = filtered.length === 0 ? 0 : currentPage * pageSize + 1;
+  const pageEnd = Math.min(filtered.length, (currentPage + 1) * pageSize);
+  const paginated = useMemo(
+    () => filtered.slice(currentPage * pageSize, currentPage * pageSize + pageSize),
+    [filtered, currentPage, pageSize]
+  );
 
   const counts = useMemo(() => {
     if (!orgs) return {};
@@ -80,12 +96,17 @@ export default function OrganizationsBackofficePage() {
     };
   }, [orgs]);
 
-  const allFilteredSelected = filtered.length > 0 && filtered.every((o) => selectedIds.has(o.id));
+  const allPageSelected = paginated.length > 0 && paginated.every((o) => selectedIds.has(o.id));
 
   function toggleSelectAll() {
     setSelectedIds((prev) => {
-      if (allFilteredSelected) return new Set();
-      return new Set(filtered.map((o) => o.id));
+      const next = new Set(prev);
+      if (allPageSelected) {
+        paginated.forEach((o) => next.delete(o.id));
+      } else {
+        paginated.forEach((o) => next.add(o.id));
+      }
+      return next;
     });
   }
 
@@ -145,20 +166,6 @@ export default function OrganizationsBackofficePage() {
     showToast(!org.verified ? 'Organización verificada ✓' : 'Verificación retirada');
   }
 
-  async function updateOrgType(org, newType) {
-    if (newType === org.org_type) return;
-    setBusyId(org.id);
-    const res = await fetch(`/api/backoffice/organizations/${org.id}`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ org_type: newType }),
-    });
-    setBusyId(null);
-    if (!res.ok) return showToast('No se pudo actualizar el tipo');
-    setOrgs((prev) => prev.map((o) => (o.id === org.id ? { ...o, org_type: newType } : o)));
-    showToast('Tipo actualizado ✓');
-  }
-
   async function deleteOrg(org) {
     if (!confirm(`¿Eliminar "${org.name}"? Solo funcionará si no ha sido reclamada por nadie.`)) return;
     setBusyId(org.id);
@@ -192,12 +199,12 @@ export default function OrganizationsBackofficePage() {
   }
 
   function exportCsv() {
-    const headers = ['Nombre', 'Tipo', 'Ubicación', 'Tamaño', 'Web', 'Email contacto', 'Verificada', 'Reclamada', 'Ofertas', 'Fuente'];
+    const headers = ['Nombre', 'Sector', 'Ubicación', 'Tamaño', 'Web', 'Email contacto', 'Verificada', 'Reclamada', 'Ofertas', 'Fuente'];
     const source = selectedIds.size > 0 ? filtered.filter((o) => selectedIds.has(o.id)) : filtered;
     const rows = source
       .map((o) => [
         o.name,
-        TYPE_LABELS[o.org_type] || o.org_type,
+        o.sector || '',
         o.location || '',
         o.size_range || '',
         o.website_url || '',
@@ -217,6 +224,9 @@ export default function OrganizationsBackofficePage() {
     a.click();
     URL.revokeObjectURL(url);
   }
+
+  const thStyle = { padding: '10px 14px', fontWeight: 700, color: '#666', whiteSpace: 'nowrap', textAlign: 'center', verticalAlign: 'middle' };
+  const tdStyle = { padding: '10px 14px', whiteSpace: 'nowrap', textAlign: 'center', verticalAlign: 'middle', color: '#666' };
 
   return (
     <div>
@@ -258,7 +268,7 @@ export default function OrganizationsBackofficePage() {
 
       <div style={{ display: 'flex', gap: 10, marginBottom: 16, flexWrap: 'wrap' }}>
         <input
-          placeholder="Buscar por nombre, ciudad, email..."
+          placeholder="Buscar por nombre, ciudad, email, sector..."
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           style={{ flex: 1, minWidth: 220, padding: '9px 13px', border: '.5px solid #e0dfd8', borderRadius: 9, fontSize: 13, outline: 'none' }}
@@ -341,87 +351,38 @@ export default function OrganizationsBackofficePage() {
         <div style={{ background: '#fff', border: '.5px solid #e0dfd8', borderRadius: 12, overflow: 'auto' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12.5 }}>
             <thead>
-              <tr style={{ background: '#faf9f5', textAlign: 'left' }}>
-                <th style={{ padding: '10px 12px', width: 32 }}>
-                  <input type="checkbox" checked={allFilteredSelected} onChange={toggleSelectAll} style={{ cursor: 'pointer' }} />
+              <tr style={{ background: '#faf9f5' }}>
+                <th style={{ ...thStyle, width: 32 }}>
+                  <input type="checkbox" checked={allPageSelected} onChange={toggleSelectAll} style={{ cursor: 'pointer' }} />
                 </th>
-                <th style={{ padding: '10px 14px', fontWeight: 700, color: '#666', whiteSpace: 'nowrap' }}>Nombre</th>
-                <th style={{ padding: '10px 14px', fontWeight: 700, color: '#666', whiteSpace: 'nowrap' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                    Tipo
-                    <select
-                      value={typeFilter}
-                      onChange={(e) => setTypeFilter(e.target.value)}
-                      onClick={(e) => e.stopPropagation()}
-                      style={{
-                        fontSize: 10.5,
-                        fontWeight: 600,
-                        border: typeFilter ? '1px solid #1d6f5c' : '.5px solid #e0dfd8',
-                        borderRadius: 6,
-                        padding: '2px 4px',
-                        color: typeFilter ? '#1d6f5c' : '#999',
-                        background: typeFilter ? '#f0f8f5' : '#fff',
-                      }}
-                    >
-                      <option value="">Todos</option>
-                      {Object.entries(TYPE_LABELS).map(([k, v]) => (
-                        <option key={k} value={k}>
-                          {v}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                </th>
-                <th style={{ padding: '10px 14px', fontWeight: 700, color: '#666', whiteSpace: 'nowrap' }}>Ubicación</th>
-                <th style={{ padding: '10px 14px', fontWeight: 700, color: '#666', whiteSpace: 'nowrap' }}>Contacto</th>
-                <th style={{ padding: '10px 14px', fontWeight: 700, color: '#666', whiteSpace: 'nowrap' }}>Ofertas</th>
-                <th style={{ padding: '10px 14px', fontWeight: 700, color: '#666', whiteSpace: 'nowrap' }}>Miembros</th>
-                <th style={{ padding: '10px 14px', fontWeight: 700, color: '#666', whiteSpace: 'nowrap' }}>Estado</th>
-                <th style={{ padding: '10px 14px', fontWeight: 700, color: '#666', whiteSpace: 'nowrap' }}>Fuente</th>
-                <th style={{ padding: '10px 14px' }}></th>
+                <th style={{ ...thStyle, textAlign: 'left' }}>Nombre</th>
+                <th style={thStyle}>Sector</th>
+                <th style={thStyle}>Ubicación</th>
+                <th style={{ ...thStyle, textAlign: 'left' }}>Contacto</th>
+                <th style={thStyle}>Ofertas</th>
+                <th style={thStyle}>Miembros</th>
+                <th style={thStyle}>Estado</th>
+                <th style={thStyle}>Fuente</th>
+                <th style={thStyle}></th>
               </tr>
             </thead>
             <tbody>
-              {filtered.map((o) => (
+              {paginated.map((o) => (
                 <tr key={o.id} style={{ borderTop: '.5px solid #e0dfd8', background: selectedIds.has(o.id) ? '#f7fbf9' : 'transparent' }}>
-                  <td style={{ padding: '9px 12px' }}>
+                  <td style={{ ...tdStyle }}>
                     <input type="checkbox" checked={selectedIds.has(o.id)} onChange={() => toggleSelectOne(o.id)} style={{ cursor: 'pointer' }} />
                   </td>
-                  <td style={{ padding: '9px 14px', fontWeight: 600, whiteSpace: 'nowrap' }}>
+                  <td style={{ ...tdStyle, textAlign: 'left', fontWeight: 600, color: '#1a1a18' }}>
                     <Link href={`/organizations/${o.slug}`} target="_blank" style={{ color: '#1a1a18', textDecoration: 'none' }}>
                       {o.name}
                     </Link>
                   </td>
-                  <td style={{ padding: '5px 10px', whiteSpace: 'nowrap' }}>
-                    <select
-                      value={o.org_type}
-                      disabled={busyId === o.id}
-                      onChange={(e) => updateOrgType(o, e.target.value)}
-                      style={{
-                        border: 'none',
-                        background: 'transparent',
-                        color: '#555',
-                        fontSize: 12.5,
-                        padding: '4px 6px',
-                        borderRadius: 6,
-                        cursor: 'pointer',
-                        outline: 'none',
-                      }}
-                      onFocus={(e) => (e.target.style.background = '#f4f4f0')}
-                      onBlur={(e) => (e.target.style.background = 'transparent')}
-                    >
-                      {Object.entries(TYPE_LABELS).map(([k, v]) => (
-                        <option key={k} value={k}>
-                          {v}
-                        </option>
-                      ))}
-                    </select>
-                  </td>
-                  <td style={{ padding: '9px 14px', whiteSpace: 'nowrap', color: '#666' }}>{o.location || '—'}</td>
-                  <td style={{ padding: '9px 14px', whiteSpace: 'nowrap', color: '#666' }}>{o.contact_email || '—'}</td>
-                  <td style={{ padding: '9px 14px', textAlign: 'center' }}>{o.job_count}</td>
-                  <td style={{ padding: '9px 14px', textAlign: 'center' }}>{o.member_count}</td>
-                  <td style={{ padding: '9px 14px', whiteSpace: 'nowrap' }}>
+                  <td style={tdStyle}>{o.sector || '—'}</td>
+                  <td style={tdStyle}>{o.location || '—'}</td>
+                  <td style={{ ...tdStyle, textAlign: 'left' }}>{o.contact_email || '—'}</td>
+                  <td style={tdStyle}>{o.job_count}</td>
+                  <td style={tdStyle}>{o.member_count}</td>
+                  <td style={tdStyle}>
                     {o.verified ? (
                       <span style={{ color: '#1d9d63', fontWeight: 600, fontSize: 11.5 }}>
                         <i className="ti ti-circle-check-filled"></i> Verificada
@@ -435,10 +396,10 @@ export default function OrganizationsBackofficePage() {
                       <div style={{ fontSize: 10, color: '#999', marginTop: 2 }}>Sin reclamar</div>
                     )}
                   </td>
-                  <td style={{ padding: '9px 14px', fontSize: 10.5, color: '#aaa', maxWidth: 160, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={o.source || ''}>
+                  <td style={{ ...tdStyle, fontSize: 10.5, color: '#aaa', maxWidth: 160, overflow: 'hidden', textOverflow: 'ellipsis' }} title={o.source || ''}>
                     {o.source || '—'}
                   </td>
-                  <td style={{ padding: '9px 14px', whiteSpace: 'nowrap' }}>
+                  <td style={tdStyle}>
                     <button
                       onClick={() => setEditing(o)}
                       style={{
@@ -489,6 +450,73 @@ export default function OrganizationsBackofficePage() {
               ))}
             </tbody>
           </table>
+
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              padding: '12px 16px',
+              borderTop: '.5px solid #e0dfd8',
+              fontSize: 12.5,
+              color: '#888',
+              flexWrap: 'wrap',
+              gap: 10,
+            }}
+          >
+            <label style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              Mostrar
+              <select
+                value={pageSize}
+                onChange={(e) => setPageSize(Number(e.target.value))}
+                style={{ border: '.5px solid #e0dfd8', borderRadius: 7, padding: '4px 8px', fontSize: 12.5 }}
+              >
+                {PAGE_SIZE_OPTIONS.map((n) => (
+                  <option key={n} value={n}>
+                    {n}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+              <span>
+                Mostrando {pageStart}-{pageEnd} de {filtered.length}
+              </span>
+              <div style={{ display: 'flex', gap: 4 }}>
+                <button
+                  onClick={() => setPage((p) => Math.max(0, p - 1))}
+                  disabled={currentPage === 0}
+                  style={{
+                    width: 28,
+                    height: 28,
+                    borderRadius: 7,
+                    border: '.5px solid #e0dfd8',
+                    background: '#fff',
+                    color: currentPage === 0 ? '#ccc' : '#555',
+                    cursor: currentPage === 0 ? 'default' : 'pointer',
+                  }}
+                >
+                  <i className="ti ti-chevron-left" style={{ fontSize: 13 }}></i>
+                </button>
+                <button
+                  onClick={() => setPage((p) => Math.min(totalPages - 1, p + 1))}
+                  disabled={currentPage >= totalPages - 1}
+                  style={{
+                    width: 28,
+                    height: 28,
+                    borderRadius: 7,
+                    border: '.5px solid #e0dfd8',
+                    background: '#fff',
+                    color: currentPage >= totalPages - 1 ? '#ccc' : '#555',
+                    cursor: currentPage >= totalPages - 1 ? 'default' : 'pointer',
+                  }}
+                >
+                  <i className="ti ti-chevron-right" style={{ fontSize: 13 }}></i>
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
       )}
 
