@@ -86,11 +86,10 @@ export default function OrganizationPublicPage() {
           <div style={{ fontSize: 19, fontWeight: 700, marginBottom: 4, display: 'flex', alignItems: 'center', gap: 6 }}>
             {org.name}
             {org.verified && (
-              <i
-                className="ti ti-circle-check-filled"
-                title="Organización verificada"
-                style={{ color: '#1d9d63', fontSize: 17 }}
-              ></i>
+              <span className="tt">
+                <i className="ti ti-circle-check-filled" style={{ color: '#1d9d63', fontSize: 17 }}></i>
+                <span className="tt-bubble">Página verificada por la organización</span>
+              </span>
             )}
           </div>
           {!org.verified && (
