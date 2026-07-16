@@ -104,13 +104,13 @@ export default function CandidateProfileViewPage() {
 
   return (
     <div className="sec">
-      <div style={{ maxWidth: 1080, margin: '0 auto 10px' }}>
+      <div style={{ maxWidth: 900, margin: '0 auto 10px' }}>
         <Link href="/organizations/admin/candidates" style={{ fontSize: 12.5, color: '#1d6f5c', textDecoration: 'none' }}>
           <i className="ti ti-arrow-left"></i> Volver al tablero de candidatos
         </Link>
       </div>
 
-      <div className="card" style={{ maxWidth: 1080, margin: '0 auto 13px' }}>
+      <div className="card" style={{ maxWidth: 900, margin: '0 auto 13px' }}>
         <div
           className="p-cover"
           style={
@@ -154,7 +154,7 @@ export default function CandidateProfileViewPage() {
         )}
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '3fr 2fr', gap: 13, maxWidth: 1080, margin: '0 auto' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: '3fr 2fr', gap: 13, maxWidth: 900, margin: '0 auto' }}>
         <div className="card">
           {experiences.length > 0 && (
             <div className="p-sec">
