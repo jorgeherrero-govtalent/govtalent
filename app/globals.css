@@ -290,9 +290,9 @@ a{color:inherit}
 .dir-row-logo img{width:100%;height:100%;object-fit:cover}
 .dir-row-name{font-size:13px;font-weight:700;white-space:normal;overflow-wrap:anywhere;display:flex;align-items:center;gap:5px}
 .verified-tick{color:#1d9d63;font-size:14px;flex-shrink:0}
-.dir-row-loc{font-size:12px;color:#888;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.dir-row-meta{font-size:11.5px;color:#666;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.dir-row-size{font-size:11.5px;color:#888;white-space:nowrap}
+.dir-row-loc{font-size:12px;color:#888;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-align:center}
+.dir-row-meta{font-size:11.5px;color:#666;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-align:center}
+.dir-row-size{font-size:11.5px;color:#888;white-space:nowrap;text-align:center}
 .dir-row-links{display:flex;align-items:center;gap:8px}
 .dir-row-links a{width:24px;height:24px;border-radius:6px;background:#f4f4f0;display:flex;align-items:center;justify-content:center;color:#888;transition:all .12s}
 .dir-row-links a:hover{background:#1d6f5c;color:#fff}
