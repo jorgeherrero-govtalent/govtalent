@@ -5,12 +5,25 @@ import { createPortal } from 'react-dom';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
 import { toast } from '@/lib/toast';
+import { useDragPosition, parsePosition } from '@/lib/useDragPosition';
 
 export default function ProfilePage() {
   const supabase = createClient();
   const [userId, setUserId] = useState(null);
   const [user, setUser] = useState(null);
   const [profile, setProfile] = useState(null);
+  const coverDrag = useDragPosition({
+    axis: 'xy',
+    value: parsePosition(profile?.cover_position),
+    editable: !!profile?.cover_url,
+    onCommit: (pos) => saveCoverPosition(pos),
+  });
+  const avatarDrag = useDragPosition({
+    axis: 'xy',
+    value: parsePosition(user?.avatar_position),
+    editable: !!user?.avatar_url,
+    onCommit: (pos) => saveAvatarPosition(pos),
+  });
   const [experiences, setExperiences] = useState([]);
   const [education, setEducation] = useState([]);
   const [skills, setSkills] = useState([]);
@@ -228,6 +241,18 @@ export default function ProfilePage() {
     await supabase.from('candidate_profiles').update({ cover_url: coverUrl }).eq('user_id', userId);
     setProfile({ ...profile, cover_url: coverUrl });
     toast('Portada actualizada ✓');
+  }
+
+  async function saveAvatarPosition(pos) {
+    const value = `${pos.x}% ${pos.y}%`;
+    setUser((prev) => ({ ...prev, avatar_position: value }));
+    await supabase.from('users').update({ avatar_position: value }).eq('id', userId);
+  }
+
+  async function saveCoverPosition(pos) {
+    const value = `${pos.x}% ${pos.y}%`;
+    setProfile((prev) => ({ ...prev, cover_position: value }));
+    await supabase.from('candidate_profiles').update({ cover_position: value }).eq('user_id', userId);
   }
 
   async function handleCvUpload(e) {
@@ -543,19 +568,28 @@ export default function ProfilePage() {
         <div>
           <div className="card" style={{ marginBottom: 13 }}>
             <div
+              ref={coverDrag.containerRef}
               className="p-cover"
+              {...coverDrag.bind}
               style={
                 profile?.cover_url
                   ? {
                       backgroundImage: `url(${profile.cover_url})`,
                       backgroundSize: 'cover',
-                  backgroundPosition: 'center',
-                }
-              : undefined
-          }
-        >
+                      backgroundPosition: coverDrag.backgroundPosition,
+                      ...coverDrag.bind.style,
+                    }
+                  : undefined
+              }
+            >
+              {profile?.cover_url && (
+                <div className={`drag-hint ${coverDrag.hover || coverDrag.dragging ? 'on' : ''}`}>
+                  <i className="ti ti-arrows-move"></i> Arrastra para ajustar
+                </div>
+              )}
           <label
             title="Cambiar portada"
+            onPointerDown={(e) => e.stopPropagation()}
             style={{
               position: 'absolute',
               top: 11,
@@ -579,13 +613,28 @@ export default function ProfilePage() {
             <input type="file" accept="image/*" hidden onChange={handleCoverUpload} disabled={uploadingCover} />
           </label>
 
-          <label className="p-av" style={{ cursor: 'pointer' }} title="Cambiar foto de perfil">
-            {user.avatar_url ? <img src={user.avatar_url} alt="" /> : user.first_name?.[0]}
-            <div className="av-c">
+          <div
+            ref={avatarDrag.containerRef}
+            className="p-av"
+            {...avatarDrag.bind}
+            style={{
+              ...avatarDrag.bind.style,
+              backgroundImage: user.avatar_url ? `url(${user.avatar_url})` : undefined,
+              backgroundSize: 'cover',
+              backgroundPosition: avatarDrag.backgroundPosition,
+            }}
+          >
+            {!user.avatar_url && user.first_name?.[0]}
+            {user.avatar_url && (
+              <div className={`drag-hint drag-hint-round ${avatarDrag.hover || avatarDrag.dragging ? 'on' : ''}`} style={{ fontSize: 10 }}>
+                <i className="ti ti-arrows-move"></i>
+              </div>
+            )}
+            <label className="av-c" style={{ cursor: 'pointer' }} onPointerDown={(e) => e.stopPropagation()} title="Cambiar foto de perfil">
               {uploadingAvatar ? <i className="ti ti-loader-2"></i> : <i className="ti ti-camera"></i>}
-            </div>
-            <input type="file" accept="image/*" hidden onChange={handleAvatarUpload} disabled={uploadingAvatar} />
-          </label>
+              <input type="file" accept="image/*" hidden onChange={handleAvatarUpload} disabled={uploadingAvatar} />
+            </label>
+          </div>
         </div>
         <div className="p-info">
           <div className="p-name">
