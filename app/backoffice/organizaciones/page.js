@@ -16,6 +16,36 @@ const TYPE_LABELS = {
   otro: 'Otro',
 };
 
+const SECTOR_OPTIONS = [
+  'Asuntos Públicos',
+  'Consultoría',
+  'Administración Pública',
+  'ONG / Tercer Sector',
+  'Partidos Políticos',
+  'Educación',
+  'Sanidad / Salud',
+  'Energía',
+  'Tecnología',
+  'Telecomunicaciones',
+  'Medios de Comunicación',
+  'Comunicación / Relaciones Públicas',
+  'Finanzas / Banca',
+  'Seguros',
+  'Farmacéutico / Biotecnología',
+  'Automoción',
+  'Industria / Manufactura',
+  'Retail / Consumo',
+  'Alimentación y Bebidas',
+  'Turismo / Hostelería',
+  'Transporte / Logística',
+  'Inmobiliario / Construcción',
+  'Legal / Despachos de abogados',
+  'Asociaciones Profesionales',
+  'Think Tank / Fundaciones',
+  'Universidades / Centros educativos',
+  'Otro',
+];
+
 const FILTERS = {
   todas: () => true,
   verificadas: (o) => o.verified,
@@ -30,6 +60,8 @@ export default function OrganizationsBackofficePage() {
   const [loadError, setLoadError] = useState(null);
   const [search, setSearch] = useState('');
   const [filter, setFilter] = useState('todas');
+  const [sectorFilter, setSectorFilter] = useState('');
+  const [locationFilter, setLocationFilter] = useState('');
   const [busyId, setBusyId] = useState(null);
   const [editing, setEditing] = useState(null);
   const [saving, setSaving] = useState(false);
@@ -45,7 +77,7 @@ export default function OrganizationsBackofficePage() {
 
   useEffect(() => {
     setPage(0);
-  }, [search, filter, pageSize]);
+  }, [search, filter, sectorFilter, locationFilter, pageSize]);
 
   async function load() {
     const res = await fetch('/api/backoffice/organizations');
@@ -68,6 +100,8 @@ export default function OrganizationsBackofficePage() {
     const q = search.toLowerCase();
     return orgs
       .filter(FILTERS[filter])
+      .filter((o) => !sectorFilter || o.sector === sectorFilter)
+      .filter((o) => !locationFilter || o.location === locationFilter)
       .filter(
         (o) =>
           o.name.toLowerCase().includes(q) ||
@@ -75,7 +109,17 @@ export default function OrganizationsBackofficePage() {
           (o.contact_email || '').toLowerCase().includes(q) ||
           (o.sector || '').toLowerCase().includes(q)
       );
-  }, [orgs, search, filter]);
+  }, [orgs, search, filter, sectorFilter, locationFilter]);
+
+  const uniqueSectors = useMemo(() => {
+    if (!orgs) return [];
+    return [...new Set(orgs.map((o) => o.sector).filter(Boolean))].sort((a, b) => a.localeCompare(b));
+  }, [orgs]);
+
+  const uniqueLocations = useMemo(() => {
+    if (!orgs) return [];
+    return [...new Set(orgs.map((o) => o.location).filter(Boolean))].sort((a, b) => a.localeCompare(b));
+  }, [orgs]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
   const currentPage = Math.min(page, totalPages - 1);
@@ -371,8 +415,58 @@ export default function OrganizationsBackofficePage() {
                   <input type="checkbox" checked={allPageSelected} onChange={toggleSelectAll} style={{ cursor: 'pointer' }} />
                 </th>
                 <th style={{ ...thStyle, textAlign: 'left' }}>Nombre</th>
-                <th style={thStyle}>Sector</th>
-                <th style={thStyle}>Ubicación</th>
+                <th style={thStyle}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+                    Sector
+                    <select
+                      value={sectorFilter}
+                      onChange={(e) => setSectorFilter(e.target.value)}
+                      style={{
+                        fontSize: 10.5,
+                        fontWeight: 600,
+                        border: sectorFilter ? '1px solid #1d6f5c' : '.5px solid #e0dfd8',
+                        borderRadius: 6,
+                        padding: '2px 4px',
+                        color: sectorFilter ? '#1d6f5c' : '#999',
+                        background: sectorFilter ? '#f0f8f5' : '#fff',
+                        maxWidth: 90,
+                      }}
+                    >
+                      <option value="">Todos</option>
+                      {uniqueSectors.map((s) => (
+                        <option key={s} value={s}>
+                          {s}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </th>
+                <th style={thStyle}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+                    Ubicación
+                    <select
+                      value={locationFilter}
+                      onChange={(e) => setLocationFilter(e.target.value)}
+                      style={{
+                        fontSize: 10.5,
+                        fontWeight: 600,
+                        border: locationFilter ? '1px solid #1d6f5c' : '.5px solid #e0dfd8',
+                        borderRadius: 6,
+                        padding: '2px 4px',
+                        color: locationFilter ? '#1d6f5c' : '#999',
+                        background: locationFilter ? '#f0f8f5' : '#fff',
+                        maxWidth: 90,
+                      }}
+                    >
+                      <option value="">Todas</option>
+                      {uniqueLocations.map((l) => (
+                        <option key={l} value={l}>
+                          {l}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </th>
                 <th style={{ ...thStyle, textAlign: 'left' }}>Contacto</th>
                 <th style={thStyle}>Ofertas</th>
                 <th style={thStyle}>Miembros</th>
@@ -393,30 +487,36 @@ export default function OrganizationsBackofficePage() {
                     </Link>
                   </td>
                   <td style={{ ...tdStyle, padding: '5px 10px' }}>
-                    <input
-                      key={`${o.id}-${o.sector || ''}`}
-                      type="text"
-                      defaultValue={o.sector || ''}
-                      placeholder="—"
+                    <select
+                      value={SECTOR_OPTIONS.includes(o.sector) || !o.sector ? o.sector || '' : o.sector}
                       disabled={busyId === o.id}
-                      onBlur={(e) => {
-                        e.target.style.background = 'transparent';
-                        updateSector(o, e.target.value);
-                      }}
-                      onKeyDown={(e) => e.key === 'Enter' && e.target.blur()}
+                      onChange={(e) => updateSector(o, e.target.value)}
                       style={{
                         width: '100%',
                         border: 'none',
                         background: 'transparent',
-                        color: '#666',
+                        color: o.sector ? '#666' : '#bbb',
                         fontSize: 12.5,
                         padding: '5px 6px',
                         borderRadius: 6,
                         textAlign: 'center',
+                        textAlignLast: 'center',
+                        cursor: 'pointer',
                         outline: 'none',
                       }}
                       onFocus={(e) => (e.target.style.background = '#f4f4f0')}
-                    />
+                      onBlur={(e) => (e.target.style.background = 'transparent')}
+                    >
+                      <option value="">— Elegir —</option>
+                      {!SECTOR_OPTIONS.includes(o.sector) && o.sector && (
+                        <option value={o.sector}>{o.sector} (importado)</option>
+                      )}
+                      {SECTOR_OPTIONS.map((s) => (
+                        <option key={s} value={s}>
+                          {s}
+                        </option>
+                      ))}
+                    </select>
                   </td>
                   <td style={tdStyle}>{o.location || '—'}</td>
                   <td style={{ ...tdStyle, textAlign: 'left' }}>{o.contact_email || '—'}</td>
@@ -621,7 +721,24 @@ export default function OrganizationsBackofficePage() {
               </select>
             </div>
 
-            <OrgField label="Sector" name="sector" defaultValue={editing.sector} />
+            <div style={{ marginBottom: 10 }}>
+              <label style={{ display: 'block', fontSize: 11.5, fontWeight: 600, color: '#555', marginBottom: 4 }}>Sector</label>
+              <select
+                name="sector"
+                defaultValue={SECTOR_OPTIONS.includes(editing.sector) ? editing.sector : editing.sector || ''}
+                style={{ width: '100%', padding: '8px 11px', border: '.5px solid #e0dfd8', borderRadius: 8, fontSize: 13, outline: 'none' }}
+              >
+                <option value="">— Elegir —</option>
+                {!SECTOR_OPTIONS.includes(editing.sector) && editing.sector && (
+                  <option value={editing.sector}>{editing.sector} (importado)</option>
+                )}
+                {SECTOR_OPTIONS.map((s) => (
+                  <option key={s} value={s}>
+                    {s}
+                  </option>
+                ))}
+              </select>
+            </div>
             <OrgField label="Ubicación" name="location" defaultValue={editing.location} />
 
             <div style={{ marginBottom: 10 }}>
