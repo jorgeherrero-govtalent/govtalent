@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { toast } from '@/lib/toast';
+import { useDragPosition, parsePosition } from '@/lib/useDragPosition';
 
 const AREAS = [
   'Public Affairs',
@@ -24,6 +25,18 @@ const APPLICATION_STATUS_LABELS = {
 export default function OrganizationAdminPage() {
   const supabase = createClient();
   const [org, setOrg] = useState(null);
+  const coverDrag = useDragPosition({
+    axis: 'xy',
+    value: parsePosition(org?.cover_position),
+    editable: !!org?.cover_url,
+    onCommit: (pos) => saveOrgCoverPosition(pos),
+  });
+  const logoDrag = useDragPosition({
+    axis: 'xy',
+    value: parsePosition(org?.logo_position),
+    editable: !!org?.logo_url,
+    onCommit: (pos) => saveLogoPosition(pos),
+  });
   const [jobs, setJobs] = useState([]);
   const [showEdit, setShowEdit] = useState(false);
   const [showAiOrgTip, setShowAiOrgTip] = useState(true);
@@ -131,6 +144,18 @@ export default function OrganizationAdminPage() {
     await supabase.from('organizations').update({ cover_url: coverUrl }).eq('id', org.id);
     setOrg({ ...org, cover_url: coverUrl });
     toast('Portada actualizada ✓');
+  }
+
+  async function saveLogoPosition(pos) {
+    const value = `${pos.x}% ${pos.y}%`;
+    setOrg((prev) => ({ ...prev, logo_position: value }));
+    await supabase.from('organizations').update({ logo_position: value }).eq('id', org.id);
+  }
+
+  async function saveOrgCoverPosition(pos) {
+    const value = `${pos.x}% ${pos.y}%`;
+    setOrg((prev) => ({ ...prev, cover_position: value }));
+    await supabase.from('organizations').update({ cover_position: value }).eq('id', org.id);
   }
 
   async function toggleJobStatus(job) {
@@ -408,15 +433,28 @@ export default function OrganizationAdminPage() {
         <div>
           <div className="card" style={{ marginBottom: 13 }}>
             <div
+              ref={coverDrag.containerRef}
               className="co-cover"
+              {...coverDrag.bind}
               style={
                 org.cover_url
-                  ? { backgroundImage: `url(${org.cover_url})`, backgroundSize: 'cover', backgroundPosition: 'center' }
+                  ? {
+                      backgroundImage: `url(${org.cover_url})`,
+                      backgroundSize: 'cover',
+                      backgroundPosition: coverDrag.backgroundPosition,
+                      ...coverDrag.bind.style,
+                    }
                   : undefined
               }
             >
+              {org.cover_url && (
+                <div className={`drag-hint ${coverDrag.hover || coverDrag.dragging ? 'on' : ''}`}>
+                  <i className="ti ti-arrows-move"></i> Arrastra para ajustar
+                </div>
+              )}
               <label
                 title="Cambiar portada"
+                onPointerDown={(e) => e.stopPropagation()}
             style={{
               position: 'absolute',
               top: 11,
@@ -436,9 +474,25 @@ export default function OrganizationAdminPage() {
             <input type="file" accept="image/*" hidden onChange={handleOrgCoverUpload} disabled={uploadingOrgCover} />
           </label>
 
-          <label className="co-logo" style={{ cursor: 'pointer' }} title="Cambiar logo">
-            {org.logo_url ? <img src={org.logo_url} alt="" /> : '🏛️'}
-            <div
+          <div
+            ref={logoDrag.containerRef}
+            className="co-logo"
+            {...logoDrag.bind}
+            style={{
+              ...logoDrag.bind.style,
+              backgroundImage: org.logo_url ? `url(${org.logo_url})` : undefined,
+              backgroundSize: 'cover',
+              backgroundPosition: logoDrag.backgroundPosition,
+            }}
+          >
+            {!org.logo_url && '🏛️'}
+            {org.logo_url && (
+              <div className={`drag-hint ${logoDrag.hover || logoDrag.dragging ? 'on' : ''}`} style={{ fontSize: 9 }}>
+                <i className="ti ti-arrows-move"></i>
+              </div>
+            )}
+            <label
+              onPointerDown={(e) => e.stopPropagation()}
               style={{
                 position: 'absolute',
                 bottom: 1,
@@ -450,6 +504,7 @@ export default function OrganizationAdminPage() {
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
+                cursor: 'pointer',
               }}
             >
               {uploadingLogo ? (
@@ -457,19 +512,18 @@ export default function OrganizationAdminPage() {
               ) : (
                 <i className="ti ti-camera" style={{ fontSize: 12, color: '#fff' }}></i>
               )}
-            </div>
-            <input type="file" accept="image/*" hidden onChange={handleLogoUpload} disabled={uploadingLogo} />
-          </label>
+              <input type="file" accept="image/*" hidden onChange={handleLogoUpload} disabled={uploadingLogo} />
+            </label>
+          </div>
         </div>
         <div className="co-info">
           <div style={{ fontSize: 17.5, fontWeight: 700, marginBottom: 3, display: 'flex', alignItems: 'center', gap: 6 }}>
             {org.name}
             {org.verified && (
-              <i
-                className="ti ti-circle-check-filled"
-                title="Organización verificada"
-                style={{ color: '#1d9d63', fontSize: 15.5 }}
-              ></i>
+              <span className="tt">
+                <i className="ti ti-circle-check-filled" style={{ color: '#1d9d63', fontSize: 15.5 }}></i>
+                <span className="tt-bubble">Página verificada por la organización</span>
+              </span>
             )}
           </div>
           <div style={{ fontSize: 12.5, color: '#555', marginBottom: 8 }}>{org.bio || org.sector || 'Añade una descripción'}</div>
