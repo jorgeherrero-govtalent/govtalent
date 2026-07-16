@@ -1544,7 +1544,7 @@ export default function ProfilePage() {
           <div className="sw">
             <h4>Mis empleos guardados y solicitados</h4>
             {savedJobs.length === 0 && <div style={{ fontSize: 12.5, color: '#999' }}>Ninguno todavía.</div>}
-            {savedJobs.map((sj, i) => (
+            {savedJobs.slice(0, 4).map((sj, i) => (
               <div className="sp" key={i}>
                 <div className="sp-av" style={{ borderRadius: 8, overflow: 'hidden' }}>
                   {sj.jobs?.organizations?.logo_url ? (
@@ -1571,7 +1571,7 @@ export default function ProfilePage() {
           <div className="sw">
             <h4>Organizaciones que sigues</h4>
             {followedOrgs.length === 0 && <div style={{ fontSize: 12.5, color: '#999' }}>Ninguna todavía.</div>}
-            {followedOrgs.map((f, i) => (
+            {followedOrgs.slice(0, 4).map((f, i) => (
               <Link href={`/organizations/${f.organizations?.slug}`} className="sp" key={i} style={{ textDecoration: 'none', color: 'inherit' }}>
                 <div className="sp-av" style={{ borderRadius: 8, overflow: 'hidden' }}>
                   {f.organizations?.logo_url ? (
