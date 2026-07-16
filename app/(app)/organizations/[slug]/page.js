@@ -74,12 +74,27 @@ export default function OrganizationPublicPage() {
           className="co-cover"
           style={
             org.cover_url
-              ? { backgroundImage: `url(${org.cover_url})`, backgroundSize: 'cover', backgroundPosition: 'center' }
+              ? {
+                  backgroundImage: `url(${org.cover_url})`,
+                  backgroundSize: 'cover',
+                  backgroundPosition: org.cover_position || '50% 50%',
+                }
               : undefined
           }
         >
-          <div className="co-logo">
-            {org.logo_url ? <img src={org.logo_url} alt="" /> : '🏛️'}
+          <div
+            className="co-logo"
+            style={
+              org.logo_url
+                ? {
+                    backgroundImage: `url(${org.logo_url})`,
+                    backgroundSize: 'cover',
+                    backgroundPosition: org.logo_position || '50% 50%',
+                  }
+                : undefined
+            }
+          >
+            {!org.logo_url && '🏛️'}
           </div>
         </div>
         <div className="co-info">
