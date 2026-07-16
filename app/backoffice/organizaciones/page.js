@@ -166,6 +166,21 @@ export default function OrganizationsBackofficePage() {
     showToast(!org.verified ? 'Organización verificada ✓' : 'Verificación retirada');
   }
 
+  async function updateSector(org, newValue) {
+    const value = newValue.trim() || null;
+    if (value === (org.sector || null)) return;
+    setBusyId(org.id);
+    const res = await fetch(`/api/backoffice/organizations/${org.id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ sector: value }),
+    });
+    setBusyId(null);
+    if (!res.ok) return showToast('No se pudo actualizar el sector');
+    setOrgs((prev) => prev.map((o) => (o.id === org.id ? { ...o, sector: value } : o)));
+    showToast('Sector actualizado ✓');
+  }
+
   async function deleteOrg(org) {
     if (!confirm(`¿Eliminar "${org.name}"? Solo funcionará si no ha sido reclamada por nadie.`)) return;
     setBusyId(org.id);
@@ -377,7 +392,32 @@ export default function OrganizationsBackofficePage() {
                       {o.name}
                     </Link>
                   </td>
-                  <td style={tdStyle}>{o.sector || '—'}</td>
+                  <td style={{ ...tdStyle, padding: '5px 10px' }}>
+                    <input
+                      key={`${o.id}-${o.sector || ''}`}
+                      type="text"
+                      defaultValue={o.sector || ''}
+                      placeholder="—"
+                      disabled={busyId === o.id}
+                      onBlur={(e) => {
+                        e.target.style.background = 'transparent';
+                        updateSector(o, e.target.value);
+                      }}
+                      onKeyDown={(e) => e.key === 'Enter' && e.target.blur()}
+                      style={{
+                        width: '100%',
+                        border: 'none',
+                        background: 'transparent',
+                        color: '#666',
+                        fontSize: 12.5,
+                        padding: '5px 6px',
+                        borderRadius: 6,
+                        textAlign: 'center',
+                        outline: 'none',
+                      }}
+                      onFocus={(e) => (e.target.style.background = '#f4f4f0')}
+                    />
+                  </td>
                   <td style={tdStyle}>{o.location || '—'}</td>
                   <td style={{ ...tdStyle, textAlign: 'left' }}>{o.contact_email || '—'}</td>
                   <td style={tdStyle}>{o.job_count}</td>
