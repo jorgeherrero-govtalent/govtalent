@@ -63,13 +63,13 @@ export default function OrganizationPublicPage() {
 
   return (
     <div className="sec">
-      <div style={{ maxWidth: 1080, margin: '0 auto 10px' }}>
+      <div style={{ maxWidth: 900, margin: '0 auto 10px' }}>
         <Link href="/organizations" style={{ fontSize: 12.5, color: '#1d6f5c', textDecoration: 'none' }}>
           <i className="ti ti-arrow-left"></i> Volver al buscador
         </Link>
       </div>
 
-      <div className="card" style={{ maxWidth: 1080, margin: '0 auto 13px' }}>
+      <div className="card" style={{ maxWidth: 900, margin: '0 auto 13px' }}>
         <div
           className="co-cover"
           style={
@@ -108,7 +108,7 @@ export default function OrganizationPublicPage() {
         </div>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 280px', gap: 13, maxWidth: 1080, margin: '0 auto' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 280px', gap: 13, maxWidth: 900, margin: '0 auto' }}>
         <div className="card">
           <div className="p-sec" style={{ borderBottom: 'none' }}>
             <h3>Empleos activos en esta organización</h3>
