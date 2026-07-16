@@ -115,12 +115,27 @@ export default function CandidateProfileViewPage() {
           className="p-cover"
           style={
             profile?.cover_url
-              ? { backgroundImage: `url(${profile.cover_url})`, backgroundSize: 'cover', backgroundPosition: 'center' }
+              ? {
+                  backgroundImage: `url(${profile.cover_url})`,
+                  backgroundSize: 'cover',
+                  backgroundPosition: profile?.cover_position || '50% 50%',
+                }
               : undefined
           }
         >
-          <div className="p-av">
-            {candidate.avatar_url ? <img src={candidate.avatar_url} alt="" /> : candidate.first_name?.[0]}
+          <div
+            className="p-av"
+            style={
+              candidate.avatar_url
+                ? {
+                    backgroundImage: `url(${candidate.avatar_url})`,
+                    backgroundSize: 'cover',
+                    backgroundPosition: candidate.avatar_position || '50% 50%',
+                  }
+                : undefined
+            }
+          >
+            {!candidate.avatar_url && candidate.first_name?.[0]}
           </div>
         </div>
         <div className="p-info">
