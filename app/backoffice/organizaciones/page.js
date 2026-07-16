@@ -62,6 +62,7 @@ export default function OrganizationsBackofficePage() {
   const [filter, setFilter] = useState('todas');
   const [sectorFilter, setSectorFilter] = useState('');
   const [locationFilter, setLocationFilter] = useState('');
+  const [typeFilter, setTypeFilter] = useState('');
   const [busyId, setBusyId] = useState(null);
   const [editing, setEditing] = useState(null);
   const [saving, setSaving] = useState(false);
@@ -77,7 +78,7 @@ export default function OrganizationsBackofficePage() {
 
   useEffect(() => {
     setPage(0);
-  }, [search, filter, sectorFilter, locationFilter, pageSize]);
+  }, [search, filter, sectorFilter, locationFilter, typeFilter, pageSize]);
 
   async function load() {
     const res = await fetch('/api/backoffice/organizations');
@@ -102,6 +103,7 @@ export default function OrganizationsBackofficePage() {
       .filter(FILTERS[filter])
       .filter((o) => !sectorFilter || o.sector === sectorFilter)
       .filter((o) => !locationFilter || o.location === locationFilter)
+      .filter((o) => !typeFilter || o.org_type === typeFilter)
       .filter(
         (o) =>
           o.name.toLowerCase().includes(q) ||
@@ -109,7 +111,7 @@ export default function OrganizationsBackofficePage() {
           (o.contact_email || '').toLowerCase().includes(q) ||
           (o.sector || '').toLowerCase().includes(q)
       );
-  }, [orgs, search, filter, sectorFilter, locationFilter]);
+  }, [orgs, search, filter, sectorFilter, locationFilter, typeFilter]);
 
   const uniqueSectors = useMemo(() => {
     if (!orgs) return [];
@@ -210,6 +212,20 @@ export default function OrganizationsBackofficePage() {
     showToast(!org.verified ? 'Organización verificada ✓' : 'Verificación retirada');
   }
 
+  async function updateOrgType(org, newType) {
+    if (newType === org.org_type) return;
+    setBusyId(org.id);
+    const res = await fetch(`/api/backoffice/organizations/${org.id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ org_type: newType }),
+    });
+    setBusyId(null);
+    if (!res.ok) return showToast('No se pudo actualizar el tipo');
+    setOrgs((prev) => prev.map((o) => (o.id === org.id ? { ...o, org_type: newType } : o)));
+    showToast('Tipo actualizado ✓');
+  }
+
   async function updateSector(org, newValue) {
     const value = newValue.trim() || null;
     if (value === (org.sector || null)) return;
@@ -258,11 +274,12 @@ export default function OrganizationsBackofficePage() {
   }
 
   function exportCsv() {
-    const headers = ['Nombre', 'Sector', 'Ubicación', 'Tamaño', 'Web', 'Email contacto', 'Verificada', 'Reclamada', 'Ofertas', 'Fuente'];
+    const headers = ['Nombre', 'Tipo', 'Sector', 'Ubicación', 'Tamaño', 'Web', 'Email contacto', 'Verificada', 'Reclamada', 'Ofertas', 'Fuente'];
     const source = selectedIds.size > 0 ? filtered.filter((o) => selectedIds.has(o.id)) : filtered;
     const rows = source
       .map((o) => [
         o.name,
+        TYPE_LABELS[o.org_type] || o.org_type,
         o.sector || '',
         o.location || '',
         o.size_range || '',
@@ -417,6 +434,32 @@ export default function OrganizationsBackofficePage() {
                 <th style={{ ...thStyle, textAlign: 'left' }}>Nombre</th>
                 <th style={thStyle}>
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+                    Tipo
+                    <select
+                      value={typeFilter}
+                      onChange={(e) => setTypeFilter(e.target.value)}
+                      style={{
+                        fontSize: 10.5,
+                        fontWeight: 600,
+                        border: typeFilter ? '1px solid #1d6f5c' : '.5px solid #e0dfd8',
+                        borderRadius: 6,
+                        padding: '2px 4px',
+                        color: typeFilter ? '#1d6f5c' : '#999',
+                        background: typeFilter ? '#f0f8f5' : '#fff',
+                        maxWidth: 90,
+                      }}
+                    >
+                      <option value="">Todos</option>
+                      {Object.entries(TYPE_LABELS).map(([k, v]) => (
+                        <option key={k} value={k}>
+                          {v}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </th>
+                <th style={thStyle}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
                     Sector
                     <select
                       value={sectorFilter}
@@ -485,6 +528,34 @@ export default function OrganizationsBackofficePage() {
                     <Link href={`/organizations/${o.slug}`} target="_blank" style={{ color: '#1a1a18', textDecoration: 'none' }}>
                       {o.name}
                     </Link>
+                  </td>
+                  <td style={{ ...tdStyle, padding: '5px 10px' }}>
+                    <select
+                      value={o.org_type}
+                      disabled={busyId === o.id}
+                      onChange={(e) => updateOrgType(o, e.target.value)}
+                      style={{
+                        width: '100%',
+                        border: 'none',
+                        background: 'transparent',
+                        color: '#666',
+                        fontSize: 12.5,
+                        padding: '5px 6px',
+                        borderRadius: 6,
+                        textAlign: 'center',
+                        textAlignLast: 'center',
+                        cursor: 'pointer',
+                        outline: 'none',
+                      }}
+                      onFocus={(e) => (e.target.style.background = '#f4f4f0')}
+                      onBlur={(e) => (e.target.style.background = 'transparent')}
+                    >
+                      {Object.entries(TYPE_LABELS).map(([k, v]) => (
+                        <option key={k} value={k}>
+                          {v}
+                        </option>
+                      ))}
+                    </select>
                   </td>
                   <td style={{ ...tdStyle, padding: '5px 10px' }}>
                     <select
