@@ -18,6 +18,8 @@ const TYPE_LABELS = {
   otro: 'Otro',
 };
 
+const PAGE_SIZE_OPTIONS = [10, 25, 50, 100];
+
 const SORTS = {
   recientes: { label: 'Más recientes', fn: (a, b) => new Date(b.created_at) - new Date(a.created_at) },
   az: { label: 'Nombre A-Z', fn: (a, b) => a.name.localeCompare(b.name) },
@@ -36,6 +38,8 @@ export default function OrganizationsDirectory() {
   const [sort, setSort] = useState('recientes');
   const [onlyPending, setOnlyPending] = useState(false);
   const [view, setView] = useState('grid');
+  const [pageSize, setPageSize] = useState(25);
+  const [page, setPage] = useState(0);
 
   useEffect(() => {
     const saved = localStorage.getItem('gt_dir_view');
@@ -64,7 +68,20 @@ export default function OrganizationsDirectory() {
     return [...list].sort((a, b) => (b.verified === a.verified ? SORTS[sort].fn(a, b) : b.verified - a.verified));
   }, [orgs, name, onlyPending, sort]);
 
+  useEffect(() => {
+    setPage(0);
+  }, [name, type, onlyPending, sort, pageSize]);
+
   const pendingCount = orgs?.filter((o) => !o.verified).length || 0;
+
+  const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
+  const currentPage = Math.min(page, totalPages - 1);
+  const pageStart = filtered.length === 0 ? 0 : currentPage * pageSize + 1;
+  const pageEnd = Math.min(filtered.length, (currentPage + 1) * pageSize);
+  const paginated = useMemo(
+    () => filtered.slice(currentPage * pageSize, currentPage * pageSize + pageSize),
+    [filtered, currentPage, pageSize]
+  );
 
   return (
     <div className="sec">
@@ -163,7 +180,7 @@ export default function OrganizationsDirectory() {
             </div>
           ) : view === 'grid' ? (
             <div className="dir-grid">
-              {filtered.map((o) => (
+              {paginated.map((o) => (
                 <Link href={`/organizations/${o.slug}`} className="dir-card" key={o.id}>
                   <div className="dir-card-top">
                     <div className="dir-logo">
@@ -192,10 +209,11 @@ export default function OrganizationsDirectory() {
                     </div>
                   )}
                   <div className="dir-tags">
-                    <div className="dir-tag">
-                      <i className="ti ti-briefcase"></i> {TYPE_LABELS[o.org_type]}
-                    </div>
-                    {o.sector && <div className="dir-tag">{o.sector}</div>}
+                    {o.sector && (
+                      <div className="dir-tag">
+                        <i className="ti ti-briefcase"></i> {o.sector}
+                      </div>
+                    )}
                   </div>
                   <button className="dir-btn">Ver página</button>
                 </Link>
@@ -205,13 +223,13 @@ export default function OrganizationsDirectory() {
             <div className="dir-list">
               <div className="dir-list-head">
                 <span>Organización</span>
-                <span>Ubicación</span>
-                <span>Tipo / Sector</span>
-                <span>Empleados</span>
+                <span style={{ textAlign: 'center' }}>Ubicación</span>
+                <span style={{ textAlign: 'center' }}>Sector</span>
+                <span style={{ textAlign: 'center' }}>Empleados</span>
                 <span></span>
                 <span></span>
               </div>
-              {filtered.map((o) => (
+              {paginated.map((o) => (
                 <Link href={`/organizations/${o.slug}`} className="dir-row" key={o.id}>
                   <div className="dir-row-main">
                     <div className="dir-row-logo">
@@ -235,10 +253,7 @@ export default function OrganizationsDirectory() {
                     </div>
                   </div>
                   <div className="dir-row-loc">{o.location || '—'}</div>
-                  <div className="dir-row-meta">
-                    {TYPE_LABELS[o.org_type]}
-                    {o.sector ? ` · ${o.sector}` : ''}
-                  </div>
+                  <div className="dir-row-meta">{o.sector || '—'}</div>
                   <div className="dir-row-size">{o.size_range ? `${o.size_range} emp.` : '—'}</div>
                   <div className="dir-row-links" onClick={(e) => e.stopPropagation()}>
                     {o.website_url && (
@@ -255,6 +270,81 @@ export default function OrganizationsDirectory() {
                   <i className="ti ti-chevron-right dir-row-arrow"></i>
                 </Link>
               ))}
+            </div>
+          )}
+
+          {filtered.length > 0 && (
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                maxWidth: 1080,
+                margin: '14px auto 0',
+                padding: '12px 16px',
+                background: '#fff',
+                border: '.5px solid #e0dfd8',
+                borderRadius: 12,
+                fontSize: 12.5,
+                color: '#888',
+                flexWrap: 'wrap',
+                gap: 10,
+              }}
+            >
+              <label style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                Mostrar
+                <select
+                  value={pageSize}
+                  onChange={(e) => setPageSize(Number(e.target.value))}
+                  style={{ border: '.5px solid #e0dfd8', borderRadius: 7, padding: '4px 8px', fontSize: 12.5 }}
+                >
+                  {PAGE_SIZE_OPTIONS.map((n) => (
+                    <option key={n} value={n}>
+                      {n}
+                    </option>
+                  ))}
+                </select>
+              </label>
+
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                <span>
+                  Mostrando {pageStart}-{pageEnd} de {filtered.length}
+                </span>
+                <div style={{ display: 'flex', gap: 4 }}>
+                  <button
+                    type="button"
+                    onClick={() => setPage((p) => Math.max(0, p - 1))}
+                    disabled={currentPage === 0}
+                    style={{
+                      width: 28,
+                      height: 28,
+                      borderRadius: 7,
+                      border: '.5px solid #e0dfd8',
+                      background: '#fff',
+                      color: currentPage === 0 ? '#ccc' : '#555',
+                      cursor: currentPage === 0 ? 'default' : 'pointer',
+                    }}
+                  >
+                    <i className="ti ti-chevron-left" style={{ fontSize: 13 }}></i>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setPage((p) => Math.min(totalPages - 1, p + 1))}
+                    disabled={currentPage >= totalPages - 1}
+                    style={{
+                      width: 28,
+                      height: 28,
+                      borderRadius: 7,
+                      border: '.5px solid #e0dfd8',
+                      background: '#fff',
+                      color: currentPage >= totalPages - 1 ? '#ccc' : '#555',
+                      cursor: currentPage >= totalPages - 1 ? 'default' : 'pointer',
+                    }}
+                  >
+                    <i className="ti ti-chevron-right" style={{ fontSize: 13 }}></i>
+                  </button>
+                </div>
+              </div>
             </div>
           )}
         </>
