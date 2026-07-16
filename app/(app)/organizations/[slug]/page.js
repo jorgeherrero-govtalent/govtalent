@@ -83,7 +83,16 @@ export default function OrganizationPublicPage() {
           </div>
         </div>
         <div className="co-info">
-          <div style={{ fontSize: 19, fontWeight: 700, marginBottom: 4 }}>{org.name}</div>
+          <div style={{ fontSize: 19, fontWeight: 700, marginBottom: 4, display: 'flex', alignItems: 'center', gap: 6 }}>
+            {org.name}
+            {org.verified && (
+              <i
+                className="ti ti-circle-check-filled"
+                title="Organización verificada"
+                style={{ color: '#1d9d63', fontSize: 17 }}
+              ></i>
+            )}
+          </div>
           {!org.verified && (
             <div className="badge bgr" style={{ display: 'inline-flex', marginBottom: 8, width: 'fit-content' }}>
               <i className="ti ti-clock" style={{ fontSize: 11 }}></i> No verificada por la organización
