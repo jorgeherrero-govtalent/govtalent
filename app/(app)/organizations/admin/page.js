@@ -671,7 +671,7 @@ export default function OrganizationAdminPage() {
             {jobs.filter((j) => j.status === 'activa').length === 0 && (
               <div style={{ fontSize: 12.5, color: '#999', marginBottom: 10 }}>No tienes ofertas activas ahora mismo.</div>
             )}
-            {jobs.filter((j) => j.status === 'activa').map((j) => (
+            {jobs.filter((j) => j.status === 'activa').slice(0, 3).map((j) => (
               <div
                 key={j.id}
                 className="ji on"
