@@ -462,7 +462,16 @@ export default function OrganizationAdminPage() {
           </label>
         </div>
         <div className="co-info">
-          <div style={{ fontSize: 17.5, fontWeight: 700, marginBottom: 3 }}>{org.name}</div>
+          <div style={{ fontSize: 17.5, fontWeight: 700, marginBottom: 3, display: 'flex', alignItems: 'center', gap: 6 }}>
+            {org.name}
+            {org.verified && (
+              <i
+                className="ti ti-circle-check-filled"
+                title="Organización verificada"
+                style={{ color: '#1d9d63', fontSize: 15.5 }}
+              ></i>
+            )}
+          </div>
           <div style={{ fontSize: 12.5, color: '#555', marginBottom: 8 }}>{org.bio || org.sector || 'Añade una descripción'}</div>
           <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', fontSize: 12, color: '#888', marginBottom: 11 }}>
             {org.location && (
