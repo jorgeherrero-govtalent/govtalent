@@ -67,7 +67,7 @@ export default function AppLayout({ children }) {
   const initial = user ? (user.first_name?.[0] || 'U').toUpperCase() : '';
 
   return (
-    <div>
+    <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
       <nav className="nav">
         <div className="nav-inner">
           <Link href="/jobs" className="nav-logo">
@@ -140,7 +140,7 @@ export default function AppLayout({ children }) {
         </div>
       </nav>
 
-      {children}
+      <main style={{ flex: 1 }}>{children}</main>
       <Footer />
       <Toast />
 
