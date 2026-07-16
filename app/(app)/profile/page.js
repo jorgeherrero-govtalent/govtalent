@@ -754,7 +754,7 @@ export default function ProfilePage() {
         <div className="p-sec" style={{ borderBottom: 'none' }}>
           <h3>
             Acerca de
-            <button className="btn-g" style={{ fontSize: 12 }} onClick={() => setShowEditProfile(true)}>
+            <button className="btn-p" onClick={() => setShowEditProfile(true)}>
               <i className="ti ti-edit"></i> Editar
             </button>
           </h3>
