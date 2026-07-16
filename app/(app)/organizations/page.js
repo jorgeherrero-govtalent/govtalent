@@ -171,7 +171,13 @@ export default function OrganizationsDirectory() {
                     </div>
                     <div>
                       <div className="dir-name">
-                        {o.name} {o.verified && <i className="ti ti-circle-check-filled verified-tick" title="Organización verificada"></i>}
+                        {o.name}{' '}
+                        {o.verified && (
+                          <span className="tt">
+                            <i className="ti ti-circle-check-filled verified-tick"></i>
+                            <span className="tt-bubble">Página verificada por la organización</span>
+                          </span>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -214,7 +220,12 @@ export default function OrganizationsDirectory() {
                     <div style={{ minWidth: 0 }}>
                       <div className="dir-row-name">
                         {o.name}
-                        {o.verified && <i className="ti ti-circle-check-filled verified-tick" title="Organización verificada"></i>}
+                        {o.verified && (
+                          <span className="tt">
+                            <i className="ti ti-circle-check-filled verified-tick"></i>
+                            <span className="tt-bubble">Página verificada por la organización</span>
+                          </span>
+                        )}
                       </div>
                       {!o.verified && (
                         <div className="badge bgr" style={{ marginTop: 3 }}>
