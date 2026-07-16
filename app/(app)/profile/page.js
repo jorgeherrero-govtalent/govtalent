@@ -163,6 +163,7 @@ export default function ProfilePage() {
       first_name: f.get('first_name'),
       last_name: f.get('last_name'),
       professional_title: f.get('professional_title') || null,
+      location: f.get('location') || null,
     };
     const profileUpdates = {
       website_url: f.get('website_url') || null,
@@ -869,6 +870,10 @@ export default function ProfilePage() {
                   defaultValue={user.professional_title || ''}
                   placeholder="Ej: Public Affairs Manager"
                 />
+              </div>
+              <div className="field">
+                <label>Ubicación</label>
+                <input name="location" defaultValue={user.location || ''} placeholder="Ej: Madrid, España" />
               </div>
               <div className="two">
                 <div className="field">
