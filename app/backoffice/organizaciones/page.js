@@ -452,8 +452,8 @@ export default function OrganizationsBackofficePage() {
                 <th style={{ ...thStyle, width: 32 }}>
                   <input type="checkbox" checked={allPageSelected} onChange={toggleSelectAll} style={{ cursor: 'pointer' }} />
                 </th>
-                <th style={{ ...thStyle, textAlign: 'left' }}>Nombre</th>
-                <th style={thStyle}>
+                <th style={{ ...thStyle, textAlign: 'left', minWidth: 220 }}>Nombre</th>
+                <th style={{ ...thStyle, minWidth: 160 }}>
                   <FilterableHeader
                     label="Tipo"
                     columnKey="org_type"
@@ -467,7 +467,7 @@ export default function OrganizationsBackofficePage() {
                     onClose={() => setOpenPopover(null)}
                   />
                 </th>
-                <th style={thStyle}>
+                <th style={{ ...thStyle, minWidth: 200 }}>
                   <FilterableHeader
                     label="Sector"
                     columnKey="sector"
@@ -481,7 +481,7 @@ export default function OrganizationsBackofficePage() {
                     onClose={() => setOpenPopover(null)}
                   />
                 </th>
-                <th style={thStyle}>
+                <th style={{ ...thStyle, minWidth: 130 }}>
                   <FilterableHeader
                     label="Ubicación"
                     columnKey="location"
@@ -495,7 +495,7 @@ export default function OrganizationsBackofficePage() {
                     onClose={() => setOpenPopover(null)}
                   />
                 </th>
-                <th style={{ ...thStyle, textAlign: 'left' }}>Contacto</th>
+                <th style={{ ...thStyle, textAlign: 'left', minWidth: 170 }}>Contacto</th>
                 <th style={thStyle}>Ofertas</th>
                 <th style={thStyle}>LinkedIn</th>
                 <th style={thStyle}>Web</th>
@@ -510,12 +510,12 @@ export default function OrganizationsBackofficePage() {
                   <td style={{ ...tdStyle }}>
                     <input type="checkbox" checked={selectedIds.has(o.id)} onChange={() => toggleSelectOne(o.id)} style={{ cursor: 'pointer' }} />
                   </td>
-                  <td style={{ ...tdStyle, textAlign: 'left', fontWeight: 600, color: '#1a1a18' }}>
+                  <td style={{ ...tdStyle, textAlign: 'left', fontWeight: 600, color: '#1a1a18', minWidth: 220 }}>
                     <Link href={`/organizations/${o.slug}`} target="_blank" style={{ color: '#1a1a18', textDecoration: 'none' }}>
                       {o.name}
                     </Link>
                   </td>
-                  <td style={{ ...tdStyle, padding: '5px 10px' }}>
+                  <td style={{ ...tdStyle, padding: '5px 10px', minWidth: 160 }}>
                     <select
                       value={o.org_type}
                       disabled={busyId === o.id}
@@ -543,7 +543,7 @@ export default function OrganizationsBackofficePage() {
                       ))}
                     </select>
                   </td>
-                  <td style={{ ...tdStyle, padding: '5px 10px' }}>
+                  <td style={{ ...tdStyle, padding: '5px 10px', minWidth: 200 }}>
                     <select
                       value={SECTOR_OPTIONS.includes(o.sector) || !o.sector ? o.sector || '' : o.sector}
                       disabled={busyId === o.id}
@@ -575,8 +575,8 @@ export default function OrganizationsBackofficePage() {
                       ))}
                     </select>
                   </td>
-                  <td style={tdStyle}>{o.location || '—'}</td>
-                  <td style={{ ...tdStyle, textAlign: 'left' }}>{o.contact_email || '—'}</td>
+                  <td style={{ ...tdStyle, minWidth: 130 }}>{o.location || '—'}</td>
+                  <td style={{ ...tdStyle, textAlign: 'left', minWidth: 170 }}>{o.contact_email || '—'}</td>
                   <td style={tdStyle}>{o.job_count}</td>
                   <td style={tdStyle} onClick={(e) => e.stopPropagation()}>
                     {o.linkedin_url ? (
