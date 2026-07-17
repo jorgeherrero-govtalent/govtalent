@@ -1,6 +1,7 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import Link from 'next/link';
 
 const TYPE_LABELS = {
@@ -60,9 +61,11 @@ export default function OrganizationsBackofficePage() {
   const [loadError, setLoadError] = useState(null);
   const [search, setSearch] = useState('');
   const [filter, setFilter] = useState('todas');
-  const [sectorFilter, setSectorFilter] = useState('');
-  const [locationFilter, setLocationFilter] = useState('');
-  const [typeFilter, setTypeFilter] = useState('');
+  const [sectorFilter, setSectorFilter] = useState(new Set());
+  const [locationFilter, setLocationFilter] = useState(new Set());
+  const [typeFilter, setTypeFilter] = useState(new Set());
+  const [sortConfig, setSortConfig] = useState({ key: null, dir: 'asc' });
+  const [openPopover, setOpenPopover] = useState(null);
   const [busyId, setBusyId] = useState(null);
   const [editing, setEditing] = useState(null);
   const [saving, setSaving] = useState(false);
@@ -99,11 +102,11 @@ export default function OrganizationsBackofficePage() {
   const filtered = useMemo(() => {
     if (!orgs) return [];
     const q = search.toLowerCase();
-    return orgs
+    let list = orgs
       .filter(FILTERS[filter])
-      .filter((o) => !sectorFilter || o.sector === sectorFilter)
-      .filter((o) => !locationFilter || o.location === locationFilter)
-      .filter((o) => !typeFilter || o.org_type === typeFilter)
+      .filter((o) => sectorFilter.size === 0 || sectorFilter.has(o.sector || ''))
+      .filter((o) => locationFilter.size === 0 || locationFilter.has(o.location || ''))
+      .filter((o) => typeFilter.size === 0 || typeFilter.has(o.org_type))
       .filter(
         (o) =>
           o.name.toLowerCase().includes(q) ||
@@ -111,7 +114,20 @@ export default function OrganizationsBackofficePage() {
           (o.contact_email || '').toLowerCase().includes(q) ||
           (o.sector || '').toLowerCase().includes(q)
       );
-  }, [orgs, search, filter, sectorFilter, locationFilter, typeFilter]);
+
+    if (sortConfig.key) {
+      const getVal = (o) => {
+        if (sortConfig.key === 'org_type') return TYPE_LABELS[o.org_type] || '';
+        return o[sortConfig.key] || '';
+      };
+      list = [...list].sort((a, b) => {
+        const cmp = String(getVal(a)).localeCompare(String(getVal(b)), 'es');
+        return sortConfig.dir === 'asc' ? cmp : -cmp;
+      });
+    }
+
+    return list;
+  }, [orgs, search, filter, sectorFilter, locationFilter, typeFilter, sortConfig]);
 
   const uniqueSectors = useMemo(() => {
     if (!orgs) return [];
@@ -273,8 +289,12 @@ export default function OrganizationsBackofficePage() {
     showToast(`${ids.length} organizaciones verificadas ✓`);
   }
 
+  function handleSort(key, dir) {
+    setSortConfig({ key, dir });
+  }
+
   function exportCsv() {
-    const headers = ['Nombre', 'Tipo', 'Sector', 'Ubicación', 'Tamaño', 'Web', 'Email contacto', 'Verificada', 'Reclamada', 'Ofertas', 'Fuente'];
+    const headers = ['Nombre', 'Tipo', 'Sector', 'Ubicación', 'Tamaño', 'Web', 'LinkedIn', 'Email contacto', 'Verificada', 'Reclamada', 'Ofertas', 'Fuente'];
     const source = selectedIds.size > 0 ? filtered.filter((o) => selectedIds.has(o.id)) : filtered;
     const rows = source
       .map((o) => [
@@ -284,6 +304,7 @@ export default function OrganizationsBackofficePage() {
         o.location || '',
         o.size_range || '',
         o.website_url || '',
+        o.linkedin_url || '',
         o.contact_email || '',
         o.verified ? 'Sí' : 'No',
         o.claimed === false ? 'No' : 'Sí',
@@ -433,86 +454,51 @@ export default function OrganizationsBackofficePage() {
                 </th>
                 <th style={{ ...thStyle, textAlign: 'left' }}>Nombre</th>
                 <th style={thStyle}>
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
-                    Tipo
-                    <select
-                      value={typeFilter}
-                      onChange={(e) => setTypeFilter(e.target.value)}
-                      style={{
-                        fontSize: 10.5,
-                        fontWeight: 600,
-                        border: typeFilter ? '1px solid #1d6f5c' : '.5px solid #e0dfd8',
-                        borderRadius: 6,
-                        padding: '2px 4px',
-                        color: typeFilter ? '#1d6f5c' : '#999',
-                        background: typeFilter ? '#f0f8f5' : '#fff',
-                        maxWidth: 90,
-                      }}
-                    >
-                      <option value="">Todos</option>
-                      {Object.entries(TYPE_LABELS).map(([k, v]) => (
-                        <option key={k} value={k}>
-                          {v}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
+                  <FilterableHeader
+                    label="Tipo"
+                    columnKey="org_type"
+                    values={Object.entries(TYPE_LABELS).map(([value, label]) => ({ value, label }))}
+                    selected={typeFilter}
+                    onApply={setTypeFilter}
+                    sortConfig={sortConfig}
+                    onSort={handleSort}
+                    isOpen={openPopover === 'org_type'}
+                    onToggle={() => setOpenPopover(openPopover === 'org_type' ? null : 'org_type')}
+                    onClose={() => setOpenPopover(null)}
+                  />
                 </th>
                 <th style={thStyle}>
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
-                    Sector
-                    <select
-                      value={sectorFilter}
-                      onChange={(e) => setSectorFilter(e.target.value)}
-                      style={{
-                        fontSize: 10.5,
-                        fontWeight: 600,
-                        border: sectorFilter ? '1px solid #1d6f5c' : '.5px solid #e0dfd8',
-                        borderRadius: 6,
-                        padding: '2px 4px',
-                        color: sectorFilter ? '#1d6f5c' : '#999',
-                        background: sectorFilter ? '#f0f8f5' : '#fff',
-                        maxWidth: 90,
-                      }}
-                    >
-                      <option value="">Todos</option>
-                      {uniqueSectors.map((s) => (
-                        <option key={s} value={s}>
-                          {s}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
+                  <FilterableHeader
+                    label="Sector"
+                    columnKey="sector"
+                    values={uniqueSectors.map((s) => ({ value: s, label: s }))}
+                    selected={sectorFilter}
+                    onApply={setSectorFilter}
+                    sortConfig={sortConfig}
+                    onSort={handleSort}
+                    isOpen={openPopover === 'sector'}
+                    onToggle={() => setOpenPopover(openPopover === 'sector' ? null : 'sector')}
+                    onClose={() => setOpenPopover(null)}
+                  />
                 </th>
                 <th style={thStyle}>
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
-                    Ubicación
-                    <select
-                      value={locationFilter}
-                      onChange={(e) => setLocationFilter(e.target.value)}
-                      style={{
-                        fontSize: 10.5,
-                        fontWeight: 600,
-                        border: locationFilter ? '1px solid #1d6f5c' : '.5px solid #e0dfd8',
-                        borderRadius: 6,
-                        padding: '2px 4px',
-                        color: locationFilter ? '#1d6f5c' : '#999',
-                        background: locationFilter ? '#f0f8f5' : '#fff',
-                        maxWidth: 90,
-                      }}
-                    >
-                      <option value="">Todas</option>
-                      {uniqueLocations.map((l) => (
-                        <option key={l} value={l}>
-                          {l}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
+                  <FilterableHeader
+                    label="Ubicación"
+                    columnKey="location"
+                    values={uniqueLocations.map((l) => ({ value: l, label: l }))}
+                    selected={locationFilter}
+                    onApply={setLocationFilter}
+                    sortConfig={sortConfig}
+                    onSort={handleSort}
+                    isOpen={openPopover === 'location'}
+                    onToggle={() => setOpenPopover(openPopover === 'location' ? null : 'location')}
+                    onClose={() => setOpenPopover(null)}
+                  />
                 </th>
                 <th style={{ ...thStyle, textAlign: 'left' }}>Contacto</th>
                 <th style={thStyle}>Ofertas</th>
-                <th style={thStyle}>Miembros</th>
+                <th style={thStyle}>LinkedIn</th>
+                <th style={thStyle}>Web</th>
                 <th style={thStyle}>Estado</th>
                 <th style={thStyle}>Fuente</th>
                 <th style={thStyle}></th>
@@ -592,7 +578,24 @@ export default function OrganizationsBackofficePage() {
                   <td style={tdStyle}>{o.location || '—'}</td>
                   <td style={{ ...tdStyle, textAlign: 'left' }}>{o.contact_email || '—'}</td>
                   <td style={tdStyle}>{o.job_count}</td>
-                  <td style={tdStyle}>{o.member_count}</td>
+                  <td style={tdStyle} onClick={(e) => e.stopPropagation()}>
+                    {o.linkedin_url ? (
+                      <a href={o.linkedin_url} target="_blank" rel="noreferrer" style={{ color: '#1d6f5c' }} title={o.linkedin_url}>
+                        <i className="ti ti-brand-linkedin" style={{ fontSize: 15 }}></i>
+                      </a>
+                    ) : (
+                      '—'
+                    )}
+                  </td>
+                  <td style={tdStyle} onClick={(e) => e.stopPropagation()}>
+                    {o.website_url ? (
+                      <a href={o.website_url} target="_blank" rel="noreferrer" style={{ color: '#1d6f5c' }} title={o.website_url}>
+                        <i className="ti ti-world" style={{ fontSize: 15 }}></i>
+                      </a>
+                    ) : (
+                      '—'
+                    )}
+                  </td>
                   <td style={tdStyle}>
                     {o.verified ? (
                       <span style={{ color: '#1d9d63', fontWeight: 600, fontSize: 11.5 }}>
@@ -871,6 +874,194 @@ export default function OrganizationsBackofficePage() {
         </div>
       )}
     </div>
+  );
+}
+
+function FilterableHeader({ label, columnKey, values, selected, onApply, sortConfig, onSort, isOpen, onToggle, onClose }) {
+  const btnRef = useRef(null);
+  const [pos, setPos] = useState({ top: 0, left: 0 });
+  const [draft, setDraft] = useState(selected);
+  const [search, setSearch] = useState('');
+
+  useEffect(() => {
+    if (isOpen) {
+      setDraft(new Set(selected));
+      setSearch('');
+      const rect = btnRef.current.getBoundingClientRect();
+      setPos({ top: rect.bottom + 6, left: rect.left });
+    }
+  }, [isOpen]);
+
+  const visibleValues = values.filter((v) => v.label.toLowerCase().includes(search.toLowerCase()));
+  const active = selected.size > 0 || sortConfig.key === columnKey;
+
+  function toggleValue(v) {
+    setDraft((prev) => {
+      const next = new Set(prev);
+      if (next.has(v)) next.delete(v);
+      else next.add(v);
+      return next;
+    });
+  }
+
+  return (
+    <>
+      <button
+        ref={btnRef}
+        type="button"
+        onClick={onToggle}
+        style={{
+          display: 'inline-flex',
+          alignItems: 'center',
+          gap: 4,
+          border: 'none',
+          background: 'transparent',
+          fontWeight: 700,
+          fontSize: 11,
+          color: active ? '#1d6f5c' : '#666',
+          textTransform: 'uppercase',
+          letterSpacing: '.03em',
+          cursor: 'pointer',
+          padding: 0,
+        }}
+      >
+        {label}
+        <i className={`ti ${active ? 'ti-filter-filled' : 'ti-chevron-down'}`} style={{ fontSize: 11 }}></i>
+      </button>
+
+      {isOpen &&
+        typeof document !== 'undefined' &&
+        createPortal(
+          <>
+            <div onClick={onClose} style={{ position: 'fixed', inset: 0, zIndex: 300 }}></div>
+            <div
+              style={{
+                position: 'fixed',
+                top: pos.top,
+                left: pos.left,
+                zIndex: 301,
+                width: 240,
+                background: '#fff',
+                borderRadius: 12,
+                boxShadow: '0 8px 28px rgba(0,0,0,.15)',
+                border: '.5px solid #e0dfd8',
+                overflow: 'hidden',
+              }}
+            >
+              <div style={{ display: 'flex', gap: 6, padding: 10, borderBottom: '.5px solid #e0dfd8' }}>
+                <button
+                  type="button"
+                  onClick={() => {
+                    onSort(columnKey, 'asc');
+                    onClose();
+                  }}
+                  style={{
+                    flex: 1,
+                    fontSize: 11.5,
+                    padding: '7px 6px',
+                    borderRadius: 7,
+                    border: '.5px solid #e0dfd8',
+                    background: sortConfig.key === columnKey && sortConfig.dir === 'asc' ? '#f0f8f5' : '#fff',
+                    color: sortConfig.key === columnKey && sortConfig.dir === 'asc' ? '#1d6f5c' : '#555',
+                  }}
+                >
+                  A→Z
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    onSort(columnKey, 'desc');
+                    onClose();
+                  }}
+                  style={{
+                    flex: 1,
+                    fontSize: 11.5,
+                    padding: '7px 6px',
+                    borderRadius: 7,
+                    border: '.5px solid #e0dfd8',
+                    background: sortConfig.key === columnKey && sortConfig.dir === 'desc' ? '#f0f8f5' : '#fff',
+                    color: sortConfig.key === columnKey && sortConfig.dir === 'desc' ? '#1d6f5c' : '#555',
+                  }}
+                >
+                  Z→A
+                </button>
+              </div>
+
+              <div style={{ padding: 10, borderBottom: '.5px solid #e0dfd8' }}>
+                <input
+                  autoFocus
+                  placeholder={`Buscar ${label.toLowerCase()}...`}
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  style={{
+                    width: '100%',
+                    padding: '7px 10px',
+                    border: '.5px solid #e0dfd8',
+                    borderRadius: 7,
+                    fontSize: 12.5,
+                    outline: 'none',
+                  }}
+                />
+                <div style={{ display: 'flex', gap: 10, marginTop: 6, fontSize: 11, color: '#1d6f5c' }}>
+                  <button type="button" onClick={() => setDraft(new Set(values.map((v) => v.value)))} style={{ background: 'none', border: 'none', color: '#1d6f5c', cursor: 'pointer', padding: 0 }}>
+                    Seleccionar todos
+                  </button>
+                  <button type="button" onClick={() => setDraft(new Set())} style={{ background: 'none', border: 'none', color: '#999', cursor: 'pointer', padding: 0 }}>
+                    Ninguno
+                  </button>
+                </div>
+              </div>
+
+              <div style={{ maxHeight: 220, overflowY: 'auto', padding: 6 }}>
+                {visibleValues.length === 0 && (
+                  <div style={{ padding: 10, fontSize: 12, color: '#999', textAlign: 'center' }}>Sin resultados</div>
+                )}
+                {visibleValues.map((v) => (
+                  <label
+                    key={v.value}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 8,
+                      padding: '7px 8px',
+                      borderRadius: 7,
+                      fontSize: 12.5,
+                      color: '#333',
+                      cursor: 'pointer',
+                    }}
+                    onMouseEnter={(e) => (e.currentTarget.style.background = '#f7f7f4')}
+                    onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
+                  >
+                    <input type="checkbox" checked={draft.has(v.value)} onChange={() => toggleValue(v.value)} style={{ cursor: 'pointer' }} />
+                    {v.label}
+                  </label>
+                ))}
+              </div>
+
+              <div style={{ display: 'flex', gap: 8, padding: 10, borderTop: '.5px solid #e0dfd8' }}>
+                <button
+                  type="button"
+                  onClick={onClose}
+                  style={{ flex: 1, padding: '7px 8px', borderRadius: 7, border: '.5px solid #e0dfd8', background: '#fff', fontSize: 12.5, color: '#666' }}
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    onApply(draft);
+                    onClose();
+                  }}
+                  style={{ flex: 1, padding: '7px 8px', borderRadius: 7, border: 'none', background: '#1d6f5c', color: '#fff', fontSize: 12.5, fontWeight: 600 }}
+                >
+                  Aplicar
+                </button>
+              </div>
+            </div>
+          </>,
+          document.body
+        )}
+    </>
   );
 }
 
