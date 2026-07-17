@@ -21,7 +21,7 @@ export async function GET() {
     admin
       .from('organizations')
       .select(
-        'id, name, slug, org_type, location, size_range, website_url, contact_email, notification_email, claimed, verified, source, created_at'
+        'id, name, slug, org_type, location, size_range, website_url, linkedin_url, contact_email, notification_email, claimed, verified, source, created_at'
       )
       .order('created_at', { ascending: false }),
     admin.from('jobs').select('organization_id'),
