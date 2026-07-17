@@ -223,9 +223,9 @@ export default function OrganizationsDirectory() {
             <div className="dir-list">
               <div className="dir-list-head">
                 <span>Organización</span>
-                <span style={{ textAlign: 'center' }}>Ubicación</span>
-                <span style={{ textAlign: 'center' }}>Sector</span>
-                <span style={{ textAlign: 'center' }}>Empleados</span>
+                <span>Ubicación</span>
+                <span>Sector</span>
+                <span>Empleados</span>
                 <span></span>
                 <span></span>
               </div>
