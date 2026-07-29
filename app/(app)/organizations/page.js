@@ -195,6 +195,14 @@ export default function OrganizationsDirectory() {
                             <span className="tt-bubble">Página verificada por la organización</span>
                           </span>
                         )}
+                        {o.interest_group_registered && (
+                          <span className="tt">
+                            <i className="ti ti-shield-check" style={{ color: '#6d5aef' }}></i>
+                            <span className="tt-bubble">
+                              Grupo de interés registrado{o.interest_group_registry_number ? ` · ${o.interest_group_registry_number}` : ''}
+                            </span>
+                          </span>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -242,6 +250,14 @@ export default function OrganizationsDirectory() {
                           <span className="tt">
                             <i className="ti ti-circle-check-filled verified-tick"></i>
                             <span className="tt-bubble">Página verificada por la organización</span>
+                          </span>
+                        )}
+                        {o.interest_group_registered && (
+                          <span className="tt">
+                            <i className="ti ti-shield-check" style={{ color: '#6d5aef' }}></i>
+                            <span className="tt-bubble">
+                              Grupo de interés registrado{o.interest_group_registry_number ? ` · ${o.interest_group_registry_number}` : ''}
+                            </span>
                           </span>
                         )}
                       </div>
