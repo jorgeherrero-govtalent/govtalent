@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
+import { hasInterestGroupBadge } from '@/lib/interestGroupBadge';
 import { createClient } from '@/lib/supabase/client';
 import { toast } from '@/lib/toast';
 
@@ -124,7 +125,7 @@ export default function OrganizationPublicPage() {
                 <span className="tt-bubble">Página verificada por la organización</span>
               </span>
             )}
-            {org.interest_group_registered && (
+            {hasInterestGroupBadge(org) && (
               <span className="tt">
                 <i className="ti ti-shield-check" style={{ color: '#6d5aef', fontSize: 17 }}></i>
                 <span className="tt-bubble">
