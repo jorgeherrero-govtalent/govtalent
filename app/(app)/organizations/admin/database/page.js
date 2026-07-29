@@ -77,28 +77,25 @@ export default function OrganizationsDatabasePage() {
   }
 
   const typeValues = useMemo(() => {
-    if (!orgs) return [];
-    const seen = new Set(orgs.map((o) => o.org_type).filter(Boolean));
+    const seen = new Set((orgs || []).map((o) => o.org_type).filter(Boolean));
     return [...seen].sort().map((t) => ({ value: t, label: TYPE_LABELS[t] || t }));
   }, [orgs]);
 
   const sectorValues = useMemo(() => {
-    if (!orgs) return [];
-    const seen = new Set(orgs.map((o) => o.sector).filter(Boolean));
+    const seen = new Set((orgs || []).map((o) => o.sector).filter(Boolean));
     return [...seen].sort((a, b) => a.localeCompare(b, 'es')).map((s) => ({ value: s, label: s }));
   }, [orgs]);
 
   const locationValues = useMemo(() => {
-    if (!orgs) return [];
-    const seen = new Set(orgs.map((o) => o.location).filter(Boolean));
+    const seen = new Set((orgs || []).map((o) => o.location).filter(Boolean));
     return [...seen].sort((a, b) => a.localeCompare(b, 'es')).map((l) => ({ value: l, label: l }));
   }, [orgs]);
 
   const filtered = useMemo(() => {
     if (!orgs) return [];
     const q = search.trim().toLowerCase();
-    let list = orgs
-      .filter(QUICK_FILTERS[quickFilter])
+    let list = (orgs || [])
+      .filter(QUICK_FILTERS[quickFilter] || QUICK_FILTERS.todas)
       .filter((o) => typeFilter.size === 0 || typeFilter.has(o.org_type))
       .filter((o) => sectorFilter.size === 0 || sectorFilter.has(o.sector || ''))
       .filter((o) => locationFilter.size === 0 || locationFilter.has(o.location || ''))
@@ -123,14 +120,13 @@ export default function OrganizationsDatabasePage() {
 
   // --- Datos para el panel de análisis (BI) ---
   const analytics = useMemo(() => {
-    if (!orgs) return null;
-
+    const list = orgs || [];
     const byType = {};
     const byLocation = {};
     const bySize = {};
     let interestGroupCount = 0;
 
-    for (const o of orgs) {
+    for (const o of list) {
       if (o.org_type) byType[o.org_type] = (byType[o.org_type] || 0) + 1;
       if (o.location) byLocation[o.location] = (byLocation[o.location] || 0) + 1;
       const sizeKey = o.size_range || 'sin_especificar';
@@ -152,12 +148,12 @@ export default function OrganizationsDatabasePage() {
       .map((k) => ({ label: k === 'sin_especificar' ? 'Sin especificar' : SIZE_LABELS[k], value: bySize[k] }));
 
     return {
-      total: orgs.length,
+      total: list.length,
       typeData,
       locationData,
       sizeData,
       interestGroupCount,
-      interestGroupPct: orgs.length ? Math.round((interestGroupCount / orgs.length) * 100) : 0,
+      interestGroupPct: list.length ? Math.round((interestGroupCount / list.length) * 100) : 0,
     };
   }, [orgs]);
 
