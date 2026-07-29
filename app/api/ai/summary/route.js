@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { checkAndLogAiUsage } from '@/lib/aiRateLimit';
+import { isOrganizationMember } from '@/lib/requireOrgMember';
 
 export async function POST(request) {
   const { applicationId } = await request.json();
@@ -20,14 +21,15 @@ export async function POST(request) {
     return NextResponse.json({ error: rateCheck.reason }, { status: 429 });
   }
 
-  // Esta consulta respeta las políticas de seguridad (RLS): solo funcionará
-  // si quien la pide es el propio candidato o un miembro de la organización
-  // dueña de la oferta.
+  // Esta consulta respeta las políticas de seguridad (RLS) como primera
+  // capa, pero además comprobamos explícitamente que quien la pide es un
+  // miembro de la organización dueña de la oferta, en vez de depender solo
+  // de que la consulta falle silenciosamente si RLS estuviera mal configurada.
   const { data: app, error: appErr } = await supabase
     .from('job_applications')
     .select(
       `id, cover_note, candidate_id,
-       jobs ( title, description ),
+       jobs ( title, description, organization_id ),
        users ( first_name, last_name, professional_title )`
     )
     .eq('id', applicationId)
@@ -35,6 +37,11 @@ export async function POST(request) {
 
   if (appErr || !app) {
     return NextResponse.json({ error: 'No se encontró la candidatura' }, { status: 404 });
+  }
+
+  const isMember = await isOrganizationMember(authData.user.id, app.jobs?.organization_id);
+  if (!isMember) {
+    return NextResponse.json({ error: 'No autorizado' }, { status: 403 });
   }
 
   const [{ data: profile }, { data: experiences }, { data: education }, { data: skills }] = await Promise.all([
