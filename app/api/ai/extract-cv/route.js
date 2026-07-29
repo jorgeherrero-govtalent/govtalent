@@ -1,12 +1,18 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { checkAndLogAiUsage } from '@/lib/aiRateLimit';
 
 export async function POST() {
   const supabase = createClient();
   const { data: authData } = await supabase.auth.getUser();
   if (!authData.user) {
     return NextResponse.json({ error: 'No autenticado' }, { status: 401 });
+  }
+
+  const rateCheck = await checkAndLogAiUsage(authData.user.id, 'extract-cv');
+  if (!rateCheck.allowed) {
+    return NextResponse.json({ error: rateCheck.reason }, { status: 429 });
   }
 
   const apiKey = process.env.ANTHROPIC_API_KEY;
