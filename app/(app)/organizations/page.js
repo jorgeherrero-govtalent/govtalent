@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
 import { toast } from '@/lib/toast';
+import { hasInterestGroupBadge } from '@/lib/interestGroupBadge';
 
 const TYPE_LABELS = {
   empresa: 'Empresa',
@@ -195,7 +196,7 @@ export default function OrganizationsDirectory() {
                             <span className="tt-bubble">Página verificada por la organización</span>
                           </span>
                         )}
-                        {o.interest_group_registered && (
+                        {hasInterestGroupBadge(o) && (
                           <span className="tt">
                             <i className="ti ti-shield-check" style={{ color: '#6d5aef' }}></i>
                             <span className="tt-bubble">
@@ -252,7 +253,7 @@ export default function OrganizationsDirectory() {
                             <span className="tt-bubble">Página verificada por la organización</span>
                           </span>
                         )}
-                        {o.interest_group_registered && (
+                        {hasInterestGroupBadge(o) && (
                           <span className="tt">
                             <i className="ti ti-shield-check" style={{ color: '#6d5aef' }}></i>
                             <span className="tt-bubble">
