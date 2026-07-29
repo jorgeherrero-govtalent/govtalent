@@ -1,5 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
+import { safeFetchText } from '@/lib/safeFetch';
+import { checkAndLogAiUsage } from '@/lib/aiRateLimit';
 
 function htmlToText(html) {
   return html
@@ -27,6 +29,11 @@ export async function POST(request) {
     return NextResponse.json({ error: 'No autenticado' }, { status: 401 });
   }
 
+  const rateCheck = await checkAndLogAiUsage(authData.user.id, 'org-description');
+  if (!rateCheck.allowed) {
+    return NextResponse.json({ error: rateCheck.reason }, { status: 429 });
+  }
+
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) {
     return NextResponse.json({ error: 'Falta configurar ANTHROPIC_API_KEY en el servidor' }, { status: 500 });
@@ -38,14 +45,10 @@ export async function POST(request) {
   const normalizedUrl = websiteUrl.startsWith('http') ? websiteUrl : `https://${websiteUrl}`;
   let pageText = '';
   try {
-    const pageRes = await fetch(normalizedUrl, {
-      headers: { 'User-Agent': 'Mozilla/5.0 (compatible; GovTalentBot/1.0)' },
-    });
-    if (!pageRes.ok) throw new Error('No se pudo acceder a la web');
-    const html = await pageRes.text();
+    const html = await safeFetchText(normalizedUrl);
     pageText = htmlToText(html);
   } catch (err) {
-    return NextResponse.json({ error: 'No se pudo leer esa web. Comprueba que la URL es correcta y accesible.' }, { status: 400 });
+    return NextResponse.json({ error: err.message || 'No se pudo leer esa web. Comprueba que la URL es correcta y accesible.' }, { status: 400 });
   }
 
   if (!pageText || pageText.length < 100) {
