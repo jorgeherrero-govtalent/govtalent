@@ -9,12 +9,8 @@ const NAV = [
   { href: '/organizations/admin/company', label: 'Página de empresa', icon: 'ti-building' },
   { href: '/organizations/admin/jobs', label: 'Ofertas', icon: 'ti-briefcase' },
   { href: '/organizations/admin/candidates', label: 'Candidatos', icon: 'ti-users' },
+  { href: '/organizations/admin/database', label: 'Base de datos', icon: 'ti-database' },
   { href: '/organizations/admin/influence-log', label: 'Transparencia', icon: 'ti-shield-check' },
-];
-
-const NAV_SOON = [
-  { label: 'Base de datos', icon: 'ti-database' },
-  { label: 'Publicar evento', icon: 'ti-calendar-event' },
 ];
 
 export default function OrganizationAdminLayout({ children }) {
@@ -108,31 +104,6 @@ export default function OrganizationAdminLayout({ children }) {
             </Link>
           );
         })}
-
-        {NAV_SOON.map((item) => (
-          <div
-            key={item.label}
-            title="Próximamente"
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: collapsed ? 'center' : 'flex-start',
-              gap: 9,
-              padding: collapsed ? '9px' : '9px 10px',
-              borderRadius: 8,
-              color: '#bbb',
-              cursor: 'default',
-              fontSize: 13,
-            }}
-          >
-            <i className={`ti ${item.icon}`} style={{ fontSize: 15, flexShrink: 0 }}></i>
-            {!collapsed && (
-              <span>
-                {item.label} <span style={{ fontSize: 10 }}>(Próx.)</span>
-              </span>
-            )}
-          </div>
-        ))}
 
         <div style={{ flex: 1 }} />
 
