@@ -1,12 +1,8 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
+import { createAdminClient } from '@/lib/supabase/admin';
 
-export async function POST(request) {
-  const { cvUrl } = await request.json();
-  if (!cvUrl) {
-    return NextResponse.json({ error: 'Falta la URL del CV' }, { status: 400 });
-  }
-
+export async function POST() {
   const supabase = createClient();
   const { data: authData } = await supabase.auth.getUser();
   if (!authData.user) {
@@ -18,12 +14,26 @@ export async function POST(request) {
     return NextResponse.json({ error: 'Falta configurar ANTHROPIC_API_KEY en el servidor' }, { status: 500 });
   }
 
-  // Descargamos el PDF ya subido y lo convertimos a base64 para enviarlo a la IA.
+  // Ya no aceptamos ninguna URL del cliente: leemos siempre el CV que el
+  // propio usuario autenticado tiene subido, directamente desde el storage
+  // privado. Esto elimina por completo el riesgo de que se use este
+  // endpoint para descargar recursos arbitrarios (SSRF).
+  const { data: profile } = await supabase
+    .from('candidate_profiles')
+    .select('cv_url')
+    .eq('user_id', authData.user.id)
+    .single();
+
+  if (!profile?.cv_url) {
+    return NextResponse.json({ error: 'No tienes un CV subido' }, { status: 400 });
+  }
+
   let base64Pdf;
   try {
-    const pdfRes = await fetch(cvUrl);
-    if (!pdfRes.ok) throw new Error('No se pudo descargar el CV');
-    const arrayBuffer = await pdfRes.arrayBuffer();
+    const admin = createAdminClient();
+    const { data: fileBlob, error: dlErr } = await admin.storage.from('cvs').download(profile.cv_url);
+    if (dlErr || !fileBlob) throw new Error('No se pudo descargar el CV');
+    const arrayBuffer = await fileBlob.arrayBuffer();
     base64Pdf = Buffer.from(arrayBuffer).toString('base64');
   } catch (err) {
     return NextResponse.json({ error: 'No se pudo leer el archivo del CV' }, { status: 400 });
