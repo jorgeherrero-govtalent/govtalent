@@ -3,7 +3,7 @@ import { createClient } from '@/lib/supabase/server';
 
 export async function POST(request) {
   const { applicationId, messageType } = await request.json();
-  if (!applicationId || !['oferta', 'rechazada'].includes(messageType)) {
+  if (!applicationId || !['oferta', 'rechazada', 'entrevista'].includes(messageType)) {
     return NextResponse.json({ error: 'Datos incompletos' }, { status: 400 });
   }
 
@@ -44,6 +44,8 @@ export async function POST(request) {
   let instructions;
   if (messageType === 'oferta') {
     instructions = `Redacta un mensaje breve (email) comunicando a ${app.users?.first_name} que ha sido seleccionado/a para el puesto de "${app.jobs?.title}" en ${org?.name}, felicitándole y proponiendo dar los siguientes pasos (llamada o reunión para formalizar la oferta). No inventes fechas ni condiciones concretas, deja eso para una conversación posterior.`;
+  } else if (messageType === 'entrevista') {
+    instructions = `Redacta un mensaje breve (email) invitando a ${app.users?.first_name} a una entrevista para el puesto de "${app.jobs?.title}" en ${org?.name}. Transmite que su candidatura ha avanzado en el proceso, pídele que indique su disponibilidad para las próximas fechas, y menciona que le facilitaréis los detalles (formato, duración) en breve. No inventes una fecha, hora ni formato concretos.`;
   } else {
     instructions = `Redacta un mensaje breve (email) comunicando a ${app.users?.first_name} que, tras revisar su candidatura para el puesto de "${app.jobs?.title}" en ${org?.name}, no se va a avanzar en el proceso de selección en esta ocasión. Motivo interno a tener en cuenta (no lo cites literalmente ni de forma hiriente, incorpóralo con tacto si aporta valor al candidato): "${app.rejection_reason || 'no especificado'}${app.rejection_details ? ' — ' + app.rejection_details : ''}". Agradece su interés y el tiempo dedicado, y deséale suerte en su búsqueda.`;
   }
