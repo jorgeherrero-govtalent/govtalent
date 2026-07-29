@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { toast } from '@/lib/toast';
+import { hasInterestGroupBadge } from '@/lib/interestGroupBadge';
 
 export default function OrganizationAdminPage() {
   const supabase = createClient();
@@ -136,7 +137,7 @@ export default function OrganizationAdminPage() {
                     <span className="tt-bubble">Página verificada por la organización</span>
                   </span>
                 )}
-                {org.interest_group_registered && (
+                {hasInterestGroupBadge(org) && (
                   <span className="tt">
                     <i className="ti ti-shield-check" style={{ color: '#6d5aef', fontSize: 15.5 }}></i>
                     <span className="tt-bubble">
