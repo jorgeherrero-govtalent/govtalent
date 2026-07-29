@@ -73,6 +73,21 @@ function CandidatesBoardInner() {
     load();
   }, []);
 
+  async function viewCandidateCv(applicationId) {
+    try {
+      const res = await fetch('/api/cv/signed-url', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ context: 'application', applicationId }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'No se pudo abrir el CV');
+      window.open(data.url, '_blank', 'noopener,noreferrer');
+    } catch (err) {
+      toast(err.message);
+    }
+  }
+
   useEffect(() => {
     setVisibleCounts({});
   }, [nameFilter, jobFilter, scoreFilter]);
@@ -511,9 +526,12 @@ function CandidatesBoardInner() {
                 </span>
               )}
               {detailApp.cv_url_snapshot && (
-                <a href={detailApp.cv_url_snapshot} target="_blank" rel="noreferrer" style={{ color: '#1d6f5c', fontWeight: 500 }}>
+                <span
+                  onClick={() => viewCandidateCv(detailApp.id)}
+                  style={{ color: '#1d6f5c', fontWeight: 500, cursor: 'pointer' }}
+                >
                   <i className="ti ti-file-cv"></i> Ver CV
-                </a>
+                </span>
               )}
             </div>
 
