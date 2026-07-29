@@ -265,23 +265,6 @@ export default function OrganizationAdminPage() {
               Ver todas las ofertas →
             </a>
           </div>
-
-          <div className="sw" style={{ marginTop: 16 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6 }}>
-              <i className="ti ti-shield-check" style={{ color: '#6d5aef', fontSize: 16 }}></i>
-              <h4 style={{ margin: 0 }}>Transparencia y grupos de interés</h4>
-            </div>
-            <p style={{ fontSize: 12, color: '#888', marginBottom: 10 }}>
-              Lleva el registro de tus reuniones y contactos con personal público, exigido por la nueva ley de
-              transparencia de grupos de interés.
-            </p>
-            <a
-              href="/organizations/admin/influence-log"
-              style={{ fontSize: 12.5, color: '#1d6f5c', textDecoration: 'none', display: 'inline-block' }}
-            >
-              Ver registro de actividad →
-            </a>
-          </div>
         </div>
       </div>
 
