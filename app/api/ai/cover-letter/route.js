@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
+import { checkAndLogAiUsage } from '@/lib/aiRateLimit';
 
 export async function POST(request) {
   const { jobId } = await request.json();
@@ -13,6 +14,11 @@ export async function POST(request) {
     return NextResponse.json({ error: 'No autenticado' }, { status: 401 });
   }
   const uid = authData.user.id;
+
+  const rateCheck = await checkAndLogAiUsage(uid, 'cover-letter');
+  if (!rateCheck.allowed) {
+    return NextResponse.json({ error: rateCheck.reason }, { status: 429 });
+  }
 
   const { data: job, error: jobErr } = await supabase
     .from('jobs')
