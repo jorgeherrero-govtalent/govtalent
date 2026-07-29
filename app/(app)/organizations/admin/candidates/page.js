@@ -339,11 +339,6 @@ function CandidatesBoardInner() {
 
   return (
     <div className="sec">
-      <div style={{ marginBottom: 10 }}>
-        <Link href="/organizations/admin" style={{ fontSize: 12.5, color: '#1d6f5c', textDecoration: 'none' }}>
-          <i className="ti ti-arrow-left"></i> Volver a mi organización
-        </Link>
-      </div>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 10, marginBottom: 12 }}>
         <div>
           <h2 style={{ fontSize: 19, fontWeight: 700 }}>Candidatos</h2>
