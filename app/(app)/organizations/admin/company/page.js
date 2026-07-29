@@ -144,8 +144,17 @@ export default function CompanyPagePage() {
 
   async function saveOrgEdit(e) {
     e.preventDefault();
-    setSaving(true);
     const f = new FormData(e.target);
+
+    const interestGroupRegistered = f.get('interest_group_registered') === 'on';
+    const interestGroupRegistryNumber = f.get('interest_group_registry_number') || '';
+    const interestGroupRegisteredAt = f.get('interest_group_registered_at') || '';
+    if (interestGroupRegistered && (!interestGroupRegistryNumber.trim() || !interestGroupRegisteredAt)) {
+      toast('Si marcáis que estáis inscritos como grupo de interés, indica también el número de inscripción y la fecha');
+      return;
+    }
+
+    setSaving(true);
     const updates = {
       name: f.get('name'),
       website_url: f.get('website_url') || null,
@@ -156,9 +165,9 @@ export default function CompanyPagePage() {
       founded_year: f.get('founded_year') ? Number(f.get('founded_year')) : null,
       bio: f.get('bio') || null,
       notification_email: f.get('notification_email') || null,
-      interest_group_registered: f.get('interest_group_registered') === 'on',
-      interest_group_registry_number: f.get('interest_group_registry_number') || null,
-      interest_group_registered_at: f.get('interest_group_registered_at') || null,
+      interest_group_registered: interestGroupRegistered,
+      interest_group_registry_number: interestGroupRegistryNumber || null,
+      interest_group_registered_at: interestGroupRegisteredAt || null,
     };
     const { error } = await supabase.from('organizations').update(updates).eq('id', org.id);
     setSaving(false);
