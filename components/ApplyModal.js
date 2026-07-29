@@ -60,14 +60,28 @@ export default function ApplyModal({ job, onClose, onSuccess }) {
       toast('No se pudo subir el CV');
       return;
     }
-    const { data } = supabase.storage.from('cvs').getPublicUrl(path);
-    const newUrl = `${data.publicUrl}?t=${Date.now()}`;
+    // Guardamos solo la ruta interna: el bucket "cvs" es privado.
     await supabase
       .from('candidate_profiles')
-      .update({ cv_url: newUrl, cv_uploaded_at: new Date().toISOString() })
+      .update({ cv_url: path, cv_uploaded_at: new Date().toISOString() })
       .eq('user_id', userId);
-    setCvUrl(newUrl);
+    setCvUrl(path);
     toast('CV actualizado ✓');
+  }
+
+  async function viewCv() {
+    try {
+      const res = await fetch('/api/cv/signed-url', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ context: 'own' }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'No se pudo abrir el CV');
+      window.open(data.url, '_blank', 'noopener,noreferrer');
+    } catch (err) {
+      toast(err.message);
+    }
   }
 
   async function generateCoverLetter() {
@@ -224,9 +238,9 @@ export default function ApplyModal({ job, onClose, onSuccess }) {
                   >
                     <i className="ti ti-file-cv" style={{ fontSize: 22, color: '#1d6f5c' }}></i>
                     <div style={{ flex: 1, fontSize: 13 }}>Tu CV está listo para enviar</div>
-                    <a href={cvUrl} target="_blank" rel="noreferrer" className="btn-g" style={{ textDecoration: 'none' }}>
+                    <button type="button" onClick={viewCv} className="btn-g">
                       Ver
-                    </a>
+                    </button>
                   </div>
                 ) : (
                   <div style={{ fontSize: 12.5, color: '#999', marginBottom: 14 }}>
