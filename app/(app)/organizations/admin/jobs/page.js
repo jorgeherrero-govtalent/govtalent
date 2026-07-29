@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
 import { toast } from '@/lib/toast';
@@ -24,6 +24,21 @@ export default function AllJobsPage() {
   const [editingJob, setEditingJob] = useState(null);
   const [loadingEditJob, setLoadingEditJob] = useState(false);
   const [savingJobEdit, setSavingJobEdit] = useState(false);
+
+  const [showNewJob, setShowNewJob] = useState(false);
+  const [posting, setPosting] = useState(false);
+  const [aiPrompt, setAiPrompt] = useState('');
+  const [showAiJobModal, setShowAiJobModal] = useState(false);
+  const [generatingDesc, setGeneratingDesc] = useState(false);
+
+  const titleRef = useRef(null);
+  const areaRef = useRef(null);
+  const modalityRef = useRef(null);
+  const employmentTypeRef = useRef(null);
+  const descriptionRef = useRef(null);
+  const responsibilitiesRef = useRef(null);
+  const requirementsRef = useRef(null);
+  const tagsRef = useRef(null);
 
   useEffect(() => {
     load();
@@ -134,6 +149,95 @@ export default function AllJobsPage() {
     load();
   }
 
+  async function generateJobDescription() {
+    if (!aiPrompt.trim()) {
+      toast('Describe brevemente el puesto para poder generarlo');
+      return;
+    }
+    setGeneratingDesc(true);
+    try {
+      const res = await fetch('/api/ai/job-description', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          prompt: aiPrompt,
+          title: titleRef.current?.value,
+          area: areaRef.current?.value,
+          modality: modalityRef.current?.value,
+          employmentType: employmentTypeRef.current?.value,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Error desconocido');
+
+      if (descriptionRef.current) descriptionRef.current.value = data.description;
+      if (responsibilitiesRef.current) responsibilitiesRef.current.value = data.responsibilities.join('\n');
+      if (requirementsRef.current) requirementsRef.current.value = data.requirements.join('\n');
+      if (tagsRef.current) tagsRef.current.value = data.tags.join(', ');
+
+      setShowAiJobModal(false);
+      toast('Contenido generado ✓ revísalo antes de publicar');
+    } catch (err) {
+      toast('No se pudo generar el contenido: ' + err.message);
+    }
+    setGeneratingDesc(false);
+  }
+
+  async function publishJob(e) {
+    e.preventDefault();
+    setPosting(true);
+    const f = new FormData(e.target);
+
+    const { data: job, error } = await supabase
+      .from('jobs')
+      .insert({
+        organization_id: org.id,
+        title: f.get('title'),
+        area: f.get('area'),
+        location: f.get('location'),
+        modality: f.get('modality'),
+        employment_type: f.get('employment_type'),
+        salary_min: f.get('salary_min') ? Number(f.get('salary_min')) : null,
+        salary_max: f.get('salary_max') ? Number(f.get('salary_max')) : null,
+        description: f.get('description'),
+        status: 'activa',
+        published_at: new Date().toISOString(),
+      })
+      .select()
+      .single();
+
+    if (error || !job) {
+      setPosting(false);
+      toast('No se pudo publicar la oferta');
+      return;
+    }
+
+    const reqLines = (f.get('requirements') || '').split('\n').map((s) => s.trim()).filter(Boolean);
+    const resLines = (f.get('responsibilities') || '').split('\n').map((s) => s.trim()).filter(Boolean);
+    const tags = (f.get('tags') || '').split(',').map((s) => s.trim()).filter(Boolean);
+
+    if (reqLines.length > 0) {
+      await supabase
+        .from('job_requirements')
+        .insert(reqLines.map((content, i) => ({ job_id: job.id, content, sort_order: i })));
+    }
+    if (resLines.length > 0) {
+      await supabase
+        .from('job_responsibilities')
+        .insert(resLines.map((content, i) => ({ job_id: job.id, content, sort_order: i })));
+    }
+    if (tags.length > 0) {
+      await supabase.from('job_tags').insert(tags.map((tag) => ({ job_id: job.id, tag })));
+    }
+
+    setPosting(false);
+    e.target.reset();
+    setAiPrompt('');
+    setShowNewJob(false);
+    toast('Oferta publicada correctamente ✓');
+    load();
+  }
+
   if (loading) return <div className="spinner"></div>;
 
   if (!org) {
@@ -155,8 +259,15 @@ export default function AllJobsPage() {
     <div className="sec" style={{ maxWidth: 900 }}>
       <div className="card">
         <div className="cp">
-          <h2 style={{ fontSize: 18, fontWeight: 700, marginBottom: 4 }}>Todas las ofertas</h2>
-          <p style={{ fontSize: 13, color: '#888', marginBottom: 16 }}>Gestiona los anuncios de empleo de {org.name}.</p>
+          <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 10, flexWrap: 'wrap' }}>
+            <div>
+              <h2 style={{ fontSize: 18, fontWeight: 700, marginBottom: 4 }}>Todas las ofertas</h2>
+              <p style={{ fontSize: 13, color: '#888', marginBottom: 16 }}>Gestiona los anuncios de empleo de {org.name}.</p>
+            </div>
+            <button className="btn-p" onClick={() => setShowNewJob(true)} style={{ flexShrink: 0 }}>
+              <i className="ti ti-plus"></i> Nueva oferta
+            </button>
+          </div>
 
           <div style={{ display: 'flex', gap: 6, borderBottom: '.5px solid #e0dfd8', marginBottom: 16 }}>
             <button
@@ -348,6 +459,129 @@ export default function AllJobsPage() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+      {showNewJob && (
+        <div className="modal-ov on" onClick={(e) => e.target === e.currentTarget && setShowNewJob(false)}>
+          <div className="modal-box" style={{ maxWidth: 640 }}>
+            <div className="modal-head">
+              <h2>Publicar oferta de empleo</h2>
+              <div className="modal-x" onClick={() => setShowNewJob(false)}>
+                <i className="ti ti-x"></i>
+              </div>
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 12 }}>
+              <button type="button" className="btn-ai-o" style={{ fontSize: 12 }} onClick={() => setShowAiJobModal(true)}>
+                <i className="ti ti-bolt"></i> Redactar con IA
+              </button>
+            </div>
+            <form onSubmit={publishJob}>
+              <div className="form-row">
+                <div className="form-g">
+                  <label>Título del puesto</label>
+                  <input ref={titleRef} name="title" required placeholder="Ej: Senior Public Affairs Manager" />
+                </div>
+                <div className="form-g">
+                  <label>Área</label>
+                  <select ref={areaRef} name="area" required>
+                    {AREAS.map((a) => (
+                      <option key={a} value={a}>
+                        {a}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+              <div className="form-row">
+                <div className="form-g">
+                  <label>Ubicación</label>
+                  <input name="location" required placeholder="Madrid, España" />
+                </div>
+                <div className="form-g">
+                  <label>Modalidad</label>
+                  <select ref={modalityRef} name="modality" required>
+                    <option value="presencial">Presencial</option>
+                    <option value="hibrido">Híbrido</option>
+                    <option value="remoto">Remoto</option>
+                  </select>
+                </div>
+              </div>
+              <div className="form-row">
+                <div className="form-g">
+                  <label>Tipo de jornada</label>
+                  <select ref={employmentTypeRef} name="employment_type" required>
+                    <option value="jornada_completa">Jornada completa</option>
+                    <option value="media_jornada">Media jornada</option>
+                    <option value="practicas">Prácticas</option>
+                    <option value="freelance">Freelance</option>
+                  </select>
+                </div>
+                <div className="form-g">
+                  <label>Rango salarial (opcional)</label>
+                  <div style={{ display: 'flex', gap: 6 }}>
+                    <input name="salary_min" type="number" placeholder="35000" />
+                    <input name="salary_max" type="number" placeholder="45000" />
+                  </div>
+                </div>
+              </div>
+              <div className="form-g">
+                <label>Descripción</label>
+                <textarea ref={descriptionRef} name="description" required placeholder="Describe las responsabilidades, requisitos y condiciones..."></textarea>
+              </div>
+              <div className="form-g">
+                <label>Responsabilidades (una por línea)</label>
+                <textarea ref={responsibilitiesRef} name="responsibilities" placeholder={'Liderar la estrategia...\nRepresentar a la empresa...'}></textarea>
+              </div>
+              <div className="form-g">
+                <label>Requisitos (uno por línea)</label>
+                <textarea ref={requirementsRef} name="requirements" placeholder={'5+ años de experiencia...\nInglés fluido...'}></textarea>
+              </div>
+              <div className="form-g">
+                <label>Etiquetas (separadas por comas)</label>
+                <input ref={tagsRef} name="tags" placeholder="Public Affairs, Regulación, Liderazgo" />
+              </div>
+              <div className="m-foot">
+                <button type="button" className="m-back" onClick={() => setShowNewJob(false)}>
+                  Cancelar
+                </button>
+                <button className="m-next" disabled={posting}>
+                  <i className="ti ti-send"></i> {posting ? 'Publicando...' : 'Publicar oferta'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {showAiJobModal && (
+        <div className="modal-ov on" onClick={(e) => e.target === e.currentTarget && setShowAiJobModal(false)}>
+          <div className="modal-box" style={{ maxWidth: 480 }}>
+            <div className="modal-head">
+              <h2>Redactar con IA</h2>
+              <div className="modal-x" onClick={() => setShowAiJobModal(false)}>
+                <i className="ti ti-x"></i>
+              </div>
+            </div>
+            <p style={{ fontSize: 12.5, color: '#888', marginBottom: 10 }}>
+              Describe brevemente el puesto (funciones clave, experiencia deseada, algo que lo diferencie) y
+              generamos la descripción, responsabilidades, requisitos y etiquetas. Revisa siempre el resultado antes
+              de publicar.
+            </p>
+            <textarea
+              value={aiPrompt}
+              onChange={(e) => setAiPrompt(e.target.value)}
+              placeholder="Ej: Consultor senior de asuntos públicos para el sector energético, con experiencia en relaciones con Congreso y comunidades autónomas..."
+              style={{ width: '100%', minHeight: 110, padding: '10px 12px', border: '1px solid #e0dfd8', borderRadius: 9, fontSize: 13, fontFamily: 'inherit', outline: 'none', resize: 'vertical', marginBottom: 14 }}
+            ></textarea>
+            <div className="m-foot">
+              <button type="button" className="m-back" onClick={() => setShowAiJobModal(false)}>
+                Cancelar
+              </button>
+              <button type="button" className="btn-ai" onClick={generateJobDescription} disabled={generatingDesc}>
+                <i className="ti ti-bolt"></i> {generatingDesc ? 'Generando...' : 'Generar contenido'}
+              </button>
+            </div>
           </div>
         </div>
       )}
