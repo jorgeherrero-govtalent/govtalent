@@ -272,26 +272,38 @@ export default function ProfilePage() {
       toast('No se pudo subir el CV. Comprueba que existe el bucket "cvs".');
       return;
     }
-    const { data } = supabase.storage.from('cvs').getPublicUrl(path);
-    const cvUrl = `${data.publicUrl}?t=${Date.now()}`;
+    // Guardamos solo la ruta interna del archivo, no una URL pública: el
+    // bucket "cvs" es privado y las visualizaciones se hacen con una URL
+    // firmada temporal generada bajo demanda (ver viewCv más abajo).
     const uploadedAt = new Date().toISOString();
     await supabase
       .from('candidate_profiles')
-      .update({ cv_url: cvUrl, cv_uploaded_at: uploadedAt })
+      .update({ cv_url: path, cv_uploaded_at: uploadedAt })
       .eq('user_id', userId);
-    setProfile({ ...profile, cv_url: cvUrl, cv_uploaded_at: uploadedAt });
+    setProfile({ ...profile, cv_url: path, cv_uploaded_at: uploadedAt });
     toast('CV subido correctamente ✓');
+  }
+
+  async function viewCv() {
+    try {
+      const res = await fetch('/api/cv/signed-url', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ context: 'own' }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'No se pudo abrir el CV');
+      window.open(data.url, '_blank', 'noopener,noreferrer');
+    } catch (err) {
+      toast(err.message);
+    }
   }
 
   async function extractFromCv() {
     if (!profile?.cv_url) return;
     setExtractingCv(true);
     try {
-      const res = await fetch('/api/ai/extract-cv', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ cvUrl: profile.cv_url }),
-      });
+      const res = await fetch('/api/ai/extract-cv', { method: 'POST' });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Error desconocido');
       setCvExtractResult(data);
@@ -1475,9 +1487,9 @@ export default function ProfilePage() {
                     CV subido
                     {profile.cv_uploaded_at && ` · ${new Date(profile.cv_uploaded_at).toLocaleDateString('es-ES')}`}
                     <div style={{ display: 'flex', gap: 8, marginTop: 6 }}>
-                      <a href={profile.cv_url} target="_blank" rel="noreferrer" className="btn-o" style={{ fontSize: 11.5, padding: '5px 10px', textDecoration: 'none' }}>
+                      <button type="button" onClick={viewCv} className="btn-o" style={{ fontSize: 11.5, padding: '5px 10px' }}>
                         Ver CV
-                      </a>
+                      </button>
                       <label className="btn-g" style={{ fontSize: 11.5, padding: '5px 10px', cursor: 'pointer' }}>
                         {uploadingCv ? 'Subiendo...' : 'Reemplazar'}
                         <input type="file" accept="application/pdf" hidden onChange={handleCvUpload} disabled={uploadingCv} />
