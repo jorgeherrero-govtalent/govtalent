@@ -6,11 +6,20 @@ import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
 import { toast } from '@/lib/toast';
 
+const ACTIVITY_TYPE_LABELS = {
+  reunion_audiencia: 'Reunión o audiencia',
+  conferencia_formacion: 'Conferencia o formación',
+  campana_comunicacion: 'Campaña de comunicación',
+  documento_posicion: 'Documento o posición entregado',
+  otro: 'Otro',
+};
+
 export default function OrganizationPublicPage() {
   const { slug } = useParams();
   const supabase = createClient();
   const [org, setOrg] = useState(null);
   const [jobs, setJobs] = useState([]);
+  const [publicActivities, setPublicActivities] = useState([]);
   const [userId, setUserId] = useState(null);
   const [following, setFollowing] = useState(false);
 
@@ -34,6 +43,15 @@ export default function OrganizationPublicPage() {
       .eq('status', 'activa')
       .order('created_at', { ascending: false });
     setJobs(js || []);
+
+    const { data: acts } = await supabase
+      .from('influence_activities')
+      .select('id, activity_date, activity_type, counterpart_name, subject')
+      .eq('organization_id', o.id)
+      .eq('is_public', true)
+      .order('activity_date', { ascending: false })
+      .limit(15);
+    setPublicActivities(acts || []);
 
     if (uid) {
       const { data: f } = await supabase
@@ -104,6 +122,14 @@ export default function OrganizationPublicPage() {
               <span className="tt">
                 <i className="ti ti-circle-check-filled" style={{ color: '#1d9d63', fontSize: 17 }}></i>
                 <span className="tt-bubble">Página verificada por la organización</span>
+              </span>
+            )}
+            {org.interest_group_registered && (
+              <span className="tt">
+                <i className="ti ti-shield-check" style={{ color: '#6d5aef', fontSize: 17 }}></i>
+                <span className="tt-bubble">
+                  Grupo de interés registrado{org.interest_group_registry_number ? ` · ${org.interest_group_registry_number}` : ''}
+                </span>
               </span>
             )}
           </div>
@@ -187,6 +213,33 @@ export default function OrganizationPublicPage() {
           </div>
         </div>
       </div>
+
+      {publicActivities.length > 0 && (
+        <div className="card" style={{ maxWidth: 900, margin: '13px auto 0', padding: 20 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+            <i className="ti ti-shield-check" style={{ color: '#6d5aef', fontSize: 17 }}></i>
+            <h3 style={{ fontSize: 15, fontWeight: 700, margin: 0 }}>Actividad de transparencia</h3>
+          </div>
+          <p style={{ fontSize: 12, color: '#888', marginBottom: 16 }}>
+            Contactos y actividades de influencia que esta organización ha hecho públicos voluntariamente, en línea
+            con la Ley de Transparencia e Integridad de los Grupos de Interés.
+          </p>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+            {publicActivities.map((a) => (
+              <div key={a.id} style={{ display: 'flex', gap: 12, paddingBottom: 12, borderBottom: '.5px solid #e0dfd8' }}>
+                <div style={{ fontSize: 11.5, color: '#999', minWidth: 84, flexShrink: 0 }}>{a.activity_date}</div>
+                <div>
+                  <div style={{ fontSize: 12.5, fontWeight: 600, color: '#333' }}>
+                    {ACTIVITY_TYPE_LABELS[a.activity_type] || a.activity_type}
+                    {a.counterpart_name ? ` — ${a.counterpart_name}` : ''}
+                  </div>
+                  <div style={{ fontSize: 12, color: '#666' }}>{a.subject}</div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
