@@ -405,6 +405,9 @@ export default function OrganizationAdminPage() {
       founded_year: f.get('founded_year') ? Number(f.get('founded_year')) : null,
       bio: f.get('bio') || null,
       notification_email: f.get('notification_email') || null,
+      interest_group_registered: f.get('interest_group_registered') === 'on',
+      interest_group_registry_number: f.get('interest_group_registry_number') || null,
+      interest_group_registered_at: f.get('interest_group_registered_at') || null,
     };
     await supabase.from('organizations').update(updates).eq('id', org.id);
     setOrg({ ...org, ...updates });
@@ -523,6 +526,14 @@ export default function OrganizationAdminPage() {
               <span className="tt">
                 <i className="ti ti-circle-check-filled" style={{ color: '#1d9d63', fontSize: 15.5 }}></i>
                 <span className="tt-bubble">Página verificada por la organización</span>
+              </span>
+            )}
+            {org.interest_group_registered && (
+              <span className="tt">
+                <i className="ti ti-shield-check" style={{ color: '#6d5aef', fontSize: 15.5 }}></i>
+                <span className="tt-bubble">
+                  Grupo de interés registrado{org.interest_group_registry_number ? ` · ${org.interest_group_registry_number}` : ''}
+                </span>
               </span>
             )}
           </div>
@@ -721,6 +732,23 @@ export default function OrganizationAdminPage() {
               Ver todas las ofertas →
             </a>
           </div>
+
+          <div className="sw" style={{ marginTop: 16 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6 }}>
+              <i className="ti ti-shield-check" style={{ color: '#6d5aef', fontSize: 16 }}></i>
+              <h4 style={{ margin: 0 }}>Transparencia y grupos de interés</h4>
+            </div>
+            <p style={{ fontSize: 12, color: '#888', marginBottom: 10 }}>
+              Lleva el registro de tus reuniones y contactos con personal público, exigido por la nueva ley de
+              transparencia de grupos de interés.
+            </p>
+            <a
+              href="/organizations/admin/influence-log"
+              style={{ fontSize: 12.5, color: '#1d6f5c', textDecoration: 'none', display: 'inline-block' }}
+            >
+              Ver registro de actividad →
+            </a>
+          </div>
         </div>
       </div>
 
@@ -840,6 +868,40 @@ export default function OrganizationAdminPage() {
                   A esta dirección llegarán los avisos de nuevas candidaturas — puede ser distinta del email con el
                   que gestionas esta página. Si lo dejas vacío, avisaremos a las cuentas con acceso de administrador.
                 </p>
+              </div>
+
+              <div
+                style={{
+                  background: '#f8faf9',
+                  border: '1px solid #d3e8df',
+                  borderRadius: 10,
+                  padding: 14,
+                  marginBottom: 16,
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
+                  <i className="ti ti-shield-check" style={{ color: '#1d6f5c', fontSize: 15 }}></i>
+                  <span style={{ fontSize: 13, fontWeight: 600 }}>Registro de Grupos de Interés</span>
+                </div>
+                <p style={{ fontSize: 11.5, color: '#888', marginBottom: 10 }}>
+                  Si tu organización realiza actividad de influencia ante altos cargos o personal público, la Ley de
+                  Transparencia e Integridad de los Grupos de Interés obliga a inscribirse en el registro estatal
+                  correspondiente. Si ya lo has hecho, indícalo aquí para mostrarlo en tu página pública.
+                </p>
+                <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, marginBottom: 10, cursor: 'pointer' }}>
+                  <input type="checkbox" name="interest_group_registered" defaultChecked={org.interest_group_registered} />
+                  Estamos inscritos como grupo de interés
+                </label>
+                <div className="two">
+                  <div className="field">
+                    <label>Nº de inscripción</label>
+                    <input name="interest_group_registry_number" defaultValue={org.interest_group_registry_number || ''} placeholder="Ej: RGI-2026-00123" />
+                  </div>
+                  <div className="field">
+                    <label>Fecha de inscripción</label>
+                    <input name="interest_group_registered_at" type="date" defaultValue={org.interest_group_registered_at || ''} />
+                  </div>
+                </div>
               </div>
 
               <div className="field">
