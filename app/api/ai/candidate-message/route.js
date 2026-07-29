@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { checkAndLogAiUsage } from '@/lib/aiRateLimit';
+import { isOrganizationMember } from '@/lib/requireOrgMember';
 
 export async function POST(request) {
   const { applicationId, messageType } = await request.json();
@@ -31,6 +32,11 @@ export async function POST(request) {
 
   if (appErr || !app) {
     return NextResponse.json({ error: 'No se encontró la candidatura' }, { status: 404 });
+  }
+
+  const isMember = await isOrganizationMember(authData.user.id, app.jobs?.organization_id);
+  if (!isMember) {
+    return NextResponse.json({ error: 'No autorizado' }, { status: 403 });
   }
 
   const org = app.jobs?.organizations;
