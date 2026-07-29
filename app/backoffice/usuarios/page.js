@@ -28,6 +28,22 @@ export default function UsersBackofficePage() {
     load();
   }, []);
 
+  async function viewCv(userId) {
+    try {
+      const res = await fetch('/api/cv/signed-url', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ context: 'backoffice', userId }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'No se pudo abrir el CV');
+      window.open(data.url, '_blank', 'noopener,noreferrer');
+    } catch (err) {
+      setToastMsg(err.message);
+      setTimeout(() => setToastMsg(''), 2000);
+    }
+  }
+
   async function load() {
     const res = await fetch('/api/backoffice/users');
     const data = await res.json();
@@ -237,9 +253,15 @@ export default function UsersBackofficePage() {
                       }}
                     >
                       {f.key === 'cv_url' && u.cv_url ? (
-                        <a href={u.cv_url} target="_blank" rel="noreferrer" onClick={(e) => e.stopPropagation()} style={{ color: '#1d6f5c' }}>
+                        <span
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            viewCv(u.id);
+                          }}
+                          style={{ color: '#1d6f5c', cursor: 'pointer' }}
+                        >
                           Ver CV
-                        </a>
+                        </span>
                       ) : f.key === 'linkedin_url' && u.linkedin_url ? (
                         <a href={u.linkedin_url} target="_blank" rel="noreferrer" onClick={(e) => e.stopPropagation()} style={{ color: '#1d6f5c' }}>
                           {u.linkedin_url}
