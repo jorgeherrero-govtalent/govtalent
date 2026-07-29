@@ -21,7 +21,7 @@ export default function FilterableHeader({ label, columnKey, values, selected, o
     }
   }, [isOpen]);
 
-  const visibleValues = values.filter((v) => v.label.toLowerCase().includes(search.toLowerCase()));
+  const visibleValues = (values || []).filter((v) => v.label.toLowerCase().includes(search.toLowerCase()));
   const active = selected.size > 0 || sortConfig.key === columnKey;
 
   function toggleValue(v) {
