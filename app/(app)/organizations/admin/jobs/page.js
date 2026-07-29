@@ -153,12 +153,6 @@ export default function AllJobsPage() {
 
   return (
     <div className="sec" style={{ maxWidth: 900 }}>
-      <div style={{ marginBottom: 10 }}>
-        <Link href="/organizations/admin" style={{ fontSize: 12.5, color: '#1d6f5c', textDecoration: 'none' }}>
-          <i className="ti ti-arrow-left"></i> Volver a mi organización
-        </Link>
-      </div>
-
       <div className="card">
         <div className="cp">
           <h2 style={{ fontSize: 18, fontWeight: 700, marginBottom: 4 }}>Todas las ofertas</h2>
