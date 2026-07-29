@@ -41,6 +41,8 @@ function CandidatesBoardInner() {
   const [nameFilter, setNameFilter] = useState('');
   const [dragId, setDragId] = useState(null);
   const [ranking, setRanking] = useState(false);
+  const PAGE_SIZE = 6;
+  const [visibleCounts, setVisibleCounts] = useState({});
 
   const [detailApp, setDetailApp] = useState(null);
   const [notesDraft, setNotesDraft] = useState('');
@@ -70,6 +72,10 @@ function CandidatesBoardInner() {
   useEffect(() => {
     load();
   }, []);
+
+  useEffect(() => {
+    setVisibleCounts({});
+  }, [nameFilter, jobFilter, scoreFilter]);
 
   async function load() {
     setLoading(true);
@@ -145,9 +151,9 @@ function CandidatesBoardInner() {
     if (!dragId) return;
     if (newStatus === 'rechazada') {
       setStatusAction({ appId: dragId, targetStatus: 'rechazada', step: 'reason' });
-    } else if (newStatus === 'oferta') {
-      updateStatus(dragId, 'oferta');
-      setStatusAction({ appId: dragId, targetStatus: 'oferta', step: 'message' });
+    } else if (newStatus === 'oferta' || newStatus === 'entrevista') {
+      updateStatus(dragId, newStatus);
+      setStatusAction({ appId: dragId, targetStatus: newStatus, step: 'message' });
     } else {
       updateStatus(dragId, newStatus);
     }
@@ -332,7 +338,7 @@ function CandidatesBoardInner() {
   }
 
   return (
-    <div className="sec" style={{ maxWidth: 1400 }}>
+    <div className="sec">
       <div style={{ marginBottom: 10 }}>
         <Link href="/organizations/admin" style={{ fontSize: 12.5, color: '#1d6f5c', textDecoration: 'none' }}>
           <i className="ti ti-arrow-left"></i> Volver a mi organización
@@ -377,6 +383,9 @@ function CandidatesBoardInner() {
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 12, overflowX: 'auto' }}>
         {COLUMNS.map(([key, label]) => {
           const items = sortedForColumn(filtered.filter((a) => a.status === key));
+          const visibleCount = visibleCounts[key] || PAGE_SIZE;
+          const visibleItems = items.slice(0, visibleCount);
+          const remaining = items.length - visibleItems.length;
           return (
             <div
               key={key}
@@ -388,7 +397,7 @@ function CandidatesBoardInner() {
                 {label}
                 <span style={{ color: '#aaa' }}>{items.length}</span>
               </div>
-              {items.map((a) => (
+              {visibleItems.map((a) => (
                 <div
                   key={a.id}
                   draggable
@@ -439,6 +448,24 @@ function CandidatesBoardInner() {
                 </div>
               ))}
               {items.length === 0 && <div style={{ fontSize: 11, color: '#bbb', textAlign: 'center', padding: 20 }}>Sin candidatos</div>}
+              {remaining > 0 && (
+                <button
+                  type="button"
+                  onClick={() => setVisibleCounts((prev) => ({ ...prev, [key]: visibleCount + PAGE_SIZE }))}
+                  style={{
+                    width: '100%',
+                    padding: '8px',
+                    border: '.5px dashed #cfcec6',
+                    borderRadius: 8,
+                    background: '#fff',
+                    color: '#666',
+                    fontSize: 11.5,
+                    fontWeight: 600,
+                  }}
+                >
+                  Ver {Math.min(remaining, PAGE_SIZE)} más ({remaining} restantes)
+                </button>
+              )}
             </div>
           );
         })}
@@ -557,7 +584,13 @@ function CandidatesBoardInner() {
         <div className="modal-ov on" onClick={(e) => e.target === e.currentTarget && closeStatusAction()}>
           <div className="modal-box" style={{ maxWidth: 560 }}>
             <div className="modal-head">
-              <h2>{statusAction.targetStatus === 'rechazada' ? 'Motivo del rechazo' : 'Comunicar oferta'}</h2>
+              <h2>
+                {statusAction.targetStatus === 'rechazada'
+                  ? 'Motivo del rechazo'
+                  : statusAction.targetStatus === 'entrevista'
+                  ? 'Invitar a entrevista'
+                  : 'Comunicar oferta'}
+              </h2>
               <div className="modal-x" onClick={closeStatusAction}>
                 <i className="ti ti-x"></i>
               </div>
