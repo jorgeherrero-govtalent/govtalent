@@ -164,12 +164,6 @@ export default function InfluenceLogPage() {
 
   return (
     <div className="sec">
-      <div style={{ marginBottom: 10 }}>
-        <Link href="/organizations/admin" style={{ fontSize: 12.5, color: '#1d6f5c', textDecoration: 'none' }}>
-          <i className="ti ti-arrow-left"></i> Volver a mi organización
-        </Link>
-      </div>
-
       <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', flexWrap: 'wrap', gap: 10, marginBottom: 6 }}>
         <div>
           <h2 style={{ fontSize: 19, fontWeight: 700 }}>Registro de actividad de influencia</h2>
