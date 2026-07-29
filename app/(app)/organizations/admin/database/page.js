@@ -4,7 +4,9 @@ import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
 import FilterableHeader from '@/components/FilterableHeader';
-import SimpleBarChart from '@/components/SimpleBarChart';
+import StatCard from '@/components/StatCard';
+import RankingList from '@/components/RankingList';
+import DonutStat from '@/components/DonutStat';
 import { hasInterestGroupBadge } from '@/lib/interestGroupBadge';
 
 const TYPE_LABELS = {
@@ -125,6 +127,7 @@ export default function OrganizationsDatabasePage() {
     const byLocation = {};
     const bySize = {};
     let interestGroupCount = 0;
+    let verifiedCount = 0;
 
     for (const o of list) {
       if (o.org_type) byType[o.org_type] = (byType[o.org_type] || 0) + 1;
@@ -132,6 +135,7 @@ export default function OrganizationsDatabasePage() {
       const sizeKey = o.size_range || 'sin_especificar';
       bySize[sizeKey] = (bySize[sizeKey] || 0) + 1;
       if (hasInterestGroupBadge(o)) interestGroupCount++;
+      if (o.verified) verifiedCount++;
     }
 
     const typeData = Object.entries(byType)
@@ -141,7 +145,7 @@ export default function OrganizationsDatabasePage() {
     const locationData = Object.entries(byLocation)
       .map(([label, value]) => ({ label, value }))
       .sort((a, b) => b.value - a.value)
-      .slice(0, 10);
+      .slice(0, 8);
 
     const sizeData = [...SIZE_ORDER, 'sin_especificar']
       .filter((k) => bySize[k])
@@ -154,6 +158,8 @@ export default function OrganizationsDatabasePage() {
       sizeData,
       interestGroupCount,
       interestGroupPct: list.length ? Math.round((interestGroupCount / list.length) * 100) : 0,
+      verifiedCount,
+      verifiedPct: list.length ? Math.round((verifiedCount / list.length) * 100) : 0,
     };
   }, [orgs]);
 
@@ -214,25 +220,40 @@ export default function OrganizationsDatabasePage() {
 
       {view === 'analisis' ? (
         analytics && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 12 }}>
-              <div className="card" style={{ padding: 16 }}>
-                <div style={{ fontSize: 22, fontWeight: 700, color: '#1d6f5c' }}>{analytics.total}</div>
-                <div style={{ fontSize: 12, color: '#888', marginTop: 2 }}>Organizaciones totales</div>
-              </div>
-              <div className="card" style={{ padding: 16 }}>
-                <div style={{ fontSize: 22, fontWeight: 700, color: '#6d5aef' }}>
-                  {analytics.interestGroupCount}
-                  <span style={{ fontSize: 13, fontWeight: 600, color: '#999' }}> ({analytics.interestGroupPct}%)</span>
-                </div>
-                <div style={{ fontSize: 12, color: '#888', marginTop: 2 }}>Registradas como grupo de interés</div>
-              </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 12 }}>
+              <StatCard icon="ti-building" value={analytics.total} label="Organizaciones totales" color="#1d6f5c" bg="#eaf5f0" />
+              <StatCard
+                icon="ti-circle-check-filled"
+                value={`${analytics.verifiedCount} (${analytics.verifiedPct}%)`}
+                label="Verificadas"
+                color="#1d9d63"
+                bg="#e8f7ef"
+              />
+              <StatCard
+                icon="ti-shield-check"
+                value={`${analytics.interestGroupCount} (${analytics.interestGroupPct}%)`}
+                label="Grupo de interés registrado"
+                color="#6d5aef"
+                bg="#f0edfe"
+              />
+              <StatCard icon="ti-map-pin" value={analytics.locationData.length} label="Ubicaciones distintas (top)" color="#c9902e" bg="#faf1e2" />
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(340px, 1fr))', gap: 16 }}>
-              <SimpleBarChart title="Por tipo de organización" data={analytics.typeData} />
-              <SimpleBarChart title="Por ubicación (top 10)" data={analytics.locationData} color="#6d5aef" />
-              <SimpleBarChart title="Por tamaño (empleados)" data={analytics.sizeData} color="#c9902e" />
+            <DonutStat
+              title="Grupos de interés registrados"
+              pct={analytics.interestGroupPct}
+              count={analytics.interestGroupCount}
+              total={analytics.total}
+              color="#6d5aef"
+              label="Registradas"
+              otherLabel="No registradas"
+            />
+
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 16 }}>
+              <RankingList icon="ti-category" title="Por tipo de organización" data={analytics.typeData} iconColor="#1d6f5c" iconBg="#eaf5f0" />
+              <RankingList icon="ti-map-pin" title="Por ubicación (top 8)" data={analytics.locationData} iconColor="#6d5aef" iconBg="#f0edfe" />
+              <RankingList icon="ti-users" title="Por tamaño (empleados)" data={analytics.sizeData} iconColor="#c9902e" iconBg="#faf1e2" />
             </div>
           </div>
         )
