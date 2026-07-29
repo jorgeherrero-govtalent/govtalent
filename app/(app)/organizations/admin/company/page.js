@@ -39,7 +39,6 @@ export default function CompanyPagePage() {
 
   useEffect(() => {
     load();
-    if (localStorage.getItem('gt_hide_ai_org_tip') === '1') setShowAiTip(false);
   }, []);
 
   async function load() {
@@ -323,10 +322,7 @@ export default function CompanyPagePage() {
             }}
           >
             <div
-              onClick={() => {
-                setShowAiTip(false);
-                localStorage.setItem('gt_hide_ai_org_tip', '1');
-              }}
+              onClick={() => setShowAiTip(false)}
               title="Cerrar"
               style={{
                 position: 'absolute',
