@@ -13,6 +13,7 @@ export default function CompanyPagePage() {
   const [uploadingOrgCover, setUploadingOrgCover] = useState(false);
   const [saving, setSaving] = useState(false);
   const [generatingOrgDesc, setGeneratingOrgDesc] = useState(false);
+  const [showAiTip, setShowAiTip] = useState(true);
 
   const orgNameRef = useRef(null);
   const orgSectorRef = useRef(null);
@@ -38,6 +39,7 @@ export default function CompanyPagePage() {
 
   useEffect(() => {
     load();
+    if (localStorage.getItem('gt_hide_ai_org_tip') === '1') setShowAiTip(false);
   }, []);
 
   async function load() {
@@ -309,6 +311,7 @@ export default function CompanyPagePage() {
 
       <div className="card">
         <div className="cp">
+          {showAiTip && (
           <div
             style={{
               background: '#faf9ff',
@@ -316,17 +319,51 @@ export default function CompanyPagePage() {
               borderRadius: 10,
               padding: 14,
               marginBottom: 16,
+              position: 'relative',
             }}
           >
+            <div
+              onClick={() => {
+                setShowAiTip(false);
+                localStorage.setItem('gt_hide_ai_org_tip', '1');
+              }}
+              title="Cerrar"
+              style={{
+                position: 'absolute',
+                top: 10,
+                right: 10,
+                cursor: 'pointer',
+                color: '#aaa',
+                width: 24,
+                height: 24,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                borderRadius: '50%',
+              }}
+            >
+              <i className="ti ti-x" style={{ fontSize: 14 }}></i>
+            </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
               <i className="ti ti-bolt" style={{ color: '#6d5aef', fontSize: 15 }}></i>
               <span style={{ fontSize: 13, fontWeight: 600 }}>Rellenar con IA</span>
               <span className="badge-ai" style={{ fontSize: 9.5, padding: '1px 6px' }}>BETA</span>
             </div>
             <p style={{ fontSize: 11.5, color: '#888', marginBottom: 10 }}>
-              Añade la web de la organización y rellenamos el resto de campos automáticamente (sector, sede, año de
-              fundación, tamaño y descripción), leyendo el contenido real de la página.
+              Añade la web de la organización más abajo y rellenamos el resto de campos automáticamente (sector,
+              sede, año de fundación, tamaño y descripción), leyendo el contenido real de la página.
             </p>
+            <button type="button" className="btn-ai" style={{ width: '100%', fontSize: 12.5 }} disabled={generatingOrgDesc} onClick={fillOrgWithAI}>
+              <i className="ti ti-bolt"></i> {generatingOrgDesc ? 'Leyendo la web...' : 'Rellenar con IA'}
+            </button>
+          </div>
+          )}
+
+          <form onSubmit={saveOrgEdit}>
+            <div className="field">
+              <label>Nombre de la organización</label>
+              <input ref={orgNameRef} name="name" defaultValue={org.name} required />
+            </div>
             <div className="two">
               <div className="field">
                 <label>Sitio web</label>
@@ -336,16 +373,6 @@ export default function CompanyPagePage() {
                 <label>LinkedIn URL</label>
                 <input ref={orgLinkedinRef} name="linkedin_url" defaultValue={org.linkedin_url || ''} placeholder="https://linkedin.com/company/..." />
               </div>
-            </div>
-            <button type="button" className="btn-ai" style={{ width: '100%', fontSize: 12.5 }} disabled={generatingOrgDesc} onClick={fillOrgWithAI}>
-              <i className="ti ti-bolt"></i> {generatingOrgDesc ? 'Leyendo la web...' : 'Rellenar con IA'}
-            </button>
-          </div>
-
-          <form onSubmit={saveOrgEdit}>
-            <div className="field">
-              <label>Nombre de la organización</label>
-              <input ref={orgNameRef} name="name" defaultValue={org.name} required />
             </div>
             <div className="two">
               <div className="field">
