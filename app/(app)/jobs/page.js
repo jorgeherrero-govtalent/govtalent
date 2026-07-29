@@ -139,12 +139,11 @@ export default function JobsPage() {
       .from('jobs')
       .select(
         `id, title, area, location, modality, employment_type, salary_min, salary_max,
-         description, is_featured, created_at,
+         description, is_featured, created_at, application_count,
          organizations ( id, name, logo_url, slug, org_type ),
          job_tags ( tag ),
          job_requirements ( content, sort_order ),
-         job_responsibilities ( content, sort_order ),
-         job_applications ( count )`
+         job_responsibilities ( content, sort_order )`
       )
       .eq('status', 'activa')
       .order('created_at', { ascending: false });
@@ -290,7 +289,7 @@ export default function JobsPage() {
                   </span>
                   <span>{timeAgo(j.created_at)}</span>
                   <span style={{ color: '#1d6f5c' }}>
-                    {j.job_applications?.[0]?.count || 0} solicitudes
+                    {j.application_count || 0} solicitudes
                   </span>
                 </div>
                 {j.is_featured && (
