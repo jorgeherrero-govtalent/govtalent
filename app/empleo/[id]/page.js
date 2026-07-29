@@ -19,6 +19,73 @@ const TYPE_LABELS = {
   otro: 'Otro',
 };
 
+const EMPLOYMENT_TYPE_SCHEMA = {
+  jornada_completa: 'FULL_TIME',
+  media_jornada: 'PART_TIME',
+  practicas: 'INTERN',
+  freelance: 'CONTRACTOR',
+  temporal: 'TEMPORARY',
+};
+
+function buildJobPostingJsonLd(job, org) {
+  const jsonLd = {
+    '@context': 'https://schema.org/',
+    '@type': 'JobPosting',
+    title: job.title,
+    description: job.description,
+    datePosted: (job.published_at || job.created_at || '').slice(0, 10),
+    hiringOrganization: {
+      '@type': 'Organization',
+      name: org?.name || 'GovTalent',
+    },
+    jobLocation: {
+      '@type': 'Place',
+      address: {
+        '@type': 'PostalAddress',
+        addressLocality: job.location || undefined,
+        addressCountry: 'ES',
+      },
+    },
+    identifier: {
+      '@type': 'PropertyValue',
+      name: 'GovTalent',
+      value: job.id,
+    },
+    url: `${SITE_URL}/empleo/${job.id}`,
+  };
+
+  if (job.closes_at) {
+    jsonLd.validThrough = job.closes_at;
+  }
+
+  if (EMPLOYMENT_TYPE_SCHEMA[job.employment_type]) {
+    jsonLd.employmentType = EMPLOYMENT_TYPE_SCHEMA[job.employment_type];
+  }
+
+  if (job.modality === 'remoto') {
+    jsonLd.jobLocationType = 'TELECOMMUTE';
+    jsonLd.applicantLocationRequirements = {
+      '@type': 'Country',
+      name: 'ES',
+    };
+  }
+
+  if (job.salary_min || job.salary_max) {
+    jsonLd.baseSalary = {
+      '@type': 'MonetaryAmount',
+      currency: job.salary_currency || 'EUR',
+      value: {
+        '@type': 'QuantitativeValue',
+        minValue: job.salary_min || job.salary_max,
+        maxValue: job.salary_max || job.salary_min,
+        unitText: 'YEAR',
+      },
+    };
+  }
+
+  return jsonLd;
+}
+
 async function getJob(id) {
   const supabase = createClient();
   const { data } = await supabase
@@ -82,9 +149,14 @@ export default async function PublicJobPage({ params }) {
   const org = job.organizations;
   const requirements = [...(job.job_requirements || [])].sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0));
   const responsibilities = [...(job.job_responsibilities || [])].sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0));
+  const jobPostingJsonLd = buildJobPostingJsonLd(job, org);
 
   return (
     <div style={{ minHeight: '100vh', background: '#f4f3ee', display: 'flex', flexDirection: 'column' }}>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(jobPostingJsonLd) }}
+      />
       <div style={{ background: '#fff', borderBottom: '.5px solid #e0dfd8', padding: '14px 20px' }}>
         <div style={{ maxWidth: 760, margin: '0 auto', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <Link href="/jobs" style={{ fontWeight: 800, fontSize: 19, textDecoration: 'none', color: '#1a1a18' }}>
