@@ -36,6 +36,7 @@ export default function CandidateProfileViewPage() {
         .from('organization_members')
         .select('organization_id')
         .eq('user_id', uid)
+        .limit(1)
         .maybeSingle();
       if (membership) setMyOrgId(membership.organization_id);
     }
