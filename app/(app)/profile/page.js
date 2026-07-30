@@ -7,6 +7,7 @@ import { createClient } from '@/lib/supabase/client';
 import { toast } from '@/lib/toast';
 import { useDragPosition, parsePosition } from '@/lib/useDragPosition';
 import ProgressChecklist from '@/components/ProgressChecklist';
+import FirstTimeHint from '@/components/FirstTimeHint';
 
 export default function ProfilePage() {
   const supabase = createClient();
@@ -880,16 +881,18 @@ export default function ProfilePage() {
                   <div style={{ fontSize: 12, color: '#888', marginTop: 2, marginBottom: 8 }}>
                     Rellena experiencia, educación y habilidades leyendo tu CV, en segundos.
                   </div>
-                  <button
-                    type="button"
-                    className="btn-ai"
-                    style={{ fontSize: 12.5 }}
-                    disabled={!profile?.cv_url || extractingCv}
-                    onClick={extractFromCv}
-                    title={!profile?.cv_url ? 'Sube tu CV primero' : ''}
-                  >
-                    <i className="ti ti-bolt"></i> {extractingCv ? 'Leyendo tu CV...' : 'Autocompletar perfil con IA'}
-                  </button>
+                  <FirstTimeHint hintKey="cv_autofill_candidate" message="Sube tu CV y rellenamos experiencia, educación y habilidades por ti ⚡">
+                    <button
+                      type="button"
+                      className="btn-ai"
+                      style={{ fontSize: 12.5 }}
+                      disabled={!profile?.cv_url || extractingCv}
+                      onClick={extractFromCv}
+                      title={!profile?.cv_url ? 'Sube tu CV primero' : ''}
+                    >
+                      <i className="ti ti-bolt"></i> {extractingCv ? 'Leyendo tu CV...' : 'Autocompletar perfil con IA'}
+                    </button>
+                  </FirstTimeHint>
                 </div>
               </div>
               </div>
