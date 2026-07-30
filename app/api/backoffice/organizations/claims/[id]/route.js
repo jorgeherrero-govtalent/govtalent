@@ -1,0 +1,91 @@
+import { NextResponse } from 'next/server';
+import { createClient } from '@/lib/supabase/server';
+import { createAdminClient } from '@/lib/supabase/admin';
+import { resend, EMAIL_FROM } from '@/lib/resend';
+import { claimApprovedEmail, claimRejectedEmail } from '@/lib/email/templates';
+
+async function requireSuperadmin() {
+  const supabase = createClient();
+  const { data: authData } = await supabase.auth.getUser();
+  if (!authData.user) return null;
+  const { data: profile } = await supabase.from('users').select('role').eq('id', authData.user.id).single();
+  if (profile?.role !== 'platform_admin') return null;
+  return authData.user;
+}
+
+export async function PATCH(request, { params }) {
+  const admin_ = await requireSuperadmin();
+  if (!admin_) return NextResponse.json({ error: 'No autorizado' }, { status: 403 });
+
+  const { action, rejectionReason } = await request.json();
+  if (!['approve', 'reject'].includes(action)) {
+    return NextResponse.json({ error: 'Acción no válida' }, { status: 400 });
+  }
+
+  const admin = createAdminClient();
+
+  const { data: claim } = await admin
+    .from('organization_claims')
+    .select('id, status, organization_id, user_id, organizations(name), users:user_id(first_name, email)')
+    .eq('id', params.id)
+    .single();
+
+  if (!claim) {
+    return NextResponse.json({ error: 'Solicitud no encontrada' }, { status: 404 });
+  }
+  if (claim.status !== 'pending') {
+    return NextResponse.json({ error: 'Esta solicitud ya ha sido revisada' }, { status: 409 });
+  }
+
+  const orgName = claim.organizations?.name || 'la organización';
+  const firstName = claim.users?.first_name || '';
+  const requesterEmail = claim.users?.email;
+
+  if (action === 'approve') {
+    const { error: orgErr } = await admin.from('organizations').update({ claimed: true }).eq('id', claim.organization_id);
+    if (orgErr) return NextResponse.json({ error: 'No se pudo marcar la organización como reclamada' }, { status: 500 });
+
+    await admin.from('organization_members').insert({
+      organization_id: claim.organization_id,
+      user_id: claim.user_id,
+      role: 'admin',
+    });
+
+    await admin.from('users').update({ role: 'org_admin', onboarding_completed: true }).eq('id', claim.user_id);
+
+    await admin
+      .from('organization_claims')
+      .update({ status: 'approved', reviewed_by: admin_.id, reviewed_at: new Date().toISOString() })
+      .eq('id', params.id);
+
+    if (requesterEmail) {
+      try {
+        const { subject, html } = claimApprovedEmail({ firstName, orgName });
+        await resend.emails.send({ from: EMAIL_FROM, to: requesterEmail, subject, html });
+      } catch (err) {
+        console.error('Error enviando email de reclamación aprobada:', err);
+      }
+    }
+  } else {
+    await admin
+      .from('organization_claims')
+      .update({
+        status: 'rejected',
+        rejection_reason: rejectionReason || null,
+        reviewed_by: admin_.id,
+        reviewed_at: new Date().toISOString(),
+      })
+      .eq('id', params.id);
+
+    if (requesterEmail) {
+      try {
+        const { subject, html } = claimRejectedEmail({ firstName, orgName, reason: rejectionReason });
+        await resend.emails.send({ from: EMAIL_FROM, to: requesterEmail, subject, html });
+      } catch (err) {
+        console.error('Error enviando email de reclamación rechazada:', err);
+      }
+    }
+  }
+
+  return NextResponse.json({ ok: true });
+}
