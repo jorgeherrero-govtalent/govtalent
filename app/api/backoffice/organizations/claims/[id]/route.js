@@ -26,7 +26,7 @@ export async function PATCH(request, { params }) {
 
   const { data: claim } = await admin
     .from('organization_claims')
-    .select('id, status, organization_id, user_id, organizations(name), users:user_id(first_name, email)')
+    .select('id, status, organization_id, user_id, organizations(name, claimed), users:user_id(first_name, email)')
     .eq('id', params.id)
     .single();
 
@@ -35,6 +35,27 @@ export async function PATCH(request, { params }) {
   }
   if (claim.status !== 'pending') {
     return NextResponse.json({ error: 'Esta solicitud ya ha sido revisada' }, { status: 409 });
+  }
+
+  if (action === 'approve') {
+    if (claim.organizations?.claimed) {
+      return NextResponse.json(
+        { error: 'Esta organización ya ha sido reclamada por otra persona mientras tanto. Revisa el resto de solicitudes para esta organización antes de continuar.' },
+        { status: 409 }
+      );
+    }
+    const { data: alreadyMember } = await admin
+      .from('organization_members')
+      .select('organization_id, organizations(name)')
+      .eq('user_id', claim.user_id)
+      .limit(1)
+      .maybeSingle();
+    if (alreadyMember) {
+      return NextResponse.json(
+        { error: `Este usuario ya administra la organización "${alreadyMember.organizations?.name}". No se puede aprobar esta reclamación adicional.` },
+        { status: 409 }
+      );
+    }
   }
 
   const orgName = claim.organizations?.name || 'la organización';
