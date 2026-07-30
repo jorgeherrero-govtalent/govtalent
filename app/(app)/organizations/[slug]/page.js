@@ -236,26 +236,26 @@ export default async function OrganizationPublicPage({ params }) {
           <div style={{ fontSize: 13.5, fontWeight: 700, color: 'rgba(255,255,255,0.85)', marginBottom: 14 }}>
             Regístrate ahora para:
           </div>
-          <div
-            style={{
-              display: 'flex',
-              flexDirection: 'column',
-              gap: 10,
-              maxWidth: 400,
-              margin: '0 auto 28px',
-              textAlign: 'left',
-            }}
-          >
+          <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'center', gap: 8, marginBottom: 28 }}>
             {[
               'Recibir alertas cuando publique nuevas ofertas',
               'Seguir su actividad',
               'Descubrir organizaciones similares',
               'Acceder a toda la red profesional del sector',
             ].map((label) => (
-              <div key={label} style={{ fontSize: 13.5, color: '#fff', display: 'flex', alignItems: 'flex-start', gap: 8 }}>
-                <span>✅</span>
-                <span>{label}</span>
-              </div>
+              <span
+                key={label}
+                style={{
+                  fontSize: 12.5,
+                  color: '#fff',
+                  background: 'rgba(255,255,255,0.12)',
+                  border: '1px solid rgba(255,255,255,0.22)',
+                  borderRadius: 20,
+                  padding: '6px 14px',
+                }}
+              >
+                ✅ {label}
+              </span>
             ))}
           </div>
           <Link
