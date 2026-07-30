@@ -33,10 +33,9 @@ export async function middleware(request) {
   const isPublicJobPage = path.startsWith('/empleo/');
   const isBackoffice = path.startsWith('/backoffice');
   const isPublicOrgPage =
-    path === '/organizations' ||
-    (path.startsWith('/organizations/') &&
-      !path.startsWith('/organizations/admin') &&
-      !path.startsWith('/organizations/new'));
+    path.startsWith('/organizations/') &&
+    !path.startsWith('/organizations/admin') &&
+    !path.startsWith('/organizations/new');
 
   if (!user && !isAuthRoute && !isPublicJobPage && !isPublicOrgPage) {
     const url = request.nextUrl.clone();
