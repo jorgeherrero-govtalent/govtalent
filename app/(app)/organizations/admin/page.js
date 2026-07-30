@@ -209,6 +209,7 @@ export default function OrganizationAdminPage() {
         <div>
           <ProgressChecklist
             title="Primeros pasos"
+            hideWhenComplete
             items={[
               { label: 'Logo de la organización', done: !!org.logo_url },
               { label: 'Descripción de la organización', done: !!org.bio },
