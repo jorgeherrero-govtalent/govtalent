@@ -17,7 +17,14 @@ export default function FilterableHeader({ label, columnKey, values, selected, o
       setDraft(new Set(selected));
       setSearch('');
       const rect = btnRef.current.getBoundingClientRect();
-      setPos({ top: rect.bottom + 6, left: rect.left });
+      const popoverWidth = 240;
+      const margin = 12;
+      let left = rect.left;
+      if (left + popoverWidth > window.innerWidth - margin) {
+        left = rect.right - popoverWidth;
+      }
+      left = Math.max(margin, left);
+      setPos({ top: rect.bottom + 6, left });
     }
   }, [isOpen]);
 
