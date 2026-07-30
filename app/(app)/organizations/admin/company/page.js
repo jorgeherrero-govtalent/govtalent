@@ -16,6 +16,23 @@ export default function CompanyPagePage() {
   const [generatingOrgDesc, setGeneratingOrgDesc] = useState(false);
   const [showAiTip, setShowAiTip] = useState(true);
 
+  useEffect(() => {
+    try {
+      if (localStorage.getItem('gt_hint_seen_org_ai_description')) setShowAiTip(false);
+    } catch {
+      // localStorage no disponible: no pasa nada, simplemente no se recuerda.
+    }
+  }, []);
+
+  function dismissAiTip() {
+    setShowAiTip(false);
+    try {
+      localStorage.setItem('gt_hint_seen_org_ai_description', '1');
+    } catch {
+      // localStorage no disponible: no pasa nada, simplemente no se recuerda.
+    }
+  }
+
   const orgNameRef = useRef(null);
   const orgSectorRef = useRef(null);
   const orgBioRef = useRef(null);
@@ -332,7 +349,7 @@ export default function CompanyPagePage() {
             }}
           >
             <div
-              onClick={() => setShowAiTip(false)}
+              onClick={dismissAiTip}
               title="Cerrar"
               style={{
                 position: 'absolute',
