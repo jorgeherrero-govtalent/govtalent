@@ -100,6 +100,13 @@ export default function NewOrganizationPage() {
       role: 'admin',
     });
 
+    // Alguien que crea una página de organización ya no necesita pasar por
+    // el onboarding de candidato (elige "Organización" y llega hasta aquí).
+    await supabase
+      .from('users')
+      .update({ onboarding_completed: true, role: 'org_admin' })
+      .eq('id', uid);
+
     if (areas.length > 0) {
       await supabase
         .from('organization_activity_areas')
