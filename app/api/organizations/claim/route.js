@@ -25,6 +25,19 @@ export async function POST(request) {
 
   const admin = createAdminClient();
 
+  const { data: alreadyMember } = await admin
+    .from('organization_members')
+    .select('organization_id, organizations(name)')
+    .eq('user_id', uid)
+    .limit(1)
+    .maybeSingle();
+  if (alreadyMember) {
+    return NextResponse.json(
+      { error: `Tu cuenta ya administra la organización "${alreadyMember.organizations?.name}". Cada cuenta puede administrar una única organización por ahora.` },
+      { status: 409 }
+    );
+  }
+
   const { data: org } = await admin.from('organizations').select('id, name, claimed').eq('id', organizationId).single();
   if (!org) {
     return NextResponse.json({ error: 'Organización no encontrada' }, { status: 404 });
