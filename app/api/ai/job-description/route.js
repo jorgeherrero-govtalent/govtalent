@@ -31,6 +31,7 @@ export async function POST(request) {
     .from('organization_members')
     .select('organizations(ai_tone, ai_context)')
     .eq('user_id', authData.user.id)
+    .limit(1)
     .maybeSingle();
   const org = membership?.organizations;
   const toneMap = {
