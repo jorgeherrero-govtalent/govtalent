@@ -121,11 +121,30 @@ export default function OrganizationsDatabasePage() {
 
   return (
     <div style={{ padding: '24px 28px', maxWidth: 1280 }}>
-      <div style={{ marginBottom: 18 }}>
-        <h1 style={{ fontSize: 19, fontWeight: 700, margin: 0 }}>Base de datos de organizaciones</h1>
-        <p style={{ fontSize: 12.5, color: '#888', margin: '4px 0 0' }}>
-          Explora y filtra las {orgs.length} organizaciones del sector.
-        </p>
+      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 18, flexWrap: 'wrap', gap: 10 }}>
+        <div>
+          <h1 style={{ fontSize: 19, fontWeight: 700, margin: 0 }}>Base de datos de organizaciones</h1>
+          <p style={{ fontSize: 12.5, color: '#888', margin: '4px 0 0' }}>Explora y filtra las {orgs.length} organizaciones del sector.</p>
+        </div>
+        <div
+          title="Próximamente"
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 6,
+            padding: '8px 14px',
+            borderRadius: 8,
+            border: '.5px solid #d9d2f9',
+            background: '#f0edfe',
+            color: '#6d5aef',
+            fontSize: 12.5,
+            fontWeight: 700,
+            cursor: 'default',
+            whiteSpace: 'nowrap',
+          }}
+        >
+          <i className="ti ti-chart-bar"></i> GovTalent BI (Próximamente)
+        </div>
       </div>
 
       {loadError && (
