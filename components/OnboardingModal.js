@@ -45,7 +45,8 @@ const INTEREST_AREAS = [
 // entrado a la aplicación (email, Google, enlace directo...).
 export default function OnboardingModal({ userId, onComplete }) {
   const supabase = createClient();
-  const [step, setStep] = useState(1);
+  const [step, setStep] = useState(0);
+  const [redirecting, setRedirecting] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [avatarFile, setAvatarFile] = useState(null);
@@ -82,6 +83,11 @@ export default function OnboardingModal({ userId, onComplete }) {
     if (!file) return;
     setAvatarFile(file);
     setAvatarPreview(URL.createObjectURL(file));
+  }
+
+  function chooseOrganization() {
+    setRedirecting(true);
+    window.location.href = '/organizations/new';
   }
 
   async function finish() {
@@ -172,13 +178,15 @@ export default function OnboardingModal({ userId, onComplete }) {
         <div className="logo">
           gov<span>talent</span>
         </div>
-        <div className="stepper">
-          <div className={`sc ${step > 1 ? 'done' : 'active'}`}>1</div>
-          <div className={`sl2 ${step > 1 ? 'done' : ''}`}></div>
-          <div className={`sc ${step > 2 ? 'done' : step === 2 ? 'active' : ''}`}>2</div>
-          <div className={`sl2 ${step > 2 ? 'done' : ''}`}></div>
-          <div className={`sc ${step === 3 ? 'active' : ''}`}>3</div>
-        </div>
+        {step > 0 && (
+          <div className="stepper">
+            <div className={`sc ${step > 1 ? 'done' : 'active'}`}>1</div>
+            <div className={`sl2 ${step > 1 ? 'done' : ''}`}></div>
+            <div className={`sc ${step > 2 ? 'done' : step === 2 ? 'active' : ''}`}>2</div>
+            <div className={`sl2 ${step > 2 ? 'done' : ''}`}></div>
+            <div className={`sc ${step === 3 ? 'active' : ''}`}>3</div>
+          </div>
+        )}
         <div></div>
       </div>
 
@@ -189,8 +197,101 @@ export default function OnboardingModal({ userId, onComplete }) {
           </div>
         )}
 
+        {step === 0 && (
+          <div className="ob-card" style={{ maxWidth: 480, textAlign: 'center' }}>
+            <h1>¿Cómo vas a usar GovTalent?</h1>
+            <p className="sub">Así te mostramos justo lo que necesitas, nada más.</p>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginTop: 20 }}>
+              <button
+                type="button"
+                className="ob-choice"
+                onClick={() => setStep(1)}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 14,
+                  padding: '16px 18px',
+                  borderRadius: 12,
+                  border: '1.5px solid #e0dfd8',
+                  background: '#fff',
+                  textAlign: 'left',
+                  cursor: 'pointer',
+                }}
+              >
+                <div
+                  style={{
+                    width: 42,
+                    height: 42,
+                    borderRadius: 10,
+                    background: '#eaf5f0',
+                    color: '#1d6f5c',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    fontSize: 19,
+                    flexShrink: 0,
+                  }}
+                >
+                  <i className="ti ti-user"></i>
+                </div>
+                <div>
+                  <div style={{ fontWeight: 700, fontSize: 14.5, color: '#222' }}>Busco oportunidades profesionales</div>
+                  <div style={{ fontSize: 12.5, color: '#888', marginTop: 2 }}>
+                    Crea tu perfil, descubre ofertas y conecta con organizaciones del sector.
+                  </div>
+                </div>
+              </button>
+
+              <button
+                type="button"
+                className="ob-choice"
+                onClick={chooseOrganization}
+                disabled={redirecting}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 14,
+                  padding: '16px 18px',
+                  borderRadius: 12,
+                  border: '1.5px solid #e0dfd8',
+                  background: '#fff',
+                  textAlign: 'left',
+                  cursor: redirecting ? 'default' : 'pointer',
+                  opacity: redirecting ? 0.7 : 1,
+                }}
+              >
+                <div
+                  style={{
+                    width: 42,
+                    height: 42,
+                    borderRadius: 10,
+                    background: '#eaf5f0',
+                    color: '#1d6f5c',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    fontSize: 19,
+                    flexShrink: 0,
+                  }}
+                >
+                  <i className="ti ti-building"></i>
+                </div>
+                <div>
+                  <div style={{ fontWeight: 700, fontSize: 14.5, color: '#222' }}>Represento a una organización</div>
+                  <div style={{ fontSize: 12.5, color: '#888', marginTop: 2 }}>
+                    Publica ofertas, gestiona candidaturas y crea la página de tu organización.
+                  </div>
+                </div>
+              </button>
+            </div>
+          </div>
+        )}
+
         {step === 1 && (
           <div className="ob-card">
+            <div className="back" onClick={() => setStep(0)}>
+              <i className="ti ti-arrow-left"></i> Volver
+            </div>
             <h1>Completa tu perfil</h1>
             <p className="sub">Solo unos datos para personalizar tu experiencia.</p>
             <div className="two">
