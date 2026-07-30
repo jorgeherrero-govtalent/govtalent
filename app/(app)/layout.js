@@ -14,6 +14,7 @@ export default function AppLayout({ children }) {
   const pathname = usePathname();
   const router = useRouter();
   const [user, setUser] = useState(null);
+  const [authChecked, setAuthChecked] = useState(false);
   const [myOrg, setMyOrg] = useState(null);
   const [needsOnboarding, setNeedsOnboarding] = useState(false);
   const [showMeMenu, setShowMeMenu] = useState(false);
@@ -30,7 +31,11 @@ export default function AppLayout({ children }) {
     let active = true;
     async function load() {
       const { data } = await supabase.auth.getUser();
-      if (!active || !data.user) return;
+      if (!active) return;
+      if (!data.user) {
+        setAuthChecked(true);
+        return;
+      }
       const { data: profile } = await supabase
         .from('users')
         .select('*')
@@ -38,6 +43,7 @@ export default function AppLayout({ children }) {
         .single();
       if (!active) return;
       setUser(profile);
+      setAuthChecked(true);
       setNeedsOnboarding(!!profile && !profile.onboarding_completed);
 
       const { data: membership } = await supabase
@@ -69,7 +75,27 @@ export default function AppLayout({ children }) {
 
   return (
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
-      <nav className="nav">
+      {authChecked && !user ? (
+        <div style={{ background: '#fff', borderBottom: '.5px solid #e0dfd8', padding: '14px 20px' }}>
+          <div
+            style={{
+              maxWidth: 760,
+              margin: '0 auto',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+            }}
+          >
+            <Link href="/jobs" style={{ fontWeight: 800, fontSize: 19, textDecoration: 'none', color: '#1a1a18' }}>
+              gov<span style={{ background: '#1d6f5c', color: '#fff', padding: '1px 6px', borderRadius: 5 }}>talent</span>
+            </Link>
+            <Link href="/login" style={{ fontSize: 13, color: '#1d6f5c', textDecoration: 'none', fontWeight: 500 }}>
+              Iniciar sesión
+            </Link>
+          </div>
+        </div>
+      ) : (
+        <nav className="nav">
         <div className="nav-inner">
           <Link href="/jobs" className="nav-logo">
             gov<span>talent</span>
@@ -140,6 +166,7 @@ export default function AppLayout({ children }) {
           </div>
         </div>
       </nav>
+      )}
 
       <main style={{ flex: 1 }}>{children}</main>
       <Footer />
