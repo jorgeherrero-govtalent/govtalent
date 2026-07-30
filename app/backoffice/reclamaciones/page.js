@@ -158,6 +158,12 @@ export default function ClaimsBackofficePage() {
               <div style={{ fontSize: 12, color: '#a33', marginTop: 8 }}>Motivo del rechazo: {c.rejection_reason}</div>
             )}
 
+            {c.status === 'pending' && c.organizations?.claimed && (
+              <div style={{ fontSize: 12, color: '#a33', marginTop: 8, display: 'flex', alignItems: 'center', gap: 5 }}>
+                <i className="ti ti-alert-triangle"></i> Esta organización ya fue reclamada por otra solicitud. Revisa antes de aprobar.
+              </div>
+            )}
+
             <div style={{ display: 'flex', gap: 8, marginTop: 12, flexWrap: 'wrap' }}>
               <button className="btn-o" style={{ fontSize: 12.5 }} onClick={() => viewDocument(c.id)}>
                 <i className="ti ti-file-text"></i> Ver documento
