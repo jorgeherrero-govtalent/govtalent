@@ -237,6 +237,13 @@ export default function AllJobsPage() {
     setShowNewJob(false);
     toast('Oferta publicada correctamente ✓');
     load();
+
+    // Envío de alertas en segundo plano: no bloquea el flujo si falla o tarda.
+    fetch('/api/email/job-alert', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ jobId: job.id }),
+    }).catch(() => {});
   }
 
   if (loading) return <div className="spinner"></div>;
