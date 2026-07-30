@@ -69,6 +69,7 @@ export default function CompanyPagePage() {
       .from('organization_members')
       .select('organizations(*)')
       .eq('user_id', uid)
+      .limit(1)
       .maybeSingle();
 
     if (!membership) return setLoading(false);
