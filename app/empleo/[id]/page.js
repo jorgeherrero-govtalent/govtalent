@@ -159,9 +159,14 @@ export default async function PublicJobPage({ params }) {
       />
       <div style={{ background: '#fff', borderBottom: '.5px solid #e0dfd8', padding: '14px 20px' }}>
         <div style={{ maxWidth: 760, margin: '0 auto', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <Link href="/jobs" style={{ fontWeight: 800, fontSize: 19, textDecoration: 'none', color: '#1a1a18' }}>
-            gov<span style={{ background: '#1d6f5c', color: '#fff', padding: '1px 6px', borderRadius: 5 }}>talent</span>
-          </Link>
+          <div>
+            <Link href="/jobs" style={{ fontWeight: 800, fontSize: 19, textDecoration: 'none', color: '#1a1a18' }}>
+              gov<span style={{ background: '#1d6f5c', color: '#fff', padding: '1px 6px', borderRadius: 5 }}>talent</span>
+            </Link>
+            <div style={{ fontSize: 11.5, color: '#888', fontWeight: 500, marginTop: 2, maxWidth: 380 }}>
+              La plataforma all-in-one del ecosistema profesional de los asuntos públicos
+            </div>
+          </div>
           <Link href="/login" style={{ fontSize: 13, color: '#1d6f5c', textDecoration: 'none', fontWeight: 500 }}>
             Iniciar sesión
           </Link>
