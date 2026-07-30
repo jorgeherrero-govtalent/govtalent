@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { hasInterestGroupBadge } from '@/lib/interestGroupBadge';
 import { createClient } from '@/lib/supabase/client';
 import { toast } from '@/lib/toast';
+import ClaimOrganizationModal from '@/components/ClaimOrganizationModal';
 
 const ACTIVITY_TYPE_LABELS = {
   reunion_audiencia: 'Reunión o audiencia',
@@ -23,6 +24,8 @@ export default function OrganizationPublicPage() {
   const [publicActivities, setPublicActivities] = useState([]);
   const [userId, setUserId] = useState(null);
   const [following, setFollowing] = useState(false);
+  const [showClaimModal, setShowClaimModal] = useState(false);
+  const [claimSubmitted, setClaimSubmitted] = useState(false);
 
   useEffect(() => {
     load();
@@ -157,6 +160,51 @@ export default function OrganizationPublicPage() {
           </button>
         </div>
       </div>
+
+      {!org.claimed && userId && (
+        <div
+          style={{
+            maxWidth: 900,
+            margin: '0 auto 16px',
+            background: '#f0f8f5',
+            border: '1px solid #c0e4d8',
+            borderRadius: 12,
+            padding: '14px 18px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: 12,
+            flexWrap: 'wrap',
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <i className="ti ti-building-community" style={{ color: '#1d6f5c', fontSize: 20 }}></i>
+            <div>
+              <div style={{ fontSize: 13.5, fontWeight: 700, color: '#1a1a18' }}>¿Eres de {org.name}?</div>
+              <div style={{ fontSize: 12, color: '#666' }}>Reclama esta página para gestionarla y publicar ofertas.</div>
+            </div>
+          </div>
+          {claimSubmitted ? (
+            <span style={{ fontSize: 12.5, color: '#1d6f5c', fontWeight: 600 }}>
+              <i className="ti ti-clock" style={{ fontSize: 13 }}></i> Solicitud enviada, en revisión
+            </span>
+          ) : (
+            <button className="btn-p" onClick={() => setShowClaimModal(true)}>
+              <i className="ti ti-shield-check"></i> Reclamar esta página
+            </button>
+          )}
+        </div>
+      )}
+
+      {showClaimModal && (
+        <ClaimOrganizationModal
+          organizationId={org.id}
+          organizationName={org.name}
+          userId={userId}
+          onClose={() => setShowClaimModal(false)}
+          onSubmitted={() => setClaimSubmitted(true)}
+        />
+      )}
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 280px', gap: 13, maxWidth: 900, margin: '0 auto' }}>
         <div className="card">
