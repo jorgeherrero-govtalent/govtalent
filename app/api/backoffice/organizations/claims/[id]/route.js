@@ -18,7 +18,7 @@ export async function PATCH(request, { params }) {
   if (!admin_) return NextResponse.json({ error: 'No autorizado' }, { status: 403 });
 
   const { action, rejectionReason } = await request.json();
-  if (!['approve', 'reject'].includes(action)) {
+  if (!['approve', 'reject', 'revoke'].includes(action)) {
     return NextResponse.json({ error: 'Acción no válida' }, { status: 400 });
   }
 
@@ -33,7 +33,10 @@ export async function PATCH(request, { params }) {
   if (!claim) {
     return NextResponse.json({ error: 'Solicitud no encontrada' }, { status: 404 });
   }
-  if (claim.status !== 'pending') {
+  if (action === 'revoke' && claim.status !== 'approved') {
+    return NextResponse.json({ error: 'Solo se puede revocar una solicitud ya aprobada' }, { status: 409 });
+  }
+  if (action !== 'revoke' && claim.status !== 'pending') {
     return NextResponse.json({ error: 'Esta solicitud ya ha sido revisada' }, { status: 409 });
   }
 
@@ -87,7 +90,7 @@ export async function PATCH(request, { params }) {
         console.error('Error enviando email de reclamación aprobada:', err);
       }
     }
-  } else {
+  } else if (action === 'reject') {
     await admin
       .from('organization_claims')
       .update({
@@ -106,6 +109,37 @@ export async function PATCH(request, { params }) {
         console.error('Error enviando email de reclamación rechazada:', err);
       }
     }
+  } else {
+    // action === 'revoke': deshace una aprobación previa (ej. una aprobación
+    // hecha por error o de prueba). Quita el acceso y desmarca la organización.
+    await admin
+      .from('organization_members')
+      .delete()
+      .eq('organization_id', claim.organization_id)
+      .eq('user_id', claim.user_id);
+
+    await admin.from('organizations').update({ claimed: false }).eq('id', claim.organization_id);
+
+    // Si esta era la única organización del usuario, le devolvemos el rol de candidato.
+    const { data: otherMemberships } = await admin
+      .from('organization_members')
+      .select('organization_id')
+      .eq('user_id', claim.user_id)
+      .limit(1)
+      .maybeSingle();
+    if (!otherMemberships) {
+      await admin.from('users').update({ role: 'candidate' }).eq('id', claim.user_id);
+    }
+
+    await admin
+      .from('organization_claims')
+      .update({
+        status: 'rejected',
+        rejection_reason: rejectionReason || 'Aprobación revocada por el equipo de GovTalent.',
+        reviewed_by: admin_.id,
+        reviewed_at: new Date().toISOString(),
+      })
+      .eq('id', params.id);
   }
 
   return NextResponse.json({ ok: true });
