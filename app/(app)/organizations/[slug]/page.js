@@ -184,7 +184,7 @@ export default async function OrganizationPublicPage({ params }) {
               </span>
             )}
           </div>
-          {!org.verified && (
+          {!org.verified && userId && (
             <div className="badge bgr" style={{ display: 'inline-flex', marginBottom: 8, width: 'fit-content' }}>
               <i className="ti ti-clock" style={{ fontSize: 11 }}></i> No verificada por la organización
             </div>
@@ -218,32 +218,63 @@ export default async function OrganizationPublicPage({ params }) {
         userId={userId}
       />
 
-      {!org.claimed && !userId && (
-        <div className="card" style={{ maxWidth: 900, margin: '0 auto 16px', padding: '24px 28px' }}>
-          <div style={{ fontSize: 16, fontWeight: 700, color: '#1a1a18', marginBottom: 18, textAlign: 'center' }}>
+      {!userId && (
+        <div
+          style={{
+            maxWidth: 900,
+            margin: '0 auto 16px',
+            padding: '32px 28px',
+            borderRadius: 16,
+            background: 'linear-gradient(135deg, #1d6f5c 0%, #143f34 100%)',
+            boxShadow: '0 10px 28px rgba(20,63,52,0.22)',
+            textAlign: 'center',
+          }}
+        >
+          <div style={{ fontSize: 20, fontWeight: 800, color: '#fff', marginBottom: 8, letterSpacing: '-0.01em' }}>
             Todo lo que necesitas para crecer en el sector de los asuntos públicos, en un único lugar.
           </div>
-          <div
+          <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.72)', marginBottom: 22 }}>
+            Únete gratis a la red profesional de los asuntos públicos.
+          </div>
+          <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'center', gap: 8, marginBottom: 24 }}>
+            {[
+              '🔒 Seguir organizaciones',
+              '🔒 Alertas de empleo',
+              '🔒 Matching con IA',
+              '🔒 Base de datos inteligente',
+            ].map((label) => (
+              <span
+                key={label}
+                style={{
+                  fontSize: 12.5,
+                  color: '#fff',
+                  background: 'rgba(255,255,255,0.12)',
+                  border: '1px solid rgba(255,255,255,0.22)',
+                  borderRadius: 20,
+                  padding: '6px 14px',
+                }}
+              >
+                {label}
+              </span>
+            ))}
+          </div>
+          <Link
+            href="/login?view=signup"
             style={{
-              display: 'flex',
-              flexDirection: 'column',
-              gap: 9,
-              maxWidth: 380,
-              margin: '0 auto 20px',
-              fontSize: 13,
-              color: '#555',
+              textDecoration: 'none',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 6,
+              background: '#fff',
+              color: '#1d6f5c',
+              fontWeight: 700,
+              fontSize: 14,
+              padding: '11px 26px',
+              borderRadius: 8,
             }}
           >
-            <div>🔒 Seguir a esta organización</div>
-            <div>🔒 Alertas de nuevas ofertas de empleo</div>
-            <div>🔒 Matching de empleo con IA</div>
-            <div>🔒 Base de datos inteligente de organizaciones</div>
-          </div>
-          <div style={{ textAlign: 'center' }}>
-            <Link href="/login?view=signup" className="btn-p" style={{ textDecoration: 'none', padding: '10px 24px' }}>
-              Regístrate gratis
-            </Link>
-          </div>
+            Regístrate gratis <i className="ti ti-arrow-right"></i>
+          </Link>
         </div>
       )}
 
