@@ -1,12 +1,10 @@
-'use client';
-
-import { useEffect, useState } from 'react';
-import { useParams } from 'next/navigation';
 import Link from 'next/link';
+import { createClient } from '@/lib/supabase/server';
 import { hasInterestGroupBadge } from '@/lib/interestGroupBadge';
-import { createClient } from '@/lib/supabase/client';
-import { toast } from '@/lib/toast';
-import ClaimOrganizationModal from '@/components/ClaimOrganizationModal';
+import OrganizationFollowButton from '@/components/OrganizationFollowButton';
+import OrganizationClaimBanner from '@/components/OrganizationClaimBanner';
+
+const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://govtalent.app';
 
 const ACTIVITY_TYPE_LABELS = {
   reunion_audiencia: 'Reunión o audiencia',
@@ -16,75 +14,122 @@ const ACTIVITY_TYPE_LABELS = {
   otro: 'Otro',
 };
 
-export default function OrganizationPublicPage() {
-  const { slug } = useParams();
+async function getOrgData(slug) {
   const supabase = createClient();
-  const [org, setOrg] = useState(null);
-  const [jobs, setJobs] = useState([]);
-  const [publicActivities, setPublicActivities] = useState([]);
-  const [userId, setUserId] = useState(null);
-  const [following, setFollowing] = useState(false);
-  const [showClaimModal, setShowClaimModal] = useState(false);
-  const [claimSubmitted, setClaimSubmitted] = useState(false);
 
-  useEffect(() => {
-    load();
-  }, [slug]);
+  const { data: org } = await supabase.from('organizations').select('*').eq('slug', slug).maybeSingle();
+  if (!org) return { org: null };
 
-  async function load() {
-    const { data: authData } = await supabase.auth.getUser();
-    const uid = authData.user?.id;
-    setUserId(uid);
-
-    const { data: o } = await supabase.from('organizations').select('*').eq('slug', slug).single();
-    setOrg(o);
-    if (!o) return;
-
-    const { data: js } = await supabase
+  const [{ data: authData }, { data: jobs }, { data: activities }] = await Promise.all([
+    supabase.auth.getUser(),
+    supabase
       .from('jobs')
       .select('id, title, location, modality, created_at, is_featured')
-      .eq('organization_id', o.id)
+      .eq('organization_id', org.id)
       .eq('status', 'activa')
-      .order('created_at', { ascending: false });
-    setJobs(js || []);
-
-    const { data: acts } = await supabase
+      .order('created_at', { ascending: false }),
+    supabase
       .from('influence_activities')
       .select('id, activity_date, activity_type, counterpart_name, subject')
-      .eq('organization_id', o.id)
+      .eq('organization_id', org.id)
       .eq('is_public', true)
       .order('activity_date', { ascending: false })
-      .limit(15);
-    setPublicActivities(acts || []);
+      .limit(15),
+  ]);
 
-    if (uid) {
-      const { data: f } = await supabase
-        .from('organization_follows')
-        .select('*')
-        .eq('user_id', uid)
-        .eq('organization_id', o.id)
-        .maybeSingle();
-      setFollowing(!!f);
-    }
+  const userId = authData?.user?.id || null;
+
+  let following = false;
+  if (userId) {
+    const { data: f } = await supabase
+      .from('organization_follows')
+      .select('user_id')
+      .eq('user_id', userId)
+      .eq('organization_id', org.id)
+      .maybeSingle();
+    following = !!f;
   }
 
-  async function toggleFollow() {
-    if (!userId || !org) return;
-    if (following) {
-      await supabase.from('organization_follows').delete().eq('user_id', userId).eq('organization_id', org.id);
-      setFollowing(false);
-      toast(`Has dejado de seguir a ${org.name}`);
-    } else {
-      await supabase.from('organization_follows').insert({ user_id: userId, organization_id: org.id });
-      setFollowing(true);
-      toast(`Ahora sigues a ${org.name}`);
-    }
+  return { org, jobs: jobs || [], activities: activities || [], userId, following };
+}
+
+function buildOrganizationJsonLd(org) {
+  const jsonLd = {
+    '@context': 'https://schema.org/',
+    '@type': 'Organization',
+    name: org.name,
+    url: `${SITE_URL}/organizations/${org.slug}`,
+  };
+
+  if (org.logo_url) jsonLd.logo = org.logo_url;
+  if (org.website_url) jsonLd.sameAs = [org.website_url];
+  if (org.bio || org.sector) jsonLd.description = org.bio || org.sector;
+  if (org.location) {
+    jsonLd.address = {
+      '@type': 'PostalAddress',
+      addressLocality: org.location,
+      addressCountry: 'ES',
+    };
   }
 
-  if (!org) return <div className="spinner"></div>;
+  return jsonLd;
+}
+
+export async function generateMetadata({ params }) {
+  const { org } = await getOrgData(params.slug);
+
+  if (!org) {
+    return { title: 'Organización no encontrada · GovTalent' };
+  }
+
+  const title = `${org.name} — Empleo en asuntos públicos · GovTalent`;
+  const description = (
+    org.bio ||
+    `Descubre las ofertas de empleo de ${org.name} en asuntos públicos, relaciones institucionales y comunicación.`
+  ).slice(0, 155);
+
+  return {
+    title,
+    description,
+    openGraph: {
+      title,
+      description,
+      url: `${SITE_URL}/organizations/${org.slug}`,
+      siteName: 'GovTalent',
+      locale: 'es_ES',
+      type: 'website',
+      images: org.logo_url ? [{ url: org.logo_url }] : undefined,
+    },
+    twitter: {
+      card: 'summary',
+      title,
+      description,
+    },
+  };
+}
+
+export default async function OrganizationPublicPage({ params }) {
+  const { org, jobs, activities, userId, following } = await getOrgData(params.slug);
+
+  if (!org) {
+    return (
+      <div className="sec">
+        <div style={{ maxWidth: 900, margin: '40px auto', textAlign: 'center' }}>
+          <div style={{ fontSize: 18, fontWeight: 700, marginBottom: 6 }}>Organización no encontrada</div>
+          <Link href="/organizations" className="btn-p" style={{ textDecoration: 'none' }}>
+            Volver al buscador
+          </Link>
+        </div>
+      </div>
+    );
+  }
+
+  const jsonLd = buildOrganizationJsonLd(org);
 
   return (
     <div className="sec">
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
+
       <div style={{ maxWidth: 900, margin: '0 auto 10px' }}>
         <Link href="/organizations" style={{ fontSize: 12.5, color: '#1d6f5c', textDecoration: 'none' }}>
           <i className="ti ti-arrow-left"></i> Volver al buscador
@@ -155,55 +200,66 @@ export default function OrganizationPublicPage() {
               </span>
             )}
           </div>
-          <button className={following ? 'btn-o' : 'btn-p'} onClick={toggleFollow}>
-            <i className={`ti ${following ? 'ti-check' : 'ti-plus'}`}></i> {following ? 'Siguiendo' : 'Seguir'}
-          </button>
+          <OrganizationFollowButton
+            organizationId={org.id}
+            organizationName={org.name}
+            userId={userId}
+            initialFollowing={following}
+          />
         </div>
       </div>
 
-      {!org.claimed && userId && (
-        <div
-          style={{
-            maxWidth: 900,
-            margin: '0 auto 16px',
-            background: '#f0f8f5',
-            border: '1px solid #c0e4d8',
-            borderRadius: 12,
-            padding: '14px 18px',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            gap: 12,
-            flexWrap: 'wrap',
-          }}
-        >
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <i className="ti ti-building-community" style={{ color: '#1d6f5c', fontSize: 20 }}></i>
+      <OrganizationClaimBanner
+        organizationId={org.id}
+        organizationName={org.name}
+        claimed={!!org.claimed}
+        userId={userId}
+      />
+
+      {!org.claimed && !userId && (
+        <div className="card" style={{ maxWidth: 900, margin: '0 auto 16px', padding: '26px 28px' }}>
+          <div style={{ fontSize: 17, fontWeight: 700, color: '#1a1a18', marginBottom: 18, textAlign: 'center' }}>
+            Todo lo que necesitas para crecer en el sector de los asuntos públicos, en un único lugar.
+          </div>
+          <div
+            style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
+              gap: 18,
+              marginBottom: 22,
+            }}
+          >
             <div>
-              <div style={{ fontSize: 13.5, fontWeight: 700, color: '#1a1a18' }}>¿Eres de {org.name}?</div>
-              <div style={{ fontSize: 12, color: '#666' }}>Reclama esta página para gestionarla y publicar ofertas.</div>
+              <div style={{ fontSize: 13.5, fontWeight: 700, color: '#1a1a18', marginBottom: 4 }}>
+                👥 La mayor red de talento del sector
+              </div>
+              <div style={{ fontSize: 12.5, color: '#666', lineHeight: 1.5 }}>
+                Profesionales, organizaciones y oportunidades conectados en un mismo lugar.
+              </div>
+            </div>
+            <div>
+              <div style={{ fontSize: 13.5, fontWeight: 700, color: '#1a1a18', marginBottom: 4 }}>
+                🚀 Empleo, networking y crecimiento
+              </div>
+              <div style={{ fontSize: 12.5, color: '#666', lineHeight: 1.5 }}>
+                Encuentra talento, crea relaciones y accede a nuevas oportunidades.
+              </div>
+            </div>
+            <div>
+              <div style={{ fontSize: 13.5, fontWeight: 700, color: '#1a1a18', marginBottom: 4 }}>
+                🧠 Inteligencia especializada
+              </div>
+              <div style={{ fontSize: 12.5, color: '#666', lineHeight: 1.5 }}>
+                Herramientas e información diseñadas para los asuntos públicos.
+              </div>
             </div>
           </div>
-          {claimSubmitted ? (
-            <span style={{ fontSize: 12.5, color: '#1d6f5c', fontWeight: 600 }}>
-              <i className="ti ti-clock" style={{ fontSize: 13 }}></i> Solicitud enviada, en revisión
-            </span>
-          ) : (
-            <button className="btn-p" onClick={() => setShowClaimModal(true)}>
-              <i className="ti ti-shield-check"></i> Reclamar esta página
-            </button>
-          )}
+          <div style={{ textAlign: 'center' }}>
+            <Link href="/login?view=signup" className="btn-p" style={{ textDecoration: 'none', padding: '10px 24px' }}>
+              Regístrate gratis
+            </Link>
+          </div>
         </div>
-      )}
-
-      {showClaimModal && (
-        <ClaimOrganizationModal
-          organizationId={org.id}
-          organizationName={org.name}
-          userId={userId}
-          onClose={() => setShowClaimModal(false)}
-          onSubmitted={() => setClaimSubmitted(true)}
-        />
       )}
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 280px', gap: 13, maxWidth: 900, margin: '0 auto' }}>
@@ -263,7 +319,7 @@ export default function OrganizationPublicPage() {
         </div>
       </div>
 
-      {publicActivities.length > 0 && (
+      {activities.length > 0 && (
         <div className="card" style={{ maxWidth: 900, margin: '13px auto 0', padding: 20 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
             <i className="ti ti-shield-check" style={{ color: '#6d5aef', fontSize: 17 }}></i>
@@ -274,7 +330,7 @@ export default function OrganizationPublicPage() {
             con la Ley de Transparencia e Integridad de los Grupos de Interés.
           </p>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-            {publicActivities.map((a) => (
+            {activities.map((a) => (
               <div key={a.id} style={{ display: 'flex', gap: 12, paddingBottom: 12, borderBottom: '.5px solid #e0dfd8' }}>
                 <div style={{ fontSize: 11.5, color: '#999', minWidth: 84, flexShrink: 0 }}>{a.activity_date}</div>
                 <div>
