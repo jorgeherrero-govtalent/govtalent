@@ -230,32 +230,32 @@ export default async function OrganizationPublicPage({ params }) {
             textAlign: 'center',
           }}
         >
-          <div style={{ fontSize: 20, fontWeight: 800, color: '#fff', marginBottom: 8, letterSpacing: '-0.01em' }}>
-            Todo lo que necesitas para crecer en el sector de los asuntos públicos, en un único lugar.
+          <div style={{ fontSize: 20, fontWeight: 800, color: '#fff', marginBottom: 18, letterSpacing: '-0.01em' }}>
+            ¿Quieres trabajar o colaborar con {org.name}?
           </div>
-          <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.72)', marginBottom: 22 }}>
-            Únete gratis a la red profesional de los asuntos públicos.
+          <div style={{ fontSize: 13.5, fontWeight: 700, color: 'rgba(255,255,255,0.85)', marginBottom: 14 }}>
+            Regístrate ahora para:
           </div>
-          <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'center', gap: 8, marginBottom: 26 }}>
+          <div
+            style={{
+              display: 'flex',
+              flexDirection: 'column',
+              gap: 10,
+              maxWidth: 400,
+              margin: '0 auto 28px',
+              textAlign: 'left',
+            }}
+          >
             {[
-              '🔒 Oportunidades y crecimiento',
-              '🔒 Alertas de empleo',
-              '🔒 Matching con IA',
-              '🔒 Base de datos inteligente',
+              'Recibir alertas cuando publique nuevas ofertas',
+              'Seguir su actividad',
+              'Descubrir organizaciones similares',
+              'Acceder a toda la red profesional del sector',
             ].map((label) => (
-              <span
-                key={label}
-                style={{
-                  fontSize: 12.5,
-                  color: '#fff',
-                  background: 'rgba(255,255,255,0.12)',
-                  border: '1px solid rgba(255,255,255,0.22)',
-                  borderRadius: 20,
-                  padding: '6px 14px',
-                }}
-              >
-                {label}
-              </span>
+              <div key={label} style={{ fontSize: 13.5, color: '#fff', display: 'flex', alignItems: 'flex-start', gap: 8 }}>
+                <span>✅</span>
+                <span>{label}</span>
+              </div>
             ))}
           </div>
           <Link
@@ -277,9 +277,6 @@ export default async function OrganizationPublicPage({ params }) {
           >
             Regístrate gratis <i className="ti ti-arrow-right" style={{ fontSize: 16 }}></i>
           </Link>
-          <div style={{ fontSize: 11.5, color: 'rgba(255,255,255,0.55)', marginTop: 12 }}>
-            Gratis · Sin tarjeta · Acceso inmediato
-          </div>
         </div>
       )}
 
