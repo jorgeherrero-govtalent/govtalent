@@ -144,7 +144,7 @@ export default function AppLayout({ children }) {
       <Footer />
       <Toast />
 
-      {needsOnboarding && user && (
+      {needsOnboarding && user && pathname !== '/organizations/new' && (
         <OnboardingModal userId={user.id} onComplete={handleOnboardingComplete} />
       )}
     </div>
