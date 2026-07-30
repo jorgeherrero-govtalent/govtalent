@@ -130,11 +130,13 @@ export default async function OrganizationPublicPage({ params }) {
     <div className="sec">
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
 
-      <div style={{ maxWidth: 900, margin: '0 auto 10px' }}>
-        <Link href="/organizations" style={{ fontSize: 12.5, color: '#1d6f5c', textDecoration: 'none' }}>
-          <i className="ti ti-arrow-left"></i> Volver al buscador
-        </Link>
-      </div>
+      {userId && (
+        <div style={{ maxWidth: 900, margin: '0 auto 10px' }}>
+          <Link href="/organizations" style={{ fontSize: 12.5, color: '#1d6f5c', textDecoration: 'none' }}>
+            <i className="ti ti-arrow-left"></i> Volver al buscador
+          </Link>
+        </div>
+      )}
 
       <div className="card" style={{ maxWidth: 900, margin: '0 auto 13px' }}>
         <div
@@ -217,42 +219,25 @@ export default async function OrganizationPublicPage({ params }) {
       />
 
       {!org.claimed && !userId && (
-        <div className="card" style={{ maxWidth: 900, margin: '0 auto 16px', padding: '26px 28px' }}>
-          <div style={{ fontSize: 17, fontWeight: 700, color: '#1a1a18', marginBottom: 18, textAlign: 'center' }}>
+        <div className="card" style={{ maxWidth: 900, margin: '0 auto 16px', padding: '24px 28px' }}>
+          <div style={{ fontSize: 16, fontWeight: 700, color: '#1a1a18', marginBottom: 18, textAlign: 'center' }}>
             Todo lo que necesitas para crecer en el sector de los asuntos públicos, en un único lugar.
           </div>
           <div
             style={{
-              display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
-              gap: 18,
-              marginBottom: 22,
+              display: 'flex',
+              flexDirection: 'column',
+              gap: 9,
+              maxWidth: 380,
+              margin: '0 auto 20px',
+              fontSize: 13,
+              color: '#555',
             }}
           >
-            <div>
-              <div style={{ fontSize: 13.5, fontWeight: 700, color: '#1a1a18', marginBottom: 4 }}>
-                👥 La mayor red de talento del sector
-              </div>
-              <div style={{ fontSize: 12.5, color: '#666', lineHeight: 1.5 }}>
-                Profesionales, organizaciones y oportunidades conectados en un mismo lugar.
-              </div>
-            </div>
-            <div>
-              <div style={{ fontSize: 13.5, fontWeight: 700, color: '#1a1a18', marginBottom: 4 }}>
-                🚀 Empleo, networking y crecimiento
-              </div>
-              <div style={{ fontSize: 12.5, color: '#666', lineHeight: 1.5 }}>
-                Encuentra talento, crea relaciones y accede a nuevas oportunidades.
-              </div>
-            </div>
-            <div>
-              <div style={{ fontSize: 13.5, fontWeight: 700, color: '#1a1a18', marginBottom: 4 }}>
-                🧠 Inteligencia especializada
-              </div>
-              <div style={{ fontSize: 12.5, color: '#666', lineHeight: 1.5 }}>
-                Herramientas e información diseñadas para los asuntos públicos.
-              </div>
-            </div>
+            <div>🔒 Seguir a esta organización</div>
+            <div>🔒 Alertas de nuevas ofertas de empleo</div>
+            <div>🔒 Matching de empleo con IA</div>
+            <div>🔒 Base de datos inteligente de organizaciones</div>
           </div>
           <div style={{ textAlign: 'center' }}>
             <Link href="/login?view=signup" className="btn-p" style={{ textDecoration: 'none', padding: '10px 24px' }}>
@@ -266,7 +251,17 @@ export default async function OrganizationPublicPage({ params }) {
         <div className="card">
           <div className="p-sec" style={{ borderBottom: 'none' }}>
             <h3>Empleos activos en esta organización</h3>
-            {jobs.length === 0 && <div style={{ fontSize: 13, color: '#999' }}>Sin ofertas activas por ahora.</div>}
+            {jobs.length === 0 &&
+              (userId ? (
+                <div style={{ fontSize: 13, color: '#999' }}>Sin ofertas activas por ahora.</div>
+              ) : (
+                <div style={{ fontSize: 13, color: '#999' }}>
+                  <Link href="/login?view=signup" style={{ color: '#1d6f5c', fontWeight: 600, textDecoration: 'none' }}>
+                    Regístrate
+                  </Link>{' '}
+                  y recibe una alerta cuando esta organización publique una oferta.
+                </div>
+              ))}
             {jobs.map((j) => (
               <Link
                 href="/jobs"
