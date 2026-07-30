@@ -44,6 +44,7 @@ export default function AppLayout({ children }) {
         .from('organization_members')
         .select('organization_id, organizations(slug, name)')
         .eq('user_id', data.user.id)
+        .limit(1)
         .maybeSingle();
       if (active && membership) setMyOrg(membership);
     }
