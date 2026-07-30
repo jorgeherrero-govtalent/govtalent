@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
 import { toast } from '@/lib/toast';
 import { useDragPosition, parsePosition } from '@/lib/useDragPosition';
+import ProgressChecklist from '@/components/ProgressChecklist';
 
 export default function ProfilePage() {
   const supabase = createClient();
@@ -1542,16 +1543,22 @@ export default function ProfilePage() {
             </div>
           </div>
 
-          <div className="sw">
-            <h4>Tu visibilidad</h4>
-            <div style={{ fontSize: 13, color: '#555', marginBottom: 7 }}>
-              Perfil completado al <b style={{ color: '#1d6f5c' }}>{completion}%</b>
-            </div>
-            <div style={{ background: '#f0efe9', borderRadius: 6, height: 6, marginBottom: 10 }}>
-              <div style={{ background: '#1d6f5c', borderRadius: 6, height: 6, width: `${completion}%` }}></div>
-            </div>
-            <div style={{ fontSize: 12, color: '#888' }}>Añade foto, bio y experiencia para aumentar tu visibilidad.</div>
-          </div>
+          <ProgressChecklist
+            title="Tu visibilidad"
+            pct={completion}
+            items={[
+              { label: 'Foto de perfil', done: !!user?.avatar_url },
+              { label: 'Foto de portada', done: !!profile?.cover_url },
+              { label: 'CV subido', done: !!profile?.cv_url },
+              { label: 'Biografía', done: !!profile?.bio },
+              { label: 'Título profesional', done: !!user?.professional_title },
+              { label: 'Web o LinkedIn', done: !!(profile?.website_url || profile?.linkedin_url) },
+              { label: 'Experiencia', done: experiences.length > 0 },
+              { label: 'Educación', done: education.length > 0 },
+              { label: 'Habilidades', done: skills.length > 0 },
+            ]}
+            hint="Cuanto más completo esté tu perfil, más fácil es que una organización te encuentre."
+          />
 
           <div className="sw">
             <h4>Mis empleos guardados y solicitados</h4>
