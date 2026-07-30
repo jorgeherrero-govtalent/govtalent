@@ -7,6 +7,7 @@ import { useEffect, useState } from 'react';
 const NAV = [
   { href: '/backoffice', label: 'Dashboard', icon: 'ti-layout-dashboard' },
   { href: '/backoffice/organizaciones', label: 'Organizaciones', icon: 'ti-building' },
+  { href: '/backoffice/reclamaciones', label: 'Reclamaciones', icon: 'ti-shield-check' },
   { href: '/backoffice/usuarios', label: 'Usuarios', icon: 'ti-users' },
 ];
 
