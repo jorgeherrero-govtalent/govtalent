@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
 import { toast } from '@/lib/toast';
 
@@ -9,11 +10,15 @@ export default function OrganizationFollowButton({ organizationId, organizationN
   const [following, setFollowing] = useState(initialFollowing);
   const [busy, setBusy] = useState(false);
 
+  if (!userId) {
+    return (
+      <Link href="/login?view=signup" className="btn-p" style={{ textDecoration: 'none' }}>
+        <i className="ti ti-user-plus"></i> Regístrate
+      </Link>
+    );
+  }
+
   async function toggleFollow() {
-    if (!userId) {
-      toast('Inicia sesión para seguir a esta organización');
-      return;
-    }
     setBusy(true);
     if (following) {
       await supabase.from('organization_follows').delete().eq('user_id', userId).eq('organization_id', organizationId);
