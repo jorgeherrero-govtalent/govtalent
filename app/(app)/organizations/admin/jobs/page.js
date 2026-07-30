@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
 import { toast } from '@/lib/toast';
+import ShareJobModal from '@/components/ShareJobModal';
 
 const AREAS = [
   'Public Affairs',
@@ -20,6 +21,7 @@ export default function AllJobsPage() {
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState('activos');
   const [togglingId, setTogglingId] = useState(null);
+  const [sharingJob, setSharingJob] = useState(null);
 
   const [editingJob, setEditingJob] = useState(null);
   const [loadingEditJob, setLoadingEditJob] = useState(false);
@@ -335,6 +337,13 @@ export default function AllJobsPage() {
                   <button
                     className="btn-o"
                     style={{ fontSize: 12, padding: '6px 12px' }}
+                    onClick={() => setSharingJob(j)}
+                  >
+                    <i className="ti ti-share"></i> Compartir
+                  </button>
+                  <button
+                    className="btn-o"
+                    style={{ fontSize: 12, padding: '6px 12px' }}
                     disabled={loadingEditJob}
                     onClick={() => openEditJob(j.id)}
                   >
@@ -592,6 +601,10 @@ export default function AllJobsPage() {
             </div>
           </div>
         </div>
+      )}
+
+      {sharingJob && (
+        <ShareJobModal job={sharingJob} orgName={org?.name} voice="employer" onClose={() => setSharingJob(null)} />
       )}
     </div>
   );
