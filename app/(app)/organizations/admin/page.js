@@ -4,12 +4,13 @@ import { useEffect, useState } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { toast } from '@/lib/toast';
 import { hasInterestGroupBadge } from '@/lib/interestGroupBadge';
+import ProgressChecklist from '@/components/ProgressChecklist';
 
 export default function OrganizationAdminPage() {
   const supabase = createClient();
   const [org, setOrg] = useState(null);
   const [jobs, setJobs] = useState([]);
-  const [kpis, setKpis] = useState({ activeJobs: 0, totalApplications: 0, applicationsThisWeek: 0 });
+  const [kpis, setKpis] = useState({ activeJobs: 0, totalApplications: 0, applicationsThisWeek: 0, reviewedApplications: 0 });
   const [sharingJob, setSharingJob] = useState(null);
 
   useEffect(() => {
@@ -49,7 +50,7 @@ export default function OrganizationAdminPage() {
     const activeJobs = (orgJobs || []).filter((j) => j.status === 'activa').length;
 
     if (jobIds.length === 0) {
-      setKpis({ activeJobs, totalApplications: 0, applicationsThisWeek: 0 });
+      setKpis({ activeJobs, totalApplications: 0, applicationsThisWeek: 0, reviewedApplications: 0 });
       return;
     }
 
@@ -65,7 +66,18 @@ export default function OrganizationAdminPage() {
       .in('job_id', jobIds)
       .gte('applied_at', weekAgo);
 
-    setKpis({ activeJobs, totalApplications: totalApplications || 0, applicationsThisWeek: applicationsThisWeek || 0 });
+    const { count: reviewedApplications } = await supabase
+      .from('job_applications')
+      .select('id', { count: 'exact', head: true })
+      .in('job_id', jobIds)
+      .neq('status', 'enviada');
+
+    setKpis({
+      activeJobs,
+      totalApplications: totalApplications || 0,
+      applicationsThisWeek: applicationsThisWeek || 0,
+      reviewedApplications: reviewedApplications || 0,
+    });
   }
 
   function publicJobUrl(jobId) {
@@ -195,6 +207,19 @@ export default function OrganizationAdminPage() {
         </div>
 
         <div>
+          <ProgressChecklist
+            title="Primeros pasos"
+            items={[
+              { label: 'Logo de la organización', done: !!org.logo_url },
+              { label: 'Descripción de la organización', done: !!org.bio },
+              { label: 'Sitio web', done: !!org.website_url },
+              { label: 'Primera oferta publicada', done: jobs.length > 0 },
+              { label: 'Primera candidatura recibida', done: kpis.totalApplications > 0 },
+              { label: 'Primera candidatura revisada', done: kpis.reviewedApplications > 0 },
+            ]}
+            hint="Completa estos pasos para sacarle el máximo partido a GovTalent."
+          />
+
           <div
             className="sw"
             style={{
