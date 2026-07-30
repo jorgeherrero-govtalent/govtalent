@@ -262,6 +262,7 @@ export default function OrganizationsDatabasePage() {
                   onClose={() => setOpenPopover(null)}
                 />
               </th>
+              <th style={{ padding: '10px 14px', fontWeight: 700, color: '#666', fontSize: 11, textTransform: 'uppercase' }}>Enlaces</th>
             </tr>
           </thead>
           <tbody>
@@ -276,11 +277,25 @@ export default function OrganizationsDatabasePage() {
                 <td style={{ padding: '9px 14px', color: '#555' }}>{o.location || '—'}</td>
                 <td style={{ padding: '9px 14px', color: '#555' }}>{o.sector || '—'}</td>
                 <td style={{ padding: '9px 14px', color: '#555' }}>{o.size_range || '—'}</td>
+                <td style={{ padding: '9px 14px' }}>
+                  <div className="dir-row-links">
+                    {o.website_url && (
+                      <a href={o.website_url} target="_blank" rel="noreferrer" title="Sitio web">
+                        <i className="ti ti-world"></i>
+                      </a>
+                    )}
+                    {o.linkedin_url && (
+                      <a href={o.linkedin_url} target="_blank" rel="noreferrer" title="LinkedIn">
+                        <i className="ti ti-brand-linkedin"></i>
+                      </a>
+                    )}
+                  </div>
+                </td>
               </tr>
             ))}
             {paginated.length === 0 && (
               <tr>
-                <td colSpan={5} style={{ padding: 30, textAlign: 'center', color: '#999' }}>
+                <td colSpan={6} style={{ padding: 30, textAlign: 'center', color: '#999' }}>
                   No hay organizaciones que coincidan con estos filtros.
                 </td>
               </tr>
