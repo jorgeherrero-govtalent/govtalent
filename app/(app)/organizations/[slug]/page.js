@@ -225,8 +225,8 @@ export default async function OrganizationPublicPage({ params }) {
             margin: '0 auto 16px',
             padding: '32px 28px',
             borderRadius: 16,
-            background: 'linear-gradient(135deg, #1d6f5c 0%, #143f34 100%)',
-            boxShadow: '0 10px 28px rgba(20,63,52,0.22)',
+            background: 'linear-gradient(135deg, #6d5aef 0%, #2f2266 100%)',
+            boxShadow: '0 10px 28px rgba(47,34,102,0.24)',
             textAlign: 'center',
           }}
         >
@@ -236,9 +236,9 @@ export default async function OrganizationPublicPage({ params }) {
           <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.72)', marginBottom: 22 }}>
             Únete gratis a la red profesional de los asuntos públicos.
           </div>
-          <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'center', gap: 8, marginBottom: 24 }}>
+          <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'center', gap: 8, marginBottom: 26 }}>
             {[
-              '🔒 Seguir organizaciones',
+              '🔒 Oportunidades y crecimiento',
               '🔒 Alertas de empleo',
               '🔒 Matching con IA',
               '🔒 Base de datos inteligente',
@@ -264,17 +264,22 @@ export default async function OrganizationPublicPage({ params }) {
               textDecoration: 'none',
               display: 'inline-flex',
               alignItems: 'center',
-              gap: 6,
+              gap: 8,
               background: '#fff',
-              color: '#1d6f5c',
-              fontWeight: 700,
-              fontSize: 14,
-              padding: '11px 26px',
-              borderRadius: 8,
+              color: '#3d2f8f',
+              fontWeight: 800,
+              fontSize: 15,
+              padding: '13px 30px',
+              borderRadius: 999,
+              boxShadow: '0 8px 22px rgba(0,0,0,0.2)',
+              letterSpacing: '-0.005em',
             }}
           >
-            Regístrate gratis <i className="ti ti-arrow-right"></i>
+            Regístrate gratis <i className="ti ti-arrow-right" style={{ fontSize: 16 }}></i>
           </Link>
+          <div style={{ fontSize: 11.5, color: 'rgba(255,255,255,0.55)', marginTop: 12 }}>
+            Gratis · Sin tarjeta · Acceso inmediato
+          </div>
         </div>
       )}
 
@@ -293,7 +298,7 @@ export default async function OrganizationPublicPage({ params }) {
                   y recibe una alerta cuando esta organización publique una oferta.
                 </div>
               ))}
-            {jobs.map((j) => (
+            {(!userId ? jobs.slice(0, 3) : jobs).map((j) => (
               <Link
                 href="/jobs"
                 key={j.id}
@@ -311,6 +316,16 @@ export default async function OrganizationPublicPage({ params }) {
                 )}
               </Link>
             ))}
+            {!userId && jobs.length > 3 && (
+              <div style={{ textAlign: 'center', marginTop: 8 }}>
+                <Link
+                  href="/login?view=signup"
+                  style={{ fontSize: 13, color: '#1d6f5c', fontWeight: 600, textDecoration: 'none' }}
+                >
+                  Regístrate y revisa todas las ofertas
+                </Link>
+              </div>
+            )}
           </div>
         </div>
 
