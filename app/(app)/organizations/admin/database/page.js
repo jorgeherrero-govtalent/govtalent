@@ -1,7 +1,6 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
 import FilterableHeader from '@/components/FilterableHeader';
 import { hasInterestGroupBadge } from '@/lib/interestGroupBadge';
@@ -36,6 +35,7 @@ export default function OrganizationsDatabasePage() {
   const [typeFilter, setTypeFilter] = useState(new Set());
   const [sectorFilter, setSectorFilter] = useState(new Set());
   const [locationFilter, setLocationFilter] = useState(new Set());
+  const [sizeFilter, setSizeFilter] = useState(new Set());
   const [sortConfig, setSortConfig] = useState({ key: null, dir: 'asc' });
   const [openPopover, setOpenPopover] = useState(null);
   const [page, setPage] = useState(0);
@@ -46,7 +46,7 @@ export default function OrganizationsDatabasePage() {
 
   useEffect(() => {
     setPage(0);
-  }, [search, quickFilter, typeFilter, sectorFilter, locationFilter]);
+  }, [search, quickFilter, typeFilter, sectorFilter, locationFilter, sizeFilter]);
 
   async function load() {
     const { data, error } = await supabase
@@ -80,6 +80,11 @@ export default function OrganizationsDatabasePage() {
     return [...seen].sort((a, b) => a.localeCompare(b, 'es')).map((l) => ({ value: l, label: l }));
   }, [orgs]);
 
+  const sizeValues = useMemo(() => {
+    const seen = new Set((orgs || []).map((o) => o.size_range).filter(Boolean));
+    return [...seen].sort((a, b) => a.localeCompare(b, 'es')).map((s) => ({ value: s, label: s }));
+  }, [orgs]);
+
   const filtered = useMemo(() => {
     if (!orgs) return [];
     const q = search.trim().toLowerCase();
@@ -88,6 +93,7 @@ export default function OrganizationsDatabasePage() {
       .filter((o) => typeFilter.size === 0 || typeFilter.has(o.org_type))
       .filter((o) => sectorFilter.size === 0 || sectorFilter.has(o.sector || ''))
       .filter((o) => locationFilter.size === 0 || locationFilter.has(o.location || ''))
+      .filter((o) => sizeFilter.size === 0 || sizeFilter.has(o.size_range || ''))
       .filter((o) => !q || o.name.toLowerCase().includes(q) || (o.location || '').toLowerCase().includes(q) || (o.sector || '').toLowerCase().includes(q));
 
     if (sortConfig.key) {
@@ -102,7 +108,7 @@ export default function OrganizationsDatabasePage() {
     }
 
     return list;
-  }, [orgs, search, quickFilter, typeFilter, sectorFilter, locationFilter, sortConfig]);
+  }, [orgs, search, quickFilter, typeFilter, sectorFilter, locationFilter, sizeFilter, sortConfig]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const paginated = filtered.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
@@ -219,8 +225,20 @@ export default function OrganizationsDatabasePage() {
                   onClose={() => setOpenPopover(null)}
                 />
               </th>
-              <th style={{ padding: '10px 14px', fontWeight: 700, color: '#666', fontSize: 11, textTransform: 'uppercase' }}>Empleados</th>
-              <th style={{ padding: '10px 14px' }}></th>
+              <th style={{ padding: '10px 14px' }}>
+                <FilterableHeader
+                  label="Empleados"
+                  columnKey="size_range"
+                  values={sizeValues}
+                  selected={sizeFilter}
+                  onApply={setSizeFilter}
+                  sortConfig={sortConfig}
+                  onSort={(key, dir) => setSortConfig({ key, dir })}
+                  isOpen={openPopover === 'size_range'}
+                  onToggle={() => setOpenPopover(openPopover === 'size_range' ? null : 'size_range')}
+                  onClose={() => setOpenPopover(null)}
+                />
+              </th>
             </tr>
           </thead>
           <tbody>
@@ -235,18 +253,11 @@ export default function OrganizationsDatabasePage() {
                 <td style={{ padding: '9px 14px', color: '#555' }}>{o.location || '—'}</td>
                 <td style={{ padding: '9px 14px', color: '#555' }}>{o.sector || '—'}</td>
                 <td style={{ padding: '9px 14px', color: '#555' }}>{o.size_range || '—'}</td>
-                <td style={{ padding: '9px 14px' }}>
-                  {o.slug && (
-                    <Link href={`/organizations/${o.slug}`} style={{ color: '#1d6f5c' }}>
-                      Ver <i className="ti ti-chevron-right" style={{ fontSize: 11 }}></i>
-                    </Link>
-                  )}
-                </td>
               </tr>
             ))}
             {paginated.length === 0 && (
               <tr>
-                <td colSpan={6} style={{ padding: 30, textAlign: 'center', color: '#999' }}>
+                <td colSpan={5} style={{ padding: 30, textAlign: 'center', color: '#999' }}>
                   No hay organizaciones que coincidan con estos filtros.
                 </td>
               </tr>
