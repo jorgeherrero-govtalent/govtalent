@@ -24,7 +24,7 @@ const QUICK_FILTERS = {
   grupo_interes: (o) => hasInterestGroupBadge(o),
 };
 
-const PAGE_SIZE = 25;
+const PAGE_SIZE_OPTIONS = [10, 25, 50, 100];
 
 export default function OrganizationsDatabasePage() {
   const supabase = createClient();
@@ -39,6 +39,7 @@ export default function OrganizationsDatabasePage() {
   const [sortConfig, setSortConfig] = useState({ key: null, dir: 'asc' });
   const [openPopover, setOpenPopover] = useState(null);
   const [page, setPage] = useState(0);
+  const [pageSize, setPageSize] = useState(10);
 
   useEffect(() => {
     load();
@@ -46,7 +47,7 @@ export default function OrganizationsDatabasePage() {
 
   useEffect(() => {
     setPage(0);
-  }, [search, quickFilter, typeFilter, sectorFilter, locationFilter, sizeFilter]);
+  }, [search, quickFilter, typeFilter, sectorFilter, locationFilter, sizeFilter, pageSize]);
 
   async function load() {
     const { data, error } = await supabase
@@ -110,8 +111,11 @@ export default function OrganizationsDatabasePage() {
     return list;
   }, [orgs, search, quickFilter, typeFilter, sectorFilter, locationFilter, sizeFilter, sortConfig]);
 
-  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
-  const paginated = filtered.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
+  const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
+  const currentPage = Math.min(page, totalPages - 1);
+  const pageStart = filtered.length === 0 ? 0 : currentPage * pageSize + 1;
+  const pageEnd = Math.min(filtered.length, (currentPage + 1) * pageSize);
+  const paginated = filtered.slice(currentPage * pageSize, currentPage * pageSize + pageSize);
 
   if (orgs === null) return <div className="spinner"></div>;
 
@@ -165,7 +169,7 @@ export default function OrganizationsDatabasePage() {
 
       <div style={{ fontSize: 12, color: '#999', marginBottom: 8 }}>{filtered.length} resultados</div>
 
-      <div style={{ background: '#fff', border: '.5px solid #e0dfd8', borderRadius: 12, overflow: 'auto' }}>
+      <div style={{ background: '#fff', border: '.5px solid #e0dfd8', borderRadius: 12, borderBottomLeftRadius: 0, borderBottomRightRadius: 0, overflow: 'auto' }}>
         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12.5 }}>
           <thead>
             <tr style={{ background: '#faf9f5', textAlign: 'left' }}>
@@ -266,29 +270,79 @@ export default function OrganizationsDatabasePage() {
         </table>
       </div>
 
-      {totalPages > 1 && (
-        <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 12, marginTop: 14 }}>
-          <button
-            type="button"
-            disabled={page === 0}
-            onClick={() => setPage((p) => Math.max(0, p - 1))}
-            style={{ padding: '6px 12px', borderRadius: 7, border: '.5px solid #e0dfd8', background: '#fff', fontSize: 12.5, opacity: page === 0 ? 0.4 : 1 }}
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          padding: '12px 16px',
+          borderTop: 'none',
+          background: '#fff',
+          border: '.5px solid #e0dfd8',
+          borderTopLeftRadius: 0,
+          borderTopRightRadius: 0,
+          borderBottomLeftRadius: 12,
+          borderBottomRightRadius: 12,
+          marginTop: -1,
+          fontSize: 12.5,
+          color: '#888',
+          flexWrap: 'wrap',
+          gap: 10,
+        }}
+      >
+        <label style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          Mostrar
+          <select
+            value={pageSize}
+            onChange={(e) => setPageSize(Number(e.target.value))}
+            style={{ border: '.5px solid #e0dfd8', borderRadius: 7, padding: '4px 8px', fontSize: 12.5 }}
           >
-            <i className="ti ti-chevron-left"></i>
-          </button>
-          <span style={{ fontSize: 12.5, color: '#666' }}>
-            Página {page + 1} de {totalPages}
+            {PAGE_SIZE_OPTIONS.map((n) => (
+              <option key={n} value={n}>
+                {n}
+              </option>
+            ))}
+          </select>
+        </label>
+
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          <span>
+            Mostrando {pageStart}-{pageEnd} de {filtered.length}
           </span>
-          <button
-            type="button"
-            disabled={page >= totalPages - 1}
-            onClick={() => setPage((p) => Math.min(totalPages - 1, p + 1))}
-            style={{ padding: '6px 12px', borderRadius: 7, border: '.5px solid #e0dfd8', background: '#fff', fontSize: 12.5, opacity: page >= totalPages - 1 ? 0.4 : 1 }}
-          >
-            <i className="ti ti-chevron-right"></i>
-          </button>
+          <div style={{ display: 'flex', gap: 4 }}>
+            <button
+              onClick={() => setPage((p) => Math.max(0, p - 1))}
+              disabled={currentPage === 0}
+              style={{
+                width: 28,
+                height: 28,
+                borderRadius: 7,
+                border: '.5px solid #e0dfd8',
+                background: '#fff',
+                color: currentPage === 0 ? '#ccc' : '#555',
+                cursor: currentPage === 0 ? 'default' : 'pointer',
+              }}
+            >
+              <i className="ti ti-chevron-left" style={{ fontSize: 13 }}></i>
+            </button>
+            <button
+              onClick={() => setPage((p) => Math.min(totalPages - 1, p + 1))}
+              disabled={currentPage >= totalPages - 1}
+              style={{
+                width: 28,
+                height: 28,
+                borderRadius: 7,
+                border: '.5px solid #e0dfd8',
+                background: '#fff',
+                color: currentPage >= totalPages - 1 ? '#ccc' : '#555',
+                cursor: currentPage >= totalPages - 1 ? 'default' : 'pointer',
+              }}
+            >
+              <i className="ti ti-chevron-right" style={{ fontSize: 13 }}></i>
+            </button>
+          </div>
         </div>
-      )}
+      </div>
     </div>
   );
 }
