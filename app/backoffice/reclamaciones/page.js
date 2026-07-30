@@ -84,6 +84,24 @@ export default function ClaimsBackofficePage() {
     load();
   }
 
+  async function revoke(claimId) {
+    if (!window.confirm('¿Seguro que quieres revocar esta aprobación? El usuario perderá el acceso a la organización.')) return;
+    setBusyId(claimId);
+    const res = await fetch(`/api/backoffice/organizations/claims/${claimId}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'revoke' }),
+    });
+    const data = await res.json();
+    setBusyId(null);
+    if (!res.ok) {
+      toast(data.error || 'No se pudo revocar la aprobación');
+      return;
+    }
+    toast('Aprobación revocada ✓');
+    load();
+  }
+
   if (claims === null) return <div className="spinner"></div>;
 
   const filtered = claims.filter((c) => filter === 'all' || c.status === filter);
@@ -217,6 +235,17 @@ export default function ClaimsBackofficePage() {
                     </button>
                   )}
                 </>
+              )}
+
+              {c.status === 'approved' && (
+                <button
+                  className="btn-o"
+                  style={{ fontSize: 12.5, color: '#a33', borderColor: '#e8c8c8' }}
+                  disabled={busyId === c.id}
+                  onClick={() => revoke(c.id)}
+                >
+                  <i className="ti ti-rotate"></i> Revocar aprobación
+                </button>
               )}
             </div>
           </div>
