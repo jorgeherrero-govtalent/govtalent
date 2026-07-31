@@ -82,7 +82,10 @@ export default function AllJobsPage() {
     setTogglingId(null);
     if (error) {
       if (error.message?.includes('free_plan_job_limit')) {
-        toast('El plan gratuito solo permite 1 oferta activa a la vez. Desactiva otra oferta o actualiza tu plan.');
+        setUpgradeModal({
+          title: 'Ofertas activas',
+          message: `El plan gratuito incluye ${freeJobLimit()} oferta activa a la vez. Desactiva otra oferta o actualiza tu plan para publicar más.`,
+        });
       } else {
         toast('No se pudo actualizar el estado de la oferta');
       }
@@ -206,9 +209,11 @@ export default function AllJobsPage() {
 
     const activeCount = jobs.filter((j) => j.status === 'activa').length;
     if (org && !canPostAnotherJob(org, activeCount)) {
-      toast(
-        `El plan gratuito incluye ${freeJobLimit()} oferta activa a la vez. Actualiza tu plan para publicar más.`
-      );
+      setShowNewJob(false);
+      setUpgradeModal({
+        title: 'Ofertas activas',
+        message: `El plan gratuito incluye ${freeJobLimit()} oferta activa a la vez. Actualiza tu plan para publicar más.`,
+      });
       return;
     }
 
