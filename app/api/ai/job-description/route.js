@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { checkAndLogAiUsage } from '@/lib/aiRateLimit';
+import { canUseAIJobDescription } from '@/lib/plan';
 
 export async function POST(request) {
   const { prompt, title, area, modality, employmentType } = await request.json();
@@ -29,11 +30,18 @@ export async function POST(request) {
   // definido, si tiene una página administrada.
   const { data: membership } = await supabase
     .from('organization_members')
-    .select('organizations(ai_tone, ai_context)')
+    .select('organizations(ai_tone, ai_context, plan, plan_status, trial_ends_at, trial_ai_matches_used, is_founding_member)')
     .eq('user_id', authData.user.id)
     .limit(1)
     .maybeSingle();
   const org = membership?.organizations;
+
+  if (org && !canUseAIJobDescription(org)) {
+    return NextResponse.json(
+      { error: 'La generación de ofertas con IA está disponible a partir del plan Plus.', upgradeRequired: true },
+      { status: 403 }
+    );
+  }
   const toneMap = {
     profesional: 'un tono profesional pero cercano',
     formal: 'un tono formal e institucional',
