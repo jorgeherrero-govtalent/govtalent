@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
 import { toast } from '@/lib/toast';
 import ShareJobModal from '@/components/ShareJobModal';
+import UpgradeModal from '@/components/UpgradeModal';
 import { canPostAnotherJob, freeJobLimit } from '@/lib/plan';
 
 const AREAS = [
@@ -32,6 +33,7 @@ export default function AllJobsPage() {
   const [posting, setPosting] = useState(false);
   const [aiPrompt, setAiPrompt] = useState('');
   const [showAiJobModal, setShowAiJobModal] = useState(false);
+  const [upgradeModal, setUpgradeModal] = useState(null);
   const [generatingDesc, setGeneratingDesc] = useState(false);
 
   const titleRef = useRef(null);
@@ -176,7 +178,15 @@ export default function AllJobsPage() {
         }),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Error desconocido');
+      if (!res.ok) {
+        if (data.upgradeRequired) {
+          setShowAiJobModal(false);
+          setUpgradeModal({ title: 'Ofertas con IA', message: data.error });
+          setGeneratingDesc(false);
+          return;
+        }
+        throw new Error(data.error || 'Error desconocido');
+      }
 
       if (descriptionRef.current) descriptionRef.current.value = data.description;
       if (responsibilitiesRef.current) responsibilitiesRef.current.value = data.responsibilities.join('\n');
@@ -623,6 +633,14 @@ export default function AllJobsPage() {
 
       {sharingJob && (
         <ShareJobModal job={sharingJob} orgName={org?.name} voice="employer" onClose={() => setSharingJob(null)} />
+      )}
+
+      {upgradeModal && (
+        <UpgradeModal
+          title={upgradeModal.title}
+          message={upgradeModal.message}
+          onClose={() => setUpgradeModal(null)}
+        />
       )}
     </div>
   );
