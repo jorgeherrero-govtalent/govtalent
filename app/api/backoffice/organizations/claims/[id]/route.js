@@ -36,7 +36,10 @@ export async function PATCH(request, { params }) {
   if (action === 'revoke' && claim.status !== 'approved') {
     return NextResponse.json({ error: 'Solo se puede revocar una solicitud ya aprobada' }, { status: 409 });
   }
-  if (action !== 'revoke' && claim.status !== 'pending') {
+  if (action === 'reject' && claim.status !== 'pending') {
+    return NextResponse.json({ error: 'Esta solicitud ya ha sido revisada' }, { status: 409 });
+  }
+  if (action === 'approve' && !['pending', 'rejected'].includes(claim.status)) {
     return NextResponse.json({ error: 'Esta solicitud ya ha sido revisada' }, { status: 409 });
   }
 
