@@ -149,7 +149,7 @@ export default function OrganizationsDatabasePage() {
       <div className="card" style={{ maxWidth: 480, margin: '48px auto', padding: 32, textAlign: 'center' }}>
         <i className="ti ti-lock" style={{ fontSize: 30, color: '#6d5aef', marginBottom: 10 }}></i>
         <div style={{ fontSize: 16, fontWeight: 700, marginBottom: 6, color: '#1a1a18' }}>
-          Base de datos inteligente — plan Pro
+          Directorio inteligente de organizaciones — plan Pro
         </div>
         <p style={{ fontSize: 13, color: '#666', marginBottom: 18 }}>
           Consulta, filtra y exporta el directorio completo de organizaciones del sector. Disponible en el plan Pro.
