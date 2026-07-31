@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/server';
+import PublicHeader from '@/components/PublicHeader';
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://govtalent.app';
 const FOUNDING_MEMBER_SEATS = 30;
@@ -57,21 +58,7 @@ export default async function PricingPage() {
 
   return (
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', background: '#f4f3ee' }}>
-      <div style={{ background: '#fff', borderBottom: '.5px solid #e0dfd8', padding: '14px 20px' }}>
-        <div
-          style={{ maxWidth: 960, margin: '0 auto', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}
-        >
-          <Link href="/jobs" style={{ fontWeight: 800, fontSize: 19, textDecoration: 'none', color: '#1a1a18' }}>
-            gov<span style={{ background: '#1d6f5c', color: '#fff', padding: '1px 6px', borderRadius: 5 }}>talent</span>
-          </Link>
-          <Link
-            href={loggedIn ? '/organizations/admin' : '/login'}
-            style={{ fontSize: 13, color: '#1d6f5c', textDecoration: 'none', fontWeight: 500 }}
-          >
-            {loggedIn ? 'Ir a mi organización' : 'Iniciar sesión'}
-          </Link>
-        </div>
-      </div>
+      <PublicHeader loggedIn={loggedIn} maxWidth={960} />
 
       <div style={{ flex: 1, maxWidth: 960, margin: '0 auto', padding: '48px 20px 64px', width: '100%' }}>
         <div style={{ textAlign: 'center', marginBottom: 36 }}>
