@@ -149,7 +149,21 @@ export default function ClaimsBackofficePage() {
           <div key={c.id} className="card" style={{ padding: 16 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 10, flexWrap: 'wrap' }}>
               <div>
-                <div style={{ fontSize: 14, fontWeight: 700 }}>{c.organizations?.name || 'Organización eliminada'}</div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <div style={{ fontSize: 14, fontWeight: 700 }}>{c.organizations?.name || 'Organización eliminada'}</div>
+                  <span
+                    style={{
+                      fontSize: 10.5,
+                      fontWeight: 700,
+                      padding: '2px 8px',
+                      borderRadius: 20,
+                      background: c.claim_type === 'verification' ? '#eef0fb' : '#f0f8f5',
+                      color: c.claim_type === 'verification' ? '#4a4fc4' : '#1d6f5c',
+                    }}
+                  >
+                    {c.claim_type === 'verification' ? 'Verificación' : 'Reclamación'}
+                  </span>
+                </div>
                 <div style={{ fontSize: 12.5, color: '#666', marginTop: 2 }}>
                   {c.users?.first_name} {c.users?.last_name} · {c.users?.email}
                 </div>
