@@ -167,7 +167,7 @@ export default async function OrganizationPublicPage({ params }) {
           </div>
         </div>
         <div className="co-info">
-          <div style={{ fontSize: 19, fontWeight: 700, marginBottom: 4, display: 'flex', alignItems: 'center', gap: 6 }}>
+          <div style={{ fontSize: 19, fontWeight: 700, marginBottom: 4, display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
             {org.name}
             {org.verified && (
               <span className="tt">
@@ -220,17 +220,17 @@ export default async function OrganizationPublicPage({ params }) {
 
       {!userId && (
         <div
+          className="org-cta-banner"
           style={{
             maxWidth: 900,
             margin: '0 auto 16px',
-            padding: '32px 28px',
             borderRadius: 16,
             background: 'linear-gradient(135deg, #6d5aef 0%, #2f2266 100%)',
             boxShadow: '0 10px 28px rgba(47,34,102,0.24)',
             textAlign: 'center',
           }}
         >
-          <div style={{ fontSize: 20, fontWeight: 800, color: '#fff', marginBottom: 18, letterSpacing: '-0.01em' }}>
+          <div className="org-cta-headline" style={{ fontWeight: 800, color: '#fff', marginBottom: 18, letterSpacing: '-0.01em' }}>
             ¿Quieres trabajar o colaborar con {org.name}?
           </div>
           <div style={{ fontSize: 13.5, fontWeight: 700, color: 'rgba(255,255,255,0.85)', marginBottom: 14 }}>
@@ -280,7 +280,7 @@ export default async function OrganizationPublicPage({ params }) {
         </div>
       )}
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 280px', gap: 13, maxWidth: 900, margin: '0 auto' }}>
+      <div className="org-layout-grid">
         <div className="card">
           <div className="p-sec" style={{ borderBottom: 'none' }}>
             <h3>Empleos activos en esta organización</h3>
