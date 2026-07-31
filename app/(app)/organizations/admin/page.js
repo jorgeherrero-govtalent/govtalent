@@ -5,13 +5,16 @@ import { createClient } from '@/lib/supabase/client';
 import { toast } from '@/lib/toast';
 import { hasInterestGroupBadge } from '@/lib/interestGroupBadge';
 import ProgressChecklist from '@/components/ProgressChecklist';
+import VerifyOrganizationModal from '@/components/VerifyOrganizationModal';
 
 export default function OrganizationAdminPage() {
   const supabase = createClient();
   const [org, setOrg] = useState(null);
+  const [userId, setUserId] = useState(null);
   const [jobs, setJobs] = useState([]);
   const [kpis, setKpis] = useState({ activeJobs: 0, totalApplications: 0, applicationsThisWeek: 0, reviewedApplications: 0 });
   const [sharingJob, setSharingJob] = useState(null);
+  const [showVerifyModal, setShowVerifyModal] = useState(false);
 
   useEffect(() => {
     load();
@@ -20,6 +23,7 @@ export default function OrganizationAdminPage() {
   async function load() {
     const { data: authData } = await supabase.auth.getUser();
     const uid = authData.user?.id;
+    setUserId(uid);
     if (!uid) return;
 
     const { data: membership } = await supabase
@@ -215,6 +219,7 @@ export default function OrganizationAdminPage() {
               { label: 'Logo de la organización', done: !!org.logo_url },
               { label: 'Descripción de la organización', done: !!org.bio },
               { label: 'Sitio web', done: !!org.website_url },
+              { label: 'Organización verificada', done: !!org.verified, onClick: () => setShowVerifyModal(true) },
               { label: 'Primera oferta publicada', done: jobs.length > 0 },
               { label: 'Primera candidatura recibida', done: kpis.totalApplications > 0 },
               { label: 'Primera candidatura revisada', done: kpis.reviewedApplications > 0 },
@@ -403,6 +408,15 @@ export default function OrganizationAdminPage() {
             })()}
           </div>
         </div>
+      )}
+
+      {showVerifyModal && org && (
+        <VerifyOrganizationModal
+          organizationId={org.id}
+          organizationName={org.name}
+          userId={userId}
+          onClose={() => setShowVerifyModal(false)}
+        />
       )}
     </div>
   );
