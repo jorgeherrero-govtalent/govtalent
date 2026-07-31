@@ -36,8 +36,9 @@ export async function middleware(request) {
     path.startsWith('/organizations/') &&
     !path.startsWith('/organizations/admin') &&
     !path.startsWith('/organizations/new');
+  const isPublicUnsubscribe = path.startsWith('/api/alerts/unsubscribe');
 
-  if (!user && !isAuthRoute && !isPublicJobPage && !isPublicOrgPage) {
+  if (!user && !isAuthRoute && !isPublicJobPage && !isPublicOrgPage && !isPublicUnsubscribe) {
     const url = request.nextUrl.clone();
     url.pathname = '/login';
     return NextResponse.redirect(url);
