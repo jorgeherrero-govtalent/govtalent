@@ -11,6 +11,7 @@ const NAV = [
   { href: '/organizations/admin/candidates', label: 'Candidatos', icon: 'ti-users' },
   { href: '/organizations/admin/database', label: 'Directorio inteligente', icon: 'ti-radar-2' },
   { href: '/organizations/admin/influence-log', label: 'Transparencia', icon: 'ti-shield-check' },
+  { href: '/organizations/admin/plan', label: 'Plan', icon: 'ti-diamond' },
 ];
 
 export default function OrganizationAdminLayout({ children }) {
