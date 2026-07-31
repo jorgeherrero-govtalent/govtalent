@@ -120,6 +120,7 @@ export default function NewOrganizationPage() {
         org_type: orgType,
         location,
         website_url: website || null,
+        claimed: true,
         ...buildTrialStart(),
       })
       .select()
