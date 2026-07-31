@@ -5,6 +5,7 @@ import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
 import { toast } from '@/lib/toast';
+import UpgradeModal from '@/components/UpgradeModal';
 
 const COLUMNS = [
   ['enviada', 'Enviada'],
@@ -41,6 +42,7 @@ function CandidatesBoardInner() {
   const [nameFilter, setNameFilter] = useState('');
   const [dragId, setDragId] = useState(null);
   const [ranking, setRanking] = useState(false);
+  const [upgradeModal, setUpgradeModal] = useState(null);
   const PAGE_SIZE = 6;
   const [visibleCounts, setVisibleCounts] = useState({});
 
@@ -301,7 +303,14 @@ function CandidatesBoardInner() {
         body: JSON.stringify({ jobId: jobFilter }),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Error desconocido');
+      if (!res.ok) {
+        if (data.upgradeRequired) {
+          setUpgradeModal({ title: 'Matching de candidatos con IA', message: data.error });
+          setRanking(false);
+          return;
+        }
+        throw new Error(data.error || 'Error desconocido');
+      }
       const scoreMap = new Map(data.rankings.map((r) => [r.applicationId, r]));
       setApplications((prev) =>
         prev.map((a) =>
@@ -708,6 +717,14 @@ function CandidatesBoardInner() {
             )}
           </div>
         </div>
+      )}
+
+      {upgradeModal && (
+        <UpgradeModal
+          title={upgradeModal.title}
+          message={upgradeModal.message}
+          onClose={() => setUpgradeModal(null)}
+        />
       )}
     </div>
   );
