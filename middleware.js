@@ -37,8 +37,9 @@ export async function middleware(request) {
     !path.startsWith('/organizations/admin') &&
     !path.startsWith('/organizations/new');
   const isPublicUnsubscribe = path.startsWith('/api/alerts/unsubscribe');
+  const isPublicPricing = path === '/precios';
 
-  if (!user && !isAuthRoute && !isPublicJobPage && !isPublicOrgPage && !isPublicUnsubscribe) {
+  if (!user && !isAuthRoute && !isPublicJobPage && !isPublicOrgPage && !isPublicUnsubscribe && !isPublicPricing) {
     const url = request.nextUrl.clone();
     url.pathname = '/login';
     return NextResponse.redirect(url);
