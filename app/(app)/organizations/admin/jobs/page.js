@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
 import { toast } from '@/lib/toast';
 import ShareJobModal from '@/components/ShareJobModal';
+import { canPostAnotherJob, freeJobLimit } from '@/lib/plan';
 
 const AREAS = [
   'Public Affairs',
@@ -78,7 +79,11 @@ export default function AllJobsPage() {
     const { error } = await supabase.from('jobs').update({ status: newStatus }).eq('id', job.id);
     setTogglingId(null);
     if (error) {
-      toast('No se pudo actualizar el estado de la oferta');
+      if (error.message?.includes('free_plan_job_limit')) {
+        toast('El plan gratuito solo permite 1 oferta activa a la vez. Desactiva otra oferta o actualiza tu plan.');
+      } else {
+        toast('No se pudo actualizar el estado de la oferta');
+      }
       return;
     }
     setJobs((prev) => prev.map((j) => (j.id === job.id ? { ...j, status: newStatus } : j)));
@@ -188,6 +193,15 @@ export default function AllJobsPage() {
 
   async function publishJob(e) {
     e.preventDefault();
+
+    const activeCount = jobs.filter((j) => j.status === 'activa').length;
+    if (org && !canPostAnotherJob(org, activeCount)) {
+      toast(
+        `El plan gratuito incluye ${freeJobLimit()} oferta activa a la vez. Actualiza tu plan para publicar más.`
+      );
+      return;
+    }
+
     setPosting(true);
     const f = new FormData(e.target);
 
@@ -211,7 +225,11 @@ export default function AllJobsPage() {
 
     if (error || !job) {
       setPosting(false);
-      toast('No se pudo publicar la oferta');
+      if (error?.message?.includes('free_plan_job_limit')) {
+        toast('El plan gratuito solo permite 1 oferta activa a la vez. Actualiza tu plan para publicar más.');
+      } else {
+        toast('No se pudo publicar la oferta');
+      }
       return;
     }
 
