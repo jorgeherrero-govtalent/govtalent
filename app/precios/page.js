@@ -3,6 +3,10 @@ import { createClient } from '@/lib/supabase/server';
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://govtalent.app';
 const FOUNDING_MEMBER_SEATS = 30;
+// Offset de lanzamiento: cuenta como ya ocupadas, sin necesitar organizaciones
+// reales marcadas en la base de datos. El contador real (organizations con
+// is_founding_member = true) se sigue sumando encima de este offset.
+const FOUNDING_MEMBER_LAUNCH_OFFSET = 3;
 
 export const metadata = {
   title: 'Precios para organizaciones · GovTalent',
@@ -26,7 +30,7 @@ async function getData() {
     .from('organizations')
     .select('id', { count: 'exact', head: true })
     .eq('is_founding_member', true);
-  return { loggedIn: !!authData.user, foundingTaken: count || 0 };
+  return { loggedIn: !!authData.user, foundingTaken: FOUNDING_MEMBER_LAUNCH_OFFSET + (count || 0) };
 }
 
 function Check({ children }) {
