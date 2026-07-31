@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server';
 import Link from 'next/link';
 import PublicJobApplyButton from '@/components/PublicJobApplyButton';
+import PublicHeader from '@/components/PublicHeader';
 import Footer from '@/components/Footer';
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://govtalent.app';
@@ -134,6 +135,7 @@ export default async function PublicJobPage({ params }) {
   if (!job) {
     return (
       <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
+        <PublicHeader />
         <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: 14, padding: 20, textAlign: 'center' }}>
           <div style={{ fontSize: 20, fontWeight: 700 }}>Esta oferta ya no está disponible</div>
           <p style={{ color: '#888', fontSize: 14 }}>Puede que se haya cerrado o que el enlace no sea correcto.</p>
@@ -157,24 +159,10 @@ export default async function PublicJobPage({ params }) {
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jobPostingJsonLd) }}
       />
-      <div style={{ background: '#fff', borderBottom: '.5px solid #e0dfd8', padding: '14px 20px' }}>
-        <div style={{ maxWidth: 760, margin: '0 auto', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <div>
-            <Link href="/jobs" style={{ fontWeight: 800, fontSize: 19, textDecoration: 'none', color: '#1a1a18' }}>
-              gov<span style={{ background: '#1d6f5c', color: '#fff', padding: '1px 6px', borderRadius: 5 }}>talent</span>
-            </Link>
-            <div style={{ fontSize: 11.5, color: '#888', fontWeight: 500, marginTop: 2, maxWidth: 380 }}>
-              La plataforma all-in-one del ecosistema profesional de los asuntos públicos
-            </div>
-          </div>
-          <Link href="/login" style={{ fontSize: 13, color: '#1d6f5c', textDecoration: 'none', fontWeight: 500 }}>
-            Iniciar sesión
-          </Link>
-        </div>
-      </div>
+      <PublicHeader />
 
-      <div style={{ maxWidth: 760, margin: '20px auto', padding: '0 20px 60px', flex: 1, width: '100%' }}>
-        <div className="card" style={{ padding: 24 }}>
+      <div className="job-page-wrap" style={{ maxWidth: 760, margin: '20px auto', flex: 1, width: '100%' }}>
+        <div className="card job-detail-card">
           <Link
             href={org?.slug ? `/organizations/${org.slug}` : '#'}
             style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 18, textDecoration: 'none', color: 'inherit' }}
@@ -204,7 +192,7 @@ export default async function PublicJobPage({ params }) {
             </div>
           </Link>
 
-          <h1 style={{ fontSize: 24, fontWeight: 800, marginBottom: 10 }}>{job.title}</h1>
+          <h1 className="job-detail-h1" style={{ fontWeight: 800, marginBottom: 10 }}>{job.title}</h1>
 
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 20 }}>
             <span className="badge bg">{job.area}</span>
