@@ -6,6 +6,7 @@ import { createClient } from '@/lib/supabase/client';
 import { toast } from '@/lib/toast';
 import ShareJobModal from '@/components/ShareJobModal';
 import UpgradeModal from '@/components/UpgradeModal';
+import VerifyOrganizationModal from '@/components/VerifyOrganizationModal';
 import { canPostAnotherJob, freeJobLimit } from '@/lib/plan';
 
 const AREAS = [
@@ -18,12 +19,14 @@ const AREAS = [
 
 export default function AllJobsPage() {
   const supabase = createClient();
+  const [userId, setUserId] = useState(null);
   const [org, setOrg] = useState(null);
   const [jobs, setJobs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState('activos');
   const [togglingId, setTogglingId] = useState(null);
   const [sharingJob, setSharingJob] = useState(null);
+  const [showVerifyModal, setShowVerifyModal] = useState(false);
 
   const [editingJob, setEditingJob] = useState(null);
   const [loadingEditJob, setLoadingEditJob] = useState(false);
@@ -54,6 +57,7 @@ export default function AllJobsPage() {
     const { data: authData } = await supabase.auth.getUser();
     const uid = authData.user?.id;
     if (!uid) return setLoading(false);
+    setUserId(uid);
 
     const { data: membership } = await supabase
       .from('organization_members')
@@ -207,8 +211,10 @@ export default function AllJobsPage() {
   async function publishJob(e) {
     e.preventDefault();
 
+    const isVerified = !!org?.verified;
+
     const activeCount = jobs.filter((j) => j.status === 'activa').length;
-    if (org && !canPostAnotherJob(org, activeCount)) {
+    if (isVerified && org && !canPostAnotherJob(org, activeCount)) {
       setShowNewJob(false);
       setUpgradeModal({
         title: 'Ofertas activas',
@@ -232,8 +238,8 @@ export default function AllJobsPage() {
         salary_min: f.get('salary_min') ? Number(f.get('salary_min')) : null,
         salary_max: f.get('salary_max') ? Number(f.get('salary_max')) : null,
         description: f.get('description'),
-        status: 'activa',
-        published_at: new Date().toISOString(),
+        status: isVerified ? 'activa' : 'borrador',
+        published_at: isVerified ? new Date().toISOString() : null,
       })
       .select()
       .single();
@@ -270,8 +276,15 @@ export default function AllJobsPage() {
     e.target.reset();
     setAiPrompt('');
     setShowNewJob(false);
-    toast('Oferta publicada correctamente ✓');
     load();
+
+    if (!isVerified) {
+      toast('Oferta guardada como borrador — verifica tu organización para poder publicarla');
+      setShowVerifyModal(true);
+      return;
+    }
+
+    toast('Oferta publicada correctamente ✓');
 
     // Envío de alertas en segundo plano: no bloquea el flujo si falla o tarda.
     fetch('/api/email/job-alert', {
@@ -300,6 +313,36 @@ export default function AllJobsPage() {
 
   return (
     <div className="sec" style={{ maxWidth: 900 }}>
+      {!org.verified && (
+        <div
+          className="card"
+          style={{
+            marginBottom: 13,
+            padding: '14px 18px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: 12,
+            flexWrap: 'wrap',
+            background: '#fdf6e8',
+            borderColor: '#eddfb8',
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <i className="ti ti-shield-exclamation" style={{ color: '#b8860b', fontSize: 20 }}></i>
+            <div>
+              <div style={{ fontSize: 13.5, fontWeight: 700, color: '#1a1a18' }}>Organización sin verificar</div>
+              <div style={{ fontSize: 12, color: '#666' }}>
+                Verifica {org.name} para poder publicar ofertas — tus borradores se guardan mientras tanto.
+              </div>
+            </div>
+          </div>
+          <button className="btn-p" onClick={() => setShowVerifyModal(true)}>
+            <i className="ti ti-shield-check"></i> Verificar organización
+          </button>
+        </div>
+      )}
+
       <div className="card">
         <div className="cp">
           <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 10, flexWrap: 'wrap' }}>
@@ -454,6 +497,7 @@ export default function AllJobsPage() {
                 <div className="form-g">
                   <label>Estado de la oferta</label>
                   <select name="status" required defaultValue={editingJob.status}>
+                    <option value="borrador">Borrador</option>
                     <option value="activa">Activa</option>
                     <option value="pausada">Pausada</option>
                     <option value="cerrada">Cerrada</option>
@@ -645,6 +689,15 @@ export default function AllJobsPage() {
           title={upgradeModal.title}
           message={upgradeModal.message}
           onClose={() => setUpgradeModal(null)}
+        />
+      )}
+
+      {showVerifyModal && (
+        <VerifyOrganizationModal
+          organizationId={org.id}
+          organizationName={org.name}
+          userId={userId}
+          onClose={() => setShowVerifyModal(false)}
         />
       )}
     </div>
