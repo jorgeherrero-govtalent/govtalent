@@ -251,7 +251,7 @@ export default async function PublicJobPage({ params }) {
           )}
 
           <div style={{ marginTop: 26, paddingTop: 20, borderTop: '.5px solid #e0dfd8' }}>
-            <PublicJobApplyButton jobId={job.id} />
+            <PublicJobApplyButton jobId={job.id} label="Solicitar" />
           </div>
         </div>
 
