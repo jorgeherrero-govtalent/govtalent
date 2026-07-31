@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { toast } from '@/lib/toast';
+import { buildTrialStart } from '@/lib/plan';
 
 const ORG_TYPES = [
   ['empresa', 'Empresa'],
@@ -119,6 +120,7 @@ export default function NewOrganizationPage() {
         org_type: orgType,
         location,
         website_url: website || null,
+        ...buildTrialStart(),
       })
       .select()
       .single();
