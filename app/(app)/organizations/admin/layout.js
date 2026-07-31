@@ -9,7 +9,7 @@ const NAV = [
   { href: '/organizations/admin/company', label: 'Página de empresa', icon: 'ti-building' },
   { href: '/organizations/admin/jobs', label: 'Ofertas', icon: 'ti-briefcase' },
   { href: '/organizations/admin/candidates', label: 'Candidatos', icon: 'ti-users' },
-  { href: '/organizations/admin/database', label: 'Base de datos', icon: 'ti-database' },
+  { href: '/organizations/admin/database', label: 'Directorio inteligente', icon: 'ti-building-community' },
   { href: '/organizations/admin/influence-log', label: 'Transparencia', icon: 'ti-shield-check' },
 ];
 
