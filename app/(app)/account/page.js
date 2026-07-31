@@ -263,10 +263,21 @@ export default function AccountPage() {
             {savingName ? 'Guardando...' : 'Guardar cambios'}
           </button>
         )}
-        <div className="field" style={{ marginBottom: 0 }}>
-          <label>Email</label>
-          <input value={user.email} disabled />
+        <div style={{ display: 'flex', gap: 10 }}>
+          <div className="field" style={{ flex: 1, marginBottom: 0 }}>
+            <label>Email</label>
+            <input value={user.email} disabled />
+          </div>
+          <div className="field" style={{ flex: 1, marginBottom: phone !== (user.phone || '') ? 8 : 0 }}>
+            <label>Teléfono de contacto para candidaturas</label>
+            <input value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="Ej: +34 600 000 000" />
+          </div>
         </div>
+        {phone !== (user.phone || '') && (
+          <button className="btn-p" style={{ fontSize: 12.5, padding: '6px 14px', marginTop: 4 }} disabled={savingPhone} onClick={savePhone}>
+            {savingPhone ? 'Guardando...' : 'Guardar cambios'}
+          </button>
+        )}
       </div>
 
       <div className="card" style={{ padding: 22, marginBottom: 16 }}>
@@ -296,15 +307,6 @@ export default function AccountPage() {
             />
           </div>
         </div>
-        <div className="field" style={{ marginTop: 10, marginBottom: phone !== (user.phone || '') ? 8 : 0 }}>
-          <label>Teléfono</label>
-          <input value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="Ej: +34 600 000 000" />
-        </div>
-        {phone !== (user.phone || '') && (
-          <button className="btn-p" style={{ fontSize: 12.5, padding: '6px 14px' }} disabled={savingPhone} onClick={savePhone}>
-            {savingPhone ? 'Guardando...' : 'Guardar cambios'}
-          </button>
-        )}
       </div>
 
       <div className="card" style={{ padding: 22, marginBottom: 16 }}>
