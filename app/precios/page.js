@@ -112,8 +112,8 @@ export default async function PricingPage() {
                   Acceso al plan Pro con un 50% de descuento de por vida. Solo para las 30 primeras organizaciones.
                 </div>
               </div>
-              <Link
-                href="/login?view=signup"
+              <a
+                href="mailto:hola@govtalent.app?subject=Quiero%20ser%20Founding%20Member%20en%20GovTalent"
                 style={{
                   textDecoration: 'none',
                   background: '#fff',
@@ -126,7 +126,7 @@ export default async function PricingPage() {
                 }}
               >
                 Reservar mi plaza
-              </Link>
+              </a>
             </div>
             <div
               style={{
@@ -170,13 +170,6 @@ export default async function PricingPage() {
             <CrossedOut>Descripción de oferta con IA</CrossedOut>
             <CrossedOut>Matching de candidatos con IA</CrossedOut>
             <CrossedOut>Directorio inteligente de organizaciones</CrossedOut>
-            <Link
-              href="/login?view=signup"
-              className="btn-o"
-              style={{ display: 'block', textAlign: 'center', textDecoration: 'none', marginTop: 18 }}
-            >
-              Empezar gratis
-            </Link>
           </div>
 
           <div className="card" style={{ padding: '26px 22px' }}>
@@ -193,13 +186,13 @@ export default async function PricingPage() {
             <Check>Publica eventos de manera ilimitada</Check>
             <CrossedOut>Matching de candidatos con IA</CrossedOut>
             <CrossedOut>Directorio inteligente de organizaciones</CrossedOut>
-            <Link
-              href="/login?view=signup"
+            <a
+              href="mailto:hola@govtalent.app?subject=Quiero%20contratar%20el%20plan%20Plus%20en%20GovTalent"
               className="btn-o"
               style={{ display: 'block', textAlign: 'center', textDecoration: 'none', marginTop: 18 }}
             >
-              Probar 5 días gratis
-            </Link>
+              Contratar Plus
+            </a>
           </div>
 
           <div className="card" style={{ padding: '26px 22px', border: '2px solid #1d6f5c' }}>
@@ -230,13 +223,13 @@ export default async function PricingPage() {
             <Check>Filtros avanzados, exportación y BI</Check>
             <Check>Varios usuarios de equipo</Check>
             <Check>Nuevas funcionalidades en desarrollo, incluidas sin coste adicional</Check>
-            <Link
-              href="/login?view=signup"
+            <a
+              href="mailto:hola@govtalent.app?subject=Quiero%20contratar%20el%20plan%20Pro%20en%20GovTalent"
               className="btn-p"
               style={{ display: 'block', textAlign: 'center', textDecoration: 'none', marginTop: 18 }}
             >
-              Probar 5 días gratis
-            </Link>
+              Contratar Pro
+            </a>
           </div>
         </div>
 
