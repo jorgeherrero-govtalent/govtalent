@@ -16,18 +16,10 @@ export default function CompanyPagePage() {
   const [generatingOrgDesc, setGeneratingOrgDesc] = useState(false);
   const [showAiTip, setShowAiTip] = useState(true);
 
-  useEffect(() => {
-    try {
-      if (localStorage.getItem('gt_hint_seen_org_ai_description')) setShowAiTip(false);
-    } catch {
-      // localStorage no disponible: no pasa nada, simplemente no se recuerda.
-    }
-  }, []);
-
   function dismissAiTip() {
     setShowAiTip(false);
     try {
-      localStorage.setItem('gt_hint_seen_org_ai_description', '1');
+      if (org?.id) localStorage.setItem(`gt_hint_seen_org_ai_description_${org.id}`, '1');
     } catch {
       // localStorage no disponible: no pasa nada, simplemente no se recuerda.
     }
@@ -74,6 +66,13 @@ export default function CompanyPagePage() {
 
     if (!membership) return setLoading(false);
     setOrg(membership.organizations);
+    try {
+      if (localStorage.getItem(`gt_hint_seen_org_ai_description_${membership.organizations.id}`)) {
+        setShowAiTip(false);
+      }
+    } catch {
+      // localStorage no disponible: no pasa nada, simplemente no se recuerda.
+    }
     setLoading(false);
   }
 
