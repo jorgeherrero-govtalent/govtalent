@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import FilterableHeader from '@/components/FilterableHeader';
 import { hasInterestGroupBadge } from '@/lib/interestGroupBadge';
+import { canAccessDatabase } from '@/lib/plan';
 
 const TYPE_LABELS = {
   empresa: 'Empresa',
@@ -40,6 +41,29 @@ export default function OrganizationsDatabasePage() {
   const [openPopover, setOpenPopover] = useState(null);
   const [page, setPage] = useState(0);
   const [pageSize, setPageSize] = useState(10);
+  const [planChecked, setPlanChecked] = useState(false);
+  const [planAllowed, setPlanAllowed] = useState(true);
+
+  useEffect(() => {
+    checkPlan();
+  }, []);
+
+  async function checkPlan() {
+    const { data: authData } = await supabase.auth.getUser();
+    if (!authData.user) {
+      setPlanChecked(true);
+      return;
+    }
+    const { data: membership } = await supabase
+      .from('organization_members')
+      .select('organizations(plan, plan_status, trial_ends_at, trial_ai_matches_used, is_founding_member)')
+      .eq('user_id', authData.user.id)
+      .limit(1)
+      .maybeSingle();
+    const org = membership?.organizations;
+    setPlanAllowed(org ? canAccessDatabase(org) : false);
+    setPlanChecked(true);
+  }
 
   useEffect(() => {
     load();
@@ -117,7 +141,25 @@ export default function OrganizationsDatabasePage() {
   const pageEnd = Math.min(filtered.length, (currentPage + 1) * pageSize);
   const paginated = filtered.slice(currentPage * pageSize, currentPage * pageSize + pageSize);
 
-  if (orgs === null) return <div className="spinner"></div>;
+  if (orgs === null || !planChecked) return <div className="spinner"></div>;
+
+  if (!planAllowed) {
+    return (
+      <div className="card" style={{ maxWidth: 480, margin: '48px auto', padding: 32, textAlign: 'center' }}>
+        <i className="ti ti-lock" style={{ fontSize: 30, color: '#6d5aef', marginBottom: 10 }}></i>
+        <div style={{ fontSize: 16, fontWeight: 700, marginBottom: 6, color: '#1a1a18' }}>
+          Base de datos inteligente — plan Pro
+        </div>
+        <p style={{ fontSize: 13, color: '#666', marginBottom: 4 }}>
+          Consulta, filtra y exporta el directorio completo de organizaciones del sector. Disponible en el plan Pro.
+        </p>
+        <p style={{ fontSize: 12.5, color: '#999', marginTop: 14 }}>
+          Escríbenos a <a href="mailto:hola@govtalent.app" style={{ color: '#1d6f5c' }}>hola@govtalent.app</a> para
+          hacer el upgrade.
+        </p>
+      </div>
+    );
+  }
 
   return (
     <div style={{ padding: '24px 28px', maxWidth: 1280 }}>
