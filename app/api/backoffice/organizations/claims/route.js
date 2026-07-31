@@ -20,7 +20,7 @@ export async function GET() {
   const { data, error } = await admin
     .from('organization_claims')
     .select(
-      `id, status, role_title, note, rejection_reason, created_at, reviewed_at,
+      `id, status, claim_type, role_title, note, rejection_reason, created_at, reviewed_at,
        organizations ( id, name, slug, claimed, website_url ),
        users:user_id ( id, first_name, last_name, email )`
     )
