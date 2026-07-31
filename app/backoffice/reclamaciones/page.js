@@ -247,6 +247,12 @@ export default function ClaimsBackofficePage() {
                   <i className="ti ti-rotate"></i> Revocar aprobación
                 </button>
               )}
+
+              {c.status === 'rejected' && (
+                <button className="btn-p" style={{ fontSize: 12.5 }} disabled={busyId === c.id} onClick={() => approve(c.id)}>
+                  <i className="ti ti-check"></i> Aprobar de todos modos
+                </button>
+              )}
             </div>
           </div>
         ))}
