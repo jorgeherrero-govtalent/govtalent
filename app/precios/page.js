@@ -137,7 +137,7 @@ export default async function PricingPage() {
               <i className="ti ti-flame" style={{ fontSize: 13 }}></i>
               {foundingTaken} organizaciones ya se han unido — quedan {foundingLeft} de {FOUNDING_MEMBER_SEATS} plazas
             </div>
-            <div style={{ height: 6, borderRadius: 4, background: 'rgba(255,255,255,0.18)', overflow: 'hidden' }}>
+            <div style={{ height: 6, borderRadius: 4, background: 'rgba(255,255,255,0.18)', overflow: 'hidden', maxWidth: 200 }}>
               <div
                 style={{
                   height: '100%',
@@ -161,6 +161,8 @@ export default async function PricingPage() {
             <Check>Personalización de tu página</Check>
             <Check>1 oferta activa</Check>
             <Check>Registro de transparencia</Check>
+            <Check>Resumen de candidatos con IA</Check>
+            <Check>Publica hasta 2 eventos</Check>
             <CrossedOut>Descripción de oferta con IA</CrossedOut>
             <CrossedOut>Matching de candidatos con IA</CrossedOut>
             <CrossedOut>Directorio inteligente de organizaciones</CrossedOut>
@@ -184,7 +186,7 @@ export default async function PricingPage() {
             <Check>Todo lo de Free</Check>
             <Check>Ofertas ilimitadas</Check>
             <Check>Descripción de oferta con IA</Check>
-            <Check>Resumen de candidatos con IA</Check>
+            <Check>Publica eventos de manera ilimitada</Check>
             <CrossedOut>Matching de candidatos con IA</CrossedOut>
             <CrossedOut>Directorio inteligente de organizaciones</CrossedOut>
             <Link
@@ -223,6 +225,7 @@ export default async function PricingPage() {
             <Check>Directorio inteligente de organizaciones</Check>
             <Check>Filtros avanzados, exportación y BI</Check>
             <Check>Varios usuarios de equipo</Check>
+            <Check>Nuevas funcionalidades en desarrollo, incluidas sin coste adicional</Check>
             <Link
               href="/login?view=signup"
               className="btn-p"
