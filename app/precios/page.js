@@ -74,9 +74,10 @@ export default async function PricingPage() {
           <h1 style={{ fontSize: 28, fontWeight: 700, color: '#1a1a18', marginBottom: 10 }}>
             Precios para organizaciones
           </h1>
-          <p style={{ fontSize: 14.5, color: '#666', maxWidth: 520, margin: '0 auto' }}>
-            Encuentra talento especializado en asuntos públicos, política y gobierno. Empieza gratis, prueba todo
-            durante 5 días, y elige el plan que encaje con cuánto contratáis.
+          <p style={{ fontSize: 14.5, color: '#666', maxWidth: 560, margin: '0 auto' }}>
+            Atrae el mejor talento, publica ofertas de empleo, gestiona candidatos con un ATS integrado, descubre el
+            mayor directorio de organizaciones del sector y accede a inteligencia de mercado especializada. Todo
+            desde una única plataforma.
           </p>
         </div>
 
@@ -87,37 +88,65 @@ export default async function PricingPage() {
               borderRadius: 16,
               padding: '22px 26px',
               marginBottom: 32,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              gap: 16,
-              flexWrap: 'wrap',
             }}
           >
-            <div>
-              <div style={{ fontSize: 15, fontWeight: 700, color: '#fff', marginBottom: 4 }}>
-                Founding Member — 199€/año, precio fijo de por vida
-              </div>
-              <div style={{ fontSize: 12.5, color: 'rgba(255,255,255,0.75)' }}>
-                Todo el plan Pro, a mitad de precio para siempre. Quedan {foundingLeft} de {FOUNDING_MEMBER_SEATS}{' '}
-                plazas.
-              </div>
-            </div>
-            <Link
-              href="/login?view=signup"
+            <div
               style={{
-                textDecoration: 'none',
-                background: '#fff',
-                color: '#3d2f8f',
-                fontWeight: 700,
-                fontSize: 13.5,
-                padding: '10px 22px',
-                borderRadius: 999,
-                whiteSpace: 'nowrap',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                gap: 16,
+                flexWrap: 'wrap',
+                marginBottom: 14,
               }}
             >
-              Reservar mi plaza
-            </Link>
+              <div>
+                <div style={{ fontSize: 15, fontWeight: 700, color: '#fff', marginBottom: 4 }}>
+                  Founding Member — 199€/año, precio para siempre
+                </div>
+                <div style={{ fontSize: 12.5, color: 'rgba(255,255,255,0.75)' }}>
+                  Acceso al plan Pro con un 50% de descuento de por vida. Solo para las 30 primeras organizaciones.
+                </div>
+              </div>
+              <Link
+                href="/login?view=signup"
+                style={{
+                  textDecoration: 'none',
+                  background: '#fff',
+                  color: '#3d2f8f',
+                  fontWeight: 700,
+                  fontSize: 13.5,
+                  padding: '10px 22px',
+                  borderRadius: 999,
+                  whiteSpace: 'nowrap',
+                }}
+              >
+                Reservar mi plaza
+              </Link>
+            </div>
+            <div
+              style={{
+                fontSize: 11.5,
+                color: 'rgba(255,255,255,0.85)',
+                marginBottom: 6,
+                display: 'flex',
+                alignItems: 'center',
+                gap: 6,
+              }}
+            >
+              <i className="ti ti-flame" style={{ fontSize: 13 }}></i>
+              {foundingTaken} organizaciones ya se han unido — quedan {foundingLeft} de {FOUNDING_MEMBER_SEATS} plazas
+            </div>
+            <div style={{ height: 6, borderRadius: 4, background: 'rgba(255,255,255,0.18)', overflow: 'hidden' }}>
+              <div
+                style={{
+                  height: '100%',
+                  width: `${(foundingTaken / FOUNDING_MEMBER_SEATS) * 100}%`,
+                  background: '#fff',
+                  borderRadius: 4,
+                }}
+              ></div>
+            </div>
           </div>
         )}
 
@@ -127,13 +156,14 @@ export default async function PricingPage() {
             <div style={{ fontSize: 26, fontWeight: 700, color: '#1a1a18', marginBottom: 4 }}>
               0€ <span style={{ fontSize: 12.5, fontWeight: 400, color: '#999' }}>/ siempre</span>
             </div>
-            <div style={{ fontSize: 12, color: '#999', marginBottom: 18 }}>Para probar la plataforma</div>
+            <div style={{ fontSize: 12, color: '#999', marginBottom: 18 }}>Empieza sin compromiso</div>
             <Check>Ficha de organización con badge de verificación</Check>
+            <Check>Personalización de tu página</Check>
             <Check>1 oferta activa</Check>
             <Check>Registro de transparencia</Check>
             <CrossedOut>Descripción de oferta con IA</CrossedOut>
             <CrossedOut>Matching de candidatos con IA</CrossedOut>
-            <CrossedOut>Base de datos inteligente</CrossedOut>
+            <CrossedOut>Directorio inteligente de organizaciones</CrossedOut>
             <Link
               href="/login?view=signup"
               className="btn-o"
@@ -148,12 +178,15 @@ export default async function PricingPage() {
             <div style={{ fontSize: 26, fontWeight: 700, color: '#1a1a18', marginBottom: 4 }}>
               299€ <span style={{ fontSize: 12.5, fontWeight: 400, color: '#999' }}>/ año</span>
             </div>
-            <div style={{ fontSize: 12, color: '#999', marginBottom: 18 }}>Para contratación activa</div>
+            <div style={{ fontSize: 12, color: '#999', marginBottom: 18 }}>
+              Todo lo necesario para contratar y atraer talento
+            </div>
             <Check>Todo lo de Free</Check>
             <Check>Ofertas ilimitadas</Check>
             <Check>Descripción de oferta con IA</Check>
+            <Check>Resumen de candidatos con IA</Check>
             <CrossedOut>Matching de candidatos con IA</CrossedOut>
-            <CrossedOut>Base de datos inteligente</CrossedOut>
+            <CrossedOut>Directorio inteligente de organizaciones</CrossedOut>
             <Link
               href="/login?view=signup"
               className="btn-o"
@@ -182,10 +215,13 @@ export default async function PricingPage() {
             <div style={{ fontSize: 26, fontWeight: 700, color: '#1a1a18', marginBottom: 4 }}>
               399€ <span style={{ fontSize: 12.5, fontWeight: 400, color: '#999' }}>/ año</span>
             </div>
-            <div style={{ fontSize: 12, color: '#999', marginBottom: 18 }}>Para equipos que contratan a menudo</div>
+            <div style={{ fontSize: 12, color: '#999', marginBottom: 18 }}>
+              Todo el potencial de GovTalent: talento, inteligencia y herramientas avanzadas
+            </div>
             <Check>Todo lo de Plus</Check>
             <Check>Matching de candidatos con IA</Check>
-            <Check>Base de datos inteligente de organizaciones</Check>
+            <Check>Directorio inteligente de organizaciones</Check>
+            <Check>Filtros avanzados, exportación y BI</Check>
             <Check>Varios usuarios de equipo</Check>
             <Link
               href="/login?view=signup"
@@ -198,8 +234,8 @@ export default async function PricingPage() {
         </div>
 
         <div style={{ textAlign: 'center', marginTop: 32, fontSize: 12.5, color: '#999' }}>
-          Todas las organizaciones nuevas empiezan con una prueba de 5 días con acceso a todo excepto la base de
-          datos inteligente. ¿Ya tienes una organización y quieres hacer el upgrade?{' '}
+          Todas las organizaciones nuevas empiezan con una prueba de 5 días con acceso a todo excepto al directorio
+          inteligente de organizaciones. ¿Ya tienes una organización y quieres hacer el upgrade?{' '}
           <a href="mailto:hola@govtalent.app" style={{ color: '#1d6f5c', fontWeight: 500 }}>
             Escríbenos
           </a>{' '}
