@@ -61,6 +61,7 @@ export default function AccountPage() {
   const [lastName, setLastName] = useState('');
   const [savingName, setSavingName] = useState(false);
   const [savingGender, setSavingGender] = useState(false);
+  const [savingBirthDate, setSavingBirthDate] = useState(false);
   const [savingPrefs, setSavingPrefs] = useState(false);
   const [view, setView] = useState('main'); // 'main' | 'delete-confirm' | 'delete-done'
   const [deleting, setDeleting] = useState(false);
@@ -108,6 +109,18 @@ export default function AccountPage() {
       return;
     }
     setUser({ ...user, gender_identity: value || null });
+    toast('Guardado ✓');
+  }
+
+  async function saveBirthDate(value) {
+    setSavingBirthDate(true);
+    const { error } = await supabase.from('users').update({ birth_date: value || null }).eq('id', user.id);
+    setSavingBirthDate(false);
+    if (error) {
+      toast('No se pudo guardar');
+      return;
+    }
+    setUser({ ...user, birth_date: value || null });
     toast('Guardado ✓');
   }
 
@@ -220,45 +233,54 @@ export default function AccountPage() {
 
       <div className="card" style={{ padding: 22, marginBottom: 16 }}>
         <h2 style={{ fontSize: 14.5, fontWeight: 700, marginBottom: 14 }}>Datos de la cuenta</h2>
-        <div style={{ display: 'flex', gap: 10, marginBottom: 10 }}>
-          <div className="field" style={{ flex: 1, margin: 0 }}>
-            <label style={{ fontSize: 12, color: '#888' }}>Nombre</label>
+        <div style={{ display: 'flex', gap: 10 }}>
+          <div className="field" style={{ flex: 1 }}>
+            <label>Nombre</label>
             <input value={firstName} onChange={(e) => setFirstName(e.target.value)} />
           </div>
-          <div className="field" style={{ flex: 1, margin: 0 }}>
-            <label style={{ fontSize: 12, color: '#888' }}>Apellidos</label>
+          <div className="field" style={{ flex: 1 }}>
+            <label>Apellidos</label>
             <input value={lastName} onChange={(e) => setLastName(e.target.value)} />
           </div>
         </div>
         {(firstName !== user.first_name || lastName !== user.last_name) && (
-          <button className="btn-p" style={{ fontSize: 12.5, padding: '6px 14px', marginBottom: 14 }} disabled={savingName} onClick={saveName}>
+          <button className="btn-p" style={{ fontSize: 12.5, padding: '6px 14px', marginBottom: 13 }} disabled={savingName} onClick={saveName}>
             {savingName ? 'Guardando...' : 'Guardar cambios'}
           </button>
         )}
-        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, paddingTop: 4 }}>
-          <span style={{ color: '#888' }}>Email</span>
-          <span style={{ fontWeight: 500 }}>{user.email}</span>
+        <div className="field" style={{ marginBottom: 0 }}>
+          <label>Email</label>
+          <input value={user.email} disabled />
         </div>
       </div>
 
       <div className="card" style={{ padding: 22, marginBottom: 16 }}>
-        <h2 style={{ fontSize: 14.5, fontWeight: 700, marginBottom: 4 }}>Identidad de género</h2>
-        <p style={{ fontSize: 12, color: '#999', marginBottom: 12 }}>
+        <h2 style={{ fontSize: 14.5, fontWeight: 700, marginBottom: 4 }}>Información personal detallada</h2>
+        <p style={{ fontSize: 12, color: '#999', marginBottom: 14 }}>
           Opcional. Esta información nunca se muestra en tu perfil — solo la usamos para estadísticas internas
           agregadas.
         </p>
-        <select
-          value={user.gender_identity || ''}
-          disabled={savingGender}
-          onChange={(e) => saveGender(e.target.value)}
-          style={{ maxWidth: 240 }}
-        >
-          {GENDER_OPTIONS.map(([value, label]) => (
-            <option key={value} value={value}>
-              {label}
-            </option>
-          ))}
-        </select>
+        <div style={{ display: 'flex', gap: 10 }}>
+          <div className="field" style={{ flex: 1, marginBottom: 0 }}>
+            <label>Identidad de género</label>
+            <select value={user.gender_identity || ''} disabled={savingGender} onChange={(e) => saveGender(e.target.value)}>
+              {GENDER_OPTIONS.map(([value, label]) => (
+                <option key={value} value={value}>
+                  {label}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className="field" style={{ flex: 1, marginBottom: 0 }}>
+            <label>Fecha de nacimiento</label>
+            <input
+              type="date"
+              value={user.birth_date || ''}
+              disabled={savingBirthDate}
+              onChange={(e) => saveBirthDate(e.target.value)}
+            />
+          </div>
+        </div>
       </div>
 
       <div className="card" style={{ padding: 22, marginBottom: 16 }}>
@@ -267,13 +289,12 @@ export default function AccountPage() {
           Esto no afecta a los emails esenciales, como confirmaciones de candidatura o alertas de empleo que hayas
           activado — esos siempre te llegarán.
         </p>
-        <label style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 13, cursor: 'pointer' }}>
+        <label style={{ display: 'flex', alignItems: 'center', gap: 9, fontSize: 13.5, color: '#1a1a18', cursor: 'pointer' }}>
           <input
             type="checkbox"
             checked={!!user.marketing_emails_enabled}
             disabled={savingPrefs}
             onChange={toggleMarketingEmails}
-            style={{ width: 16, height: 16 }}
           />
           Quiero recibir novedades y consejos de GovTalent por email
         </label>
