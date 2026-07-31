@@ -150,6 +150,9 @@ export default function AppLayout({ children }) {
                     <Link href="/profile" className="nav-me-item" onClick={() => setShowMeMenu(false)}>
                       <i className="ti ti-user"></i> Ver mi perfil
                     </Link>
+                    <Link href="/account" className="nav-me-item" onClick={() => setShowMeMenu(false)}>
+                      <i className="ti ti-settings"></i> Mi cuenta
+                    </Link>
                     {user?.role === 'platform_admin' && (
                       <Link href="/backoffice" className="nav-me-item" onClick={() => setShowMeMenu(false)}>
                         <i className="ti ti-shield-lock" style={{ color: '#6d5aef' }}></i> Acceso Backoffice
