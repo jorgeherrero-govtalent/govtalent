@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { checkAndLogAiUsage } from '@/lib/aiRateLimit';
 import { isOrganizationMember } from '@/lib/requireOrgMember';
+import { canUseAIMatching, getEffectiveTier, aiMatchesRemainingInTrial } from '@/lib/plan';
 
 export async function POST(request) {
   const { jobId } = await request.json();
@@ -34,6 +35,25 @@ export async function POST(request) {
   const isMember = await isOrganizationMember(authData.user.id, job.organization_id);
   if (!isMember) {
     return NextResponse.json({ error: 'No autorizado' }, { status: 403 });
+  }
+
+  const { data: org, error: orgErr } = await supabase
+    .from('organizations')
+    .select('plan, plan_status, trial_ends_at, trial_ai_matches_used, is_founding_member')
+    .eq('id', job.organization_id)
+    .single();
+
+  if (orgErr || !org) {
+    return NextResponse.json({ error: 'No se encontró la organización' }, { status: 404 });
+  }
+
+  if (!canUseAIMatching(org)) {
+    const tier = getEffectiveTier(org);
+    const message =
+      tier === 'trial'
+        ? 'Has usado los 3 análisis de IA incluidos en tu periodo de prueba. Actualiza a Pro para seguir usándolo sin límite.'
+        : 'El matching de candidatos con IA está disponible en el plan Pro.';
+    return NextResponse.json({ error: message, upgradeRequired: true }, { status: 403 });
   }
 
   const { data: apps, error: appsErr } = await supabase
@@ -146,5 +166,12 @@ Incluye una entrada por cada candidato de la lista, usando el ID exacto que apar
     )
   );
 
-  return NextResponse.json({ rankings });
+  if (getEffectiveTier(org) === 'trial') {
+    await supabase
+      .from('organizations')
+      .update({ trial_ai_matches_used: (org.trial_ai_matches_used || 0) + 1 })
+      .eq('id', job.organization_id);
+  }
+
+  return NextResponse.json({ rankings, aiMatchesRemaining: aiMatchesRemainingInTrial(org) });
 }
