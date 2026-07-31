@@ -4,8 +4,18 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { isOrganizationMember } from '@/lib/requireOrgMember';
 import { resend, EMAIL_FROM } from '@/lib/resend';
 import { jobAlertEmail } from '@/lib/email/templates';
+import { signAlertToken } from '@/lib/unsubscribeToken';
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://govtalent.app';
+
+function buildUnsubscribeUrl(unsubscribe) {
+  if (unsubscribe.type === 'area') {
+    const token = signAlertToken(`area:${unsubscribe.id}`);
+    return `${SITE_URL}/api/alerts/unsubscribe?type=area&id=${unsubscribe.id}&token=${token}`;
+  }
+  const token = signAlertToken(`follow:${unsubscribe.userId}:${unsubscribe.orgId}`);
+  return `${SITE_URL}/api/alerts/unsubscribe?type=follow&user=${unsubscribe.userId}&org=${unsubscribe.orgId}&token=${token}`;
+}
 
 export async function POST(request) {
   const { jobId } = await request.json();
@@ -49,7 +59,7 @@ export async function POST(request) {
     // 1) Alertas por área/ubicación (o alertas de esa área sin ubicación concreta).
     const { data: areaAlerts } = await admin
       .from('job_alerts')
-      .select('user_id, users(email, first_name)')
+      .select('id, user_id, users(email, first_name)')
       .eq('area', job.area)
       .or(`location.eq.${job.location},location.is.null`);
 
@@ -68,6 +78,7 @@ export async function POST(request) {
         email: row.users.email,
         firstName: row.users.first_name || 'candidato/a',
         reason: `Hay una nueva oferta que coincide con tu alerta de <b>${job.area}</b> en ${job.location}.`,
+        unsubscribe: { type: 'area', id: row.id },
       });
     }
 
@@ -78,10 +89,11 @@ export async function POST(request) {
         email: row.users.email,
         firstName: row.users.first_name || 'candidato/a',
         reason: `<b>${orgName}</b>, a quien sigues en GovTalent, ha publicado una nueva oferta.`,
+        unsubscribe: { type: 'follow', userId: row.user_id, orgId: job.organization_id },
       });
     }
 
-    for (const { email, firstName, reason } of recipients.values()) {
+    for (const { email, firstName, reason, unsubscribe } of recipients.values()) {
       await resend.emails.send({
         from: EMAIL_FROM,
         to: email,
@@ -93,6 +105,7 @@ export async function POST(request) {
           modality: job.modality,
           reason,
           jobUrl,
+          unsubscribeUrl: buildUnsubscribeUrl(unsubscribe),
         }),
       });
     }
