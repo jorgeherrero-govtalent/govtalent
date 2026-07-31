@@ -62,6 +62,8 @@ export default function AccountPage() {
   const [savingName, setSavingName] = useState(false);
   const [savingGender, setSavingGender] = useState(false);
   const [savingBirthDate, setSavingBirthDate] = useState(false);
+  const [savingPhone, setSavingPhone] = useState(false);
+  const [phone, setPhone] = useState('');
   const [savingPrefs, setSavingPrefs] = useState(false);
   const [view, setView] = useState('main'); // 'main' | 'delete-confirm' | 'delete-done'
   const [deleting, setDeleting] = useState(false);
@@ -77,6 +79,7 @@ export default function AccountPage() {
     setUser(profile);
     setFirstName(profile?.first_name || '');
     setLastName(profile?.last_name || '');
+    setPhone(profile?.phone || '');
     if (profile?.deletion_requested_at) setView('delete-done');
     setLoading(false);
   }
@@ -121,6 +124,18 @@ export default function AccountPage() {
       return;
     }
     setUser({ ...user, birth_date: value || null });
+    toast('Guardado ✓');
+  }
+
+  async function savePhone() {
+    setSavingPhone(true);
+    const { error } = await supabase.from('users').update({ phone: phone.trim() || null }).eq('id', user.id);
+    setSavingPhone(false);
+    if (error) {
+      toast('No se pudo guardar');
+      return;
+    }
+    setUser({ ...user, phone: phone.trim() || null });
     toast('Guardado ✓');
   }
 
@@ -194,10 +209,10 @@ export default function AccountPage() {
           </p>
 
           <div style={{ display: 'flex', gap: 8 }}>
-            <button className="btn-o" onClick={() => setView('main')}>
+            <button className="btn-p" onClick={() => setView('main')}>
               Seguir con mi cuenta
             </button>
-            <button className="btn-p" disabled={deleting} onClick={requestDeletion}>
+            <button className="btn-o" disabled={deleting} onClick={requestDeletion}>
               {deleting ? 'Enviando...' : 'Continuar'}
             </button>
           </div>
@@ -281,6 +296,15 @@ export default function AccountPage() {
             />
           </div>
         </div>
+        <div className="field" style={{ marginTop: 10, marginBottom: phone !== (user.phone || '') ? 8 : 0 }}>
+          <label>Teléfono</label>
+          <input value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="Ej: +34 600 000 000" />
+        </div>
+        {phone !== (user.phone || '') && (
+          <button className="btn-p" style={{ fontSize: 12.5, padding: '6px 14px' }} disabled={savingPhone} onClick={savePhone}>
+            {savingPhone ? 'Guardando...' : 'Guardar cambios'}
+          </button>
+        )}
       </div>
 
       <div className="card" style={{ padding: 22, marginBottom: 16 }}>
