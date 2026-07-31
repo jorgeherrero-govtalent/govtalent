@@ -27,13 +27,16 @@ export async function PATCH(request, { params }) {
 
   const { data: claim } = await admin
     .from('organization_claims')
-    .select('id, status, organization_id, user_id, organizations(name, claimed), users:user_id(first_name, email)')
+    .select('id, status, claim_type, organization_id, user_id, organizations(name, claimed), users:user_id(first_name, email)')
     .eq('id', params.id)
     .single();
 
   if (!claim) {
     return NextResponse.json({ error: 'Solicitud no encontrada' }, { status: 404 });
   }
+
+  const isVerification = claim.claim_type === 'verification';
+
   if (action === 'revoke' && claim.status !== 'approved') {
     return NextResponse.json({ error: 'Solo se puede revocar una solicitud ya aprobada' }, { status: 409 });
   }
@@ -44,7 +47,10 @@ export async function PATCH(request, { params }) {
     return NextResponse.json({ error: 'Esta solicitud ya ha sido revisada' }, { status: 409 });
   }
 
-  if (action === 'approve') {
+  // Las comprobaciones de "¿ya está reclamada?" / "¿ya administra otra organización?"
+  // solo tienen sentido para el flujo de RECLAMAR (tomar una organización precargada).
+  // En una VERIFICACIÓN, el solicitante ya administra esa misma organización de antes.
+  if (action === 'approve' && !isVerification) {
     if (claim.organizations?.claimed) {
       return NextResponse.json(
         { error: 'Esta organización ya ha sido reclamada por otra persona mientras tanto. Revisa el resto de solicitudes para esta organización antes de continuar.' },
@@ -70,19 +76,26 @@ export async function PATCH(request, { params }) {
   const requesterEmail = claim.users?.email;
 
   if (action === 'approve') {
-    const { error: orgErr } = await admin
-      .from('organizations')
-      .update({ claimed: true, ...buildTrialStart() })
-      .eq('id', claim.organization_id);
-    if (orgErr) return NextResponse.json({ error: 'No se pudo marcar la organización como reclamada' }, { status: 500 });
+    if (isVerification) {
+      // Verificación: solo confirma la identidad. No toca membresía, plan ni "claimed".
+      const { error: orgErr } = await admin.from('organizations').update({ verified: true }).eq('id', claim.organization_id);
+      if (orgErr) return NextResponse.json({ error: 'No se pudo marcar la organización como verificada' }, { status: 500 });
+    } else {
+      // Reclamación: da acceso completo, marca reclamada + verificada, y arranca el trial.
+      const { error: orgErr } = await admin
+        .from('organizations')
+        .update({ claimed: true, verified: true, ...buildTrialStart() })
+        .eq('id', claim.organization_id);
+      if (orgErr) return NextResponse.json({ error: 'No se pudo marcar la organización como reclamada' }, { status: 500 });
 
-    await admin.from('organization_members').insert({
-      organization_id: claim.organization_id,
-      user_id: claim.user_id,
-      role: 'admin',
-    });
+      await admin.from('organization_members').insert({
+        organization_id: claim.organization_id,
+        user_id: claim.user_id,
+        role: 'admin',
+      });
 
-    await admin.from('users').update({ role: 'org_admin', onboarding_completed: true }).eq('id', claim.user_id);
+      await admin.from('users').update({ role: 'org_admin', onboarding_completed: true }).eq('id', claim.user_id);
+    }
 
     await admin
       .from('organization_claims')
@@ -94,7 +107,7 @@ export async function PATCH(request, { params }) {
         const { subject, html } = claimApprovedEmail({ firstName, orgName });
         await resend.emails.send({ from: EMAIL_FROM, to: requesterEmail, subject, html });
       } catch (err) {
-        console.error('Error enviando email de reclamación aprobada:', err);
+        console.error('Error enviando email de aprobación:', err);
       }
     }
   } else if (action === 'reject') {
@@ -113,29 +126,32 @@ export async function PATCH(request, { params }) {
         const { subject, html } = claimRejectedEmail({ firstName, orgName, reason: rejectionReason });
         await resend.emails.send({ from: EMAIL_FROM, to: requesterEmail, subject, html });
       } catch (err) {
-        console.error('Error enviando email de reclamación rechazada:', err);
+        console.error('Error enviando email de rechazo:', err);
       }
     }
   } else {
-    // action === 'revoke': deshace una aprobación previa (ej. una aprobación
-    // hecha por error o de prueba). Quita el acceso y desmarca la organización.
-    await admin
-      .from('organization_members')
-      .delete()
-      .eq('organization_id', claim.organization_id)
-      .eq('user_id', claim.user_id);
+    // action === 'revoke': deshace una aprobación previa (ej. hecha por error o de prueba).
+    if (isVerification) {
+      await admin.from('organizations').update({ verified: false }).eq('id', claim.organization_id);
+    } else {
+      await admin
+        .from('organization_members')
+        .delete()
+        .eq('organization_id', claim.organization_id)
+        .eq('user_id', claim.user_id);
 
-    await admin.from('organizations').update({ claimed: false }).eq('id', claim.organization_id);
+      await admin.from('organizations').update({ claimed: false, verified: false }).eq('id', claim.organization_id);
 
-    // Si esta era la única organización del usuario, le devolvemos el rol de candidato.
-    const { data: otherMemberships } = await admin
-      .from('organization_members')
-      .select('organization_id')
-      .eq('user_id', claim.user_id)
-      .limit(1)
-      .maybeSingle();
-    if (!otherMemberships) {
-      await admin.from('users').update({ role: 'candidate' }).eq('id', claim.user_id);
+      // Si esta era la única organización del usuario, le devolvemos el rol de candidato.
+      const { data: otherMemberships } = await admin
+        .from('organization_members')
+        .select('organization_id')
+        .eq('user_id', claim.user_id)
+        .limit(1)
+        .maybeSingle();
+      if (!otherMemberships) {
+        await admin.from('users').update({ role: 'candidate' }).eq('id', claim.user_id);
+      }
     }
 
     await admin
