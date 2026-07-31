@@ -22,12 +22,24 @@ export default function ProgressChecklist({ title, items, hint, pct: pctOverride
       {pct < 100 && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
           {items.map((item) => (
-            <div key={item.label} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12.5 }}>
+            <div
+              key={item.label}
+              onClick={!item.done ? item.onClick : undefined}
+              style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12.5, cursor: !item.done && item.onClick ? 'pointer' : 'default' }}
+            >
               <i
                 className={`ti ${item.done ? 'ti-circle-check-filled' : 'ti-circle'}`}
                 style={{ fontSize: 15, color: item.done ? '#1d9d63' : '#ccc', flexShrink: 0 }}
               ></i>
-              <span style={{ color: item.done ? '#888' : '#333', textDecoration: item.done ? 'line-through' : 'none' }}>{item.label}</span>
+              <span
+                style={{
+                  color: item.done ? '#888' : item.onClick ? '#1d6f5c' : '#333',
+                  fontWeight: !item.done && item.onClick ? 500 : 400,
+                  textDecoration: item.done ? 'line-through' : 'none',
+                }}
+              >
+                {item.label}
+              </span>
             </div>
           ))}
         </div>
