@@ -3,6 +3,7 @@ import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { resend, EMAIL_FROM } from '@/lib/resend';
 import { claimApprovedEmail, claimRejectedEmail } from '@/lib/email/templates';
+import { buildTrialStart } from '@/lib/plan';
 
 async function requireSuperadmin() {
   const supabase = createClient();
@@ -69,7 +70,10 @@ export async function PATCH(request, { params }) {
   const requesterEmail = claim.users?.email;
 
   if (action === 'approve') {
-    const { error: orgErr } = await admin.from('organizations').update({ claimed: true }).eq('id', claim.organization_id);
+    const { error: orgErr } = await admin
+      .from('organizations')
+      .update({ claimed: true, ...buildTrialStart() })
+      .eq('id', claim.organization_id);
     if (orgErr) return NextResponse.json({ error: 'No se pudo marcar la organización como reclamada' }, { status: 500 });
 
     await admin.from('organization_members').insert({
