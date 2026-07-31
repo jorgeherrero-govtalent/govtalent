@@ -165,7 +165,7 @@ export default function OrganizationsDatabasePage() {
     <div style={{ padding: '24px 28px', maxWidth: 1280 }}>
       <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 18, flexWrap: 'wrap', gap: 10 }}>
         <div>
-          <h1 style={{ fontSize: 19, fontWeight: 700, margin: 0 }}>Base de datos de organizaciones</h1>
+          <h1 style={{ fontSize: 19, fontWeight: 700, margin: 0 }}>Directorio inteligente de organizaciones</h1>
           <p style={{ fontSize: 12.5, color: '#888', margin: '4px 0 0' }}>Explora y filtra las {orgs.length} organizaciones del sector.</p>
         </div>
         <div
