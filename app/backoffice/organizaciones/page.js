@@ -3,49 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import Link from 'next/link';
-
-const TYPE_LABELS = {
-  empresa: 'Empresa',
-  consultora_public_affairs: 'Consultora',
-  tercer_sector_ong: 'ONG / Tercer sector',
-  partido_politico: 'Partido político',
-  institucion_publica: 'Institución pública',
-  think_tank_fundacion: 'Think tank',
-  medios_comunicacion: 'Medios',
-  universidad_centro_educativo: 'Centro educativo',
-  asociacion_profesional: 'Asociación profesional',
-  otro: 'Otro',
-};
-
-const SECTOR_OPTIONS = [
-  'Asuntos Públicos',
-  'Consultoría',
-  'Administración Pública',
-  'ONG / Tercer Sector',
-  'Partidos Políticos',
-  'Educación',
-  'Sanidad / Salud',
-  'Energía',
-  'Tecnología',
-  'Telecomunicaciones',
-  'Medios de Comunicación',
-  'Comunicación / Relaciones Públicas',
-  'Finanzas / Banca',
-  'Seguros',
-  'Farmacéutico / Biotecnología',
-  'Automoción',
-  'Industria / Manufactura',
-  'Retail / Consumo',
-  'Alimentación y Bebidas',
-  'Turismo / Hostelería',
-  'Transporte / Logística',
-  'Inmobiliario / Construcción',
-  'Legal / Despachos de abogados',
-  'Asociaciones Profesionales',
-  'Think Tank / Fundaciones',
-  'Universidades / Centros educativos',
-  'Otro',
-];
+import { TYPE_LABELS, SECTORS, SECTOR_LABELS } from '@/lib/orgTaxonomy';
 
 const FILTERS = {
   todas: () => true,
@@ -112,7 +70,7 @@ export default function OrganizationsBackofficePage() {
           o.name.toLowerCase().includes(q) ||
           (o.location || '').toLowerCase().includes(q) ||
           (o.contact_email || '').toLowerCase().includes(q) ||
-          (o.sector || '').toLowerCase().includes(q)
+          (SECTOR_LABELS[o.sector] || '').toLowerCase().includes(q)
       );
 
     if (sortConfig.key) {
@@ -131,7 +89,10 @@ export default function OrganizationsBackofficePage() {
 
   const uniqueSectors = useMemo(() => {
     if (!orgs) return [];
-    return [...new Set(orgs.map((o) => o.sector).filter(Boolean))].sort((a, b) => a.localeCompare(b));
+    const seen = new Set(orgs.map((o) => o.sector).filter(Boolean));
+    return [...seen]
+      .map((code) => ({ value: code, label: SECTOR_LABELS[code] || code }))
+      .sort((a, b) => a.label.localeCompare(b.label, 'es'));
   }, [orgs]);
 
   const uniqueLocations = useMemo(() => {
@@ -300,7 +261,7 @@ export default function OrganizationsBackofficePage() {
       .map((o) => [
         o.name,
         TYPE_LABELS[o.org_type] || o.org_type,
-        o.sector || '',
+        SECTOR_LABELS[o.sector] || '',
         o.location || '',
         o.size_range || '',
         o.website_url || '',
@@ -471,7 +432,7 @@ export default function OrganizationsBackofficePage() {
                   <FilterableHeader
                     label="Sector"
                     columnKey="sector"
-                    values={uniqueSectors.map((s) => ({ value: s, label: s }))}
+                    values={uniqueSectors}
                     selected={sectorFilter}
                     onApply={setSectorFilter}
                     sortConfig={sortConfig}
@@ -545,7 +506,7 @@ export default function OrganizationsBackofficePage() {
                   </td>
                   <td style={{ ...tdStyle, padding: '5px 10px', minWidth: 200 }}>
                     <select
-                      value={SECTOR_OPTIONS.includes(o.sector) || !o.sector ? o.sector || '' : o.sector}
+                      value={o.sector || ''}
                       disabled={busyId === o.id}
                       onChange={(e) => updateSector(o, e.target.value)}
                       style={{
@@ -565,12 +526,9 @@ export default function OrganizationsBackofficePage() {
                       onBlur={(e) => (e.target.style.background = 'transparent')}
                     >
                       <option value="">— Elegir —</option>
-                      {!SECTOR_OPTIONS.includes(o.sector) && o.sector && (
-                        <option value={o.sector}>{o.sector} (importado)</option>
-                      )}
-                      {SECTOR_OPTIONS.map((s) => (
-                        <option key={s} value={s}>
-                          {s}
+                      {SECTORS.map(([code, label]) => (
+                        <option key={code} value={code}>
+                          {label}
                         </option>
                       ))}
                     </select>
@@ -799,16 +757,13 @@ export default function OrganizationsBackofficePage() {
               <label style={{ display: 'block', fontSize: 11.5, fontWeight: 600, color: '#555', marginBottom: 4 }}>Sector</label>
               <select
                 name="sector"
-                defaultValue={SECTOR_OPTIONS.includes(editing.sector) ? editing.sector : editing.sector || ''}
+                defaultValue={editing.sector || ''}
                 style={{ width: '100%', padding: '8px 11px', border: '.5px solid #e0dfd8', borderRadius: 8, fontSize: 13, outline: 'none' }}
               >
                 <option value="">— Elegir —</option>
-                {!SECTOR_OPTIONS.includes(editing.sector) && editing.sector && (
-                  <option value={editing.sector}>{editing.sector} (importado)</option>
-                )}
-                {SECTOR_OPTIONS.map((s) => (
-                  <option key={s} value={s}>
-                    {s}
+                {SECTORS.map(([code, label]) => (
+                  <option key={code} value={code}>
+                    {label}
                   </option>
                 ))}
               </select>
