@@ -201,7 +201,7 @@ export default async function PublicJobPage({ params }) {
           </div>
 
           <div style={{ marginBottom: 24 }}>
-            <PublicJobApplyButton jobId={job.id} />
+            <PublicJobApplyButton jobId={job.id} label="Solicitar" />
           </div>
 
           {(job.salary_min || job.salary_max) && (
@@ -251,16 +251,16 @@ export default async function PublicJobPage({ params }) {
           )}
 
           <div style={{ marginTop: 26, paddingTop: 20, borderTop: '.5px solid #e0dfd8' }}>
-            <PublicJobApplyButton jobId={job.id} label="Solicitar" />
+            <PublicJobApplyButton jobId={job.id} label="Regístrate y solicita este empleo" />
           </div>
         </div>
 
         <p style={{ textAlign: 'center', fontSize: 12, color: '#999', marginTop: 16 }}>
-          Publicado en{' '}
+          Esta es solo una de las oportunidades disponibles en{' '}
           <Link href="/jobs" style={{ color: '#1d6f5c' }}>
             GovTalent
-          </Link>{' '}
-          — la plataforma de talento para asuntos públicos, política y gobierno.
+          </Link>
+          . Únete gratis al ecosistema profesional de los asuntos públicos.
         </p>
       </div>
 
