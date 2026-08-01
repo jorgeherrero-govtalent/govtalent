@@ -178,28 +178,35 @@ export default function LoginPage() {
         ) : (
           <div className="split">
             <div className="sl-left">
-              <h2>
-                La plataforma de <em>talento</em> para profesionales de los asuntos públicos, la
-                política y el gobierno
-              </h2>
-              <div className="sl-pill">
-                <i className="ti ti-briefcase"></i>Empleos en public affairs, lobbying y gobierno
-              </div>
-              <div className="sl-pill">
-                <i className="ti ti-calendar-event"></i>Eventos, foros y jornadas del sector
-              </div>
-              <div className="sl-pill">
-                <i className="ti ti-users"></i>Red de profesionales e instituciones
+              <h2>La plataforma all-in-one del ecosistema profesional de los asuntos públicos.</h2>
+              <div className="sl-tagline">Todo lo que necesitas para crecer. En un único lugar.</div>
+              <div className="sl-features">
+                <div className="sl-feature">
+                  <span className="emoji">💼</span>Empleo y oportunidades
+                </div>
+                <div className="sl-feature">
+                  <span className="emoji">🏢</span>Organizaciones
+                </div>
+                <div className="sl-feature">
+                  <span className="emoji">📅</span>Eventos
+                </div>
+                <div className="sl-feature">
+                  <span className="emoji">🧠</span>Inteligencia de mercado
+                </div>
               </div>
               <div className="sl-stat">
                 <div className="n">GovTalent</div>
-                <div className="l">Empieza a construir tu red profesional</div>
+                <div className="l">El ecosistema profesional de los asuntos públicos.</div>
               </div>
             </div>
 
             <div className="sl-right">
               <h1>{view === 'signup' ? 'Registrarme' : 'Iniciar sesión'}</h1>
-              <p>Impulsa tu carrera en el sector público y asuntos públicos</p>
+              <p>
+                {view === 'signup'
+                  ? 'Únete gratis al ecosistema profesional de los asuntos públicos.'
+                  : 'Accede a tu cuenta para continuar donde lo dejaste.'}
+              </p>
 
               <button className="sbtn" onClick={handleGoogle} type="button">
                 <svg width="18" height="18" viewBox="0 0 18 18">
