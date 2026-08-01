@@ -182,21 +182,21 @@ export default function LoginPage() {
               <div className="sl-tagline">Todo lo que necesitas para crecer. En un único lugar.</div>
               <div className="sl-features">
                 <div className="sl-feature">
-                  <span className="emoji">💼</span>Empleo y oportunidades
+                  <i className="ti ti-briefcase"></i>Empleo y oportunidades
                 </div>
                 <div className="sl-feature">
-                  <span className="emoji">🏢</span>Organizaciones
+                  <i className="ti ti-building-community"></i>Organizaciones
                 </div>
                 <div className="sl-feature">
-                  <span className="emoji">📅</span>Eventos
+                  <i className="ti ti-calendar-event"></i>Comunidad y eventos
                 </div>
                 <div className="sl-feature">
-                  <span className="emoji">🧠</span>Inteligencia de mercado
+                  <i className="ti ti-radar-2"></i>Directorio inteligente
                 </div>
               </div>
               <div className="sl-stat">
                 <div className="n">GovTalent</div>
-                <div className="l">El ecosistema profesional de los asuntos públicos.</div>
+                <div className="l">Todo el ecosistema. Un único lugar.</div>
               </div>
             </div>
 
