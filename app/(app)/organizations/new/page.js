@@ -4,19 +4,7 @@ import { useEffect, useState } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { toast } from '@/lib/toast';
 import { buildTrialStart } from '@/lib/plan';
-
-const ORG_TYPES = [
-  ['empresa', 'Empresa'],
-  ['consultora_public_affairs', 'Consultora de Public Affairs'],
-  ['tercer_sector_ong', 'Organización del tercer sector / ONG'],
-  ['partido_politico', 'Partido político'],
-  ['institucion_publica', 'Institución pública (AAPP, Parlamento, Institución europea)'],
-  ['think_tank_fundacion', 'Think tank / Fundación'],
-  ['medios_comunicacion', 'Medios y comunicación'],
-  ['universidad_centro_educativo', 'Universidad / Centro educativo'],
-  ['asociacion_profesional', 'Asociación profesional'],
-  ['otro', 'Otro'],
-];
+import { ORG_TYPES, SECTORS } from '@/lib/orgTaxonomy';
 
 const ACTIVITY_AREAS = [
   'Public Affairs',
@@ -42,6 +30,7 @@ export default function NewOrganizationPage() {
   const [existingOrg, setExistingOrg] = useState(null);
 
   const [orgType, setOrgType] = useState('');
+  const [sector, setSector] = useState('');
   const [name, setName] = useState('');
   const [location, setLocation] = useState('');
   const [website, setWebsite] = useState('');
@@ -118,6 +107,7 @@ export default function NewOrganizationPage() {
       .insert({
         name,
         org_type: orgType,
+        sector: sector || null,
         location,
         website_url: website || null,
         claimed: true,
@@ -217,6 +207,17 @@ export default function NewOrganizationPage() {
               <select value={orgType} onChange={(e) => setOrgType(e.target.value)}>
                 <option value="">Elegir uno</option>
                 {ORG_TYPES.map(([k, v]) => (
+                  <option key={k} value={k}>
+                    {v}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="field">
+              <label>Sector</label>
+              <select value={sector} onChange={(e) => setSector(e.target.value)}>
+                <option value="">Elegir uno (opcional)</option>
+                {SECTORS.map(([k, v]) => (
                   <option key={k} value={k}>
                     {v}
                   </option>
