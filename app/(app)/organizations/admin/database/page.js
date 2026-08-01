@@ -7,19 +7,7 @@ import { createClient } from '@/lib/supabase/client';
 import FilterableHeader from '@/components/FilterableHeader';
 import { hasInterestGroupBadge } from '@/lib/interestGroupBadge';
 import { canAccessDatabase } from '@/lib/plan';
-
-const TYPE_LABELS = {
-  empresa: 'Empresa',
-  consultora_public_affairs: 'Consultora',
-  tercer_sector_ong: 'ONG / Tercer sector',
-  partido_politico: 'Partido político',
-  institucion_publica: 'Institución pública',
-  think_tank_fundacion: 'Think tank',
-  medios_comunicacion: 'Medios',
-  universidad_centro_educativo: 'Centro educativo',
-  asociacion_profesional: 'Asociación profesional',
-  otro: 'Otro',
-};
+import { TYPE_LABELS, SECTOR_LABELS } from '@/lib/orgTaxonomy';
 
 const QUICK_FILTERS = {
   todas: () => true,
@@ -124,7 +112,9 @@ export default function OrganizationsDatabasePage() {
 
   const sectorValues = useMemo(() => {
     const seen = new Set((orgs || []).map((o) => o.sector).filter(Boolean));
-    return [...seen].sort((a, b) => a.localeCompare(b, 'es')).map((s) => ({ value: s, label: s }));
+    return [...seen]
+      .sort((a, b) => (SECTOR_LABELS[a] || a).localeCompare(SECTOR_LABELS[b] || b, 'es'))
+      .map((s) => ({ value: s, label: SECTOR_LABELS[s] || s }));
   }, [orgs]);
 
   const locationValues = useMemo(() => {
@@ -146,7 +136,7 @@ export default function OrganizationsDatabasePage() {
       .filter((o) => sectorFilter.size === 0 || sectorFilter.has(o.sector || ''))
       .filter((o) => locationFilter.size === 0 || locationFilter.has(o.location || ''))
       .filter((o) => sizeFilter.size === 0 || sizeFilter.has(o.size_range || ''))
-      .filter((o) => !q || o.name.toLowerCase().includes(q) || (o.location || '').toLowerCase().includes(q) || (o.sector || '').toLowerCase().includes(q));
+      .filter((o) => !q || o.name.toLowerCase().includes(q) || (o.location || '').toLowerCase().includes(q) || (SECTOR_LABELS[o.sector] || '').toLowerCase().includes(q));
 
     if (sortConfig.key) {
       const getVal = (o) => {
@@ -182,7 +172,7 @@ export default function OrganizationsDatabasePage() {
       total,
       verifiedCount,
       interestGroupCount,
-      topSectors: count((o) => o.sector),
+      topSectors: count((o) => SECTOR_LABELS[o.sector]),
       topLocations: count((o) => o.location),
       topTypes: count((o) => TYPE_LABELS[o.org_type] || o.org_type),
     };
@@ -193,7 +183,7 @@ export default function OrganizationsDatabasePage() {
       Organización: o.name,
       Tipo: TYPE_LABELS[o.org_type] || '',
       Ubicación: o.location || '',
-      Sector: o.sector || '',
+      Sector: SECTOR_LABELS[o.sector] || '',
       Empleados: o.size_range || '',
       Verificada: o.verified ? 'Sí' : 'No',
       'Grupo de interés': hasInterestGroupBadge(o) ? 'Sí' : 'No',
@@ -451,7 +441,7 @@ export default function OrganizationsDatabasePage() {
                 </td>
                 <td style={{ padding: '9px 14px', color: '#555' }}>{TYPE_LABELS[o.org_type] || '—'}</td>
                 <td style={{ padding: '9px 14px', color: '#555' }}>{o.location || '—'}</td>
-                <td style={{ padding: '9px 14px', color: '#555' }}>{o.sector || '—'}</td>
+                <td style={{ padding: '9px 14px', color: '#555' }}>{SECTOR_LABELS[o.sector] || '—'}</td>
                 <td style={{ padding: '9px 14px', color: '#555' }}>{o.size_range || '—'}</td>
                 <td style={{ padding: '9px 14px' }}>
                   <div className="dir-row-links">
