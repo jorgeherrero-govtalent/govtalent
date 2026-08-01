@@ -6,6 +6,8 @@ import { toast } from '@/lib/toast';
 import { hasInterestGroupBadge } from '@/lib/interestGroupBadge';
 import { useDragPosition, parsePosition } from '@/lib/useDragPosition';
 import { SECTORS } from '@/lib/orgTaxonomy';
+import { normalizeUrl } from '@/lib/normalizeUrl';
+import { normalizeLocation } from '@/lib/normalizeLocation';
 
 export default function CompanyPagePage() {
   const supabase = createClient();
@@ -176,11 +178,11 @@ export default function CompanyPagePage() {
     setSaving(true);
     const updates = {
       name: f.get('name'),
-      website_url: f.get('website_url') || null,
-      linkedin_url: f.get('linkedin_url') || null,
+      website_url: f.get('website_url') ? normalizeUrl(f.get('website_url')) : null,
+      linkedin_url: f.get('linkedin_url') ? normalizeUrl(f.get('linkedin_url')) : null,
       sector: f.get('sector') || null,
       size_range: f.get('size_range') || null,
-      location: f.get('location') || null,
+      location: f.get('location') ? normalizeLocation(f.get('location')) : null,
       founded_year: f.get('founded_year') ? Number(f.get('founded_year')) : null,
       bio: f.get('bio') || null,
       notification_email: f.get('notification_email') || null,
