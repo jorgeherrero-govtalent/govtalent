@@ -5,6 +5,8 @@ import { createClient } from '@/lib/supabase/client';
 import { toast } from '@/lib/toast';
 import { buildTrialStart } from '@/lib/plan';
 import { ORG_TYPES, SECTORS } from '@/lib/orgTaxonomy';
+import { normalizeUrl } from '@/lib/normalizeUrl';
+import { normalizeLocation } from '@/lib/normalizeLocation';
 
 const ACTIVITY_AREAS = [
   'Public Affairs',
@@ -108,8 +110,8 @@ export default function NewOrganizationPage() {
         name,
         org_type: orgType,
         sector: sector || null,
-        location,
-        website_url: website || null,
+        location: normalizeLocation(location),
+        website_url: website ? normalizeUrl(website) : null,
         claimed: true,
         ...buildTrialStart(),
       })
