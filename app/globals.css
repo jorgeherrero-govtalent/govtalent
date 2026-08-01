@@ -321,6 +321,7 @@ a{color:inherit}
   .two,.form-row{grid-template-columns:1fr}
   .jobs-wrap{grid-template-columns:1fr}
   .jlist{max-height:280px}
+  .jdetail{max-height:none;overflow-y:visible;padding:16px}
   .cts-cards{grid-template-columns:1fr}
   .sl-left{padding:26px 24px}
   .sl-left h2{font-size:19px}
@@ -352,6 +353,8 @@ a{color:inherit}
 .org-layout-grid{display:grid;grid-template-columns:1fr 280px;gap:13px;max-width:900px;margin:0 auto}
 .org-cta-banner{padding:32px 28px}
 .org-cta-headline{font-size:20px}
+.pricing-wrap{padding:48px 20px 64px}
+.pricing-h1{font-size:28px}
 @media (max-width: 640px){
   .org-layout-grid{grid-template-columns:1fr}
   .org-cta-banner{padding:22px 18px}
@@ -359,4 +362,6 @@ a{color:inherit}
   .co-cover{height:130px}
   .co-logo{width:64px;height:64px;bottom:-32px;left:16px;font-size:22px}
   .co-info{padding:40px 16px 16px}
+  .pricing-wrap{padding:28px 16px 44px}
+  .pricing-h1{font-size:22px}
 }
