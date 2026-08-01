@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { safeFetchText } from '@/lib/safeFetch';
 import { checkAndLogAiUsage } from '@/lib/aiRateLimit';
+import { SECTORS } from '@/lib/orgTaxonomy';
 
 function htmlToText(html) {
   return html
@@ -71,6 +72,8 @@ export async function POST(request) {
   };
   const toneText = toneMap[orgCtx?.ai_tone] || toneMap.profesional;
 
+  const sectorOptions = SECTORS.map(([code, label]) => `${code} (${label})`).join(', ');
+
   const promptText = `Eres un experto en investigar organizaciones a partir de su web, para el sector de asuntos públicos, política y gobierno en España.
 
 Nombre de la organización: ${name || 'no especificado'}
@@ -85,7 +88,7 @@ ${pageText}
 A partir de ese contenido, extrae la información de la organización. Responde ÚNICAMENTE con un objeto JSON válido, sin texto adicional antes ni después, con este formato exacto:
 
 {
-  "sector": "sector o industria, 2-4 palabras, o null si no aparece",
+  "sector": "el código exacto de una de estas opciones (usa el código, no la etiqueta): ${sectorOptions} — o null si ninguna encaja",
   "location": "ciudad y país de la sede principal, o null si no aparece",
   "founded_year": año de fundación como número, o null si no aparece,
   "size_range": "una de estas opciones exactas: 1-10, 11-50, 50-200, 200-1000, +1000 — o null si no hay pistas suficientes para estimarlo",
@@ -129,9 +132,10 @@ No inventes datos que no estén respaldados por el contenido de la web. Si algo 
   }
 
   const VALID_SIZES = new Set(['1-10', '11-50', '50-200', '200-1000', '+1000']);
+  const VALID_SECTORS = new Set(SECTORS.map(([code]) => code));
 
   return NextResponse.json({
-    sector: parsed.sector || null,
+    sector: VALID_SECTORS.has(parsed.sector) ? parsed.sector : null,
     location: parsed.location || null,
     founded_year: Number.isInteger(parsed.founded_year) ? parsed.founded_year : null,
     size_range: VALID_SIZES.has(parsed.size_range) ? parsed.size_range : null,
