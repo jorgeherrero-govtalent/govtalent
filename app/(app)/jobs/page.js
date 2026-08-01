@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
 import { toast } from '@/lib/toast';
@@ -41,6 +41,16 @@ export default function JobsPage() {
   const [followLoading, setFollowLoading] = useState(false);
   const [alertKeys, setAlertKeys] = useState(new Set());
   const [sharingJob, setSharingJob] = useState(null);
+  const detailRef = useRef(null);
+
+  function selectJob(job) {
+    setSelected(job);
+    // En pantallas pequeñas, el detalle queda debajo de la lista — llevamos
+    // la vista hasta él para que no haya que buscarlo a mano.
+    if (typeof window !== 'undefined' && window.innerWidth <= 720) {
+      setTimeout(() => detailRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 50);
+    }
+  }
 
   const [filters, setFilters] = useState({ area: '', modality: '', location: '' });
 
@@ -265,7 +275,7 @@ export default function JobsPage() {
               <div
                 key={j.id}
                 className={`ji ${selected?.id === j.id ? 'on' : ''}`}
-                onClick={() => setSelected(j)}
+                onClick={() => selectJob(j)}
               >
                 <div className="jt">{j.title}</div>
                 <div className="jo">{j.organizations?.name}</div>
@@ -287,7 +297,7 @@ export default function JobsPage() {
             ))}
           </div>
 
-          <div className="jdetail">
+          <div className="jdetail" ref={detailRef}>
             {selected && (
               <>
                 <div className="jdh">
