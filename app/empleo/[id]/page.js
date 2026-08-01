@@ -260,7 +260,9 @@ export default async function PublicJobPage({ params }) {
           <Link href="/jobs" style={{ color: '#1d6f5c' }}>
             GovTalent
           </Link>
-          . Únete gratis al ecosistema profesional de los asuntos públicos.
+          .
+          <br />
+          Únete gratis al ecosistema profesional de los asuntos públicos.
         </p>
       </div>
 
