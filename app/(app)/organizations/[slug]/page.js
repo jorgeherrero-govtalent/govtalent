@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { createClient } from '@/lib/supabase/server';
 import { hasInterestGroupBadge } from '@/lib/interestGroupBadge';
 import { SECTOR_LABELS } from '@/lib/orgTaxonomy';
+import { normalizeUrl } from '@/lib/normalizeUrl';
 import OrganizationFollowButton from '@/components/OrganizationFollowButton';
 import OrganizationClaimBanner from '@/components/OrganizationClaimBanner';
 
@@ -63,7 +64,7 @@ function buildOrganizationJsonLd(org) {
   };
 
   if (org.logo_url) jsonLd.logo = org.logo_url;
-  if (org.website_url) jsonLd.sameAs = [org.website_url];
+  if (org.website_url) jsonLd.sameAs = [normalizeUrl(org.website_url)];
   if (org.bio || org.sector) jsonLd.description = org.bio || SECTOR_LABELS[org.sector];
   if (org.location) {
     jsonLd.address = {
@@ -334,7 +335,7 @@ export default async function OrganizationPublicPage({ params }) {
               {org.website_url && (
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                   <i className="ti ti-world" style={{ color: '#1d6f5c', fontSize: 15, width: 16 }}></i>
-                  <a href={org.website_url} target="_blank" rel="noreferrer" style={{ color: '#1d6f5c', fontWeight: 500 }}>
+                  <a href={normalizeUrl(org.website_url)} target="_blank" rel="noreferrer" style={{ color: '#1d6f5c', fontWeight: 500 }}>
                     {org.website_url.replace(/^https?:\/\//, '')}
                   </a>
                 </div>
