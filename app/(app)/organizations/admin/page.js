@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { toast } from '@/lib/toast';
 import { hasInterestGroupBadge } from '@/lib/interestGroupBadge';
+import { SECTOR_LABELS } from '@/lib/orgTaxonomy';
 import ProgressChecklist from '@/components/ProgressChecklist';
 import VerifyOrganizationModal from '@/components/VerifyOrganizationModal';
 
@@ -163,7 +164,7 @@ export default function OrganizationAdminPage() {
                   </span>
                 )}
               </div>
-              <div style={{ fontSize: 12.5, color: '#555', marginBottom: 8 }}>{org.bio || org.sector || 'Añade una descripción'}</div>
+              <div style={{ fontSize: 12.5, color: '#555', marginBottom: 8 }}>{org.bio || SECTOR_LABELS[org.sector] || 'Añade una descripción'}</div>
               <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', fontSize: 12, color: '#888', marginBottom: 11 }}>
                 {org.location && (
                   <span>
