@@ -5,6 +5,7 @@ import { createClient } from '@/lib/supabase/client';
 import { toast } from '@/lib/toast';
 import { hasInterestGroupBadge } from '@/lib/interestGroupBadge';
 import { useDragPosition, parsePosition } from '@/lib/useDragPosition';
+import { SECTORS } from '@/lib/orgTaxonomy';
 
 export default function CompanyPagePage() {
   const supabase = createClient();
@@ -399,8 +400,15 @@ export default function CompanyPagePage() {
             </div>
             <div className="two">
               <div className="field">
-                <label>Sector de especialización</label>
-                <input ref={orgSectorRef} name="sector" defaultValue={org.sector || ''} placeholder="Energía, Tecnología..." />
+                <label>Sector</label>
+                <select ref={orgSectorRef} name="sector" defaultValue={org.sector || ''}>
+                  <option value="">Sin especificar</option>
+                  {SECTORS.map(([k, v]) => (
+                    <option key={k} value={k}>
+                      {v}
+                    </option>
+                  ))}
+                </select>
               </div>
               <div className="field">
                 <label>Nº de empleados</label>
