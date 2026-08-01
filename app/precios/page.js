@@ -60,9 +60,9 @@ export default async function PricingPage() {
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', background: '#f4f3ee' }}>
       <PublicHeader loggedIn={loggedIn} maxWidth={960} />
 
-      <div style={{ flex: 1, maxWidth: 960, margin: '0 auto', padding: '48px 20px 64px', width: '100%' }}>
+      <div className="pricing-wrap" style={{ flex: 1, maxWidth: 960, margin: '0 auto', width: '100%' }}>
         <div style={{ textAlign: 'center', marginBottom: 36 }}>
-          <h1 style={{ fontSize: 28, fontWeight: 700, color: '#1a1a18', marginBottom: 10 }}>
+          <h1 className="pricing-h1" style={{ fontWeight: 700, color: '#1a1a18', marginBottom: 10 }}>
             Precios para organizaciones
           </h1>
           <p style={{ fontSize: 14.5, color: '#666', maxWidth: 560, margin: '0 auto' }}>
