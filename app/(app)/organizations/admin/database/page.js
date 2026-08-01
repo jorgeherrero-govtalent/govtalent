@@ -7,6 +7,7 @@ import { createClient } from '@/lib/supabase/client';
 import FilterableHeader from '@/components/FilterableHeader';
 import { hasInterestGroupBadge } from '@/lib/interestGroupBadge';
 import { canAccessDatabase } from '@/lib/plan';
+import { normalizeUrl } from '@/lib/normalizeUrl';
 import { TYPE_LABELS, SECTOR_LABELS } from '@/lib/orgTaxonomy';
 
 const QUICK_FILTERS = {
@@ -446,7 +447,7 @@ export default function OrganizationsDatabasePage() {
                 <td style={{ padding: '9px 14px' }}>
                   <div className="dir-row-links">
                     {o.website_url && (
-                      <a href={o.website_url} target="_blank" rel="noreferrer" title="Sitio web">
+                      <a href={normalizeUrl(o.website_url)} target="_blank" rel="noreferrer" title="Sitio web">
                         <i className="ti ti-world"></i>
                       </a>
                     )}
