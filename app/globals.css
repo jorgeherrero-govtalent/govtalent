@@ -13,11 +13,11 @@ a{color:inherit}
 .sl-left{flex:1;background:linear-gradient(160deg,#0a2e22 0%,#0f3d2e 45%,#1d6f5c 100%);padding:48px 40px;color:#fff;position:relative;overflow:hidden}
 .sl-left::before{content:'';position:absolute;top:-60px;right:-60px;width:220px;height:220px;border-radius:50%;background:radial-gradient(circle,rgba(168,230,212,.16),transparent 70%)}
 .sl-left h2{font-size:23px;font-weight:800;line-height:1.35;margin-bottom:10px;letter-spacing:-.01em;position:relative}
-.sl-tagline{font-size:14px;color:rgba(255,255,255,.65);margin-bottom:28px;position:relative}
-.sl-features{display:flex;flex-direction:column;gap:12px;position:relative}
-.sl-feature{display:flex;align-items:center;gap:11px;font-size:13.5px;font-weight:500;color:rgba(255,255,255,.92);background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);border-radius:10px;padding:11px 14px}
-.sl-feature .emoji{font-size:16px}
-.sl-stat{border-top:1px solid rgba(255,255,255,.15);padding-top:18px;margin-top:26px;position:relative}
+.sl-tagline{font-size:14px;color:rgba(255,255,255,.65);margin-bottom:8px;position:relative}
+.sl-features{display:flex;flex-direction:column;gap:20px;position:relative;padding:26px 0;margin:24px 0;border-top:1px solid rgba(255,255,255,.15);border-bottom:1px solid rgba(255,255,255,.15)}
+.sl-feature{display:flex;align-items:center;gap:13px;font-size:14.5px;font-weight:500;color:rgba(255,255,255,.92)}
+.sl-feature i{font-size:18px;color:#a8e6d4;flex-shrink:0;width:20px}
+.sl-stat{position:relative}
 .sl-stat .n{font-size:20px;font-weight:800}
 .sl-stat .l{font-size:12px;color:rgba(255,255,255,.6);margin-top:2px}
 .sl-right{background:#fff;padding:36px 40px;width:400px;flex-shrink:0}
