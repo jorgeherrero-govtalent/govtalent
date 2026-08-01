@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
+import * as XLSX from 'xlsx';
 import { createClient } from '@/lib/supabase/client';
 import FilterableHeader from '@/components/FilterableHeader';
 import { hasInterestGroupBadge } from '@/lib/interestGroupBadge';
@@ -28,6 +29,30 @@ const QUICK_FILTERS = {
 
 const PAGE_SIZE_OPTIONS = [10, 25, 50, 100];
 
+function BarRow({ label, count, max, color = '#1d6f5c' }) {
+  const pct = max > 0 ? Math.round((count / max) * 100) : 0;
+  return (
+    <div style={{ marginBottom: 11 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12.5, color: '#3a3a36', marginBottom: 3 }}>
+        <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', paddingRight: 8 }}>{label}</span>
+        <span style={{ fontWeight: 700, flexShrink: 0 }}>{count}</span>
+      </div>
+      <div style={{ height: 7, background: '#f0efe9', borderRadius: 4, overflow: 'hidden' }}>
+        <div style={{ height: '100%', width: `${pct}%`, background: color, borderRadius: 4, transition: 'width .3s' }}></div>
+      </div>
+    </div>
+  );
+}
+
+function StatCard({ value, label }) {
+  return (
+    <div style={{ flex: 1, minWidth: 110, padding: '14px 16px', background: '#faf9f5', borderRadius: 10 }}>
+      <div style={{ fontSize: 22, fontWeight: 800, color: '#1a1a18' }}>{value}</div>
+      <div style={{ fontSize: 11.5, color: '#888', marginTop: 2 }}>{label}</div>
+    </div>
+  );
+}
+
 export default function OrganizationsDatabasePage() {
   const supabase = createClient();
   const [orgs, setOrgs] = useState(null);
@@ -44,6 +69,7 @@ export default function OrganizationsDatabasePage() {
   const [pageSize, setPageSize] = useState(10);
   const [planChecked, setPlanChecked] = useState(false);
   const [planAllowed, setPlanAllowed] = useState(true);
+  const [showBI, setShowBI] = useState(false);
 
   useEffect(() => {
     checkPlan();
@@ -136,6 +162,51 @@ export default function OrganizationsDatabasePage() {
     return list;
   }, [orgs, search, quickFilter, typeFilter, sectorFilter, locationFilter, sizeFilter, sortConfig]);
 
+  const biStats = useMemo(() => {
+    const total = filtered.length;
+    const verifiedCount = filtered.filter((o) => o.verified).length;
+    const interestGroupCount = filtered.filter((o) => hasInterestGroupBadge(o)).length;
+
+    const count = (getKey) => {
+      const map = {};
+      filtered.forEach((o) => {
+        const k = getKey(o) || 'Sin especificar';
+        map[k] = (map[k] || 0) + 1;
+      });
+      return Object.entries(map)
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 5);
+    };
+
+    return {
+      total,
+      verifiedCount,
+      interestGroupCount,
+      topSectors: count((o) => o.sector),
+      topLocations: count((o) => o.location),
+      topTypes: count((o) => TYPE_LABELS[o.org_type] || o.org_type),
+    };
+  }, [filtered]);
+
+  function handleExport() {
+    const rows = filtered.map((o) => ({
+      Organización: o.name,
+      Tipo: TYPE_LABELS[o.org_type] || '',
+      Ubicación: o.location || '',
+      Sector: o.sector || '',
+      Empleados: o.size_range || '',
+      Verificada: o.verified ? 'Sí' : 'No',
+      'Grupo de interés': hasInterestGroupBadge(o) ? 'Sí' : 'No',
+      'Sitio web': o.website_url || '',
+      LinkedIn: o.linkedin_url || '',
+    }));
+    const ws = XLSX.utils.json_to_sheet(rows);
+    ws['!cols'] = [{ wch: 34 }, { wch: 18 }, { wch: 16 }, { wch: 22 }, { wch: 12 }, { wch: 10 }, { wch: 14 }, { wch: 28 }, { wch: 28 }];
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Directorio');
+    XLSX.writeFile(wb, `directorio-govtalent-${new Date().toISOString().slice(0, 10)}.xlsx`);
+  }
+
   const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
   const currentPage = Math.min(page, totalPages - 1);
   const pageStart = filtered.length === 0 ? 0 : currentPage * pageSize + 1;
@@ -168,26 +239,89 @@ export default function OrganizationsDatabasePage() {
           <h1 style={{ fontSize: 19, fontWeight: 700, margin: 0 }}>Directorio inteligente de organizaciones</h1>
           <p style={{ fontSize: 12.5, color: '#888', margin: '4px 0 0' }}>Explora y filtra las {orgs.length} organizaciones del sector.</p>
         </div>
-        <div
-          title="Próximamente"
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 6,
-            padding: '8px 14px',
-            borderRadius: 8,
-            border: '.5px solid #d9d2f9',
-            background: '#f0edfe',
-            color: '#6d5aef',
-            fontSize: 12.5,
-            fontWeight: 700,
-            cursor: 'default',
-            whiteSpace: 'nowrap',
-          }}
-        >
-          <i className="ti ti-chart-bar"></i> GovTalent BI (Próximamente)
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+          <button
+            onClick={handleExport}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 6,
+              padding: '8px 14px',
+              borderRadius: 8,
+              border: '.5px solid #e0dfd8',
+              background: '#fff',
+              color: '#3a3a36',
+              fontSize: 12.5,
+              fontWeight: 600,
+              cursor: 'pointer',
+              whiteSpace: 'nowrap',
+            }}
+          >
+            <i className="ti ti-file-spreadsheet"></i> Exportar ({filtered.length})
+          </button>
+          <button
+            onClick={() => setShowBI((v) => !v)}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 6,
+              padding: '8px 14px',
+              borderRadius: 8,
+              border: '.5px solid #d9d2f9',
+              background: showBI ? '#6d5aef' : '#f0edfe',
+              color: showBI ? '#fff' : '#6d5aef',
+              fontSize: 12.5,
+              fontWeight: 700,
+              cursor: 'pointer',
+              whiteSpace: 'nowrap',
+            }}
+          >
+            <i className="ti ti-chart-bar"></i> GovTalent BI
+          </button>
         </div>
       </div>
+
+      {showBI && (
+        <div className="card" style={{ padding: 20, marginBottom: 16 }}>
+          <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginBottom: 20 }}>
+            <StatCard value={biStats.total} label="Organizaciones (con estos filtros)" />
+            <StatCard
+              value={biStats.total ? `${Math.round((biStats.verifiedCount / biStats.total) * 100)}%` : '—'}
+              label="Verificadas"
+            />
+            <StatCard
+              value={biStats.total ? `${Math.round((biStats.interestGroupCount / biStats.total) * 100)}%` : '—'}
+              label="Grupo de interés"
+            />
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 24 }}>
+            <div>
+              <div style={{ fontSize: 12, fontWeight: 700, color: '#888', marginBottom: 12, textTransform: 'uppercase' }}>
+                Top sectores
+              </div>
+              {biStats.topSectors.map(([label, count]) => (
+                <BarRow key={label} label={label} count={count} max={biStats.topSectors[0]?.[1] || 1} />
+              ))}
+            </div>
+            <div>
+              <div style={{ fontSize: 12, fontWeight: 700, color: '#888', marginBottom: 12, textTransform: 'uppercase' }}>
+                Top ubicaciones
+              </div>
+              {biStats.topLocations.map(([label, count]) => (
+                <BarRow key={label} label={label} count={count} max={biStats.topLocations[0]?.[1] || 1} color="#6d5aef" />
+              ))}
+            </div>
+            <div>
+              <div style={{ fontSize: 12, fontWeight: 700, color: '#888', marginBottom: 12, textTransform: 'uppercase' }}>
+                Top tipos de organización
+              </div>
+              {biStats.topTypes.map(([label, count]) => (
+                <BarRow key={label} label={label} count={count} max={biStats.topTypes[0]?.[1] || 1} color="#b8860b" />
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
 
       {loadError && (
         <div className="err-msg" style={{ marginBottom: 14 }}>
