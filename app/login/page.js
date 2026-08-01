@@ -182,10 +182,10 @@ export default function LoginPage() {
               <div className="sl-tagline">Todo lo que necesitas para crecer. En un único lugar.</div>
               <div className="sl-features">
                 <div className="sl-feature">
-                  <i className="ti ti-briefcase"></i>Empleo y oportunidades
+                  <i className="ti ti-building-community"></i>Organizaciones
                 </div>
                 <div className="sl-feature">
-                  <i className="ti ti-building-community"></i>Organizaciones
+                  <i className="ti ti-briefcase"></i>Empleo y oportunidades
                 </div>
                 <div className="sl-feature">
                   <i className="ti ti-calendar-event"></i>Comunidad y eventos
