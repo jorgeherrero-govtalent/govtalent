@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/server';
 import { hasInterestGroupBadge } from '@/lib/interestGroupBadge';
+import { SECTOR_LABELS } from '@/lib/orgTaxonomy';
 import OrganizationFollowButton from '@/components/OrganizationFollowButton';
 import OrganizationClaimBanner from '@/components/OrganizationClaimBanner';
 
@@ -63,7 +64,7 @@ function buildOrganizationJsonLd(org) {
 
   if (org.logo_url) jsonLd.logo = org.logo_url;
   if (org.website_url) jsonLd.sameAs = [org.website_url];
-  if (org.bio || org.sector) jsonLd.description = org.bio || org.sector;
+  if (org.bio || org.sector) jsonLd.description = org.bio || SECTOR_LABELS[org.sector];
   if (org.location) {
     jsonLd.address = {
       '@type': 'PostalAddress',
@@ -189,7 +190,7 @@ export default async function OrganizationPublicPage({ params }) {
               <i className="ti ti-clock" style={{ fontSize: 11 }}></i> No verificada por la organización
             </div>
           )}
-          <div style={{ fontSize: 13, color: '#555', marginBottom: 10 }}>{org.bio || org.sector}</div>
+          <div style={{ fontSize: 13, color: '#555', marginBottom: 10 }}>{org.bio || SECTOR_LABELS[org.sector]}</div>
           <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', fontSize: 12.5, color: '#888', marginBottom: 12 }}>
             {org.location && (
               <span>
