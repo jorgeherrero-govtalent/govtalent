@@ -1,380 +1,389 @@
-'use client';
-
-import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
-import { createClient } from '@/lib/supabase/client';
+import { createClient } from '@/lib/supabase/server';
 import { hasInterestGroupBadge } from '@/lib/interestGroupBadge';
-import { TYPE_LABELS } from '@/lib/orgTaxonomy';
-import UpgradeModal from '@/components/UpgradeModal';
+import { SECTOR_LABELS } from '@/lib/orgTaxonomy';
+import { normalizeUrl } from '@/lib/normalizeUrl';
+import OrganizationFollowButton from '@/components/OrganizationFollowButton';
+import OrganizationClaimBanner from '@/components/OrganizationClaimBanner';
 
-const PAGE_SIZE_OPTIONS = [10, 25, 50, 100];
+const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://govtalent.app';
 
-const SORTS = {
-  nombre_tipo: {
-    label: 'Nombre A-Z + Tipo de organización',
-    fn: (a, b) => a.name.localeCompare(b.name) || (TYPE_LABELS[a.org_type] || '').localeCompare(TYPE_LABELS[b.org_type] || ''),
-  },
-  az: { label: 'Nombre A-Z', fn: (a, b) => a.name.localeCompare(b.name) },
-  tamano: { label: 'Nº de empleados', fn: (a, b) => sizeRank(b.size_range) - sizeRank(a.size_range) },
+const ACTIVITY_TYPE_LABELS = {
+  reunion_audiencia: 'Reunión o audiencia',
+  conferencia_formacion: 'Conferencia o formación',
+  campana_comunicacion: 'Campaña de comunicación',
+  documento_posicion: 'Documento o posición entregado',
+  otro: 'Otro',
 };
 
-function sizeRank(r) {
-  return { '1-10': 1, '11-50': 2, '50-200': 3, '200-1000': 4, '+1000': 5 }[r] || 0;
-}
-
-export default function OrganizationsDirectory() {
+async function getOrgData(slug) {
   const supabase = createClient();
-  const [orgs, setOrgs] = useState(null);
-  const [name, setName] = useState('');
-  const [type, setType] = useState('');
-  const [sort, setSort] = useState('nombre_tipo');
-  const [onlyPending, setOnlyPending] = useState(false);
-  const [view, setView] = useState('grid');
-  const [pageSize, setPageSize] = useState(25);
-  const [page, setPage] = useState(0);
-  const [upgradeModal, setUpgradeModal] = useState(null);
 
-  useEffect(() => {
-    const saved = localStorage.getItem('gt_dir_view');
-    if (saved === 'grid' || saved === 'list') setView(saved);
-  }, []);
+  const { data: org } = await supabase.from('organizations').select('*').eq('slug', slug).maybeSingle();
+  if (!org) return { org: null };
 
-  useEffect(() => {
-    localStorage.setItem('gt_dir_view', view);
-  }, [view]);
+  const [{ data: authData }, { data: jobs }, { data: activities }] = await Promise.all([
+    supabase.auth.getUser(),
+    supabase
+      .from('jobs')
+      .select('id, title, location, modality, created_at, is_featured')
+      .eq('organization_id', org.id)
+      .eq('status', 'activa')
+      .order('created_at', { ascending: false }),
+    supabase
+      .from('influence_activities')
+      .select('id, activity_date, activity_type, counterpart_name, subject')
+      .eq('organization_id', org.id)
+      .eq('is_public', true)
+      .order('activity_date', { ascending: false })
+      .limit(15),
+  ]);
 
-  useEffect(() => {
-    load();
-  }, [type]);
+  const userId = authData?.user?.id || null;
 
-  async function load() {
-    let q = supabase.from('organizations').select('*').order('created_at', { ascending: false });
-    if (type) q = q.eq('org_type', type);
-    const { data } = await q;
-    setOrgs(data || []);
+  let following = false;
+  if (userId) {
+    const { data: f } = await supabase
+      .from('organization_follows')
+      .select('user_id')
+      .eq('user_id', userId)
+      .eq('organization_id', org.id)
+      .maybeSingle();
+    following = !!f;
   }
 
-  const filtered = useMemo(() => {
-    if (!orgs) return [];
-    let list = orgs.filter((o) => o.name.toLowerCase().includes(name.toLowerCase()));
-    if (onlyPending) list = list.filter((o) => !o.verified);
-    return [...list].sort((a, b) => (b.verified === a.verified ? SORTS[sort].fn(a, b) : b.verified - a.verified));
-  }, [orgs, name, onlyPending, sort]);
+  return { org, jobs: jobs || [], activities: activities || [], userId, following };
+}
 
-  useEffect(() => {
-    setPage(0);
-  }, [name, type, onlyPending, sort, pageSize]);
+function buildOrganizationJsonLd(org) {
+  const jsonLd = {
+    '@context': 'https://schema.org/',
+    '@type': 'Organization',
+    name: org.name,
+    url: `${SITE_URL}/organizations/${org.slug}`,
+  };
 
-  const pendingCount = orgs?.filter((o) => !o.verified).length || 0;
+  if (org.logo_url) jsonLd.logo = org.logo_url;
+  if (org.website_url) jsonLd.sameAs = [normalizeUrl(org.website_url)];
+  if (org.bio || org.sector) jsonLd.description = org.bio || SECTOR_LABELS[org.sector];
+  if (org.location) {
+    jsonLd.address = {
+      '@type': 'PostalAddress',
+      addressLocality: org.location,
+      addressCountry: 'ES',
+    };
+  }
 
-  const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
-  const currentPage = Math.min(page, totalPages - 1);
-  const pageStart = filtered.length === 0 ? 0 : currentPage * pageSize + 1;
-  const pageEnd = Math.min(filtered.length, (currentPage + 1) * pageSize);
-  const paginated = useMemo(
-    () => filtered.slice(currentPage * pageSize, currentPage * pageSize + pageSize),
-    [filtered, currentPage, pageSize]
-  );
+  return jsonLd;
+}
+
+export async function generateMetadata({ params }) {
+  const { org } = await getOrgData(params.slug);
+
+  if (!org) {
+    return { title: 'Organización no encontrada · GovTalent' };
+  }
+
+  const title = `${org.name} — Empleo en asuntos públicos · GovTalent`;
+  const description = (
+    org.bio ||
+    `Descubre las ofertas de empleo de ${org.name} en asuntos públicos, relaciones institucionales y comunicación.`
+  ).slice(0, 155);
+
+  return {
+    title,
+    description,
+    openGraph: {
+      title,
+      description,
+      url: `${SITE_URL}/organizations/${org.slug}`,
+      siteName: 'GovTalent',
+      locale: 'es_ES',
+      type: 'website',
+      images: org.logo_url ? [{ url: org.logo_url }] : undefined,
+    },
+    twitter: {
+      card: 'summary',
+      title,
+      description,
+    },
+  };
+}
+
+export default async function OrganizationPublicPage({ params }) {
+  const { org, jobs, activities, userId, following } = await getOrgData(params.slug);
+
+  if (!org) {
+    return (
+      <div className="sec">
+        <div style={{ maxWidth: 900, margin: '40px auto', textAlign: 'center' }}>
+          <div style={{ fontSize: 18, fontWeight: 700, marginBottom: 6 }}>Organización no encontrada</div>
+          <Link href="/organizations" className="btn-p" style={{ textDecoration: 'none' }}>
+            Volver al buscador
+          </Link>
+        </div>
+      </div>
+    );
+  }
+
+  const jsonLd = buildOrganizationJsonLd(org);
 
   return (
     <div className="sec">
-      <div className="dir-hero">
-        <h1>
-          La mayor base de datos de <em>organizaciones de asuntos públicos y gobierno</em> de España
-        </h1>
-        <p style={{ fontSize: 14, color: '#777', marginBottom: 26 }}>
-          Encuentra cualquier tipo de organización vinculada al sector de los asuntos públicos, la
-          política y el gobierno
-        </p>
-        <div className="card" style={{ maxWidth: 1080, margin: '0 auto 26px', padding: '18px 20px', textAlign: 'left' }}>
-          <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 12 }}>
-            <div className="form-g" style={{ marginBottom: 0 }}>
-              <label>Nombre</label>
-              <input
-                placeholder="Nombre de la organización"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-              />
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
+
+      {userId && (
+        <div style={{ maxWidth: 900, margin: '0 auto 10px' }}>
+          <Link href="/organizations" style={{ fontSize: 12.5, color: '#1d6f5c', textDecoration: 'none' }}>
+            <i className="ti ti-arrow-left"></i> Volver al buscador
+          </Link>
+        </div>
+      )}
+
+      <div className="card" style={{ maxWidth: 900, margin: '0 auto 13px' }}>
+        <div
+          className="co-cover"
+          style={
+            org.cover_url
+              ? {
+                  backgroundImage: `url(${org.cover_url})`,
+                  backgroundSize: 'cover',
+                  backgroundPosition: org.cover_position || '50% 50%',
+                }
+              : undefined
+          }
+        >
+          <div
+            className="co-logo"
+            style={
+              org.logo_url
+                ? {
+                    backgroundImage: `url(${org.logo_url})`,
+                    backgroundSize: 'cover',
+                    backgroundPosition: org.logo_position || '50% 50%',
+                  }
+                : undefined
+            }
+          >
+            {!org.logo_url && '🏛️'}
+          </div>
+        </div>
+        <div className="co-info">
+          <div style={{ fontSize: 19, fontWeight: 700, marginBottom: 4, display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+            {org.name}
+            {org.verified && (
+              <span className="tt">
+                <i className="ti ti-circle-check-filled" style={{ color: '#1d9d63', fontSize: 17 }}></i>
+                <span className="tt-bubble">Página verificada por la organización</span>
+              </span>
+            )}
+            {hasInterestGroupBadge(org) && (
+              <span className="tt">
+                <i className="ti ti-shield-check" style={{ color: '#6d5aef', fontSize: 17 }}></i>
+                <span className="tt-bubble">
+                  Grupo de interés registrado{org.interest_group_registry_number ? ` · ${org.interest_group_registry_number}` : ''}
+                </span>
+              </span>
+            )}
+          </div>
+          {!org.verified && userId && (
+            <div className="badge bgr" style={{ display: 'inline-flex', marginBottom: 8, width: 'fit-content' }}>
+              <i className="ti ti-clock" style={{ fontSize: 11 }}></i> No verificada por la organización
             </div>
-            <div className="form-g" style={{ marginBottom: 0 }}>
-              <label>Tipo de organización</label>
-              <select value={type} onChange={(e) => setType(e.target.value)}>
-                <option value="">Todos los tipos</option>
-                {Object.entries(TYPE_LABELS).map(([k, v]) => (
-                  <option key={k} value={k}>
-                    {v}
-                  </option>
-                ))}
-              </select>
+          )}
+          <div style={{ fontSize: 13, color: '#555', marginBottom: 10 }}>{org.bio || SECTOR_LABELS[org.sector]}</div>
+          <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', fontSize: 12.5, color: '#888', marginBottom: 12 }}>
+            {org.location && (
+              <span>
+                <i className="ti ti-map-pin" style={{ fontSize: 12 }}></i> {org.location}
+              </span>
+            )}
+            {org.size_range && (
+              <span>
+                <i className="ti ti-users" style={{ fontSize: 12 }}></i> {org.size_range} empleados
+              </span>
+            )}
+          </div>
+          <OrganizationFollowButton
+            organizationId={org.id}
+            organizationName={org.name}
+            userId={userId}
+            initialFollowing={following}
+          />
+        </div>
+      </div>
+
+      <OrganizationClaimBanner
+        organizationId={org.id}
+        organizationName={org.name}
+        claimed={!!org.claimed}
+        userId={userId}
+      />
+
+      {!userId && (
+        <div
+          className="org-cta-banner"
+          style={{
+            maxWidth: 900,
+            margin: '0 auto 16px',
+            borderRadius: 16,
+            background: 'linear-gradient(135deg, #6d5aef 0%, #2f2266 100%)',
+            boxShadow: '0 10px 28px rgba(47,34,102,0.24)',
+            textAlign: 'center',
+          }}
+        >
+          <div className="org-cta-headline" style={{ fontWeight: 800, color: '#fff', marginBottom: 18, letterSpacing: '-0.01em' }}>
+            ¿Quieres trabajar o colaborar con {org.name}?
+          </div>
+          <div style={{ fontSize: 13.5, fontWeight: 700, color: 'rgba(255,255,255,0.85)', marginBottom: 14 }}>
+            Regístrate ahora para:
+          </div>
+          <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'center', gap: 8, marginBottom: 28 }}>
+            {[
+              'Recibir alertas cuando publique nuevas ofertas',
+              'Seguir su actividad',
+              'Descubrir organizaciones similares',
+              'Acceder a toda la red profesional del sector',
+            ].map((label) => (
+              <span
+                key={label}
+                style={{
+                  fontSize: 12.5,
+                  color: '#fff',
+                  background: 'rgba(255,255,255,0.12)',
+                  border: '1px solid rgba(255,255,255,0.22)',
+                  borderRadius: 20,
+                  padding: '6px 14px',
+                }}
+              >
+                ✅ {label}
+              </span>
+            ))}
+          </div>
+          <Link
+            href="/login?view=signup"
+            style={{
+              textDecoration: 'none',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 8,
+              background: '#fff',
+              color: '#3d2f8f',
+              fontWeight: 800,
+              fontSize: 15,
+              padding: '13px 30px',
+              borderRadius: 999,
+              boxShadow: '0 8px 22px rgba(0,0,0,0.2)',
+              letterSpacing: '-0.005em',
+            }}
+          >
+            Regístrate gratis <i className="ti ti-arrow-right" style={{ fontSize: 16 }}></i>
+          </Link>
+        </div>
+      )}
+
+      <div className="org-layout-grid">
+        <div className="card">
+          <div className="p-sec" style={{ borderBottom: 'none' }}>
+            <h3>Empleos activos en esta organización</h3>
+            {jobs.length === 0 &&
+              (userId ? (
+                <div style={{ fontSize: 13, color: '#999' }}>Sin ofertas activas por ahora.</div>
+              ) : (
+                <div style={{ fontSize: 13, color: '#999' }}>
+                  <Link href="/login?view=signup" style={{ color: '#1d6f5c', fontWeight: 600, textDecoration: 'none' }}>
+                    Regístrate
+                  </Link>{' '}
+                  y recibe una alerta cuando esta organización publique una oferta.
+                </div>
+              ))}
+            {(!userId ? jobs.slice(0, 3) : jobs).map((j) => (
+              <Link
+                href="/jobs"
+                key={j.id}
+                className="ji"
+                style={{ borderRadius: 8, marginBottom: 7, display: 'block', textDecoration: 'none', color: 'inherit' }}
+              >
+                <div className="jt">{j.title}</div>
+                <div className="jo">
+                  {org.name} · {j.location}
+                </div>
+                {j.is_featured && (
+                  <div style={{ marginTop: 5 }}>
+                    <span className="badge by">★ Destacado</span>
+                  </div>
+                )}
+              </Link>
+            ))}
+            {!userId && jobs.length > 3 && (
+              <div style={{ textAlign: 'center', marginTop: 8 }}>
+                <Link
+                  href="/login?view=signup"
+                  style={{ fontSize: 13, color: '#1d6f5c', fontWeight: 600, textDecoration: 'none' }}
+                >
+                  Regístrate y revisa todas las ofertas
+                </Link>
+              </div>
+            )}
+          </div>
+        </div>
+
+        <div>
+          <div className="sw">
+            <h4>Información de la organización</h4>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10, fontSize: 12.5, color: '#555' }}>
+              {org.website_url && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <i className="ti ti-world" style={{ color: '#1d6f5c', fontSize: 15, width: 16 }}></i>
+                  <a href={normalizeUrl(org.website_url)} target="_blank" rel="noreferrer" style={{ color: '#1d6f5c', fontWeight: 500 }}>
+                    {org.website_url.replace(/^https?:\/\//, '')}
+                  </a>
+                </div>
+              )}
+              {org.linkedin_url && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <i className="ti ti-brand-linkedin" style={{ color: '#1d6f5c', fontSize: 15, width: 16 }}></i>
+                  <a href={org.linkedin_url} target="_blank" rel="noreferrer" style={{ color: '#1d6f5c', fontWeight: 500 }}>
+                    LinkedIn
+                  </a>
+                </div>
+              )}
+              {org.founded_year && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <i className="ti ti-calendar" style={{ color: '#888', fontSize: 15, width: 16 }}></i>
+                  Fundada en {org.founded_year}
+                </div>
+              )}
             </div>
           </div>
         </div>
       </div>
 
-      {orgs === null ? (
-        <div className="spinner"></div>
-      ) : (
-        <>
-          <div className="dir-toolbar">
-            <div className="dir-count">
-              <b>{filtered.length}</b> organización{filtered.length === 1 ? '' : 'es'}
-            </div>
-            <div className="dir-chips">
-              <label className="dir-chip">
-                <i className="ti ti-arrows-sort"></i>
-                <select value={sort} onChange={(e) => setSort(e.target.value)}>
-                  {Object.entries(SORTS).map(([k, v]) => (
-                    <option key={k} value={k}>
-                      {v.label}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              {pendingCount > 0 && (
-                <button
-                  type="button"
-                  className={`dir-chip ${onlyPending ? 'on' : ''}`}
-                  onClick={() => setOnlyPending((v) => !v)}
-                >
-                  <i className="ti ti-clock"></i> No verificadas ({pendingCount})
-                </button>
-              )}
-              <button
-                type="button"
-                className="dir-chip premium"
-                onClick={() =>
-                  setUpgradeModal({
-                    title: 'Filtros avanzados',
-                    message: 'Cruza filtros de sector, actividad y más para encontrar exactamente lo que buscas. Disponible en el plan Pro.',
-                  })
-                }
-              >
-                <i className="ti ti-adjustments"></i> Filtros avanzados <span className="premium-tag">PRO</span>
-              </button>
-              <button
-                type="button"
-                className="dir-chip premium"
-                onClick={() =>
-                  setUpgradeModal({
-                    title: 'Exportar datos',
-                    message: 'Descarga el directorio completo en Excel, con filtros aplicados. Disponible en el plan Pro.',
-                  })
-                }
-              >
-                <i className="ti ti-download"></i> Exportar datos <span className="premium-tag">PRO</span>
-              </button>
-              <div className="view-toggle">
-                <button type="button" className={view === 'grid' ? 'on' : ''} onClick={() => setView('grid')}>
-                  <i className="ti ti-layout-grid"></i> Tarjetas
-                </button>
-                <button type="button" className={view === 'list' ? 'on' : ''} onClick={() => setView('list')}>
-                  <i className="ti ti-list"></i> Listado
-                </button>
-              </div>
-            </div>
+      {activities.length > 0 && (
+        <div className="card" style={{ maxWidth: 900, margin: '13px auto 0', padding: 20 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+            <i className="ti ti-shield-check" style={{ color: '#6d5aef', fontSize: 17 }}></i>
+            <h3 style={{ fontSize: 15, fontWeight: 700, margin: 0 }}>Actividad de transparencia</h3>
           </div>
-
-          {filtered.length === 0 ? (
-            <div className="card" style={{ maxWidth: 1080, margin: '0 auto' }}>
-              <div className="empty-state">
-                <i className="ti ti-building-off"></i>
-                Todavía no hay organizaciones que coincidan con tu búsqueda.
-              </div>
-            </div>
-          ) : view === 'grid' ? (
-            <div className="dir-grid">
-              {paginated.map((o) => (
-                <Link href={`/organizations/${o.slug}`} className="dir-card" key={o.id}>
-                  <div className="dir-card-top">
-                    <div className="dir-logo">
-                      {o.logo_url ? <img src={o.logo_url} alt="" /> : <i className="ti ti-building"></i>}
-                    </div>
-                    <div>
-                      <div className="dir-name">
-                        {o.name}{' '}
-                        {o.verified && (
-                          <span className="tt">
-                            <i className="ti ti-circle-check-filled verified-tick"></i>
-                            <span className="tt-bubble">Página verificada por la organización</span>
-                          </span>
-                        )}
-                        {hasInterestGroupBadge(o) && (
-                          <span className="tt">
-                            <i className="ti ti-shield-check" style={{ color: '#6d5aef' }}></i>
-                            <span className="tt-bubble">
-                              Grupo de interés registrado{o.interest_group_registry_number ? ` · ${o.interest_group_registry_number}` : ''}
-                            </span>
-                          </span>
-                        )}
-                      </div>
-                    </div>
+          <p style={{ fontSize: 12, color: '#888', marginBottom: 16 }}>
+            Contactos y actividades de influencia que esta organización ha hecho públicos voluntariamente, en línea
+            con la Ley de Transparencia e Integridad de los Grupos de Interés.
+          </p>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+            {activities.map((a) => (
+              <div key={a.id} style={{ display: 'flex', gap: 12, paddingBottom: 12, borderBottom: '.5px solid #e0dfd8' }}>
+                <div style={{ fontSize: 11.5, color: '#999', minWidth: 84, flexShrink: 0 }}>{a.activity_date}</div>
+                <div>
+                  <div style={{ fontSize: 12.5, fontWeight: 600, color: '#333' }}>
+                    {ACTIVITY_TYPE_LABELS[a.activity_type] || a.activity_type}
+                    {a.counterpart_name ? ` — ${a.counterpart_name}` : ''}
                   </div>
-                  {o.location && (
-                    <div className="dir-loc">
-                      <i className="ti ti-map-pin"></i> {o.location}
-                    </div>
-                  )}
-                  {!o.verified && (
-                    <div className="badge bgr" style={{ display: 'inline-flex', marginBottom: 8, width: 'fit-content' }}>
-                      <i className="ti ti-clock" style={{ fontSize: 11 }}></i> No verificada
-                    </div>
-                  )}
-                  <div className="dir-tags">
-                    {o.org_type && (
-                      <div className="dir-tag">
-                        <i className="ti ti-briefcase"></i> {TYPE_LABELS[o.org_type] || o.org_type}
-                      </div>
-                    )}
-                  </div>
-                  <button className="dir-btn">Ver página</button>
-                </Link>
-              ))}
-            </div>
-          ) : (
-            <div className="dir-list">
-              <div className="dir-list-head">
-                <span>Organización</span>
-                <span>Tipo de organización</span>
-                <span>Empleados</span>
-                <span>Ubicación</span>
-                <span></span>
-                <span></span>
-              </div>
-              {paginated.map((o) => (
-                <Link href={`/organizations/${o.slug}`} className="dir-row" key={o.id}>
-                  <div className="dir-row-main">
-                    <div className="dir-row-logo">
-                      {o.logo_url ? <img src={o.logo_url} alt="" /> : <i className="ti ti-building"></i>}
-                    </div>
-                    <div style={{ minWidth: 0 }}>
-                      <div className="dir-row-name">
-                        {o.name}
-                        {o.verified && (
-                          <span className="tt">
-                            <i className="ti ti-circle-check-filled verified-tick"></i>
-                            <span className="tt-bubble">Página verificada por la organización</span>
-                          </span>
-                        )}
-                        {hasInterestGroupBadge(o) && (
-                          <span className="tt">
-                            <i className="ti ti-shield-check" style={{ color: '#6d5aef' }}></i>
-                            <span className="tt-bubble">
-                              Grupo de interés registrado{o.interest_group_registry_number ? ` · ${o.interest_group_registry_number}` : ''}
-                            </span>
-                          </span>
-                        )}
-                      </div>
-                      {!o.verified && (
-                        <div className="badge bgr" style={{ marginTop: 3 }}>
-                          <i className="ti ti-clock" style={{ fontSize: 10 }}></i> No verificada
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                  <div className="dir-row-meta">{TYPE_LABELS[o.org_type] || o.org_type || '—'}</div>
-                  <div className="dir-row-size">{o.size_range ? `${o.size_range} emp.` : '—'}</div>
-                  <div className="dir-row-loc">{o.location || '—'}</div>
-                  <div className="dir-row-links" onClick={(e) => e.stopPropagation()}>
-                    {o.website_url && (
-                      <a href={o.website_url} target="_blank" rel="noreferrer" title="Sitio web">
-                        <i className="ti ti-world"></i>
-                      </a>
-                    )}
-                    {o.linkedin_url && (
-                      <a href={o.linkedin_url} target="_blank" rel="noreferrer" title="LinkedIn">
-                        <i className="ti ti-brand-linkedin"></i>
-                      </a>
-                    )}
-                  </div>
-                  <i className="ti ti-chevron-right dir-row-arrow"></i>
-                </Link>
-              ))}
-            </div>
-          )}
-
-          {filtered.length > 0 && (
-            <div
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                maxWidth: 1080,
-                margin: '14px auto 0',
-                padding: '12px 16px',
-                background: '#fff',
-                border: '.5px solid #e0dfd8',
-                borderRadius: 12,
-                fontSize: 12.5,
-                color: '#888',
-                flexWrap: 'wrap',
-                gap: 10,
-              }}
-            >
-              <label style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                Mostrar
-                <select
-                  value={pageSize}
-                  onChange={(e) => setPageSize(Number(e.target.value))}
-                  style={{ border: '.5px solid #e0dfd8', borderRadius: 7, padding: '4px 8px', fontSize: 12.5 }}
-                >
-                  {PAGE_SIZE_OPTIONS.map((n) => (
-                    <option key={n} value={n}>
-                      {n}
-                    </option>
-                  ))}
-                </select>
-              </label>
-
-              <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                <span>
-                  Mostrando {pageStart}-{pageEnd} de {filtered.length}
-                </span>
-                <div style={{ display: 'flex', gap: 4 }}>
-                  <button
-                    type="button"
-                    onClick={() => setPage((p) => Math.max(0, p - 1))}
-                    disabled={currentPage === 0}
-                    style={{
-                      width: 28,
-                      height: 28,
-                      borderRadius: 7,
-                      border: '.5px solid #e0dfd8',
-                      background: '#fff',
-                      color: currentPage === 0 ? '#ccc' : '#555',
-                      cursor: currentPage === 0 ? 'default' : 'pointer',
-                    }}
-                  >
-                    <i className="ti ti-chevron-left" style={{ fontSize: 13 }}></i>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setPage((p) => Math.min(totalPages - 1, p + 1))}
-                    disabled={currentPage >= totalPages - 1}
-                    style={{
-                      width: 28,
-                      height: 28,
-                      borderRadius: 7,
-                      border: '.5px solid #e0dfd8',
-                      background: '#fff',
-                      color: currentPage >= totalPages - 1 ? '#ccc' : '#555',
-                      cursor: currentPage >= totalPages - 1 ? 'default' : 'pointer',
-                    }}
-                  >
-                    <i className="ti ti-chevron-right" style={{ fontSize: 13 }}></i>
-                  </button>
+                  <div style={{ fontSize: 12, color: '#666' }}>{a.subject}</div>
                 </div>
               </div>
-            </div>
-          )}
-        </>
-      )}
-
-      {upgradeModal && (
-        <UpgradeModal
-          title={upgradeModal.title}
-          message={upgradeModal.message}
-          onClose={() => setUpgradeModal(null)}
-        />
+            ))}
+          </div>
+        </div>
       )}
     </div>
   );
