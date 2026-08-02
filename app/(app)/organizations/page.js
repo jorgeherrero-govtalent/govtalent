@@ -10,10 +10,7 @@ import UpgradeModal from '@/components/UpgradeModal';
 const PAGE_SIZE_OPTIONS = [10, 25, 50, 100];
 
 const SORTS = {
-  nombre_tipo: {
-    label: 'Nombre A-Z + Tipo de organización',
-    fn: (a, b) => a.name.localeCompare(b.name) || (TYPE_LABELS[a.org_type] || '').localeCompare(TYPE_LABELS[b.org_type] || ''),
-  },
+  recientes: { label: 'Más recientes', fn: (a, b) => new Date(b.created_at) - new Date(a.created_at) },
   az: { label: 'Nombre A-Z', fn: (a, b) => a.name.localeCompare(b.name) },
   tamano: { label: 'Nº de empleados', fn: (a, b) => sizeRank(b.size_range) - sizeRank(a.size_range) },
 };
@@ -27,7 +24,7 @@ export default function OrganizationsDirectory() {
   const [orgs, setOrgs] = useState(null);
   const [name, setName] = useState('');
   const [type, setType] = useState('');
-  const [sort, setSort] = useState('nombre_tipo');
+  const [sort, setSort] = useState('recientes');
   const [onlyPending, setOnlyPending] = useState(false);
   const [view, setView] = useState('grid');
   const [pageSize, setPageSize] = useState(25);
@@ -226,7 +223,7 @@ export default function OrganizationsDirectory() {
                       </div>
                     )}
                   </div>
-                  <button className="dir-btn">Ver página</button>
+                  <span className="dir-btn">Ver página</span>
                 </Link>
               ))}
             </div>
