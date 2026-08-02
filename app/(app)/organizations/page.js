@@ -3,26 +3,17 @@
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
-import { toast } from '@/lib/toast';
 import { hasInterestGroupBadge } from '@/lib/interestGroupBadge';
-
-const TYPE_LABELS = {
-  empresa: 'Empresa',
-  consultora_public_affairs: 'Consultora',
-  tercer_sector_ong: 'ONG / Tercer sector',
-  partido_politico: 'Partido político',
-  institucion_publica: 'Institución pública',
-  think_tank_fundacion: 'Think tank',
-  medios_comunicacion: 'Medios',
-  universidad_centro_educativo: 'Centro educativo',
-  asociacion_profesional: 'Asociación profesional',
-  otro: 'Otro',
-};
+import { TYPE_LABELS } from '@/lib/orgTaxonomy';
+import UpgradeModal from '@/components/UpgradeModal';
 
 const PAGE_SIZE_OPTIONS = [10, 25, 50, 100];
 
 const SORTS = {
-  recientes: { label: 'Más recientes', fn: (a, b) => new Date(b.created_at) - new Date(a.created_at) },
+  nombre_tipo: {
+    label: 'Nombre A-Z + Tipo de organización',
+    fn: (a, b) => a.name.localeCompare(b.name) || (TYPE_LABELS[a.org_type] || '').localeCompare(TYPE_LABELS[b.org_type] || ''),
+  },
   az: { label: 'Nombre A-Z', fn: (a, b) => a.name.localeCompare(b.name) },
   tamano: { label: 'Nº de empleados', fn: (a, b) => sizeRank(b.size_range) - sizeRank(a.size_range) },
 };
@@ -36,11 +27,12 @@ export default function OrganizationsDirectory() {
   const [orgs, setOrgs] = useState(null);
   const [name, setName] = useState('');
   const [type, setType] = useState('');
-  const [sort, setSort] = useState('recientes');
+  const [sort, setSort] = useState('nombre_tipo');
   const [onlyPending, setOnlyPending] = useState(false);
   const [view, setView] = useState('grid');
   const [pageSize, setPageSize] = useState(25);
   const [page, setPage] = useState(0);
+  const [upgradeModal, setUpgradeModal] = useState(null);
 
   useEffect(() => {
     const saved = localStorage.getItem('gt_dir_view');
@@ -150,14 +142,24 @@ export default function OrganizationsDirectory() {
               <button
                 type="button"
                 className="dir-chip premium"
-                onClick={() => toast('Filtros avanzados — disponible próximamente en GovTalent Premium')}
+                onClick={() =>
+                  setUpgradeModal({
+                    title: 'Filtros avanzados',
+                    message: 'Cruza filtros de sector, actividad y más para encontrar exactamente lo que buscas. Disponible en el plan Pro.',
+                  })
+                }
               >
                 <i className="ti ti-adjustments"></i> Filtros avanzados <span className="premium-tag">PRO</span>
               </button>
               <button
                 type="button"
                 className="dir-chip premium"
-                onClick={() => toast('Exportar datos — disponible próximamente en GovTalent Premium')}
+                onClick={() =>
+                  setUpgradeModal({
+                    title: 'Exportar datos',
+                    message: 'Descarga el directorio completo en Excel, con filtros aplicados. Disponible en el plan Pro.',
+                  })
+                }
               >
                 <i className="ti ti-download"></i> Exportar datos <span className="premium-tag">PRO</span>
               </button>
@@ -218,9 +220,9 @@ export default function OrganizationsDirectory() {
                     </div>
                   )}
                   <div className="dir-tags">
-                    {o.sector && (
+                    {o.org_type && (
                       <div className="dir-tag">
-                        <i className="ti ti-briefcase"></i> {o.sector}
+                        <i className="ti ti-briefcase"></i> {TYPE_LABELS[o.org_type] || o.org_type}
                       </div>
                     )}
                   </div>
@@ -232,9 +234,9 @@ export default function OrganizationsDirectory() {
             <div className="dir-list">
               <div className="dir-list-head">
                 <span>Organización</span>
-                <span>Ubicación</span>
-                <span>Sector</span>
+                <span>Tipo de organización</span>
                 <span>Empleados</span>
+                <span>Ubicación</span>
                 <span></span>
                 <span></span>
               </div>
@@ -269,9 +271,9 @@ export default function OrganizationsDirectory() {
                       )}
                     </div>
                   </div>
-                  <div className="dir-row-loc">{o.location || '—'}</div>
-                  <div className="dir-row-meta">{o.sector || '—'}</div>
+                  <div className="dir-row-meta">{TYPE_LABELS[o.org_type] || o.org_type || '—'}</div>
                   <div className="dir-row-size">{o.size_range ? `${o.size_range} emp.` : '—'}</div>
+                  <div className="dir-row-loc">{o.location || '—'}</div>
                   <div className="dir-row-links" onClick={(e) => e.stopPropagation()}>
                     {o.website_url && (
                       <a href={o.website_url} target="_blank" rel="noreferrer" title="Sitio web">
@@ -365,6 +367,14 @@ export default function OrganizationsDirectory() {
             </div>
           )}
         </>
+      )}
+
+      {upgradeModal && (
+        <UpgradeModal
+          title={upgradeModal.title}
+          message={upgradeModal.message}
+          onClose={() => setUpgradeModal(null)}
+        />
       )}
     </div>
   );
