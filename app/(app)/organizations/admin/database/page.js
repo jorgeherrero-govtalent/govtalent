@@ -129,6 +129,9 @@ export default function OrganizationsDatabasePage() {
   const [locationFilter, setLocationFilter] = useState(new Set());
   const [sizeFilter, setSizeFilter] = useState(new Set());
   const [patronalFilter, setPatronalFilter] = useState(new Set());
+  const [aiQuery, setAiQuery] = useState('');
+  const [aiSearching, setAiSearching] = useState(false);
+  const [aiError, setAiError] = useState('');
   const [sortConfig, setSortConfig] = useState({ key: null, dir: 'asc' });
   const [openPopover, setOpenPopover] = useState(null);
   const [page, setPage] = useState(0);
@@ -315,6 +318,41 @@ export default function OrganizationsDatabasePage() {
     XLSX.writeFile(wb, `directorio-govtalent-${new Date().toISOString().slice(0, 10)}.xlsx`);
   }
 
+  async function runAiSearch() {
+    if (!aiQuery.trim() || aiSearching) return;
+    setAiSearching(true);
+    setAiError('');
+    try {
+      const res = await fetch('/api/ai/directory-search', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ query: aiQuery, patronales: patronalValues.map((p) => p.value) }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setAiError(data.error || 'No se pudo interpretar la búsqueda.');
+        return;
+      }
+      setTypeFilter(new Set(data.types || []));
+      setSectorFilter(new Set(data.sectors || []));
+      setSizeFilter(new Set(data.sizes || []));
+      setPatronalFilter(data.patronal ? new Set([data.patronal]) : new Set());
+      if (data.location) {
+        const matches = locationValues
+          .filter((l) => l.label.toLowerCase().includes(data.location.toLowerCase()))
+          .map((l) => l.value);
+        setLocationFilter(new Set(matches));
+      } else {
+        setLocationFilter(new Set());
+      }
+      setSearch(data.searchText || '');
+    } catch (e) {
+      setAiError('No se pudo conectar con el servicio de IA. Inténtalo de nuevo.');
+    } finally {
+      setAiSearching(false);
+    }
+  }
+
   const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
   const currentPage = Math.min(page, totalPages - 1);
   const pageStart = filtered.length === 0 ? 0 : currentPage * pageSize + 1;
@@ -465,6 +503,60 @@ export default function OrganizationsDatabasePage() {
           No se pudieron cargar las organizaciones: {loadError}
         </div>
       )}
+
+      <div style={{ marginBottom: 14 }}>
+        <div style={{ position: 'relative' }}>
+          <i
+            className="ti ti-sparkles"
+            style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', color: '#6d5aef', fontSize: 15 }}
+          ></i>
+          <input
+            placeholder='Prueba: "asociaciones del sector energético en Madrid con más de 200 empleados"'
+            value={aiQuery}
+            onChange={(e) => setAiQuery(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && runAiSearch()}
+            disabled={aiSearching}
+            style={{
+              width: '100%',
+              padding: '11px 90px 11px 38px',
+              border: '1px solid #d9d2f9',
+              borderRadius: 10,
+              fontSize: 13.5,
+              outline: 'none',
+              background: '#faf9ff',
+            }}
+          />
+          <button
+            onClick={runAiSearch}
+            disabled={aiSearching || !aiQuery.trim()}
+            style={{
+              position: 'absolute',
+              right: 6,
+              top: 6,
+              bottom: 6,
+              padding: '0 16px',
+              borderRadius: 7,
+              border: 'none',
+              background: aiSearching || !aiQuery.trim() ? '#c9c1f7' : '#6d5aef',
+              color: '#fff',
+              fontSize: 12.5,
+              fontWeight: 600,
+              cursor: aiSearching || !aiQuery.trim() ? 'default' : 'pointer',
+            }}
+          >
+            {aiSearching ? 'Buscando…' : 'Buscar'}
+          </button>
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginTop: 7 }}>
+          <span
+            style={{ fontSize: 10, fontWeight: 700, padding: '1px 6px', borderRadius: 20, background: '#f0edfe', color: '#6d5aef' }}
+          >
+            Beta
+          </span>
+          <span style={{ fontSize: 11.5, color: '#999' }}>Escribe lo que buscas en lenguaje natural y la IA aplica los filtros por ti.</span>
+        </div>
+        {aiError && <div style={{ fontSize: 12, color: '#a33', marginTop: 6 }}>{aiError}</div>}
+      </div>
 
       <div style={{ display: 'flex', gap: 8, marginBottom: 12, flexWrap: 'wrap', alignItems: 'center' }}>
         <input
