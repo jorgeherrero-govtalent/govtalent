@@ -100,6 +100,60 @@ function RankList({ data, color = '#6d5aef' }) {
   );
 }
 
+function PatronalChips({ data }) {
+  const max = data[0]?.[1] || 1;
+  return (
+    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+      {data.map(([label, count]) => {
+        const intensity = count / max;
+        return (
+          <div
+            key={label}
+            title={label}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 7,
+              padding: '7px 11px',
+              borderRadius: 20,
+              background: `rgba(29,111,92,${(0.06 + intensity * 0.16).toFixed(2)})`,
+              border: '1px solid rgba(29,111,92,.2)',
+              maxWidth: '100%',
+            }}
+          >
+            <span
+              style={{
+                fontSize: 12,
+                fontWeight: 600,
+                color: '#15140f',
+                maxWidth: 170,
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                whiteSpace: 'nowrap',
+              }}
+            >
+              {label}
+            </span>
+            <span
+              style={{
+                fontSize: 11,
+                fontWeight: 700,
+                color: '#1d6f5c',
+                background: '#fff',
+                borderRadius: 20,
+                padding: '1px 7px',
+                flexShrink: 0,
+              }}
+            >
+              {count}
+            </span>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 const DONUT_COLORS = ['#1d6f5c', '#6d5aef', '#b8860b', '#c2534e', '#3a8fb7', '#a3a297'];
 
 function DonutChart({ data }) {
@@ -550,9 +604,7 @@ export default function OrganizationsDatabasePage() {
               </div>
               {biStats.topPatronales.length > 0 ? (
                 <div style={{ maxHeight: expandedPanel === 'patronales' ? 320 : 'none', overflowY: expandedPanel === 'patronales' ? 'auto' : 'visible' }}>
-                  {(expandedPanel === 'patronales' ? biStats.topPatronales : biStats.topPatronales.slice(0, 5)).map(([label, count]) => (
-                    <BarRow key={label} label={label} count={count} max={biStats.topPatronales[0]?.[1] || 1} color="#c2534e" />
-                  ))}
+                  <PatronalChips data={expandedPanel === 'patronales' ? biStats.topPatronales : biStats.topPatronales.slice(0, 5)} />
                 </div>
               ) : (
                 <div style={{ fontSize: 12.5, color: '#a3a297' }}>Sin afiliaciones registradas con estos filtros.</div>
@@ -640,27 +692,18 @@ export default function OrganizationsDatabasePage() {
           onChange={(e) => setSearch(e.target.value)}
           style={{ flex: 1, minWidth: 220, padding: '8px 12px', border: '.5px solid #e0dfd8', borderRadius: 8, fontSize: 13, outline: 'none' }}
         />
-        <select
-          value={[...patronalFilter][0] || ''}
-          onChange={(e) => setPatronalFilter(e.target.value ? new Set([e.target.value]) : new Set())}
-          style={{
-            padding: '8px 12px',
-            borderRadius: 8,
-            border: '.5px solid #e0dfd8',
-            fontSize: 12.5,
-            fontWeight: 600,
-            color: patronalFilter.size > 0 ? '#6d5aef' : '#666',
-            background: patronalFilter.size > 0 ? '#f7f5ff' : '#fff',
-            cursor: 'pointer',
-          }}
-        >
-          <option value="">Todas las afiliaciones</option>
-          {patronalValues.map((p) => (
-            <option key={p.value} value={p.value}>
-              {p.label}
-            </option>
-          ))}
-        </select>
+        <FilterableHeader
+          label="Afiliación"
+          columnKey="patronales_toolbar"
+          values={patronalValues}
+          selected={patronalFilter}
+          onApply={setPatronalFilter}
+          sortConfig={sortConfig}
+          onSort={(key, dir) => setSortConfig({ key, dir })}
+          isOpen={openPopover === 'patronales_toolbar'}
+          onToggle={() => setOpenPopover(openPopover === 'patronales_toolbar' ? null : 'patronales_toolbar')}
+          onClose={() => setOpenPopover(null)}
+        />
         <button
           onClick={handleExport}
           style={{
@@ -789,18 +832,21 @@ export default function OrganizationsDatabasePage() {
                 <td style={{ padding: '9px 14px', color: '#555' }}>{o.size_range || '—'}</td>
                 <td style={{ padding: '9px 14px', color: '#555' }}>
                   {(o.patronales || []).length > 0 ? (
-                    <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
                       {o.patronales.map((p) => (
                         <span
                           key={p}
+                          title={p}
                           style={{
-                            fontSize: 11,
-                            fontWeight: 600,
-                            padding: '2px 8px',
-                            borderRadius: 20,
-                            background: '#f0edfe',
-                            color: '#6d5aef',
-                            whiteSpace: 'nowrap',
+                            fontSize: 12,
+                            color: '#3a3a36',
+                            maxWidth: 220,
+                            display: '-webkit-box',
+                            WebkitLineClamp: 2,
+                            WebkitBoxOrient: 'vertical',
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis',
+                            lineHeight: 1.35,
                           }}
                         >
                           {p}
