@@ -1,6 +1,7 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import Link from 'next/link';
 import * as XLSX from 'xlsx';
 import { createClient } from '@/lib/supabase/client';
@@ -16,52 +17,59 @@ const QUICK_FILTERS = {
   grupo_interes: (o) => hasInterestGroupBadge(o),
 };
 
-const PAGE_SIZE_OPTIONS = [10, 25, 50, 100];
+const PAGE_SIZE_OPTIONS = [10, 25, 50, 100, 200];
 
 function Tip({ text, children }) {
   const [show, setShow] = useState(false);
+  const [pos, setPos] = useState({ top: 0, left: 0 });
+  const ref = useRef(null);
+  const tipWidth = 210;
+
+  function handleEnter() {
+    if (ref.current) {
+      const rect = ref.current.getBoundingClientRect();
+      let left = rect.left + rect.width / 2 - tipWidth / 2;
+      left = Math.max(8, Math.min(left, window.innerWidth - tipWidth - 8));
+      setPos({ top: rect.top - 8, left });
+    }
+    setShow(true);
+  }
+
   return (
     <div
-      style={{ position: 'relative', display: 'inline-flex', minWidth: 0, maxWidth: '100%' }}
-      onMouseEnter={() => setShow(true)}
+      ref={ref}
+      style={{ display: 'inline-flex', minWidth: 0, maxWidth: '100%' }}
+      onMouseEnter={handleEnter}
       onMouseLeave={() => setShow(false)}
     >
       {children}
-      {show && (
-        <div
-          style={{
-            position: 'absolute',
-            bottom: 'calc(100% + 7px)',
-            left: '50%',
-            transform: 'translateX(-50%)',
-            background: '#1a1a18',
-            color: '#fff',
-            fontSize: 11.5,
-            fontWeight: 500,
-            padding: '6px 10px',
-            borderRadius: 7,
-            whiteSpace: 'nowrap',
-            zIndex: 60,
-            boxShadow: '0 6px 16px rgba(0,0,0,.2)',
-            pointerEvents: 'none',
-          }}
-        >
-          {text}
+      {show &&
+        typeof document !== 'undefined' &&
+        createPortal(
           <div
             style={{
-              position: 'absolute',
-              top: '100%',
-              left: '50%',
-              transform: 'translateX(-50%)',
-              width: 0,
-              height: 0,
-              borderLeft: '5px solid transparent',
-              borderRight: '5px solid transparent',
-              borderTop: '5px solid #1a1a18',
+              position: 'fixed',
+              top: pos.top,
+              left: pos.left,
+              transform: 'translateY(-100%)',
+              width: tipWidth,
+              background: '#1a1a18',
+              color: '#fff',
+              fontSize: 11.5,
+              fontWeight: 500,
+              lineHeight: 1.4,
+              padding: '8px 11px',
+              borderRadius: 8,
+              textAlign: 'center',
+              zIndex: 200,
+              boxShadow: '0 6px 16px rgba(0,0,0,.22)',
+              pointerEvents: 'none',
             }}
-          />
-        </div>
-      )}
+          >
+            {text}
+          </div>,
+          document.body
+        )}
     </div>
   );
 }
