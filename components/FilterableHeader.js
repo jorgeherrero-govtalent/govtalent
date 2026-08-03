@@ -16,6 +16,14 @@ export default function FilterableHeader({ label, columnKey, values, selected, o
     if (isOpen) {
       setDraft(new Set(selected));
       setSearch('');
+    }
+  }, [isOpen]);
+
+  useEffect(() => {
+    if (!isOpen) return;
+
+    function updatePos() {
+      if (!btnRef.current) return;
       const rect = btnRef.current.getBoundingClientRect();
       const popoverWidth = 240;
       const margin = 12;
@@ -26,6 +34,16 @@ export default function FilterableHeader({ label, columnKey, values, selected, o
       left = Math.max(margin, left);
       setPos({ top: rect.bottom + 6, left });
     }
+
+    updatePos();
+    // "true" para capturar el scroll de cualquier contenedor con overflow,
+    // no solo el de la ventana — así el panel sigue al botón siempre.
+    window.addEventListener('scroll', updatePos, true);
+    window.addEventListener('resize', updatePos);
+    return () => {
+      window.removeEventListener('scroll', updatePos, true);
+      window.removeEventListener('resize', updatePos);
+    };
   }, [isOpen]);
 
   const visibleValues = (values || []).filter((v) => v.label.toLowerCase().includes(search.toLowerCase()));
