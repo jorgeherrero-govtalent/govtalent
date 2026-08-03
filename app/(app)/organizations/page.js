@@ -45,7 +45,7 @@ export default function OrganizationsDirectory() {
   }, [type]);
 
   async function load() {
-    let q = supabase.from('organizations').select('*').order('created_at', { ascending: false });
+    let q = supabase.from('organizations').select('*').order('created_at', { ascending: false }).limit(5000);
     if (type) q = q.eq('org_type', type);
     const { data } = await q;
     setOrgs(data || []);
