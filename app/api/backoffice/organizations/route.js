@@ -23,7 +23,8 @@ export async function GET() {
       .select(
         'id, name, slug, org_type, sector, location, size_range, website_url, linkedin_url, contact_email, notification_email, claimed, verified, source, created_at'
       )
-      .order('created_at', { ascending: false }),
+      .order('created_at', { ascending: false })
+      .limit(5000),
     admin.from('jobs').select('organization_id'),
     admin.from('organization_members').select('organization_id'),
   ]);
