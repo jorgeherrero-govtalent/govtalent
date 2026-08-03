@@ -34,6 +34,11 @@ const CONSULTAS_BASE = [
   'nuevo director asuntos públicos',
   'nueva directora asuntos públicos',
   'fichaje asuntos públicos',
+  'nuevo director corporate affairs España',
+  'nueva directora relaciones institucionales',
+  'nombramiento government affairs España',
+  'nueva directora relaciones externas',
+  'nuevo director public policy España',
 ];
 
 const PUNTOS_POR_FUENTE = {
@@ -69,9 +74,12 @@ ${CONSULTAS_BASE.map((q) => `- "${q}"`).join('\n')}
 Y además, consultas restringidas a estos medios especializados: ${mediosQuery}
 
 Para cada nombramiento o cese que encuentres con una fuente clara y verificable, extrae los datos.
-Ignora cualquier resultado que no sea sobre asuntos públicos/relaciones institucionales/comunicación
-corporativa (por ejemplo, nombramientos de gobierno vía BOE no cuentan aquí, ni de otras áreas como
-marketing o RRHH salvo que el cargo combine explícitamente asuntos públicos).
+Cuentan tanto los cargos llamados "Asuntos Públicos" como sus equivalentes: Corporate Affairs,
+Relaciones Institucionales, Relaciones Externas, Government Affairs, Public Affairs, Public Policy,
+o combinaciones de estos con Comunicación (ej. "Director de Asuntos Públicos y Comunicación"). Ignora cualquier
+resultado que no sea sobre este tipo de cargo (por ejemplo, nombramientos de gobierno vía BOE no
+cuentan aquí, ni de otras áreas como marketing o RRHH salvo que el cargo combine explícitamente
+asuntos públicos/relaciones institucionales).
 
 Cuando termines de buscar, responde ÚNICAMENTE con un array JSON (sin texto antes ni después, sin
 backticks de markdown) con este formato exacto:
