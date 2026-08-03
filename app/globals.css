@@ -365,3 +365,5 @@ a{color:inherit}
   .pricing-wrap{padding:28px 16px 44px}
   .pricing-h1{font-size:22px}
 }
+
+.stat-card-hover:hover{border-color:#6d5aef}
