@@ -2,214 +2,261 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
+import { createClient } from '@/lib/supabase/client';
 
-function StatCard({ value, label, onClick }) {
-  return (
-    <div
-      onClick={onClick}
-      className="stat-card-hover"
-      style={{
-        background: '#fff',
-        border: '1px solid #eceae2',
-        borderRadius: 14,
-        padding: '16px 18px',
-        cursor: onClick ? 'pointer' : 'default',
-        transition: 'border-color .15s',
-      }}
-    >
-      <div style={{ fontSize: 26, fontWeight: 700, color: '#15140f', letterSpacing: '-.02em' }}>{value}</div>
-      <div style={{ fontSize: 11.5, color: '#8a897f', marginTop: 5 }}>{label}</div>
-    </div>
-  );
-}
-
-function ActionCard({ iconBg, iconColor, icon, label, title, detail, cta, href }) {
-  return (
-    <div style={{ background: '#fff', border: '1px solid #eceae2', borderRadius: 14, padding: '18px 20px' }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
-        <div style={{ width: 30, height: 30, borderRadius: 9, background: iconBg, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <i className={`ti ${icon}`} style={{ fontSize: 16, color: iconColor }}></i>
-        </div>
-        <div style={{ fontSize: 11, fontWeight: 600, color: '#a3a297', letterSpacing: '.03em' }}>{label}</div>
-      </div>
-      <div style={{ fontSize: 14.5, fontWeight: 700, color: '#15140f', marginBottom: 4 }}>{title}</div>
-      {detail && <div style={{ fontSize: 12.5, color: '#57564f', marginBottom: 12 }}>{detail}</div>}
-      <Link
-        href={href}
-        style={{
-          display: 'block',
-          textAlign: 'center',
-          width: '100%',
-          padding: 8,
-          borderRadius: 8,
-          border: '1px solid #e0dfd8',
-          background: '#fff',
-          color: '#3a3a36',
-          fontSize: 12,
-          fontWeight: 600,
-          textDecoration: 'none',
-        }}
-      >
-        {cta}
-      </Link>
-    </div>
-  );
-}
+const SECTOR_LABELS = {
+  energia_clima: 'Energía y clima',
+  telecomunicaciones: 'Telecomunicaciones',
+  tecnologia_digital: 'Tecnología y digital',
+  audiovisual_medios: 'Audiovisual y medios de comunicación',
+  transporte_movilidad: 'Transporte y movilidad',
+  farmaceutico_salud: 'Farmacéutico y salud',
+  financiero_banca_seguros: 'Financiero, banca y seguros',
+  turismo_hosteleria: 'Turismo y hostelería',
+  multisectorial: 'Multisectorial',
+};
 
 export default function RadarResumenHoy() {
   const [data, setData] = useState(null);
-  const [showDesglose, setShowDesglose] = useState(false);
+  const [userName, setUserName] = useState('');
 
   useEffect(() => {
     fetch('/api/radar/summary')
       .then((r) => r.json())
       .then(setData);
+
+    const supabase = createClient();
+    supabase.auth.getUser().then(async ({ data: authData }) => {
+      if (!authData.user) return;
+      const { data: profile } = await supabase.from('users').select('first_name').eq('id', authData.user.id).single();
+      if (profile?.first_name) setUserName(profile.first_name);
+    });
   }, []);
 
   if (!data) {
-    return (
-      <div style={{ padding: '24px 28px', fontSize: 13, color: '#888' }}>
-        Cargando tu resumen…
-      </div>
-    );
+    return <div style={{ padding: '24px 28px', fontSize: 13, color: '#888' }}>Cargando tu resumen…</div>;
   }
 
-  const { stats, que_esta_pasando, perfil_destacado, para_tu_perfil, radar_organizacion, organizacion_seguida, tendencia, organizacion_mas_activa } = data;
+  const { perfil, vacantes_recomendadas, organizaciones_recomendadas, novedades } = data;
 
   return (
-    <div style={{ padding: '24px 28px', maxWidth: 900 }}>
-      <div style={{ marginBottom: 18 }}>
-        <div style={{ fontSize: 19, fontWeight: 700, color: '#15140f' }}>Resumen de hoy</div>
-        <div style={{ fontSize: 12.5, color: '#8a897f', marginTop: 3 }}>
-          Movimientos, oportunidades y novedades del ecosistema de asuntos públicos.
+    <div style={{ maxWidth: 1200, margin: '0 auto', padding: '28px 32px 60px' }}>
+      {/* Cabecera */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 28, flexWrap: 'wrap', gap: 12 }}>
+        <div>
+          <div style={{ fontSize: 22, fontWeight: 700, color: '#15140f' }}>Hola{userName ? `, ${userName}` : ''}</div>
+          <div style={{ fontSize: 13.5, color: '#8a897f', marginTop: 4 }}>
+            Tu espacio para descubrir oportunidades, organizaciones y novedades del ecosistema de asuntos públicos.
+          </div>
+        </div>
+        <Link
+          href="/account"
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 6,
+            padding: '8px 14px',
+            borderRadius: 8,
+            border: '1px solid #e0dfd8',
+            background: '#fff',
+            color: '#3a3a36',
+            fontSize: 12.5,
+            fontWeight: 600,
+            textDecoration: 'none',
+            whiteSpace: 'nowrap',
+          }}
+        >
+          <i className="ti ti-adjustments"></i> Personalizar
+        </Link>
+      </div>
+
+      {/* Bloque de activación */}
+      <div
+        style={{
+          background: 'linear-gradient(160deg, #faf9ff 0%, #f2effc 100%)',
+          border: '1px solid #e2dcf8',
+          borderRadius: 16,
+          padding: '22px 26px',
+          marginBottom: 32,
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          flexWrap: 'wrap',
+          gap: 16,
+        }}
+      >
+        <div>
+          <div style={{ fontSize: 15.5, fontWeight: 700, color: '#15140f', marginBottom: 4 }}>
+            Haz que GovTalent trabaje para ti
+          </div>
+          <div style={{ fontSize: 12.5, color: '#57564f', marginBottom: 10 }}>
+            Selecciona tus sectores, intereses y organizaciones para recibir recomendaciones personalizadas.
+          </div>
+          <div style={{ fontSize: 12, color: '#6d5aef', fontWeight: 600 }}>
+            Perfil {perfil.completion_pct}% · {perfil.sectores_count} sector{perfil.sectores_count === 1 ? '' : 'es'} ·{' '}
+            {perfil.organizaciones_seguidas_count} organización{perfil.organizaciones_seguidas_count === 1 ? '' : 'es'}
+          </div>
+        </div>
+        <div style={{ display: 'flex', gap: 10, flexShrink: 0 }}>
+          <Link
+            href="/account"
+            style={{
+              padding: '10px 18px',
+              borderRadius: 8,
+              border: 'none',
+              background: '#6d5aef',
+              color: '#fff',
+              fontSize: 12.5,
+              fontWeight: 600,
+              textDecoration: 'none',
+              whiteSpace: 'nowrap',
+            }}
+          >
+            Completar mi perfil
+          </Link>
+          <Link
+            href="/organizations"
+            style={{
+              padding: '10px 18px',
+              borderRadius: 8,
+              border: '1px solid #d9d2f9',
+              background: '#fff',
+              color: '#6d5aef',
+              fontSize: 12.5,
+              fontWeight: 600,
+              textDecoration: 'none',
+              whiteSpace: 'nowrap',
+            }}
+          >
+            Explorar organizaciones
+          </Link>
         </div>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: 10, marginBottom: 10 }}>
-        <StatCard value={stats.movimientos_mes} label="Movimientos este mes · ver desglose" onClick={() => setShowDesglose((v) => !v)} />
-        <StatCard value={stats.vacantes_para_ti} label="Vacantes nuevas para ti" />
-        <StatCard value={stats.organizaciones_seguidas} label="Organizaciones en tu radar" />
-        <StatCard value={stats.perfiles_actualizados_semana} label="Perfiles actualizados (7 días)" />
+      {/* Oportunidades para ti */}
+      <div style={{ marginBottom: 32 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 4 }}>
+          <div style={{ fontSize: 16, fontWeight: 700, color: '#15140f' }}>Oportunidades recomendadas</div>
+          <Link href="/jobs" style={{ fontSize: 12.5, fontWeight: 600, color: '#1d6f5c', textDecoration: 'none' }}>
+            Ver todas →
+          </Link>
+        </div>
+        <div style={{ fontSize: 12.5, color: '#8a897f', marginBottom: 14 }}>
+          Vacantes que encajan con tu experiencia e intereses.
+        </div>
+        {vacantes_recomendadas.length > 0 ? (
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 14 }}>
+            {vacantes_recomendadas.slice(0, 3).map((v) => (
+              <Link
+                key={v.id}
+                href={`/jobs/${v.id}`}
+                style={{
+                  background: '#fff',
+                  border: '1px solid #eceae2',
+                  borderRadius: 14,
+                  padding: '16px 18px',
+                  textDecoration: 'none',
+                  display: 'block',
+                }}
+              >
+                <div style={{ fontSize: 13.5, fontWeight: 700, color: '#15140f', marginBottom: 4 }}>{v.title}</div>
+                <div style={{ fontSize: 12, color: '#57564f' }}>{v.organization_name}</div>
+                {v.location && <div style={{ fontSize: 11.5, color: '#a3a297', marginTop: 6 }}>{v.location}</div>}
+              </Link>
+            ))}
+          </div>
+        ) : (
+          <div style={{ fontSize: 12.5, color: '#a3a297' }}>Todavía no hay vacantes activas que mostrar.</div>
+        )}
       </div>
 
-      {showDesglose && (
-        <div style={{ background: '#faf9f5', border: '1px solid #eceae2', borderRadius: 14, padding: '16px 20px', marginBottom: 14 }}>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 12 }}>
-            {[
-              ['Perfiles actualizados', stats.desglose.perfiles_actualizados],
-              ['Nuevas vacantes', stats.desglose.nuevas_vacantes],
-              ['Nuevas organizaciones', stats.desglose.nuevas_organizaciones],
-              ['Cambios de cargo', stats.desglose.cambios_cargo],
-              ['Organizaciones verificadas', stats.desglose.organizaciones_verificadas],
-              ['Actividad de transparencia', stats.desglose.actividad_transparencia],
-            ].map(([label, val]) => (
-              <div key={label} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12.5, color: '#3a3a36' }}>
-                <span>{label}</span>
-                <b>{val}</b>
+      {/* Organizaciones recomendadas */}
+      <div style={{ marginBottom: 32 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 4 }}>
+          <div style={{ fontSize: 16, fontWeight: 700, color: '#15140f' }}>Empieza a construir tu radar</div>
+          <Link href="/organizations" style={{ fontSize: 12.5, fontWeight: 600, color: '#1d6f5c', textDecoration: 'none' }}>
+            Explorar →
+          </Link>
+        </div>
+        <div style={{ fontSize: 12.5, color: '#8a897f', marginBottom: 14 }}>
+          Sigue organizaciones para recibir novedades, vacantes y movimientos relevantes.
+        </div>
+        {organizaciones_recomendadas.length > 0 ? (
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 14 }}>
+            {organizaciones_recomendadas.map((o) => (
+              <Link
+                key={o.id}
+                href={`/organizations/${o.slug}`}
+                style={{
+                  background: '#fff',
+                  border: '1px solid #eceae2',
+                  borderRadius: 14,
+                  padding: '16px 18px',
+                  textDecoration: 'none',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 10,
+                }}
+              >
+                <div
+                  style={{
+                    width: 36,
+                    height: 36,
+                    borderRadius: 9,
+                    background: '#f0efe9',
+                    flexShrink: 0,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    overflow: 'hidden',
+                  }}
+                >
+                  {o.logo_url ? (
+                    <img src={o.logo_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                  ) : (
+                    <i className="ti ti-building" style={{ color: '#a3a297' }}></i>
+                  )}
+                </div>
+                <div style={{ minWidth: 0 }}>
+                  <div style={{ fontSize: 13, fontWeight: 700, color: '#15140f', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    {o.name}
+                  </div>
+                  <div style={{ fontSize: 11.5, color: '#8a897f' }}>{SECTOR_LABELS[o.sector] || 'Sector no especificado'}</div>
+                </div>
+              </Link>
+            ))}
+          </div>
+        ) : (
+          <div style={{ fontSize: 12.5, color: '#a3a297' }}>Todavía no hay organizaciones que recomendarte.</div>
+        )}
+      </div>
+
+      {/* Novedades del ecosistema */}
+      <div>
+        <div style={{ fontSize: 16, fontWeight: 700, color: '#15140f', marginBottom: 4 }}>Novedades del ecosistema</div>
+        <div style={{ fontSize: 12.5, color: '#8a897f', marginBottom: 14 }}>
+          Una selección de cambios, oportunidades y publicaciones relevantes.
+        </div>
+        {novedades.length > 0 ? (
+          <div style={{ background: '#fff', border: '1px solid #eceae2', borderRadius: 14, padding: '6px 20px' }}>
+            {novedades.map((n, i) => (
+              <div
+                key={i}
+                style={{
+                  padding: '13px 0',
+                  borderBottom: i < novedades.length - 1 ? '1px solid #f0efe9' : 'none',
+                  fontSize: 13,
+                  color: '#3a3a36',
+                }}
+              >
+                {n.title}
               </div>
             ))}
           </div>
-        </div>
-      )}
-
-      {que_esta_pasando.length > 0 && (
-        <div style={{ background: '#15140f', borderRadius: 14, padding: '20px 22px', marginBottom: 14 }}>
-          <div style={{ fontSize: 11, fontWeight: 600, color: '#a89dfc', letterSpacing: '.04em', marginBottom: 12 }}>
-            QUÉ ESTÁ PASANDO AHORA
-          </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 9 }}>
-            {que_esta_pasando.map((titulo, i) => (
-              <div key={i} style={{ fontSize: 13.5, color: '#fff', display: 'flex', gap: 9 }}>
-                <span style={{ color: i % 2 === 0 ? '#8fd6b4' : '#a89dfc' }}>●</span> {titulo}
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 12 }}>
-        {perfil_destacado && (
-          <ActionCard
-            iconBg="#f0edfe"
-            iconColor="#6d5aef"
-            icon="ti-user-star"
-            label="Nuevo nombramiento"
-            title={perfil_destacado.title}
-            href={perfil_destacado.organization_id ? `/organizations/${perfil_destacado.organization_id}` : '/organizations'}
-            cta="Ver organización"
-          />
-        )}
-
-        {para_tu_perfil && (
-          <ActionCard
-            iconBg="#eaf3ee"
-            iconColor="#1d6f5c"
-            icon="ti-target-arrow"
-            label="Para tu perfil"
-            title={`${para_tu_perfil.count} vacante${para_tu_perfil.count === 1 ? '' : 's'}${para_tu_perfil.sector_label ? ` en ${para_tu_perfil.sector_label}` : ''}`}
-            detail="Coinciden con tus áreas de interés"
-            href="/jobs"
-            cta="Ver vacantes"
-          />
-        )}
-
-        {radar_organizacion && (
-          <ActionCard
-            iconBg="#f0efe9"
-            iconColor="#77766f"
-            icon="ti-radar-2"
-            label="Radar"
-            title={`Detectamos actividad reciente en ${radar_organizacion.organization_name}`}
-            detail="Puede significar nuevas ofertas, cambios en perfiles o actualización de plantilla"
-            href="/organizations"
-            cta="Explorar actividad"
-          />
-        )}
-
-        {organizacion_seguida && (
-          <ActionCard
-            iconBg="#eaf3ee"
-            iconColor="#1d6f5c"
-            icon="ti-eye"
-            label="Organización seguida"
-            title={organizacion_seguida.title}
-            href="/organizations"
-            cta="Ver detalle"
-          />
-        )}
-
-        {tendencia && (
-          <ActionCard
-            iconBg="#f0edfe"
-            iconColor="#6d5aef"
-            icon="ti-trending-up"
-            label="Tendencia"
-            title={`${tendencia.sector_label}, el sector más activo`}
-            detail={`Concentra el ${tendencia.porcentaje}% de los movimientos de este mes`}
-            href="/organizations"
-            cta="Ver sector"
-          />
-        )}
-
-        {organizacion_mas_activa && (
-          <ActionCard
-            iconBg="#eaf3ee"
-            iconColor="#1d6f5c"
-            icon="ti-building"
-            label="Organización más activa"
-            title={organizacion_mas_activa.organization_name}
-            detail={`+${organizacion_mas_activa.seguidores} seguidores · ${organizacion_mas_activa.vacantes} vacantes`}
-            href="/organizations"
-            cta="Ver organización"
-          />
+        ) : (
+          <div style={{ fontSize: 12.5, color: '#a3a297' }}>Todavía no hay novedades registradas.</div>
         )}
       </div>
-
-      {!perfil_destacado && !para_tu_perfil && !radar_organizacion && !organizacion_seguida && !tendencia && !organizacion_mas_activa && (
-        <div style={{ textAlign: 'center', padding: '30px 0', color: '#8a897f', fontSize: 13 }}>
-          Todavía no hay suficiente actividad para mostrar aquí. Vuelve pronto.
-        </div>
-      )}
     </div>
   );
 }
