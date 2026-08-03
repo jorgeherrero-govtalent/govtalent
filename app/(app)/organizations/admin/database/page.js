@@ -64,6 +64,60 @@ function StatCard({ value, label }) {
   );
 }
 
+const DONUT_COLORS = ['#1d6f5c', '#6d5aef', '#b8860b', '#c2534e', '#3a8fb7', '#a3a297'];
+
+function DonutChart({ data }) {
+  const total = data.reduce((s, [, c]) => s + c, 0);
+  const size = 118;
+  const strokeWidth = 17;
+  const radius = (size - strokeWidth) / 2;
+  const circumference = 2 * Math.PI * radius;
+  let cumulative = 0;
+
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 22 }}>
+      <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} style={{ transform: 'rotate(-90deg)', flexShrink: 0 }}>
+        <circle cx={size / 2} cy={size / 2} r={radius} fill="none" stroke="#f0efe9" strokeWidth={strokeWidth} />
+        {data.map(([label, count], i) => {
+          if (count === 0) return null;
+          const frac = total > 0 ? count / total : 0;
+          const dash = frac * circumference;
+          const el = (
+            <circle
+              key={label}
+              cx={size / 2}
+              cy={size / 2}
+              r={radius}
+              fill="none"
+              stroke={DONUT_COLORS[i % DONUT_COLORS.length]}
+              strokeWidth={strokeWidth}
+              strokeDasharray={`${dash} ${circumference - dash}`}
+              strokeDashoffset={-cumulative}
+            />
+          );
+          cumulative += dash;
+          return el;
+        })}
+      </svg>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 8, minWidth: 0 }}>
+        {data.map(([label, count], i) => (
+          <div key={label} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12.5 }}>
+            <span
+              style={{ width: 8, height: 8, borderRadius: '50%', background: DONUT_COLORS[i % DONUT_COLORS.length], flexShrink: 0 }}
+            ></span>
+            <span style={{ color: '#57564f', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 140 }}>
+              {label}
+            </span>
+            <span style={{ fontWeight: 700, color: '#15140f', flexShrink: 0, fontVariantNumeric: 'tabular-nums' }}>
+              {total > 0 ? Math.round((count / total) * 100) : 0}%
+            </span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 export default function OrganizationsDatabasePage() {
   const supabase = createClient();
   const [orgs, setOrgs] = useState(null);
@@ -192,6 +246,11 @@ export default function OrganizationsDatabasePage() {
         .slice(0, 5);
     };
 
+    const topTypesRaw = count((o) => TYPE_LABELS[o.org_type] || o.org_type);
+    const topTypesSum = topTypesRaw.reduce((s, [, c]) => s + c, 0);
+    const otrosTypes = total - topTypesSum;
+    const topTypes = otrosTypes > 0 ? [...topTypesRaw, ['Otros', otrosTypes]] : topTypesRaw;
+
     return {
       total,
       sectoresDistintos,
@@ -199,7 +258,7 @@ export default function OrganizationsDatabasePage() {
       grandesOrganizaciones,
       topSectors: count((o) => SECTOR_LABELS[o.sector]),
       topLocations: count((o) => o.location),
-      topTypes: count((o) => TYPE_LABELS[o.org_type] || o.org_type),
+      topTypes,
     };
   }, [filtered]);
 
@@ -333,12 +392,10 @@ export default function OrganizationsDatabasePage() {
               ))}
             </div>
             <div style={{ padding: '20px 24px' }}>
-              <div style={{ fontSize: 11.5, fontWeight: 600, color: '#a3a297', marginBottom: 14, letterSpacing: '.04em' }}>
-                TOP TIPOS DE ORGANIZACIÓN
+              <div style={{ fontSize: 11.5, fontWeight: 600, color: '#a3a297', marginBottom: 16, letterSpacing: '.04em' }}>
+                COMPOSICIÓN POR TIPO
               </div>
-              {biStats.topTypes.map(([label, count]) => (
-                <BarRow key={label} label={label} count={count} max={biStats.topTypes[0]?.[1] || 1} color="#b8860b" />
-              ))}
+              <DonutChart data={biStats.topTypes} />
             </div>
           </div>
         </div>
