@@ -64,6 +64,42 @@ function StatCard({ value, label }) {
   );
 }
 
+function RankList({ data, color = '#6d5aef' }) {
+  return (
+    <div>
+      {data.map(([label, count], i) => (
+        <div
+          key={label}
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 11,
+            padding: '8px 0',
+            borderBottom: i < data.length - 1 ? '1px solid #f5f4ee' : 'none',
+          }}
+        >
+          <span style={{ width: 20, fontSize: 11, fontWeight: 700, color: '#c7c6bd', fontVariantNumeric: 'tabular-nums' }}>
+            {String(i + 1).padStart(2, '0')}
+          </span>
+          <span
+            style={{
+              flex: 1,
+              fontSize: 12.5,
+              color: '#3a3934',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              whiteSpace: 'nowrap',
+            }}
+          >
+            {label}
+          </span>
+          <span style={{ fontSize: 12.5, fontWeight: 700, color, fontVariantNumeric: 'tabular-nums' }}>{count}</span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 const DONUT_COLORS = ['#1d6f5c', '#6d5aef', '#b8860b', '#c2534e', '#3a8fb7', '#a3a297'];
 
 function DonutChart({ data }) {
@@ -76,29 +112,46 @@ function DonutChart({ data }) {
 
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 22 }}>
-      <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} style={{ transform: 'rotate(-90deg)', flexShrink: 0 }}>
-        <circle cx={size / 2} cy={size / 2} r={radius} fill="none" stroke="#f0efe9" strokeWidth={strokeWidth} />
-        {data.map(([label, count], i) => {
-          if (count === 0) return null;
-          const frac = total > 0 ? count / total : 0;
-          const dash = frac * circumference;
-          const el = (
-            <circle
-              key={label}
-              cx={size / 2}
-              cy={size / 2}
-              r={radius}
-              fill="none"
-              stroke={DONUT_COLORS[i % DONUT_COLORS.length]}
-              strokeWidth={strokeWidth}
-              strokeDasharray={`${dash} ${circumference - dash}`}
-              strokeDashoffset={-cumulative}
-            />
-          );
-          cumulative += dash;
-          return el;
-        })}
-      </svg>
+      <div style={{ position: 'relative', width: size, height: size, flexShrink: 0 }}>
+        <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} style={{ transform: 'rotate(-90deg)' }}>
+          <circle cx={size / 2} cy={size / 2} r={radius} fill="none" stroke="#f0efe9" strokeWidth={strokeWidth} />
+          {data.map(([label, count], i) => {
+            if (count === 0) return null;
+            const frac = total > 0 ? count / total : 0;
+            const dash = frac * circumference;
+            const el = (
+              <circle
+                key={label}
+                cx={size / 2}
+                cy={size / 2}
+                r={radius}
+                fill="none"
+                stroke={DONUT_COLORS[i % DONUT_COLORS.length]}
+                strokeWidth={strokeWidth}
+                strokeDasharray={`${dash} ${circumference - dash}`}
+                strokeDashoffset={-cumulative}
+              />
+            );
+            cumulative += dash;
+            return el;
+          })}
+        </svg>
+        <div
+          style={{
+            position: 'absolute',
+            inset: 0,
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+        >
+          <div style={{ fontSize: 22, fontWeight: 700, color: '#15140f', lineHeight: 1, fontVariantNumeric: 'tabular-nums' }}>
+            {total.toLocaleString('es-ES')}
+          </div>
+          <div style={{ fontSize: 9.5, color: '#a3a297', marginTop: 2, fontWeight: 600, letterSpacing: '.03em' }}>TOTAL</div>
+        </div>
+      </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 8, minWidth: 0 }}>
         {data.map(([label, count], i) => (
           <div key={label} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12.5 }}>
@@ -139,6 +192,7 @@ export default function OrganizationsDatabasePage() {
   const [planChecked, setPlanChecked] = useState(false);
   const [planAllowed, setPlanAllowed] = useState(true);
   const [showBI, setShowBI] = useState(false);
+  const [expandedPanel, setExpandedPanel] = useState(null);
 
   useEffect(() => {
     checkPlan();
@@ -257,16 +311,15 @@ export default function OrganizationsDatabasePage() {
     const ciudadesDistintas = new Set(filtered.map((o) => o.location).filter(Boolean)).size;
     const grandesOrganizaciones = filtered.filter((o) => o.size_range === '+1000').length;
 
-    const count = (getKey) => {
+    const countAll = (getKey) => {
       const map = {};
       filtered.forEach((o) => {
         const k = getKey(o) || 'Sin especificar';
         map[k] = (map[k] || 0) + 1;
       });
-      return Object.entries(map)
-        .sort((a, b) => b[1] - a[1])
-        .slice(0, 5);
+      return Object.entries(map).sort((a, b) => b[1] - a[1]);
     };
+    const count = (getKey) => countAll(getKey).slice(0, 5);
 
     const afiliadas = filtered.filter((o) => (o.patronales || []).length > 0).length;
 
@@ -281,9 +334,7 @@ export default function OrganizationsDatabasePage() {
         patronalCounts[p] = (patronalCounts[p] || 0) + 1;
       });
     });
-    const topPatronales = Object.entries(patronalCounts)
-      .sort((a, b) => b[1] - a[1])
-      .slice(0, 5);
+    const topPatronales = Object.entries(patronalCounts).sort((a, b) => b[1] - a[1]);
 
     return {
       total,
@@ -291,8 +342,8 @@ export default function OrganizationsDatabasePage() {
       ciudadesDistintas,
       grandesOrganizaciones,
       afiliadas,
-      topSectors: count((o) => SECTOR_LABELS[o.sector]),
-      topLocations: count((o) => o.location),
+      topSectors: countAll((o) => SECTOR_LABELS[o.sector]),
+      topLocations: countAll((o) => o.location),
       topTypes,
       topPatronales,
     };
@@ -387,25 +438,6 @@ export default function OrganizationsDatabasePage() {
         </div>
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
           <button
-            onClick={handleExport}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 6,
-              padding: '8px 14px',
-              borderRadius: 8,
-              border: '.5px solid #e0dfd8',
-              background: '#fff',
-              color: '#3a3a36',
-              fontSize: 12.5,
-              fontWeight: 600,
-              cursor: 'pointer',
-              whiteSpace: 'nowrap',
-            }}
-          >
-            <i className="ti ti-file-spreadsheet"></i> Exportar ({filtered.length})
-          </button>
-          <button
             onClick={() => setShowBI((v) => !v)}
             style={{
               display: 'flex',
@@ -461,20 +493,42 @@ export default function OrganizationsDatabasePage() {
             }}
           >
             <div style={{ padding: '20px 24px', borderRight: '1px solid #f0efe9', borderBottom: '1px solid #f0efe9' }}>
-              <div style={{ fontSize: 11.5, fontWeight: 600, color: '#a3a297', marginBottom: 14, letterSpacing: '.04em' }}>
-                TOP SECTORES
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 14 }}>
+                <div style={{ fontSize: 11.5, fontWeight: 600, color: '#a3a297', letterSpacing: '.04em' }}>
+                  TOP SECTORES <span style={{ color: '#d5d4c9' }}>· {biStats.topSectors.length}</span>
+                </div>
+                {biStats.topSectors.length > 5 && (
+                  <button
+                    onClick={() => setExpandedPanel(expandedPanel === 'sectores' ? null : 'sectores')}
+                    style={{ background: 'none', border: 'none', color: '#6d5aef', fontSize: 11, fontWeight: 600, cursor: 'pointer', padding: 0 }}
+                  >
+                    {expandedPanel === 'sectores' ? 'Ver menos' : 'Ver todos'}
+                  </button>
+                )}
               </div>
-              {biStats.topSectors.map(([label, count]) => (
-                <BarRow key={label} label={label} count={count} max={biStats.topSectors[0]?.[1] || 1} />
-              ))}
+              <div style={{ maxHeight: expandedPanel === 'sectores' ? 320 : 'none', overflowY: expandedPanel === 'sectores' ? 'auto' : 'visible' }}>
+                {(expandedPanel === 'sectores' ? biStats.topSectors : biStats.topSectors.slice(0, 5)).map(([label, count]) => (
+                  <BarRow key={label} label={label} count={count} max={biStats.topSectors[0]?.[1] || 1} />
+                ))}
+              </div>
             </div>
             <div style={{ padding: '20px 24px', borderBottom: '1px solid #f0efe9' }}>
-              <div style={{ fontSize: 11.5, fontWeight: 600, color: '#a3a297', marginBottom: 14, letterSpacing: '.04em' }}>
-                TOP UBICACIONES
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 14 }}>
+                <div style={{ fontSize: 11.5, fontWeight: 600, color: '#a3a297', letterSpacing: '.04em' }}>
+                  TOP UBICACIONES <span style={{ color: '#d5d4c9' }}>· {biStats.topLocations.length}</span>
+                </div>
+                {biStats.topLocations.length > 5 && (
+                  <button
+                    onClick={() => setExpandedPanel(expandedPanel === 'ubicaciones' ? null : 'ubicaciones')}
+                    style={{ background: 'none', border: 'none', color: '#6d5aef', fontSize: 11, fontWeight: 600, cursor: 'pointer', padding: 0 }}
+                  >
+                    {expandedPanel === 'ubicaciones' ? 'Ver menos' : 'Ver todos'}
+                  </button>
+                )}
               </div>
-              {biStats.topLocations.map(([label, count]) => (
-                <BarRow key={label} label={label} count={count} max={biStats.topLocations[0]?.[1] || 1} color="#6d5aef" />
-              ))}
+              <div style={{ maxHeight: expandedPanel === 'ubicaciones' ? 320 : 'none', overflowY: expandedPanel === 'ubicaciones' ? 'auto' : 'visible' }}>
+                <RankList data={expandedPanel === 'ubicaciones' ? biStats.topLocations : biStats.topLocations.slice(0, 5)} />
+              </div>
             </div>
             <div style={{ padding: '20px 24px', borderRight: '1px solid #f0efe9' }}>
               <div style={{ fontSize: 11.5, fontWeight: 600, color: '#a3a297', marginBottom: 16, letterSpacing: '.04em' }}>
@@ -483,13 +537,23 @@ export default function OrganizationsDatabasePage() {
               <DonutChart data={biStats.topTypes} />
             </div>
             <div style={{ padding: '20px 24px' }}>
-              <div style={{ fontSize: 11.5, fontWeight: 600, color: '#a3a297', marginBottom: 14, letterSpacing: '.04em' }}>
-                TOP PATRONALES
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 14 }}>
+                <div style={{ fontSize: 11.5, fontWeight: 600, color: '#a3a297', letterSpacing: '.04em' }}>TOP PATRONALES</div>
+                {biStats.topPatronales.length > 5 && (
+                  <button
+                    onClick={() => setExpandedPanel(expandedPanel === 'patronales' ? null : 'patronales')}
+                    style={{ background: 'none', border: 'none', color: '#6d5aef', fontSize: 11, fontWeight: 600, cursor: 'pointer', padding: 0 }}
+                  >
+                    {expandedPanel === 'patronales' ? 'Ver menos' : 'Ver todos'}
+                  </button>
+                )}
               </div>
               {biStats.topPatronales.length > 0 ? (
-                biStats.topPatronales.map(([label, count]) => (
-                  <BarRow key={label} label={label} count={count} max={biStats.topPatronales[0]?.[1] || 1} color="#c2534e" />
-                ))
+                <div style={{ maxHeight: expandedPanel === 'patronales' ? 320 : 'none', overflowY: expandedPanel === 'patronales' ? 'auto' : 'visible' }}>
+                  {(expandedPanel === 'patronales' ? biStats.topPatronales : biStats.topPatronales.slice(0, 5)).map(([label, count]) => (
+                    <BarRow key={label} label={label} count={count} max={biStats.topPatronales[0]?.[1] || 1} color="#c2534e" />
+                  ))}
+                </div>
               ) : (
                 <div style={{ fontSize: 12.5, color: '#a3a297' }}>Sin afiliaciones registradas con estos filtros.</div>
               )}
@@ -576,30 +640,46 @@ export default function OrganizationsDatabasePage() {
           onChange={(e) => setSearch(e.target.value)}
           style={{ flex: 1, minWidth: 220, padding: '8px 12px', border: '.5px solid #e0dfd8', borderRadius: 8, fontSize: 13, outline: 'none' }}
         />
-        {[
-          ['todas', 'Todas'],
-          ['verificadas', 'Verificadas'],
-          ['grupo_interes', 'Grupo de interés'],
-        ].map(([key, label]) => (
-          <button
-            key={key}
-            type="button"
-            onClick={() => setQuickFilter(key)}
-            style={{
-              padding: '7px 12px',
-              borderRadius: 8,
-              border: '.5px solid #e0dfd8',
-              fontSize: 12.5,
-              fontWeight: 600,
-              cursor: 'pointer',
-              background: quickFilter === key ? '#f0f8f5' : '#fff',
-              color: quickFilter === key ? '#1d6f5c' : '#666',
-              whiteSpace: 'nowrap',
-            }}
-          >
-            {label}
-          </button>
-        ))}
+        <select
+          value={[...patronalFilter][0] || ''}
+          onChange={(e) => setPatronalFilter(e.target.value ? new Set([e.target.value]) : new Set())}
+          style={{
+            padding: '8px 12px',
+            borderRadius: 8,
+            border: '.5px solid #e0dfd8',
+            fontSize: 12.5,
+            fontWeight: 600,
+            color: patronalFilter.size > 0 ? '#6d5aef' : '#666',
+            background: patronalFilter.size > 0 ? '#f7f5ff' : '#fff',
+            cursor: 'pointer',
+          }}
+        >
+          <option value="">Todas las afiliaciones</option>
+          {patronalValues.map((p) => (
+            <option key={p.value} value={p.value}>
+              {p.label}
+            </option>
+          ))}
+        </select>
+        <button
+          onClick={handleExport}
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 6,
+            padding: '8px 14px',
+            borderRadius: 8,
+            border: '.5px solid #e0dfd8',
+            background: '#fff',
+            color: '#3a3a36',
+            fontSize: 12.5,
+            fontWeight: 600,
+            cursor: 'pointer',
+            whiteSpace: 'nowrap',
+          }}
+        >
+          <i className="ti ti-file-spreadsheet"></i> Exportar ({filtered.length})
+        </button>
       </div>
 
       <div style={{ fontSize: 12, color: '#999', marginBottom: 8 }}>{filtered.length} resultados</div>
