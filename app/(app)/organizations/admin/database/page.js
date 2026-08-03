@@ -504,26 +504,42 @@ export default function OrganizationsDatabasePage() {
         </div>
       )}
 
-      <div style={{ marginBottom: 14 }}>
-        <div style={{ position: 'relative' }}>
-          <i
-            className="ti ti-sparkles"
-            style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', color: '#6d5aef', fontSize: 15 }}
-          ></i>
+      <div
+        style={{
+          maxWidth: 640,
+          margin: '0 auto 22px',
+          padding: '26px 30px',
+          borderRadius: 18,
+          background: 'linear-gradient(160deg, #faf9ff 0%, #f2effc 100%)',
+          border: '1px solid #e2dcf8',
+          textAlign: 'center',
+        }}
+      >
+        <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8, marginBottom: 14 }}>
+          <i className="ti ti-sparkles" style={{ color: '#6d5aef', fontSize: 18 }}></i>
+          <span style={{ fontSize: 15.5, fontWeight: 700, color: '#15140f' }}>¿Qué organizaciones buscas?</span>
+          <span
+            style={{ fontSize: 10, fontWeight: 700, padding: '2px 7px', borderRadius: 20, background: '#6d5aef', color: '#fff' }}
+          >
+            Beta
+          </span>
+        </div>
+        <div style={{ position: 'relative', maxWidth: 520, margin: '0 auto' }}>
           <input
-            placeholder='Prueba: "asociaciones del sector energético en Madrid con más de 200 empleados"'
+            placeholder='Ej: "asociaciones de energía en Madrid con más de 200 empleados"'
             value={aiQuery}
             onChange={(e) => setAiQuery(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && runAiSearch()}
             disabled={aiSearching}
             style={{
               width: '100%',
-              padding: '11px 90px 11px 38px',
+              padding: '13px 96px 13px 18px',
               border: '1px solid #d9d2f9',
-              borderRadius: 10,
+              borderRadius: 12,
               fontSize: 13.5,
               outline: 'none',
-              background: '#faf9ff',
+              background: '#fff',
+              boxShadow: '0 2px 12px rgba(109,90,239,.09)',
             }}
           />
           <button
@@ -535,7 +551,7 @@ export default function OrganizationsDatabasePage() {
               top: 6,
               bottom: 6,
               padding: '0 16px',
-              borderRadius: 7,
+              borderRadius: 8,
               border: 'none',
               background: aiSearching || !aiQuery.trim() ? '#c9c1f7' : '#6d5aef',
               color: '#fff',
@@ -547,15 +563,10 @@ export default function OrganizationsDatabasePage() {
             {aiSearching ? 'Buscando…' : 'Buscar'}
           </button>
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginTop: 7 }}>
-          <span
-            style={{ fontSize: 10, fontWeight: 700, padding: '1px 6px', borderRadius: 20, background: '#f0edfe', color: '#6d5aef' }}
-          >
-            Beta
-          </span>
-          <span style={{ fontSize: 11.5, color: '#999' }}>Escribe lo que buscas en lenguaje natural y la IA aplica los filtros por ti.</span>
+        <div style={{ fontSize: 11.5, color: '#8a897f', marginTop: 11 }}>
+          Escribe lo que buscas en lenguaje natural y la IA aplica los filtros por ti.
         </div>
-        {aiError && <div style={{ fontSize: 12, color: '#a33', marginTop: 6 }}>{aiError}</div>}
+        {aiError && <div style={{ fontSize: 12, color: '#a33', marginTop: 8 }}>{aiError}</div>}
       </div>
 
       <div style={{ display: 'flex', gap: 8, marginBottom: 12, flexWrap: 'wrap', alignItems: 'center' }}>
