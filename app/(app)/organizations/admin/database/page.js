@@ -341,8 +341,8 @@ export default function OrganizationsDatabasePage() {
               gap: 6,
               padding: '8px 14px',
               borderRadius: 8,
-              border: showBI ? '1px solid #15140f' : '1px solid #e0dfd8',
-              background: showBI ? '#15140f' : '#fff',
+              border: showBI ? '1px solid #6d5aef' : '1px solid #e0dfd8',
+              background: showBI ? '#6d5aef' : '#fff',
               color: showBI ? '#fff' : '#3a3a36',
               fontSize: 12.5,
               fontWeight: 600,
@@ -351,6 +351,18 @@ export default function OrganizationsDatabasePage() {
             }}
           >
             <i className="ti ti-chart-bar"></i> GovTalent BI
+            <span
+              style={{
+                fontSize: 10,
+                fontWeight: 700,
+                padding: '1px 6px',
+                borderRadius: 20,
+                background: showBI ? 'rgba(255,255,255,.22)' : '#f0edfe',
+                color: showBI ? '#fff' : '#6d5aef',
+              }}
+            >
+              Beta
+            </span>
           </button>
         </div>
       </div>
