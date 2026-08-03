@@ -17,7 +17,7 @@ export async function GET() {
 
   const admin = createAdminClient();
 
-  const [orgsRes, jobCountsRes, memberCountsRes] = await Promise.all([
+  const [orgsRes, jobCountsRes, memberCountsRes, affiliationsRes] = await Promise.all([
     admin
       .from('organizations')
       .select(
@@ -27,6 +27,7 @@ export async function GET() {
       .limit(5000),
     admin.from('jobs').select('organization_id'),
     admin.from('organization_members').select('organization_id'),
+    admin.from('organization_affiliations').select('organization_id, patronal_id').limit(5000),
   ]);
 
   if (orgsRes.error) {
@@ -37,6 +38,7 @@ export async function GET() {
   const orgs = orgsRes.data;
   const jobCounts = jobCountsRes.data;
   const memberCounts = memberCountsRes.data;
+  const affiliations = affiliationsRes.data;
 
   const jobCountByOrg = {};
   for (const j of jobCounts || []) jobCountByOrg[j.organization_id] = (jobCountByOrg[j.organization_id] || 0) + 1;
@@ -44,10 +46,20 @@ export async function GET() {
   const memberCountByOrg = {};
   for (const m of memberCounts || []) memberCountByOrg[m.organization_id] = (memberCountByOrg[m.organization_id] || 0) + 1;
 
+  const nameById = new Map((orgs || []).map((o) => [o.id, o.name]));
+  const patronalesByOrg = {};
+  for (const a of affiliations || []) {
+    const patronalName = nameById.get(a.patronal_id);
+    if (!patronalName) continue;
+    if (!patronalesByOrg[a.organization_id]) patronalesByOrg[a.organization_id] = [];
+    patronalesByOrg[a.organization_id].push(patronalName);
+  }
+
   const merged = (orgs || []).map((o) => ({
     ...o,
     job_count: jobCountByOrg[o.id] || 0,
     member_count: memberCountByOrg[o.id] || 0,
+    patronales: patronalesByOrg[o.id] || [],
   }));
 
   return NextResponse.json({ organizations: merged });
