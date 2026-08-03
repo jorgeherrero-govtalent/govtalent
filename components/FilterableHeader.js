@@ -173,6 +173,7 @@ export default function FilterableHeader({ label, columnKey, values, selected, o
                 {visibleValues.map((v) => (
                   <label
                     key={v.value}
+                    title={v.label}
                     style={{
                       display: 'flex',
                       alignItems: 'center',
@@ -186,8 +187,13 @@ export default function FilterableHeader({ label, columnKey, values, selected, o
                     onMouseEnter={(e) => (e.currentTarget.style.background = '#f7f7f4')}
                     onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
                   >
-                    <input type="checkbox" checked={draft.has(v.value)} onChange={() => toggleValue(v.value)} style={{ cursor: 'pointer' }} />
-                    {v.label}
+                    <input
+                      type="checkbox"
+                      checked={draft.has(v.value)}
+                      onChange={() => toggleValue(v.value)}
+                      style={{ cursor: 'pointer', flexShrink: 0 }}
+                    />
+                    <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{v.label}</span>
                   </label>
                 ))}
               </div>
