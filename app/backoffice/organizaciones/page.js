@@ -255,7 +255,7 @@ export default function OrganizationsBackofficePage() {
   }
 
   function exportCsv() {
-    const headers = ['Nombre', 'Tipo', 'Sector', 'Ubicación', 'Tamaño', 'Web', 'LinkedIn', 'Email contacto', 'Verificada', 'Reclamada', 'Ofertas', 'Fuente'];
+    const headers = ['Nombre', 'Tipo', 'Sector', 'Ubicación', 'Tamaño', 'Afiliación', 'Web', 'LinkedIn', 'Email contacto', 'Verificada', 'Reclamada', 'Ofertas', 'Fuente'];
     const source = selectedIds.size > 0 ? filtered.filter((o) => selectedIds.has(o.id)) : filtered;
     const rows = source
       .map((o) => [
@@ -264,6 +264,7 @@ export default function OrganizationsBackofficePage() {
         SECTOR_LABELS[o.sector] || '',
         o.location || '',
         o.size_range || '',
+        (o.patronales || []).join(', '),
         o.website_url || '',
         o.linkedin_url || '',
         o.contact_email || '',
@@ -456,6 +457,7 @@ export default function OrganizationsBackofficePage() {
                     onClose={() => setOpenPopover(null)}
                   />
                 </th>
+                <th style={{ ...thStyle, textAlign: 'left', minWidth: 140 }}>Afiliación</th>
                 <th style={{ ...thStyle, textAlign: 'left', minWidth: 170 }}>Contacto</th>
                 <th style={thStyle}>Ofertas</th>
                 <th style={thStyle}>LinkedIn</th>
@@ -534,6 +536,9 @@ export default function OrganizationsBackofficePage() {
                     </select>
                   </td>
                   <td style={{ ...tdStyle, minWidth: 130 }}>{o.location || '—'}</td>
+                  <td style={{ ...tdStyle, textAlign: 'left', minWidth: 140, color: '#6d5aef', fontWeight: 600, fontSize: 11 }}>
+                    {(o.patronales || []).length > 0 ? o.patronales.join(', ') : <span style={{ color: '#ccc', fontWeight: 400 }}>—</span>}
+                  </td>
                   <td style={{ ...tdStyle, textAlign: 'left', minWidth: 170 }}>{o.contact_email || '—'}</td>
                   <td style={tdStyle}>{o.job_count}</td>
                   <td style={tdStyle} onClick={(e) => e.stopPropagation()}>
