@@ -5,7 +5,7 @@ import { createClient } from '@/lib/supabase/client';
 
 export default function LoginPage() {
   const initialParams = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : null;
-  const redirectTo = initialParams?.get('redirect') || '/jobs';
+  const redirectTo = initialParams?.get('redirect') || '/radar';
   const initialView = initialParams?.get('view') === 'signup' ? 'signup' : 'login';
 
   const [view, setView] = useState(initialView); // login | signup | reset | sent
