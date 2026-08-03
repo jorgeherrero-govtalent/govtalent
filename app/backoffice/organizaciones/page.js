@@ -22,6 +22,7 @@ export default function OrganizationsBackofficePage() {
   const [sectorFilter, setSectorFilter] = useState(new Set());
   const [locationFilter, setLocationFilter] = useState(new Set());
   const [typeFilter, setTypeFilter] = useState(new Set());
+  const [patronalFilter, setPatronalFilter] = useState(new Set());
   const [sortConfig, setSortConfig] = useState({ key: null, dir: 'asc' });
   const [openPopover, setOpenPopover] = useState(null);
   const [busyId, setBusyId] = useState(null);
@@ -39,7 +40,7 @@ export default function OrganizationsBackofficePage() {
 
   useEffect(() => {
     setPage(0);
-  }, [search, filter, sectorFilter, locationFilter, typeFilter, pageSize]);
+  }, [search, filter, sectorFilter, locationFilter, typeFilter, patronalFilter, pageSize]);
 
   async function load() {
     const res = await fetch('/api/backoffice/organizations');
@@ -65,6 +66,7 @@ export default function OrganizationsBackofficePage() {
       .filter((o) => sectorFilter.size === 0 || sectorFilter.has(o.sector || ''))
       .filter((o) => locationFilter.size === 0 || locationFilter.has(o.location || ''))
       .filter((o) => typeFilter.size === 0 || typeFilter.has(o.org_type))
+      .filter((o) => patronalFilter.size === 0 || (o.patronales || []).some((p) => patronalFilter.has(p)))
       .filter(
         (o) =>
           o.name.toLowerCase().includes(q) ||
@@ -76,6 +78,7 @@ export default function OrganizationsBackofficePage() {
     if (sortConfig.key) {
       const getVal = (o) => {
         if (sortConfig.key === 'org_type') return TYPE_LABELS[o.org_type] || '';
+        if (sortConfig.key === 'patronales') return (o.patronales || []).join(', ');
         return o[sortConfig.key] || '';
       };
       list = [...list].sort((a, b) => {
@@ -85,7 +88,7 @@ export default function OrganizationsBackofficePage() {
     }
 
     return list;
-  }, [orgs, search, filter, sectorFilter, locationFilter, typeFilter, sortConfig]);
+  }, [orgs, search, filter, sectorFilter, locationFilter, typeFilter, patronalFilter, sortConfig]);
 
   const uniqueSectors = useMemo(() => {
     if (!orgs) return [];
@@ -98,6 +101,11 @@ export default function OrganizationsBackofficePage() {
   const uniqueLocations = useMemo(() => {
     if (!orgs) return [];
     return [...new Set(orgs.map((o) => o.location).filter(Boolean))].sort((a, b) => a.localeCompare(b));
+  }, [orgs]);
+
+  const uniquePatronales = useMemo(() => {
+    if (!orgs) return [];
+    return [...new Set(orgs.flatMap((o) => o.patronales || []))].sort((a, b) => a.localeCompare(b, 'es'));
   }, [orgs]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
@@ -457,7 +465,20 @@ export default function OrganizationsBackofficePage() {
                     onClose={() => setOpenPopover(null)}
                   />
                 </th>
-                <th style={{ ...thStyle, textAlign: 'left', minWidth: 140 }}>Afiliación</th>
+                <th style={{ ...thStyle, textAlign: 'left', minWidth: 140 }}>
+                  <FilterableHeader
+                    label="Afiliación"
+                    columnKey="patronales"
+                    values={uniquePatronales.map((p) => ({ value: p, label: p }))}
+                    selected={patronalFilter}
+                    onApply={setPatronalFilter}
+                    sortConfig={sortConfig}
+                    onSort={handleSort}
+                    isOpen={openPopover === 'patronales'}
+                    onToggle={() => setOpenPopover(openPopover === 'patronales' ? null : 'patronales')}
+                    onClose={() => setOpenPopover(null)}
+                  />
+                </th>
                 <th style={{ ...thStyle, textAlign: 'left', minWidth: 170 }}>Contacto</th>
                 <th style={thStyle}>Ofertas</th>
                 <th style={thStyle}>LinkedIn</th>
@@ -536,8 +557,8 @@ export default function OrganizationsBackofficePage() {
                     </select>
                   </td>
                   <td style={{ ...tdStyle, minWidth: 130 }}>{o.location || '—'}</td>
-                  <td style={{ ...tdStyle, textAlign: 'left', minWidth: 140, color: '#6d5aef', fontWeight: 600, fontSize: 11 }}>
-                    {(o.patronales || []).length > 0 ? o.patronales.join(', ') : <span style={{ color: '#ccc', fontWeight: 400 }}>—</span>}
+                  <td style={{ ...tdStyle, textAlign: 'left', minWidth: 140, fontSize: 11 }}>
+                    {(o.patronales || []).length > 0 ? o.patronales.join(', ') : '—'}
                   </td>
                   <td style={{ ...tdStyle, textAlign: 'left', minWidth: 170 }}>{o.contact_email || '—'}</td>
                   <td style={tdStyle}>{o.job_count}</td>
