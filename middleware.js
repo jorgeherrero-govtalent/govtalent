@@ -47,7 +47,7 @@ export async function middleware(request) {
 
   if (user && isAuthRoute) {
     const url = request.nextUrl.clone();
-    url.pathname = '/jobs';
+    url.pathname = '/radar';
     return NextResponse.redirect(url);
   }
 
@@ -55,7 +55,7 @@ export async function middleware(request) {
     const { data: profile } = await supabase.from('users').select('role').eq('id', user.id).single();
     if (profile?.role !== 'platform_admin') {
       const url = request.nextUrl.clone();
-      url.pathname = '/jobs';
+      url.pathname = '/radar';
       return NextResponse.redirect(url);
     }
   }
