@@ -18,22 +18,72 @@ const QUICK_FILTERS = {
 
 const PAGE_SIZE_OPTIONS = [10, 25, 50, 100];
 
-function BarRow({ label, count, max, color = '#1d6f5c' }) {
+function Tip({ text, children }) {
+  const [show, setShow] = useState(false);
+  return (
+    <div
+      style={{ position: 'relative', display: 'inline-flex', minWidth: 0, maxWidth: '100%' }}
+      onMouseEnter={() => setShow(true)}
+      onMouseLeave={() => setShow(false)}
+    >
+      {children}
+      {show && (
+        <div
+          style={{
+            position: 'absolute',
+            bottom: 'calc(100% + 7px)',
+            left: '50%',
+            transform: 'translateX(-50%)',
+            background: '#1a1a18',
+            color: '#fff',
+            fontSize: 11.5,
+            fontWeight: 500,
+            padding: '6px 10px',
+            borderRadius: 7,
+            whiteSpace: 'nowrap',
+            zIndex: 60,
+            boxShadow: '0 6px 16px rgba(0,0,0,.2)',
+            pointerEvents: 'none',
+          }}
+        >
+          {text}
+          <div
+            style={{
+              position: 'absolute',
+              top: '100%',
+              left: '50%',
+              transform: 'translateX(-50%)',
+              width: 0,
+              height: 0,
+              borderLeft: '5px solid transparent',
+              borderRight: '5px solid transparent',
+              borderTop: '5px solid #1a1a18',
+            }}
+          />
+        </div>
+      )}
+    </div>
+  );
+}
+
+function BarRow({ label, count, max, color = '#6d5aef' }) {
   const pct = max > 0 ? Math.round((count / max) * 100) : 0;
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '8px 0' }}>
-      <div
-        style={{
-          flex: '0 0 108px',
-          fontSize: 12.5,
-          color: '#57564f',
-          overflow: 'hidden',
-          textOverflow: 'ellipsis',
-          whiteSpace: 'nowrap',
-        }}
-      >
-        {label}
-      </div>
+      <Tip text={label}>
+        <div
+          style={{
+            flex: '0 0 108px',
+            fontSize: 12.5,
+            color: '#57564f',
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            whiteSpace: 'nowrap',
+          }}
+        >
+          {label}
+        </div>
+      </Tip>
       <div style={{ flex: 1, height: 4, background: '#f0efe9', borderRadius: 2, overflow: 'hidden' }}>
         <div style={{ height: '100%', width: `${pct}%`, background: color, borderRadius: 2, transition: 'width .4s ease' }}></div>
       </div>
@@ -46,7 +96,7 @@ function BarRow({ label, count, max, color = '#1d6f5c' }) {
 
 function StatCard({ value, label }) {
   return (
-    <div style={{ flex: '1 1 150px', padding: '20px 22px', background: '#fff', border: '1px solid #eceae2', borderRadius: 14 }}>
+    <div className="stat-card-hover" style={{ flex: '1 1 150px', padding: '20px 22px', background: '#fff', border: '1px solid #eceae2', borderRadius: 14, transition: 'border-color .15s' }}>
       <div
         style={{
           fontSize: 34,
@@ -81,18 +131,20 @@ function RankList({ data, color = '#6d5aef' }) {
           <span style={{ width: 20, fontSize: 11, fontWeight: 700, color: '#c7c6bd', fontVariantNumeric: 'tabular-nums' }}>
             {String(i + 1).padStart(2, '0')}
           </span>
-          <span
-            style={{
-              flex: 1,
-              fontSize: 12.5,
-              color: '#3a3934',
-              overflow: 'hidden',
-              textOverflow: 'ellipsis',
-              whiteSpace: 'nowrap',
-            }}
-          >
-            {label}
-          </span>
+          <Tip text={label}>
+            <span
+              style={{
+                flex: 1,
+                fontSize: 12.5,
+                color: '#3a3934',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                whiteSpace: 'nowrap',
+              }}
+            >
+              {label}
+            </span>
+          </Tip>
           <span style={{ fontSize: 12.5, fontWeight: 700, color, fontVariantNumeric: 'tabular-nums' }}>{count}</span>
         </div>
       ))}
@@ -107,54 +159,54 @@ function PatronalChips({ data }) {
       {data.map(([label, count]) => {
         const intensity = count / max;
         return (
-          <div
-            key={label}
-            title={label}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 7,
-              padding: '7px 11px',
-              borderRadius: 20,
-              background: `rgba(29,111,92,${(0.06 + intensity * 0.16).toFixed(2)})`,
-              border: '1px solid rgba(29,111,92,.2)',
-              maxWidth: '100%',
-            }}
-          >
-            <span
+          <Tip key={label} text={label}>
+            <div
               style={{
-                fontSize: 12,
-                fontWeight: 600,
-                color: '#15140f',
-                maxWidth: 170,
-                overflow: 'hidden',
-                textOverflow: 'ellipsis',
-                whiteSpace: 'nowrap',
-              }}
-            >
-              {label}
-            </span>
-            <span
-              style={{
-                fontSize: 11,
-                fontWeight: 700,
-                color: '#1d6f5c',
-                background: '#fff',
+                display: 'flex',
+                alignItems: 'center',
+                gap: 7,
+                padding: '7px 11px',
                 borderRadius: 20,
-                padding: '1px 7px',
-                flexShrink: 0,
+                background: `rgba(109,90,239,${(0.07 + intensity * 0.17).toFixed(2)})`,
+                border: '1px solid rgba(109,90,239,.25)',
+                maxWidth: '100%',
               }}
             >
-              {count}
-            </span>
-          </div>
+              <span
+                style={{
+                  fontSize: 12,
+                  fontWeight: 600,
+                  color: '#15140f',
+                  maxWidth: 170,
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                  whiteSpace: 'nowrap',
+                }}
+              >
+                {label}
+              </span>
+              <span
+                style={{
+                  fontSize: 11,
+                  fontWeight: 700,
+                  color: '#6d5aef',
+                  background: '#fff',
+                  borderRadius: 20,
+                  padding: '1px 7px',
+                  flexShrink: 0,
+                }}
+              >
+                {count}
+              </span>
+            </div>
+          </Tip>
         );
       })}
     </div>
   );
 }
 
-const DONUT_COLORS = ['#1d6f5c', '#6d5aef', '#b8860b', '#c2534e', '#3a8fb7', '#a3a297'];
+const DONUT_COLORS = ['#6d5aef', '#9b8afb', '#c3b6fc', '#7c93f0', '#b8a9f5', '#d8d3f5'];
 
 function DonutChart({ data }) {
   const total = data.reduce((s, [, c]) => s + c, 0);
@@ -212,9 +264,11 @@ function DonutChart({ data }) {
             <span
               style={{ width: 8, height: 8, borderRadius: '50%', background: DONUT_COLORS[i % DONUT_COLORS.length], flexShrink: 0 }}
             ></span>
-            <span style={{ color: '#57564f', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 140 }}>
-              {label}
-            </span>
+            <Tip text={label}>
+              <span style={{ color: '#57564f', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 140 }}>
+                {label}
+              </span>
+            </Tip>
             <span style={{ fontWeight: 700, color: '#15140f', flexShrink: 0, fontVariantNumeric: 'tabular-nums' }}>
               {total > 0 ? Math.round((count / total) * 100) : 0}%
             </span>
@@ -307,29 +361,39 @@ export default function OrganizationsDatabasePage() {
 
   const typeValues = useMemo(() => {
     const seen = new Set((orgs || []).map((o) => o.org_type).filter(Boolean));
-    return [...seen].sort().map((t) => ({ value: t, label: TYPE_LABELS[t] || t }));
+    const vals = [...seen].sort().map((t) => ({ value: t, label: TYPE_LABELS[t] || t }));
+    if ((orgs || []).some((o) => !o.org_type)) vals.push({ value: '', label: '(Vacío)' });
+    return vals;
   }, [orgs]);
 
   const sectorValues = useMemo(() => {
     const seen = new Set((orgs || []).map((o) => o.sector).filter(Boolean));
-    return [...seen]
+    const vals = [...seen]
       .sort((a, b) => (SECTOR_LABELS[a] || a).localeCompare(SECTOR_LABELS[b] || b, 'es'))
       .map((s) => ({ value: s, label: SECTOR_LABELS[s] || s }));
+    if ((orgs || []).some((o) => !o.sector)) vals.push({ value: '', label: '(Vacío)' });
+    return vals;
   }, [orgs]);
 
   const locationValues = useMemo(() => {
     const seen = new Set((orgs || []).map((o) => o.location).filter(Boolean));
-    return [...seen].sort((a, b) => a.localeCompare(b, 'es')).map((l) => ({ value: l, label: l }));
+    const vals = [...seen].sort((a, b) => a.localeCompare(b, 'es')).map((l) => ({ value: l, label: l }));
+    if ((orgs || []).some((o) => !o.location)) vals.push({ value: '', label: '(Vacío)' });
+    return vals;
   }, [orgs]);
 
   const sizeValues = useMemo(() => {
     const seen = new Set((orgs || []).map((o) => o.size_range).filter(Boolean));
-    return [...seen].sort((a, b) => a.localeCompare(b, 'es')).map((s) => ({ value: s, label: s }));
+    const vals = [...seen].sort((a, b) => a.localeCompare(b, 'es')).map((s) => ({ value: s, label: s }));
+    if ((orgs || []).some((o) => !o.size_range)) vals.push({ value: '', label: '(Vacío)' });
+    return vals;
   }, [orgs]);
 
   const patronalValues = useMemo(() => {
     const seen = new Set((orgs || []).flatMap((o) => o.patronales || []));
-    return [...seen].sort((a, b) => a.localeCompare(b, 'es')).map((p) => ({ value: p, label: p }));
+    const vals = [...seen].sort((a, b) => a.localeCompare(b, 'es')).map((p) => ({ value: p, label: p }));
+    if ((orgs || []).some((o) => (o.patronales || []).length === 0)) vals.push({ value: '__EMPTY__', label: '(Vacío)' });
+    return vals;
   }, [orgs]);
 
   const filtered = useMemo(() => {
@@ -341,7 +405,12 @@ export default function OrganizationsDatabasePage() {
       .filter((o) => sectorFilter.size === 0 || sectorFilter.has(o.sector || ''))
       .filter((o) => locationFilter.size === 0 || locationFilter.has(o.location || ''))
       .filter((o) => sizeFilter.size === 0 || sizeFilter.has(o.size_range || ''))
-      .filter((o) => patronalFilter.size === 0 || (o.patronales || []).some((p) => patronalFilter.has(p)))
+      .filter(
+        (o) =>
+          patronalFilter.size === 0 ||
+          (patronalFilter.has('__EMPTY__') && (o.patronales || []).length === 0) ||
+          (o.patronales || []).some((p) => patronalFilter.has(p))
+      )
       .filter((o) => !q || o.name.toLowerCase().includes(q) || (o.location || '').toLowerCase().includes(q) || (SECTOR_LABELS[o.sector] || '').toLowerCase().includes(q));
 
     if (sortConfig.key) {
@@ -692,18 +761,6 @@ export default function OrganizationsDatabasePage() {
           onChange={(e) => setSearch(e.target.value)}
           style={{ flex: 1, minWidth: 220, padding: '8px 12px', border: '.5px solid #e0dfd8', borderRadius: 8, fontSize: 13, outline: 'none' }}
         />
-        <FilterableHeader
-          label="Afiliación"
-          columnKey="patronales_toolbar"
-          values={patronalValues}
-          selected={patronalFilter}
-          onApply={setPatronalFilter}
-          sortConfig={sortConfig}
-          onSort={(key, dir) => setSortConfig({ key, dir })}
-          isOpen={openPopover === 'patronales_toolbar'}
-          onToggle={() => setOpenPopover(openPopover === 'patronales_toolbar' ? null : 'patronales_toolbar')}
-          onClose={() => setOpenPopover(null)}
-        />
         <button
           onClick={handleExport}
           style={{
@@ -761,20 +818,6 @@ export default function OrganizationsDatabasePage() {
               </th>
               <th style={{ padding: '10px 14px' }}>
                 <FilterableHeader
-                  label="Ubicación"
-                  columnKey="location"
-                  values={locationValues}
-                  selected={locationFilter}
-                  onApply={setLocationFilter}
-                  sortConfig={sortConfig}
-                  onSort={(key, dir) => setSortConfig({ key, dir })}
-                  isOpen={openPopover === 'location'}
-                  onToggle={() => setOpenPopover(openPopover === 'location' ? null : 'location')}
-                  onClose={() => setOpenPopover(null)}
-                />
-              </th>
-              <th style={{ padding: '10px 14px' }}>
-                <FilterableHeader
                   label="Sector"
                   columnKey="sector"
                   values={sectorValues}
@@ -784,6 +827,20 @@ export default function OrganizationsDatabasePage() {
                   onSort={(key, dir) => setSortConfig({ key, dir })}
                   isOpen={openPopover === 'sector'}
                   onToggle={() => setOpenPopover(openPopover === 'sector' ? null : 'sector')}
+                  onClose={() => setOpenPopover(null)}
+                />
+              </th>
+              <th style={{ padding: '10px 14px' }}>
+                <FilterableHeader
+                  label="Afiliaciones"
+                  columnKey="patronales"
+                  values={patronalValues}
+                  selected={patronalFilter}
+                  onApply={setPatronalFilter}
+                  sortConfig={sortConfig}
+                  onSort={(key, dir) => setSortConfig({ key, dir })}
+                  isOpen={openPopover === 'patronales'}
+                  onToggle={() => setOpenPopover(openPopover === 'patronales' ? null : 'patronales')}
                   onClose={() => setOpenPopover(null)}
                 />
               </th>
@@ -803,15 +860,15 @@ export default function OrganizationsDatabasePage() {
               </th>
               <th style={{ padding: '10px 14px' }}>
                 <FilterableHeader
-                  label="Afiliaciones"
-                  columnKey="patronales"
-                  values={patronalValues}
-                  selected={patronalFilter}
-                  onApply={setPatronalFilter}
+                  label="Ubicación"
+                  columnKey="location"
+                  values={locationValues}
+                  selected={locationFilter}
+                  onApply={setLocationFilter}
                   sortConfig={sortConfig}
                   onSort={(key, dir) => setSortConfig({ key, dir })}
-                  isOpen={openPopover === 'patronales'}
-                  onToggle={() => setOpenPopover(openPopover === 'patronales' ? null : 'patronales')}
+                  isOpen={openPopover === 'location'}
+                  onToggle={() => setOpenPopover(openPopover === 'location' ? null : 'location')}
                   onClose={() => setOpenPopover(null)}
                 />
               </th>
@@ -827,9 +884,7 @@ export default function OrganizationsDatabasePage() {
                   {hasInterestGroupBadge(o) && <i className="ti ti-shield-check" style={{ color: '#6d5aef', marginLeft: 4, fontSize: 13 }}></i>}
                 </td>
                 <td style={{ padding: '9px 14px', color: '#555' }}>{TYPE_LABELS[o.org_type] || '—'}</td>
-                <td style={{ padding: '9px 14px', color: '#555' }}>{o.location || '—'}</td>
                 <td style={{ padding: '9px 14px', color: '#555' }}>{SECTOR_LABELS[o.sector] || '—'}</td>
-                <td style={{ padding: '9px 14px', color: '#555' }}>{o.size_range || '—'}</td>
                 <td style={{ padding: '9px 14px', color: '#555' }}>
                   {(o.patronales || []).length > 0 ? (
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
@@ -857,6 +912,8 @@ export default function OrganizationsDatabasePage() {
                     '—'
                   )}
                 </td>
+                <td style={{ padding: '9px 14px', color: '#555' }}>{o.size_range || '—'}</td>
+                <td style={{ padding: '9px 14px', color: '#555' }}>{o.location || '—'}</td>
                 <td style={{ padding: '9px 14px' }}>
                   <div className="dir-row-links">
                     {o.website_url && (
