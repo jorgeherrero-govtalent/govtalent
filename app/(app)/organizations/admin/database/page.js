@@ -128,6 +128,7 @@ export default function OrganizationsDatabasePage() {
   const [sectorFilter, setSectorFilter] = useState(new Set());
   const [locationFilter, setLocationFilter] = useState(new Set());
   const [sizeFilter, setSizeFilter] = useState(new Set());
+  const [patronalFilter, setPatronalFilter] = useState(new Set());
   const [sortConfig, setSortConfig] = useState({ key: null, dir: 'asc' });
   const [openPopover, setOpenPopover] = useState(null);
   const [page, setPage] = useState(0);
@@ -163,7 +164,7 @@ export default function OrganizationsDatabasePage() {
 
   useEffect(() => {
     setPage(0);
-  }, [search, quickFilter, typeFilter, sectorFilter, locationFilter, sizeFilter, pageSize]);
+  }, [search, quickFilter, typeFilter, sectorFilter, locationFilter, sizeFilter, patronalFilter, pageSize]);
 
   async function load() {
     const { data, error } = await supabase
@@ -179,7 +180,18 @@ export default function OrganizationsDatabasePage() {
       setOrgs([]);
       return;
     }
-    setOrgs(data || []);
+
+    const { data: affData } = await supabase.from('organization_affiliations').select('organization_id, patronal_id').limit(5000);
+    const nameById = new Map((data || []).map((o) => [o.id, o.name]));
+    const patronalesByOrg = new Map();
+    (affData || []).forEach((a) => {
+      const patronalName = nameById.get(a.patronal_id);
+      if (!patronalName) return;
+      if (!patronalesByOrg.has(a.organization_id)) patronalesByOrg.set(a.organization_id, []);
+      patronalesByOrg.get(a.organization_id).push(patronalName);
+    });
+
+    setOrgs((data || []).map((o) => ({ ...o, patronales: patronalesByOrg.get(o.id) || [] })));
   }
 
   const typeValues = useMemo(() => {
@@ -204,6 +216,11 @@ export default function OrganizationsDatabasePage() {
     return [...seen].sort((a, b) => a.localeCompare(b, 'es')).map((s) => ({ value: s, label: s }));
   }, [orgs]);
 
+  const patronalValues = useMemo(() => {
+    const seen = new Set((orgs || []).flatMap((o) => o.patronales || []));
+    return [...seen].sort((a, b) => a.localeCompare(b, 'es')).map((p) => ({ value: p, label: p }));
+  }, [orgs]);
+
   const filtered = useMemo(() => {
     if (!orgs) return [];
     const q = search.trim().toLowerCase();
@@ -213,11 +230,13 @@ export default function OrganizationsDatabasePage() {
       .filter((o) => sectorFilter.size === 0 || sectorFilter.has(o.sector || ''))
       .filter((o) => locationFilter.size === 0 || locationFilter.has(o.location || ''))
       .filter((o) => sizeFilter.size === 0 || sizeFilter.has(o.size_range || ''))
+      .filter((o) => patronalFilter.size === 0 || (o.patronales || []).some((p) => patronalFilter.has(p)))
       .filter((o) => !q || o.name.toLowerCase().includes(q) || (o.location || '').toLowerCase().includes(q) || (SECTOR_LABELS[o.sector] || '').toLowerCase().includes(q));
 
     if (sortConfig.key) {
       const getVal = (o) => {
         if (sortConfig.key === 'org_type') return TYPE_LABELS[o.org_type] || '';
+        if (sortConfig.key === 'patronales') return (o.patronales || []).join(', ');
         return o[sortConfig.key] || '';
       };
       list = [...list].sort((a, b) => {
@@ -227,7 +246,7 @@ export default function OrganizationsDatabasePage() {
     }
 
     return list;
-  }, [orgs, search, quickFilter, typeFilter, sectorFilter, locationFilter, sizeFilter, sortConfig]);
+  }, [orgs, search, quickFilter, typeFilter, sectorFilter, locationFilter, sizeFilter, patronalFilter, sortConfig]);
 
   const biStats = useMemo(() => {
     const total = filtered.length;
@@ -246,19 +265,33 @@ export default function OrganizationsDatabasePage() {
         .slice(0, 5);
     };
 
+    const afiliadas = filtered.filter((o) => (o.patronales || []).length > 0).length;
+
     const topTypesRaw = count((o) => TYPE_LABELS[o.org_type] || o.org_type);
     const topTypesSum = topTypesRaw.reduce((s, [, c]) => s + c, 0);
     const otrosTypes = total - topTypesSum;
     const topTypes = otrosTypes > 0 ? [...topTypesRaw, ['Otros', otrosTypes]] : topTypesRaw;
+
+    const patronalCounts = {};
+    filtered.forEach((o) => {
+      (o.patronales || []).forEach((p) => {
+        patronalCounts[p] = (patronalCounts[p] || 0) + 1;
+      });
+    });
+    const topPatronales = Object.entries(patronalCounts)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 5);
 
     return {
       total,
       sectoresDistintos,
       ciudadesDistintas,
       grandesOrganizaciones,
+      afiliadas,
       topSectors: count((o) => SECTOR_LABELS[o.sector]),
       topLocations: count((o) => o.location),
       topTypes,
+      topPatronales,
     };
   }, [filtered]);
 
@@ -269,13 +302,14 @@ export default function OrganizationsDatabasePage() {
       Ubicación: o.location || '',
       Sector: SECTOR_LABELS[o.sector] || '',
       Empleados: o.size_range || '',
+      'Afiliada a': (o.patronales || []).join(', '),
       Verificada: o.verified ? 'Sí' : 'No',
       'Grupo de interés': hasInterestGroupBadge(o) ? 'Sí' : 'No',
       'Sitio web': o.website_url || '',
       LinkedIn: o.linkedin_url || '',
     }));
     const ws = XLSX.utils.json_to_sheet(rows);
-    ws['!cols'] = [{ wch: 34 }, { wch: 18 }, { wch: 16 }, { wch: 22 }, { wch: 12 }, { wch: 10 }, { wch: 14 }, { wch: 28 }, { wch: 28 }];
+    ws['!cols'] = [{ wch: 34 }, { wch: 18 }, { wch: 16 }, { wch: 22 }, { wch: 12 }, { wch: 26 }, { wch: 10 }, { wch: 14 }, { wch: 28 }, { wch: 28 }];
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, 'Directorio');
     XLSX.writeFile(wb, `directorio-govtalent-${new Date().toISOString().slice(0, 10)}.xlsx`);
@@ -374,12 +408,13 @@ export default function OrganizationsDatabasePage() {
             <StatCard value={biStats.sectoresDistintos} label="Sectores representados" />
             <StatCard value={biStats.ciudadesDistintas} label="Ciudades distintas" />
             <StatCard value={biStats.grandesOrganizaciones} label="Grandes organizaciones (+1000 empleados)" />
+            <StatCard value={biStats.afiliadas} label="Afiliadas a alguna patronal" />
           </div>
 
           <div
             style={{
               display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fit, minmax(230px, 1fr))',
+              gridTemplateColumns: '1fr 1fr',
               gap: 0,
               background: '#fff',
               border: '1px solid #eceae2',
@@ -387,7 +422,7 @@ export default function OrganizationsDatabasePage() {
               overflow: 'hidden',
             }}
           >
-            <div style={{ padding: '20px 24px', borderRight: '1px solid #f0efe9' }}>
+            <div style={{ padding: '20px 24px', borderRight: '1px solid #f0efe9', borderBottom: '1px solid #f0efe9' }}>
               <div style={{ fontSize: 11.5, fontWeight: 600, color: '#a3a297', marginBottom: 14, letterSpacing: '.04em' }}>
                 TOP SECTORES
               </div>
@@ -395,7 +430,7 @@ export default function OrganizationsDatabasePage() {
                 <BarRow key={label} label={label} count={count} max={biStats.topSectors[0]?.[1] || 1} />
               ))}
             </div>
-            <div style={{ padding: '20px 24px', borderRight: '1px solid #f0efe9' }}>
+            <div style={{ padding: '20px 24px', borderBottom: '1px solid #f0efe9' }}>
               <div style={{ fontSize: 11.5, fontWeight: 600, color: '#a3a297', marginBottom: 14, letterSpacing: '.04em' }}>
                 TOP UBICACIONES
               </div>
@@ -403,11 +438,23 @@ export default function OrganizationsDatabasePage() {
                 <BarRow key={label} label={label} count={count} max={biStats.topLocations[0]?.[1] || 1} color="#6d5aef" />
               ))}
             </div>
-            <div style={{ padding: '20px 24px' }}>
+            <div style={{ padding: '20px 24px', borderRight: '1px solid #f0efe9' }}>
               <div style={{ fontSize: 11.5, fontWeight: 600, color: '#a3a297', marginBottom: 16, letterSpacing: '.04em' }}>
                 COMPOSICIÓN POR TIPO
               </div>
               <DonutChart data={biStats.topTypes} />
+            </div>
+            <div style={{ padding: '20px 24px' }}>
+              <div style={{ fontSize: 11.5, fontWeight: 600, color: '#a3a297', marginBottom: 14, letterSpacing: '.04em' }}>
+                TOP PATRONALES
+              </div>
+              {biStats.topPatronales.length > 0 ? (
+                biStats.topPatronales.map(([label, count]) => (
+                  <BarRow key={label} label={label} count={count} max={biStats.topPatronales[0]?.[1] || 1} color="#c2534e" />
+                ))
+              ) : (
+                <div style={{ fontSize: 12.5, color: '#a3a297' }}>Sin afiliaciones registradas con estos filtros.</div>
+              )}
             </div>
           </div>
         </div>
@@ -528,6 +575,20 @@ export default function OrganizationsDatabasePage() {
                   onClose={() => setOpenPopover(null)}
                 />
               </th>
+              <th style={{ padding: '10px 14px' }}>
+                <FilterableHeader
+                  label="Afiliaciones"
+                  columnKey="patronales"
+                  values={patronalValues}
+                  selected={patronalFilter}
+                  onApply={setPatronalFilter}
+                  sortConfig={sortConfig}
+                  onSort={(key, dir) => setSortConfig({ key, dir })}
+                  isOpen={openPopover === 'patronales'}
+                  onToggle={() => setOpenPopover(openPopover === 'patronales' ? null : 'patronales')}
+                  onClose={() => setOpenPopover(null)}
+                />
+              </th>
               <th style={{ padding: '10px 14px', fontWeight: 700, color: '#666', fontSize: 11, textTransform: 'uppercase' }}>Enlaces</th>
             </tr>
           </thead>
@@ -543,6 +604,30 @@ export default function OrganizationsDatabasePage() {
                 <td style={{ padding: '9px 14px', color: '#555' }}>{o.location || '—'}</td>
                 <td style={{ padding: '9px 14px', color: '#555' }}>{SECTOR_LABELS[o.sector] || '—'}</td>
                 <td style={{ padding: '9px 14px', color: '#555' }}>{o.size_range || '—'}</td>
+                <td style={{ padding: '9px 14px', color: '#555' }}>
+                  {(o.patronales || []).length > 0 ? (
+                    <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
+                      {o.patronales.map((p) => (
+                        <span
+                          key={p}
+                          style={{
+                            fontSize: 11,
+                            fontWeight: 600,
+                            padding: '2px 8px',
+                            borderRadius: 20,
+                            background: '#f0edfe',
+                            color: '#6d5aef',
+                            whiteSpace: 'nowrap',
+                          }}
+                        >
+                          {p}
+                        </span>
+                      ))}
+                    </div>
+                  ) : (
+                    '—'
+                  )}
+                </td>
                 <td style={{ padding: '9px 14px' }}>
                   <div className="dir-row-links">
                     {o.website_url && (
@@ -561,7 +646,7 @@ export default function OrganizationsDatabasePage() {
             ))}
             {paginated.length === 0 && (
               <tr>
-                <td colSpan={6} style={{ padding: 30, textAlign: 'center', color: '#999' }}>
+                <td colSpan={7} style={{ padding: 30, textAlign: 'center', color: '#999' }}>
                   No hay organizaciones que coincidan con estos filtros.
                 </td>
               </tr>
