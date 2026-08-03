@@ -21,13 +21,24 @@ const PAGE_SIZE_OPTIONS = [10, 25, 50, 100];
 function BarRow({ label, count, max, color = '#1d6f5c' }) {
   const pct = max > 0 ? Math.round((count / max) * 100) : 0;
   return (
-    <div style={{ marginBottom: 11 }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12.5, color: '#3a3a36', marginBottom: 3 }}>
-        <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', paddingRight: 8 }}>{label}</span>
-        <span style={{ fontWeight: 700, flexShrink: 0 }}>{count}</span>
+    <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '8px 0' }}>
+      <div
+        style={{
+          flex: '0 0 108px',
+          fontSize: 12.5,
+          color: '#57564f',
+          overflow: 'hidden',
+          textOverflow: 'ellipsis',
+          whiteSpace: 'nowrap',
+        }}
+      >
+        {label}
       </div>
-      <div style={{ height: 7, background: '#f0efe9', borderRadius: 4, overflow: 'hidden' }}>
-        <div style={{ height: '100%', width: `${pct}%`, background: color, borderRadius: 4, transition: 'width .3s' }}></div>
+      <div style={{ flex: 1, height: 4, background: '#f0efe9', borderRadius: 2, overflow: 'hidden' }}>
+        <div style={{ height: '100%', width: `${pct}%`, background: color, borderRadius: 2, transition: 'width .4s ease' }}></div>
+      </div>
+      <div style={{ flex: '0 0 26px', textAlign: 'right', fontSize: 12.5, fontWeight: 700, color: '#15140f', fontVariantNumeric: 'tabular-nums' }}>
+        {count}
       </div>
     </div>
   );
@@ -35,9 +46,20 @@ function BarRow({ label, count, max, color = '#1d6f5c' }) {
 
 function StatCard({ value, label }) {
   return (
-    <div style={{ flex: 1, minWidth: 110, padding: '14px 16px', background: '#faf9f5', borderRadius: 10 }}>
-      <div style={{ fontSize: 22, fontWeight: 800, color: '#1a1a18' }}>{value}</div>
-      <div style={{ fontSize: 11.5, color: '#888', marginTop: 2 }}>{label}</div>
+    <div style={{ flex: '1 1 150px', padding: '20px 22px', background: '#fff', border: '1px solid #eceae2', borderRadius: 14 }}>
+      <div
+        style={{
+          fontSize: 34,
+          fontWeight: 700,
+          color: '#15140f',
+          letterSpacing: '-0.02em',
+          lineHeight: 1,
+          fontVariantNumeric: 'tabular-nums',
+        }}
+      >
+        {value}
+      </div>
+      <div style={{ fontSize: 12.5, color: '#8a897f', marginTop: 9, fontWeight: 500 }}>{label}</div>
     </div>
   );
 }
@@ -155,8 +177,9 @@ export default function OrganizationsDatabasePage() {
 
   const biStats = useMemo(() => {
     const total = filtered.length;
-    const verifiedCount = filtered.filter((o) => o.verified).length;
-    const interestGroupCount = filtered.filter((o) => hasInterestGroupBadge(o)).length;
+    const sectoresDistintos = new Set(filtered.map((o) => o.sector).filter(Boolean)).size;
+    const ciudadesDistintas = new Set(filtered.map((o) => o.location).filter(Boolean)).size;
+    const grandesOrganizaciones = filtered.filter((o) => o.size_range === '+1000').length;
 
     const count = (getKey) => {
       const map = {};
@@ -171,8 +194,9 @@ export default function OrganizationsDatabasePage() {
 
     return {
       total,
-      verifiedCount,
-      interestGroupCount,
+      sectoresDistintos,
+      ciudadesDistintas,
+      grandesOrganizaciones,
       topSectors: count((o) => SECTOR_LABELS[o.sector]),
       topLocations: count((o) => o.location),
       topTypes: count((o) => TYPE_LABELS[o.org_type] || o.org_type),
@@ -258,11 +282,11 @@ export default function OrganizationsDatabasePage() {
               gap: 6,
               padding: '8px 14px',
               borderRadius: 8,
-              border: '.5px solid #d9d2f9',
-              background: showBI ? '#6d5aef' : '#f0edfe',
-              color: showBI ? '#fff' : '#6d5aef',
+              border: showBI ? '1px solid #15140f' : '1px solid #e0dfd8',
+              background: showBI ? '#15140f' : '#fff',
+              color: showBI ? '#fff' : '#3a3a36',
               fontSize: 12.5,
-              fontWeight: 700,
+              fontWeight: 600,
               cursor: 'pointer',
               whiteSpace: 'nowrap',
             }}
@@ -273,38 +297,44 @@ export default function OrganizationsDatabasePage() {
       </div>
 
       {showBI && (
-        <div className="card" style={{ padding: 20, marginBottom: 16 }}>
-          <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginBottom: 20 }}>
-            <StatCard value={biStats.total} label="Organizaciones (con estos filtros)" />
-            <StatCard
-              value={biStats.total ? `${Math.round((biStats.verifiedCount / biStats.total) * 100)}%` : '—'}
-              label="Verificadas"
-            />
-            <StatCard
-              value={biStats.total ? `${Math.round((biStats.interestGroupCount / biStats.total) * 100)}%` : '—'}
-              label="Grupo de interés"
-            />
+        <div style={{ marginBottom: 22 }}>
+          <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', marginBottom: 14 }}>
+            <StatCard value={biStats.total.toLocaleString('es-ES')} label="Organizaciones con estos filtros" />
+            <StatCard value={biStats.sectoresDistintos} label="Sectores representados" />
+            <StatCard value={biStats.ciudadesDistintas} label="Ciudades distintas" />
+            <StatCard value={biStats.grandesOrganizaciones} label="Grandes organizaciones (+1000 empleados)" />
           </div>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 24 }}>
-            <div>
-              <div style={{ fontSize: 12, fontWeight: 700, color: '#888', marginBottom: 12, textTransform: 'uppercase' }}>
-                Top sectores
+
+          <div
+            style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fit, minmax(230px, 1fr))',
+              gap: 0,
+              background: '#fff',
+              border: '1px solid #eceae2',
+              borderRadius: 14,
+              overflow: 'hidden',
+            }}
+          >
+            <div style={{ padding: '20px 24px', borderRight: '1px solid #f0efe9' }}>
+              <div style={{ fontSize: 11.5, fontWeight: 600, color: '#a3a297', marginBottom: 14, letterSpacing: '.04em' }}>
+                TOP SECTORES
               </div>
               {biStats.topSectors.map(([label, count]) => (
                 <BarRow key={label} label={label} count={count} max={biStats.topSectors[0]?.[1] || 1} />
               ))}
             </div>
-            <div>
-              <div style={{ fontSize: 12, fontWeight: 700, color: '#888', marginBottom: 12, textTransform: 'uppercase' }}>
-                Top ubicaciones
+            <div style={{ padding: '20px 24px', borderRight: '1px solid #f0efe9' }}>
+              <div style={{ fontSize: 11.5, fontWeight: 600, color: '#a3a297', marginBottom: 14, letterSpacing: '.04em' }}>
+                TOP UBICACIONES
               </div>
               {biStats.topLocations.map(([label, count]) => (
                 <BarRow key={label} label={label} count={count} max={biStats.topLocations[0]?.[1] || 1} color="#6d5aef" />
               ))}
             </div>
-            <div>
-              <div style={{ fontSize: 12, fontWeight: 700, color: '#888', marginBottom: 12, textTransform: 'uppercase' }}>
-                Top tipos de organización
+            <div style={{ padding: '20px 24px' }}>
+              <div style={{ fontSize: 11.5, fontWeight: 600, color: '#a3a297', marginBottom: 14, letterSpacing: '.04em' }}>
+                TOP TIPOS DE ORGANIZACIÓN
               </div>
               {biStats.topTypes.map(([label, count]) => (
                 <BarRow key={label} label={label} count={count} max={biStats.topTypes[0]?.[1] || 1} color="#b8860b" />
