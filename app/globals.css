@@ -367,3 +367,5 @@ a{color:inherit}
 }
 
 .stat-card-hover:hover{border-color:#6d5aef}
+.job-card-hover > div{transition:border-color .15s, box-shadow .15s}
+.job-card-hover:hover > div{border-color:#6d5aef;box-shadow:0 2px 10px rgba(109,90,239,.08)}
