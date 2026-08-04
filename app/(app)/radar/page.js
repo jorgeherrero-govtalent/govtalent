@@ -35,11 +35,11 @@ const TYPE_LABELS = {
 const MODALITY_LABELS = { presencial: 'Presencial', hibrido: 'Híbrido', remoto: 'Remoto' };
 
 const CHECKLIST_LABELS = {
-  sectores: { done: 'Sectores configurados', pending: 'Sectores pendientes' },
-  intereses: { done: 'Intereses configurados', pending: 'Intereses pendientes' },
   cv: { done: 'CV añadido', pending: 'CV pendiente' },
   experiencia: { done: 'Experiencia añadida', pending: 'Experiencia pendiente' },
   foto: { done: 'Foto añadida', pending: 'Foto pendiente' },
+  educacion: { done: 'Educación añadida', pending: 'Educación pendiente' },
+  web_linkedin: { done: 'Web o LinkedIn añadido', pending: 'Web o LinkedIn pendiente' },
 };
 
 function formatFecha(iso) {
