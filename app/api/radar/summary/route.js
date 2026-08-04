@@ -21,8 +21,8 @@ export async function GET() {
     activityAreasRes,
     eventsRes,
   ] = await Promise.all([
-    supabase.from('users').select('first_name, avatar_url, website_url, linkedin_url').eq('id', userId).single(),
-    supabase.from('candidate_profiles').select('profile_completion_pct, cv_url').eq('user_id', userId).maybeSingle(),
+    supabase.from('users').select('first_name, avatar_url').eq('id', userId).single(),
+    supabase.from('candidate_profiles').select('profile_completion_pct, cv_url, website_url, linkedin_url').eq('user_id', userId).maybeSingle(),
     supabase.from('user_work_areas').select('area').eq('user_id', userId),
     supabase.from('user_interest_areas').select('area').eq('user_id', userId),
     supabase.from('experiences').select('id').eq('user_id', userId).limit(1),
@@ -53,7 +53,7 @@ export async function GET() {
     experiencia: (experiencesRes.data || []).length > 0,
     foto: !!userRes.data?.avatar_url,
     educacion: (educationRes.data || []).length > 0,
-    web_linkedin: !!(userRes.data?.website_url || userRes.data?.linkedin_url),
+    web_linkedin: !!(profileRes.data?.website_url || profileRes.data?.linkedin_url),
   };
   const totalPasos = Object.keys(checklist).length;
   const pasosCompletados = Object.values(checklist).filter(Boolean).length;
