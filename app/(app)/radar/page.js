@@ -19,20 +19,27 @@ const SECTOR_LABELS = {
 
 const TYPE_LABELS = {
   empresa: 'Empresa',
+  empresa_publica: 'Empresa pública',
   consultora_public_affairs: 'Consultora de Public Affairs',
   asociacion_profesional: 'Asociación profesional',
+  sindicato: 'Sindicato',
+  tercer_sector_ong: 'Organización del tercer sector / ONG',
   institucion_publica: 'Institución pública',
+  partido_politico: 'Partido político',
   think_tank_fundacion: 'Think tank / Fundación',
+  universidad_centro_educativo: 'Universidad / Institución académica',
+  medios_comunicacion: 'Medios y comunicación',
+  otro: 'Otro',
 };
 
 const MODALITY_LABELS = { presencial: 'Presencial', hibrido: 'Híbrido', remoto: 'Remoto' };
 
 const CHECKLIST_LABELS = {
-  sectores: 'Sectores configurados',
-  intereses: 'Intereses configurados',
-  cv: 'CV pendiente',
-  experiencia: 'Experiencia pendiente',
-  foto: 'Foto pendiente',
+  sectores: { done: 'Sectores configurados', pending: 'Sectores pendientes' },
+  intereses: { done: 'Intereses configurados', pending: 'Intereses pendientes' },
+  cv: { done: 'CV añadido', pending: 'CV pendiente' },
+  experiencia: { done: 'Experiencia añadida', pending: 'Experiencia pendiente' },
+  foto: { done: 'Foto añadida', pending: 'Foto pendiente' },
 };
 
 function formatFecha(iso) {
@@ -69,32 +76,11 @@ export default function RadarResumenHoy() {
   return (
     <div style={{ maxWidth: 1200, margin: '0 auto', padding: '26px 32px 60px' }}>
       {/* Cabecera */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 22, flexWrap: 'wrap', gap: 12 }}>
-        <div>
-          <div style={{ fontSize: 22, fontWeight: 700, color: '#15140f' }}>Hola{perfil.nombre ? `, ${perfil.nombre}` : ''}</div>
-          <div style={{ fontSize: 13.5, color: '#8a897f', marginTop: 4 }}>
-            Aquí tienes una selección de oportunidades, organizaciones y novedades adaptadas a tu perfil.
-          </div>
+      <div style={{ marginBottom: 22 }}>
+        <div style={{ fontSize: 22, fontWeight: 700, color: '#15140f' }}>Hola{perfil.nombre ? `, ${perfil.nombre}` : ''}</div>
+        <div style={{ fontSize: 13.5, color: '#8a897f', marginTop: 4 }}>
+          Aquí tienes una selección de oportunidades, organizaciones y novedades adaptadas a tu perfil.
         </div>
-        <Link
-          href="/profile"
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 6,
-            padding: '8px 14px',
-            borderRadius: 8,
-            border: '1px solid #e0dfd8',
-            background: '#fff',
-            color: '#3a3a36',
-            fontSize: 12.5,
-            fontWeight: 600,
-            textDecoration: 'none',
-            whiteSpace: 'nowrap',
-          }}
-        >
-          <i className="ti ti-user"></i> Ir a mi perfil
-        </Link>
       </div>
 
       {/* Bloque principal: completar perfil */}
@@ -172,11 +158,24 @@ export default function RadarResumenHoy() {
                 Perfil completado al {perfil.completion_pct}%
               </div>
 
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px 18px' }}>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px 20px' }}>
                 {Object.entries(perfil.checklist).map(([key, done]) => (
-                  <div key={key} style={{ fontSize: 12, color: done ? '#1d6f5c' : '#a3862f', display: 'flex', alignItems: 'center', gap: 5 }}>
-                    <i className={`ti ${done ? 'ti-circle-check-filled' : 'ti-circle-dashed'}`} style={{ fontSize: 13 }}></i>
-                    {CHECKLIST_LABELS[key]}
+                  <div key={key} style={{ fontSize: 12, color: '#57564f', display: 'flex', alignItems: 'center', gap: 7 }}>
+                    <span
+                      style={{
+                        width: 16,
+                        height: 16,
+                        borderRadius: '50%',
+                        background: done ? '#6d5aef' : '#e0dfd8',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        flexShrink: 0,
+                      }}
+                    >
+                      {done && <i className="ti ti-check" style={{ fontSize: 10, color: '#fff' }}></i>}
+                    </span>
+                    {CHECKLIST_LABELS[key][done ? 'done' : 'pending']}
                   </div>
                 ))}
               </div>
@@ -260,8 +259,8 @@ export default function RadarResumenHoy() {
                         <i className="ti ti-briefcase" style={{ fontSize: 12 }}></i> {MODALITY_LABELS[v.modality] || v.modality}
                       </span>
                     )}
-                    {v.sector && (
-                      <span style={{ fontSize: 11, color: '#57564f' }}>{SECTOR_LABELS[v.sector] || v.sector}</span>
+                    {v.organization_type && (
+                      <span style={{ fontSize: 11, color: '#57564f' }}>{TYPE_LABELS[v.organization_type] || v.organization_type}</span>
                     )}
                   </div>
 
@@ -335,20 +334,14 @@ export default function RadarResumenHoy() {
       {/* Novedades del ecosistema — se oculta por completo si no hay ninguna */}
       {novedades.length > 0 && (
         <div style={{ background: '#15140f', borderRadius: 16, padding: '22px 26px' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
-            <div style={{ fontSize: 11, fontWeight: 600, color: '#a89dfc', letterSpacing: '.04em' }}>QUÉ ESTÁ PASANDO AHORA</div>
-            <Link href="/organizations" style={{ fontSize: 11.5, fontWeight: 600, color: '#a89dfc', textDecoration: 'none' }}>
-              Ver todas →
-            </Link>
+          <div style={{ fontSize: 11, fontWeight: 600, color: '#a89dfc', letterSpacing: '.04em', marginBottom: 14 }}>
+            QUÉ ESTÁ PASANDO AHORA
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
             {novedades.map((n, i) => (
               <div key={i} style={{ fontSize: 13.5, color: '#fff', display: 'flex', gap: 9, alignItems: 'baseline' }}>
-                <span style={{ color: i % 2 === 0 ? '#8fd6b4' : '#a89dfc', flexShrink: 0 }}>●</span>
-                <span>
-                  {n.title}
-                  {n.occurred_at && <span style={{ color: '#7a7972', fontSize: 11.5 }}> · {formatFecha(n.occurred_at)}</span>}
-                </span>
+                <span style={{ color: '#a89dfc', flexShrink: 0 }}>●</span>
+                <span>{n.title}</span>
               </div>
             ))}
           </div>
