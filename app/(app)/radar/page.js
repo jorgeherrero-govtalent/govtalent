@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
+import OrganizationFollowButton from '@/components/OrganizationFollowButton';
 
 const SECTOR_LABELS = {
   energia_clima: 'Energía y clima',
@@ -16,9 +17,37 @@ const SECTOR_LABELS = {
   multisectorial: 'Multisectorial',
 };
 
+const TYPE_LABELS = {
+  empresa: 'Empresa',
+  consultora_public_affairs: 'Consultora de Public Affairs',
+  asociacion_profesional: 'Asociación profesional',
+  institucion_publica: 'Institución pública',
+  think_tank_fundacion: 'Think tank / Fundación',
+};
+
+const MODALITY_LABELS = { presencial: 'Presencial', hibrido: 'Híbrido', remoto: 'Remoto' };
+
+const CHECKLIST_LABELS = {
+  sectores: 'Sectores configurados',
+  intereses: 'Intereses configurados',
+  cv: 'CV pendiente',
+  experiencia: 'Experiencia pendiente',
+  foto: 'Foto pendiente',
+};
+
+function formatFecha(iso) {
+  if (!iso) return null;
+  const d = new Date(iso);
+  const dias = Math.floor((Date.now() - d.getTime()) / (1000 * 60 * 60 * 24));
+  if (dias <= 0) return 'Hoy';
+  if (dias === 1) return 'Ayer';
+  if (dias < 7) return `Hace ${dias} días`;
+  return d.toLocaleDateString('es-ES', { day: 'numeric', month: 'short' });
+}
+
 export default function RadarResumenHoy() {
   const [data, setData] = useState(null);
-  const [userName, setUserName] = useState('');
+  const [userId, setUserId] = useState(null);
 
   useEffect(() => {
     fetch('/api/radar/summary')
@@ -26,10 +55,8 @@ export default function RadarResumenHoy() {
       .then(setData);
 
     const supabase = createClient();
-    supabase.auth.getUser().then(async ({ data: authData }) => {
-      if (!authData.user) return;
-      const { data: profile } = await supabase.from('users').select('first_name').eq('id', authData.user.id).single();
-      if (profile?.first_name) setUserName(profile.first_name);
+    supabase.auth.getUser().then(({ data: authData }) => {
+      if (authData.user) setUserId(authData.user.id);
     });
   }, []);
 
@@ -40,17 +67,17 @@ export default function RadarResumenHoy() {
   const { perfil, vacantes_recomendadas, organizaciones_recomendadas, novedades } = data;
 
   return (
-    <div style={{ maxWidth: 1200, margin: '0 auto', padding: '28px 32px 60px' }}>
+    <div style={{ maxWidth: 1200, margin: '0 auto', padding: '26px 32px 60px' }}>
       {/* Cabecera */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 28, flexWrap: 'wrap', gap: 12 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 22, flexWrap: 'wrap', gap: 12 }}>
         <div>
-          <div style={{ fontSize: 22, fontWeight: 700, color: '#15140f' }}>Hola{userName ? `, ${userName}` : ''}</div>
+          <div style={{ fontSize: 22, fontWeight: 700, color: '#15140f' }}>Hola{perfil.nombre ? `, ${perfil.nombre}` : ''}</div>
           <div style={{ fontSize: 13.5, color: '#8a897f', marginTop: 4 }}>
-            Tu espacio para descubrir oportunidades, organizaciones y novedades del ecosistema de asuntos públicos.
+            Aquí tienes una selección de oportunidades, organizaciones y novedades adaptadas a tu perfil.
           </div>
         </div>
         <Link
-          href="/account"
+          href="/profile"
           style={{
             display: 'flex',
             alignItems: 'center',
@@ -66,45 +93,42 @@ export default function RadarResumenHoy() {
             whiteSpace: 'nowrap',
           }}
         >
-          <i className="ti ti-adjustments"></i> Personalizar
+          <i className="ti ti-user"></i> Ir a mi perfil
         </Link>
       </div>
 
-      {/* Bloque de activación */}
-      <div
-        style={{
-          background: 'linear-gradient(160deg, #faf9ff 0%, #f2effc 100%)',
-          border: '1px solid #e2dcf8',
-          borderRadius: 16,
-          padding: '22px 26px',
-          marginBottom: 32,
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          flexWrap: 'wrap',
-          gap: 16,
-        }}
-      >
-        <div>
-          <div style={{ fontSize: 15.5, fontWeight: 700, color: '#15140f', marginBottom: 4 }}>
-            Haz que GovTalent trabaje para ti
+      {/* Bloque principal: completar perfil */}
+      {perfil.completo ? (
+        <div
+          style={{
+            background: '#eaf3ee',
+            border: '1px solid #cfe6d9',
+            borderRadius: 16,
+            padding: '22px 26px',
+            marginBottom: 26,
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            flexWrap: 'wrap',
+            gap: 16,
+          }}
+        >
+          <div>
+            <div style={{ fontSize: 15.5, fontWeight: 700, color: '#15140f', marginBottom: 4 }}>
+              <i className="ti ti-circle-check-filled" style={{ color: '#1d6f5c', marginRight: 6 }}></i>
+              Tu perfil está completo
+            </div>
+            <div style={{ fontSize: 12.5, color: '#57564f' }}>
+              Tu perfil ya está visible para las organizaciones y listo para recibir mejores recomendaciones.
+            </div>
           </div>
-          <div style={{ fontSize: 12.5, color: '#57564f', marginBottom: 10 }}>
-            Selecciona tus sectores, intereses y organizaciones para recibir recomendaciones personalizadas.
-          </div>
-          <div style={{ fontSize: 12, color: '#6d5aef', fontWeight: 600 }}>
-            Perfil {perfil.completion_pct}% · {perfil.sectores_count} sector{perfil.sectores_count === 1 ? '' : 'es'} ·{' '}
-            {perfil.organizaciones_seguidas_count} organización{perfil.organizaciones_seguidas_count === 1 ? '' : 'es'}
-          </div>
-        </div>
-        <div style={{ display: 'flex', gap: 10, flexShrink: 0 }}>
           <Link
-            href="/account"
+            href="/profile"
             style={{
               padding: '10px 18px',
               borderRadius: 8,
               border: 'none',
-              background: '#6d5aef',
+              background: '#1d6f5c',
               color: '#fff',
               fontSize: 12.5,
               fontWeight: 600,
@@ -112,56 +136,140 @@ export default function RadarResumenHoy() {
               whiteSpace: 'nowrap',
             }}
           >
-            Completar mi perfil
-          </Link>
-          <Link
-            href="/organizations"
-            style={{
-              padding: '10px 18px',
-              borderRadius: 8,
-              border: '1px solid #d9d2f9',
-              background: '#fff',
-              color: '#6d5aef',
-              fontSize: 12.5,
-              fontWeight: 600,
-              textDecoration: 'none',
-              whiteSpace: 'nowrap',
-            }}
-          >
-            Explorar organizaciones
+            Ver mi perfil
           </Link>
         </div>
-      </div>
+      ) : (
+        <div
+          style={{
+            background: 'linear-gradient(160deg, #faf9ff 0%, #f2effc 100%)',
+            border: '1px solid #e2dcf8',
+            borderRadius: 16,
+            padding: '22px 26px',
+            marginBottom: 26,
+          }}
+        >
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 16 }}>
+            <div style={{ flex: 1, minWidth: 240 }}>
+              <div style={{ fontSize: 15.5, fontWeight: 700, color: '#15140f', marginBottom: 4 }}>Completa tu perfil profesional</div>
+              <div style={{ fontSize: 12.5, color: '#57564f', marginBottom: 14 }}>
+                Cuanto más completo esté tu perfil, mejores serán las recomendaciones y más fácil será que las organizaciones te
+                encuentren.
+              </div>
+
+              <div style={{ height: 6, background: '#e2dcf8', borderRadius: 20, overflow: 'hidden', marginBottom: 8, maxWidth: 320 }}>
+                <div
+                  style={{
+                    height: '100%',
+                    width: `${perfil.completion_pct}%`,
+                    background: '#6d5aef',
+                    borderRadius: 20,
+                    transition: 'width .4s ease',
+                  }}
+                ></div>
+              </div>
+              <div style={{ fontSize: 12, fontWeight: 600, color: '#6d5aef', marginBottom: 14 }}>
+                Perfil completado al {perfil.completion_pct}%
+              </div>
+
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px 18px' }}>
+                {Object.entries(perfil.checklist).map(([key, done]) => (
+                  <div key={key} style={{ fontSize: 12, color: done ? '#1d6f5c' : '#a3862f', display: 'flex', alignItems: 'center', gap: 5 }}>
+                    <i className={`ti ${done ? 'ti-circle-check-filled' : 'ti-circle-dashed'}`} style={{ fontSize: 13 }}></i>
+                    {CHECKLIST_LABELS[key]}
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <Link
+              href="/profile"
+              style={{
+                padding: '10px 18px',
+                borderRadius: 8,
+                border: 'none',
+                background: '#6d5aef',
+                color: '#fff',
+                fontSize: 12.5,
+                fontWeight: 600,
+                textDecoration: 'none',
+                whiteSpace: 'nowrap',
+                flexShrink: 0,
+              }}
+            >
+              Ir a mi perfil
+            </Link>
+          </div>
+        </div>
+      )}
 
       {/* Oportunidades para ti */}
-      <div style={{ marginBottom: 32 }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 4 }}>
-          <div style={{ fontSize: 16, fontWeight: 700, color: '#15140f' }}>Oportunidades recomendadas</div>
+      <div style={{ marginBottom: 26 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 3 }}>
+          <div style={{ fontSize: 16, fontWeight: 700, color: '#15140f' }}>Oportunidades para ti</div>
           <Link href="/jobs" style={{ fontSize: 12.5, fontWeight: 600, color: '#1d6f5c', textDecoration: 'none' }}>
             Ver todas →
           </Link>
         </div>
-        <div style={{ fontSize: 12.5, color: '#8a897f', marginBottom: 14 }}>
-          Vacantes que encajan con tu experiencia e intereses.
+        <div style={{ fontSize: 12.5, color: '#8a897f', marginBottom: 12 }}>
+          Seleccionadas según tus intereses, experiencia y ubicación.
         </div>
         {vacantes_recomendadas.length > 0 ? (
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 14 }}>
-            {vacantes_recomendadas.slice(0, 3).map((v) => (
-              <Link
-                key={v.id}
-                href={`/jobs/${v.id}`}
-                style={{
-                  background: '#fff',
-                  border: '1px solid #eceae2',
-                  borderRadius: 14,
-                  padding: '16px 18px',
-                  textDecoration: 'none',
-                  display: 'block',
-                }}
-              >
-                <div style={{ fontSize: 13.5, fontWeight: 700, color: '#15140f', marginBottom: 4 }}>{v.title}</div>
-                <div style={{ fontSize: 12, color: '#57564f' }}>{v.organization_name}</div>
-                {v.location && <div style={{ fontSize: 11.5, color: '#a3a297', marginTop: 6 }}>{v.location}</div>}
+            {vacantes_recomendadas.map((v) => (
+              <Link key={v.id} href={`/jobs/${v.id}`} className="job-card-hover" style={{ textDecoration: 'none', display: 'block' }}>
+                <div style={{ background: '#fff', border: '1px solid #eceae2', borderRadius: 14, padding: '16px 18px', height: '100%' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
+                    <div
+                      style={{
+                        width: 34,
+                        height: 34,
+                        borderRadius: 9,
+                        background: '#f0efe9',
+                        flexShrink: 0,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        overflow: 'hidden',
+                      }}
+                    >
+                      {v.organization_logo ? (
+                        <img src={v.organization_logo} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                      ) : (
+                        <i className="ti ti-building" style={{ color: '#a3a297' }}></i>
+                      )}
+                    </div>
+                    <div style={{ minWidth: 0 }}>
+                      <div style={{ fontSize: 13, fontWeight: 700, color: '#15140f', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {v.title}
+                      </div>
+                      <div style={{ fontSize: 11.5, color: '#8a897f', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {v.organization_name}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px 10px', marginBottom: 12 }}>
+                    {v.location && (
+                      <span style={{ fontSize: 11, color: '#57564f', display: 'flex', alignItems: 'center', gap: 3 }}>
+                        <i className="ti ti-map-pin" style={{ fontSize: 12 }}></i> {v.location}
+                      </span>
+                    )}
+                    {v.modality && (
+                      <span style={{ fontSize: 11, color: '#57564f', display: 'flex', alignItems: 'center', gap: 3 }}>
+                        <i className="ti ti-briefcase" style={{ fontSize: 12 }}></i> {MODALITY_LABELS[v.modality] || v.modality}
+                      </span>
+                    )}
+                    {v.sector && (
+                      <span style={{ fontSize: 11, color: '#57564f' }}>{SECTOR_LABELS[v.sector] || v.sector}</span>
+                    )}
+                  </div>
+
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span style={{ fontSize: 10.5, color: '#a3a297' }}>{formatFecha(v.published_at) || ''}</span>
+                    <span style={{ fontSize: 11.5, fontWeight: 600, color: '#1d6f5c' }}>Ver vacante →</span>
+                  </div>
+                </div>
               </Link>
             ))}
           </div>
@@ -170,60 +278,53 @@ export default function RadarResumenHoy() {
         )}
       </div>
 
-      {/* Organizaciones recomendadas */}
-      <div style={{ marginBottom: 32 }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 4 }}>
-          <div style={{ fontSize: 16, fontWeight: 700, color: '#15140f' }}>Empieza a construir tu radar</div>
+      {/* Organizaciones que pueden interesarte */}
+      <div style={{ marginBottom: 26 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 3 }}>
+          <div style={{ fontSize: 16, fontWeight: 700, color: '#15140f' }}>Organizaciones que pueden interesarte</div>
           <Link href="/organizations" style={{ fontSize: 12.5, fontWeight: 600, color: '#1d6f5c', textDecoration: 'none' }}>
-            Explorar →
+            Explorar directorio →
           </Link>
         </div>
-        <div style={{ fontSize: 12.5, color: '#8a897f', marginBottom: 14 }}>
-          Sigue organizaciones para recibir novedades, vacantes y movimientos relevantes.
+        <div style={{ fontSize: 12.5, color: '#8a897f', marginBottom: 12 }}>
+          Descubre organizaciones relacionadas con tus sectores e intereses.
         </div>
         {organizaciones_recomendadas.length > 0 ? (
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 14 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: 14 }}>
             {organizaciones_recomendadas.map((o) => (
-              <Link
-                key={o.id}
-                href={`/organizations/${o.slug}`}
-                style={{
-                  background: '#fff',
-                  border: '1px solid #eceae2',
-                  borderRadius: 14,
-                  padding: '16px 18px',
-                  textDecoration: 'none',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 10,
-                }}
-              >
-                <div
-                  style={{
-                    width: 36,
-                    height: 36,
-                    borderRadius: 9,
-                    background: '#f0efe9',
-                    flexShrink: 0,
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    overflow: 'hidden',
-                  }}
-                >
-                  {o.logo_url ? (
-                    <img src={o.logo_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                  ) : (
-                    <i className="ti ti-building" style={{ color: '#a3a297' }}></i>
-                  )}
-                </div>
-                <div style={{ minWidth: 0 }}>
-                  <div style={{ fontSize: 13, fontWeight: 700, color: '#15140f', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                    {o.name}
+              <div key={o.id} className="job-card-hover" style={{ background: '#fff', border: '1px solid #eceae2', borderRadius: 14, padding: '16px 18px' }}>
+                <Link href={`/organizations/${o.slug}`} style={{ textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
+                  <div
+                    style={{
+                      width: 38,
+                      height: 38,
+                      borderRadius: 9,
+                      background: '#f0efe9',
+                      flexShrink: 0,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      overflow: 'hidden',
+                    }}
+                  >
+                    {o.logo_url ? (
+                      <img src={o.logo_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                    ) : (
+                      <i className="ti ti-building" style={{ color: '#a3a297' }}></i>
+                    )}
                   </div>
-                  <div style={{ fontSize: 11.5, color: '#8a897f' }}>{SECTOR_LABELS[o.sector] || 'Sector no especificado'}</div>
-                </div>
-              </Link>
+                  <div style={{ minWidth: 0 }}>
+                    <div style={{ fontSize: 13, fontWeight: 700, color: '#15140f', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      {o.name}
+                    </div>
+                    <div style={{ fontSize: 11.5, color: '#8a897f' }}>
+                      {SECTOR_LABELS[o.sector] || 'Sector no especificado'}
+                      {o.org_type ? ` · ${TYPE_LABELS[o.org_type] || o.org_type}` : ''}
+                    </div>
+                  </div>
+                </Link>
+                <OrganizationFollowButton organizationId={o.id} organizationName={o.name} userId={userId} initialFollowing={false} />
+              </div>
             ))}
           </div>
         ) : (
@@ -231,32 +332,28 @@ export default function RadarResumenHoy() {
         )}
       </div>
 
-      {/* Novedades del ecosistema */}
-      <div>
-        <div style={{ fontSize: 16, fontWeight: 700, color: '#15140f', marginBottom: 4 }}>Novedades del ecosistema</div>
-        <div style={{ fontSize: 12.5, color: '#8a897f', marginBottom: 14 }}>
-          Una selección de cambios, oportunidades y publicaciones relevantes.
-        </div>
-        {novedades.length > 0 ? (
-          <div style={{ background: '#fff', border: '1px solid #eceae2', borderRadius: 14, padding: '6px 20px' }}>
+      {/* Novedades del ecosistema — se oculta por completo si no hay ninguna */}
+      {novedades.length > 0 && (
+        <div style={{ background: '#15140f', borderRadius: 16, padding: '22px 26px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
+            <div style={{ fontSize: 11, fontWeight: 600, color: '#a89dfc', letterSpacing: '.04em' }}>QUÉ ESTÁ PASANDO AHORA</div>
+            <Link href="/organizations" style={{ fontSize: 11.5, fontWeight: 600, color: '#a89dfc', textDecoration: 'none' }}>
+              Ver todas →
+            </Link>
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
             {novedades.map((n, i) => (
-              <div
-                key={i}
-                style={{
-                  padding: '13px 0',
-                  borderBottom: i < novedades.length - 1 ? '1px solid #f0efe9' : 'none',
-                  fontSize: 13,
-                  color: '#3a3a36',
-                }}
-              >
-                {n.title}
+              <div key={i} style={{ fontSize: 13.5, color: '#fff', display: 'flex', gap: 9, alignItems: 'baseline' }}>
+                <span style={{ color: i % 2 === 0 ? '#8fd6b4' : '#a89dfc', flexShrink: 0 }}>●</span>
+                <span>
+                  {n.title}
+                  {n.occurred_at && <span style={{ color: '#7a7972', fontSize: 11.5 }}> · {formatFecha(n.occurred_at)}</span>}
+                </span>
               </div>
             ))}
           </div>
-        ) : (
-          <div style={{ fontSize: 12.5, color: '#a3a297' }}>Todavía no hay novedades registradas.</div>
-        )}
-      </div>
+        </div>
+      )}
     </div>
   );
 }
