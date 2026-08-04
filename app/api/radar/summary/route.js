@@ -28,7 +28,7 @@ export async function GET() {
     supabase.from('organization_follows').select('organization_id').eq('user_id', userId),
     supabase
       .from('jobs')
-      .select('id, title, area, location, modality, published_at, organization_id, organizations(name, slug, sector, logo_url)')
+      .select('id, title, area, location, modality, published_at, organization_id, organizations(name, slug, sector, org_type, logo_url)')
       .eq('status', 'activa')
       .order('published_at', { ascending: false, nullsFirst: false })
       .limit(50),
@@ -47,8 +47,8 @@ export async function GET() {
 
   // --- Perfil / checklist de activación ---
   const checklist = {
-    sectores: interestAreasRes.data?.length > 0,
-    intereses: workAreasRes.data?.length > 0,
+    sectores: workAreasRes.data?.length > 0,
+    intereses: interestAreasRes.data?.length > 0,
     cv: !!profileRes.data?.cv_url,
     experiencia: (experiencesRes.data || []).length > 0,
     foto: !!userRes.data?.avatar_url,
@@ -73,7 +73,7 @@ export async function GET() {
     organization_name: j.organizations?.name || 'Organización',
     organization_slug: j.organizations?.slug,
     organization_logo: j.organizations?.logo_url,
-    sector: j.organizations?.sector,
+    organization_type: j.organizations?.org_type,
     location: j.location,
     modality: j.modality,
     published_at: j.published_at,
