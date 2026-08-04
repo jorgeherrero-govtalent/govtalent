@@ -40,6 +40,29 @@ const INTEREST_AREAS = [
   'Agricultura y medio rural',
 ];
 
+const CAREER_SITUATIONS = [
+  { value: 'trabajo_sector', label: 'Ya trabajo en asuntos públicos / relaciones institucionales' },
+  { value: 'area_afin', label: 'Trabajo en un área afín (comunicación, derecho, política, periodismo...)' },
+  { value: 'area_no_relacionada', label: 'Trabajo en un área no relacionada' },
+  { value: 'primera_experiencia', label: 'Busco mi primera experiencia laboral / soy estudiante' },
+];
+
+const ORG_TYPES = [
+  { value: 'consultora', label: 'Consultora de asuntos públicos' },
+  { value: 'empresa_privada', label: 'Empresa privada' },
+  { value: 'institucion_publica', label: 'Institución pública' },
+  { value: 'asociacion_sectorial', label: 'Asociación sectorial' },
+  { value: 'tercer_sector', label: 'Tercer sector / ONG' },
+];
+
+const ROLE_TYPES = [
+  { value: 'consultor', label: 'Consultor de asuntos públicos' },
+  { value: 'responsable_ap', label: 'Responsable de asuntos públicos (Corporate Public Affairs)' },
+  { value: 'responsable_ri', label: 'Responsable de relaciones institucionales' },
+  { value: 'especialista_regulacion', label: 'Especialista en regulación y public policy' },
+  { value: 'incidencia_advocacy', label: 'Incidencia y advocacy' },
+];
+
 // Se muestra como ventana obligatoria mientras el usuario no haya
 // completado el onboarding, independientemente de por dónde haya
 // entrado a la aplicación (email, Google, enlace directo...).
@@ -60,7 +83,14 @@ export default function OnboardingModal({ userId, onComplete }) {
     location: '',
     work_areas: ['Todos los sectores'],
     interest_areas: ['Todas las áreas'],
+    career_situation: '',
+    org_type: '',
+    role_type: '',
   });
+
+  function selectSingle(field, value) {
+    setForm((f) => ({ ...f, [field]: value }));
+  }
 
   function toggleArea(field, value, allLabel) {
     setForm((f) => {
@@ -152,6 +182,19 @@ export default function OnboardingModal({ userId, onComplete }) {
       if (insIntErr) console.error('Error guardando áreas de interés:', insIntErr);
     }
 
+    const { error: profileErr } = await supabase
+      .from('candidate_profiles')
+      .upsert(
+        {
+          user_id: userId,
+          career_situation: form.career_situation || null,
+          org_type: form.org_type || null,
+          role_type: form.role_type || null,
+        },
+        { onConflict: 'user_id' }
+      );
+    if (profileErr) console.error('Error guardando situación profesional:', profileErr);
+
     setSaving(false);
     toast('¡Bienvenido/a a GovTalent! ✓');
 
@@ -184,7 +227,9 @@ export default function OnboardingModal({ userId, onComplete }) {
             <div className={`sl2 ${step > 1 ? 'done' : ''}`}></div>
             <div className={`sc ${step > 2 ? 'done' : step === 2 ? 'active' : ''}`}>2</div>
             <div className={`sl2 ${step > 2 ? 'done' : ''}`}></div>
-            <div className={`sc ${step === 3 ? 'active' : ''}`}>3</div>
+            <div className={`sc ${step > 3 ? 'done' : step === 3 ? 'active' : ''}`}>3</div>
+            <div className={`sl2 ${step > 3 ? 'done' : ''}`}></div>
+            <div className={`sc ${step === 4 ? 'active' : ''}`}>4</div>
           </div>
         )}
         <div></div>
@@ -424,7 +469,81 @@ export default function OnboardingModal({ userId, onComplete }) {
                 </div>
               ))}
             </div>
-            <button className="mbtn" disabled={saving} onClick={finish}>
+            <button className="mbtn" onClick={() => setStep(4)}>
+              Siguiente
+            </button>
+          </div>
+        )}
+
+        {step === 4 && (
+          <div className="ob-card">
+            <div className="back" onClick={() => setStep(3)}>
+              <i className="ti ti-arrow-left"></i> Volver
+            </div>
+            <h1>Tu situación profesional</h1>
+            <p className="sub">Así podremos comparar tu perfil con el del sector con más precisión.</p>
+
+            <div className="slbl">¿Cuál es tu situación profesional actual respecto a los asuntos públicos?</div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 20 }}>
+              {CAREER_SITUATIONS.map((opt) => (
+                <div
+                  key={opt.value}
+                  onClick={() => selectSingle('career_situation', opt.value)}
+                  style={{
+                    padding: '12px 14px',
+                    borderRadius: 10,
+                    border: form.career_situation === opt.value ? '1.5px solid #1d6f5c' : '1.5px solid #e0dfd8',
+                    background: form.career_situation === opt.value ? '#eaf5f0' : '#fff',
+                    fontSize: 13,
+                    fontWeight: form.career_situation === opt.value ? 600 : 400,
+                    cursor: 'pointer',
+                  }}
+                >
+                  {opt.label}
+                </div>
+              ))}
+            </div>
+
+            {(form.career_situation === 'trabajo_sector' || form.career_situation === 'area_afin') && (
+              <>
+                <div className="slbl">¿En qué tipo de entorno trabajas actualmente?</div>
+                <div className="tags" style={{ marginBottom: 20 }}>
+                  {ORG_TYPES.map((opt) => (
+                    <div
+                      key={opt.value}
+                      className={`tp ${form.org_type === opt.value ? 'on' : ''}`}
+                      onClick={() => selectSingle('org_type', opt.value)}
+                    >
+                      {opt.label}
+                    </div>
+                  ))}
+                </div>
+
+                <div className="slbl">¿Cuál de estos describe mejor tu rol actual?</div>
+                <div className="tags" style={{ marginBottom: 20 }}>
+                  {ROLE_TYPES.map((opt) => (
+                    <div
+                      key={opt.value}
+                      className={`tp ${form.role_type === opt.value ? 'on' : ''}`}
+                      onClick={() => selectSingle('role_type', opt.value)}
+                    >
+                      {opt.label}
+                    </div>
+                  ))}
+                </div>
+              </>
+            )}
+
+            <button
+              className="mbtn"
+              disabled={
+                saving ||
+                !form.career_situation ||
+                ((form.career_situation === 'trabajo_sector' || form.career_situation === 'area_afin') &&
+                  (!form.org_type || !form.role_type))
+              }
+              onClick={finish}
+            >
               {saving ? 'Creando tu cuenta...' : 'Crear mi cuenta'}
             </button>
           </div>
