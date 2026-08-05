@@ -63,6 +63,13 @@ const ROLE_TYPES = [
   { value: 'incidencia_advocacy', label: 'Incidencia y advocacy' },
 ];
 
+const LEVEL_TYPES = [
+  { value: 'tecnico_responsable_area', label: 'Técnico / Responsable de área' },
+  { value: 'directivo', label: 'Directivo' },
+  { value: 'consultor', label: 'Consultor' },
+  { value: 'otro', label: 'Otro' },
+];
+
 // Se muestra como ventana obligatoria mientras el usuario no haya
 // completado el onboarding, independientemente de por dónde haya
 // entrado a la aplicación (email, Google, enlace directo...).
@@ -86,6 +93,7 @@ export default function OnboardingModal({ userId, onComplete }) {
     career_situation: '',
     org_type: '',
     role_type: '',
+    level_type: '',
   });
 
   function selectSingle(field, value) {
@@ -190,6 +198,7 @@ export default function OnboardingModal({ userId, onComplete }) {
           career_situation: form.career_situation || null,
           org_type: form.org_type || null,
           role_type: form.role_type || null,
+          level_type: form.level_type || null,
         },
         { onConflict: 'user_id' }
       );
@@ -531,6 +540,19 @@ export default function OnboardingModal({ userId, onComplete }) {
                     </div>
                   ))}
                 </div>
+
+                <div className="slbl">¿Qué nivel describe mejor tu puesto actual?</div>
+                <div className="tags" style={{ marginBottom: 20 }}>
+                  {LEVEL_TYPES.map((opt) => (
+                    <div
+                      key={opt.value}
+                      className={`tp ${form.level_type === opt.value ? 'on' : ''}`}
+                      onClick={() => selectSingle('level_type', opt.value)}
+                    >
+                      {opt.label}
+                    </div>
+                  ))}
+                </div>
               </>
             )}
 
@@ -540,7 +562,7 @@ export default function OnboardingModal({ userId, onComplete }) {
                 saving ||
                 !form.career_situation ||
                 ((form.career_situation === 'trabajo_sector' || form.career_situation === 'area_afin') &&
-                  (!form.org_type || !form.role_type))
+                  (!form.org_type || !form.role_type || !form.level_type))
               }
               onClick={finish}
             >
