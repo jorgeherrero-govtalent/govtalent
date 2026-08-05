@@ -5,7 +5,7 @@ import { createClient } from '@/lib/supabase/server';
 // Diccionarios (ver documento de diseño, secciones 4, 5 y 9)
 // ============================================================================
 
-const GRADO_TOP3 = ['ciencia polít', 'ciencias polít' 'derecho', 'periodismo', 'relaciones internacionales', 'comunicación'];
+const GRADO_TOP3 = ['ciencia polít', 'derecho', 'periodismo', 'relaciones internacionales'];
 
 const POSGRADO_KEYWORDS = ['máster', 'master', 'posgrado', 'postgrado', 'doctorado', 'phd'];
 
