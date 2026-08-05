@@ -121,7 +121,29 @@ export async function POST(request) {
     });
   }
 
-  const { error: insertError } = await admin.from('organizations').insert(toInsert);
+  // Una importación masiva es carga de datos, no actividad orgánica: sin
+  // esto, cada fila del CSV dispararía su propio evento público "se
+  // incorpora al directorio", inundando el bloque "Qué está pasando ahora"
+  // de la home (que solo muestra los últimos 5, ordenados por fecha).
+  const { error: disableErr } = await admin.rpc('radar_events_toggle_trigger', {
+    p_trigger_name: 'trg_radar_on_new_organization',
+    p_enable: false,
+  });
+  if (disableErr) {
+    return NextResponse.json({ error: disableErr.message }, { status: 500 });
+  }
+
+  let insertError;
+  try {
+    ({ error: insertError } = await admin.from('organizations').insert(toInsert));
+  } finally {
+    // Siempre se reactiva, incluso si el insert falla — para que un error a
+    // mitad de camino no deje el trigger apagado permanentemente.
+    await admin.rpc('radar_events_toggle_trigger', {
+      p_trigger_name: 'trg_radar_on_new_organization',
+      p_enable: true,
+    });
+  }
   if (insertError) {
     return NextResponse.json({ error: insertError.message }, { status: 500 });
   }
