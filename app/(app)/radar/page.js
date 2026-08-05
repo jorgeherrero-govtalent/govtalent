@@ -76,7 +76,7 @@ export default function RadarResumenHoy() {
   const { perfil, vacantes_recomendadas, organizaciones_recomendadas, novedades } = data;
 
   return (
-    <div style={{ maxWidth: 1200, margin: '0 auto', padding: '26px 32px 60px' }}>
+    <div style={{ maxWidth: 1080, margin: '0 auto', padding: '26px 20px 60px' }}>
       {/* Cabecera */}
       <div style={{ marginBottom: 22 }}>
         <div style={{ fontSize: 22, fontWeight: 700, color: '#15140f' }}>Hola{perfil.nombre ? `, ${perfil.nombre}` : ''}</div>
