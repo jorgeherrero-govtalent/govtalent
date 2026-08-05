@@ -243,16 +243,16 @@ export default function OrganizationsBackofficePage() {
     const ids = [...selectedIds];
     if (ids.length === 0) return;
     setBulkBusy(true);
-    await Promise.all(
-      ids.map((id) =>
-        fetch(`/api/backoffice/organizations/${id}`, {
-          method: 'PATCH',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ verified: true }),
-        })
-      )
-    );
+    const res = await fetch('/api/backoffice/organizations/bulk-verify', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ids }),
+    });
     setBulkBusy(false);
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      return showToast(data.error || 'No se pudo verificar en bloque');
+    }
     setOrgs((prev) => prev.map((o) => (ids.includes(o.id) ? { ...o, verified: true } : o)));
     setSelectedIds(new Set());
     showToast(`${ids.length} organizaciones verificadas ✓`);
