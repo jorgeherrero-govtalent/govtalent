@@ -3,6 +3,13 @@
 import { useState } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { toast } from '@/lib/toast';
+import {
+  CAREER_SITUATIONS,
+  ORG_TYPES,
+  ROLE_TYPES,
+  LEVEL_TYPES,
+  SHOWS_DETAIL_QUESTIONS,
+} from '@/lib/professionalSituation';
 
 const WORK_AREAS = [
   'Public Affairs',
@@ -38,36 +45,6 @@ const INTEREST_AREAS = [
   'Política territorial',
   'Sector financiero',
   'Agricultura y medio rural',
-];
-
-const CAREER_SITUATIONS = [
-  { value: 'trabajo_sector', label: 'Ya trabajo en asuntos públicos / relaciones institucionales' },
-  { value: 'area_afin', label: 'Trabajo en un área afín (comunicación, derecho, política, periodismo...)' },
-  { value: 'area_no_relacionada', label: 'Trabajo en un área no relacionada' },
-  { value: 'primera_experiencia', label: 'Busco mi primera experiencia laboral / soy estudiante' },
-];
-
-const ORG_TYPES = [
-  { value: 'consultora', label: 'Consultora de asuntos públicos' },
-  { value: 'empresa_privada', label: 'Empresa privada' },
-  { value: 'institucion_publica', label: 'Institución pública' },
-  { value: 'asociacion_sectorial', label: 'Asociación sectorial' },
-  { value: 'tercer_sector', label: 'Tercer sector / ONG' },
-];
-
-const ROLE_TYPES = [
-  { value: 'consultor', label: 'Consultor de asuntos públicos' },
-  { value: 'responsable_ap', label: 'Responsable de asuntos públicos (Corporate Public Affairs)' },
-  { value: 'responsable_ri', label: 'Responsable de relaciones institucionales' },
-  { value: 'especialista_regulacion', label: 'Especialista en regulación y public policy' },
-  { value: 'incidencia_advocacy', label: 'Incidencia y advocacy' },
-];
-
-const LEVEL_TYPES = [
-  { value: 'tecnico_responsable_area', label: 'Técnico / Responsable de área' },
-  { value: 'directivo', label: 'Directivo' },
-  { value: 'consultor', label: 'Consultor' },
-  { value: 'otro', label: 'Otro' },
 ];
 
 // Se muestra como ventana obligatoria mientras el usuario no haya
@@ -513,7 +490,7 @@ export default function OnboardingModal({ userId, onComplete }) {
               ))}
             </div>
 
-            {(form.career_situation === 'trabajo_sector' || form.career_situation === 'area_afin') && (
+            {SHOWS_DETAIL_QUESTIONS.includes(form.career_situation) && (
               <>
                 <div className="slbl">¿En qué tipo de entorno trabajas actualmente?</div>
                 <div className="tags" style={{ marginBottom: 20 }}>
@@ -561,7 +538,7 @@ export default function OnboardingModal({ userId, onComplete }) {
               disabled={
                 saving ||
                 !form.career_situation ||
-                ((form.career_situation === 'trabajo_sector' || form.career_situation === 'area_afin') &&
+                (SHOWS_DETAIL_QUESTIONS.includes(form.career_situation) &&
                   (!form.org_type || !form.role_type || !form.level_type))
               }
               onClick={finish}
