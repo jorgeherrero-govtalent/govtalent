@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
 import OrganizationFollowButton from '@/components/OrganizationFollowButton';
+import RadiografiaModal from '@/components/RadiografiaModal';
 
 const SECTOR_LABELS = {
   energia_clima: 'Energía y clima',
@@ -55,6 +56,7 @@ function formatFecha(iso) {
 export default function RadarResumenHoy() {
   const [data, setData] = useState(null);
   const [userId, setUserId] = useState(null);
+  const [showRadiografia, setShowRadiografia] = useState(false);
 
   useEffect(() => {
     fetch('/api/radar/summary')
@@ -276,6 +278,53 @@ export default function RadarResumenHoy() {
           <div style={{ fontSize: 12.5, color: '#a3a297' }}>Todavía no hay vacantes activas que mostrar.</div>
         )}
       </div>
+
+      {/* Radiografía Profesional */}
+      <div style={{ marginBottom: 26 }}>
+        <div
+          onClick={() => setShowRadiografia(true)}
+          className="job-card-hover"
+          style={{ cursor: 'pointer' }}
+        >
+          <div
+            style={{
+              background: 'linear-gradient(160deg, #faf9ff 0%, #f2effc 100%)',
+              border: '1px solid #e2dcf8',
+              borderRadius: 14,
+              padding: '18px 20px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              flexWrap: 'wrap',
+              gap: 12,
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+              <div
+                style={{
+                  width: 38,
+                  height: 38,
+                  borderRadius: 10,
+                  background: '#e5defc',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  flexShrink: 0,
+                }}
+              >
+                <i className="ti ti-chart-donut" style={{ fontSize: 18, color: '#6d5aef' }}></i>
+              </div>
+              <div>
+                <div style={{ fontSize: 13.5, fontWeight: 700, color: '#15140f' }}>Tu Radiografía Profesional</div>
+                <div style={{ fontSize: 12, color: '#57564f' }}>Descubre cómo encaja tu perfil en el sector</div>
+              </div>
+            </div>
+            <div style={{ fontSize: 12, fontWeight: 600, color: '#6d5aef', whiteSpace: 'nowrap' }}>Ver mi resultado →</div>
+          </div>
+        </div>
+      </div>
+
+      {showRadiografia && <RadiografiaModal onClose={() => setShowRadiografia(false)} />}
 
       {/* Organizaciones que pueden interesarte */}
       <div style={{ marginBottom: 26 }}>
