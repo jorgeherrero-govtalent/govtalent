@@ -5,7 +5,7 @@ import { createClient } from '@/lib/supabase/server';
 // Diccionarios (ver documento de diseño, secciones 4, 5 y 9)
 // ============================================================================
 
-const GRADO_TOP3 = ['ciencias polít', 'derecho', 'periodismo', 'relaciones internacionales'];
+const GRADO_TOP3 = ['ciencia polít', 'derecho', 'periodismo', 'relaciones internacionales'];
 
 const POSGRADO_KEYWORDS = ['máster', 'master', 'posgrado', 'postgrado', 'doctorado', 'phd'];
 
@@ -15,11 +15,14 @@ const FORMACION_ESPECIFICA_KEYWORDS = [
   'gabinetes institucionales',
   'comunicación corporativa', 'corporate communications',
   'lobby', 'lobbying', 'cabildeo',
-  'política pública', 'public policy', 'mpp',
-  'administración pública', 'mpa',
+  'política pública', 'políticas públicas', 'public policy', 'master in public policy',
   'asuntos regulatorios', 'regulatory affairs',
   'corporate affairs',
 ];
+// Nota: se quitó "administración pública" y la sigla suelta "MPA" — esa
+// expresión forma parte del nombre del grado generalista más común del
+// sector ("Ciencia Política y Administración Pública"), así que producía
+// falsos positivos con la formación de grado, no de posgrado especializado.
 
 // Categoría más común del informe APRI/UNAV (36,7%) — único "acierto" del criterio 4
 const ORG_TYPE_MAS_COMUN = 'empresa_privada';
