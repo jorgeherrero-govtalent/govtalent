@@ -218,7 +218,7 @@ export default function RadarResumenHoy() {
         {vacantes_recomendadas.length > 0 ? (
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 14 }}>
             {vacantes_recomendadas.map((v) => (
-              <Link key={v.id} href={`/jobs/${v.id}`} className="job-card-hover" style={{ textDecoration: 'none', display: 'block' }}>
+              <Link key={v.id} href={`/empleo/${v.id}`} className="job-card-hover" style={{ textDecoration: 'none', display: 'block' }}>
                 <div style={{ background: '#fff', border: '1px solid #eceae2', borderRadius: 14, padding: '16px 18px', height: '100%' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
                     <div
