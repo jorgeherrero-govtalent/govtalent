@@ -5,7 +5,11 @@ import { createClient } from '@/lib/supabase/server';
 // Diccionarios (ver documento de diseño, secciones 4, 5 y 9)
 // ============================================================================
 
-const GRADO_TOP3 = ['ciencia polít', 'derecho', 'periodismo', 'relaciones internacionales'];
+const GRADO_TOP3 = ['ciencia polít', 'ciencias polít', 'derecho', 'periodismo', 'relaciones internacionales'];
+// Nota: "ciencia polít" y "ciencias polít" son dos palabras clave distintas
+// a propósito — la búsqueda es de coincidencia literal de texto, y "ciencia
+// polít" (singular) NO es una subcadena de "ciencias políticas" (plural) por
+// la "s" de en medio, así que hacen falta las dos variantes por separado.
 
 const POSGRADO_KEYWORDS = ['máster', 'master', 'posgrado', 'postgrado', 'doctorado', 'phd'];
 
@@ -167,7 +171,7 @@ export async function GET() {
     ajuste_aplicado: ajustePct > 0,
     mensaje_ajuste:
       ajustePct > 0
-        ? 'Tu formación encaja bien con el sector; hemos ajustado el resultado para reflejar tu situación profesional actual.'
+        ? 'Hemos ajustado tu resultado para reflejar tu situación profesional actual respecto al sector.'
         : null,
     fuente: 'Basado en el estudio "Radiografía de la Profesión en España", del Observatorio de Asuntos Públicos (Universidad de Navarra y APRI).',
   };
