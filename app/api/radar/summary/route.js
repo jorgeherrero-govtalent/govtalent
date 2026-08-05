@@ -22,7 +22,7 @@ export async function GET() {
     eventsRes,
   ] = await Promise.all([
     supabase.from('users').select('first_name, avatar_url').eq('id', userId).single(),
-    supabase.from('candidate_profiles').select('profile_completion_pct, cv_url, website_url, linkedin_url').eq('user_id', userId).maybeSingle(),
+    supabase.from('candidate_profiles').select('profile_completion_pct, cv_url, website_url, linkedin_url, level_type').eq('user_id', userId).maybeSingle(),
     supabase.from('user_work_areas').select('area').eq('user_id', userId),
     supabase.from('user_interest_areas').select('area').eq('user_id', userId),
     supabase.from('experiences').select('id').eq('user_id', userId).limit(1),
@@ -70,9 +70,28 @@ export async function GET() {
 
   // --- Oportunidades para ti: 3 vacantes, con relleno si no hay suficiente señal personal ---
   const todasVacantes = jobsRes.data || [];
+
+  // Sin campo estructurado de seniority en `jobs`, se detecta por palabras
+  // clave del título — igual que hemos tenido que hacer en otros sitios de
+  // la app donde no existe un dato limpio. Solo se usa para DESPRIORIZAR,
+  // nunca para eliminar del todo (puede haber gente junior sin nivel
+  // relleno para quien sí encajen).
+  const PALABRAS_JUNIOR = ['becari', 'práctica', 'practica', 'junior', 'trainee', 'intern'];
+  const esVacanteJunior = (titulo) => {
+    const t = (titulo || '').toLowerCase();
+    return PALABRAS_JUNIOR.some((p) => t.includes(p));
+  };
+  const candidatoEsDirectivo = profileRes.data?.level_type === 'directivo';
+
   const vacantesEmparejadas = misAreas.size ? todasVacantes.filter((j) => misAreas.has(j.area)) : [];
   const vacantesRelleno = todasVacantes.filter((j) => !vacantesEmparejadas.includes(j));
-  const vacantesRecomendadas = [...vacantesEmparejadas, ...vacantesRelleno].slice(0, 3).map((j) => ({
+  let vacantesOrdenadas = [...vacantesEmparejadas, ...vacantesRelleno];
+
+  if (candidatoEsDirectivo) {
+    vacantesOrdenadas = [...vacantesOrdenadas].sort((a, b) => esVacanteJunior(a.title) - esVacanteJunior(b.title));
+  }
+
+  const vacantesRecomendadas = vacantesOrdenadas.slice(0, 3).map((j) => ({
     id: j.id,
     title: j.title,
     organization_name: j.organizations?.name || 'Organización',
