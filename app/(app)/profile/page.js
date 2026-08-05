@@ -8,6 +8,13 @@ import { toast } from '@/lib/toast';
 import { useDragPosition, parsePosition } from '@/lib/useDragPosition';
 import ProgressChecklist from '@/components/ProgressChecklist';
 import FirstTimeHint from '@/components/FirstTimeHint';
+import {
+  CAREER_SITUATIONS,
+  ORG_TYPES,
+  ROLE_TYPES,
+  LEVEL_TYPES,
+  SHOWS_DETAIL_QUESTIONS,
+} from '@/lib/professionalSituation';
 
 export default function ProfilePage() {
   const supabase = createClient();
@@ -65,6 +72,33 @@ export default function ProfilePage() {
 
   function dismissAiCvTip() {
     setShowAiCvTip(false);
+  }
+
+  // Situación profesional (career_situation, org_type, role_type, level_type):
+  // alimenta la Radiografía Profesional. Se piden en el onboarding, pero
+  // quien crea una organización primero nunca pasa por ahí, y quienes se
+  // registraron antes de que existieran estas preguntas tampoco las tienen
+  // — por eso viven aquí también, siempre editables.
+  const [situ, setSitu] = useState({
+    career_situation: '',
+    org_type: '',
+    role_type: '',
+    level_type: '',
+  });
+
+  useEffect(() => {
+    if (profile) {
+      setSitu({
+        career_situation: profile.career_situation || '',
+        org_type: profile.org_type || '',
+        role_type: profile.role_type || '',
+        level_type: profile.level_type || '',
+      });
+    }
+  }, [profile]);
+
+  function selectSitu(field, value) {
+    setSitu((s) => ({ ...s, [field]: value }));
   }
 
   const INTEREST_OPTIONS = [
@@ -180,11 +214,19 @@ export default function ProfilePage() {
       professional_title: f.get('professional_title') || null,
       location: f.get('location') || null,
     };
+    const showsDetail = SHOWS_DETAIL_QUESTIONS.includes(situ.career_situation);
     const profileUpdates = {
       website_url: f.get('website_url') || null,
       linkedin_url: f.get('linkedin_url') || null,
       bio: f.get('bio') || null,
       contact_email: f.get('contact_email') || null,
+      career_situation: situ.career_situation || null,
+      // Si la situación no requiere entorno/rol/nivel (área no relacionada,
+      // primera experiencia), limpiamos esos campos para que no queden
+      // datos huérfanos de una respuesta anterior.
+      org_type: showsDetail ? situ.org_type || null : null,
+      role_type: showsDetail ? situ.role_type || null : null,
+      level_type: showsDetail ? situ.level_type || null : null,
     };
 
     const [{ error: uErr }, { error: pErr }] = await Promise.all([
@@ -974,6 +1016,78 @@ export default function ProfilePage() {
                   placeholder="Cuenta tu experiencia y especialización..."
                 ></textarea>
               </div>
+
+              <div className="field" style={{ marginTop: 4 }}>
+                <label>Tu situación profesional</label>
+                <p style={{ fontSize: 11.5, color: '#999', marginBottom: 10 }}>
+                  Usamos esto para comparar tu perfil con el sector en la Radiografía Profesional.
+                </p>
+
+                <div className="slbl">¿Cuál es tu situación profesional actual respecto a los asuntos públicos?</div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 20 }}>
+                  {CAREER_SITUATIONS.map((opt) => (
+                    <div
+                      key={opt.value}
+                      onClick={() => selectSitu('career_situation', opt.value)}
+                      style={{
+                        padding: '12px 14px',
+                        borderRadius: 10,
+                        border: situ.career_situation === opt.value ? '1.5px solid #1d6f5c' : '1.5px solid #e0dfd8',
+                        background: situ.career_situation === opt.value ? '#eaf5f0' : '#fff',
+                        fontSize: 13,
+                        fontWeight: situ.career_situation === opt.value ? 600 : 400,
+                        cursor: 'pointer',
+                      }}
+                    >
+                      {opt.label}
+                    </div>
+                  ))}
+                </div>
+
+                {SHOWS_DETAIL_QUESTIONS.includes(situ.career_situation) && (
+                  <>
+                    <div className="slbl">¿En qué tipo de entorno trabajas actualmente?</div>
+                    <div className="tags" style={{ marginBottom: 20 }}>
+                      {ORG_TYPES.map((opt) => (
+                        <div
+                          key={opt.value}
+                          className={`tp ${situ.org_type === opt.value ? 'on' : ''}`}
+                          onClick={() => selectSitu('org_type', opt.value)}
+                        >
+                          {opt.label}
+                        </div>
+                      ))}
+                    </div>
+
+                    <div className="slbl">¿Cuál de estos describe mejor tu rol actual?</div>
+                    <div className="tags" style={{ marginBottom: 20 }}>
+                      {ROLE_TYPES.map((opt) => (
+                        <div
+                          key={opt.value}
+                          className={`tp ${situ.role_type === opt.value ? 'on' : ''}`}
+                          onClick={() => selectSitu('role_type', opt.value)}
+                        >
+                          {opt.label}
+                        </div>
+                      ))}
+                    </div>
+
+                    <div className="slbl">¿Qué nivel describe mejor tu puesto actual?</div>
+                    <div className="tags" style={{ marginBottom: 8 }}>
+                      {LEVEL_TYPES.map((opt) => (
+                        <div
+                          key={opt.value}
+                          className={`tp ${situ.level_type === opt.value ? 'on' : ''}`}
+                          onClick={() => selectSitu('level_type', opt.value)}
+                        >
+                          {opt.label}
+                        </div>
+                      ))}
+                    </div>
+                  </>
+                )}
+              </div>
+
               <div className="m-foot">
                 <button type="button" className="m-back" onClick={() => setShowEditProfile(false)}>
                   Cancelar
