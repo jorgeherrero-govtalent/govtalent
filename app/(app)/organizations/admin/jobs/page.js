@@ -33,6 +33,11 @@ export default function AllJobsPage() {
   const [savingJobEdit, setSavingJobEdit] = useState(false);
 
   const [showNewJob, setShowNewJob] = useState(false);
+  const [applicationMode, setApplicationMode] = useState('interna');
+  function closeNewJobModal() {
+    setShowNewJob(false);
+    setApplicationMode('interna');
+  }
   const [posting, setPosting] = useState(false);
   const [aiPrompt, setAiPrompt] = useState('');
   const [showAiJobModal, setShowAiJobModal] = useState(false);
@@ -71,7 +76,7 @@ export default function AllJobsPage() {
 
     const { data } = await supabase
       .from('jobs')
-      .select('id, title, area, location, modality, status, created_at, job_applications(count)')
+      .select('id, title, area, location, modality, status, created_at, application_mode, external_apply_url, external_apply_clicks, job_applications(count)')
       .eq('organization_id', membership.organizations.id)
       .order('created_at', { ascending: false });
 
@@ -215,7 +220,7 @@ export default function AllJobsPage() {
 
     const activeCount = jobs.filter((j) => j.status === 'activa').length;
     if (isVerified && org && !canPostAnotherJob(org, activeCount)) {
-      setShowNewJob(false);
+      closeNewJobModal();
       setUpgradeModal({
         title: 'Ofertas activas',
         message: `El plan gratuito incluye ${freeJobLimit()} oferta activa a la vez. Actualiza tu plan para publicar más.`,
@@ -238,6 +243,8 @@ export default function AllJobsPage() {
         salary_min: f.get('salary_min') ? Number(f.get('salary_min')) : null,
         salary_max: f.get('salary_max') ? Number(f.get('salary_max')) : null,
         description: f.get('description'),
+        application_mode: applicationMode,
+        external_apply_url: applicationMode === 'externa' ? f.get('external_apply_url') : null,
         status: isVerified ? 'activa' : 'borrador',
         published_at: isVerified ? new Date().toISOString() : null,
       })
@@ -275,6 +282,7 @@ export default function AllJobsPage() {
     setPosting(false);
     e.target.reset();
     setAiPrompt('');
+    setApplicationMode('interna');
     setShowNewJob(false);
     load();
 
@@ -402,14 +410,30 @@ export default function AllJobsPage() {
                   <div style={{ fontSize: 12, color: '#999', marginTop: 2 }}>
                     {j.location} · {j.modality === 'presencial' ? 'Presencial' : j.modality === 'hibrido' ? 'Híbrido' : 'Remoto'}
                   </div>
+                  {j.application_mode === 'externa' && (
+                    <div style={{ fontSize: 11.5, color: '#999', marginTop: 5 }}>
+                      Gestión externa · {j.external_apply_clicks || 0} clics a tu web
+                    </div>
+                  )}
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-                  <Link
-                    href={`/organizations/admin/candidates?job=${j.id}`}
-                    style={{ fontSize: 12.5, color: '#1d6f5c', textDecoration: 'none', fontWeight: 500 }}
-                  >
-                    {j.job_applications?.[0]?.count || 0} solicitudes
-                  </Link>
+                  {j.application_mode === 'externa' ? (
+                    <a
+                      href={j.external_apply_url}
+                      target="_blank"
+                      rel="noreferrer"
+                      style={{ fontSize: 12.5, color: '#1d6f5c', textDecoration: 'none', fontWeight: 500, display: 'inline-flex', alignItems: 'center', gap: 4 }}
+                    >
+                      <i className="ti ti-external-link" style={{ fontSize: 12.5 }}></i> Ver oferta externa
+                    </a>
+                  ) : (
+                    <Link
+                      href={`/organizations/admin/candidates?job=${j.id}`}
+                      style={{ fontSize: 12.5, color: '#1d6f5c', textDecoration: 'none', fontWeight: 500 }}
+                    >
+                      {j.job_applications?.[0]?.count || 0} solicitudes
+                    </Link>
+                  )}
                   <button
                     className="btn-o"
                     style={{ fontSize: 12, padding: '6px 12px' }}
@@ -557,11 +581,11 @@ export default function AllJobsPage() {
         </div>
       )}
       {showNewJob && (
-        <div className="modal-ov on" onClick={(e) => e.target === e.currentTarget && setShowNewJob(false)}>
+        <div className="modal-ov on" onClick={(e) => e.target === e.currentTarget && closeNewJobModal()}>
           <div className="modal-box" style={{ maxWidth: 640 }}>
             <div className="modal-head">
               <h2>Publicar oferta de empleo</h2>
-              <div className="modal-x" onClick={() => setShowNewJob(false)}>
+              <div className="modal-x" onClick={closeNewJobModal}>
                 <i className="ti ti-x"></i>
               </div>
             </div>
@@ -571,6 +595,54 @@ export default function AllJobsPage() {
               </button>
             </div>
             <form onSubmit={publishJob}>
+              <div className="form-g" style={{ marginBottom: 16 }}>
+                <label>¿Cómo quieres gestionar la candidatura?</label>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginTop: 4 }}>
+                  <div
+                    onClick={() => setApplicationMode('interna')}
+                    style={{
+                      border: applicationMode === 'interna' ? '2px solid #1d6f5c' : '1px solid #e0dfd8',
+                      background: applicationMode === 'interna' ? '#f0f8f5' : '#fff',
+                      borderRadius: 10,
+                      padding: 14,
+                      cursor: 'pointer',
+                    }}
+                  >
+                    <i className="ti ti-layout-kanban" style={{ fontSize: 20, color: '#6d5aef' }}></i>
+                    <div style={{ fontSize: 13, fontWeight: 600, color: '#1a1a18', marginTop: 8 }}>Dentro de GovTalent</div>
+                    <div style={{ fontSize: 11.5, color: '#666', marginTop: 3 }}>
+                      Recibe candidaturas y gestiónalas en el tablero con nuestro ATS integrado
+                    </div>
+                  </div>
+                  <div
+                    onClick={() => setApplicationMode('externa')}
+                    style={{
+                      border: applicationMode === 'externa' ? '2px solid #1d6f5c' : '1px solid #e0dfd8',
+                      background: applicationMode === 'externa' ? '#f0f8f5' : '#fff',
+                      borderRadius: 10,
+                      padding: 14,
+                      cursor: 'pointer',
+                    }}
+                  >
+                    <i className="ti ti-external-link" style={{ fontSize: 20, color: '#666' }}></i>
+                    <div style={{ fontSize: 13, fontWeight: 600, color: '#1a1a18', marginTop: 8 }}>En una web externa</div>
+                    <div style={{ fontSize: 11.5, color: '#666', marginTop: 3 }}>
+                      Publicamos la oferta en el portal, pero cada candidato aplica en la web que nos indiques
+                    </div>
+                  </div>
+                </div>
+                {applicationMode === 'externa' && (
+                  <div style={{ marginTop: 12 }}>
+                    <label>URL donde aplicar</label>
+                    <input
+                      name="external_apply_url"
+                      type="url"
+                      required
+                      placeholder="https://tuweb.com/carreras/oferta"
+                    />
+                  </div>
+                )}
+              </div>
               <div className="form-row">
                 <div className="form-g">
                   <label>Título del puesto</label>
@@ -636,7 +708,7 @@ export default function AllJobsPage() {
                 <input ref={tagsRef} name="tags" placeholder="Public Affairs, Regulación, Liderazgo" />
               </div>
               <div className="m-foot">
-                <button type="button" className="m-back" onClick={() => setShowNewJob(false)}>
+                <button type="button" className="m-back" onClick={closeNewJobModal}>
                   Cancelar
                 </button>
                 <button className="m-next" disabled={posting}>
