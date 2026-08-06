@@ -314,6 +314,11 @@ export default function OrganizationsDatabasePage() {
   const [exportUsage, setExportUsage] = useState(null);
   const [exportBusy, setExportBusy] = useState(false);
   const [exportError, setExportError] = useState('');
+  const [exportRows, setExportRows] = useState([]);
+  // Ids de organización marcadas con el checkbox — un Set plano en vez de
+  // depender de `filtered`/`paginated`, así la selección sobrevive a
+  // cambios de página o de filtros tal como pidió Jorge.
+  const [selectedIds, setSelectedIds] = useState(new Set());
 
   useEffect(() => {
     checkPlan();
@@ -485,8 +490,8 @@ export default function OrganizationsDatabasePage() {
     };
   }, [filtered]);
 
-  function handleExport() {
-    const rows = filtered.map((o) => ({
+  function handleExport(rows) {
+    const data = rows.map((o) => ({
       Organización: o.name,
       Tipo: TYPE_LABELS[o.org_type] || '',
       Ubicación: o.location || '',
@@ -498,14 +503,18 @@ export default function OrganizationsDatabasePage() {
       'Sitio web': o.website_url || '',
       LinkedIn: o.linkedin_url || '',
     }));
-    const ws = XLSX.utils.json_to_sheet(rows);
+    const ws = XLSX.utils.json_to_sheet(data);
     ws['!cols'] = [{ wch: 34 }, { wch: 18 }, { wch: 16 }, { wch: 22 }, { wch: 12 }, { wch: 26 }, { wch: 10 }, { wch: 14 }, { wch: 28 }, { wch: 28 }];
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, 'Directorio');
     XLSX.writeFile(wb, `directorio-govtalent-${new Date().toISOString().slice(0, 10)}.xlsx`);
   }
 
-  async function openExportConfirm() {
+  // rows: qué conjunto se va a exportar — `filtered` desde el botón de
+  // arriba, o solo las organizaciones marcadas desde la barra flotante de
+  // selección.
+  async function openExportConfirm(rows) {
+    setExportRows(rows);
     setExportError('');
     setShowExportConfirm(true);
     const res = await fetch('/api/organizations/database/export');
@@ -522,7 +531,7 @@ export default function OrganizationsDatabasePage() {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        rowCount: filtered.length,
+        rowCount: exportRows.length,
         filters: {
           quickFilter,
           types: [...typeFilter],
@@ -531,6 +540,7 @@ export default function OrganizationsDatabasePage() {
           sizes: [...sizeFilter],
           patronales: [...patronalFilter],
           search: search || undefined,
+          seleccionManual: selectedIds.size > 0,
         },
       }),
     });
@@ -541,9 +551,18 @@ export default function OrganizationsDatabasePage() {
       if (data.usedThisMonth !== undefined) setExportUsage({ usedThisMonth: data.usedThisMonth, limit: data.limit });
       return;
     }
-    handleExport();
+    handleExport(exportRows);
     setExportUsage({ usedThisMonth: data.usedThisMonth, limit: data.limit });
     setShowExportConfirm(false);
+  }
+
+  function toggleSelected(id) {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
   }
 
   async function runAiSearch() {
@@ -587,6 +606,23 @@ export default function OrganizationsDatabasePage() {
   const pageEnd = Math.min(filtered.length, (currentPage + 1) * pageSize);
   const paginated = filtered.slice(currentPage * pageSize, currentPage * pageSize + pageSize);
 
+  // El checkbox de cabecera solo controla la página visible, no los cientos
+  // de resultados filtrados — es lo que espera cualquiera acostumbrado a
+  // Airtable/Notion/Clay.
+  const allPageSelected = paginated.length > 0 && paginated.every((o) => selectedIds.has(o.id));
+  function toggleSelectPage() {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (allPageSelected) {
+        paginated.forEach((o) => next.delete(o.id));
+      } else {
+        paginated.forEach((o) => next.add(o.id));
+      }
+      return next;
+    });
+  }
+  const selectedOrgs = orgs ? orgs.filter((o) => selectedIds.has(o.id)) : [];
+
   if (orgs === null || !planChecked) return <div className="spinner"></div>;
 
   if (!planAllowed) {
@@ -607,7 +643,7 @@ export default function OrganizationsDatabasePage() {
   }
 
   return (
-    <div style={{ padding: '24px 28px', maxWidth: 1280 }}>
+    <div style={{ padding: `24px 28px ${selectedIds.size > 0 ? 90 : 24}px`, maxWidth: 1280 }}>
       <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 18, flexWrap: 'wrap', gap: 10 }}>
         <div>
           <h1 style={{ fontSize: 19, fontWeight: 700, margin: 0 }}>Directorio inteligente de organizaciones</h1>
@@ -615,7 +651,7 @@ export default function OrganizationsDatabasePage() {
         </div>
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
           <button
-            onClick={openExportConfirm}
+            onClick={() => openExportConfirm(filtered)}
             style={{
               display: 'flex',
               alignItems: 'center',
@@ -904,6 +940,15 @@ export default function OrganizationsDatabasePage() {
         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12.5 }}>
           <thead>
             <tr style={{ background: '#faf9f5', textAlign: 'left' }}>
+              <th style={{ padding: '10px 12px', width: 32 }}>
+                <input
+                  type="checkbox"
+                  checked={allPageSelected}
+                  onChange={toggleSelectPage}
+                  aria-label="Seleccionar toda la página"
+                  style={{ margin: 0, cursor: 'pointer' }}
+                />
+              </th>
               <th style={{ padding: '10px 14px' }}>
                 <FilterableHeader
                   label="Organización"
@@ -993,7 +1038,19 @@ export default function OrganizationsDatabasePage() {
           </thead>
           <tbody>
             {paginated.map((o) => (
-              <tr key={o.id} style={{ borderTop: '.5px solid #e0dfd8' }}>
+              <tr
+                key={o.id}
+                style={{ borderTop: '.5px solid #e0dfd8', background: selectedIds.has(o.id) ? '#f0f8f5' : 'transparent' }}
+              >
+                <td style={{ padding: '9px 12px' }}>
+                  <input
+                    type="checkbox"
+                    checked={selectedIds.has(o.id)}
+                    onChange={() => toggleSelected(o.id)}
+                    aria-label={`Seleccionar ${o.name}`}
+                    style={{ margin: 0, cursor: 'pointer' }}
+                  />
+                </td>
                 <td style={{ padding: '9px 14px', fontWeight: 600 }}>
                   {o.name}
                   {o.verified && <i className="ti ti-circle-check-filled" style={{ color: '#1d9d63', marginLeft: 5, fontSize: 13 }}></i>}
@@ -1048,7 +1105,7 @@ export default function OrganizationsDatabasePage() {
             ))}
             {paginated.length === 0 && (
               <tr>
-                <td colSpan={7} style={{ padding: 30, textAlign: 'center', color: '#999' }}>
+                <td colSpan={8} style={{ padding: 30, textAlign: 'center', color: '#999' }}>
                   No hay organizaciones que coincidan con estos filtros.
                 </td>
               </tr>
@@ -1131,6 +1188,67 @@ export default function OrganizationsDatabasePage() {
         </div>
       </div>
 
+      {selectedIds.size > 0 && (
+        <div
+          style={{
+            position: 'fixed',
+            bottom: 24,
+            left: '50%',
+            transform: 'translateX(-50%)',
+            background: '#1a1a18',
+            borderRadius: 12,
+            padding: '10px 14px',
+            display: 'flex',
+            alignItems: 'center',
+            gap: 14,
+            color: '#fff',
+            fontSize: 13,
+            boxShadow: '0 8px 24px rgba(0,0,0,.25)',
+            zIndex: 40,
+          }}
+        >
+          <span
+            style={{
+              background: '#1d6f5c',
+              color: '#fff',
+              padding: '4px 10px',
+              borderRadius: 20,
+              fontWeight: 600,
+              fontSize: 12,
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 6,
+            }}
+          >
+            {selectedIds.size} seleccionada{selectedIds.size === 1 ? '' : 's'}
+            <i
+              className="ti ti-x"
+              onClick={() => setSelectedIds(new Set())}
+              style={{ cursor: 'pointer', fontSize: 13 }}
+              aria-label="Quitar selección"
+            ></i>
+          </span>
+          <button
+            onClick={() => openExportConfirm(selectedOrgs)}
+            style={{
+              background: '#6d5aef',
+              color: '#fff',
+              border: 'none',
+              padding: '7px 14px',
+              borderRadius: 7,
+              fontSize: 12.5,
+              fontWeight: 500,
+              cursor: 'pointer',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 6,
+            }}
+          >
+            <i className="ti ti-download"></i> Exportar seleccionadas
+          </button>
+        </div>
+      )}
+
       {showExportConfirm && (
         <div className="modal-ov" onClick={() => !exportBusy && setShowExportConfirm(false)}>
           <div className="modal-box" style={{ maxWidth: 400 }} onClick={(e) => e.stopPropagation()}>
@@ -1156,7 +1274,7 @@ export default function OrganizationsDatabasePage() {
               <i className="ti ti-download"></i>
             </div>
             <div style={{ fontSize: 16, fontWeight: 600, color: '#1a1a18', marginBottom: 6 }}>
-              Estás exportando {filtered.length} organizaciones
+              Estás exportando {exportRows.length} organizaciones
             </div>
             <div style={{ fontSize: 13, color: '#666', lineHeight: 1.5, marginBottom: 14 }}>
               Se descargará un Excel con el directorio filtrado tal como lo ves ahora.
