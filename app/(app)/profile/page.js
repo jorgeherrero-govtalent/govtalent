@@ -1690,48 +1690,42 @@ export default function ProfilePage() {
             {(() => {
               // Une ambas listas y quita duplicados por si una oferta está
               // guardada y solicitada a la vez — para el usuario es "el
-              // mismo empleo", no dos entradas distintas. Usamos una clave
-              // estable por item (job_id/id) en vez del id de la oferta,
-              // porque una oferta borrada no tiene jobs.id con el que
-              // deduplicar ni indexar la key de React.
+              // mismo empleo", no dos entradas distintas. Las ofertas
+              // pausadas/borradas se quedan fuera de este resumen a
+              // propósito: aquí solo se listan activas. El detalle completo
+              // (incluidas las no disponibles, con aviso) vive en
+              // /profile/jobs, no aquí.
               const seen = new Set();
               const combined = [];
               for (const item of [...appliedJobs, ...savedJobs]) {
-                const jobId = item.jobs?.id;
-                const dedupeKey = jobId || `no-job:${item.id || item.job_id}`;
-                if (seen.has(dedupeKey)) continue;
-                seen.add(dedupeKey);
-                combined.push({ ...item, _key: dedupeKey });
+                if (!item.jobs || item.jobs.status !== 'activa') continue;
+                const jobId = item.jobs.id;
+                if (seen.has(jobId)) continue;
+                seen.add(jobId);
+                combined.push(item);
               }
               if (combined.length === 0) {
                 return <div style={{ fontSize: 12.5, color: '#999' }}>Ninguno todavía.</div>;
               }
-              return combined.slice(0, 4).map((sj) => {
-                const unavailable = !sj.jobs || sj.jobs.status !== 'activa';
-                return (
-                  <div className="sp" key={sj._key}>
-                    <div className="sp-av" style={{ borderRadius: 8, overflow: 'hidden' }}>
-                      {sj.jobs?.organizations?.logo_url ? (
-                        <img
-                          src={sj.jobs.organizations.logo_url}
-                          alt=""
-                          style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                        />
-                      ) : (
-                        <i className="ti ti-briefcase"></i>
-                      )}
-                    </div>
-                    <div>
-                      <div style={{ fontSize: 13, fontWeight: 500, color: unavailable ? '#999' : '#1a1a18' }}>
-                        {unavailable
-                          ? sj.jobs?.title || 'Oferta pausada o desactivada'
-                          : sj.jobs?.title}
-                      </div>
-                      <div style={{ fontSize: 11.5, color: '#888' }}>{sj.jobs?.organizations?.name}</div>
-                    </div>
+              return combined.slice(0, 4).map((sj) => (
+                <div className="sp" key={sj.jobs.id}>
+                  <div className="sp-av" style={{ borderRadius: 8, overflow: 'hidden' }}>
+                    {sj.jobs?.organizations?.logo_url ? (
+                      <img
+                        src={sj.jobs.organizations.logo_url}
+                        alt=""
+                        style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                      />
+                    ) : (
+                      <i className="ti ti-briefcase"></i>
+                    )}
                   </div>
-                );
-              });
+                  <div>
+                    <div style={{ fontSize: 13, fontWeight: 500 }}>{sj.jobs?.title}</div>
+                    <div style={{ fontSize: 11.5, color: '#888' }}>{sj.jobs?.organizations?.name}</div>
+                  </div>
+                </div>
+              ));
             })()}
             <Link href="/profile/jobs" style={{ fontSize: 12.5, color: '#1d6f5c' }}>
               Ver todos los empleos
