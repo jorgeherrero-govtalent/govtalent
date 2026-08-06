@@ -3,6 +3,8 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useEffect, useState } from 'react';
+import { createClient } from '@/lib/supabase/client';
+import { getEffectiveTier, trialDaysRemaining } from '@/lib/plan';
 
 const NAV = [
   { href: '/organizations/admin', label: 'Dashboard', icon: 'ti-layout-dashboard', exact: true },
@@ -17,11 +19,29 @@ const NAV = [
 export default function OrganizationAdminLayout({ children }) {
   const pathname = usePathname();
   const [collapsed, setCollapsed] = useState(false);
+  const [org, setOrg] = useState(null);
 
   useEffect(() => {
     const saved = localStorage.getItem('gt_org_admin_collapsed');
     if (saved === '1') setCollapsed(true);
+    loadOrg();
   }, []);
+
+  async function loadOrg() {
+    const supabase = createClient();
+    const { data: authData } = await supabase.auth.getUser();
+    const uid = authData.user?.id;
+    if (!uid) return;
+    const { data: membership } = await supabase
+      .from('organization_members')
+      .select('organizations(plan, plan_status, trial_ends_at)')
+      .eq('user_id', uid)
+      .limit(1)
+      .maybeSingle();
+    if (membership?.organizations) setOrg(membership.organizations);
+  }
+
+  const trialDays = org && getEffectiveTier(org) === 'trial' ? trialDaysRemaining(org) : null;
 
   function toggleCollapsed() {
     setCollapsed((prev) => {
@@ -81,11 +101,12 @@ export default function OrganizationAdminLayout({ children }) {
 
         {NAV.map((item) => {
           const active = item.exact ? pathname === item.href : pathname.startsWith(item.href);
+          const showTrialBadge = item.href === '/organizations/admin/plan' && trialDays !== null;
           return (
             <Link
               key={item.href}
               href={item.href}
-              title={collapsed ? item.label : undefined}
+              title={collapsed ? (showTrialBadge ? `${item.label} · ${trialDays}d de prueba` : item.label) : undefined}
               style={{
                 display: 'flex',
                 alignItems: 'center',
@@ -98,10 +119,40 @@ export default function OrganizationAdminLayout({ children }) {
                 fontWeight: active ? 600 : 500,
                 textDecoration: 'none',
                 fontSize: 13,
+                position: 'relative',
               }}
             >
               <i className={`ti ${item.icon}`} style={{ fontSize: 15, flexShrink: 0 }}></i>
               {!collapsed && item.label}
+              {!collapsed && showTrialBadge && (
+                <span
+                  style={{
+                    marginLeft: 'auto',
+                    fontSize: 10.5,
+                    fontWeight: 700,
+                    color: trialDays <= 1 ? '#b3261e' : '#b8860b',
+                    background: trialDays <= 1 ? '#fbeceb' : '#fff8e1',
+                    padding: '2px 7px',
+                    borderRadius: 20,
+                    whiteSpace: 'nowrap',
+                  }}
+                >
+                  {trialDays === 0 ? 'Último día' : `${trialDays}d`}
+                </span>
+              )}
+              {collapsed && showTrialBadge && (
+                <span
+                  style={{
+                    position: 'absolute',
+                    top: 4,
+                    right: 4,
+                    width: 7,
+                    height: 7,
+                    borderRadius: '50%',
+                    background: trialDays <= 1 ? '#b3261e' : '#b8860b',
+                  }}
+                ></span>
+              )}
             </Link>
           );
         })}
