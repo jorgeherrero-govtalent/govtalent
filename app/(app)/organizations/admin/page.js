@@ -178,7 +178,7 @@ export default function OrganizationAdminPage() {
                 )}
               </div>
               <div style={{ display: 'flex', gap: 8, marginBottom: 8, flexWrap: 'wrap' }}>
-                {jobs.length === 0 ? (
+                {kpis.activeJobs === 0 ? (
                   <a href="/organizations/admin/company" className="btn-o" style={{ textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 6 }}>
                     <i className="ti ti-edit"></i> Editar página de empresa
                   </a>
@@ -205,7 +205,7 @@ export default function OrganizationAdminPage() {
           </div>
 
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 13 }}>
-            {jobs.length === 0 ? (
+            {kpis.activeJobs === 0 ? (
               <a
                 href="/organizations/admin/jobs"
                 className="btn-ai"
@@ -250,7 +250,7 @@ export default function OrganizationAdminPage() {
               { label: 'Descripción de la organización', done: !!org.bio },
               { label: 'Sitio web', done: !!org.website_url },
               { label: 'Organización verificada', done: !!org.verified, onClick: () => setShowVerifyModal(true) },
-              { label: 'Primera oferta publicada', done: jobs.length > 0 },
+              { label: 'Primera oferta publicada', done: kpis.activeJobs > 0 },
               { label: 'Primera candidatura recibida', done: kpis.totalApplications > 0 },
               { label: 'Primera candidatura revisada', done: kpis.reviewedApplications > 0 },
             ]}
