@@ -36,11 +36,11 @@ export default function MyJobsPage() {
     const [{ data: savedData }, { data: appsData }] = await Promise.all([
       supabase
         .from('saved_jobs')
-        .select('job_id, jobs(id, title, location, modality, organizations(name, logo_url, slug))')
+        .select('job_id, jobs(id, title, location, modality, status, organizations(name, logo_url, slug))')
         .eq('user_id', uid),
       supabase
         .from('job_applications')
-        .select('id, status, applied_at, jobs(id, title, location, modality, organizations(name, logo_url, slug))')
+        .select('id, status, applied_at, jobs(id, title, location, modality, status, organizations(name, logo_url, slug))')
         .eq('candidate_id', uid)
         .order('applied_at', { ascending: false }),
     ]);
@@ -148,6 +148,11 @@ export default function MyJobsPage() {
                   <div style={{ fontSize: 12, color: '#999' }}>
                     {s.jobs?.location} · {s.jobs?.modality === 'presencial' ? 'Presencial' : s.jobs?.modality === 'hibrido' ? 'Híbrido' : 'Remoto'}
                   </div>
+                  {s.jobs && s.jobs.status !== 'activa' && (
+                    <div className="badge bgr" style={{ marginTop: 5, width: 'fit-content' }}>
+                      <i className="ti ti-player-pause" style={{ fontSize: 11 }}></i> La organización pausó o desactivó esta oferta
+                    </div>
+                  )}
                 </div>
                 <button className="btn-o" style={{ fontSize: 12 }} onClick={() => unsave(s.job_id)}>
                   <i className="ti ti-bookmark-off"></i> Quitar
@@ -187,6 +192,11 @@ export default function MyJobsPage() {
                     <div style={{ fontSize: 11.5, color: '#999' }}>
                       Solicitado el {new Date(a.applied_at).toLocaleDateString('es-ES')}
                     </div>
+                    {a.jobs && a.jobs.status !== 'activa' && (
+                      <div className="badge bgr" style={{ marginTop: 5, width: 'fit-content' }}>
+                        <i className="ti ti-player-pause" style={{ fontSize: 11 }}></i> La organización pausó o desactivó esta oferta
+                      </div>
+                    )}
                   </div>
                   <span
                     style={{
