@@ -5,6 +5,7 @@ import { SECTOR_LABELS } from '@/lib/orgTaxonomy';
 import { normalizeUrl } from '@/lib/normalizeUrl';
 import OrganizationFollowButton from '@/components/OrganizationFollowButton';
 import OrganizationClaimBanner from '@/components/OrganizationClaimBanner';
+import HoverTooltip from '@/components/HoverTooltip';
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://govtalent.app';
 
@@ -172,18 +173,16 @@ export default async function OrganizationPublicPage({ params }) {
           <div style={{ fontSize: 19, fontWeight: 700, marginBottom: 4, display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
             {org.name}
             {org.verified && (
-              <span className="tt">
+              <HoverTooltip label="Página verificada por la organización">
                 <i className="ti ti-circle-check-filled" style={{ color: '#1d9d63', fontSize: 17 }}></i>
-                <span className="tt-bubble">Página verificada por la organización</span>
-              </span>
+              </HoverTooltip>
             )}
             {hasInterestGroupBadge(org) && (
-              <span className="tt">
+              <HoverTooltip
+                label={`Grupo de interés registrado${org.interest_group_registry_number ? ` · ${org.interest_group_registry_number}` : ''}`}
+              >
                 <i className="ti ti-shield-check" style={{ color: '#6d5aef', fontSize: 17 }}></i>
-                <span className="tt-bubble">
-                  Grupo de interés registrado{org.interest_group_registry_number ? ` · ${org.interest_group_registry_number}` : ''}
-                </span>
-              </span>
+              </HoverTooltip>
             )}
           </div>
           {!org.verified && userId && (
