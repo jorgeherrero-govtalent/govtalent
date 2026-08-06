@@ -38,6 +38,7 @@ export default function ProfilePage() {
   const [skills, setSkills] = useState([]);
   const [languages, setLanguages] = useState([]);
   const [savedJobs, setSavedJobs] = useState([]);
+  const [appliedJobs, setAppliedJobs] = useState([]);
   const [followedOrgs, setFollowedOrgs] = useState([]);
 
   const [tab, setTab] = useState('e');
@@ -151,10 +152,16 @@ export default function ProfilePage() {
         supabase.from('skills').select('*').eq('user_id', uid).order('sort_order', { ascending: true }),
         supabase.from('languages').select('*').eq('user_id', uid).order('sort_order', { ascending: true }),
         supabase.from('saved_jobs').select('jobs(id, title, organizations(name, logo_url))').eq('user_id', uid),
+        supabase
+          .from('job_applications')
+          .select('jobs(id, title, organizations(name, logo_url))')
+          .eq('candidate_id', uid)
+          .neq('status', 'retirada')
+          .order('applied_at', { ascending: false }),
         supabase.from('organization_follows').select('organizations(id, slug, name, logo_url)').eq('user_id', uid),
       ]);
 
-      const [rUser, rProfile, rExp, rEdu, rSk, rLang, rSaved, rFollows] = results;
+      const [rUser, rProfile, rExp, rEdu, rSk, rLang, rSaved, rApplied, rFollows] = results;
 
       results.forEach((r, i) => {
         if (r.status === 'rejected') console.error('Profile load query', i, 'rejected:', r.reason);
@@ -179,6 +186,7 @@ export default function ProfilePage() {
       setSkills(rSk.status === 'fulfilled' ? rSk.value.data || [] : []);
       setLanguages(rLang.status === 'fulfilled' ? rLang.value.data || [] : []);
       setSavedJobs(rSaved.status === 'fulfilled' ? rSaved.value.data || [] : []);
+      setAppliedJobs(rApplied.status === 'fulfilled' ? rApplied.value.data || [] : []);
       setFollowedOrgs(rFollows.status === 'fulfilled' ? rFollows.value.data || [] : []);
     } catch (err) {
       console.error('Error inesperado cargando el perfil:', err);
@@ -1679,26 +1687,41 @@ export default function ProfilePage() {
 
           <div className="sw">
             <h4>Mis empleos guardados y solicitados</h4>
-            {savedJobs.length === 0 && <div style={{ fontSize: 12.5, color: '#999' }}>Ninguno todavía.</div>}
-            {savedJobs.slice(0, 4).map((sj, i) => (
-              <div className="sp" key={i}>
-                <div className="sp-av" style={{ borderRadius: 8, overflow: 'hidden' }}>
-                  {sj.jobs?.organizations?.logo_url ? (
-                    <img
-                      src={sj.jobs.organizations.logo_url}
-                      alt=""
-                      style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                    />
-                  ) : (
-                    <i className="ti ti-briefcase"></i>
-                  )}
+            {(() => {
+              // Une ambas listas y quita duplicados por si una oferta está
+              // guardada y solicitada a la vez — para el usuario es "el
+              // mismo empleo", no dos entradas distintas.
+              const seen = new Set();
+              const combined = [];
+              for (const item of [...appliedJobs, ...savedJobs]) {
+                const jobId = item.jobs?.id;
+                if (!jobId || seen.has(jobId)) continue;
+                seen.add(jobId);
+                combined.push(item);
+              }
+              if (combined.length === 0) {
+                return <div style={{ fontSize: 12.5, color: '#999' }}>Ninguno todavía.</div>;
+              }
+              return combined.slice(0, 4).map((sj, i) => (
+                <div className="sp" key={i}>
+                  <div className="sp-av" style={{ borderRadius: 8, overflow: 'hidden' }}>
+                    {sj.jobs?.organizations?.logo_url ? (
+                      <img
+                        src={sj.jobs.organizations.logo_url}
+                        alt=""
+                        style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                      />
+                    ) : (
+                      <i className="ti ti-briefcase"></i>
+                    )}
+                  </div>
+                  <div>
+                    <div style={{ fontSize: 13, fontWeight: 500 }}>{sj.jobs?.title}</div>
+                    <div style={{ fontSize: 11.5, color: '#888' }}>{sj.jobs?.organizations?.name}</div>
+                  </div>
                 </div>
-                <div>
-                  <div style={{ fontSize: 13, fontWeight: 500 }}>{sj.jobs?.title}</div>
-                  <div style={{ fontSize: 11.5, color: '#888' }}>{sj.jobs?.organizations?.name}</div>
-                </div>
-              </div>
-            ))}
+              ));
+            })()}
             <Link href="/profile/jobs" style={{ fontSize: 12.5, color: '#1d6f5c' }}>
               Ver todos los empleos
             </Link>
