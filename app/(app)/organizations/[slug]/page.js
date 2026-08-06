@@ -9,21 +9,13 @@ import HoverTooltip from '@/components/HoverTooltip';
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://govtalent.app';
 
-const ACTIVITY_TYPE_LABELS = {
-  reunion_audiencia: 'Reunión o audiencia',
-  conferencia_formacion: 'Conferencia o formación',
-  campana_comunicacion: 'Campaña de comunicación',
-  documento_posicion: 'Documento o posición entregado',
-  otro: 'Otro',
-};
-
 async function getOrgData(slug) {
   const supabase = createClient();
 
   const { data: org } = await supabase.from('organizations').select('*').eq('slug', slug).maybeSingle();
   if (!org) return { org: null };
 
-  const [{ data: authData }, { data: jobs }, { data: activities }] = await Promise.all([
+  const [{ data: authData }, { data: jobs }] = await Promise.all([
     supabase.auth.getUser(),
     supabase
       .from('jobs')
@@ -31,13 +23,6 @@ async function getOrgData(slug) {
       .eq('organization_id', org.id)
       .eq('status', 'activa')
       .order('created_at', { ascending: false }),
-    supabase
-      .from('influence_activities')
-      .select('id, activity_date, activity_type, counterpart_name, subject')
-      .eq('organization_id', org.id)
-      .eq('is_public', true)
-      .order('activity_date', { ascending: false })
-      .limit(15),
   ]);
 
   const userId = authData?.user?.id || null;
@@ -53,7 +38,7 @@ async function getOrgData(slug) {
     following = !!f;
   }
 
-  return { org, jobs: jobs || [], activities: activities || [], userId, following };
+  return { org, jobs: jobs || [], userId, following };
 }
 
 function buildOrganizationJsonLd(org) {
@@ -112,7 +97,7 @@ export async function generateMetadata({ params }) {
 }
 
 export default async function OrganizationPublicPage({ params }) {
-  const { org, jobs, activities, userId, following } = await getOrgData(params.slug);
+  const { org, jobs, userId, following } = await getOrgData(params.slug);
 
   if (!org) {
     return (
@@ -358,29 +343,14 @@ export default async function OrganizationPublicPage({ params }) {
         </div>
       </div>
 
-      {activities.length > 0 && (
-        <div className="card" style={{ maxWidth: 900, margin: '13px auto 0', padding: 20 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
-            <i className="ti ti-shield-check" style={{ color: '#6d5aef', fontSize: 17 }}></i>
-            <h3 style={{ fontSize: 15, fontWeight: 700, margin: 0 }}>Actividad de transparencia</h3>
-          </div>
-          <p style={{ fontSize: 12, color: '#888', marginBottom: 16 }}>
-            Contactos y actividades de influencia que esta organización ha hecho públicos voluntariamente, en línea
-            con la Ley de Transparencia e Integridad de los Grupos de Interés.
-          </p>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-            {activities.map((a) => (
-              <div key={a.id} style={{ display: 'flex', gap: 12, paddingBottom: 12, borderBottom: '.5px solid #e0dfd8' }}>
-                <div style={{ fontSize: 11.5, color: '#999', minWidth: 84, flexShrink: 0 }}>{a.activity_date}</div>
-                <div>
-                  <div style={{ fontSize: 12.5, fontWeight: 600, color: '#333' }}>
-                    {ACTIVITY_TYPE_LABELS[a.activity_type] || a.activity_type}
-                    {a.counterpart_name ? ` — ${a.counterpart_name}` : ''}
-                  </div>
-                  <div style={{ fontSize: 12, color: '#666' }}>{a.subject}</div>
-                </div>
-              </div>
-            ))}
+      {org.transparency_pledge && (
+        <div className="card" style={{ maxWidth: 900, margin: '13px auto 0', padding: 16, display: 'flex', alignItems: 'center', gap: 10 }}>
+          <i className="ti ti-shield-check" style={{ color: '#6d5aef', fontSize: 19, flexShrink: 0 }}></i>
+          <div>
+            <div style={{ fontSize: 13, fontWeight: 600, color: '#333' }}>
+              {org.name} se adhiere a la transparencia como grupo de interés
+            </div>
+            <div style={{ fontSize: 11.5, color: '#888' }}>Gesto autodeclarado a través de GovTalent.</div>
           </div>
         </div>
       )}
