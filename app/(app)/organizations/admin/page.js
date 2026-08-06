@@ -178,12 +178,20 @@ export default function OrganizationAdminPage() {
                 )}
               </div>
               <div style={{ display: 'flex', gap: 8, marginBottom: 8, flexWrap: 'wrap' }}>
-                <a href="/organizations/admin/company" className="btn-p" style={{ textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-                  <i className="ti ti-edit"></i> Editar página de empresa
-                </a>
-                <a href="/organizations/admin/candidates" className="btn-ai" style={{ textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-                  <i className="ti ti-layout-kanban"></i> Tablero de candidatos
-                </a>
+                {jobs.length === 0 ? (
+                  <a href="/organizations/admin/company" className="btn-o" style={{ textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                    <i className="ti ti-edit"></i> Editar página de empresa
+                  </a>
+                ) : (
+                  <>
+                    <a href="/organizations/admin/company" className="btn-p" style={{ textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                      <i className="ti ti-edit"></i> Editar página de empresa
+                    </a>
+                    <a href="/organizations/admin/candidates" className="btn-ai" style={{ textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                      <i className="ti ti-layout-kanban"></i> Tablero de candidatos
+                    </a>
+                  </>
+                )}
               </div>
               <a
                 href={`/organizations/${org.slug}`}
@@ -197,10 +205,31 @@ export default function OrganizationAdminPage() {
           </div>
 
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 13 }}>
-            <div className="card" style={{ padding: 16 }}>
-              <div style={{ fontSize: 22, fontWeight: 800, color: '#1d6f5c' }}>{kpis.activeJobs}</div>
-              <div style={{ fontSize: 12, color: '#888' }}>Ofertas activas</div>
-            </div>
+            {jobs.length === 0 ? (
+              <a
+                href="/organizations/admin/jobs?new=1"
+                className="btn-ai"
+                style={{
+                  padding: 16,
+                  borderRadius: 12,
+                  textDecoration: 'none',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  justifyContent: 'center',
+                  gap: 3,
+                }}
+              >
+                <div style={{ fontSize: 14, fontWeight: 500 }}>
+                  <i className="ti ti-plus" style={{ marginRight: 4 }}></i> Nueva oferta
+                </div>
+                <div style={{ fontSize: 11.5, opacity: 0.9 }}>Aún no tienes ofertas activas</div>
+              </a>
+            ) : (
+              <div className="card" style={{ padding: 16 }}>
+                <div style={{ fontSize: 22, fontWeight: 800, color: '#1d6f5c' }}>{kpis.activeJobs}</div>
+                <div style={{ fontSize: 12, color: '#888' }}>Ofertas activas</div>
+              </div>
+            )}
             <div className="card" style={{ padding: 16 }}>
               <div style={{ fontSize: 22, fontWeight: 800, color: '#1a1a18' }}>{kpis.totalApplications}</div>
               <div style={{ fontSize: 12, color: '#888' }}>Candidaturas (total)</div>
