@@ -121,7 +121,9 @@ export default function MyJobsPage() {
 
           {tab === 'guardados' &&
             saved.map((s) => {
-              const unavailable = !s.jobs || s.jobs.status !== 'activa';
+              const jobDeleted = !s.jobs;
+              const jobPaused = s.jobs && s.jobs.status !== 'activa';
+              const unavailable = jobDeleted || jobPaused;
               return (
                 <div key={s.job_id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '14px 0', borderBottom: '.5px solid #f0f0eb' }}>
                   <div
@@ -147,11 +149,16 @@ export default function MyJobsPage() {
                     {unavailable ? (
                       <>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-                          <span style={{ fontWeight: 600, fontSize: 14, color: '#888' }}>La organización pausó o desactivó esta oferta</span>
+                          <span style={{ fontWeight: 600, fontSize: 14, color: '#888' }}>
+                            {jobDeleted ? 'La organización pausó o desactivó esta oferta' : s.jobs.title}
+                          </span>
                           <HoverTooltip label="La organización pausó o desactivó esta oferta">
                             <i className="ti ti-info-circle" style={{ fontSize: 14, color: '#aaa' }}></i>
                           </HoverTooltip>
                         </div>
+                        {!jobDeleted && (
+                          <div style={{ fontSize: 12.5, color: '#999' }}>{s.jobs.organizations?.name}</div>
+                        )}
                         <div style={{ fontSize: 12, color: '#999' }}>
                           {s.created_at ? `Guardada el ${new Date(s.created_at).toLocaleDateString('es-ES')}` : 'Oferta no disponible'}
                         </div>
@@ -178,7 +185,9 @@ export default function MyJobsPage() {
           {tab === 'solicitados' &&
             applications.map((a) => {
               const st = STATUS_LABELS[a.status] || STATUS_LABELS.enviada;
-              const unavailable = !a.jobs || a.jobs.status !== 'activa';
+              const jobDeleted = !a.jobs;
+              const jobPaused = a.jobs && a.jobs.status !== 'activa';
+              const unavailable = jobDeleted || jobPaused;
               return (
                 <div key={a.id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '14px 0', borderBottom: '.5px solid #f0f0eb' }}>
                   <div
@@ -204,11 +213,16 @@ export default function MyJobsPage() {
                     {unavailable ? (
                       <>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-                          <span style={{ fontWeight: 600, fontSize: 14, color: '#888' }}>La organización pausó o desactivó esta oferta</span>
+                          <span style={{ fontWeight: 600, fontSize: 14, color: '#888' }}>
+                            {jobDeleted ? 'La organización pausó o desactivó esta oferta' : a.jobs.title}
+                          </span>
                           <HoverTooltip label="La organización pausó o desactivó esta oferta">
                             <i className="ti ti-info-circle" style={{ fontSize: 14, color: '#aaa' }}></i>
                           </HoverTooltip>
                         </div>
+                        {!jobDeleted && (
+                          <div style={{ fontSize: 12.5, color: '#999' }}>{a.jobs.organizations?.name}</div>
+                        )}
                         <div style={{ fontSize: 11.5, color: '#999' }}>
                           Solicitado el {new Date(a.applied_at).toLocaleDateString('es-ES')}
                         </div>
