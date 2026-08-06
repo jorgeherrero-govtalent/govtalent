@@ -20,7 +20,7 @@ function UnlockSection({ title, features }) {
             ))}
           </div>
         </div>
-        <Link href="/precios" target="_blank" className="btn-o" style={{ textDecoration: 'none', whiteSpace: 'nowrap' }}>
+        <Link href="/precios" target="_blank" className="btn-ai-o" style={{ textDecoration: 'none', whiteSpace: 'nowrap' }}>
           Actualizar
         </Link>
       </div>
@@ -83,7 +83,7 @@ export default function OrganizationPlanPage() {
           <Link
             href="/precios"
             target="_blank"
-            className="btn-p plan-card-cta"
+            className="btn-ai plan-card-cta"
             style={{ textDecoration: 'none', display: 'inline-flex', alignItems: 'center' }}
           >
             {trialStatus ? 'Actualizar a Pro' : 'Actualizar plan'}
@@ -129,7 +129,7 @@ export default function OrganizationPlanPage() {
         <>
           <UnlockSection title="Desbloquea con Plus" features={['Ofertas ilimitadas', 'Descripción de oferta con IA']} />
           <UnlockSection
-            title="Desbloquea con Pro"
+            title="Desbloquea contratando Pro:"
             features={['Matching de candidatos con IA', 'Directorio inteligente de organizaciones', 'Varios usuarios de equipo']}
           />
         </>
@@ -137,13 +137,13 @@ export default function OrganizationPlanPage() {
 
       {tier === 'plus' && (
         <UnlockSection
-          title="Desbloquea con Pro"
+          title="Desbloquea contratando Pro:"
           features={['Matching de candidatos con IA', 'Directorio inteligente de organizaciones', 'Varios usuarios de equipo']}
         />
       )}
 
       {isTrial && (
-        <UnlockSection title="Desbloquea con Pro" features={['Directorio inteligente de organizaciones']} />
+        <UnlockSection title="Desbloquea contratando Pro:" features={['Directorio inteligente de organizaciones']} />
       )}
 
       {tier === 'pro' && (
