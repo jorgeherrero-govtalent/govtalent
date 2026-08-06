@@ -207,7 +207,7 @@ export default function OrganizationAdminPage() {
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 13 }}>
             {jobs.length === 0 ? (
               <a
-                href="/organizations/admin/jobs?new=1"
+                href="/organizations/admin/jobs"
                 className="btn-ai"
                 style={{
                   padding: 16,
