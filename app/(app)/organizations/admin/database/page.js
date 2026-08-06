@@ -310,6 +310,10 @@ export default function OrganizationsDatabasePage() {
   const [planAllowed, setPlanAllowed] = useState(true);
   const [showBI, setShowBI] = useState(false);
   const [expandedPanel, setExpandedPanel] = useState(null);
+  const [showExportConfirm, setShowExportConfirm] = useState(false);
+  const [exportUsage, setExportUsage] = useState(null);
+  const [exportBusy, setExportBusy] = useState(false);
+  const [exportError, setExportError] = useState('');
 
   useEffect(() => {
     checkPlan();
@@ -323,7 +327,7 @@ export default function OrganizationsDatabasePage() {
     }
     const { data: membership } = await supabase
       .from('organization_members')
-      .select('organizations(plan, plan_status, trial_ends_at, trial_ai_matches_used, is_founding_member)')
+      .select('organizations(id, plan, plan_status, trial_ends_at, trial_ai_matches_used, is_founding_member)')
       .eq('user_id', authData.user.id)
       .limit(1)
       .maybeSingle();
@@ -501,6 +505,47 @@ export default function OrganizationsDatabasePage() {
     XLSX.writeFile(wb, `directorio-govtalent-${new Date().toISOString().slice(0, 10)}.xlsx`);
   }
 
+  async function openExportConfirm() {
+    setExportError('');
+    setShowExportConfirm(true);
+    const res = await fetch('/api/organizations/database/export');
+    if (res.ok) {
+      const data = await res.json();
+      setExportUsage(data);
+    }
+  }
+
+  async function confirmExport() {
+    setExportBusy(true);
+    setExportError('');
+    const res = await fetch('/api/organizations/database/export', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        rowCount: filtered.length,
+        filters: {
+          quickFilter,
+          types: [...typeFilter],
+          sectors: [...sectorFilter],
+          locations: [...locationFilter],
+          sizes: [...sizeFilter],
+          patronales: [...patronalFilter],
+          search: search || undefined,
+        },
+      }),
+    });
+    const data = await res.json().catch(() => ({}));
+    setExportBusy(false);
+    if (!res.ok) {
+      setExportError(data.error || 'No se pudo completar la exportación');
+      if (data.usedThisMonth !== undefined) setExportUsage({ usedThisMonth: data.usedThisMonth, limit: data.limit });
+      return;
+    }
+    handleExport();
+    setExportUsage({ usedThisMonth: data.usedThisMonth, limit: data.limit });
+    setShowExportConfirm(false);
+  }
+
   async function runAiSearch() {
     if (!aiQuery.trim() || aiSearching) return;
     setAiSearching(true);
@@ -570,7 +615,7 @@ export default function OrganizationsDatabasePage() {
         </div>
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
           <button
-            onClick={handleExport}
+            onClick={openExportConfirm}
             style={{
               display: 'flex',
               alignItems: 'center',
@@ -1085,6 +1130,76 @@ export default function OrganizationsDatabasePage() {
           </div>
         </div>
       </div>
+
+      {showExportConfirm && (
+        <div className="modal-ov" onClick={() => !exportBusy && setShowExportConfirm(false)}>
+          <div className="modal-box" style={{ maxWidth: 400 }} onClick={(e) => e.stopPropagation()}>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: -8 }}>
+              <div className="modal-x" onClick={() => !exportBusy && setShowExportConfirm(false)}>
+                <i className="ti ti-x"></i>
+              </div>
+            </div>
+            <div
+              style={{
+                width: 40,
+                height: 40,
+                borderRadius: 10,
+                background: '#eeecfd',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontSize: 18,
+                color: '#6d5aef',
+                marginBottom: 14,
+              }}
+            >
+              <i className="ti ti-download"></i>
+            </div>
+            <div style={{ fontSize: 16, fontWeight: 600, color: '#1a1a18', marginBottom: 6 }}>
+              Estás exportando {filtered.length} organizaciones
+            </div>
+            <div style={{ fontSize: 13, color: '#666', lineHeight: 1.5, marginBottom: 14 }}>
+              Se descargará un Excel con el directorio filtrado tal como lo ves ahora.
+            </div>
+
+            {exportUsage && (
+              <div style={{ background: '#f4f4f0', borderRadius: 10, padding: '10px 12px', marginBottom: 18 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, color: '#666', marginBottom: 6 }}>
+                  <span>Uso de tu cuota mensual</span>
+                  <span style={{ fontWeight: 600, color: '#1a1a18' }}>
+                    {exportUsage.usedThisMonth} / {exportUsage.limit} filas
+                  </span>
+                </div>
+                <div style={{ background: '#e0dfd8', borderRadius: 6, height: 6 }}>
+                  <div
+                    style={{
+                      background: '#6d5aef',
+                      borderRadius: 6,
+                      height: 6,
+                      width: `${Math.min(100, (exportUsage.usedThisMonth / exportUsage.limit) * 100)}%`,
+                    }}
+                  ></div>
+                </div>
+              </div>
+            )}
+
+            {exportError && (
+              <div style={{ fontSize: 12.5, color: '#b3261e', background: '#fbeceb', borderRadius: 8, padding: '8px 12px', marginBottom: 14 }}>
+                {exportError}
+              </div>
+            )}
+
+            <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+              <button className="btn-o" onClick={() => setShowExportConfirm(false)} disabled={exportBusy}>
+                Cancelar
+              </button>
+              <button className="btn-p" onClick={confirmExport} disabled={exportBusy}>
+                {exportBusy ? 'Exportando...' : 'Confirmar y descargar'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
