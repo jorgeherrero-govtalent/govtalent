@@ -651,25 +651,6 @@ export default function OrganizationsDatabasePage() {
         </div>
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
           <button
-            onClick={() => openExportConfirm(filtered)}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 6,
-              padding: '8px 14px',
-              borderRadius: 8,
-              border: '.5px solid #e0dfd8',
-              background: '#fff',
-              color: '#3a3a36',
-              fontSize: 12.5,
-              fontWeight: 600,
-              cursor: 'pointer',
-              whiteSpace: 'nowrap',
-            }}
-          >
-            <i className="ti ti-file-spreadsheet"></i> Exportar ({filtered.length})
-          </button>
-          <button
             onClick={() => setShowBI((v) => !v)}
             style={{
               display: 'flex',
