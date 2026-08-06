@@ -151,10 +151,10 @@ export default function ProfilePage() {
         supabase.from('education').select('*').eq('user_id', uid).order('sort_order', { ascending: true }),
         supabase.from('skills').select('*').eq('user_id', uid).order('sort_order', { ascending: true }),
         supabase.from('languages').select('*').eq('user_id', uid).order('sort_order', { ascending: true }),
-        supabase.from('saved_jobs').select('jobs(id, title, organizations(name, logo_url))').eq('user_id', uid),
+        supabase.from('saved_jobs').select('job_id, jobs(id, title, status, organizations(name, logo_url))').eq('user_id', uid),
         supabase
           .from('job_applications')
-          .select('jobs(id, title, organizations(name, logo_url))')
+          .select('id, jobs(id, title, status, organizations(name, logo_url))')
           .eq('candidate_id', uid)
           .neq('status', 'retirada')
           .order('applied_at', { ascending: false }),
@@ -1690,37 +1690,48 @@ export default function ProfilePage() {
             {(() => {
               // Une ambas listas y quita duplicados por si una oferta está
               // guardada y solicitada a la vez — para el usuario es "el
-              // mismo empleo", no dos entradas distintas.
+              // mismo empleo", no dos entradas distintas. Usamos una clave
+              // estable por item (job_id/id) en vez del id de la oferta,
+              // porque una oferta borrada no tiene jobs.id con el que
+              // deduplicar ni indexar la key de React.
               const seen = new Set();
               const combined = [];
               for (const item of [...appliedJobs, ...savedJobs]) {
                 const jobId = item.jobs?.id;
-                if (!jobId || seen.has(jobId)) continue;
-                seen.add(jobId);
-                combined.push(item);
+                const dedupeKey = jobId || `no-job:${item.id || item.job_id}`;
+                if (seen.has(dedupeKey)) continue;
+                seen.add(dedupeKey);
+                combined.push({ ...item, _key: dedupeKey });
               }
               if (combined.length === 0) {
                 return <div style={{ fontSize: 12.5, color: '#999' }}>Ninguno todavía.</div>;
               }
-              return combined.slice(0, 4).map((sj, i) => (
-                <div className="sp" key={i}>
-                  <div className="sp-av" style={{ borderRadius: 8, overflow: 'hidden' }}>
-                    {sj.jobs?.organizations?.logo_url ? (
-                      <img
-                        src={sj.jobs.organizations.logo_url}
-                        alt=""
-                        style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                      />
-                    ) : (
-                      <i className="ti ti-briefcase"></i>
-                    )}
+              return combined.slice(0, 4).map((sj) => {
+                const unavailable = !sj.jobs || sj.jobs.status !== 'activa';
+                return (
+                  <div className="sp" key={sj._key}>
+                    <div className="sp-av" style={{ borderRadius: 8, overflow: 'hidden' }}>
+                      {sj.jobs?.organizations?.logo_url ? (
+                        <img
+                          src={sj.jobs.organizations.logo_url}
+                          alt=""
+                          style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                        />
+                      ) : (
+                        <i className="ti ti-briefcase"></i>
+                      )}
+                    </div>
+                    <div>
+                      <div style={{ fontSize: 13, fontWeight: 500, color: unavailable ? '#999' : '#1a1a18' }}>
+                        {unavailable
+                          ? sj.jobs?.title || 'Oferta pausada o desactivada'
+                          : sj.jobs?.title}
+                      </div>
+                      <div style={{ fontSize: 11.5, color: '#888' }}>{sj.jobs?.organizations?.name}</div>
+                    </div>
                   </div>
-                  <div>
-                    <div style={{ fontSize: 13, fontWeight: 500 }}>{sj.jobs?.title}</div>
-                    <div style={{ fontSize: 11.5, color: '#888' }}>{sj.jobs?.organizations?.name}</div>
-                  </div>
-                </div>
-              ));
+                );
+              });
             })()}
             <Link href="/profile/jobs" style={{ fontSize: 12.5, color: '#1d6f5c' }}>
               Ver todos los empleos
