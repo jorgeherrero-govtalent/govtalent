@@ -36,7 +36,7 @@ export default function MyJobsPage() {
     const [{ data: savedData }, { data: appsData }] = await Promise.all([
       supabase
         .from('saved_jobs')
-        .select('job_id, jobs(id, title, location, modality, status, organizations(name, logo_url, slug))')
+        .select('job_id, created_at, jobs(id, title, location, modality, status, organizations(name, logo_url, slug))')
         .eq('user_id', uid),
       supabase
         .from('job_applications')
@@ -119,50 +119,60 @@ export default function MyJobsPage() {
           )}
 
           {tab === 'guardados' &&
-            saved.map((s) => (
-              <div key={s.job_id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '14px 0', borderBottom: '.5px solid #f0f0eb' }}>
-                <div
-                  style={{
-                    width: 40,
-                    height: 40,
-                    borderRadius: 8,
-                    background: '#e8f4f0',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    overflow: 'hidden',
-                    flexShrink: 0,
-                  }}
-                >
-                  {s.jobs?.organizations?.logo_url ? (
-                    <img src={s.jobs.organizations.logo_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                  ) : (
-                    <i className="ti ti-building"></i>
-                  )}
-                </div>
-                <div style={{ flex: 1 }}>
-                  <Link href={`/jobs?job=${s.jobs?.id}`} style={{ fontWeight: 600, fontSize: 14, color: '#222', textDecoration: 'none' }}>
-                    {s.jobs?.title}
-                  </Link>
-                  <div style={{ fontSize: 12.5, color: '#888' }}>{s.jobs?.organizations?.name}</div>
-                  <div style={{ fontSize: 12, color: '#999' }}>
-                    {s.jobs?.location} · {s.jobs?.modality === 'presencial' ? 'Presencial' : s.jobs?.modality === 'hibrido' ? 'Híbrido' : 'Remoto'}
+            saved.map((s) => {
+              const unavailable = !s.jobs || s.jobs.status !== 'activa';
+              return (
+                <div key={s.job_id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '14px 0', borderBottom: '.5px solid #f0f0eb' }}>
+                  <div
+                    style={{
+                      width: 40,
+                      height: 40,
+                      borderRadius: 8,
+                      background: '#e8f4f0',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      overflow: 'hidden',
+                      flexShrink: 0,
+                    }}
+                  >
+                    {s.jobs?.organizations?.logo_url ? (
+                      <img src={s.jobs.organizations.logo_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                    ) : (
+                      <i className="ti ti-building" style={{ fontSize: 16, color: '#7fa89c' }}></i>
+                    )}
                   </div>
-                  {s.jobs && s.jobs.status !== 'activa' && (
-                    <div className="badge bgr" style={{ marginTop: 5, width: 'fit-content' }}>
-                      <i className="ti ti-player-pause" style={{ fontSize: 11 }}></i> La organización pausó o desactivó esta oferta
-                    </div>
-                  )}
+                  <div style={{ flex: 1 }}>
+                    {unavailable ? (
+                      <>
+                        <div style={{ fontWeight: 600, fontSize: 14, color: '#888' }}>La organización pausó o desactivó esta oferta</div>
+                        <div style={{ fontSize: 12, color: '#999' }}>
+                          {s.created_at ? `Guardada el ${new Date(s.created_at).toLocaleDateString('es-ES')}` : 'Oferta no disponible'}
+                        </div>
+                      </>
+                    ) : (
+                      <>
+                        <Link href={`/jobs?job=${s.jobs?.id}`} style={{ fontWeight: 600, fontSize: 14, color: '#222', textDecoration: 'none' }}>
+                          {s.jobs?.title}
+                        </Link>
+                        <div style={{ fontSize: 12.5, color: '#888' }}>{s.jobs?.organizations?.name}</div>
+                        <div style={{ fontSize: 12, color: '#999' }}>
+                          {s.jobs?.location} · {s.jobs?.modality === 'presencial' ? 'Presencial' : s.jobs?.modality === 'hibrido' ? 'Híbrido' : 'Remoto'}
+                        </div>
+                      </>
+                    )}
+                  </div>
+                  <button className="btn-o" style={{ fontSize: 12 }} onClick={() => unsave(s.job_id)}>
+                    <i className="ti ti-bookmark-off"></i> Quitar
+                  </button>
                 </div>
-                <button className="btn-o" style={{ fontSize: 12 }} onClick={() => unsave(s.job_id)}>
-                  <i className="ti ti-bookmark-off"></i> Quitar
-                </button>
-              </div>
-            ))}
+              );
+            })}
 
           {tab === 'solicitados' &&
             applications.map((a) => {
               const st = STATUS_LABELS[a.status] || STATUS_LABELS.enviada;
+              const unavailable = !a.jobs || a.jobs.status !== 'activa';
               return (
                 <div key={a.id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '14px 0', borderBottom: '.5px solid #f0f0eb' }}>
                   <div
@@ -181,21 +191,27 @@ export default function MyJobsPage() {
                     {a.jobs?.organizations?.logo_url ? (
                       <img src={a.jobs.organizations.logo_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                     ) : (
-                      <i className="ti ti-building"></i>
+                      <i className="ti ti-building" style={{ fontSize: 16, color: '#7fa89c' }}></i>
                     )}
                   </div>
                   <div style={{ flex: 1 }}>
-                    <Link href={`/jobs?job=${a.jobs?.id}`} style={{ fontWeight: 600, fontSize: 14, color: '#222', textDecoration: 'none' }}>
-                      {a.jobs?.title}
-                    </Link>
-                    <div style={{ fontSize: 12.5, color: '#888' }}>{a.jobs?.organizations?.name}</div>
-                    <div style={{ fontSize: 11.5, color: '#999' }}>
-                      Solicitado el {new Date(a.applied_at).toLocaleDateString('es-ES')}
-                    </div>
-                    {a.jobs && a.jobs.status !== 'activa' && (
-                      <div className="badge bgr" style={{ marginTop: 5, width: 'fit-content' }}>
-                        <i className="ti ti-player-pause" style={{ fontSize: 11 }}></i> La organización pausó o desactivó esta oferta
-                      </div>
+                    {unavailable ? (
+                      <>
+                        <div style={{ fontWeight: 600, fontSize: 14, color: '#888' }}>La organización pausó o desactivó esta oferta</div>
+                        <div style={{ fontSize: 11.5, color: '#999' }}>
+                          Solicitado el {new Date(a.applied_at).toLocaleDateString('es-ES')}
+                        </div>
+                      </>
+                    ) : (
+                      <>
+                        <Link href={`/jobs?job=${a.jobs?.id}`} style={{ fontWeight: 600, fontSize: 14, color: '#222', textDecoration: 'none' }}>
+                          {a.jobs?.title}
+                        </Link>
+                        <div style={{ fontSize: 12.5, color: '#888' }}>{a.jobs?.organizations?.name}</div>
+                        <div style={{ fontSize: 11.5, color: '#999' }}>
+                          Solicitado el {new Date(a.applied_at).toLocaleDateString('es-ES')}
+                        </div>
+                      </>
                     )}
                   </div>
                   <span
