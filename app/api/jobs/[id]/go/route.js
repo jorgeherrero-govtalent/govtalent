@@ -23,7 +23,11 @@ export async function GET(request, { params }) {
 
   // No bloqueamos la redirección si el contador falla por lo que sea — más
   // vale que el candidato llegue a la oferta a que se quede colgado.
-  admin.rpc('increment_external_apply_clicks', { p_job_id: id }).catch(() => {});
+  try {
+    await admin.rpc('increment_external_apply_clicks', { p_job_id: id });
+  } catch {
+    // silencioso a propósito
+  }
 
   try {
     const target = new URL(job.external_apply_url);
