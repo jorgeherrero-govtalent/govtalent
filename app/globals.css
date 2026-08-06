@@ -364,6 +364,8 @@ a{color:inherit}
   .co-info{padding:40px 16px 16px}
   .pricing-wrap{padding:28px 16px 44px}
   .pricing-h1{font-size:22px}
+  .plan-card-head{flex-direction:column;align-items:stretch}
+  .plan-card-cta{width:100%;justify-content:center}
 }
 
 .stat-card-hover:hover{border-color:#6d5aef}
