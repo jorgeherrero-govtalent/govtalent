@@ -6,6 +6,7 @@ import { createClient } from '@/lib/supabase/client';
 import { hasInterestGroupBadge } from '@/lib/interestGroupBadge';
 import { TYPE_LABELS } from '@/lib/orgTaxonomy';
 import UpgradeModal from '@/components/UpgradeModal';
+import HoverTooltip from '@/components/HoverTooltip';
 
 const PAGE_SIZE_OPTIONS = [10, 25, 50, 100];
 
@@ -190,18 +191,16 @@ export default function OrganizationsDirectory() {
                       <div className="dir-name">
                         {o.name}{' '}
                         {o.verified && (
-                          <span className="tt">
+                          <HoverTooltip label="Página verificada por la organización">
                             <i className="ti ti-circle-check-filled verified-tick"></i>
-                            <span className="tt-bubble">Página verificada por la organización</span>
-                          </span>
+                          </HoverTooltip>
                         )}
                         {hasInterestGroupBadge(o) && (
-                          <span className="tt">
+                          <HoverTooltip
+                            label={`Grupo de interés registrado${o.interest_group_registry_number ? ` · ${o.interest_group_registry_number}` : ''}`}
+                          >
                             <i className="ti ti-shield-check" style={{ color: '#6d5aef' }}></i>
-                            <span className="tt-bubble">
-                              Grupo de interés registrado{o.interest_group_registry_number ? ` · ${o.interest_group_registry_number}` : ''}
-                            </span>
-                          </span>
+                          </HoverTooltip>
                         )}
                       </div>
                     </div>
@@ -247,18 +246,16 @@ export default function OrganizationsDirectory() {
                       <div className="dir-row-name">
                         {o.name}
                         {o.verified && (
-                          <span className="tt">
+                          <HoverTooltip label="Página verificada por la organización">
                             <i className="ti ti-circle-check-filled verified-tick"></i>
-                            <span className="tt-bubble">Página verificada por la organización</span>
-                          </span>
+                          </HoverTooltip>
                         )}
                         {hasInterestGroupBadge(o) && (
-                          <span className="tt">
+                          <HoverTooltip
+                            label={`Grupo de interés registrado${o.interest_group_registry_number ? ` · ${o.interest_group_registry_number}` : ''}`}
+                          >
                             <i className="ti ti-shield-check" style={{ color: '#6d5aef' }}></i>
-                            <span className="tt-bubble">
-                              Grupo de interés registrado{o.interest_group_registry_number ? ` · ${o.interest_group_registry_number}` : ''}
-                            </span>
-                          </span>
+                          </HoverTooltip>
                         )}
                       </div>
                       {!o.verified && (
