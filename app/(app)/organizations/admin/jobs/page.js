@@ -1,63 +1,31 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
-import Link from 'next/link';
+import { useEffect, useState } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { toast } from '@/lib/toast';
-import ShareJobModal from '@/components/ShareJobModal';
-import UpgradeModal from '@/components/UpgradeModal';
+import { hasInterestGroupBadge } from '@/lib/interestGroupBadge';
+import { SECTOR_LABELS } from '@/lib/orgTaxonomy';
+import ProgressChecklist from '@/components/ProgressChecklist';
 import VerifyOrganizationModal from '@/components/VerifyOrganizationModal';
-import { canPostAnotherJob, freeJobLimit } from '@/lib/plan';
 
-const AREAS = [
-  'Public Affairs',
-  'Comunicación Política',
-  'Relaciones Institucionales',
-  'Asuntos Europeos',
-  'Regulación',
-];
-
-export default function AllJobsPage() {
+export default function OrganizationAdminPage() {
   const supabase = createClient();
-  const [userId, setUserId] = useState(null);
   const [org, setOrg] = useState(null);
+  const [userId, setUserId] = useState(null);
   const [jobs, setJobs] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [tab, setTab] = useState('activos');
-  const [togglingId, setTogglingId] = useState(null);
+  const [kpis, setKpis] = useState({ activeJobs: 0, totalApplications: 0, applicationsThisWeek: 0, reviewedApplications: 0 });
   const [sharingJob, setSharingJob] = useState(null);
   const [showVerifyModal, setShowVerifyModal] = useState(false);
-
-  const [editingJob, setEditingJob] = useState(null);
-  const [loadingEditJob, setLoadingEditJob] = useState(false);
-  const [savingJobEdit, setSavingJobEdit] = useState(false);
-
-  const [showNewJob, setShowNewJob] = useState(false);
-  const [posting, setPosting] = useState(false);
-  const [aiPrompt, setAiPrompt] = useState('');
-  const [showAiJobModal, setShowAiJobModal] = useState(false);
-  const [upgradeModal, setUpgradeModal] = useState(null);
-  const [generatingDesc, setGeneratingDesc] = useState(false);
-
-  const titleRef = useRef(null);
-  const areaRef = useRef(null);
-  const modalityRef = useRef(null);
-  const employmentTypeRef = useRef(null);
-  const descriptionRef = useRef(null);
-  const responsibilitiesRef = useRef(null);
-  const requirementsRef = useRef(null);
-  const tagsRef = useRef(null);
 
   useEffect(() => {
     load();
   }, []);
 
   async function load() {
-    setLoading(true);
     const { data: authData } = await supabase.auth.getUser();
     const uid = authData.user?.id;
-    if (!uid) return setLoading(false);
     setUserId(uid);
+    if (!uid) return;
 
     const { data: membership } = await supabase
       .from('organization_members')
@@ -66,633 +34,413 @@ export default function AllJobsPage() {
       .limit(1)
       .maybeSingle();
 
-    if (!membership) return setLoading(false);
-    setOrg(membership.organizations);
+    if (!membership) return;
+    const organization = membership.organizations;
+    setOrg(organization);
+    loadJobs(organization.id);
+    loadKpis(organization.id);
+  }
 
+  async function loadJobs(orgId) {
     const { data } = await supabase
       .from('jobs')
-      .select('id, title, area, location, modality, status, created_at, job_applications(count)')
-      .eq('organization_id', membership.organizations.id)
+      .select('id, title, location, status, is_featured, created_at, job_applications(count)')
+      .eq('organization_id', orgId)
       .order('created_at', { ascending: false });
-
     setJobs(data || []);
-    setLoading(false);
   }
 
-  async function toggleStatus(job) {
-    const newStatus = job.status === 'activa' ? 'pausada' : 'activa';
-    setTogglingId(job.id);
-    const { error } = await supabase.from('jobs').update({ status: newStatus }).eq('id', job.id);
-    setTogglingId(null);
-    if (error) {
-      if (error.message?.includes('free_plan_job_limit')) {
-        setUpgradeModal({
-          title: 'Ofertas activas',
-          message: `El plan gratuito incluye ${freeJobLimit()} oferta activa a la vez. Desactiva otra oferta o actualiza tu plan para publicar más.`,
-        });
-      } else {
-        toast('No se pudo actualizar el estado de la oferta');
-      }
+  async function loadKpis(orgId) {
+    const { data: orgJobs } = await supabase.from('jobs').select('id, status').eq('organization_id', orgId);
+    const jobIds = (orgJobs || []).map((j) => j.id);
+    const activeJobs = (orgJobs || []).filter((j) => j.status === 'activa').length;
+
+    if (jobIds.length === 0) {
+      setKpis({ activeJobs, totalApplications: 0, applicationsThisWeek: 0, reviewedApplications: 0 });
       return;
     }
-    setJobs((prev) => prev.map((j) => (j.id === job.id ? { ...j, status: newStatus } : j)));
-    toast(newStatus === 'activa' ? 'Oferta activada ✓' : 'Oferta desactivada ✓');
+
+    const { count: totalApplications } = await supabase
+      .from('job_applications')
+      .select('id', { count: 'exact', head: true })
+      .in('job_id', jobIds);
+
+    const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+    const { count: applicationsThisWeek } = await supabase
+      .from('job_applications')
+      .select('id', { count: 'exact', head: true })
+      .in('job_id', jobIds)
+      .gte('applied_at', weekAgo);
+
+    const { count: reviewedApplications } = await supabase
+      .from('job_applications')
+      .select('id', { count: 'exact', head: true })
+      .in('job_id', jobIds)
+      .neq('status', 'enviada');
+
+    setKpis({
+      activeJobs,
+      totalApplications: totalApplications || 0,
+      applicationsThisWeek: applicationsThisWeek || 0,
+      reviewedApplications: reviewedApplications || 0,
+    });
   }
 
-  async function openEditJob(jobId) {
-    setLoadingEditJob(true);
-    const { data, error } = await supabase
-      .from('jobs')
-      .select(`*, job_requirements(content, sort_order), job_responsibilities(content, sort_order), job_tags(tag)`)
-      .eq('id', jobId)
-      .single();
-    setLoadingEditJob(false);
-    if (error || !data) {
-      toast('No se pudo cargar la oferta');
-      return;
-    }
-    setEditingJob(data);
+  function publicJobUrl(jobId) {
+    return `${window.location.origin}/empleo/${jobId}`;
   }
 
-  async function saveJobEdit(e) {
-    e.preventDefault();
-    if (!editingJob) return;
-    setSavingJobEdit(true);
-    const f = new FormData(e.target);
-
-    const updates = {
-      title: f.get('title'),
-      area: f.get('area'),
-      location: f.get('location'),
-      modality: f.get('modality'),
-      employment_type: f.get('employment_type'),
-      salary_min: f.get('salary_min') ? Number(f.get('salary_min')) : null,
-      salary_max: f.get('salary_max') ? Number(f.get('salary_max')) : null,
-      description: f.get('description'),
-      status: f.get('status'),
+  function buildShareTemplates(job) {
+    const url = publicJobUrl(job.id);
+    const orgName = org?.name || 'nuestra organización';
+    return {
+      linkedin: `📢 ${orgName} está contratando: buscamos un/a ${job.title} para nuestro equipo.\n\n📍 ${job.location} · ${job.modality === 'presencial' ? 'Presencial' : job.modality === 'hibrido' ? 'Híbrido' : 'Remoto'}\n\nSi te apasiona el sector de asuntos públicos y quieres formar parte de nuestro proyecto, aplica aquí (o comparte con alguien a quien le pueda interesar):\n${url}`,
+      whatsapp: `¡Hola! 👋 Desde ${orgName} buscamos un/a *${job.title}*. Si te interesa o conoces a alguien que pueda encajar, aquí está la oferta: ${url}`,
     };
-
-    const { error: jobErr } = await supabase.from('jobs').update(updates).eq('id', editingJob.id);
-
-    const reqLines = (f.get('requirements') || '').split('\n').map((s) => s.trim()).filter(Boolean);
-    const resLines = (f.get('responsibilities') || '').split('\n').map((s) => s.trim()).filter(Boolean);
-    const tags = (f.get('tags') || '').split(',').map((s) => s.trim()).filter(Boolean);
-
-    await supabase.from('job_requirements').delete().eq('job_id', editingJob.id);
-    await supabase.from('job_responsibilities').delete().eq('job_id', editingJob.id);
-    await supabase.from('job_tags').delete().eq('job_id', editingJob.id);
-
-    if (reqLines.length > 0) {
-      await supabase
-        .from('job_requirements')
-        .insert(reqLines.map((content, i) => ({ job_id: editingJob.id, content, sort_order: i })));
-    }
-    if (resLines.length > 0) {
-      await supabase
-        .from('job_responsibilities')
-        .insert(resLines.map((content, i) => ({ job_id: editingJob.id, content, sort_order: i })));
-    }
-    if (tags.length > 0) {
-      await supabase.from('job_tags').insert(tags.map((tag) => ({ job_id: editingJob.id, tag })));
-    }
-
-    setSavingJobEdit(false);
-    if (jobErr) {
-      toast('No se pudieron guardar los cambios');
-      return;
-    }
-    setEditingJob(null);
-    toast('Oferta actualizada ✓');
-    load();
   }
 
-  async function generateJobDescription() {
-    if (!aiPrompt.trim()) {
-      toast('Describe brevemente el puesto para poder generarlo');
-      return;
-    }
-    setGeneratingDesc(true);
-    try {
-      const res = await fetch('/api/ai/job-description', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          prompt: aiPrompt,
-          title: titleRef.current?.value,
-          area: areaRef.current?.value,
-          modality: modalityRef.current?.value,
-          employmentType: employmentTypeRef.current?.value,
-        }),
-      });
-      const data = await res.json();
-      if (!res.ok) {
-        if (data.upgradeRequired) {
-          setShowAiJobModal(false);
-          setUpgradeModal({ title: 'Ofertas con IA', message: data.error });
-          setGeneratingDesc(false);
-          return;
-        }
-        throw new Error(data.error || 'Error desconocido');
-      }
-
-      if (descriptionRef.current) descriptionRef.current.value = data.description;
-      if (responsibilitiesRef.current) responsibilitiesRef.current.value = data.responsibilities.join('\n');
-      if (requirementsRef.current) requirementsRef.current.value = data.requirements.join('\n');
-      if (tagsRef.current) tagsRef.current.value = data.tags.join(', ');
-
-      setShowAiJobModal(false);
-      toast('Contenido generado ✓ revísalo antes de publicar');
-    } catch (err) {
-      toast('No se pudo generar el contenido: ' + err.message);
-    }
-    setGeneratingDesc(false);
-  }
-
-  async function publishJob(e) {
-    e.preventDefault();
-
-    const isVerified = !!org?.verified;
-
-    const activeCount = jobs.filter((j) => j.status === 'activa').length;
-    if (isVerified && org && !canPostAnotherJob(org, activeCount)) {
-      setShowNewJob(false);
-      setUpgradeModal({
-        title: 'Ofertas activas',
-        message: `El plan gratuito incluye ${freeJobLimit()} oferta activa a la vez. Actualiza tu plan para publicar más.`,
-      });
-      return;
-    }
-
-    setPosting(true);
-    const f = new FormData(e.target);
-
-    const { data: job, error } = await supabase
-      .from('jobs')
-      .insert({
-        organization_id: org.id,
-        title: f.get('title'),
-        area: f.get('area'),
-        location: f.get('location'),
-        modality: f.get('modality'),
-        employment_type: f.get('employment_type'),
-        salary_min: f.get('salary_min') ? Number(f.get('salary_min')) : null,
-        salary_max: f.get('salary_max') ? Number(f.get('salary_max')) : null,
-        description: f.get('description'),
-        status: isVerified ? 'activa' : 'borrador',
-        published_at: isVerified ? new Date().toISOString() : null,
-      })
-      .select()
-      .single();
-
-    if (error || !job) {
-      setPosting(false);
-      if (error?.message?.includes('free_plan_job_limit')) {
-        toast('El plan gratuito solo permite 1 oferta activa a la vez. Actualiza tu plan para publicar más.');
-      } else {
-        toast('No se pudo publicar la oferta');
-      }
-      return;
-    }
-
-    const reqLines = (f.get('requirements') || '').split('\n').map((s) => s.trim()).filter(Boolean);
-    const resLines = (f.get('responsibilities') || '').split('\n').map((s) => s.trim()).filter(Boolean);
-    const tags = (f.get('tags') || '').split(',').map((s) => s.trim()).filter(Boolean);
-
-    if (reqLines.length > 0) {
-      await supabase
-        .from('job_requirements')
-        .insert(reqLines.map((content, i) => ({ job_id: job.id, content, sort_order: i })));
-    }
-    if (resLines.length > 0) {
-      await supabase
-        .from('job_responsibilities')
-        .insert(resLines.map((content, i) => ({ job_id: job.id, content, sort_order: i })));
-    }
-    if (tags.length > 0) {
-      await supabase.from('job_tags').insert(tags.map((tag) => ({ job_id: job.id, tag })));
-    }
-
-    setPosting(false);
-    e.target.reset();
-    setAiPrompt('');
-    setShowNewJob(false);
-    load();
-
-    if (!isVerified) {
-      toast('Oferta guardada como borrador — verifica tu organización para poder publicarla');
-      setShowVerifyModal(true);
-      return;
-    }
-
-    toast('Oferta publicada correctamente ✓');
-
-    // Envío de alertas en segundo plano: no bloquea el flujo si falla o tarda.
-    fetch('/api/email/job-alert', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ jobId: job.id }),
-    }).catch(() => {});
-  }
-
-  if (loading) return <div className="spinner"></div>;
-
-  if (!org) {
+  if (org === null) {
     return (
       <div className="sec">
         <div className="empty-state">
           <i className="ti ti-building-off"></i>
-          Todavía no administras ninguna organización.
+          Todavía no administras ninguna organización.{' '}
+          <a href="/organizations/new" style={{ color: '#1d6f5c' }}>
+            Crea tu página aquí
+          </a>
+          .
         </div>
       </div>
     );
   }
 
-  const activos = jobs.filter((j) => j.status === 'activa');
-  const cerrados = jobs.filter((j) => j.status !== 'activa');
-  const list = tab === 'activos' ? activos : cerrados;
-
   return (
-    <div className="sec" style={{ maxWidth: 900 }}>
-      {!org.verified && (
-        <div
-          className="card"
-          style={{
-            marginBottom: 13,
-            padding: '14px 18px',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            gap: 12,
-            flexWrap: 'wrap',
-            background: '#fdf6e8',
-            borderColor: '#eddfb8',
-          }}
-        >
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <i className="ti ti-shield-exclamation" style={{ color: '#b8860b', fontSize: 20 }}></i>
-            <div>
-              <div style={{ fontSize: 13.5, fontWeight: 700, color: '#1a1a18' }}>Organización sin verificar</div>
-              <div style={{ fontSize: 12, color: '#666' }}>
-                Verifica {org.name} para poder publicar ofertas — tus borradores se guardan mientras tanto.
+    <div className="sec">
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 320px', gap: 13, maxWidth: 1080, margin: '0 auto' }}>
+        <div>
+          <div className="card" style={{ marginBottom: 13 }}>
+            <div
+              className="co-cover"
+              style={
+                org.cover_url
+                  ? {
+                      backgroundImage: `url(${org.cover_url})`,
+                      backgroundSize: 'cover',
+                      backgroundPosition: org.cover_position || '50% 50%',
+                    }
+                  : undefined
+              }
+            >
+              <div
+                className="co-logo"
+                style={
+                  org.logo_url
+                    ? {
+                        backgroundImage: `url(${org.logo_url})`,
+                        backgroundSize: 'cover',
+                        backgroundPosition: org.logo_position || '50% 50%',
+                      }
+                    : undefined
+                }
+              >
+                {!org.logo_url && '🏛️'}
               </div>
             </div>
-          </div>
-          <button className="btn-p" onClick={() => setShowVerifyModal(true)}>
-            <i className="ti ti-shield-check"></i> Verificar organización
-          </button>
-        </div>
-      )}
-
-      <div className="card">
-        <div className="cp">
-          <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 10, flexWrap: 'wrap' }}>
-            <div>
-              <h2 style={{ fontSize: 18, fontWeight: 700, marginBottom: 4 }}>Todas las ofertas</h2>
-              <p style={{ fontSize: 13, color: '#888', marginBottom: 16 }}>Gestiona los anuncios de empleo de {org.name}.</p>
+            <div className="co-info">
+              <div style={{ fontSize: 17.5, fontWeight: 700, marginBottom: 3, display: 'flex', alignItems: 'center', gap: 6 }}>
+                {org.name}
+                {org.verified && (
+                  <span className="tt">
+                    <i className="ti ti-circle-check-filled" style={{ color: '#1d9d63', fontSize: 15.5 }}></i>
+                    <span className="tt-bubble">Página verificada por la organización</span>
+                  </span>
+                )}
+                {hasInterestGroupBadge(org) && (
+                  <span className="tt">
+                    <i className="ti ti-shield-check" style={{ color: '#6d5aef', fontSize: 15.5 }}></i>
+                    <span className="tt-bubble">
+                      Grupo de interés registrado{org.interest_group_registry_number ? ` · ${org.interest_group_registry_number}` : ''}
+                    </span>
+                  </span>
+                )}
+              </div>
+              <div style={{ fontSize: 12.5, color: '#555', marginBottom: 8 }}>{org.bio || SECTOR_LABELS[org.sector] || 'Añade una descripción'}</div>
+              <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', fontSize: 12, color: '#888', marginBottom: 11 }}>
+                {org.location && (
+                  <span>
+                    <i className="ti ti-map-pin" style={{ fontSize: 11.5 }}></i> {org.location}
+                  </span>
+                )}
+                {org.size_range && (
+                  <span>
+                    <i className="ti ti-users" style={{ fontSize: 11.5 }}></i> {org.size_range} empleados
+                  </span>
+                )}
+              </div>
+              <div style={{ display: 'flex', gap: 8, marginBottom: 8, flexWrap: 'wrap' }}>
+                {jobs.length === 0 ? (
+                  <a href="/organizations/admin/company" className="btn-o" style={{ textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                    <i className="ti ti-edit"></i> Editar página de empresa
+                  </a>
+                ) : (
+                  <>
+                    <a href="/organizations/admin/company" className="btn-p" style={{ textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                      <i className="ti ti-edit"></i> Editar página de empresa
+                    </a>
+                    <a href="/organizations/admin/candidates" className="btn-ai" style={{ textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                      <i className="ti ti-layout-kanban"></i> Tablero de candidatos
+                    </a>
+                  </>
+                )}
+              </div>
+              <a
+                href={`/organizations/${org.slug}`}
+                target="_blank"
+                rel="noreferrer"
+                style={{ fontSize: 12, color: '#1d6f5c', textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 4 }}
+              >
+                <i className="ti ti-eye" style={{ fontSize: 12.5 }}></i> Ver como candidato
+              </a>
             </div>
-            <button className="btn-p" onClick={() => setShowNewJob(true)} style={{ flexShrink: 0 }}>
-              <i className="ti ti-plus"></i> Nueva oferta
-            </button>
           </div>
 
-          <div style={{ display: 'flex', gap: 6, borderBottom: '.5px solid #e0dfd8', marginBottom: 16 }}>
-            <button
-              onClick={() => setTab('activos')}
-              style={{
-                background: 'none',
-                border: 'none',
-                padding: '10px 14px',
-                fontSize: 13.5,
-                fontWeight: tab === 'activos' ? 600 : 400,
-                color: tab === 'activos' ? '#1d6f5c' : '#888',
-                borderBottom: tab === 'activos' ? '2px solid #1d6f5c' : '2px solid transparent',
-              }}
-            >
-              Activos ({activos.length})
-            </button>
-            <button
-              onClick={() => setTab('cerrados')}
-              style={{
-                background: 'none',
-                border: 'none',
-                padding: '10px 14px',
-                fontSize: 13.5,
-                fontWeight: tab === 'cerrados' ? 600 : 400,
-                color: tab === 'cerrados' ? '#1d6f5c' : '#888',
-                borderBottom: tab === 'cerrados' ? '2px solid #1d6f5c' : '2px solid transparent',
-              }}
-            >
-              Cerrados ({cerrados.length})
-            </button>
-          </div>
-
-          {list.length === 0 && (
-            <div className="empty-state">
-              <i className="ti ti-briefcase-off"></i>
-              {tab === 'activos' ? 'No tienes ofertas activas ahora mismo.' : 'No tienes ofertas cerradas.'}
-            </div>
-          )}
-
-          {list.map((j) => (
-            <div key={j.id} style={{ padding: '14px 0', borderBottom: '.5px solid #f0f0eb' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 10, flexWrap: 'wrap' }}>
-                <div>
-                  <div style={{ fontSize: 14.5, fontWeight: 600 }}>{j.title}</div>
-                  <div style={{ fontSize: 12.5, color: '#666', marginTop: 2 }}>{j.area}</div>
-                  <div style={{ fontSize: 12, color: '#999', marginTop: 2 }}>
-                    {j.location} · {j.modality === 'presencial' ? 'Presencial' : j.modality === 'hibrido' ? 'Híbrido' : 'Remoto'}
-                  </div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 13 }}>
+            {jobs.length === 0 ? (
+              <a
+                href="/organizations/admin/jobs?new=1"
+                className="btn-ai"
+                style={{
+                  padding: 16,
+                  borderRadius: 12,
+                  textDecoration: 'none',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  justifyContent: 'center',
+                  gap: 3,
+                }}
+              >
+                <div style={{ fontSize: 14, fontWeight: 500 }}>
+                  <i className="ti ti-plus" style={{ marginRight: 4 }}></i> Nueva oferta
                 </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-                  <Link
+                <div style={{ fontSize: 11.5, opacity: 0.9 }}>Aún no tienes ofertas activas</div>
+              </a>
+            ) : (
+              <div className="card" style={{ padding: 16 }}>
+                <div style={{ fontSize: 22, fontWeight: 800, color: '#1d6f5c' }}>{kpis.activeJobs}</div>
+                <div style={{ fontSize: 12, color: '#888' }}>Ofertas activas</div>
+              </div>
+            )}
+            <div className="card" style={{ padding: 16 }}>
+              <div style={{ fontSize: 22, fontWeight: 800, color: '#1a1a18' }}>{kpis.totalApplications}</div>
+              <div style={{ fontSize: 12, color: '#888' }}>Candidaturas (total)</div>
+            </div>
+            <div className="card" style={{ padding: 16 }}>
+              <div style={{ fontSize: 22, fontWeight: 800, color: '#6d5aef' }}>{kpis.applicationsThisWeek}</div>
+              <div style={{ fontSize: 12, color: '#888' }}>Candidaturas (7 días)</div>
+            </div>
+          </div>
+        </div>
+
+        <div>
+          <ProgressChecklist
+            title="Primeros pasos"
+            hideWhenComplete
+            items={[
+              { label: 'Logo de la organización', done: !!org.logo_url },
+              { label: 'Descripción de la organización', done: !!org.bio },
+              { label: 'Sitio web', done: !!org.website_url },
+              { label: 'Organización verificada', done: !!org.verified, onClick: () => setShowVerifyModal(true) },
+              { label: 'Primera oferta publicada', done: jobs.length > 0 },
+              { label: 'Primera candidatura recibida', done: kpis.totalApplications > 0 },
+              { label: 'Primera candidatura revisada', done: kpis.reviewedApplications > 0 },
+            ]}
+            hint="Completa estos pasos para sacarle el máximo partido a GovTalent."
+          />
+
+          <div
+            className="sw"
+            style={{
+              background: 'linear-gradient(160deg,#faf9ff,#fff)',
+              borderColor: '#d8d3fb',
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
+              <i className="ti ti-headset" style={{ color: '#6d5aef', fontSize: 17 }}></i>
+              <h4 style={{ margin: 0 }}>¿Sacando todo el partido a GovTalent?</h4>
+            </div>
+            <p style={{ fontSize: 12.5, color: '#666', lineHeight: 1.6, marginBottom: 12 }}>
+              Agenda una llamada con nuestro equipo: te ayudamos a publicar mejores ofertas, sacarle partido a la IA y
+              conseguir más candidatos cualificados.
+            </p>
+            <a
+              href="mailto:hola@govtalent.app?subject=Quiero%20agendar%20una%20llamada"
+              className="btn-o"
+              style={{ width: '100%', textAlign: 'center', display: 'block', textDecoration: 'none' }}
+            >
+              <i className="ti ti-calendar-event"></i> Agendar llamada
+            </a>
+          </div>
+
+          <div className="sw" style={{ marginTop: 16 }}>
+            <h4>Ofertas activas</h4>
+            {jobs.filter((j) => j.status === 'activa').length === 0 && (
+              <div style={{ fontSize: 12.5, color: '#999', marginBottom: 10 }}>No tienes ofertas activas ahora mismo.</div>
+            )}
+            {jobs.filter((j) => j.status === 'activa').slice(0, 3).map((j) => (
+              <div
+                key={j.id}
+                className="ji on"
+                style={{ borderLeft: '3px solid #1d6f5c', borderRadius: 8, marginBottom: 10 }}
+              >
+                <div className="jt">{j.title}</div>
+                <div className="jo">
+                  {org.name} · {j.location}
+                </div>
+                <div className="jm">
+                  <span style={{ color: '#1d6f5c' }}>{j.job_applications?.[0]?.count || 0} solicitudes</span>
+                  <span>·</span>
+                  <span className="badge bg" style={{ fontSize: 10 }}>
+                    {j.status}
+                  </span>
+                </div>
+                <div style={{ marginTop: 8, display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                  <a
                     href={`/organizations/admin/candidates?job=${j.id}`}
-                    style={{ fontSize: 12.5, color: '#1d6f5c', textDecoration: 'none', fontWeight: 500 }}
-                  >
-                    {j.job_applications?.[0]?.count || 0} solicitudes
-                  </Link>
-                  <button
                     className="btn-o"
-                    style={{ fontSize: 12, padding: '6px 12px' }}
+                    style={{ fontSize: 11.5, padding: '5px 10px', textDecoration: 'none' }}
+                  >
+                    <i className="ti ti-users"></i> Ver candidatos
+                  </a>
+                  <button
+                    className="btn-ai-o"
+                    style={{ fontSize: 11.5, padding: '5px 10px' }}
                     onClick={() => setSharingJob(j)}
                   >
                     <i className="ti ti-share"></i> Compartir
                   </button>
-                  <button
-                    className="btn-o"
-                    style={{ fontSize: 12, padding: '6px 12px' }}
-                    disabled={loadingEditJob}
-                    onClick={() => openEditJob(j.id)}
-                  >
-                    <i className="ti ti-edit"></i> Actualizar
-                  </button>
-                  <button
-                    className={j.status === 'activa' ? 'btn-o' : 'btn-p'}
-                    style={{ fontSize: 12, padding: '6px 12px' }}
-                    disabled={togglingId === j.id}
-                    onClick={() => toggleStatus(j)}
-                  >
-                    {togglingId === j.id
-                      ? 'Actualizando...'
-                      : j.status === 'activa'
-                      ? 'Desactivar'
-                      : 'Reactivar'}
-                  </button>
                 </div>
               </div>
-            </div>
-          ))}
+            ))}
+            <a
+              href="/organizations/admin/jobs"
+              style={{ fontSize: 12.5, color: '#1d6f5c', textDecoration: 'none', display: 'inline-block', marginTop: 6 }}
+            >
+              Ver todas las ofertas →
+            </a>
+          </div>
         </div>
       </div>
 
-      {editingJob && (
-        <div className="modal-ov on" onClick={(e) => e.target === e.currentTarget && setEditingJob(null)}>
-          <div className="modal-box" style={{ maxWidth: 640 }}>
-            <div className="modal-head">
-              <h2>Actualizar oferta</h2>
-              <div className="modal-x" onClick={() => setEditingJob(null)}>
-                <i className="ti ti-x"></i>
-              </div>
-            </div>
-            <form onSubmit={saveJobEdit}>
-              <div className="form-row">
-                <div className="form-g">
-                  <label>Título del puesto</label>
-                  <input name="title" required defaultValue={editingJob.title} />
-                </div>
-                <div className="form-g">
-                  <label>Área</label>
-                  <select name="area" required defaultValue={editingJob.area}>
-                    {AREAS.map((a) => (
-                      <option key={a} value={a}>
-                        {a}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-              <div className="form-row">
-                <div className="form-g">
-                  <label>Ubicación</label>
-                  <input name="location" required defaultValue={editingJob.location} />
-                </div>
-                <div className="form-g">
-                  <label>Modalidad</label>
-                  <select name="modality" required defaultValue={editingJob.modality}>
-                    <option value="presencial">Presencial</option>
-                    <option value="hibrido">Híbrido</option>
-                    <option value="remoto">Remoto</option>
-                  </select>
-                </div>
-              </div>
-              <div className="form-row">
-                <div className="form-g">
-                  <label>Tipo de jornada</label>
-                  <select name="employment_type" required defaultValue={editingJob.employment_type}>
-                    <option value="jornada_completa">Jornada completa</option>
-                    <option value="media_jornada">Media jornada</option>
-                    <option value="practicas">Prácticas</option>
-                    <option value="freelance">Freelance</option>
-                  </select>
-                </div>
-                <div className="form-g">
-                  <label>Estado de la oferta</label>
-                  <select name="status" required defaultValue={editingJob.status}>
-                    <option value="borrador">Borrador</option>
-                    <option value="activa">Activa</option>
-                    <option value="pausada">Pausada</option>
-                    <option value="cerrada">Cerrada</option>
-                  </select>
-                </div>
-              </div>
-              <div className="form-row">
-                <div className="form-g">
-                  <label>Rango salarial (opcional)</label>
-                  <div style={{ display: 'flex', gap: 6 }}>
-                    <input name="salary_min" type="number" defaultValue={editingJob.salary_min || ''} placeholder="35000" />
-                    <input name="salary_max" type="number" defaultValue={editingJob.salary_max || ''} placeholder="45000" />
-                  </div>
-                </div>
-                <div className="form-g"></div>
-              </div>
-              <div className="form-g">
-                <label>Descripción</label>
-                <textarea name="description" required defaultValue={editingJob.description}></textarea>
-              </div>
-              <div className="form-g">
-                <label>Responsabilidades (una por línea)</label>
-                <textarea
-                  name="responsibilities"
-                  defaultValue={sortByOrder(editingJob.job_responsibilities || [])
-                    .map((r) => r.content)
-                    .join('\n')}
-                ></textarea>
-              </div>
-              <div className="form-g">
-                <label>Requisitos (uno por línea)</label>
-                <textarea
-                  name="requirements"
-                  defaultValue={sortByOrder(editingJob.job_requirements || [])
-                    .map((r) => r.content)
-                    .join('\n')}
-                ></textarea>
-              </div>
-              <div className="form-g">
-                <label>Etiquetas (separadas por comas)</label>
-                <input
-                  name="tags"
-                  defaultValue={(editingJob.job_tags || []).map((t) => t.tag).join(', ')}
-                  placeholder="Public Affairs, Regulación, Liderazgo"
-                />
-              </div>
-              <div className="m-foot">
-                <button type="button" className="m-back" onClick={() => setEditingJob(null)}>
-                  Cancelar
-                </button>
-                <button className="m-next" disabled={savingJobEdit}>
-                  <i className="ti ti-check"></i> {savingJobEdit ? 'Guardando...' : 'Guardar cambios'}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-      {showNewJob && (
-        <div className="modal-ov on" onClick={(e) => e.target === e.currentTarget && setShowNewJob(false)}>
-          <div className="modal-box" style={{ maxWidth: 640 }}>
-            <div className="modal-head">
-              <h2>Publicar oferta de empleo</h2>
-              <div className="modal-x" onClick={() => setShowNewJob(false)}>
-                <i className="ti ti-x"></i>
-              </div>
-            </div>
-            <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 12 }}>
-              <button type="button" className="btn-ai-o" style={{ fontSize: 12 }} onClick={() => setShowAiJobModal(true)}>
-                <i className="ti ti-bolt"></i> Redactar con IA
-              </button>
-            </div>
-            <form onSubmit={publishJob}>
-              <div className="form-row">
-                <div className="form-g">
-                  <label>Título del puesto</label>
-                  <input ref={titleRef} name="title" required placeholder="Ej: Senior Public Affairs Manager" />
-                </div>
-                <div className="form-g">
-                  <label>Área</label>
-                  <select ref={areaRef} name="area" required>
-                    {AREAS.map((a) => (
-                      <option key={a} value={a}>
-                        {a}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-              <div className="form-row">
-                <div className="form-g">
-                  <label>Ubicación</label>
-                  <input name="location" required placeholder="Madrid, España" />
-                </div>
-                <div className="form-g">
-                  <label>Modalidad</label>
-                  <select ref={modalityRef} name="modality" required>
-                    <option value="presencial">Presencial</option>
-                    <option value="hibrido">Híbrido</option>
-                    <option value="remoto">Remoto</option>
-                  </select>
-                </div>
-              </div>
-              <div className="form-row">
-                <div className="form-g">
-                  <label>Tipo de jornada</label>
-                  <select ref={employmentTypeRef} name="employment_type" required>
-                    <option value="jornada_completa">Jornada completa</option>
-                    <option value="media_jornada">Media jornada</option>
-                    <option value="practicas">Prácticas</option>
-                    <option value="freelance">Freelance</option>
-                  </select>
-                </div>
-                <div className="form-g">
-                  <label>Rango salarial (opcional)</label>
-                  <div style={{ display: 'flex', gap: 6 }}>
-                    <input name="salary_min" type="number" placeholder="35000" />
-                    <input name="salary_max" type="number" placeholder="45000" />
-                  </div>
-                </div>
-              </div>
-              <div className="form-g">
-                <label>Descripción</label>
-                <textarea ref={descriptionRef} name="description" required placeholder="Describe las responsabilidades, requisitos y condiciones..."></textarea>
-              </div>
-              <div className="form-g">
-                <label>Responsabilidades (una por línea)</label>
-                <textarea ref={responsibilitiesRef} name="responsibilities" placeholder={'Liderar la estrategia...\nRepresentar a la empresa...'}></textarea>
-              </div>
-              <div className="form-g">
-                <label>Requisitos (uno por línea)</label>
-                <textarea ref={requirementsRef} name="requirements" placeholder={'5+ años de experiencia...\nInglés fluido...'}></textarea>
-              </div>
-              <div className="form-g">
-                <label>Etiquetas (separadas por comas)</label>
-                <input ref={tagsRef} name="tags" placeholder="Public Affairs, Regulación, Liderazgo" />
-              </div>
-              <div className="m-foot">
-                <button type="button" className="m-back" onClick={() => setShowNewJob(false)}>
-                  Cancelar
-                </button>
-                <button className="m-next" disabled={posting}>
-                  <i className="ti ti-send"></i> {posting ? 'Publicando...' : 'Publicar oferta'}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {showAiJobModal && (
-        <div className="modal-ov on" onClick={(e) => e.target === e.currentTarget && setShowAiJobModal(false)}>
-          <div className="modal-box" style={{ maxWidth: 480 }}>
-            <div className="modal-head">
-              <h2>Redactar con IA</h2>
-              <div className="modal-x" onClick={() => setShowAiJobModal(false)}>
-                <i className="ti ti-x"></i>
-              </div>
-            </div>
-            <p style={{ fontSize: 12.5, color: '#888', marginBottom: 10 }}>
-              Describe brevemente el puesto (funciones clave, experiencia deseada, algo que lo diferencie) y
-              generamos la descripción, responsabilidades, requisitos y etiquetas. Revisa siempre el resultado antes
-              de publicar.
-            </p>
-            <textarea
-              value={aiPrompt}
-              onChange={(e) => setAiPrompt(e.target.value)}
-              placeholder="Ej: Consultor senior de asuntos públicos para el sector energético, con experiencia en relaciones con Congreso y comunidades autónomas..."
-              style={{ width: '100%', minHeight: 110, padding: '10px 12px', border: '1px solid #e0dfd8', borderRadius: 9, fontSize: 13, fontFamily: 'inherit', outline: 'none', resize: 'vertical', marginBottom: 14 }}
-            ></textarea>
-            <div className="m-foot">
-              <button type="button" className="m-back" onClick={() => setShowAiJobModal(false)}>
-                Cancelar
-              </button>
-              <button type="button" className="btn-ai" onClick={generateJobDescription} disabled={generatingDesc}>
-                <i className="ti ti-bolt"></i> {generatingDesc ? 'Generando...' : 'Generar contenido'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
       {sharingJob && (
-        <ShareJobModal job={sharingJob} orgName={org?.name} voice="employer" onClose={() => setSharingJob(null)} />
+        <div className="modal-ov on" onClick={(e) => e.target === e.currentTarget && setSharingJob(null)}>
+          <div className="modal-box" style={{ maxWidth: 560 }}>
+            <div className="modal-head">
+              <h2>
+                <i className="ti ti-share" style={{ color: '#6d5aef' }}></i> Compartir "{sharingJob.title}"
+              </h2>
+              <div className="modal-x" onClick={() => setSharingJob(null)}>
+                <i className="ti ti-x"></i>
+              </div>
+            </div>
+            <p style={{ fontSize: 12.5, color: '#888', marginBottom: 16 }}>
+              Esta es la página pública de la oferta — cualquiera puede verla y aplicar sin tener cuenta todavía en
+              GovTalent, se registran al aplicar.
+            </p>
+
+            <div className="field">
+              <label>Enlace público</label>
+              <div style={{ display: 'flex', gap: 8 }}>
+                <input readOnly value={publicJobUrl(sharingJob.id)} onClick={(e) => e.target.select()} />
+                <button
+                  type="button"
+                  className="btn-o"
+                  style={{ whiteSpace: 'nowrap' }}
+                  onClick={() => {
+                    navigator.clipboard?.writeText(publicJobUrl(sharingJob.id));
+                    toast('Enlace copiado ✓');
+                  }}
+                >
+                  <i className="ti ti-copy"></i> Copiar
+                </button>
+              </div>
+            </div>
+
+            {(() => {
+              const t = buildShareTemplates(sharingJob);
+              return (
+                <>
+                  <div style={{ background: '#f8faf9', borderRadius: 10, padding: 14, marginBottom: 12 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+                      <div style={{ fontSize: 13, fontWeight: 600 }}>
+                        <i className="ti ti-brand-linkedin" style={{ color: '#888' }}></i> LinkedIn
+                      </div>
+                      <div style={{ display: 'flex', gap: 6 }}>
+                        <button
+                          type="button"
+                          className="btn-g"
+                          style={{ fontSize: 11.5, padding: '5px 9px' }}
+                          onClick={() => {
+                            navigator.clipboard?.writeText(t.linkedin);
+                            toast('Texto copiado ✓ — pégalo al crear la publicación');
+                          }}
+                        >
+                          Copiar texto
+                        </button>
+                        <a
+                          className="btn-p"
+                          style={{ fontSize: 11.5, padding: '5px 9px', textDecoration: 'none' }}
+                          href={`https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(publicJobUrl(sharingJob.id))}`}
+                          target="_blank"
+                          rel="noreferrer"
+                        >
+                          Abrir LinkedIn
+                        </a>
+                      </div>
+                    </div>
+                    <div style={{ fontSize: 12, color: '#666', whiteSpace: 'pre-wrap', maxHeight: 90, overflow: 'auto' }}>{t.linkedin}</div>
+                    <p style={{ fontSize: 10.5, color: '#aaa', marginTop: 6 }}>
+                      LinkedIn no permite prerrellenar el texto de la publicación — cópialo y pégalo tú al abrir el editor.
+                    </p>
+                  </div>
+
+                  <div style={{ background: '#f8faf9', borderRadius: 10, padding: 14 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+                      <div style={{ fontSize: 13, fontWeight: 600 }}>
+                        <i className="ti ti-brand-whatsapp" style={{ color: '#888' }}></i> WhatsApp
+                      </div>
+                      <div style={{ display: 'flex', gap: 6 }}>
+                        <button
+                          type="button"
+                          className="btn-g"
+                          style={{ fontSize: 11.5, padding: '5px 9px' }}
+                          onClick={() => {
+                            navigator.clipboard?.writeText(t.whatsapp);
+                            toast('Mensaje copiado ✓');
+                          }}
+                        >
+                          Copiar
+                        </button>
+                        <a
+                          className="btn-p"
+                          style={{ fontSize: 11.5, padding: '5px 9px', textDecoration: 'none' }}
+                          href={`https://wa.me/?text=${encodeURIComponent(t.whatsapp)}`}
+                          target="_blank"
+                          rel="noreferrer"
+                        >
+                          Enviar
+                        </a>
+                      </div>
+                    </div>
+                    <div style={{ fontSize: 12, color: '#666', whiteSpace: 'pre-wrap' }}>{t.whatsapp}</div>
+                  </div>
+                </>
+              );
+            })()}
+          </div>
+        </div>
       )}
 
-      {upgradeModal && (
-        <UpgradeModal
-          title={upgradeModal.title}
-          message={upgradeModal.message}
-          onClose={() => setUpgradeModal(null)}
-        />
-      )}
-
-      {showVerifyModal && (
+      {showVerifyModal && org && (
         <VerifyOrganizationModal
           organizationId={org.id}
           organizationName={org.name}
@@ -702,8 +450,4 @@ export default function AllJobsPage() {
       )}
     </div>
   );
-}
-
-function sortByOrder(arr) {
-  return [...arr].sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0));
 }
