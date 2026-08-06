@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
-import { getEffectiveTier, planLabel, trialDaysRemaining, aiMatchesRemainingInTrial, trialAiMatchLimit } from '@/lib/plan';
+import { getEffectiveTier, planLabel, getTrialStatus, planCardTrialMessage, aiMatchesRemainingInTrial, trialAiMatchLimit } from '@/lib/plan';
 
 function UnlockSection({ title, features }) {
   return (
@@ -56,6 +56,8 @@ export default function OrganizationPlanPage() {
 
   const tier = getEffectiveTier(org);
   const isTrial = tier === 'trial';
+  const trialStatus = getTrialStatus(org); // no-null durante el trial activo Y también tras expirar
+  const trialMessage = planCardTrialMessage(org);
 
   return (
     <div className="sec" style={{ maxWidth: 640 }}>
@@ -63,25 +65,55 @@ export default function OrganizationPlanPage() {
       <p style={{ fontSize: 13, color: '#888', marginBottom: 24 }}>Consulta tu plan actual y qué incluye.</p>
 
       <div className="card" style={{ padding: 22, marginBottom: 16 }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
+        <div className="plan-card-head" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
           <div>
             <div style={{ fontSize: 11, color: '#999', fontWeight: 700, letterSpacing: '.03em', marginBottom: 6 }}>
               PLAN ACTUAL
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
               <span style={{ width: 9, height: 9, borderRadius: '50%', background: '#1d9d63', flexShrink: 0 }}></span>
-              <span style={{ fontSize: 19, fontWeight: 700, color: '#1a1a18' }}>{planLabel(org)}</span>
+              <span style={{ fontSize: 19, fontWeight: 700, color: '#1a1a18' }}>
+                {trialStatus ? 'Trial Pro' : planLabel(org)}
+              </span>
             </div>
+            {trialMessage && (
+              <div style={{ fontSize: 13, color: '#555', marginTop: 4 }}>{trialMessage}</div>
+            )}
           </div>
-          <Link href="/precios" target="_blank" className="btn-p" style={{ textDecoration: 'none' }}>
-            Actualizar plan
+          <Link
+            href="/precios"
+            target="_blank"
+            className="btn-p plan-card-cta"
+            style={{ textDecoration: 'none', display: 'inline-flex', alignItems: 'center' }}
+          >
+            {trialStatus ? 'Actualizar a Pro' : 'Actualizar plan'}
           </Link>
         </div>
 
+        {trialStatus && (
+          <div style={{ marginTop: 16 }}>
+            <div style={{ display: 'flex', gap: 4, marginBottom: 6 }}>
+              {Array.from({ length: trialStatus.totalDays }).map((_, i) => (
+                <div
+                  key={i}
+                  style={{
+                    flex: 1,
+                    height: 6,
+                    borderRadius: 4,
+                    background: i < trialStatus.daysUsed ? '#1d6f5c' : '#f0efe9',
+                  }}
+                ></div>
+              ))}
+            </div>
+            <div style={{ fontSize: 12, color: '#888' }}>
+              Has utilizado {trialStatus.daysUsed} de los {trialStatus.totalDays} días de prueba
+            </div>
+          </div>
+        )}
+
         {isTrial && (
           <div style={{ fontSize: 12.5, color: '#666', marginTop: 12 }}>
-            Matching de candidatos con IA: {aiMatchesRemainingInTrial(org)} de {trialAiMatchLimit()} usos restantes
-            en tu prueba.
+            Matching de candidatos con IA: {aiMatchesRemainingInTrial(org)} de {trialAiMatchLimit()} usos disponibles
           </div>
         )}
 
