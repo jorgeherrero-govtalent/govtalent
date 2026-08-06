@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
 import { toast } from '@/lib/toast';
+import HoverTooltip from '@/components/HoverTooltip';
 
 const STATUS_LABELS = {
   enviada: { label: 'Enviada', color: '#2563eb', bg: '#e8f0fb' },
@@ -145,7 +146,12 @@ export default function MyJobsPage() {
                   <div style={{ flex: 1 }}>
                     {unavailable ? (
                       <>
-                        <div style={{ fontWeight: 600, fontSize: 14, color: '#888' }}>La organización pausó o desactivó esta oferta</div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                          <span style={{ fontWeight: 600, fontSize: 14, color: '#888' }}>La organización pausó o desactivó esta oferta</span>
+                          <HoverTooltip label="La organización pausó o desactivó esta oferta">
+                            <i className="ti ti-info-circle" style={{ fontSize: 14, color: '#aaa' }}></i>
+                          </HoverTooltip>
+                        </div>
                         <div style={{ fontSize: 12, color: '#999' }}>
                           {s.created_at ? `Guardada el ${new Date(s.created_at).toLocaleDateString('es-ES')}` : 'Oferta no disponible'}
                         </div>
@@ -197,7 +203,12 @@ export default function MyJobsPage() {
                   <div style={{ flex: 1 }}>
                     {unavailable ? (
                       <>
-                        <div style={{ fontWeight: 600, fontSize: 14, color: '#888' }}>La organización pausó o desactivó esta oferta</div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                          <span style={{ fontWeight: 600, fontSize: 14, color: '#888' }}>La organización pausó o desactivó esta oferta</span>
+                          <HoverTooltip label="La organización pausó o desactivó esta oferta">
+                            <i className="ti ti-info-circle" style={{ fontSize: 14, color: '#aaa' }}></i>
+                          </HoverTooltip>
+                        </div>
                         <div style={{ fontSize: 11.5, color: '#999' }}>
                           Solicitado el {new Date(a.applied_at).toLocaleDateString('es-ES')}
                         </div>
@@ -214,19 +225,21 @@ export default function MyJobsPage() {
                       </>
                     )}
                   </div>
-                  <span
-                    style={{
-                      fontSize: 11.5,
-                      fontWeight: 600,
-                      padding: '4px 10px',
-                      borderRadius: 20,
-                      background: st.bg,
-                      color: st.color,
-                      whiteSpace: 'nowrap',
-                    }}
-                  >
-                    {st.label}
-                  </span>
+                  {!unavailable && (
+                    <span
+                      style={{
+                        fontSize: 11.5,
+                        fontWeight: 600,
+                        padding: '4px 10px',
+                        borderRadius: 20,
+                        background: st.bg,
+                        color: st.color,
+                        whiteSpace: 'nowrap',
+                      }}
+                    >
+                      {st.label}
+                    </span>
+                  )}
                   {a.status !== 'retirada' && a.status !== 'rechazada' && (
                     <button className="btn-o" style={{ fontSize: 12 }} onClick={() => withdraw(a.id)}>
                       Retirar
