@@ -150,7 +150,7 @@ export default function JobsPage() {
       .from('jobs')
       .select(
         `id, title, area, location, modality, employment_type, salary_min, salary_max,
-         description, is_featured, created_at, application_count,
+         description, is_featured, created_at, application_count, application_mode, external_apply_url,
          organizations ( id, name, logo_url, slug, org_type ),
          job_tags ( tag ),
          job_requirements ( content, sort_order ),
@@ -351,20 +351,32 @@ export default function JobsPage() {
                     <span>{timeAgo(selected.created_at)}</span>
                   </div>
                   <div style={{ display: 'flex', gap: 8, marginBottom: 14, flexWrap: 'wrap' }}>
-                    <button
-                      className={appliedIds.has(selected.id) ? 'btn-o' : 'btn-p'}
-                      onClick={() =>
-                        appliedIds.has(selected.id) ? withdrawApplication(selected.id) : openApply(selected)
-                      }
-                    >
-                      {appliedIds.has(selected.id) ? (
-                        <>
-                          <i className="ti ti-x"></i> Retirar solicitud
-                        </>
-                      ) : (
-                        'Solicitud sencilla'
-                      )}
-                    </button>
+                    {selected.application_mode === 'externa' ? (
+                      <a
+                        href={`/api/jobs/${selected.id}/go`}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="btn-p"
+                        style={{ textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 6 }}
+                      >
+                        Aplicar en la web de la organización <i className="ti ti-external-link"></i>
+                      </a>
+                    ) : (
+                      <button
+                        className={appliedIds.has(selected.id) ? 'btn-o' : 'btn-p'}
+                        onClick={() =>
+                          appliedIds.has(selected.id) ? withdrawApplication(selected.id) : openApply(selected)
+                        }
+                      >
+                        {appliedIds.has(selected.id) ? (
+                          <>
+                            <i className="ti ti-x"></i> Retirar solicitud
+                          </>
+                        ) : (
+                          'Solicitud sencilla'
+                        )}
+                      </button>
+                    )}
                     <button className="btn-g" onClick={() => toggleSave(selected.id)}>
                       <i className="ti ti-bookmark"></i>{' '}
                       {savedIds.has(selected.id) ? 'Guardado' : 'Guardar en favoritos'}
