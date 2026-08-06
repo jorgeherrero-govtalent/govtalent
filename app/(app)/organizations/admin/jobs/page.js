@@ -8,6 +8,7 @@ import ShareJobModal from '@/components/ShareJobModal';
 import UpgradeModal from '@/components/UpgradeModal';
 import VerifyOrganizationModal from '@/components/VerifyOrganizationModal';
 import { canPostAnotherJob, freeJobLimit } from '@/lib/plan';
+import { normalizeUrl } from '@/lib/normalizeUrl';
 
 const AREAS = [
   'Public Affairs',
@@ -244,7 +245,7 @@ export default function AllJobsPage() {
         salary_max: f.get('salary_max') ? Number(f.get('salary_max')) : null,
         description: f.get('description'),
         application_mode: applicationMode,
-        external_apply_url: applicationMode === 'externa' ? f.get('external_apply_url') : null,
+        external_apply_url: applicationMode === 'externa' ? normalizeUrl(f.get('external_apply_url')) : null,
         status: isVerified ? 'activa' : 'borrador',
         published_at: isVerified ? new Date().toISOString() : null,
       })
@@ -636,7 +637,7 @@ export default function AllJobsPage() {
                     <label>URL donde aplicar</label>
                     <input
                       name="external_apply_url"
-                      type="url"
+                      type="text"
                       required
                       placeholder="https://tuweb.com/carreras/oferta"
                     />
