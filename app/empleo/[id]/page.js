@@ -201,7 +201,12 @@ export default async function PublicJobPage({ params }) {
           </div>
 
           <div style={{ marginBottom: 24 }}>
-            <PublicJobApplyButton jobId={job.id} label="Solicitar" />
+            <PublicJobApplyButton
+              jobId={job.id}
+              label="Solicitar"
+              applicationMode={job.application_mode}
+              externalApplyUrl={job.external_apply_url}
+            />
           </div>
 
           {(job.salary_min || job.salary_max) && (
@@ -251,7 +256,12 @@ export default async function PublicJobPage({ params }) {
           )}
 
           <div style={{ marginTop: 26, paddingTop: 20, borderTop: '.5px solid #e0dfd8' }}>
-            <PublicJobApplyButton jobId={job.id} label="Regístrate y solicita este empleo" />
+            <PublicJobApplyButton
+              jobId={job.id}
+              label="Regístrate y solicita este empleo"
+              applicationMode={job.application_mode}
+              externalApplyUrl={job.external_apply_url}
+            />
           </div>
         </div>
 
