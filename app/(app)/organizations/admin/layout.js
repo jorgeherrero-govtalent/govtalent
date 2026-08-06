@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { createClient } from '@/lib/supabase/client';
-import { getEffectiveTier, trialDaysRemaining } from '@/lib/plan';
+import { sidebarTrialLabel } from '@/lib/plan';
 
 const NAV = [
   { href: '/organizations/admin', label: 'Dashboard', icon: 'ti-layout-dashboard', exact: true },
@@ -41,7 +41,7 @@ export default function OrganizationAdminLayout({ children }) {
     if (membership?.organizations) setOrg(membership.organizations);
   }
 
-  const trialDays = org && getEffectiveTier(org) === 'trial' ? trialDaysRemaining(org) : null;
+  const trialLabel = org ? sidebarTrialLabel(org) : null;
 
   function toggleCollapsed() {
     setCollapsed((prev) => {
@@ -101,12 +101,12 @@ export default function OrganizationAdminLayout({ children }) {
 
         {NAV.map((item) => {
           const active = item.exact ? pathname === item.href : pathname.startsWith(item.href);
-          const showTrialBadge = item.href === '/organizations/admin/plan' && trialDays !== null;
+          const showTrialBadge = item.href === '/organizations/admin/plan' && trialLabel !== null;
           return (
             <Link
               key={item.href}
               href={item.href}
-              title={collapsed ? (showTrialBadge ? `${item.label} · ${trialDays}d de prueba` : item.label) : undefined}
+              title={collapsed ? (showTrialBadge ? `${item.label} · ${trialLabel}` : item.label) : undefined}
               style={{
                 display: 'flex',
                 alignItems: 'center',
@@ -124,20 +124,24 @@ export default function OrganizationAdminLayout({ children }) {
             >
               <i className={`ti ${item.icon}`} style={{ fontSize: 15, flexShrink: 0 }}></i>
               {!collapsed && item.label}
+              {/* Pill de recordatorio: mismo tratamiento visual siempre (fondo, borde,
+                  tipografía) en cualquier estado — la diferencia la comunica solo el
+                  texto (sidebarTrialLabel), nunca el color. */}
               {!collapsed && showTrialBadge && (
                 <span
                   style={{
                     marginLeft: 'auto',
                     fontSize: 10.5,
                     fontWeight: 700,
-                    color: trialDays <= 1 ? '#b3261e' : '#b8860b',
-                    background: trialDays <= 1 ? '#fbeceb' : '#fff8e1',
+                    color: '#666',
+                    background: '#f0efe9',
+                    border: '.5px solid #e0dfd8',
                     padding: '2px 7px',
                     borderRadius: 20,
                     whiteSpace: 'nowrap',
                   }}
                 >
-                  {trialDays === 0 ? 'Último día' : `${trialDays}d`}
+                  {trialLabel}
                 </span>
               )}
               {collapsed && showTrialBadge && (
@@ -149,7 +153,7 @@ export default function OrganizationAdminLayout({ children }) {
                     width: 7,
                     height: 7,
                     borderRadius: '50%',
-                    background: trialDays <= 1 ? '#b3261e' : '#b8860b',
+                    background: '#999',
                   }}
                 ></span>
               )}
