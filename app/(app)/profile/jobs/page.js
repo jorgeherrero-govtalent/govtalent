@@ -63,6 +63,7 @@ export default function MyJobsPage() {
   const [saved, setSaved] = useState([]);
   const [applications, setApplications] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [confirmingWithdraw, setConfirmingWithdraw] = useState(null);
 
   useEffect(() => {
     load();
@@ -239,39 +240,25 @@ export default function MyJobsPage() {
                       </div>
 
                       {!unavailable && (
-                        <div style={{ display: 'flex', alignItems: 'center', marginTop: 14, maxWidth: 420 }}>
-                          {STAGES.map((stage, i) => (
-                            <div key={stage} style={{ display: 'flex', alignItems: 'center', flex: i === STAGES.length - 1 ? '0 0 auto' : 1 }}>
-                              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-                                <div
-                                  style={{
-                                    width: 20,
-                                    height: 20,
-                                    borderRadius: '50%',
-                                    background: i <= stageIndex ? '#1d6f5c' : '#e0dfd8',
-                                    color: '#fff',
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    justifyContent: 'center',
-                                    fontSize: 11,
-                                    flexShrink: 0,
-                                  }}
-                                >
-                                  {i <= stageIndex && <i className="ti ti-check" style={{ fontSize: 12 }}></i>}
-                                </div>
-                                <div style={{ fontSize: 9.5, marginTop: 4, fontWeight: 600, color: i <= stageIndex ? '#1d6f5c' : '#999', whiteSpace: 'nowrap' }}>
-                                  {STAGE_LABELS[stage]}
-                                </div>
-                              </div>
-                              {i < STAGES.length - 1 && (
-                                <div style={{ flex: 1, height: 2, background: i < stageIndex ? '#1d6f5c' : '#e0dfd8', margin: '0 4px 15px' }}></div>
-                              )}
-                            </div>
-                          ))}
+                        <div style={{ marginTop: 12, maxWidth: 320 }}>
+                          <div style={{ display: 'flex', gap: 4, marginBottom: 7 }}>
+                            {STAGES.map((stage, i) => (
+                              <div
+                                key={stage}
+                                style={{
+                                  flex: 1,
+                                  height: 8,
+                                  borderRadius: 20,
+                                  background: i <= stageIndex ? '#1d6f5c' : '#e0dfd8',
+                                }}
+                              ></div>
+                            ))}
+                          </div>
+                          <span style={{ fontSize: 12, fontWeight: 600, color: '#666' }}>{STAGE_LABELS[a.status]}</span>
                         </div>
                       )}
                     </div>
-                    <button className="btn-o" style={{ fontSize: 12, flexShrink: 0 }} onClick={() => withdraw(a.id)}>
+                    <button className="btn-o" style={{ fontSize: 12, flexShrink: 0 }} onClick={() => setConfirmingWithdraw(a)}>
                       Retirar
                     </button>
                   </div>
@@ -318,6 +305,53 @@ export default function MyJobsPage() {
             })}
         </div>
       </div>
+
+      {confirmingWithdraw && (
+        <div className="modal-ov on" onClick={(e) => e.target === e.currentTarget && setConfirmingWithdraw(null)}>
+          <div className="modal-box" style={{ maxWidth: 380, padding: 20 }}>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: -4 }}>
+              <div className="modal-x" style={{ width: 28, height: 28 }} onClick={() => setConfirmingWithdraw(null)}>
+                <i className="ti ti-x" style={{ fontSize: 13 }}></i>
+              </div>
+            </div>
+            <div
+              style={{
+                width: 38,
+                height: 38,
+                borderRadius: 10,
+                background: '#f0f0eb',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                marginBottom: 12,
+              }}
+            >
+              <i className="ti ti-x" style={{ color: '#666', fontSize: 17 }}></i>
+            </div>
+            <div style={{ fontSize: 14.5, fontWeight: 600, marginBottom: 6 }}>
+              ¿Retirar tu candidatura a "{confirmingWithdraw.jobs?.title || 'esta oferta'}"?
+            </div>
+            <div style={{ fontSize: 12.5, color: '#666', lineHeight: 1.5, marginBottom: 18 }}>
+              La organización dejará de ver tu candidatura como activa. Esta acción no se puede deshacer — si quieres
+              volver a aplicar, tendrás que enviar una nueva solicitud.
+            </div>
+            <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+              <button className="btn-o" onClick={() => setConfirmingWithdraw(null)}>
+                Cancelar
+              </button>
+              <button
+                className="btn-p"
+                onClick={() => {
+                  withdraw(confirmingWithdraw.id);
+                  setConfirmingWithdraw(null);
+                }}
+              >
+                Sí, retirar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
