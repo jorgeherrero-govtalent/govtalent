@@ -4,6 +4,14 @@ import { useEffect, useState } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { toast } from '@/lib/toast';
 
+const UPCOMING = [
+  'Registro de reuniones institucionales.',
+  'Trazabilidad de proyectos regulatorios.',
+  'Huella de actividad e influencia.',
+  'Evidencias de buenas prácticas.',
+  'Indicadores públicos de transparencia e integridad.',
+];
+
 export default function InfluenceLogPage() {
   const supabase = createClient();
   const [org, setOrg] = useState(null);
@@ -49,7 +57,7 @@ export default function InfluenceLogPage() {
       return;
     }
     setOrg((prev) => ({ ...prev, transparency_pledge: next }));
-    toast(next ? 'Adhesión activada — ya se muestra en tu página pública ✓' : 'Adhesión retirada de tu página pública');
+    toast(next ? 'Compromiso activado — ya se muestra en tu página pública ✓' : 'Compromiso retirado de tu página pública');
   }
 
   if (loading) return <div className="spinner"></div>;
@@ -68,7 +76,7 @@ export default function InfluenceLogPage() {
   return (
     <div className="sec" style={{ maxWidth: 640 }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
-        <h2 style={{ fontSize: 19, fontWeight: 700, margin: 0 }}>Transparencia</h2>
+        <h2 style={{ fontSize: 19, fontWeight: 700, margin: 0 }}>Registro y Transparencia</h2>
         <span
           style={{
             fontSize: 10.5,
@@ -83,27 +91,30 @@ export default function InfluenceLogPage() {
           BETA
         </span>
       </div>
-      <p style={{ fontSize: 13, color: '#888', maxWidth: 520, marginBottom: 20 }}>
-        Esta sección está en una versión inicial. Por ahora solo puedes indicar que tu organización se adhiere a la
-        transparencia como grupo de interés — más adelante añadiremos más funciones.
+      <p style={{ fontSize: 13, color: '#888', maxWidth: 540, marginBottom: 20, lineHeight: 1.55 }}>
+        GovTalent está construyendo las herramientas que permitirán a las organizaciones registrar y demostrar sus
+        buenas prácticas en la relación con las administraciones públicas, anticipándose a la futura regulación
+        sobre grupos de interés.
       </p>
 
       <div className="card" style={{ padding: 20, marginBottom: 16 }}>
+        <div style={{ fontSize: 13, fontWeight: 700, color: '#1d6f5c', marginBottom: 12 }}>Compromiso público</div>
         <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 16 }}>
           <div>
             <div style={{ fontSize: 14, fontWeight: 600, color: '#1a1a18', marginBottom: 4 }}>
-              Quiero que mi página muestre que me adhiero a la transparencia como grupo de interés
+              Quiero que mi organización muestre públicamente su compromiso con la integridad y la transparencia
+              como grupo de interés.
             </div>
             <div style={{ fontSize: 12.5, color: '#888', lineHeight: 1.5 }}>
-              GovTalent recomienda como plataforma a las organizaciones que abogan por la transparencia. Si lo
-              activas, tu página pública mostrará este gesto — sin necesidad de registrar actividad ni ningún otro
-              dato por ahora.
+              GovTalent promueve una cultura de transparencia e integridad en el ejercicio de los asuntos públicos.
+              Al activar esta opción, tu organización mostrará en su página pública un distintivo de compromiso, sin
+              necesidad de registrar todavía reuniones ni actividad.
             </div>
           </div>
           <button
             onClick={togglePledge}
             disabled={saving}
-            aria-label={org.transparency_pledge ? 'Desactivar adhesión' : 'Activar adhesión'}
+            aria-label={org.transparency_pledge ? 'Desactivar compromiso' : 'Activar compromiso'}
             style={{
               width: 42,
               height: 24,
@@ -132,17 +143,38 @@ export default function InfluenceLogPage() {
         </div>
       </div>
 
+      <div className="card" style={{ padding: 20, marginBottom: 16 }}>
+        <div style={{ fontSize: 13, fontWeight: 700, color: '#1a1a18', marginBottom: 8 }}>¿Por qué activarlo?</div>
+        <div style={{ fontSize: 12.5, color: '#666', lineHeight: 1.6 }}>
+          <p style={{ margin: '0 0 10px' }}>
+            Las organizaciones que apuestan por la transparencia generan mayor confianza entre profesionales,
+            administraciones públicas y sociedad.
+          </p>
+          <p style={{ margin: 0 }}>
+            Mostrar este compromiso en tu perfil público contribuye a reforzar tu reputación y tu marca empleadora,
+            además de posicionarte entre las organizaciones que lideran la evolución del sector.
+          </p>
+        </div>
+      </div>
+
       <div
         style={{
-          fontSize: 12, color: '#999', display: 'flex', alignItems: 'flex-start', gap: 8,
-          background: '#faf9f5', border: '.5px solid #e0dfd8', borderRadius: 10, padding: '12px 14px',
+          background: '#faf9f5', border: '.5px solid #e0dfd8', borderRadius: 12, padding: '16px 18px',
         }}
       >
-        <i className="ti ti-clock" style={{ fontSize: 14, marginTop: 1, flexShrink: 0 }}></i>
-        <div>
-          Próximamente: cruzaremos datos de registros públicos de transparencia y añadiremos un ranking de
-          transparencia visible en tu página de organización.
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
+          <i className="ti ti-clock" style={{ fontSize: 15, color: '#999' }}></i>
+          <div style={{ fontSize: 13, fontWeight: 700, color: '#1a1a18' }}>Próximamente</div>
         </div>
+        <div style={{ fontSize: 12.5, color: '#888', marginBottom: 10 }}>
+          Estamos desarrollando nuevas funcionalidades para ayudar a las organizaciones a demostrar su actividad de
+          forma transparente:
+        </div>
+        <ul style={{ margin: 0, paddingLeft: 18, fontSize: 12.5, color: '#666', lineHeight: 1.8 }}>
+          {UPCOMING.map((item) => (
+            <li key={item}>{item}</li>
+          ))}
+        </ul>
       </div>
     </div>
   );
