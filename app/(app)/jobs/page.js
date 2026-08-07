@@ -474,7 +474,7 @@ export default function JobsPage() {
                     </div>
                   </div>
 
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14, flexWrap: 'wrap' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, marginBottom: 14, flexWrap: 'wrap' }}>
                     {selected.application_mode === 'externa' ? (
                       <a
                         href={`/api/jobs/${selected.id}/go`}
@@ -506,25 +506,27 @@ export default function JobsPage() {
                         Solicitar empleo
                       </button>
                     )}
-                    <button
-                      className="icon-circle-btn"
-                      title={savedIds.has(selected.id) ? 'Guardado' : 'Guardar'}
-                      aria-label="Guardar oferta"
-                      onClick={() => toggleSave(selected.id)}
-                    >
-                      <i className={`ti ${savedIds.has(selected.id) ? 'ti-bookmark-filled' : 'ti-bookmark'}`}></i>
-                    </button>
-                    <button className="icon-circle-btn" title="Compartir" aria-label="Compartir oferta" onClick={() => setSharingJob(selected)}>
-                      <i className="ti ti-share"></i>
-                    </button>
-                    <button
-                      className="icon-circle-btn"
-                      title={alertKeys.has(alertKey(selected.area, selected.location)) ? 'Alerta activada' : 'Avisarme de ofertas similares'}
-                      aria-label="Activar alerta para ofertas similares"
-                      onClick={() => toggleAlert(selected)}
-                    >
-                      <i className={`ti ${alertKeys.has(alertKey(selected.area, selected.location)) ? 'ti-bell-filled' : 'ti-bell'}`}></i>
-                    </button>
+                    <div style={{ display: 'flex', gap: 8 }}>
+                      <button
+                        className="icon-circle-btn"
+                        title={savedIds.has(selected.id) ? 'Guardado' : 'Guardar'}
+                        aria-label="Guardar oferta"
+                        onClick={() => toggleSave(selected.id)}
+                      >
+                        <i className={`ti ${savedIds.has(selected.id) ? 'ti-bookmark-filled' : 'ti-bookmark'}`}></i>
+                      </button>
+                      <button className="icon-circle-btn" title="Compartir" aria-label="Compartir oferta" onClick={() => setSharingJob(selected)}>
+                        <i className="ti ti-share"></i>
+                      </button>
+                      <button
+                        className="icon-circle-btn"
+                        title={alertKeys.has(alertKey(selected.area, selected.location)) ? 'Alerta activada' : 'Avisarme de ofertas similares'}
+                        aria-label="Activar alerta para ofertas similares"
+                        onClick={() => toggleAlert(selected)}
+                      >
+                        <i className={`ti ${alertKeys.has(alertKey(selected.area, selected.location)) ? 'ti-bell-filled' : 'ti-bell'}`}></i>
+                      </button>
+                    </div>
                   </div>
 
                   {isApplied(selected) && selected.application_mode !== 'externa' && (
@@ -540,28 +542,28 @@ export default function JobsPage() {
 
                 <div
                   style={{
-                    display: 'grid',
-                    gridTemplateColumns: '1fr .5px 1fr .5px 1fr',
+                    display: 'flex',
+                    gap: 18,
                     margin: '0 0 20px',
-                    padding: '16px 8px',
-                    background: '#faf9f5',
-                    borderRadius: 10,
+                    paddingTop: 16,
+                    borderTop: '.5px solid #eee',
+                    fontSize: 12.5,
+                    color: '#555',
+                    flexWrap: 'wrap',
                   }}
                 >
-                  <div style={{ textAlign: 'center' }}>
-                    <div style={{ fontSize: 10.5, color: '#999' }}>Ubicación</div>
-                    <div style={{ fontSize: 13, color: '#333', marginTop: 3 }}>{selected.location}</div>
-                  </div>
-                  <div style={{ background: '#e0dfd8' }}></div>
-                  <div style={{ textAlign: 'center' }}>
-                    <div style={{ fontSize: 10.5, color: '#999' }}>Modalidad</div>
-                    <div style={{ fontSize: 13, color: '#333', marginTop: 3 }}>{modalityLabel(selected.modality)}</div>
-                  </div>
-                  <div style={{ background: '#e0dfd8' }}></div>
-                  <div style={{ textAlign: 'center' }}>
-                    <div style={{ fontSize: 10.5, color: '#999' }}>Jornada</div>
-                    <div style={{ fontSize: 13, color: '#333', marginTop: 3 }}>{employmentLabel(selected.employment_type)}</div>
-                  </div>
+                  <span>
+                    <i className="ti ti-map-pin" style={{ color: '#999', marginRight: 4 }}></i>
+                    {selected.location}
+                  </span>
+                  <span>
+                    <i className="ti ti-building-skyscraper" style={{ color: '#999', marginRight: 4 }}></i>
+                    {modalityLabel(selected.modality)}
+                  </span>
+                  <span>
+                    <i className="ti ti-clock" style={{ color: '#999', marginRight: 4 }}></i>
+                    Jornada {employmentLabel(selected.employment_type).toLowerCase()}
+                  </span>
                 </div>
 
                 <div style={{ display: 'flex', gap: 16, borderBottom: '.5px solid #eee', marginBottom: 18, overflowX: 'auto' }}>
