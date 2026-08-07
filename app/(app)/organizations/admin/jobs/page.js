@@ -28,6 +28,7 @@ export default function AllJobsPage() {
   const [togglingId, setTogglingId] = useState(null);
   const [sharingJob, setSharingJob] = useState(null);
   const [showVerifyModal, setShowVerifyModal] = useState(false);
+  const [managingJob, setManagingJob] = useState(null);
 
   const [editingJob, setEditingJob] = useState(null);
   const [loadingEditJob, setLoadingEditJob] = useState(false);
@@ -404,7 +405,7 @@ export default function AllJobsPage() {
 
           {list.map((j) => (
             <div key={j.id} style={{ padding: '14px 0', borderBottom: '.5px solid #f0f0eb' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 10, flexWrap: 'wrap' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
                 <div>
                   <div style={{ fontSize: 14.5, fontWeight: 600 }}>{j.title}</div>
                   <div style={{ fontSize: 12.5, color: '#666', marginTop: 2 }}>{j.area}</div>
@@ -417,50 +418,14 @@ export default function AllJobsPage() {
                     </div>
                   )}
                 </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-                  {j.application_mode === 'externa' ? (
-                    <a
-                      href={j.external_apply_url}
-                      target="_blank"
-                      rel="noreferrer"
-                      style={{ fontSize: 12.5, color: '#1d6f5c', textDecoration: 'none', fontWeight: 500, display: 'inline-flex', alignItems: 'center', gap: 4 }}
-                    >
-                      <i className="ti ti-external-link" style={{ fontSize: 12.5 }}></i> Ver oferta externa
-                    </a>
-                  ) : (
-                    <Link
-                      href={`/organizations/admin/candidates?job=${j.id}`}
-                      style={{ fontSize: 12.5, color: '#1d6f5c', textDecoration: 'none', fontWeight: 500 }}
-                    >
+                <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+                  {j.application_mode !== 'externa' && (
+                    <span style={{ fontSize: 12.5, color: '#666', fontWeight: 600, whiteSpace: 'nowrap' }}>
                       {j.job_applications?.[0]?.count || 0} solicitudes
-                    </Link>
+                    </span>
                   )}
-                  <button
-                    className="btn-o"
-                    style={{ fontSize: 12, padding: '6px 12px' }}
-                    onClick={() => setSharingJob(j)}
-                  >
-                    <i className="ti ti-share"></i> Compartir
-                  </button>
-                  <button
-                    className="btn-o"
-                    style={{ fontSize: 12, padding: '6px 12px' }}
-                    disabled={loadingEditJob}
-                    onClick={() => openEditJob(j.id)}
-                  >
-                    <i className="ti ti-edit"></i> Actualizar
-                  </button>
-                  <button
-                    className={j.status === 'activa' ? 'btn-o' : 'btn-p'}
-                    style={{ fontSize: 12, padding: '6px 12px' }}
-                    disabled={togglingId === j.id}
-                    onClick={() => toggleStatus(j)}
-                  >
-                    {togglingId === j.id
-                      ? 'Actualizando...'
-                      : j.status === 'activa'
-                      ? 'Desactivar'
-                      : 'Reactivar'}
+                  <button className="btn-o" style={{ fontSize: 12, padding: '6px 14px' }} onClick={() => setManagingJob(j)}>
+                    Gestionar
                   </button>
                 </div>
               </div>
@@ -468,6 +433,74 @@ export default function AllJobsPage() {
           ))}
         </div>
       </div>
+
+      {managingJob && (
+        <div className="modal-ov on" onClick={(e) => e.target === e.currentTarget && setManagingJob(null)}>
+          <div className="modal-box" style={{ maxWidth: 380, padding: 20 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 14 }}>
+              <div style={{ fontSize: 14.5, fontWeight: 700, paddingRight: 10 }}>{managingJob.title}</div>
+              <div className="modal-x" style={{ width: 28, height: 28 }} onClick={() => setManagingJob(null)}>
+                <i className="ti ti-x" style={{ fontSize: 13 }}></i>
+              </div>
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+              {managingJob.application_mode === 'externa' ? (
+                <a
+                  href={managingJob.external_apply_url}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="mgmt-btn"
+                  onClick={() => setManagingJob(null)}
+                >
+                  <i className="ti ti-external-link"></i>
+                  Ver oferta externa ({managingJob.external_apply_clicks || 0} clics)
+                </a>
+              ) : (
+                <Link
+                  href={`/organizations/admin/candidates?job=${managingJob.id}`}
+                  className="mgmt-btn"
+                  onClick={() => setManagingJob(null)}
+                >
+                  <i className="ti ti-users"></i>
+                  Ver {managingJob.job_applications?.[0]?.count || 0} solicitudes
+                </Link>
+              )}
+              <button
+                className="mgmt-btn"
+                onClick={() => {
+                  setSharingJob(managingJob);
+                  setManagingJob(null);
+                }}
+              >
+                <i className="ti ti-share"></i>
+                Compartir
+              </button>
+              <button
+                className="mgmt-btn"
+                disabled={loadingEditJob}
+                onClick={() => {
+                  openEditJob(managingJob.id);
+                  setManagingJob(null);
+                }}
+              >
+                <i className="ti ti-edit"></i>
+                Editar oferta
+              </button>
+              <button
+                className="mgmt-btn"
+                disabled={togglingId === managingJob.id}
+                onClick={() => {
+                  toggleStatus(managingJob);
+                  setManagingJob(null);
+                }}
+              >
+                <i className={`ti ${managingJob.status === 'activa' ? 'ti-player-pause' : 'ti-player-play'}`}></i>
+                {managingJob.status === 'activa' ? 'Desactivar' : 'Reactivar'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {editingJob && (
         <div className="modal-ov on" onClick={(e) => e.target === e.currentTarget && setEditingJob(null)}>
