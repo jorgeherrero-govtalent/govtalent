@@ -278,23 +278,6 @@ export default function JobsPage() {
     setApplyingJob(null);
   }
 
-  async function withdrawApplication(jobId) {
-    if (!userId) return;
-    const confirmed = window.confirm('¿Seguro que quieres retirar tu solicitud a esta oferta?');
-    if (!confirmed) return;
-    const { error } = await supabase.from('job_applications').delete().eq('job_id', jobId).eq('candidate_id', userId);
-    if (error) {
-      toast('No se pudo retirar la solicitud');
-      return;
-    }
-    setAppliedIds((prev) => {
-      const n = new Set(prev);
-      n.delete(jobId);
-      return n;
-    });
-    toast('Solicitud retirada');
-  }
-
   function scrollToSection(id) {
     document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }
@@ -486,21 +469,26 @@ export default function JobsPage() {
                         Aplicar en la web de la organización <i className="ti ti-external-link"></i>
                       </a>
                     ) : isApplied(selected) ? (
-                      <span
-                        style={{
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          gap: 6,
-                          background: '#f0efe9',
-                          color: '#666',
-                          fontWeight: 600,
-                          fontSize: 13,
-                          padding: '11px 20px',
-                          borderRadius: 8,
-                        }}
-                      >
-                        <i className="ti ti-check"></i> Solicitud enviada
-                      </span>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                        <span
+                          style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: 5,
+                            background: '#f0efe9',
+                            color: '#777',
+                            fontWeight: 600,
+                            fontSize: 11,
+                            padding: '5px 11px',
+                            borderRadius: 14,
+                          }}
+                        >
+                          <i className="ti ti-check" style={{ fontSize: 12 }}></i> Aplicado
+                        </span>
+                        <Link href="/profile/jobs" className="btn-ai" style={{ textDecoration: 'none' }}>
+                          Ver mi solicitud
+                        </Link>
+                      </div>
                     ) : (
                       <button className="btn-ai" onClick={() => openApply(selected)}>
                         Solicitar empleo
@@ -528,16 +516,6 @@ export default function JobsPage() {
                       </button>
                     </div>
                   </div>
-
-                  {isApplied(selected) && selected.application_mode !== 'externa' && (
-                    <button
-                      className="btn-o"
-                      style={{ fontSize: 12, marginTop: -6, marginBottom: 14 }}
-                      onClick={() => withdrawApplication(selected.id)}
-                    >
-                      Retirar solicitud
-                    </button>
-                  )}
                 </div>
 
                 <div
