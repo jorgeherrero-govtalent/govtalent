@@ -1,12 +1,8 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
-import { canAccessDatabase } from '@/lib/plan';
-import OrganizationFollowButton from '@/components/OrganizationFollowButton';
-import UpgradeModal from '@/components/UpgradeModal';
 
 const EVENT_ICON = {
   new_job_posting: { icon: 'ti-briefcase', color: '#1d6f5c', bg: '#f0f8f5' },
@@ -29,11 +25,10 @@ function timeAgo(dateStr) {
 
 export default function FollowedOrganizationsPage() {
   const supabase = createClient();
-  const router = useRouter();
   const [userId, setUserId] = useState(null);
   const [orgs, setOrgs] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [upgradeModal, setUpgradeModal] = useState(false);
+  const [confirmingUnfollow, setConfirmingUnfollow] = useState(null);
 
   useEffect(() => {
     load();
@@ -95,20 +90,10 @@ export default function FollowedOrganizationsPage() {
     setLoading(false);
   }
 
-  async function openDirectorioInteligente() {
-    const { data: membership } = await supabase
-      .from('organization_members')
-      .select('organizations(plan, plan_status, trial_ends_at)')
-      .eq('user_id', userId)
-      .limit(1)
-      .maybeSingle();
-
-    const org = membership?.organizations;
-    if (org && canAccessDatabase(org)) {
-      router.push('/organizations/admin/database');
-    } else {
-      setUpgradeModal(true);
-    }
+  async function unfollow(org) {
+    await supabase.from('organization_follows').delete().eq('user_id', userId).eq('organization_id', org.id);
+    setOrgs((prev) => prev.filter((o) => o.id !== org.id));
+    setConfirmingUnfollow(null);
   }
 
   if (loading) return <div className="spinner"></div>;
@@ -123,18 +108,9 @@ export default function FollowedOrganizationsPage() {
 
       <div className="card">
         <div className="cp">
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 10, flexWrap: 'wrap', marginBottom: 16 }}>
-            <div>
-              <h2 style={{ fontSize: 18, fontWeight: 700, marginBottom: 4 }}>Organizaciones que sigues</h2>
-              <p style={{ fontSize: 13, color: '#888' }}>Novedades y ofertas de las organizaciones que sigues en un solo sitio.</p>
-            </div>
-            <button
-              className="btn-o"
-              onClick={openDirectorioInteligente}
-              style={{ display: 'flex', alignItems: 'center', gap: 6, whiteSpace: 'nowrap' }}
-            >
-              <i className="ti ti-radar-2"></i> Directorio inteligente
-            </button>
+          <div style={{ marginBottom: 16 }}>
+            <h2 style={{ fontSize: 18, fontWeight: 700, marginBottom: 4 }}>Organizaciones que sigues</h2>
+            <p style={{ fontSize: 13, color: '#888' }}>Novedades y ofertas de las organizaciones que sigues en un solo sitio.</p>
           </div>
 
           {orgs.length === 0 && (
@@ -180,12 +156,13 @@ export default function FollowedOrganizationsPage() {
                     {[org.sector, org.location].filter(Boolean).join(' · ') || 'Sector no especificado'}
                   </div>
                 </div>
-                <OrganizationFollowButton
-                  organizationId={org.id}
-                  organizationName={org.name}
-                  userId={userId}
-                  initialFollowing={true}
-                />
+                <button
+                  className="btn-o"
+                  onClick={() => setConfirmingUnfollow(org)}
+                  style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}
+                >
+                  <i className="ti ti-check"></i> Siguiendo
+                </button>
               </div>
 
               <div style={{ marginTop: 10, marginLeft: 60 }}>
@@ -214,12 +191,44 @@ export default function FollowedOrganizationsPage() {
         </div>
       </div>
 
-      {upgradeModal && (
-        <UpgradeModal
-          title="Directorio inteligente"
-          message="El Directorio Inteligente es una función del plan Pro: filtra, analiza y exporta el ecosistema completo de organizaciones del sector desde el panel de tu organización."
-          onClose={() => setUpgradeModal(false)}
-        />
+      {confirmingUnfollow && (
+        <div className="modal-ov on" onClick={(e) => e.target === e.currentTarget && setConfirmingUnfollow(null)}>
+          <div className="modal-box" style={{ maxWidth: 380, padding: 20 }}>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: -4 }}>
+              <div className="modal-x" style={{ width: 28, height: 28 }} onClick={() => setConfirmingUnfollow(null)}>
+                <i className="ti ti-x" style={{ fontSize: 13 }}></i>
+              </div>
+            </div>
+            <div
+              style={{
+                width: 38,
+                height: 38,
+                borderRadius: 10,
+                background: '#f0f0eb',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                marginBottom: 12,
+              }}
+            >
+              <i className="ti ti-user-minus" style={{ color: '#666', fontSize: 17 }}></i>
+            </div>
+            <div style={{ fontSize: 14.5, fontWeight: 600, marginBottom: 6 }}>
+              ¿Quieres dejar de seguir a "{confirmingUnfollow.name}"?
+            </div>
+            <div style={{ fontSize: 12.5, color: '#666', lineHeight: 1.5, marginBottom: 18 }}>
+              Dejarás de ver sus novedades y ofertas aquí. Puedes volver a seguirla cuando quieras desde su página.
+            </div>
+            <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+              <button className="btn-o" onClick={() => setConfirmingUnfollow(null)}>
+                Cancelar
+              </button>
+              <button className="btn-p" onClick={() => unfollow(confirmingUnfollow)}>
+                Sí, dejar de seguir
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
