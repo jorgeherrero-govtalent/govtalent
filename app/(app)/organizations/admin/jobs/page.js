@@ -18,6 +18,78 @@ const AREAS = [
   'Regulación',
 ];
 
+// Desplegable propio (no <select> nativo) para poder controlar el estilo del
+// todo — el <select> nativo lo pinta el sistema operativo, así que no hay
+// forma de darle el mismo tono oscuro que usan los tooltips de la app.
+function SimpleSelect({ value, onChange, options }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef(null);
+
+  useEffect(() => {
+    function onClickOutside(e) {
+      if (ref.current && !ref.current.contains(e.target)) setOpen(false);
+    }
+    document.addEventListener('mousedown', onClickOutside);
+    return () => document.removeEventListener('mousedown', onClickOutside);
+  }, []);
+
+  const current = options.find((o) => o.value === value) || options[0];
+
+  return (
+    <div ref={ref} style={{ position: 'relative' }}>
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: 6,
+          background: '#faf9f5',
+          border: '.5px solid #e0dfd8',
+          borderRadius: 8,
+          padding: '8px 12px',
+          fontSize: 12.5,
+          color: '#666',
+          cursor: 'pointer',
+          whiteSpace: 'nowrap',
+        }}
+      >
+        {current.label}
+        <i className="ti ti-chevron-down" style={{ fontSize: 12 }}></i>
+      </button>
+      {open && (
+        <div
+          style={{
+            position: 'absolute',
+            top: 'calc(100% + 4px)',
+            left: 0,
+            minWidth: 210,
+            zIndex: 30,
+            background: '#1a1a18',
+            borderRadius: 10,
+            padding: 6,
+            boxShadow: '0 8px 24px rgba(0,0,0,.25)',
+          }}
+        >
+          {options.map((o) => (
+            <div
+              key={o.value}
+              className="sel-opt"
+              onClick={() => {
+                onChange(o.value);
+                setOpen(false);
+              }}
+            >
+              {o.label}
+              {o.value === value && <i className="ti ti-check" style={{ fontSize: 12 }}></i>}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function AllJobsPage() {
   const supabase = createClient();
   const [userId, setUserId] = useState(null);
@@ -399,43 +471,22 @@ export default function AllJobsPage() {
                 style={{ border: 'none', background: 'transparent', outline: 'none', fontSize: 12.5, width: '100%' }}
               />
             </div>
-            <select
+            <SimpleSelect
               value={areaFilter}
-              onChange={(e) => setAreaFilter(e.target.value)}
-              style={{
-                background: '#faf9f5',
-                border: '.5px solid #e0dfd8',
-                borderRadius: 8,
-                padding: '8px 12px',
-                fontSize: 12.5,
-                color: '#666',
-              }}
-            >
-              <option value="">Área</option>
-              {AREAS.map((a) => (
-                <option key={a} value={a}>
-                  {a}
-                </option>
-              ))}
-            </select>
-            <select
+              onChange={setAreaFilter}
+              options={[{ value: '', label: 'Todas las áreas' }, ...AREAS.map((a) => ({ value: a, label: a }))]}
+            />
+            <SimpleSelect
               value={employmentFilter}
-              onChange={(e) => setEmploymentFilter(e.target.value)}
-              style={{
-                background: '#faf9f5',
-                border: '.5px solid #e0dfd8',
-                borderRadius: 8,
-                padding: '8px 12px',
-                fontSize: 12.5,
-                color: '#666',
-              }}
-            >
-              <option value="">Tipo de jornada</option>
-              <option value="jornada_completa">Jornada completa</option>
-              <option value="media_jornada">Media jornada</option>
-              <option value="practicas">Prácticas</option>
-              <option value="freelance">Freelance</option>
-            </select>
+              onChange={setEmploymentFilter}
+              options={[
+                { value: '', label: 'Todos los tipos de jornada' },
+                { value: 'jornada_completa', label: 'Jornada completa' },
+                { value: 'media_jornada', label: 'Media jornada' },
+                { value: 'practicas', label: 'Prácticas' },
+                { value: 'freelance', label: 'Freelance' },
+              ]}
+            />
           </div>
 
           <div style={{ display: 'flex', gap: 6, borderBottom: '.5px solid #e0dfd8', marginBottom: 16 }}>
