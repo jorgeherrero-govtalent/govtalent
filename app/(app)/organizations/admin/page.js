@@ -151,7 +151,7 @@ export default function OrganizationAdminPage() {
                 {org.name}
                 {org.verified && (
                   <span className="tt">
-                    <i className="ti ti-circle-check-filled" style={{ color: '#1d9d63', fontSize: 15.5 }}></i>
+                    <i className="ti ti-circle-check-filled" style={{ color: '#2563eb', fontSize: 15.5 }}></i>
                     <span className="tt-bubble">Página verificada por la organización</span>
                   </span>
                 )}
