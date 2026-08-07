@@ -121,7 +121,7 @@ export default function InfluenceLogPage() {
               height: 24,
               borderRadius: 20,
               border: 'none',
-              background: org.transparency_pledge ? '#1d6f5c' : '#e0dfd8',
+              background: org.transparency_pledge ? '#6d5aef' : '#e0dfd8',
               position: 'relative',
               cursor: saving ? 'default' : 'pointer',
               flexShrink: 0,
