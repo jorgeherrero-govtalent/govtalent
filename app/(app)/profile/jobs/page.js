@@ -79,7 +79,7 @@ export default function MyJobsPage() {
     const [{ data: savedData }, { data: appsData }] = await Promise.all([
       supabase
         .from('saved_jobs')
-        .select('job_id, created_at, jobs(id, title, location, modality, status, organizations(name, logo_url, slug))')
+        .select('job_id, saved_at, jobs(id, title, location, modality, status, organizations(name, logo_url, slug))')
         .eq('user_id', uid),
       supabase
         .from('job_applications')
@@ -193,7 +193,7 @@ export default function MyJobsPage() {
                         <UnavailableTitle jobDeleted={jobDeleted} title={s.jobs?.title} />
                         {!jobDeleted && <div style={{ fontSize: 12.5, color: '#999' }}>{s.jobs.organizations?.name}</div>}
                         <div style={{ fontSize: 12, color: '#999' }}>
-                          {s.created_at ? `Guardada el ${new Date(s.created_at).toLocaleDateString('es-ES')}` : 'Oferta no disponible'}
+                          {s.saved_at ? `Guardada el ${new Date(s.saved_at).toLocaleDateString('es-ES')}` : 'Oferta no disponible'}
                         </div>
                       </>
                     ) : (
