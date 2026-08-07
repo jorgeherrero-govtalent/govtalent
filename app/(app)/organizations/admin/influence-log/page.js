@@ -17,6 +17,7 @@ export default function InfluenceLogPage() {
   const [org, setOrg] = useState(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [showUpcoming, setShowUpcoming] = useState(false);
 
   useEffect(() => {
     load();
@@ -159,22 +160,45 @@ export default function InfluenceLogPage() {
 
       <div
         style={{
-          background: '#faf9f5', border: '.5px solid #e0dfd8', borderRadius: 12, padding: '16px 18px',
+          background: '#faf9f5', border: '.5px solid #e0dfd8', borderRadius: 12, padding: showUpcoming ? '16px 18px' : '4px 6px',
         }}
       >
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
-          <i className="ti ti-clock" style={{ fontSize: 15, color: '#999' }}></i>
-          <div style={{ fontSize: 13, fontWeight: 700, color: '#1a1a18' }}>Próximamente</div>
-        </div>
-        <div style={{ fontSize: 12.5, color: '#888', marginBottom: 10 }}>
-          Estamos desarrollando nuevas funcionalidades para ayudar a las organizaciones a demostrar su actividad de
-          forma transparente:
-        </div>
-        <ul style={{ margin: 0, paddingLeft: 18, fontSize: 12.5, color: '#666', lineHeight: 1.8 }}>
-          {UPCOMING.map((item) => (
-            <li key={item}>{item}</li>
-          ))}
-        </ul>
+        <button
+          onClick={() => setShowUpcoming((v) => !v)}
+          style={{
+            width: '100%',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: 8,
+            background: 'transparent',
+            border: 'none',
+            cursor: 'pointer',
+            padding: showUpcoming ? '0 0 10px' : '10px 12px',
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <i className="ti ti-clock" style={{ fontSize: 15, color: '#999' }}></i>
+            <span style={{ fontSize: 13, fontWeight: 700, color: '#1a1a18' }}>Próximamente</span>
+          </div>
+          <i
+            className="ti ti-chevron-down"
+            style={{ fontSize: 15, color: '#999', transition: 'transform .15s ease', transform: showUpcoming ? 'rotate(180deg)' : 'none' }}
+          ></i>
+        </button>
+        {showUpcoming && (
+          <>
+            <div style={{ fontSize: 12.5, color: '#888', marginBottom: 10 }}>
+              Estamos desarrollando nuevas funcionalidades para ayudar a las organizaciones a demostrar su actividad
+              de forma transparente:
+            </div>
+            <ul style={{ margin: 0, paddingLeft: 18, fontSize: 12.5, color: '#666', lineHeight: 1.8 }}>
+              {UPCOMING.map((item) => (
+                <li key={item}>{item}</li>
+              ))}
+            </ul>
+          </>
+        )}
       </div>
     </div>
   );
