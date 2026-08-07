@@ -59,7 +59,7 @@ function UnavailableTitle({ jobDeleted, title }) {
 export default function MyJobsPage() {
   const supabase = createClient();
   const [userId, setUserId] = useState(null);
-  const [tab, setTab] = useState('guardados');
+  const [tab, setTab] = useState('solicitados');
   const [saved, setSaved] = useState([]);
   const [applications, setApplications] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -127,20 +127,6 @@ export default function MyJobsPage() {
 
           <div style={{ display: 'flex', gap: 6, borderBottom: '.5px solid #e0dfd8', marginBottom: 16 }}>
             <button
-              onClick={() => setTab('guardados')}
-              style={{
-                background: 'none',
-                border: 'none',
-                padding: '10px 14px',
-                fontSize: 13.5,
-                fontWeight: tab === 'guardados' ? 600 : 400,
-                color: tab === 'guardados' ? '#1d6f5c' : '#888',
-                borderBottom: tab === 'guardados' ? '2px solid #1d6f5c' : '2px solid transparent',
-              }}
-            >
-              Guardados ({saved.length})
-            </button>
-            <button
               onClick={() => setTab('solicitados')}
               style={{
                 background: 'none',
@@ -153,6 +139,20 @@ export default function MyJobsPage() {
               }}
             >
               Solicitados ({activeApplications.length})
+            </button>
+            <button
+              onClick={() => setTab('guardados')}
+              style={{
+                background: 'none',
+                border: 'none',
+                padding: '10px 14px',
+                fontSize: 13.5,
+                fontWeight: tab === 'guardados' ? 600 : 400,
+                color: tab === 'guardados' ? '#1d6f5c' : '#888',
+                borderBottom: tab === 'guardados' ? '2px solid #1d6f5c' : '2px solid transparent',
+              }}
+            >
+              Guardados ({saved.length})
             </button>
             <button
               onClick={() => setTab('cerrados')}
