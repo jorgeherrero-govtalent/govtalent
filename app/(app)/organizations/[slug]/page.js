@@ -340,20 +340,21 @@ export default async function OrganizationPublicPage({ params }) {
               )}
             </div>
           </div>
+
+          {org.transparency_pledge && (
+            <div className="sw" style={{ border: '1.5px solid #1d6f5c' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+                <i className="ti ti-handshake" style={{ color: '#1d6f5c', fontSize: 18 }}></i>
+                <h4 style={{ margin: 0 }}>Organización comprometida con la integridad y la transparencia</h4>
+              </div>
+              <div style={{ fontSize: 11.5, color: '#666', lineHeight: 1.5 }}>
+                Esta organización forma parte de la iniciativa de GovTalent para impulsar las buenas prácticas y la
+                transparencia en la actividad de los grupos de interés.
+              </div>
+            </div>
+          )}
         </div>
       </div>
-
-      {org.transparency_pledge && (
-        <div className="card" style={{ maxWidth: 900, margin: '13px auto 0', padding: 16, display: 'flex', alignItems: 'center', gap: 10 }}>
-          <i className="ti ti-shield-check" style={{ color: '#6d5aef', fontSize: 19, flexShrink: 0 }}></i>
-          <div>
-            <div style={{ fontSize: 13, fontWeight: 600, color: '#333' }}>
-              {org.name} se adhiere a la transparencia como grupo de interés
-            </div>
-            <div style={{ fontSize: 11.5, color: '#888' }}>Gesto autodeclarado a través de GovTalent.</div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
