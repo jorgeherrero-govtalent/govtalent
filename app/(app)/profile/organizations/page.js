@@ -1,0 +1,226 @@
+'use client';
+
+import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
+import Link from 'next/link';
+import { createClient } from '@/lib/supabase/client';
+import { canAccessDatabase } from '@/lib/plan';
+import OrganizationFollowButton from '@/components/OrganizationFollowButton';
+import UpgradeModal from '@/components/UpgradeModal';
+
+const EVENT_ICON = {
+  new_job_posting: { icon: 'ti-briefcase', color: '#1d6f5c', bg: '#f0f8f5' },
+  profile_updated: { icon: 'ti-user-check', color: '#6d5aef', bg: '#eeecfd' },
+  new_organization: { icon: 'ti-building', color: '#888', bg: '#f4f4f0' },
+  organization_verified: { icon: 'ti-shield-check', color: '#1d9d63', bg: '#eafaf1' },
+};
+
+function timeAgo(dateStr) {
+  const diffMs = Date.now() - new Date(dateStr).getTime();
+  const days = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+  if (days <= 0) return 'hoy';
+  if (days === 1) return 'hace 1 día';
+  if (days < 7) return `hace ${days} días`;
+  const weeks = Math.floor(days / 7);
+  if (weeks < 5) return `hace ${weeks} semana${weeks > 1 ? 's' : ''}`;
+  const months = Math.floor(days / 30);
+  return `hace ${months} mes${months > 1 ? 'es' : ''}`;
+}
+
+export default function FollowedOrganizationsPage() {
+  const supabase = createClient();
+  const router = useRouter();
+  const [userId, setUserId] = useState(null);
+  const [orgs, setOrgs] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [upgradeModal, setUpgradeModal] = useState(false);
+
+  useEffect(() => {
+    load();
+  }, []);
+
+  async function load() {
+    setLoading(true);
+    const { data: authData } = await supabase.auth.getUser();
+    const uid = authData.user?.id;
+    if (!uid) return setLoading(false);
+    setUserId(uid);
+
+    const { data: follows } = await supabase
+      .from('organization_follows')
+      .select('organizations(id, slug, name, logo_url, org_type, sector, location)')
+      .eq('user_id', uid);
+
+    const followedOrgs = (follows || []).map((f) => f.organizations).filter(Boolean);
+    const orgIds = followedOrgs.map((o) => o.id);
+
+    if (orgIds.length === 0) {
+      setOrgs([]);
+      setLoading(false);
+      return;
+    }
+
+    const [{ data: jobsData }, { data: eventsData }] = await Promise.all([
+      supabase.from('jobs').select('id, title, organization_id, created_at').eq('status', 'activa').in('organization_id', orgIds),
+      supabase
+        .from('radar_events')
+        .select('organization_id, event_type, title, occurred_at')
+        .eq('is_published', true)
+        .in('organization_id', orgIds)
+        .order('occurred_at', { ascending: false }),
+    ]);
+
+    const merged = followedOrgs.map((org) => {
+      const activeJobs = (jobsData || []).filter((j) => j.organization_id === org.id);
+      const latestJob = activeJobs.slice().sort((a, b) => new Date(b.created_at) - new Date(a.created_at))[0];
+      const latestEvent = (eventsData || []).find((e) => e.organization_id === org.id);
+
+      let signal = null;
+      if (latestJob && (!latestEvent || new Date(latestJob.created_at) >= new Date(latestEvent.occurred_at))) {
+        signal = {
+          text: `Publicó "${latestJob.title}" ${timeAgo(latestJob.created_at)}`,
+          ...EVENT_ICON.new_job_posting,
+        };
+      } else if (latestEvent) {
+        signal = {
+          text: `${latestEvent.title} — ${timeAgo(latestEvent.occurred_at)}`,
+          ...(EVENT_ICON[latestEvent.event_type] || EVENT_ICON.new_organization),
+        };
+      }
+
+      return { ...org, activeJobsCount: activeJobs.length, signal };
+    });
+
+    setOrgs(merged);
+    setLoading(false);
+  }
+
+  async function openDirectorioInteligente() {
+    const { data: membership } = await supabase
+      .from('organization_members')
+      .select('organizations(plan, plan_status, trial_ends_at)')
+      .eq('user_id', userId)
+      .limit(1)
+      .maybeSingle();
+
+    const org = membership?.organizations;
+    if (org && canAccessDatabase(org)) {
+      router.push('/organizations/admin/database');
+    } else {
+      setUpgradeModal(true);
+    }
+  }
+
+  if (loading) return <div className="spinner"></div>;
+
+  return (
+    <div className="sec" style={{ maxWidth: 900 }}>
+      <div style={{ marginBottom: 10 }}>
+        <Link href="/profile" style={{ fontSize: 12.5, color: '#1d6f5c', textDecoration: 'none' }}>
+          <i className="ti ti-arrow-left"></i> Volver a mi perfil
+        </Link>
+      </div>
+
+      <div className="card">
+        <div className="cp">
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 10, flexWrap: 'wrap', marginBottom: 16 }}>
+            <div>
+              <h2 style={{ fontSize: 18, fontWeight: 700, marginBottom: 4 }}>Organizaciones que sigues</h2>
+              <p style={{ fontSize: 13, color: '#888' }}>Novedades y ofertas de las organizaciones que sigues en un solo sitio.</p>
+            </div>
+            <button
+              className="btn-o"
+              onClick={openDirectorioInteligente}
+              style={{ display: 'flex', alignItems: 'center', gap: 6, whiteSpace: 'nowrap' }}
+            >
+              <i className="ti ti-radar-2"></i> Directorio inteligente
+            </button>
+          </div>
+
+          {orgs.length === 0 && (
+            <div className="empty-state">
+              <i className="ti ti-building-off"></i>
+              Todavía no sigues a ninguna organización.
+              <div style={{ marginTop: 10 }}>
+                <Link href="/organizations" style={{ fontSize: 12.5, color: '#1d6f5c', fontWeight: 600 }}>
+                  Explorar el directorio →
+                </Link>
+              </div>
+            </div>
+          )}
+
+          {orgs.map((org) => (
+            <div key={org.id} style={{ padding: '14px 0', borderBottom: '.5px solid #f0f0eb' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+                <Link href={`/organizations/${org.slug}`} style={{ flexShrink: 0 }}>
+                  <div
+                    style={{
+                      width: 46,
+                      height: 46,
+                      borderRadius: 10,
+                      background: '#f0efe9',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      overflow: 'hidden',
+                    }}
+                  >
+                    {org.logo_url ? (
+                      <img src={org.logo_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                    ) : (
+                      <i className="ti ti-building" style={{ fontSize: 18, color: '#999' }}></i>
+                    )}
+                  </div>
+                </Link>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <Link href={`/organizations/${org.slug}`} style={{ fontSize: 14, fontWeight: 700, color: '#222', textDecoration: 'none' }}>
+                    {org.name}
+                  </Link>
+                  <div style={{ fontSize: 12, color: '#888', marginTop: 2 }}>
+                    {[org.sector, org.location].filter(Boolean).join(' · ') || 'Sector no especificado'}
+                  </div>
+                </div>
+                <OrganizationFollowButton
+                  organizationId={org.id}
+                  organizationName={org.name}
+                  userId={userId}
+                  initialFollowing={true}
+                />
+              </div>
+
+              <div style={{ marginTop: 10, marginLeft: 60 }}>
+                {org.signal ? (
+                  <div
+                    style={{
+                      background: org.signal.bg,
+                      color: org.signal.color,
+                      borderRadius: 8,
+                      padding: '8px 12px',
+                      fontSize: 12,
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 6,
+                    }}
+                  >
+                    <i className={`ti ${org.signal.icon}`} style={{ fontSize: 13 }}></i>
+                    {org.signal.text}
+                  </div>
+                ) : (
+                  <div style={{ fontSize: 12, color: '#999' }}>Sin novedades recientes</div>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {upgradeModal && (
+        <UpgradeModal
+          title="Directorio inteligente"
+          message="El Directorio Inteligente es una función del plan Pro: filtra, analiza y exporta el ecosistema completo de organizaciones del sector desde el panel de tu organización."
+          onClose={() => setUpgradeModal(false)}
+        />
+      )}
+    </div>
+  );
+}
