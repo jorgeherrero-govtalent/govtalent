@@ -29,6 +29,10 @@ export default function AllJobsPage() {
   const [sharingJob, setSharingJob] = useState(null);
   const [showVerifyModal, setShowVerifyModal] = useState(false);
   const [managingJob, setManagingJob] = useState(null);
+  const [confirmingDeactivate, setConfirmingDeactivate] = useState(null);
+  const [search, setSearch] = useState('');
+  const [areaFilter, setAreaFilter] = useState('');
+  const [employmentFilter, setEmploymentFilter] = useState('');
 
   const [editingJob, setEditingJob] = useState(null);
   const [loadingEditJob, setLoadingEditJob] = useState(false);
@@ -319,7 +323,13 @@ export default function AllJobsPage() {
 
   const activos = jobs.filter((j) => j.status === 'activa');
   const cerrados = jobs.filter((j) => j.status !== 'activa');
-  const list = tab === 'activos' ? activos : cerrados;
+  const baseList = tab === 'activos' ? activos : cerrados;
+  const list = baseList.filter((j) => {
+    const matchesSearch = !search || j.title.toLowerCase().includes(search.toLowerCase()) || j.area.toLowerCase().includes(search.toLowerCase());
+    const matchesArea = !areaFilter || j.area === areaFilter;
+    const matchesEmployment = !employmentFilter || j.employment_type === employmentFilter;
+    return matchesSearch && matchesArea && matchesEmployment;
+  });
 
   return (
     <div className="sec" style={{ maxWidth: 900 }}>
@@ -365,6 +375,66 @@ export default function AllJobsPage() {
             </button>
           </div>
 
+          <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginBottom: 16 }}>
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 8,
+                background: '#faf9f5',
+                border: '.5px solid #e0dfd8',
+                borderRadius: 8,
+                padding: '8px 12px',
+                flex: '1 1 200px',
+              }}
+            >
+              <i className="ti ti-search" style={{ color: '#999', fontSize: 15 }}></i>
+              <input
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Buscar oferta..."
+                style={{ border: 'none', background: 'transparent', outline: 'none', fontSize: 12.5, width: '100%' }}
+              />
+            </div>
+            <select
+              value={areaFilter}
+              onChange={(e) => setAreaFilter(e.target.value)}
+              style={{
+                background: '#faf9f5',
+                border: '.5px solid #e0dfd8',
+                borderRadius: 8,
+                padding: '8px 12px',
+                fontSize: 12.5,
+                color: '#666',
+              }}
+            >
+              <option value="">Área</option>
+              {AREAS.map((a) => (
+                <option key={a} value={a}>
+                  {a}
+                </option>
+              ))}
+            </select>
+            <select
+              value={employmentFilter}
+              onChange={(e) => setEmploymentFilter(e.target.value)}
+              style={{
+                background: '#faf9f5',
+                border: '.5px solid #e0dfd8',
+                borderRadius: 8,
+                padding: '8px 12px',
+                fontSize: 12.5,
+                color: '#666',
+              }}
+            >
+              <option value="">Tipo de jornada</option>
+              <option value="jornada_completa">Jornada completa</option>
+              <option value="media_jornada">Media jornada</option>
+              <option value="practicas">Prácticas</option>
+              <option value="freelance">Freelance</option>
+            </select>
+          </div>
+
           <div style={{ display: 'flex', gap: 6, borderBottom: '.5px solid #e0dfd8', marginBottom: 16 }}>
             <button
               onClick={() => setTab('activos')}
@@ -399,7 +469,11 @@ export default function AllJobsPage() {
           {list.length === 0 && (
             <div className="empty-state">
               <i className="ti ti-briefcase-off"></i>
-              {tab === 'activos' ? 'No tienes ofertas activas ahora mismo.' : 'No tienes ofertas cerradas.'}
+              {baseList.length === 0
+                ? tab === 'activos'
+                  ? 'No tienes ofertas activas ahora mismo.'
+                  : 'No tienes ofertas cerradas.'
+                : 'Ninguna oferta coincide con estos filtros.'}
             </div>
           )}
 
@@ -490,12 +564,64 @@ export default function AllJobsPage() {
                 className="mgmt-btn"
                 disabled={togglingId === managingJob.id}
                 onClick={() => {
-                  toggleStatus(managingJob);
-                  setManagingJob(null);
+                  if (managingJob.status === 'activa') {
+                    setConfirmingDeactivate(managingJob);
+                    setManagingJob(null);
+                  } else {
+                    toggleStatus(managingJob);
+                    setManagingJob(null);
+                  }
                 }}
               >
                 <i className={`ti ${managingJob.status === 'activa' ? 'ti-player-pause' : 'ti-player-play'}`}></i>
                 {managingJob.status === 'activa' ? 'Desactivar' : 'Reactivar'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {confirmingDeactivate && (
+        <div className="modal-ov on" onClick={(e) => e.target === e.currentTarget && setConfirmingDeactivate(null)}>
+          <div className="modal-box" style={{ maxWidth: 380, padding: 20 }}>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: -4 }}>
+              <div className="modal-x" style={{ width: 28, height: 28 }} onClick={() => setConfirmingDeactivate(null)}>
+                <i className="ti ti-x" style={{ fontSize: 13 }}></i>
+              </div>
+            </div>
+            <div
+              style={{
+                width: 38,
+                height: 38,
+                borderRadius: 10,
+                background: '#fbeceb',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                marginBottom: 12,
+              }}
+            >
+              <i className="ti ti-player-pause" style={{ color: '#b3261e', fontSize: 17 }}></i>
+            </div>
+            <div style={{ fontSize: 14.5, fontWeight: 600, marginBottom: 6 }}>
+              ¿Desactivar "{confirmingDeactivate.title}"?
+            </div>
+            <div style={{ fontSize: 12.5, color: '#666', lineHeight: 1.5, marginBottom: 18 }}>
+              La oferta dejará de estar visible para los candidatos y de aceptar nuevas solicitudes. Podrás
+              reactivarla cuando quieras desde "Cerrados".
+            </div>
+            <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+              <button className="btn-o" onClick={() => setConfirmingDeactivate(null)}>
+                Cancelar
+              </button>
+              <button
+                className="btn-p"
+                onClick={() => {
+                  toggleStatus(confirmingDeactivate);
+                  setConfirmingDeactivate(null);
+                }}
+              >
+                Sí, desactivar
               </button>
             </div>
           </div>
