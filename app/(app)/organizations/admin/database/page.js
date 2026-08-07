@@ -1034,7 +1034,7 @@ export default function OrganizationsDatabasePage() {
                 </td>
                 <td style={{ padding: '9px 14px', fontWeight: 600 }}>
                   {o.name}
-                  {o.verified && <i className="ti ti-circle-check-filled" style={{ color: '#1d9d63', marginLeft: 5, fontSize: 13 }}></i>}
+                  {o.verified && <i className="ti ti-circle-check-filled" style={{ color: '#2563eb', marginLeft: 5, fontSize: 13 }}></i>}
                   {hasInterestGroupBadge(o) && <i className="ti ti-shield-check" style={{ color: '#6d5aef', marginLeft: 4, fontSize: 13 }}></i>}
                 </td>
                 <td style={{ padding: '9px 14px', color: '#555' }}>{TYPE_LABELS[o.org_type] || '—'}</td>
