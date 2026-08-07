@@ -14,11 +14,6 @@ import HoverTooltip from '@/components/HoverTooltip';
 const STAGES = ['enviada', 'en_revision', 'entrevista', 'oferta'];
 const STAGE_LABELS = { enviada: 'Enviada', en_revision: 'Revisión', entrevista: 'Entrevista', oferta: 'Oferta' };
 
-const CLOSED_LABELS = {
-  rechazada: { label: 'Rechazada', color: '#b3261e', bg: '#fbeceb' },
-  retirada: { label: 'Retirada', color: '#888', bg: '#f0efe9' },
-};
-
 function OrgLogo({ url }) {
   return (
     <div
@@ -107,8 +102,35 @@ export default function MyJobsPage() {
 
   if (loading) return <div className="spinner"></div>;
 
-  const activeApplications = applications.filter((a) => STAGES.includes(a.status));
-  const closedApplications = applications.filter((a) => !STAGES.includes(a.status));
+  function isJobUnavailable(a) {
+    return !a.jobs || a.jobs.status !== 'activa';
+  }
+
+  // Una candidatura cuenta como "cerrada" en tres casos: te rechazaron, la
+  // retiraste tú, o la organización pausó/borró la oferta mientras tu
+  // candidatura seguía en curso — este último caso antes se quedaba en
+  // "Solicitados" con el título en gris, dando la falsa sensación de que el
+  // proceso seguía vivo.
+  const activeApplications = applications.filter((a) => STAGES.includes(a.status) && !isJobUnavailable(a));
+  const closedApplications = applications.filter(
+    (a) => a.status === 'rechazada' || a.status === 'retirada' || (STAGES.includes(a.status) && isJobUnavailable(a))
+  );
+
+  function closedCategory(a) {
+    if (a.status === 'rechazada') return { label: 'Rechazada', icon: 'ti-x', group: 'Rechazadas' };
+    if (a.status === 'retirada') return { label: 'Retirada', icon: 'ti-arrow-back-up', group: 'Retiradas por ti' };
+    return { label: 'Desactivada', icon: 'ti-player-pause', group: 'Oferta desactivada por la organización' };
+  }
+
+  const closedGroups = [
+    { key: 'rechazada', title: 'Rechazadas', items: closedApplications.filter((a) => a.status === 'rechazada') },
+    { key: 'retirada', title: 'Retiradas por ti', items: closedApplications.filter((a) => a.status === 'retirada') },
+    {
+      key: 'desactivada',
+      title: 'Oferta desactivada por la organización',
+      items: closedApplications.filter((a) => STAGES.includes(a.status) && isJobUnavailable(a)),
+    },
+  ];
 
   const list = tab === 'guardados' ? saved : tab === 'solicitados' ? activeApplications : closedApplications;
 
@@ -267,42 +289,56 @@ export default function MyJobsPage() {
             })}
 
           {tab === 'cerrados' &&
-            closedApplications.map((a) => {
-              const st = CLOSED_LABELS[a.status] || CLOSED_LABELS.retirada;
-              const jobDeleted = !a.jobs;
-              const jobPaused = a.jobs && a.jobs.status !== 'activa';
-              const unavailable = jobDeleted || jobPaused;
-              return (
-                <div key={a.id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '14px 0', borderBottom: '.5px solid #f0f0eb' }}>
-                  <OrgLogo url={!unavailable ? a.jobs?.organizations?.logo_url : null} />
-                  <div style={{ flex: 1 }}>
-                    {unavailable ? (
-                      <UnavailableTitle jobDeleted={jobDeleted} title={a.jobs?.title} />
-                    ) : (
-                      <div style={{ fontWeight: 700, fontSize: 14, color: '#555' }}>{a.jobs?.title}</div>
-                    )}
-                    <div style={{ fontSize: 12.5, color: '#999' }}>
-                      {!jobDeleted && a.jobs?.organizations?.name}
-                      {!jobDeleted && ' · '}
-                      Solicitado el {new Date(a.applied_at).toLocaleDateString('es-ES')}
+            closedGroups.map(
+              (group) =>
+                group.items.length > 0 && (
+                  <div key={group.key} style={{ marginBottom: 22 }}>
+                    <div style={{ fontSize: 11, fontWeight: 700, color: '#999', textTransform: 'uppercase', letterSpacing: '.03em', marginBottom: 8 }}>
+                      {group.title} · {group.items.length}
                     </div>
+                    {group.items.map((a) => {
+                      const cat = closedCategory(a);
+                      const jobDeleted = !a.jobs;
+                      const jobPaused = a.jobs && a.jobs.status !== 'activa';
+                      const unavailable = jobDeleted || jobPaused;
+                      return (
+                        <div key={a.id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 0', borderBottom: '.5px solid #f0f0eb' }}>
+                          <OrgLogo url={!unavailable ? a.jobs?.organizations?.logo_url : null} />
+                          <div style={{ flex: 1 }}>
+                            {unavailable ? (
+                              <UnavailableTitle jobDeleted={jobDeleted} title={a.jobs?.title} />
+                            ) : (
+                              <div style={{ fontWeight: 700, fontSize: 14, color: '#555' }}>{a.jobs?.title}</div>
+                            )}
+                            <div style={{ fontSize: 12.5, color: '#999' }}>
+                              {!jobDeleted && a.jobs?.organizations?.name}
+                              {!jobDeleted && ' · '}
+                              Solicitado el {new Date(a.applied_at).toLocaleDateString('es-ES')}
+                            </div>
+                          </div>
+                          <span
+                            style={{
+                              fontSize: 11,
+                              fontWeight: 600,
+                              padding: '4px 10px',
+                              borderRadius: 20,
+                              background: '#f0efe9',
+                              color: '#888',
+                              whiteSpace: 'nowrap',
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: 5,
+                            }}
+                          >
+                            <i className={`ti ${cat.icon}`} style={{ fontSize: 11 }}></i>
+                            {cat.label}
+                          </span>
+                        </div>
+                      );
+                    })}
                   </div>
-                  <span
-                    style={{
-                      fontSize: 11.5,
-                      fontWeight: 600,
-                      padding: '4px 10px',
-                      borderRadius: 20,
-                      background: st.bg,
-                      color: st.color,
-                      whiteSpace: 'nowrap',
-                    }}
-                  >
-                    {st.label}
-                  </span>
-                </div>
-              );
-            })}
+                )
+            )}
         </div>
       </div>
 
