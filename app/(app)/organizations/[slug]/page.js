@@ -342,10 +342,23 @@ export default async function OrganizationPublicPage({ params }) {
           </div>
 
           {org.transparency_pledge && (
-            <div className="sw" style={{ border: '1.5px solid #1d6f5c' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
-                <i className="ti ti-handshake" style={{ color: '#1d6f5c', fontSize: 18 }}></i>
-                <h4 style={{ margin: 0 }}>Organización comprometida con la integridad y la transparencia</h4>
+            <div className="sw">
+              <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10, marginBottom: 8 }}>
+                <div
+                  style={{
+                    width: 34,
+                    height: 34,
+                    borderRadius: 8,
+                    background: '#eaf5f0',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    flexShrink: 0,
+                  }}
+                >
+                  <i className="ti ti-search" style={{ color: '#1d6f5c', fontSize: 17 }}></i>
+                </div>
+                <h4 style={{ margin: 0, paddingTop: 6 }}>Organización comprometida con la integridad y la transparencia</h4>
               </div>
               <div style={{ fontSize: 11.5, color: '#666', lineHeight: 1.5 }}>
                 Esta organización forma parte de la iniciativa de GovTalent para impulsar las buenas prácticas y la
