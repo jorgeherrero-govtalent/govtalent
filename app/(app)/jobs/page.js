@@ -47,7 +47,6 @@ const SECTIONS = [
 export default function JobsPage() {
   const supabase = createClient();
   const [jobs, setJobs] = useState(null);
-  const [totalActiveCount, setTotalActiveCount] = useState(null);
   const [selected, setSelected] = useState(null);
   const [userId, setUserId] = useState(null);
   const [savedIds, setSavedIds] = useState(new Set());
@@ -85,11 +84,6 @@ export default function JobsPage() {
         .eq('user_id', data.user.id)
         .then(({ data: follows }) => setFollowedOrgIds(new Set((follows || []).map((f) => f.organization_id))));
     });
-    supabase
-      .from('jobs')
-      .select('id', { count: 'exact', head: true })
-      .eq('status', 'activa')
-      .then(({ count }) => setTotalActiveCount(count || 0));
   }, []);
 
   useEffect(() => {
@@ -293,8 +287,7 @@ export default function JobsPage() {
       <div style={{ marginBottom: 14 }}>
         <h1 style={{ fontSize: 19, fontWeight: 700, margin: 0 }}>Empleos</h1>
         <p style={{ fontSize: 12.5, color: '#888', margin: '3px 0 0' }}>
-          {totalActiveCount !== null ? `${totalActiveCount} oportunidades activas · ` : ''}
-          Encuentra oportunidades especializadas en asuntos públicos.
+          Encuentra oportunidades en asuntos públicos y relaciones institucionales.
         </p>
       </div>
 
@@ -331,18 +324,10 @@ export default function JobsPage() {
         <MultiSelectFilter label="Área" values={AREAS.map((a) => ({ value: a, label: a }))} selected={areaFilter} onApply={setAreaFilter} />
         <MultiSelectFilter label="Modalidad" values={MODALITY_OPTIONS} selected={modalityFilter} onApply={setModalityFilter} />
         <input
+          className="location-filter"
           placeholder="Ubicación"
           value={location}
           onChange={(e) => setLocation(e.target.value)}
-          style={{
-            background: '#faf9f5',
-            border: '.5px solid #e0dfd8',
-            borderRadius: 20,
-            padding: '8px 14px',
-            fontSize: 12.5,
-            color: '#333',
-            minWidth: 150,
-          }}
         />
         {activeFiltersCount > 0 && (
           <button
@@ -394,21 +379,42 @@ export default function JobsPage() {
               const isNew = (Date.now() - new Date(j.created_at).getTime()) / (1000 * 60 * 60 * 24) < 3;
               const isApplied = appliedIds.has(j.id);
               return (
-                <div key={j.id} className={`ji ${selected?.id === j.id ? 'on' : ''}`} onClick={() => selectJob(j)}>
-                  <div className="jt">{j.title}</div>
-                  <div className="jo">{j.organizations?.name}</div>
-                  <div className="jm">
-                    <span>
-                      <i className="ti ti-map-pin" style={{ fontSize: 11 }}></i> {j.location}
-                    </span>
-                    <span>{timeAgo(j.created_at)}</span>
+                <div key={j.id} className={`ji ${selected?.id === j.id ? 'on' : ''}`} onClick={() => selectJob(j)} style={{ display: 'flex', gap: 10 }}>
+                  <div
+                    style={{
+                      width: 34,
+                      height: 34,
+                      borderRadius: 8,
+                      background: '#e8f4f0',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      overflow: 'hidden',
+                      flexShrink: 0,
+                    }}
+                  >
+                    {j.organizations?.logo_url ? (
+                      <img src={j.organizations.logo_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                    ) : (
+                      <i className="ti ti-building" style={{ fontSize: 15, color: '#7fa89c' }}></i>
+                    )}
                   </div>
-                  {(isNew || isApplied) && (
-                    <div style={{ display: 'flex', gap: 5, marginTop: 6 }}>
-                      {isNew && <span style={{ fontSize: 10, fontWeight: 600, color: '#777', background: '#f0efe9', padding: '2px 8px', borderRadius: 10 }}>Nuevo</span>}
-                      {isApplied && <span style={{ fontSize: 10, fontWeight: 600, color: '#777', background: '#f0efe9', padding: '2px 8px', borderRadius: 10 }}>Aplicado</span>}
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div className="jt">{j.title}</div>
+                    <div className="jo">{j.organizations?.name}</div>
+                    <div className="jm">
+                      <span>
+                        <i className="ti ti-map-pin" style={{ fontSize: 11 }}></i> {j.location}
+                      </span>
+                      <span>{timeAgo(j.created_at)}</span>
                     </div>
-                  )}
+                    {(isNew || isApplied) && (
+                      <div style={{ display: 'flex', gap: 5, marginTop: 6 }}>
+                        {isNew && <span style={{ fontSize: 10, fontWeight: 600, color: '#777', background: '#f0efe9', padding: '2px 8px', borderRadius: 10 }}>Nuevo</span>}
+                        {isApplied && <span style={{ fontSize: 10, fontWeight: 600, color: '#777', background: '#f0efe9', padding: '2px 8px', borderRadius: 10 }}>Aplicado</span>}
+                      </div>
+                    )}
+                  </div>
                 </div>
               );
             })}
