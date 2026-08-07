@@ -82,7 +82,7 @@ export default function AllJobsPage() {
 
     const { data } = await supabase
       .from('jobs')
-      .select('id, title, area, location, modality, status, created_at, application_mode, external_apply_url, external_apply_clicks, job_applications(count)')
+      .select('id, title, area, location, modality, employment_type, status, created_at, application_mode, external_apply_url, external_apply_clicks, job_applications(count)')
       .eq('organization_id', membership.organizations.id)
       .order('created_at', { ascending: false });
 
@@ -325,7 +325,10 @@ export default function AllJobsPage() {
   const cerrados = jobs.filter((j) => j.status !== 'activa');
   const baseList = tab === 'activos' ? activos : cerrados;
   const list = baseList.filter((j) => {
-    const matchesSearch = !search || j.title.toLowerCase().includes(search.toLowerCase()) || j.area.toLowerCase().includes(search.toLowerCase());
+    const matchesSearch =
+      !search ||
+      j.title.toLowerCase().includes(search.toLowerCase()) ||
+      (j.area || '').toLowerCase().includes(search.toLowerCase());
     const matchesArea = !areaFilter || j.area === areaFilter;
     const matchesEmployment = !employmentFilter || j.employment_type === employmentFilter;
     return matchesSearch && matchesArea && matchesEmployment;
@@ -370,7 +373,7 @@ export default function AllJobsPage() {
               <h2 style={{ fontSize: 18, fontWeight: 700, marginBottom: 4 }}>Todas las ofertas</h2>
               <p style={{ fontSize: 13, color: '#888', marginBottom: 16 }}>Gestiona los anuncios de empleo de {org.name}.</p>
             </div>
-            <button className="btn-p" onClick={() => setShowNewJob(true)} style={{ flexShrink: 0 }}>
+            <button className="btn-ai" onClick={() => setShowNewJob(true)} style={{ flexShrink: 0 }}>
               <i className="ti ti-plus"></i> Nueva oferta
             </button>
           </div>
@@ -594,14 +597,14 @@ export default function AllJobsPage() {
                 width: 38,
                 height: 38,
                 borderRadius: 10,
-                background: '#fbeceb',
+                background: '#f0f0eb',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
                 marginBottom: 12,
               }}
             >
-              <i className="ti ti-player-pause" style={{ color: '#b3261e', fontSize: 17 }}></i>
+              <i className="ti ti-player-pause" style={{ color: '#666', fontSize: 17 }}></i>
             </div>
             <div style={{ fontSize: 14.5, fontWeight: 600, marginBottom: 6 }}>
               ¿Desactivar "{confirmingDeactivate.title}"?
