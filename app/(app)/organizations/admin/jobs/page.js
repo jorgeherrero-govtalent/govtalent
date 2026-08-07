@@ -9,6 +9,7 @@ import UpgradeModal from '@/components/UpgradeModal';
 import VerifyOrganizationModal from '@/components/VerifyOrganizationModal';
 import { canPostAnotherJob, freeJobLimit } from '@/lib/plan';
 import { normalizeUrl } from '@/lib/normalizeUrl';
+import MultiSelectFilter from '@/components/MultiSelectFilter';
 
 const AREAS = [
   'Public Affairs',
@@ -17,78 +18,6 @@ const AREAS = [
   'Asuntos Europeos',
   'Regulación',
 ];
-
-// Desplegable propio (no <select> nativo) para poder controlar el estilo del
-// todo — el <select> nativo lo pinta el sistema operativo, así que no hay
-// forma de darle el mismo tono oscuro que usan los tooltips de la app.
-function SimpleSelect({ value, onChange, options }) {
-  const [open, setOpen] = useState(false);
-  const ref = useRef(null);
-
-  useEffect(() => {
-    function onClickOutside(e) {
-      if (ref.current && !ref.current.contains(e.target)) setOpen(false);
-    }
-    document.addEventListener('mousedown', onClickOutside);
-    return () => document.removeEventListener('mousedown', onClickOutside);
-  }, []);
-
-  const current = options.find((o) => o.value === value) || options[0];
-
-  return (
-    <div ref={ref} style={{ position: 'relative' }}>
-      <button
-        type="button"
-        onClick={() => setOpen((v) => !v)}
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: 6,
-          background: '#faf9f5',
-          border: '.5px solid #e0dfd8',
-          borderRadius: 8,
-          padding: '8px 12px',
-          fontSize: 12.5,
-          color: '#666',
-          cursor: 'pointer',
-          whiteSpace: 'nowrap',
-        }}
-      >
-        {current.label}
-        <i className="ti ti-chevron-down" style={{ fontSize: 12 }}></i>
-      </button>
-      {open && (
-        <div
-          style={{
-            position: 'absolute',
-            top: 'calc(100% + 4px)',
-            left: 0,
-            minWidth: 210,
-            zIndex: 30,
-            background: '#1a1a18',
-            borderRadius: 10,
-            padding: 6,
-            boxShadow: '0 8px 24px rgba(0,0,0,.25)',
-          }}
-        >
-          {options.map((o) => (
-            <div
-              key={o.value}
-              className="sel-opt"
-              onClick={() => {
-                onChange(o.value);
-                setOpen(false);
-              }}
-            >
-              {o.label}
-              {o.value === value && <i className="ti ti-check" style={{ fontSize: 12 }}></i>}
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}
 
 export default function AllJobsPage() {
   const supabase = createClient();
@@ -103,8 +32,8 @@ export default function AllJobsPage() {
   const [managingJob, setManagingJob] = useState(null);
   const [confirmingDeactivate, setConfirmingDeactivate] = useState(null);
   const [search, setSearch] = useState('');
-  const [areaFilter, setAreaFilter] = useState('');
-  const [employmentFilter, setEmploymentFilter] = useState('');
+  const [areaFilter, setAreaFilter] = useState(new Set());
+  const [employmentFilter, setEmploymentFilter] = useState(new Set());
 
   const [editingJob, setEditingJob] = useState(null);
   const [loadingEditJob, setLoadingEditJob] = useState(false);
@@ -401,8 +330,8 @@ export default function AllJobsPage() {
       !search ||
       j.title.toLowerCase().includes(search.toLowerCase()) ||
       (j.area || '').toLowerCase().includes(search.toLowerCase());
-    const matchesArea = !areaFilter || j.area === areaFilter;
-    const matchesEmployment = !employmentFilter || j.employment_type === employmentFilter;
+    const matchesArea = areaFilter.size === 0 || areaFilter.has(j.area);
+    const matchesEmployment = employmentFilter.size === 0 || employmentFilter.has(j.employment_type);
     return matchesSearch && matchesArea && matchesEmployment;
   });
 
@@ -471,21 +400,22 @@ export default function AllJobsPage() {
                 style={{ border: 'none', background: 'transparent', outline: 'none', fontSize: 12.5, width: '100%' }}
               />
             </div>
-            <SimpleSelect
-              value={areaFilter}
-              onChange={setAreaFilter}
-              options={[{ value: '', label: 'Todas las áreas' }, ...AREAS.map((a) => ({ value: a, label: a }))]}
+            <MultiSelectFilter
+              label="Área"
+              values={AREAS.map((a) => ({ value: a, label: a }))}
+              selected={areaFilter}
+              onApply={setAreaFilter}
             />
-            <SimpleSelect
-              value={employmentFilter}
-              onChange={setEmploymentFilter}
-              options={[
-                { value: '', label: 'Todos los tipos de jornada' },
+            <MultiSelectFilter
+              label="Tipo de jornada"
+              values={[
                 { value: 'jornada_completa', label: 'Jornada completa' },
                 { value: 'media_jornada', label: 'Media jornada' },
                 { value: 'practicas', label: 'Prácticas' },
                 { value: 'freelance', label: 'Freelance' },
               ]}
+              selected={employmentFilter}
+              onApply={setEmploymentFilter}
             />
           </div>
 
