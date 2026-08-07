@@ -6,14 +6,55 @@ import { createClient } from '@/lib/supabase/client';
 import { toast } from '@/lib/toast';
 import HoverTooltip from '@/components/HoverTooltip';
 
-const STATUS_LABELS = {
-  enviada: { label: 'Enviada', color: '#2563eb', bg: '#e8f0fb' },
-  en_revision: { label: 'En revisión', color: '#b8860b', bg: '#fff8e1' },
-  entrevista: { label: 'Entrevista', color: '#6d5aef', bg: '#eeecfd' },
-  oferta: { label: 'Oferta', color: '#1d6f5c', bg: '#e8f4f0' },
+// Solo estos 4 estados representan un proceso todavía en curso — son los
+// que se muestran con el stepper. "Rechazada" y "retirada" viven aparte, en
+// la pestaña "Cerradas": hoy no guardamos en qué etapa se rechazó una
+// candidatura, así que intentar "cortar" el stepper ahí sería inventar un
+// dato que no tenemos. Mejor un badge simple y honesto.
+const STAGES = ['enviada', 'en_revision', 'entrevista', 'oferta'];
+const STAGE_LABELS = { enviada: 'Enviada', en_revision: 'Revisión', entrevista: 'Entrevista', oferta: 'Oferta' };
+
+const CLOSED_LABELS = {
   rechazada: { label: 'Rechazada', color: '#b3261e', bg: '#fbeceb' },
   retirada: { label: 'Retirada', color: '#888', bg: '#f0efe9' },
 };
+
+function OrgLogo({ url }) {
+  return (
+    <div
+      style={{
+        width: 44,
+        height: 44,
+        borderRadius: 10,
+        background: '#e8f4f0',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        overflow: 'hidden',
+        flexShrink: 0,
+      }}
+    >
+      {url ? (
+        <img src={url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+      ) : (
+        <i className="ti ti-building" style={{ fontSize: 17, color: '#7fa89c' }}></i>
+      )}
+    </div>
+  );
+}
+
+function UnavailableTitle({ jobDeleted, title }) {
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+      <span style={{ fontWeight: 700, fontSize: 14, color: '#888' }}>
+        {jobDeleted ? 'La organización pausó o desactivó esta oferta' : title}
+      </span>
+      <HoverTooltip label="La organización pausó o desactivó esta oferta">
+        <i className="ti ti-info-circle" style={{ fontSize: 14, color: '#aaa' }}></i>
+      </HoverTooltip>
+    </div>
+  );
+}
 
 export default function MyJobsPage() {
   const supabase = createClient();
@@ -65,8 +106,10 @@ export default function MyJobsPage() {
 
   if (loading) return <div className="spinner"></div>;
 
-  const activeApplications = applications.filter((a) => a.status !== 'retirada');
-  const list = tab === 'guardados' ? saved : applications;
+  const activeApplications = applications.filter((a) => STAGES.includes(a.status));
+  const closedApplications = applications.filter((a) => !STAGES.includes(a.status));
+
+  const list = tab === 'guardados' ? saved : tab === 'solicitados' ? activeApplications : closedApplications;
 
   return (
     <div className="sec" style={{ maxWidth: 900 }}>
@@ -110,12 +153,28 @@ export default function MyJobsPage() {
             >
               Solicitados ({activeApplications.length})
             </button>
+            <button
+              onClick={() => setTab('cerrados')}
+              style={{
+                background: 'none',
+                border: 'none',
+                padding: '10px 14px',
+                fontSize: 13.5,
+                fontWeight: tab === 'cerrados' ? 600 : 400,
+                color: tab === 'cerrados' ? '#1d6f5c' : '#888',
+                borderBottom: tab === 'cerrados' ? '2px solid #1d6f5c' : '2px solid transparent',
+              }}
+            >
+              Cerrados ({closedApplications.length})
+            </button>
           </div>
 
           {list.length === 0 && (
             <div className="empty-state">
               <i className="ti ti-briefcase-off"></i>
-              {tab === 'guardados' ? 'No has guardado ningún empleo todavía.' : 'No has aplicado a ningún empleo todavía.'}
+              {tab === 'guardados' && 'No has guardado ningún empleo todavía.'}
+              {tab === 'solicitados' && 'No tienes ninguna candidatura en curso.'}
+              {tab === 'cerrados' && 'No tienes candidaturas cerradas.'}
             </div>
           )}
 
@@ -126,46 +185,19 @@ export default function MyJobsPage() {
               const unavailable = jobDeleted || jobPaused;
               return (
                 <div key={s.job_id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '14px 0', borderBottom: '.5px solid #f0f0eb' }}>
-                  <div
-                    style={{
-                      width: 40,
-                      height: 40,
-                      borderRadius: 8,
-                      background: '#e8f4f0',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      overflow: 'hidden',
-                      flexShrink: 0,
-                    }}
-                  >
-                    {s.jobs?.organizations?.logo_url ? (
-                      <img src={s.jobs.organizations.logo_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                    ) : (
-                      <i className="ti ti-building" style={{ fontSize: 16, color: '#7fa89c' }}></i>
-                    )}
-                  </div>
+                  <OrgLogo url={!unavailable ? s.jobs?.organizations?.logo_url : null} />
                   <div style={{ flex: 1 }}>
                     {unavailable ? (
                       <>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-                          <span style={{ fontWeight: 600, fontSize: 14, color: '#888' }}>
-                            {jobDeleted ? 'La organización pausó o desactivó esta oferta' : s.jobs.title}
-                          </span>
-                          <HoverTooltip label="La organización pausó o desactivó esta oferta">
-                            <i className="ti ti-info-circle" style={{ fontSize: 14, color: '#aaa' }}></i>
-                          </HoverTooltip>
-                        </div>
-                        {!jobDeleted && (
-                          <div style={{ fontSize: 12.5, color: '#999' }}>{s.jobs.organizations?.name}</div>
-                        )}
+                        <UnavailableTitle jobDeleted={jobDeleted} title={s.jobs?.title} />
+                        {!jobDeleted && <div style={{ fontSize: 12.5, color: '#999' }}>{s.jobs.organizations?.name}</div>}
                         <div style={{ fontSize: 12, color: '#999' }}>
                           {s.created_at ? `Guardada el ${new Date(s.created_at).toLocaleDateString('es-ES')}` : 'Oferta no disponible'}
                         </div>
                       </>
                     ) : (
                       <>
-                        <Link href={`/jobs?job=${s.jobs?.id}`} style={{ fontWeight: 600, fontSize: 14, color: '#222', textDecoration: 'none' }}>
+                        <Link href={`/jobs?job=${s.jobs?.id}`} style={{ fontWeight: 700, fontSize: 14, color: '#222', textDecoration: 'none' }}>
                           {s.jobs?.title}
                         </Link>
                         <div style={{ fontSize: 12.5, color: '#888' }}>{s.jobs?.organizations?.name}</div>
@@ -183,82 +215,104 @@ export default function MyJobsPage() {
             })}
 
           {tab === 'solicitados' &&
-            applications.map((a) => {
-              const st = STATUS_LABELS[a.status] || STATUS_LABELS.enviada;
+            activeApplications.map((a) => {
+              const jobDeleted = !a.jobs;
+              const jobPaused = a.jobs && a.jobs.status !== 'activa';
+              const unavailable = jobDeleted || jobPaused;
+              const stageIndex = STAGES.indexOf(a.status);
+              return (
+                <div key={a.id} style={{ padding: '16px 0', borderBottom: '.5px solid #f0f0eb' }}>
+                  <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12 }}>
+                    <OrgLogo url={!unavailable ? a.jobs?.organizations?.logo_url : null} />
+                    <div style={{ flex: 1 }}>
+                      {unavailable ? (
+                        <UnavailableTitle jobDeleted={jobDeleted} title={a.jobs?.title} />
+                      ) : (
+                        <Link href={`/jobs?job=${a.jobs?.id}`} style={{ fontWeight: 700, fontSize: 14, color: '#222', textDecoration: 'none' }}>
+                          {a.jobs?.title}
+                        </Link>
+                      )}
+                      <div style={{ fontSize: 12.5, color: '#888', marginTop: 1 }}>
+                        {!jobDeleted && a.jobs?.organizations?.name}
+                        {!jobDeleted && ' · '}
+                        Solicitado el {new Date(a.applied_at).toLocaleDateString('es-ES')}
+                      </div>
+
+                      {!unavailable && (
+                        <div style={{ display: 'flex', alignItems: 'center', marginTop: 14, maxWidth: 420 }}>
+                          {STAGES.map((stage, i) => (
+                            <div key={stage} style={{ display: 'flex', alignItems: 'center', flex: i === STAGES.length - 1 ? '0 0 auto' : 1 }}>
+                              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                                <div
+                                  style={{
+                                    width: 20,
+                                    height: 20,
+                                    borderRadius: '50%',
+                                    background: i <= stageIndex ? '#1d6f5c' : '#e0dfd8',
+                                    color: '#fff',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    fontSize: 11,
+                                    flexShrink: 0,
+                                  }}
+                                >
+                                  {i <= stageIndex && <i className="ti ti-check" style={{ fontSize: 12 }}></i>}
+                                </div>
+                                <div style={{ fontSize: 9.5, marginTop: 4, fontWeight: 600, color: i <= stageIndex ? '#1d6f5c' : '#999', whiteSpace: 'nowrap' }}>
+                                  {STAGE_LABELS[stage]}
+                                </div>
+                              </div>
+                              {i < STAGES.length - 1 && (
+                                <div style={{ flex: 1, height: 2, background: i < stageIndex ? '#1d6f5c' : '#e0dfd8', margin: '0 4px 15px' }}></div>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                    <button className="btn-o" style={{ fontSize: 12, flexShrink: 0 }} onClick={() => withdraw(a.id)}>
+                      Retirar
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+
+          {tab === 'cerrados' &&
+            closedApplications.map((a) => {
+              const st = CLOSED_LABELS[a.status] || CLOSED_LABELS.retirada;
               const jobDeleted = !a.jobs;
               const jobPaused = a.jobs && a.jobs.status !== 'activa';
               const unavailable = jobDeleted || jobPaused;
               return (
                 <div key={a.id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '14px 0', borderBottom: '.5px solid #f0f0eb' }}>
-                  <div
-                    style={{
-                      width: 40,
-                      height: 40,
-                      borderRadius: 8,
-                      background: '#e8f4f0',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      overflow: 'hidden',
-                      flexShrink: 0,
-                    }}
-                  >
-                    {a.jobs?.organizations?.logo_url ? (
-                      <img src={a.jobs.organizations.logo_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                    ) : (
-                      <i className="ti ti-building" style={{ fontSize: 16, color: '#7fa89c' }}></i>
-                    )}
-                  </div>
+                  <OrgLogo url={!unavailable ? a.jobs?.organizations?.logo_url : null} />
                   <div style={{ flex: 1 }}>
                     {unavailable ? (
-                      <>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-                          <span style={{ fontWeight: 600, fontSize: 14, color: '#888' }}>
-                            {jobDeleted ? 'La organización pausó o desactivó esta oferta' : a.jobs.title}
-                          </span>
-                          <HoverTooltip label="La organización pausó o desactivó esta oferta">
-                            <i className="ti ti-info-circle" style={{ fontSize: 14, color: '#aaa' }}></i>
-                          </HoverTooltip>
-                        </div>
-                        {!jobDeleted && (
-                          <div style={{ fontSize: 12.5, color: '#999' }}>{a.jobs.organizations?.name}</div>
-                        )}
-                        <div style={{ fontSize: 11.5, color: '#999' }}>
-                          Solicitado el {new Date(a.applied_at).toLocaleDateString('es-ES')}
-                        </div>
-                      </>
+                      <UnavailableTitle jobDeleted={jobDeleted} title={a.jobs?.title} />
                     ) : (
-                      <>
-                        <Link href={`/jobs?job=${a.jobs?.id}`} style={{ fontWeight: 600, fontSize: 14, color: '#222', textDecoration: 'none' }}>
-                          {a.jobs?.title}
-                        </Link>
-                        <div style={{ fontSize: 12.5, color: '#888' }}>{a.jobs?.organizations?.name}</div>
-                        <div style={{ fontSize: 11.5, color: '#999' }}>
-                          Solicitado el {new Date(a.applied_at).toLocaleDateString('es-ES')}
-                        </div>
-                      </>
+                      <div style={{ fontWeight: 700, fontSize: 14, color: '#555' }}>{a.jobs?.title}</div>
                     )}
+                    <div style={{ fontSize: 12.5, color: '#999' }}>
+                      {!jobDeleted && a.jobs?.organizations?.name}
+                      {!jobDeleted && ' · '}
+                      Solicitado el {new Date(a.applied_at).toLocaleDateString('es-ES')}
+                    </div>
                   </div>
-                  {!unavailable && (
-                    <span
-                      style={{
-                        fontSize: 11.5,
-                        fontWeight: 600,
-                        padding: '4px 10px',
-                        borderRadius: 20,
-                        background: st.bg,
-                        color: st.color,
-                        whiteSpace: 'nowrap',
-                      }}
-                    >
-                      {st.label}
-                    </span>
-                  )}
-                  {a.status !== 'retirada' && a.status !== 'rechazada' && (
-                    <button className="btn-o" style={{ fontSize: 12 }} onClick={() => withdraw(a.id)}>
-                      Retirar
-                    </button>
-                  )}
+                  <span
+                    style={{
+                      fontSize: 11.5,
+                      fontWeight: 600,
+                      padding: '4px 10px',
+                      borderRadius: 20,
+                      background: st.bg,
+                      color: st.color,
+                      whiteSpace: 'nowrap',
+                    }}
+                  >
+                    {st.label}
+                  </span>
                 </div>
               );
             })}
