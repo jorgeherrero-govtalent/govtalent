@@ -160,7 +160,7 @@ export default async function OrganizationPublicPage({ params }) {
             {org.name}
             {org.verified && (
               <HoverTooltip label="Página verificada por la organización">
-                <i className="ti ti-circle-check-filled" style={{ color: '#1d9d63', fontSize: 17 }}></i>
+                <i className="ti ti-circle-check-filled" style={{ color: '#2563eb', fontSize: 17 }}></i>
               </HoverTooltip>
             )}
             {hasInterestGroupBadge(org) && (
