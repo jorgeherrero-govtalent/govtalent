@@ -6,6 +6,7 @@ import { normalizeUrl } from '@/lib/normalizeUrl';
 import OrganizationFollowButton from '@/components/OrganizationFollowButton';
 import OrganizationClaimBanner from '@/components/OrganizationClaimBanner';
 import HoverTooltip from '@/components/HoverTooltip';
+import TransparencyIcon from '@/components/TransparencyIcon';
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://govtalent.app';
 
@@ -349,14 +350,14 @@ export default async function OrganizationPublicPage({ params }) {
                     width: 34,
                     height: 34,
                     borderRadius: 8,
-                    background: '#eaf5f0',
+                    background: '#faf9f5',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
                     flexShrink: 0,
                   }}
                 >
-                  <i className="ti ti-search" style={{ color: '#1d6f5c', fontSize: 17 }}></i>
+                  <TransparencyIcon size={20} />
                 </div>
                 <h4 style={{ margin: 0, paddingTop: 6 }}>Organización comprometida con la integridad y la transparencia</h4>
               </div>
