@@ -1751,8 +1751,8 @@ export default function ProfilePage() {
                 <div style={{ fontSize: 13, fontWeight: 500 }}>{f.organizations?.name}</div>
               </Link>
             ))}
-            <Link href="/organizations" style={{ fontSize: 12.5, color: '#1d6f5c' }}>
-              Ver directorio
+            <Link href="/profile/organizations" style={{ fontSize: 12.5, color: '#1d6f5c' }}>
+              Ver todas
             </Link>
           </div>
         </div>
