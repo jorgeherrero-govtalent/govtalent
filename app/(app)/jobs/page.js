@@ -8,6 +8,7 @@ import ApplyModal from '@/components/ApplyModal';
 import ShareJobModal from '@/components/ShareJobModal';
 import MultiSelectFilter from '@/components/MultiSelectFilter';
 import HoverTooltip from '@/components/HoverTooltip';
+import { SECTOR_LABELS } from '@/lib/orgTaxonomy';
 
 const TYPE_LABELS = {
   empresa: 'Empresa',
@@ -211,7 +212,7 @@ export default function JobsPage() {
       .select(
         `id, title, area, location, modality, employment_type, salary_min, salary_max,
          description, is_featured, created_at, views_count, application_mode, external_apply_url,
-         organizations ( id, name, logo_url, slug, org_type, verified ),
+         organizations ( id, name, logo_url, slug, org_type, verified, bio, sector, location, size_range ),
          job_tags ( tag ),
          job_requirements ( content, sort_order ),
          job_responsibilities ( content, sort_order )`
@@ -613,64 +614,98 @@ export default function JobsPage() {
                 {selected.organizations && (
                   <div id="sec-empresa">
                     <div className="jd-sec">Empresa</div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 12, border: '.5px solid #eee', borderRadius: 12, padding: 16 }}>
-                      <div
-                        style={{
-                          width: 48,
-                          height: 48,
-                          borderRadius: 10,
-                          background: '#e8f4f0',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          fontSize: 20,
-                          overflow: 'hidden',
-                          flexShrink: 0,
-                        }}
-                      >
-                        {selected.organizations.logo_url ? (
-                          <img src={selected.organizations.logo_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                        ) : (
-                          <i className="ti ti-building"></i>
-                        )}
-                      </div>
-                      <div style={{ flex: 1 }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                          <Link
-                            href={selected.organizations.slug ? `/organizations/${selected.organizations.slug}` : '#'}
-                            style={{ fontWeight: 700, fontSize: 14, color: '#222', textDecoration: 'none' }}
-                          >
-                            {selected.organizations.name}
-                          </Link>
-                          {selected.organizations.verified && (
-                            <HoverTooltip label="Página verificada por la organización">
-                              <i className="ti ti-circle-check-filled" style={{ color: '#2563eb', fontSize: 14 }}></i>
-                            </HoverTooltip>
+                    <div style={{ border: '.5px solid #eee', borderRadius: 12, padding: 18, background: '#faf9f5' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 12 }}>
+                        <div
+                          style={{
+                            width: 48,
+                            height: 48,
+                            borderRadius: 10,
+                            background: '#e8f4f0',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            fontSize: 20,
+                            overflow: 'hidden',
+                            flexShrink: 0,
+                          }}
+                        >
+                          {selected.organizations.logo_url ? (
+                            <img src={selected.organizations.logo_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                          ) : (
+                            <i className="ti ti-building"></i>
                           )}
                         </div>
-                        <div style={{ fontSize: 12, color: '#888' }}>{TYPE_LABELS[selected.organizations.org_type]}</div>
+                        <div style={{ flex: 1 }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                            <Link
+                              href={selected.organizations.slug ? `/organizations/${selected.organizations.slug}` : '#'}
+                              style={{ fontWeight: 700, fontSize: 14, color: '#222', textDecoration: 'none' }}
+                            >
+                              {selected.organizations.name}
+                            </Link>
+                            {selected.organizations.verified && (
+                              <HoverTooltip label="Página verificada por la organización">
+                                <i className="ti ti-circle-check-filled" style={{ color: '#2563eb', fontSize: 14 }}></i>
+                              </HoverTooltip>
+                            )}
+                          </div>
+                          <div style={{ fontSize: 12, color: '#888' }}>{TYPE_LABELS[selected.organizations.org_type]}</div>
+                        </div>
+                        <button
+                          className="btn-o"
+                          style={{ fontSize: 12, padding: '7px 14px' }}
+                          disabled={followLoading}
+                          onClick={() => toggleFollowOrg(selected.organizations.id, selected.organizations.name)}
+                        >
+                          {followedOrgIds.has(selected.organizations.id) ? (
+                            <>
+                              <i className="ti ti-check"></i> Siguiendo
+                            </>
+                          ) : (
+                            'Seguir'
+                          )}
+                        </button>
+                        <Link
+                          href={selected.organizations.slug ? `/organizations/${selected.organizations.slug}` : '#'}
+                          className="btn-p"
+                          style={{ fontSize: 12, padding: '7px 14px', textDecoration: 'none' }}
+                        >
+                          Ver perfil
+                        </Link>
                       </div>
-                      <button
-                        className="btn-o"
-                        style={{ fontSize: 12, padding: '7px 14px' }}
-                        disabled={followLoading}
-                        onClick={() => toggleFollowOrg(selected.organizations.id, selected.organizations.name)}
-                      >
-                        {followedOrgIds.has(selected.organizations.id) ? (
-                          <>
-                            <i className="ti ti-check"></i> Siguiendo
-                          </>
-                        ) : (
-                          'Seguir'
-                        )}
-                      </button>
-                      <Link
-                        href={selected.organizations.slug ? `/organizations/${selected.organizations.slug}` : '#'}
-                        className="btn-p"
-                        style={{ fontSize: 12, padding: '7px 14px', textDecoration: 'none' }}
-                      >
-                        Ver perfil
-                      </Link>
+
+                      {(selected.organizations.bio || selected.organizations.sector) && (
+                        <div
+                          style={{
+                            fontSize: 12.5,
+                            color: '#555',
+                            lineHeight: 1.6,
+                            marginBottom: 12,
+                            paddingTop: 12,
+                            borderTop: '.5px solid #e5e4de',
+                          }}
+                        >
+                          {selected.organizations.bio || SECTOR_LABELS[selected.organizations.sector]}
+                        </div>
+                      )}
+
+                      {(selected.organizations.location || selected.organizations.size_range) && (
+                        <div style={{ display: 'flex', gap: 16, fontSize: 11.5, color: '#666' }}>
+                          {selected.organizations.location && (
+                            <span>
+                              <i className="ti ti-map-pin" style={{ color: '#999', marginRight: 4 }}></i>
+                              {selected.organizations.location}
+                            </span>
+                          )}
+                          {selected.organizations.size_range && (
+                            <span>
+                              <i className="ti ti-users" style={{ color: '#999', marginRight: 4 }}></i>
+                              {selected.organizations.size_range} empleados
+                            </span>
+                          )}
+                        </div>
+                      )}
                     </div>
                   </div>
                 )}
