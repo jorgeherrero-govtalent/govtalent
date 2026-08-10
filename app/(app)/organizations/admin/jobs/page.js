@@ -13,7 +13,7 @@ import MultiSelectFilter from '@/components/MultiSelectFilter';
 
 const AREAS = [
   'Public Affairs',
-  'Comunicación Política',
+  'Comunicación',
   'Relaciones Institucionales',
   'Asuntos Europeos',
   'Regulación',
