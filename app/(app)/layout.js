@@ -94,7 +94,7 @@ export default function AppLayout({ children }) {
             <i className="ti ti-building"></i>Organizaciones
           </Link>
           <Link href="/institutions" className={`ni ${pathname.startsWith('/institutions') ? 'on' : ''}`}>
-            <i className="ti ti-landmark"></i>Instituciones
+            <i className="ti ti-building-bank"></i>Instituciones
           </Link>
           <div className="ni" style={{ cursor: 'default', color: '#bbb' }} title="Próximamente">
             <i className="ti ti-calendar-event"></i>Eventos (Próximamente)
