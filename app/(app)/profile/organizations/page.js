@@ -4,6 +4,21 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
 
+const TYPE_LABELS = {
+  empresa: 'Empresa',
+  empresa_publica: 'Empresa pública',
+  consultora_public_affairs: 'Consultora de Public Affairs',
+  asociacion_profesional: 'Asociación profesional',
+  sindicato: 'Sindicato',
+  tercer_sector_ong: 'Organización del tercer sector / ONG',
+  institucion_publica: 'Institución pública',
+  partido_politico: 'Partido político',
+  think_tank_fundacion: 'Think tank / Fundación',
+  universidad_centro_educativo: 'Universidad / Institución académica',
+  medios_comunicacion: 'Medios y comunicación',
+  otro: 'Otro',
+};
+
 const EVENT_ICON = {
   new_job_posting: { icon: 'ti-briefcase', color: '#1d6f5c', bg: '#f0f8f5' },
   profile_updated: { icon: 'ti-user-check', color: '#6d5aef', bg: '#eeecfd' },
@@ -153,7 +168,7 @@ export default function FollowedOrganizationsPage() {
                     {org.name}
                   </Link>
                   <div style={{ fontSize: 12, color: '#888', marginTop: 2 }}>
-                    {[org.sector, org.location].filter(Boolean).join(' · ') || 'Sector no especificado'}
+                    {[TYPE_LABELS[org.org_type] || org.org_type, org.location].filter(Boolean).join(' · ') || 'Tipo no especificado'}
                   </div>
                 </div>
                 <button
