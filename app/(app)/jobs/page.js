@@ -24,7 +24,7 @@ const TYPE_LABELS = {
 
 const AREAS = [
   'Public Affairs',
-  'Comunicación Política',
+  'Comunicación',
   'Relaciones Institucionales',
   'Asuntos Europeos',
   'Regulación',
