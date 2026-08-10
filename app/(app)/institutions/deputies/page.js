@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { Suspense, useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
@@ -14,7 +14,7 @@ function initials(fullName) {
   return `${(first || '')[0] || ''}${(last || '')[0] || ''}`.toUpperCase();
 }
 
-export default function DeputiesDirectoryPage() {
+function DeputiesDirectoryInner() {
   const supabase = createClient();
   const searchParams = useSearchParams();
 
@@ -419,4 +419,12 @@ export default function DeputiesDirectoryPage() {
 function fullNameDisplay(officialName) {
   const [last, first] = officialName.split(',').map((s) => s.trim());
   return first ? `${first} ${last}` : officialName;
+}
+
+export default function DeputiesDirectoryPage() {
+  return (
+    <Suspense fallback={<div className="spinner"></div>}>
+      <DeputiesDirectoryInner />
+    </Suspense>
+  );
 }
