@@ -14,7 +14,7 @@ import {
 const WORK_AREAS = [
   'Public Affairs',
   'Relaciones Institucionales',
-  'Comunicación Política',
+  'Comunicación',
   'Lobbying',
   'Asuntos Europeos',
   'Regulación',
