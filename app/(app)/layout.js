@@ -81,7 +81,7 @@ export default function AppLayout({ children }) {
       ) : (
         <nav className="nav">
         <div className="nav-inner">
-          <Link href="/radar" className="nav-logo">
+          <Link href="/" className="nav-logo">
             gov<span>talent</span>
           </Link>
           <Link href="/jobs" className={`ni ${pathname.startsWith('/jobs') ? 'on' : ''}`}>
