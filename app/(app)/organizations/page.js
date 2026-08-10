@@ -11,6 +11,27 @@ import MultiSelectFilter from '@/components/MultiSelectFilter';
 
 const PAGE_SIZE_OPTIONS = [10, 25, 50, 100];
 
+const chipStyle = {
+  fontSize: 11.5,
+  background: '#eeecfd',
+  color: '#5a4fd6',
+  padding: '4px 10px',
+  borderRadius: 14,
+  display: 'inline-flex',
+  alignItems: 'center',
+  gap: 5,
+};
+
+const chipXStyle = { fontSize: 10, cursor: 'pointer' };
+
+function removeFromSet(setter, value) {
+  setter((prev) => {
+    const next = new Set(prev);
+    next.delete(value);
+    return next;
+  });
+}
+
 export default function OrganizationsDirectory() {
   const supabase = createClient();
   const [orgs, setOrgs] = useState(null);
@@ -103,6 +124,39 @@ export default function OrganizationsDirectory() {
             />
             <MultiSelectFilter label="Ubicación" values={locationOptions} selected={locationFilter} onApply={setLocationFilter} />
           </div>
+
+          {(typeFilter.size > 0 || sectorFilter.size > 0 || locationFilter.size > 0) && (
+            <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap', marginTop: 12 }}>
+              {[...typeFilter].map((v) => (
+                <span key={`t-${v}`} style={chipStyle}>
+                  {TYPE_LABELS[v] || v}
+                  <i className="ti ti-x" style={chipXStyle} onClick={() => removeFromSet(setTypeFilter, v)}></i>
+                </span>
+              ))}
+              {[...sectorFilter].map((v) => (
+                <span key={`s-${v}`} style={chipStyle}>
+                  {SECTOR_LABELS[v] || v}
+                  <i className="ti ti-x" style={chipXStyle} onClick={() => removeFromSet(setSectorFilter, v)}></i>
+                </span>
+              ))}
+              {[...locationFilter].map((v) => (
+                <span key={`l-${v}`} style={chipStyle}>
+                  {v}
+                  <i className="ti ti-x" style={chipXStyle} onClick={() => removeFromSet(setLocationFilter, v)}></i>
+                </span>
+              ))}
+              <span
+                onClick={() => {
+                  setTypeFilter(new Set());
+                  setSectorFilter(new Set());
+                  setLocationFilter(new Set());
+                }}
+                style={{ fontSize: 11.5, color: '#999', cursor: 'pointer', textDecoration: 'underline' }}
+              >
+                Limpiar todos
+              </span>
+            </div>
+          )}
         </div>
       </div>
 
@@ -155,7 +209,22 @@ export default function OrganizationsDirectory() {
             <div className="card" style={{ maxWidth: 1080, margin: '0 auto' }}>
               <div className="empty-state">
                 <i className="ti ti-building-off"></i>
-                Todavía no hay organizaciones que coincidan con tu búsqueda.
+                No hay organizaciones con estos filtros.
+                {(name || typeFilter.size > 0 || sectorFilter.size > 0 || locationFilter.size > 0) && (
+                  <div style={{ marginTop: 10 }}>
+                    <button
+                      className="btn-o"
+                      onClick={() => {
+                        setName('');
+                        setTypeFilter(new Set());
+                        setSectorFilter(new Set());
+                        setLocationFilter(new Set());
+                      }}
+                    >
+                      Limpiar filtros
+                    </button>
+                  </div>
+                )}
               </div>
             </div>
           ) : view === 'grid' ? (
