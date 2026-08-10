@@ -11,7 +11,7 @@ import { normalizeLocation } from '@/lib/normalizeLocation';
 const ACTIVITY_AREAS = [
   'Public Affairs',
   'Relaciones Institucionales',
-  'Comunicación Política',
+  'Comunicación',
   'Lobbying',
   'Asuntos Europeos',
   'Regulación',
