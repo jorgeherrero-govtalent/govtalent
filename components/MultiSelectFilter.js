@@ -9,11 +9,15 @@ import { createPortal } from 'react-dom';
 export default function MultiSelectFilter({ label, values, selected, onApply }) {
   const [isOpen, setIsOpen] = useState(false);
   const [draft, setDraft] = useState(selected);
+  const [search, setSearch] = useState('');
   const btnRef = useRef(null);
   const [pos, setPos] = useState({ top: 0, left: 0 });
 
   useEffect(() => {
-    if (isOpen) setDraft(new Set(selected));
+    if (isOpen) {
+      setDraft(new Set(selected));
+      setSearch('');
+    }
   }, [isOpen]);
 
   useEffect(() => {
@@ -95,6 +99,26 @@ export default function MultiSelectFilter({ label, values, selected, onApply }) 
                 overflow: 'hidden',
               }}
             >
+              <div style={{ padding: 10, borderBottom: '.5px solid #e0dfd8' }}>
+                <input
+                  autoFocus
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  placeholder={`Buscar ${label.toLowerCase()}...`}
+                  style={{
+                    width: '100%',
+                    padding: '7px 10px',
+                    border: '.5px solid #e0dfd8',
+                    borderRadius: 7,
+                    fontSize: 12.5,
+                    outline: 'none',
+                    fontFamily: 'inherit',
+                  }}
+                  onFocus={(e) => (e.target.style.borderColor = '#1d6f5c')}
+                  onBlur={(e) => (e.target.style.borderColor = '#e0dfd8')}
+                />
+              </div>
+
               <div style={{ padding: 10, borderBottom: '.5px solid #e0dfd8', display: 'flex', gap: 10, fontSize: 11, color: '#1d6f5c' }}>
                 <button
                   type="button"
@@ -113,7 +137,12 @@ export default function MultiSelectFilter({ label, values, selected, onApply }) 
               </div>
 
               <div style={{ maxHeight: 260, overflowY: 'auto', padding: 6 }}>
-                {values.map((v) => (
+                {values.filter((v) => v.label.toLowerCase().includes(search.toLowerCase())).length === 0 && (
+                  <div style={{ padding: '10px 8px', fontSize: 12, color: '#999' }}>Sin resultados</div>
+                )}
+                {values
+                  .filter((v) => v.label.toLowerCase().includes(search.toLowerCase()))
+                  .map((v) => (
                   <label
                     key={v.value}
                     title={v.label}
