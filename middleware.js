@@ -38,8 +38,20 @@ export async function middleware(request) {
     !path.startsWith('/organizations/new');
   const isPublicUnsubscribe = path.startsWith('/api/alerts/unsubscribe');
   const isPublicPricing = path === '/precios';
+  // Rutas de sincronización que llama Vercel Cron directamente (sin sesión
+  // de usuario) — se autentican con su propio secreto dentro de la propia
+  // ruta, no con el login normal de la app.
+  const isInternalSync = path.startsWith('/api/sync/');
 
-  if (!user && !isAuthRoute && !isPublicJobPage && !isPublicOrgPage && !isPublicUnsubscribe && !isPublicPricing) {
+  if (
+    !user &&
+    !isAuthRoute &&
+    !isPublicJobPage &&
+    !isPublicOrgPage &&
+    !isPublicUnsubscribe &&
+    !isPublicPricing &&
+    !isInternalSync
+  ) {
     const url = request.nextUrl.clone();
     url.pathname = '/login';
     return NextResponse.redirect(url);
@@ -47,7 +59,7 @@ export async function middleware(request) {
 
   if (user && isAuthRoute) {
     const url = request.nextUrl.clone();
-    url.pathname = '/radar';
+    url.pathname = '/';
     return NextResponse.redirect(url);
   }
 
@@ -55,7 +67,7 @@ export async function middleware(request) {
     const { data: profile } = await supabase.from('users').select('role').eq('id', user.id).single();
     if (profile?.role !== 'platform_admin') {
       const url = request.nextUrl.clone();
-      url.pathname = '/radar';
+      url.pathname = '/';
       return NextResponse.redirect(url);
     }
   }
