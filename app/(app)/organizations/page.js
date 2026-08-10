@@ -112,7 +112,8 @@ export default function OrganizationsDirectory() {
         <>
           <div className="dir-toolbar">
             <div className="dir-count">
-              <b>{filtered.length}</b> organización{filtered.length === 1 ? '' : 'es'}
+              <b>{filtered.length.toLocaleString('es-ES')}</b> organización{filtered.length === 1 ? '' : 'es'}
+              <span style={{ color: '#999', fontWeight: 400 }}> · Actualizado semanalmente</span>
             </div>
             <div className="dir-chips">
               <button
