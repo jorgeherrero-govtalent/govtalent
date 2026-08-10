@@ -4,29 +4,20 @@ import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
 import { hasInterestGroupBadge } from '@/lib/interestGroupBadge';
-import { TYPE_LABELS } from '@/lib/orgTaxonomy';
+import { TYPE_LABELS, ORG_TYPES, SECTOR_LABELS, SECTORS } from '@/lib/orgTaxonomy';
 import UpgradeModal from '@/components/UpgradeModal';
 import HoverTooltip from '@/components/HoverTooltip';
+import MultiSelectFilter from '@/components/MultiSelectFilter';
 
 const PAGE_SIZE_OPTIONS = [10, 25, 50, 100];
-
-const SORTS = {
-  recientes: { label: 'Más recientes', fn: (a, b) => new Date(b.created_at) - new Date(a.created_at) },
-  az: { label: 'Nombre A-Z', fn: (a, b) => a.name.localeCompare(b.name) },
-  tamano: { label: 'Nº de empleados', fn: (a, b) => sizeRank(b.size_range) - sizeRank(a.size_range) },
-};
-
-function sizeRank(r) {
-  return { '1-10': 1, '11-50': 2, '50-200': 3, '200-1000': 4, '+1000': 5 }[r] || 0;
-}
 
 export default function OrganizationsDirectory() {
   const supabase = createClient();
   const [orgs, setOrgs] = useState(null);
   const [name, setName] = useState('');
-  const [type, setType] = useState('');
-  const [sort, setSort] = useState('recientes');
-  const [onlyPending, setOnlyPending] = useState(false);
+  const [typeFilter, setTypeFilter] = useState(new Set());
+  const [sectorFilter, setSectorFilter] = useState(new Set());
+  const [locationFilter, setLocationFilter] = useState(new Set());
   const [view, setView] = useState('grid');
   const [pageSize, setPageSize] = useState(25);
   const [page, setPage] = useState(0);
@@ -43,27 +34,31 @@ export default function OrganizationsDirectory() {
 
   useEffect(() => {
     load();
-  }, [type]);
+  }, []);
 
   async function load() {
-    let q = supabase.from('organizations').select('*').order('created_at', { ascending: false }).limit(5000);
-    if (type) q = q.eq('org_type', type);
-    const { data } = await q;
+    const { data } = await supabase.from('organizations').select('*').order('created_at', { ascending: false }).limit(5000);
     setOrgs(data || []);
   }
+
+  const locationOptions = useMemo(() => {
+    if (!orgs) return [];
+    const unique = [...new Set(orgs.map((o) => o.location).filter(Boolean))].sort((a, b) => a.localeCompare(b));
+    return unique.map((l) => ({ value: l, label: l }));
+  }, [orgs]);
 
   const filtered = useMemo(() => {
     if (!orgs) return [];
     let list = orgs.filter((o) => o.name.toLowerCase().includes(name.toLowerCase()));
-    if (onlyPending) list = list.filter((o) => !o.verified);
-    return [...list].sort((a, b) => (b.verified === a.verified ? SORTS[sort].fn(a, b) : b.verified - a.verified));
-  }, [orgs, name, onlyPending, sort]);
+    if (typeFilter.size > 0) list = list.filter((o) => typeFilter.has(o.org_type));
+    if (sectorFilter.size > 0) list = list.filter((o) => sectorFilter.has(o.sector));
+    if (locationFilter.size > 0) list = list.filter((o) => locationFilter.has(o.location));
+    return [...list].sort((a, b) => (b.verified === a.verified ? a.name.localeCompare(b.name) : b.verified - a.verified));
+  }, [orgs, name, typeFilter, sectorFilter, locationFilter]);
 
   useEffect(() => {
     setPage(0);
-  }, [name, type, onlyPending, sort, pageSize]);
-
-  const pendingCount = orgs?.filter((o) => !o.verified).length || 0;
+  }, [name, typeFilter, sectorFilter, locationFilter, pageSize]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
   const currentPage = Math.min(page, totalPages - 1);
@@ -85,26 +80,28 @@ export default function OrganizationsDirectory() {
           política y el gobierno
         </p>
         <div className="card" style={{ maxWidth: 1080, margin: '0 auto 26px', padding: '18px 20px', textAlign: 'left' }}>
-          <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 12 }}>
-            <div className="form-g" style={{ marginBottom: 0 }}>
-              <label>Nombre</label>
-              <input
-                placeholder="Nombre de la organización"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-              />
-            </div>
-            <div className="form-g" style={{ marginBottom: 0 }}>
-              <label>Tipo de organización</label>
-              <select value={type} onChange={(e) => setType(e.target.value)}>
-                <option value="">Todos los tipos</option>
-                {Object.entries(TYPE_LABELS).map(([k, v]) => (
-                  <option key={k} value={k}>
-                    {v}
-                  </option>
-                ))}
-              </select>
-            </div>
+          <div className="form-g" style={{ marginBottom: 12 }}>
+            <label>Nombre</label>
+            <input
+              placeholder="Nombre de la organización"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+            />
+          </div>
+          <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+            <MultiSelectFilter
+              label="Tipo de organización"
+              values={ORG_TYPES.map(([k, v]) => ({ value: k, label: v }))}
+              selected={typeFilter}
+              onApply={setTypeFilter}
+            />
+            <MultiSelectFilter
+              label="Sector"
+              values={SECTORS.map(([k, v]) => ({ value: k, label: v }))}
+              selected={sectorFilter}
+              onApply={setSectorFilter}
+            />
+            <MultiSelectFilter label="Ubicación" values={locationOptions} selected={locationFilter} onApply={setLocationFilter} />
           </div>
         </div>
       </div>
@@ -118,32 +115,13 @@ export default function OrganizationsDirectory() {
               <b>{filtered.length}</b> organización{filtered.length === 1 ? '' : 'es'}
             </div>
             <div className="dir-chips">
-              <label className="dir-chip">
-                <i className="ti ti-arrows-sort"></i>
-                <select value={sort} onChange={(e) => setSort(e.target.value)}>
-                  {Object.entries(SORTS).map(([k, v]) => (
-                    <option key={k} value={k}>
-                      {v.label}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              {pendingCount > 0 && (
-                <button
-                  type="button"
-                  className={`dir-chip ${onlyPending ? 'on' : ''}`}
-                  onClick={() => setOnlyPending((v) => !v)}
-                >
-                  <i className="ti ti-clock"></i> No verificadas ({pendingCount})
-                </button>
-              )}
               <button
                 type="button"
                 className="dir-chip premium"
                 onClick={() =>
                   setUpgradeModal({
                     title: 'Filtros avanzados',
-                    message: 'Cruza filtros de sector, actividad y más para encontrar exactamente lo que buscas. Disponible en el plan Pro.',
+                    message: 'Cruza filtros de actividad, tamaño y más para encontrar exactamente lo que buscas. Disponible en el plan Pro.',
                   })
                 }
               >
