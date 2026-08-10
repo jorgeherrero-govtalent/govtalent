@@ -1033,9 +1033,32 @@ export default function OrganizationsDatabasePage() {
                   />
                 </td>
                 <td style={{ padding: '9px 14px', fontWeight: 600 }}>
-                  {o.name}
-                  {o.verified && <i className="ti ti-circle-check-filled" style={{ color: '#2563eb', marginLeft: 5, fontSize: 13 }}></i>}
-                  {hasInterestGroupBadge(o) && <i className="ti ti-shield-check" style={{ color: '#6d5aef', marginLeft: 4, fontSize: 13 }}></i>}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <div
+                      style={{
+                        width: 24,
+                        height: 24,
+                        borderRadius: 6,
+                        background: '#f0efe9',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        overflow: 'hidden',
+                        flexShrink: 0,
+                      }}
+                    >
+                      {o.logo_url ? (
+                        <img src={o.logo_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                      ) : (
+                        <i className="ti ti-building" style={{ fontSize: 12, color: '#999' }}></i>
+                      )}
+                    </div>
+                    <span>
+                      {o.name}
+                      {o.verified && <i className="ti ti-circle-check-filled" style={{ color: '#2563eb', marginLeft: 5, fontSize: 13 }}></i>}
+                      {hasInterestGroupBadge(o) && <i className="ti ti-shield-check" style={{ color: '#6d5aef', marginLeft: 4, fontSize: 13 }}></i>}
+                    </span>
+                  </div>
                 </td>
                 <td style={{ padding: '9px 14px', color: '#555' }}>{TYPE_LABELS[o.org_type] || '—'}</td>
                 <td style={{ padding: '9px 14px', color: '#555' }}>{SECTOR_LABELS[o.sector] || '—'}</td>
