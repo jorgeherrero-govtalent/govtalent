@@ -13,8 +13,8 @@ const PAGE_SIZE_OPTIONS = [10, 25, 50, 100];
 
 const chipStyle = {
   fontSize: 11.5,
-  background: '#eeecfd',
-  color: '#5a4fd6',
+  background: '#f0efe9',
+  color: '#666',
   padding: '4px 10px',
   borderRadius: 14,
   display: 'inline-flex',
@@ -22,7 +22,7 @@ const chipStyle = {
   gap: 5,
 };
 
-const chipXStyle = { fontSize: 10, cursor: 'pointer' };
+const chipXStyle = { fontSize: 10, cursor: 'pointer', color: '#999' };
 
 function removeFromSet(setter, value) {
   setter((prev) => {
