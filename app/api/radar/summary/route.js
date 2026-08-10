@@ -30,7 +30,7 @@ export async function GET() {
     supabase.from('organization_follows').select('organization_id').eq('user_id', userId),
     supabase
       .from('jobs')
-      .select('id, title, area, location, modality, published_at, organization_id, organizations(name, slug, sector, org_type, logo_url)')
+      .select('id, title, area, location, modality, published_at, views_count, organization_id, organizations(name, slug, sector, org_type, logo_url)')
       .eq('status', 'activa')
       .order('published_at', { ascending: false, nullsFirst: false })
       .limit(50),
@@ -101,6 +101,7 @@ export async function GET() {
     location: j.location,
     modality: j.modality,
     published_at: j.published_at,
+    views_count: j.views_count || 0,
   }));
 
   // --- Organizaciones que pueden interesarte: 3, con relleno de destacadas/verificadas ---
@@ -114,8 +115,8 @@ export async function GET() {
     ? orgsDisponibles.filter((o) => (areaByOrgId[o.id] || []).some((a) => misAreas.has(a)))
     : [];
   const orgsRelleno = orgsDisponibles
-    .filter((o) => !orgsEmparejadas.includes(o) && o.verified)
-    .sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+    .filter((o) => !orgsEmparejadas.includes(o))
+    .sort((a, b) => Number(b.verified) - Number(a.verified) || new Date(b.created_at) - new Date(a.created_at));
   const organizacionesRecomendadas = [...orgsEmparejadas, ...orgsRelleno].slice(0, 3).map((o) => ({
     id: o.id,
     name: o.name,
