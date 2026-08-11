@@ -348,10 +348,14 @@ export async function GET(request) {
     ms: Date.now() - t2,
   };
 
-  // --- FASE 3: órganos referenciados por pertenencias VIGENTES ---------
-  // No se sincroniza el catálogo completo: solo lo que hace falta.
+  // --- FASE 3: órganos referenciados por CUALQUIER pertenencia ---------
+  // No se sincroniza el catálogo completo (su paginación falla y arrastra
+  // órganos desde 1979 sin nadie dentro). Se resuelven los referenciados
+  // realmente, incluidos los de pertenencias ya cerradas: si solo
+  // resolviéramos los vigentes, el histórico se perdería al filtrar por
+  // clave foránea. Encarece la primera carga y luego converge.
   const t3 = Date.now();
-  const orgsNecesarios = [...new Set(pertenencias.filter((p) => !p.end_date).map((p) => p.body_id))];
+  const orgsNecesarios = [...new Set(pertenencias.map((p) => p.body_id).filter(Boolean))];
 
   let orgsConocidos = new Set();
   if (!dry) {
@@ -374,12 +378,29 @@ export async function GET(request) {
   }
 
   informe.fases['3_organos'] = {
-    referenciados_vigentes: orgsNecesarios.length,
+    referenciados_total: orgsNecesarios.length,
+    de_ellos_vigentes: [...new Set(pertenencias.filter((p) => !p.end_date).map((p) => p.body_id))].length,
     ya_en_bd: orgsNecesarios.length - orgsAResolver.length,
     resueltos_ahora: organos.length,
     fallidos: orgsAResolver.length - organos.length,
     ms: Date.now() - t3,
   };
+
+  // Conjunto de órganos que existirán en base de datos tras esta pasada.
+  // Sirve para no romper claves foráneas ni en meps ni en pertenencias.
+  const idsOrgConocidos = new Set([...orgsConocidos, ...organos.map((o) => o.id)]);
+
+  // Salvaguarda: si el partido nacional no se pudo resolver, se omite el
+  // campo en vez de mandar una referencia inexistente (que tumbaría el
+  // upsert del eurodiputado entero).
+  let partidosOmitidos = 0;
+  for (const m of meps) {
+    if (m.national_party_id && !idsOrgConocidos.has(m.national_party_id)) {
+      delete m.national_party_id;
+      partidosOmitidos++;
+    }
+  }
+  informe.fases['3_organos'].partidos_nacionales_omitidos = partidosOmitidos;
 
   if (dry) {
     informe.ms_total = Date.now() - t0;
@@ -401,10 +422,8 @@ export async function GET(request) {
     supabase.from('eu_meps').upsert(lote, { onConflict: 'id' })
   );
 
-  // Solo pertenencias cuyo órgano exista, para no violar la FK.
-  const { data: orgsBd } = await supabase.from('eu_bodies').select('id');
-  const idsOrg = new Set((orgsBd || []).map((o) => o.id));
-  const pertenenciasValidas = pertenencias.filter((p) => idsOrg.has(p.body_id));
+  // Solo pertenencias cuyo órgano exista, para no violar la clave foránea.
+  const pertenenciasValidas = pertenencias.filter((p) => idsOrgConocidos.has(p.body_id));
 
   const wPer = await enLotes(pertenenciasValidas, (lote) =>
     supabase.from('eu_mep_memberships').upsert(lote, { onConflict: 'id' })
