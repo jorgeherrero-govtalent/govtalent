@@ -126,16 +126,14 @@ export default function InstitutionsHomePage() {
           </span>
         </div>
 
-        <div style={{ background: '#f4f4f0', borderRadius: 12, padding: 18, opacity: 0.75 }}>
-          <i className="ti ti-building-bank" style={{ color: '#999', fontSize: 19 }}></i>
-          <div style={{ fontSize: 14, fontWeight: 700, marginTop: 8, color: '#777' }}>Ministerios</div>
-          <div style={{ fontSize: 11.5, color: '#999', marginTop: 3, marginBottom: 10 }}>
+        <Link href="/institutions/ministries" className="card" style={{ padding: 18, textDecoration: 'none', color: 'inherit' }}>
+          <i className="ti ti-building-bank" style={{ color: '#6d5aef', fontSize: 19 }}></i>
+          <div style={{ fontSize: 14, fontWeight: 700, marginTop: 8 }}>Ministerios</div>
+          <div style={{ fontSize: 11.5, color: '#888', marginTop: 3, marginBottom: 10 }}>
             Estructura del Gobierno y titulares de cada ministerio.
           </div>
-          <span style={{ fontSize: 11, fontWeight: 600, color: '#999', background: '#e5e4de', padding: '3px 9px', borderRadius: 10 }}>
-            Próximamente
-          </span>
-        </div>
+          <span style={{ fontSize: 12, color: '#6d5aef', fontWeight: 600 }}>Ver ministerios →</span>
+        </Link>
 
         <div style={{ background: '#f4f4f0', borderRadius: 12, padding: 18, opacity: 0.75 }}>
           <i className="ti ti-scale" style={{ color: '#999', fontSize: 19 }}></i>
