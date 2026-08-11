@@ -16,6 +16,8 @@ export default function GovernmentMemberProfilePage() {
   const supabase = createClient();
   const [member, setMember] = useState(null);
   const [notFound, setNotFound] = useState(false);
+  const [userId, setUserId] = useState(null);
+  const [saved, setSaved] = useState(false);
 
   useEffect(() => {
     supabase
@@ -26,9 +28,36 @@ export default function GovernmentMemberProfilePage() {
       .then(({ data }) => (data ? setMember(data) : setNotFound(true)));
   }, [slug]);
 
-  function copyLink() {
-    navigator.clipboard.writeText(window.location.href);
-    toast('Enlace copiado ✓');
+  useEffect(() => {
+    if (!member) return;
+    supabase.auth.getUser().then(async ({ data }) => {
+      const uid = data.user?.id;
+      if (!uid) return;
+      setUserId(uid);
+      const { data: savedRow } = await supabase
+        .from('saved_government_members')
+        .select('id')
+        .eq('user_id', uid)
+        .eq('government_member_id', member.id)
+        .maybeSingle();
+      setSaved(!!savedRow);
+    });
+  }, [member]);
+
+  async function toggleSave() {
+    if (!userId) {
+      toast('Inicia sesión para guardar');
+      return;
+    }
+    if (saved) {
+      await supabase.from('saved_government_members').delete().eq('user_id', userId).eq('government_member_id', member.id);
+      setSaved(false);
+      toast('Eliminado de guardados');
+    } else {
+      await supabase.from('saved_government_members').insert({ user_id: userId, government_member_id: member.id });
+      setSaved(true);
+      toast('Guardado ✓');
+    }
   }
 
   if (notFound) {
@@ -50,6 +79,8 @@ export default function GovernmentMemberProfilePage() {
   }
 
   if (!member) return <div className="spinner"></div>;
+
+  const hasContact = member.ministry_email || member.ministry_phone || member.ministry_website;
 
   return (
     <div className="sec" style={{ maxWidth: 800 }}>
@@ -111,9 +142,12 @@ export default function GovernmentMemberProfilePage() {
         </div>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <button className="icon-circle-btn" title="Compartir" onClick={copyLink}>
-            <i className="ti ti-share"></i>
+          <button className="btn-ai" onClick={toggleSave} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            <i className={`ti ${saved ? 'ti-bookmark-filled' : 'ti-bookmark'}`}></i> {saved ? 'Guardado' : 'Guardar'}
           </button>
+          <Link href="/institutions/ministries" style={{ fontSize: 12, color: '#1d6f5c', fontWeight: 600, textDecoration: 'none' }}>
+            Ver equipo →
+          </Link>
           {member.bio_url && (
             <a
               href={member.bio_url}
@@ -127,6 +161,41 @@ export default function GovernmentMemberProfilePage() {
           )}
         </div>
       </div>
+
+      {hasContact && (
+        <div className="card" style={{ padding: 18, marginTop: 14 }}>
+          <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 10 }}>Contacto del Ministerio</div>
+          <div style={{ fontSize: 12, color: '#555', display: 'flex', flexDirection: 'column', gap: 6 }}>
+            {member.ministry_email && (
+              <span>
+                <i className="ti ti-mail" style={{ color: '#999', marginRight: 6 }}></i>
+                <a href={`mailto:${member.ministry_email}`} style={{ color: '#555', textDecoration: 'none' }}>
+                  {member.ministry_email}
+                </a>
+              </span>
+            )}
+            {member.ministry_phone && (
+              <span>
+                <i className="ti ti-phone" style={{ color: '#999', marginRight: 6 }}></i>
+                {member.ministry_phone}
+              </span>
+            )}
+            {member.ministry_website && (
+              <span>
+                <i className="ti ti-world" style={{ color: '#999', marginRight: 6 }}></i>
+                <a
+                  href={member.ministry_website.startsWith('http') ? member.ministry_website : `https://${member.ministry_website}`}
+                  target="_blank"
+                  rel="noreferrer"
+                  style={{ color: '#555', textDecoration: 'none' }}
+                >
+                  {member.ministry_website}
+                </a>
+              </span>
+            )}
+          </div>
+        </div>
+      )}
 
       <div className="card" style={{ padding: 18, marginTop: 14 }}>
         <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 10 }}>Trayectoria</div>
