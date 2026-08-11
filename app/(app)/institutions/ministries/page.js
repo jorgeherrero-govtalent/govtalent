@@ -30,9 +30,36 @@ function nameDisplay(officialName) {
   return first ? `${first} ${last}` : officialName;
 }
 
-function GroupRow({ member, officials }) {
+// Quita "Ministerio de/del/para la/para el", tildes y mayúsculas, para poder
+// comparar "Sanidad" (como lo guarda government_members) con "Ministerio de
+// Sanidad" (como lo guarda government_officials) sin que el texto tenga que
+// ser idéntico letra por letra.
+function normalizeMinistry(text) {
+  return (text || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/^ministerio\s+(de\s+|del\s+|para\s+la\s+|para\s+el\s+)?/, '')
+    .trim();
+}
+
+// Los 3 vicepresidentes llevan también una cartera ministerial propia — su
+// equipo real está repartido en DOS secciones distintas de la fuente
+// (su Vicepresidencia y su Ministerio), así que hay que juntar ambas.
+function teamFor(member, officials, vicepresidenteOrdinal) {
+  const sections = new Set();
+  if (member.rank === 'presidente') sections.add('presidencia del gobierno');
+  if (member.rank === 'vicepresidente' && vicepresidenteOrdinal) {
+    sections.add(`vicepresidencia ${vicepresidenteOrdinal} del gobierno`);
+  }
+  if (member.ministry_name) sections.add(normalizeMinistry(member.ministry_name));
+
+  return officials.filter((o) => sections.has(normalizeMinistry(o.ministry_name)));
+}
+
+function GroupRow({ member, officials, vicepresidenteOrdinal }) {
   const [open, setOpen] = useState(false);
-  const team = officials.filter((o) => o.ministry_name === member.ministry_name);
+  const team = teamFor(member, officials, vicepresidenteOrdinal);
 
   return (
     <div className="card" style={{ padding: 0, marginBottom: 8, overflow: 'hidden' }}>
@@ -63,7 +90,15 @@ function GroupRow({ member, officials }) {
           )}
         </div>
         <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontSize: 13, fontWeight: 700 }}>{member.ministry_name}</div>
+          <div style={{ fontSize: 13, fontWeight: 700 }}>
+            {vicepresidenteOrdinal
+              ? `Vicepresidencia ${vicepresidenteOrdinal[0].toUpperCase()}${vicepresidenteOrdinal.slice(1)} del Gobierno${
+                  member.ministry_name ? ` · Ministerio de ${member.ministry_name}` : ''
+                }`
+              : member.ministry_name
+                ? `Ministerio de ${member.ministry_name}`
+                : member.role}
+          </div>
           <div style={{ fontSize: 11.5, color: '#888', marginTop: 1 }}>
             {member.full_name} — {member.role}
           </div>
@@ -98,6 +133,7 @@ function OrganigramaTab({ members, officials }) {
   const presidente = members.filter((m) => m.rank === 'presidente');
   const vicepresidencias = members.filter((m) => m.rank === 'vicepresidente');
   const ministros = members.filter((m) => m.rank === 'ministro');
+  const ordinalWords = ['primera', 'segunda', 'tercera'];
 
   return (
     <>
@@ -106,8 +142,11 @@ function OrganigramaTab({ members, officials }) {
           <div style={{ fontSize: 11.5, fontWeight: 700, color: '#999', textTransform: 'uppercase', marginBottom: 8 }}>
             Presidencia y Vicepresidencias
           </div>
-          {[...presidente, ...vicepresidencias].map((m) => (
+          {presidente.map((m) => (
             <GroupRow key={m.slug} member={m} officials={officials} />
+          ))}
+          {vicepresidencias.map((m, i) => (
+            <GroupRow key={m.slug} member={m} officials={officials} vicepresidenteOrdinal={ordinalWords[i]} />
           ))}
         </div>
       )}
