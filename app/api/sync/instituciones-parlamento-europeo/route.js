@@ -264,14 +264,24 @@ export async function GET(request) {
   const offset = parseInt(sp.get('offset') || '0', 10);
   const limite = parseInt(sp.get('limit') || '0', 10);
 
-  // Protección: cabecera del cron de Vercel, o ?key= para poder lanzarlo
-  // a mano desde el navegador. Si no hay CRON_SECRET definido, se permite.
+  // Protección. Dos vías:
+  //  - el cron de Vercel entra con la cabecera Authorization + CRON_SECRET
+  //  - para lanzarlo a mano desde el navegador: ?key=<DEBUG_KEY>
+  // Se usa DEBUG_KEY y no CRON_SECRET para no exponer en la URL (y por
+  // tanto en los logs) el secreto del que dependen los demás crons.
   const secreto = process.env.CRON_SECRET;
+  const debugKey = process.env.DEBUG_KEY;
   const auth = request.headers.get('authorization');
   const clave = sp.get('key');
-  const autorizado = !secreto || auth === `Bearer ${secreto}` || clave === secreto;
+  const autorizado =
+    (!secreto && !debugKey) ||
+    (secreto && auth === `Bearer ${secreto}`) ||
+    (debugKey && clave === debugKey);
   if (!autorizado) {
-    return Response.json({ error: 'no autorizado' }, { status: 401 });
+    return Response.json(
+      { error: 'no autorizado', pista: 'usa ?key=<DEBUG_KEY> para lanzarlo a mano' },
+      { status: 401 }
+    );
   }
 
   const supabase = createClient(
