@@ -30,31 +30,69 @@ function nameDisplay(officialName) {
   return first ? `${first} ${last}` : officialName;
 }
 
-// Quita "Ministerio de/del/para la/para el", tildes y mayúsculas, para poder
-// comparar "Sanidad" (como lo guarda government_members) con "Ministerio de
-// Sanidad" (como lo guarda government_officials) sin que el texto tenga que
-// ser idéntico letra por letra.
+// Sin tildes, en minúsculas y con los espacios colapsados: para comparar
+// nombres de persona entre las dos tablas sin depender de la puntuación.
+function normalizePerson(name) {
+  return (name || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+// Quita "Ministerio de/del/de la/de los/de las/para la/para el", tildes y
+// mayúsculas, para poder comparar "Sanidad" (como lo guarda
+// government_members) con "Ministerio de Sanidad" (como lo guarda
+// government_officials) sin que el texto tenga que ser idéntico letra a letra.
 function normalizeMinistry(text) {
   return (text || '')
     .normalize('NFD')
     .replace(/[\u0300-\u036f]/g, '')
     .toLowerCase()
-    .replace(/^ministerio\s+(de\s+|del\s+|para\s+la\s+|para\s+el\s+)?/, '')
+    .replace(/^ministerio\s+(de\s+la\s+|de\s+los\s+|de\s+las\s+|de\s+|del\s+|para\s+la\s+|para\s+el\s+)?/, '')
     .trim();
 }
+
+// Las dos fuentes no siempre nombran igual la misma cartera: La Moncloa añade
+// coletillas ("... y portavoz del Gobierno") que la Agenda de la Comunicación
+// no lleva. Comparamos por prefijo en ambos sentidos para absorber esas
+// diferencias sin mantener una tabla de equivalencias a mano.
+function ministryMatches(a, b) {
+  if (!a || !b) return false;
+  return a === b || a.startsWith(b) || b.startsWith(a);
+}
+
+// Cargos que corresponden al propio miembro del Gobierno que encabeza la
+// tarjeta: no deben repetirse dentro de su propio equipo. Exige "del Gobierno"
+// para no arrastrar a presidentes de organismos adscritos.
+const TOP_ROLE = /^(ministro|ministra|vicepresident|president[ea] del gobierno)/;
 
 // Los 3 vicepresidentes llevan también una cartera ministerial propia — su
 // equipo real está repartido en DOS secciones distintas de la fuente
 // (su Vicepresidencia y su Ministerio), así que hay que juntar ambas.
 function teamFor(member, officials, vicepresidenteOrdinal) {
-  const sections = new Set();
-  if (member.rank === 'presidente') sections.add('presidencia del gobierno');
+  const sections = [];
+  if (member.rank === 'presidente') sections.push('presidencia del gobierno');
   if (member.rank === 'vicepresidente' && vicepresidenteOrdinal) {
-    sections.add(`vicepresidencia ${vicepresidenteOrdinal} del gobierno`);
+    sections.push(`vicepresidencia ${vicepresidenteOrdinal} del gobierno`);
   }
-  if (member.ministry_name) sections.add(normalizeMinistry(member.ministry_name));
+  if (member.ministry_name) sections.push(normalizeMinistry(member.ministry_name));
 
-  return officials.filter((o) => sections.has(normalizeMinistry(o.ministry_name)));
+  const memberKey = normalizePerson(member.full_name);
+
+  return officials.filter((o) => {
+    const key = normalizeMinistry(o.ministry_name);
+    if (!sections.some((s) => ministryMatches(s, key))) return false;
+
+    // El propio ministro viene también como registro de government_officials
+    // (la Agenda lo incluye en el listado de su ministerio). Se descarta para
+    // que no aparezca dos veces dentro del equipo.
+    if (normalizePerson(nameDisplay(o.full_name)) === memberKey) return false;
+    if (TOP_ROLE.test(normalizePerson(o.role))) return false;
+
+    return true;
+  });
 }
 
 function GroupRow({ member, officials, vicepresidenteOrdinal }) {
@@ -111,9 +149,12 @@ function GroupRow({ member, officials, vicepresidenteOrdinal }) {
       </div>
       {open && team.length > 0 && (
         <div style={{ padding: '2px 16px 14px 66px', display: 'flex', flexDirection: 'column', gap: 8 }}>
-          <div style={{ fontSize: 12, color: '#333', fontWeight: 600 }}>
+          <Link
+            href={`/institutions/ministries/${member.slug}`}
+            style={{ fontSize: 12, color: '#333', fontWeight: 600, textDecoration: 'none' }}
+          >
             {member.full_name} <span style={{ color: '#999', fontWeight: 400 }}>— {member.role}</span>
-          </div>
+          </Link>
           {team.map((o) => (
             <Link
               key={o.slug}
@@ -179,14 +220,19 @@ function BuscarTab({ members, officials }) {
       slug: m.slug,
       isMember: true,
     }));
-    const fromOfficials = officials.map((o) => ({
-      full_name_display: nameDisplay(o.full_name),
-      role: o.role,
-      ministry_name: o.ministry_name,
-      unit_name: o.unit_name !== o.ministry_name ? o.unit_name : null,
-      slug: o.slug,
-      isMember: false,
-    }));
+    const memberKeys = new Set(members.map((m) => normalizePerson(m.full_name)));
+    const fromOfficials = officials
+      // Los ministros ya entran por government_members: si la Agenda los
+      // repite, no deben salir dos veces en el buscador.
+      .filter((o) => !memberKeys.has(normalizePerson(nameDisplay(o.full_name))))
+      .map((o) => ({
+        full_name_display: nameDisplay(o.full_name),
+        role: o.role,
+        ministry_name: o.ministry_name,
+        unit_name: o.unit_name !== o.ministry_name ? o.unit_name : null,
+        slug: o.slug,
+        isMember: false,
+      }));
     return [...fromMembers, ...fromOfficials];
   }, [members, officials]);
 
