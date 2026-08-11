@@ -1,31 +1,26 @@
 // =====================================================================
-// RUTA TEMPORAL DE DIAGNÓSTICO — API del Parlamento Europeo
+// RUTA TEMPORAL DE DIAGNÓSTICO — API del Parlamento Europeo (v2)
 //
-// Objetivo: ver la forma REAL de las respuestas antes de diseñar el
-// esquema. Responde a tres preguntas:
-//   1. /meps/show-current  -> ¿trae país y grupo político por eurodiputado?
-//   2. /corporate-bodies   -> ¿cómo se identifican las comisiones?
-//   3. /meps/{id}          -> ¿las comisiones vienen dentro de la ficha
-//                             o hay que resolverlas aparte?
+// CORRECCIÓN v2: la API devuelve el array en la clave "data", no en
+// "@graph" (el @context la aliasea, pero el JSON literal usa "data").
+// Por eso en v1 se saltó el paso 3.
 //
-// BORRAR ESTE ARCHIVO cuando terminemos el diagnóstico.
+// Preguntas que resuelve esta versión:
+//   1. Paginación: ¿hasta dónde llega ?limit y cuántos devuelve?
+//   2. Filtrado por país: ¿funciona en servidor?
+//   3. Órganos: inventario de "classification" -> ¿salen comisiones,
+//      delegaciones y grupos políticos del mismo endpoint?
+//   4. Duplicados: ¿cuántas etiquetas repetidas hay (REGI aparecía 2x)?
+//   5. Ficha individual: ¿trae las comisiones del eurodiputado?
 //
-// Notas:
-// - El host está fijado en constante: no acepta URLs del usuario, así que
-//   no hay superficie de SSRF aunque la ruta esté sin proteger.
-// - Cada petición tiene su propio timeout para que un endpoint lento no
-//   se lleve por delante a los otros dos.
-// - Parámetros opcionales para iterar sin volver a desplegar:
-//     ?limit=5        nº de elementos a pedir
-//     ?mepId=124936   forzar un eurodiputado concreto en el paso 3
-//     ?chars=4000     tamaño de la muestra cruda
+// BORRAR ESTE ARCHIVO al cerrar el diagnóstico.
 // =====================================================================
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
 
 const BASE = 'https://data.europarl.europa.eu/api/v2';
-const TIMEOUT_MS = 20000;
+const TIMEOUT_MS = 25000;
 
 async function callEP(url) {
   const started = Date.now();
@@ -38,7 +33,6 @@ async function callEP(url) {
       headers: { Accept: 'application/ld+json' },
       cache: 'no-store',
     });
-
     const rawText = await res.text();
     let data = null;
     let parseError = null;
@@ -47,18 +41,14 @@ async function callEP(url) {
     } catch (e) {
       parseError = e.message;
     }
-
     return {
       url,
       http_status: res.status,
-      content_type: res.headers.get('content-type'),
       ms: Date.now() - started,
       parse_error: parseError,
-      // La API a veces responde 200 con un campo "error" en el cuerpo:
-      // hay que detectarlo explícitamente o pasa por bueno.
       error_en_cuerpo: data && typeof data === 'object' ? data.error || null : null,
       data,
-      raw_head: rawText.slice(0, 500),
+      raw_head: rawText.slice(0, 400),
     };
   } catch (e) {
     return {
@@ -73,121 +63,129 @@ async function callEP(url) {
   }
 }
 
-// Resumen estructural: lo que de verdad necesito para diseñar el esquema.
-function estructura(data) {
-  if (!data || typeof data !== 'object') return { tipo: typeof data };
-
-  const graph = Array.isArray(data['@graph']) ? data['@graph'] : null;
-  const primero = graph && graph.length > 0 ? graph[0] : null;
-
-  return {
-    claves_raiz: Object.keys(data),
-    hay_graph: !!graph,
-    elementos_en_graph: graph ? graph.length : null,
-    claves_del_primer_elemento: primero ? Object.keys(primero) : null,
-    primer_elemento_completo: primero,
-  };
+// La API expone el array como "data". Se contempla "@graph" por si algún
+// endpoint lo sirve sin aliasear.
+function items(data) {
+  if (!data || typeof data !== 'object') return [];
+  if (Array.isArray(data.data)) return data.data;
+  if (Array.isArray(data['@graph'])) return data['@graph'];
+  return [];
 }
 
-function muestra(data, chars) {
-  if (!data) return null;
-  const s = JSON.stringify(data);
-  return s.length > chars ? s.slice(0, chars) + `\n\n[...recortado, total ${s.length} caracteres]` : s;
-}
-
-// Busca el identificador del primer eurodiputado en la respuesta del paso 1.
-function primerMepId(data) {
-  const graph = data && Array.isArray(data['@graph']) ? data['@graph'] : null;
-  if (!graph || graph.length === 0) return null;
-  const m = graph[0];
-  if (m.identifier) return String(m.identifier);
-  if (m['@id']) {
-    const partes = String(m['@id']).split('/');
-    return partes[partes.length - 1];
+// Cuenta valores distintos de un campo y guarda ejemplos.
+function agrupar(lista, campo) {
+  const mapa = {};
+  for (const it of lista) {
+    const clave = it[campo] ?? '(sin valor)';
+    if (!mapa[clave]) mapa[clave] = { n: 0, ejemplos: [] };
+    mapa[clave].n++;
+    if (mapa[clave].ejemplos.length < 6) mapa[clave].ejemplos.push(it.label ?? it.id);
   }
-  return null;
+  return mapa;
+}
+
+// Etiquetas que se repiten: síntoma de instancias históricas del mismo órgano.
+function duplicados(lista) {
+  const cuenta = {};
+  for (const it of lista) {
+    const l = it.label ?? '(sin label)';
+    cuenta[l] = (cuenta[l] || 0) + 1;
+  }
+  const repetidas = Object.entries(cuenta)
+    .filter(([, n]) => n > 1)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 15);
+  return {
+    etiquetas_distintas: Object.keys(cuenta).length,
+    total_registros: lista.length,
+    top_repetidas: repetidas.map(([label, n]) => ({ label, veces: n })),
+  };
 }
 
 export async function GET(request) {
   const sp = new URL(request.url).searchParams;
-  const limit = sp.get('limit') || '3';
-  const chars = parseInt(sp.get('chars') || '4000', 10);
-  const mepIdForzado = sp.get('mepId');
+  const chars = parseInt(sp.get('chars') || '3000', 10);
+  const salida = { generado: new Date().toISOString(), base: BASE, pasos: {} };
 
-  const salida = {
-    generado: new Date().toISOString(),
-    base: BASE,
-    pasos: {},
+  // ---------------------------------------------------------------
+  // PASO 1 — Paginación: pedimos 800 (hay 720 escaños).
+  // ¿Los devuelve todos, o hay tope de página?
+  // ---------------------------------------------------------------
+  const p1 = await callEP(`${BASE}/meps/show-current?limit=800&format=application%2Fld%2Bjson`);
+  const meps = items(p1.data);
+  salida.pasos['1_paginacion_meps'] = {
+    pregunta: '¿Cuántos devuelve al pedir 800? ¿Hay tope de página?',
+    http_status: p1.http_status,
+    ms: p1.ms,
+    problema: p1.fallo || p1.error_en_cuerpo || p1.parse_error || null,
+    devueltos: meps.length,
+    claves_disponibles: meps[0] ? Object.keys(meps[0]) : null,
+    grupos_politicos: agrupar(meps, 'api:political-group'),
+    reparto_por_pais: Object.fromEntries(
+      Object.entries(agrupar(meps, 'api:country-of-representation')).map(([k, v]) => [k, v.n])
+    ),
   };
 
   // ---------------------------------------------------------------
-  // PASO 1 — Eurodiputados con mandato activo
-  // ¿Vienen country y politicalGroup en el propio listado?
+  // PASO 2 — ¿Se puede filtrar por país en servidor?
+  // Si funciona, la delegación española sale en una llamada.
   // ---------------------------------------------------------------
-  const paso1 = await callEP(`${BASE}/meps/show-current?limit=${limit}&format=application%2Fld%2Bjson`);
-  salida.pasos['1_meps_show_current'] = {
-    pregunta: '¿El listado trae país y grupo político por eurodiputado?',
-    http_status: paso1.http_status,
-    ms: paso1.ms,
-    fallo: paso1.fallo || null,
-    error_en_cuerpo: paso1.error_en_cuerpo || null,
-    parse_error: paso1.parse_error || null,
-    estructura: estructura(paso1.data),
-    muestra_cruda: muestra(paso1.data, chars),
-    raw_head: paso1.data ? null : paso1.raw_head,
+  const p2 = await callEP(
+    `${BASE}/meps/show-current?country-of-representation=ESP&limit=100&format=application%2Fld%2Bjson`
+  );
+  const esp = items(p2.data);
+  salida.pasos['2_filtro_pais'] = {
+    pregunta: '¿El filtro country-of-representation funciona en servidor? (España debería dar 61)',
+    http_status: p2.http_status,
+    ms: p2.ms,
+    problema: p2.fallo || p2.error_en_cuerpo || p2.parse_error || null,
+    devueltos: esp.length,
+    paises_en_respuesta: [...new Set(esp.map((m) => m['api:country-of-representation']))],
+    primeros_tres: esp.slice(0, 3),
   };
 
   // ---------------------------------------------------------------
-  // PASO 2 — Órganos (comisiones, delegaciones, grupos políticos)
-  // ¿Cómo se distinguen unos de otros?
+  // PASO 3 — Inventario de órganos.
+  // ¿Comisiones, delegaciones y grupos políticos vienen todos de aquí?
+  // ¿Cuántos duplicados por instancias históricas?
   // ---------------------------------------------------------------
-  const paso2 = await callEP(`${BASE}/corporate-bodies?limit=${limit}&format=application%2Fld%2Bjson`);
-  salida.pasos['2_corporate_bodies'] = {
-    pregunta: '¿Cómo se identifican comisiones vs delegaciones vs grupos políticos?',
-    http_status: paso2.http_status,
-    ms: paso2.ms,
-    fallo: paso2.fallo || null,
-    error_en_cuerpo: paso2.error_en_cuerpo || null,
-    parse_error: paso2.parse_error || null,
-    estructura: estructura(paso2.data),
-    muestra_cruda: muestra(paso2.data, chars),
-    raw_head: paso2.data ? null : paso2.raw_head,
+  const p3 = await callEP(`${BASE}/corporate-bodies?limit=1000&format=application%2Fld%2Bjson`);
+  const orgs = items(p3.data);
+  salida.pasos['3_inventario_organos'] = {
+    pregunta: '¿Qué tipos de órgano existen y cuántos duplicados hay?',
+    http_status: p3.http_status,
+    ms: p3.ms,
+    problema: p3.fallo || p3.error_en_cuerpo || p3.parse_error || null,
+    devueltos: orgs.length,
+    claves_disponibles: orgs[0] ? Object.keys(orgs[0]) : null,
+    por_classification: agrupar(orgs, 'classification'),
+    analisis_duplicados: duplicados(orgs),
   };
 
   // ---------------------------------------------------------------
-  // PASO 3 — Ficha individual de un eurodiputado
-  // LA PREGUNTA CLAVE: ¿trae sus comisiones, o hay que resolverlas
-  // con una segunda llamada por cada uno de los 720?
+  // PASO 4 — LA CLAVE: ficha individual.
+  // ¿Trae las comisiones, o hay que resolverlas con 720 llamadas?
   // ---------------------------------------------------------------
-  const mepId = mepIdForzado || primerMepId(paso1.data);
-
-  if (!mepId) {
-    salida.pasos['3_mep_individual'] = {
-      pregunta: '¿La ficha individual incluye las comisiones del eurodiputado?',
-      omitido: 'No se pudo extraer ningún id del paso 1. Reintentar con ?mepId=XXXX',
-    };
-  } else {
-    const paso3 = await callEP(`${BASE}/meps/${mepId}?format=application%2Fld%2Bjson`);
-    salida.pasos['3_mep_individual'] = {
-      pregunta: '¿La ficha individual incluye las comisiones del eurodiputado?',
-      mep_id_usado: mepId,
-      http_status: paso3.http_status,
-      ms: paso3.ms,
-      fallo: paso3.fallo || null,
-      error_en_cuerpo: paso3.error_en_cuerpo || null,
-      parse_error: paso3.parse_error || null,
-      estructura: estructura(paso3.data),
-      muestra_cruda: muestra(paso3.data, chars),
-      raw_head: paso3.data ? null : paso3.raw_head,
-    };
-  }
+  const mepId = sp.get('mepId') || (meps[0] && meps[0].identifier) || '1294';
+  const p4 = await callEP(`${BASE}/meps/${mepId}?format=application%2Fld%2Bjson`);
+  const ficha = items(p4.data);
+  salida.pasos['4_ficha_individual'] = {
+    pregunta: '¿La ficha del eurodiputado incluye sus comisiones?',
+    mep_id_usado: mepId,
+    http_status: p4.http_status,
+    ms: p4.ms,
+    problema: p4.fallo || p4.error_en_cuerpo || p4.parse_error || null,
+    elementos: ficha.length,
+    claves_disponibles: ficha[0] ? Object.keys(ficha[0]) : null,
+    ficha_completa: JSON.stringify(ficha[0] || p4.data).slice(0, chars * 2),
+  };
 
   salida.resumen = Object.entries(salida.pasos).map(([k, v]) => ({
     paso: k,
-    status: v.http_status ?? 'no ejecutado',
-    ms: v.ms ?? null,
-    elementos: v.estructura?.elementos_en_graph ?? null,
-    problema: v.fallo || v.error_en_cuerpo || v.parse_error || v.omitido || null,
+    status: v.http_status,
+    ms: v.ms,
+    devueltos: v.devueltos ?? v.elementos ?? null,
+    problema: v.problema || null,
   }));
 
   return new Response(JSON.stringify(salida, null, 2), {
