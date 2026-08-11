@@ -264,10 +264,13 @@ export async function GET(request) {
   const offset = parseInt(sp.get('offset') || '0', 10);
   const limite = parseInt(sp.get('limit') || '0', 10);
 
-  // Protección: cabecera de cron de Vercel o secreto explícito.
+  // Protección: cabecera del cron de Vercel, o ?key= para poder lanzarlo
+  // a mano desde el navegador. Si no hay CRON_SECRET definido, se permite.
   const secreto = process.env.CRON_SECRET;
   const auth = request.headers.get('authorization');
-  if (secreto && auth !== `Bearer ${secreto}`) {
+  const clave = sp.get('key');
+  const autorizado = !secreto || auth === `Bearer ${secreto}` || clave === secreto;
+  if (!autorizado) {
     return Response.json({ error: 'no autorizado' }, { status: 401 });
   }
 
