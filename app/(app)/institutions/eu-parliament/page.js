@@ -596,11 +596,24 @@ function GroupsTab({ groups }) {
 /* Pestaña — Órganos de gobierno                                       */
 /* ------------------------------------------------------------------ */
 function GobiernoTab({ governance, chairs }) {
-  const presidencia = governance.filter((g) => g.role === 'PRESIDENT');
-  const vicepresidencias = governance.filter((g) => g.role === 'PRESIDENT_VICE');
-  const cuestores = governance.filter((g) => g.role === 'QUAESTOR');
-  const otros = governance.filter(
-    (g) => !['PRESIDENT', 'PRESIDENT_VICE', 'QUAESTOR'].includes(g.role)
+  // Una misma persona puede tener el mismo rol en varios órganos: Metsola
+  // preside el Parlamento, la Mesa y la Conferencia de Presidentes. Sin
+  // agrupar, saldría tres veces como si fueran tres personas distintas.
+  function agruparPorPersona(lista) {
+    const mapa = new Map();
+    for (const g of lista) {
+      const k = g.mep_id;
+      if (!mapa.has(k)) mapa.set(k, { ...g, organos: [] });
+      if (g.body_name) mapa.get(k).organos.push({ code: g.body_code, name: g.body_name });
+    }
+    return [...mapa.values()];
+  }
+
+  const presidencia = agruparPorPersona(governance.filter((g) => g.role === 'PRESIDENT'));
+  const vicepresidencias = agruparPorPersona(governance.filter((g) => g.role === 'PRESIDENT_VICE'));
+  const cuestores = agruparPorPersona(governance.filter((g) => g.role === 'QUAESTOR'));
+  const otros = agruparPorPersona(
+    governance.filter((g) => !['PRESIDENT', 'PRESIDENT_VICE', 'QUAESTOR'].includes(g.role))
   );
 
   // Solo presidencias de comisión y subcomisión: las de delegación son
@@ -630,9 +643,15 @@ function GobiernoTab({ governance, chairs }) {
       <div style={{ flex: 1, minWidth: 0 }}>
         <div style={{ fontSize: 12.5, fontWeight: 600 }}>{p.full_name}</div>
         <div style={{ fontSize: 11, color: '#999' }}>
-          {mostrarOrgano && p.body_name ? `${p.body_name} · ` : ''}
           {p.political_group_code} · {countryName(p.country_code)}
         </div>
+        {/* Cuando alguien preside varios órganos, se listan todos en vez de
+            repetir la persona una vez por cada uno. */}
+        {p.organos && p.organos.length > 1 && (
+          <div style={{ fontSize: 10.5, color: '#3C3489', marginTop: 3 }}>
+            {p.organos.map((o) => o.name).join(' · ')}
+          </div>
+        )}
       </div>
       {mostrarOrgano && p.body_code && (
         <span
