@@ -388,19 +388,21 @@ function MepsTab({ meps }) {
 /* ------------------------------------------------------------------ */
 /* Pestaña 2 — Comisiones                                              */
 /* ------------------------------------------------------------------ */
-function CommitteeRow({ committee, members, onlySpanish, chairs }) {
+function CommitteeRow({ committee, members, chairs, countryFilter, groupFilter, conteo }) {
   // La presidencia de la comisión viene de eu_committee_chairs: es el dato
   // que más se busca y hasta ahora no se mostraba en ningún sitio.
   const presidencia = (chairs || []).find((c) => c.body_code === committee.code && c.role === 'CHAIR');
   const [open, setOpen] = useState(false);
+
   const list = useMemo(() => {
     let l = members.filter((m) => m.body_id === committee.id);
-    if (onlySpanish) l = l.filter((m) => m.country_code === 'ES');
+    if (countryFilter && countryFilter.size > 0) l = l.filter((m) => countryFilter.has(m.country_code));
+    if (groupFilter && groupFilter.size > 0) l = l.filter((m) => groupFilter.has(m.political_group_code));
     return l.sort((a, b) => {
       if (a.role !== b.role) return a.role === 'MEMBER' ? -1 : 1;
       return a.full_name.localeCompare(b.full_name);
     });
-  }, [members, committee.id, onlySpanish]);
+  }, [members, committee.id, countryFilter, groupFilter]);
 
   return (
     <div className="card" style={{ padding: 14, marginBottom: 10 }}>
@@ -429,7 +431,15 @@ function CommitteeRow({ committee, members, onlySpanish, chairs }) {
           <div style={{ minWidth: 0 }}>
             <div style={{ fontSize: 13, fontWeight: 600 }}>{committee.name}</div>
             <div style={{ fontSize: 11, color: '#999', marginTop: 1 }}>
-              {committee.titulares} titulares · {committee.suplentes} suplentes · {committee.espanoles} españoles
+              {conteo != null ? (
+                <span style={{ color: '#3C3489' }}>
+                  {conteo} {conteo === 1 ? 'coincidencia' : 'coincidencias'} de {committee.titulares + committee.suplentes}
+                </span>
+              ) : (
+                <>
+                  {committee.titulares} titulares · {committee.suplentes} suplentes · {committee.espanoles} españoles
+                </>
+              )}
             </div>
             {presidencia && (
               <div style={{ fontSize: 11, color: '#3C3489', marginTop: 3 }}>
@@ -445,7 +455,7 @@ function CommitteeRow({ committee, members, onlySpanish, chairs }) {
       {open && (
         <div style={{ borderTop: '.5px solid #f0f0eb', marginTop: 12, paddingTop: 11 }}>
           {list.length === 0 ? (
-            <div style={{ fontSize: 12, color: '#aaa' }}>Sin miembros con este filtro.</div>
+            <div style={{ fontSize: 12, color: '#aaa' }}>Ningún miembro encaja con los filtros.</div>
           ) : (
             list.map((m) => (
               <Link
@@ -484,7 +494,39 @@ function CommitteeRow({ committee, members, onlySpanish, chairs }) {
 
 function CommitteesTab({ committees, members, chairs }) {
   const [search, setSearch] = useState('');
-  const [onlySpanish, setOnlySpanish] = useState(false);
+  const [countryFilter, setCountryFilter] = useState(new Set());
+  const [groupFilter, setGroupFilter] = useState(new Set());
+
+  const countryOptions = useMemo(() => {
+    const codes = [...new Set(members.map((m) => m.country_code).filter(Boolean))];
+    return codes
+      .map((c) => ({ value: c, label: countryName(c) }))
+      .sort((a, b) => a.label.localeCompare(b.label));
+  }, [members]);
+
+  const groupOptions = useMemo(() => {
+    const codes = [...new Set(members.map((m) => m.political_group_code).filter(Boolean))];
+    return codes.sort().map((c) => ({ value: c, label: c }));
+  }, [members]);
+
+  // Con filtros de persona activos, una comisión solo tiene sentido si
+  // alguien que encaja está dentro. Así el listado se reduce de verdad en
+  // lugar de mostrar 25 acordeones que al abrirlos están vacíos.
+  const hayFiltroPersona = countryFilter.size > 0 || groupFilter.size > 0;
+
+  const encaja = (m) =>
+    (countryFilter.size === 0 || countryFilter.has(m.country_code)) &&
+    (groupFilter.size === 0 || groupFilter.has(m.political_group_code));
+
+  const conteos = useMemo(() => {
+    const mapa = new Map();
+    if (!hayFiltroPersona) return mapa;
+    for (const m of members) {
+      if (!encaja(m)) continue;
+      mapa.set(m.body_id, (mapa.get(m.body_id) || 0) + 1);
+    }
+    return mapa;
+  }, [members, countryFilter, groupFilter, hayFiltroPersona]);
 
   const filtered = useMemo(() => {
     let l = committees;
@@ -492,9 +534,11 @@ function CommitteesTab({ committees, members, chairs }) {
       const q = normalize(search);
       l = l.filter((c) => normalize(c.name).includes(q) || normalize(c.code).includes(q));
     }
-    if (onlySpanish) l = l.filter((c) => c.espanoles > 0);
+    if (hayFiltroPersona) l = l.filter((c) => (conteos.get(c.id) || 0) > 0);
     return [...l].sort((a, b) => a.name.localeCompare(b.name));
-  }, [committees, search, onlySpanish]);
+  }, [committees, search, conteos, hayFiltroPersona]);
+
+  const activeCount = countryFilter.size + groupFilter.size;
 
   return (
     <>
@@ -520,33 +564,55 @@ function CommitteesTab({ committees, members, chairs }) {
             style={{ border: 'none', outline: 'none', background: 'transparent', fontSize: 12.5, width: '100%' }}
           />
         </div>
-        <span
-          onClick={() => setOnlySpanish((v) => !v)}
-          style={{
-            background: onlySpanish ? '#e8f4f0' : '#fff',
-            border: `.5px solid ${onlySpanish ? '#1d6f5c' : '#e0dfd8'}`,
-            color: onlySpanish ? '#1d6f5c' : '#555',
-            borderRadius: 20,
-            padding: '7px 12px',
-            fontSize: 12,
-            cursor: 'pointer',
-            whiteSpace: 'nowrap',
-          }}
-        >
-          Solo españoles {onlySpanish && <i className="ti ti-x" style={{ fontSize: 11 }}></i>}
-        </span>
+        <MultiSelectFilter label="País" values={countryOptions} selected={countryFilter} onApply={setCountryFilter} />
+        <MultiSelectFilter label="Grupo" values={groupOptions} selected={groupFilter} onApply={setGroupFilter} />
       </div>
+
+      {activeCount > 0 && (
+        <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap', marginBottom: 12 }}>
+          {[...countryFilter].map((v) => (
+            <span key={`c${v}`} style={{ fontSize: 11, background: '#f0efe9', color: '#666', padding: '3px 10px', borderRadius: 14 }}>
+              {countryName(v)}
+            </span>
+          ))}
+          {[...groupFilter].map((v) => (
+            <span key={`g${v}`} style={{ fontSize: 11, background: '#f0efe9', color: '#666', padding: '3px 10px', borderRadius: 14 }}>
+              {v}
+            </span>
+          ))}
+          <span style={{ fontSize: 11, color: '#888' }}>
+            {filtered.length} de {committees.length} comisiones
+          </span>
+          <span
+            onClick={() => {
+              setCountryFilter(new Set());
+              setGroupFilter(new Set());
+            }}
+            style={{ fontSize: 11, color: '#999', textDecoration: 'underline', cursor: 'pointer' }}
+          >
+            Limpiar filtros
+          </span>
+        </div>
+      )}
 
       {filtered.length === 0 ? (
         <div className="card">
           <div className="empty-state">
             <i className="ti ti-search-off"></i>
-            No hay comisiones con esa búsqueda.
+            No hay comisiones que encajen con estos filtros.
           </div>
         </div>
       ) : (
         filtered.map((c) => (
-          <CommitteeRow key={c.id} committee={c} members={members} onlySpanish={onlySpanish} chairs={chairs} />
+          <CommitteeRow
+            key={c.id}
+            committee={c}
+            members={members}
+            chairs={chairs}
+            countryFilter={countryFilter}
+            groupFilter={groupFilter}
+            conteo={hayFiltroPersona ? conteos.get(c.id) : null}
+          />
         ))
       )}
     </>
@@ -596,6 +662,61 @@ function GroupsTab({ groups }) {
 /* Pestaña — Órganos de gobierno                                       */
 /* ------------------------------------------------------------------ */
 function GobiernoTab({ governance, chairs }) {
+  const [search, setSearch] = useState('');
+  const [countryFilter, setCountryFilter] = useState(new Set());
+  const [groupFilter, setGroupFilter] = useState(new Set());
+  const [bodyFilter, setBodyFilter] = useState(new Set());
+
+  // Se combinan cargos de gobierno y presidencias de comisión para poder
+  // filtrar sobre el conjunto: al usuario le da igual de qué vista sale
+  // cada dato, quiere saber quién manda y dónde.
+  const soloPresidenciasComision = useMemo(
+    () => chairs.filter((c) => c.role === 'CHAIR' && ['committee', 'subcommittee'].includes(c.body_type)),
+    [chairs]
+  );
+
+  const countryOptions = useMemo(() => {
+    const codes = [
+      ...new Set([...governance, ...soloPresidenciasComision].map((g) => g.country_code).filter(Boolean)),
+    ];
+    return codes
+      .map((c) => ({ value: c, label: countryName(c) }))
+      .sort((a, b) => a.label.localeCompare(b.label));
+  }, [governance, soloPresidenciasComision]);
+
+  const groupOptions = useMemo(() => {
+    const codes = [
+      ...new Set([...governance, ...soloPresidenciasComision].map((g) => g.political_group_code).filter(Boolean)),
+    ];
+    return codes.sort().map((c) => ({ value: c, label: c }));
+  }, [governance, soloPresidenciasComision]);
+
+  const bodyOptions = useMemo(() => {
+    const vistos = new Map();
+    for (const c of soloPresidenciasComision) {
+      if (c.body_code && !vistos.has(c.body_code)) vistos.set(c.body_code, c.body_name);
+    }
+    return [...vistos.entries()]
+      .map(([code, name]) => ({ value: code, label: `${code} · ${name}` }))
+      .sort((a, b) => a.label.localeCompare(b.label));
+  }, [soloPresidenciasComision]);
+
+  function pasa(p, aplicarOrgano) {
+    if (countryFilter.size > 0 && !countryFilter.has(p.country_code)) return false;
+    if (groupFilter.size > 0 && !groupFilter.has(p.political_group_code)) return false;
+    if (aplicarOrgano && bodyFilter.size > 0 && !bodyFilter.has(p.body_code)) return false;
+    if (search) {
+      const q = normalize(search);
+      if (!normalize(p.full_name).includes(q) && !normalize(p.body_name).includes(q)) return false;
+    }
+    return true;
+  }
+
+  // El filtro de comisión solo tiene sentido en las presidencias: la Mesa
+  // no pertenece a ninguna comisión. Si está activo, los bloques políticos
+  // se ocultan en vez de mostrarse vacíos.
+  const filtroComisionActivo = bodyFilter.size > 0;
+
   // Una misma persona puede tener el mismo rol en varios órganos: Metsola
   // preside el Parlamento, la Mesa y la Conferencia de Presidentes. Sin
   // agrupar, saldría tres veces como si fueran tres personas distintas.
@@ -609,22 +730,26 @@ function GobiernoTab({ governance, chairs }) {
     return [...mapa.values()];
   }
 
-  const presidencia = agruparPorPersona(governance.filter((g) => g.role === 'PRESIDENT'));
-  const vicepresidencias = agruparPorPersona(governance.filter((g) => g.role === 'PRESIDENT_VICE'));
-  const cuestores = agruparPorPersona(governance.filter((g) => g.role === 'QUAESTOR'));
-  const otros = agruparPorPersona(
-    governance.filter((g) => !['PRESIDENT', 'PRESIDENT_VICE', 'QUAESTOR'].includes(g.role))
+  const porRol = (rol) =>
+    filtroComisionActivo ? [] : agruparPorPersona(governance.filter((g) => g.role === rol && pasa(g, false)));
+
+  const presidencia = porRol('PRESIDENT');
+  const vicepresidencias = porRol('PRESIDENT_VICE');
+  const cuestores = porRol('QUAESTOR');
+  const otros = filtroComisionActivo
+    ? []
+    : agruparPorPersona(
+        governance.filter((g) => !['PRESIDENT', 'PRESIDENT_VICE', 'QUAESTOR'].includes(g.role) && pasa(g, false))
+      );
+
+  const presidenciasComision = useMemo(
+    () => soloPresidenciasComision.filter((c) => pasa(c, true)).sort((a, b) => (a.body_name || '').localeCompare(b.body_name || '')),
+    [soloPresidenciasComision, countryFilter, groupFilter, bodyFilter, search]
   );
 
-  // Solo presidencias de comisión y subcomisión: las de delegación son
-  // muchas y desdibujan lo que importa.
-  const presidenciasComision = useMemo(
-    () =>
-      chairs
-        .filter((c) => c.role === 'CHAIR' && ['committee', 'subcommittee'].includes(c.body_type))
-        .sort((a, b) => (a.body_name || '').localeCompare(b.body_name || '')),
-    [chairs]
-  );
+  const totalMostrado =
+    presidencia.length + vicepresidencias.length + cuestores.length + otros.length + presidenciasComision.length;
+  const activeCount = countryFilter.size + groupFilter.size + bodyFilter.size;
 
   const Persona = ({ p, mostrarOrgano }) => (
     <Link
@@ -695,24 +820,90 @@ function GobiernoTab({ governance, chairs }) {
       </div>
     );
 
-  if (governance.length === 0 && presidenciasComision.length === 0) {
-    return (
-      <div className="card">
-        <div className="empty-state">
-          <i className="ti ti-users-off"></i>
-          No hay cargos de gobierno registrados.
-        </div>
-      </div>
-    );
-  }
-
   return (
     <>
-      <Bloque titulo="Presidencia del Parlamento" lista={presidencia} />
-      <Bloque titulo="Vicepresidencias" lista={vicepresidencias} />
-      <Bloque titulo="Cuestores" lista={cuestores} />
-      <Bloque titulo="Presidencias de comisión" lista={presidenciasComision} mostrarOrgano />
-      <Bloque titulo="Otros cargos" lista={otros} mostrarOrgano />
+      <div style={{ display: 'flex', gap: 8, marginBottom: 13, flexWrap: 'wrap' }}>
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 8,
+            background: '#fff',
+            border: '.5px solid #e0dfd8',
+            borderRadius: 20,
+            padding: '7px 14px',
+            flex: '1 1 180px',
+          }}
+        >
+          <i className="ti ti-search" style={{ color: '#999', fontSize: 14 }}></i>
+          <input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Buscar por nombre u órgano..."
+            aria-label="Buscar cargo"
+            style={{ border: 'none', outline: 'none', background: 'transparent', fontSize: 12.5, width: '100%' }}
+          />
+        </div>
+        <MultiSelectFilter label="País" values={countryOptions} selected={countryFilter} onApply={setCountryFilter} />
+        <MultiSelectFilter label="Grupo" values={groupOptions} selected={groupFilter} onApply={setGroupFilter} />
+        <MultiSelectFilter label="Comisión" values={bodyOptions} selected={bodyFilter} onApply={setBodyFilter} />
+      </div>
+
+      {(activeCount > 0 || search) && (
+        <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap', marginBottom: 12 }}>
+          {[...countryFilter].map((v) => (
+            <span key={`c${v}`} style={{ fontSize: 11, background: '#f0efe9', color: '#666', padding: '3px 10px', borderRadius: 14 }}>
+              {countryName(v)}
+            </span>
+          ))}
+          {[...groupFilter].map((v) => (
+            <span key={`g${v}`} style={{ fontSize: 11, background: '#f0efe9', color: '#666', padding: '3px 10px', borderRadius: 14 }}>
+              {v}
+            </span>
+          ))}
+          {[...bodyFilter].map((v) => (
+            <span key={`b${v}`} style={{ fontSize: 11, background: '#f0efe9', color: '#666', padding: '3px 10px', borderRadius: 14 }}>
+              {v}
+            </span>
+          ))}
+          <span style={{ fontSize: 11, color: '#888' }}>{totalMostrado} cargos</span>
+          <span
+            onClick={() => {
+              setSearch('');
+              setCountryFilter(new Set());
+              setGroupFilter(new Set());
+              setBodyFilter(new Set());
+            }}
+            style={{ fontSize: 11, color: '#999', textDecoration: 'underline', cursor: 'pointer' }}
+          >
+            Limpiar filtros
+          </span>
+        </div>
+      )}
+
+      {filtroComisionActivo && (
+        <div style={{ fontSize: 11.5, color: '#888', marginBottom: 12 }}>
+          Con el filtro de comisión activo solo se muestran presidencias de comisión: la Mesa y los cuestores no
+          pertenecen a ninguna.
+        </div>
+      )}
+
+      {totalMostrado === 0 ? (
+        <div className="card">
+          <div className="empty-state">
+            <i className="ti ti-users-off"></i>
+            No hay cargos que encajen con estos filtros.
+          </div>
+        </div>
+      ) : (
+        <>
+          <Bloque titulo="Presidencia del Parlamento" lista={presidencia} />
+          <Bloque titulo="Vicepresidencias" lista={vicepresidencias} />
+          <Bloque titulo="Cuestores" lista={cuestores} />
+          <Bloque titulo="Presidencias de comisión" lista={presidenciasComision} mostrarOrgano />
+          <Bloque titulo="Otros cargos" lista={otros} mostrarOrgano />
+        </>
+      )}
     </>
   );
 }
