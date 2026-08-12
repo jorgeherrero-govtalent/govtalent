@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
-import { syncGovernment } from '@/lib/instituciones/syncGovernment';
+import { syncGovernment, debugBio } from '@/lib/instituciones/syncGovernment';
 
 export const maxDuration = 60;
 
@@ -11,9 +11,24 @@ function admin() {
 }
 
 export async function GET(request) {
+  const sp = new URL(request.url).searchParams;
   const authHeader = request.headers.get('authorization');
-  if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
+  const key = sp.get('key');
+
+  const isCron = authHeader === `Bearer ${process.env.CRON_SECRET}`;
+  const isDebug = !!process.env.DEBUG_KEY && key === process.env.DEBUG_KEY;
+
+  if (!isCron && !isDebug) {
     return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
+  }
+
+  // Modo diagnóstico: comprueba la extracción de UNA ficha sin escribir nada.
+  //   ?debug=pedro-sanchez-perez-castejon&key=<DEBUG_KEY>
+  const debugSlug = sp.get('debug');
+  if (debugSlug) {
+    if (!isDebug) return NextResponse.json({ error: 'El modo debug requiere ?key=<DEBUG_KEY>' }, { status: 401 });
+    const result = await debugBio(debugSlug);
+    return NextResponse.json(result);
   }
 
   const supabase = admin();
@@ -24,12 +39,28 @@ export async function GET(request) {
     .single();
 
   try {
-    const stats = await syncGovernment();
+    // bioFailures no es una columna de institutional_sync_runs: se separa de
+    // stats para no romper el update con una clave que no existe.
+    const { bioFailures, ...stats } = await syncGovernment();
+
+    const hayFallos = bioFailures.length > 0;
+    const resumenFallos = hayFallos
+      ? `Sin biografía (${bioFailures.length}): ` + bioFailures.map((f) => `${f.slug} [${f.reason}]`).join('; ')
+      : null;
+
     await supabase
       .from('institutional_sync_runs')
-      .update({ status: 'success', finished_at: new Date().toISOString(), ...stats })
+      .update({
+        // 'partial' señala que el sync terminó pero no trajo todo. Antes esto
+        // se registraba como 'success' aunque no se extrajera ni una biografía.
+        status: hayFallos ? 'partial' : 'success',
+        finished_at: new Date().toISOString(),
+        error_message: resumenFallos,
+        ...stats,
+      })
       .eq('id', run.id);
-    return NextResponse.json({ ok: true, ...stats });
+
+    return NextResponse.json({ ok: true, ...stats, bio_failures: bioFailures });
   } catch (error) {
     await supabase
       .from('institutional_sync_runs')
