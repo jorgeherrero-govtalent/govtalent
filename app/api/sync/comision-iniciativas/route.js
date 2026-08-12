@@ -30,9 +30,12 @@ export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
 
 const BRP = 'https://ec.europa.eu/info/law/better-regulation/brpapi/searchInitiatives';
-const PAGE_SIZE = 100;
+const PAGE_SIZE_DEFECTO = 100;
 const TIMEOUT_MS = 20000;
 const LOTE_BD = 500;
+// Margen para no chocar con el límite de 60 s de Vercel: cuando se supera,
+// el sync se detiene y devuelve desde qué página continuar.
+const PRESUPUESTO_MS = 45000;
 
 function admin() {
   return createClient(process.env.NEXT_PUBLIC_SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY, {
@@ -63,8 +66,9 @@ function parseFecha(s) {
   return `${y}-${mes}-${d}T${h}:${min}:${seg}Z`;
 }
 
-async function pedirPagina(page) {
-  const url = `${BRP}?text=&language=EN&size=${PAGE_SIZE}&page=${page}`;
+async function pedirPagina(page, size) {
+  const url = `${BRP}?text=&language=EN&size=${size}&page=${page}`;
+  const t0 = Date.now();
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
   try {
@@ -72,18 +76,21 @@ async function pedirPagina(page) {
       signal: controller.signal,
       headers: {
         Accept: 'application/json',
+        // Pedir gzip reduce mucho el peso: cada iniciativa arrastra sus 24
+        // traducciones y la respuesta sin comprimir es enorme.
+        'Accept-Encoding': 'gzip, deflate, br',
         'User-Agent':
           'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
       },
       cache: 'no-store',
     });
-    if (res.status !== 200) return { ok: false, status: res.status };
+    if (res.status !== 200) return { ok: false, status: res.status, ms: Date.now() - t0 };
     const data = await res.json();
     const p = data?.initiativeResultDtoPage;
-    if (!p) return { ok: false, status: 200, motivo: 'respuesta sin initiativeResultDtoPage' };
-    return { ok: true, contenido: p.content || [], total: p.totalElements ?? null };
+    if (!p) return { ok: false, status: 200, motivo: 'respuesta sin initiativeResultDtoPage', ms: Date.now() - t0 };
+    return { ok: true, contenido: p.content || [], total: p.totalElements ?? null, ms: Date.now() - t0 };
   } catch (e) {
-    return { ok: false, motivo: e.name === 'AbortError' ? 'timeout' : e.message };
+    return { ok: false, motivo: e.name === 'AbortError' ? 'timeout' : e.message, ms: Date.now() - t0 };
   } finally {
     clearTimeout(timer);
   }
@@ -151,13 +158,18 @@ export async function GET(request) {
   }
 
   const dry = sp.get('dry') === '1';
+  const size = Math.min(Math.max(parseInt(sp.get('size') || String(PAGE_SIZE_DEFECTO), 10), 1), 200);
+  const desde = Math.max(parseInt(sp.get('from') || '0', 10), 0);
   const maxPaginas = parseInt(sp.get('pages') || '0', 10);
 
-  const informe = { inicio: new Date().toISOString(), dry_run: dry, fases: {} };
+  const informe = { inicio: new Date().toISOString(), dry_run: dry, tamano_pagina: size, fases: {} };
 
   // --- FASE 1: descarga paginada --------------------------------------
+  // Se descarga con presupuesto de tiempo: si se acerca el límite de
+  // Vercel, se corta y se devuelve la página por la que continuar. Así el
+  // sync nunca se queda a medias sin avisar.
   const t1 = Date.now();
-  const primera = await pedirPagina(0);
+  const primera = await pedirPagina(desde, size);
   if (!primera.ok) {
     return NextResponse.json({ error: 'no se pudo leer la primera página', detalle: primera }, { status: 502 });
   }
@@ -172,26 +184,49 @@ export async function GET(request) {
     );
   }
 
-  const paginasTotales = Math.ceil(total / PAGE_SIZE);
-  const paginas = maxPaginas > 0 ? Math.min(maxPaginas, paginasTotales) : paginasTotales;
+  const paginasTotales = Math.ceil(total / size);
+  const hasta = maxPaginas > 0 ? Math.min(desde + maxPaginas, paginasTotales) : paginasTotales;
 
   let crudas = [...primera.contenido];
   const fallidas = [];
+  const tiempos = [primera.ms];
+  let ultimaPagina = desde;
+  let cortadoPorTiempo = false;
 
-  for (let p = 1; p < paginas; p++) {
-    const r = await pedirPagina(p);
-    if (r.ok) crudas = crudas.concat(r.contenido);
-    else fallidas.push({ pagina: p, ...r });
+  for (let p = desde + 1; p < hasta; p++) {
+    if (Date.now() - t0 > PRESUPUESTO_MS) {
+      cortadoPorTiempo = true;
+      break;
+    }
+    const r = await pedirPagina(p, size);
+    tiempos.push(r.ms);
+    if (r.ok) {
+      crudas = crudas.concat(r.contenido);
+      ultimaPagina = p;
+    } else {
+      fallidas.push({ pagina: p, ...r });
+    }
   }
+
+  const siguiente = cortadoPorTiempo ? ultimaPagina + 1 : hasta < paginasTotales ? hasta : null;
 
   informe.fases['1_descarga'] = {
     total_en_fuente: total,
-    paginas_pedidas: paginas,
+    paginas_totales: paginasTotales,
+    desde_pagina: desde,
+    ultima_procesada: ultimaPagina,
     registros: crudas.length,
+    ms_por_pagina: tiempos.map((m) => Math.round(m)),
+    ms_medio_pagina: Math.round(tiempos.reduce((a, b) => a + b, 0) / tiempos.length),
+    cortado_por_tiempo: cortadoPorTiempo,
     paginas_fallidas: fallidas.length,
     detalle_fallos: fallidas.slice(0, 5),
     ms: Date.now() - t1,
   };
+
+  if (siguiente !== null) {
+    informe.continuar_en = `?from=${siguiente}&size=${size}`;
+  }
 
   // --- FASE 2: transformación -----------------------------------------
   const t2 = Date.now();
