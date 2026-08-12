@@ -202,11 +202,6 @@ export default function InitiativeDetailPage() {
     }
   }
 
-  function copyLink() {
-    navigator.clipboard.writeText(window.location.href);
-    toast('Enlace copiado ✓');
-  }
-
   if (item === undefined) {
     return (
       <div className="sec" style={{ maxWidth: 720 }}>
@@ -260,10 +255,6 @@ export default function InitiativeDetailPage() {
           </div>
 
           <div style={{ display: 'flex', gap: 7, flexShrink: 0 }}>
-            <CircleButton icon="share" label="Copiar enlace" onClick={copyLink} />
-            {item.source_url && (
-              <CircleButton icon="external-link" label="Ver en el portal oficial" href={item.source_url} />
-            )}
             <CircleButton
               icon="bell"
               label="Seguir en Radar"
