@@ -37,9 +37,11 @@ const BRP = 'https://ec.europa.eu/info/law/better-regulation/brpapi/searchInitia
 const PAGE_SIZE_MAXIMO = 100;
 const TIMEOUT_MS = 25000;
 const LOTE_BD = 500;
-// Margen para no chocar con el límite de 60 s de Vercel: cuando se supera,
-// el sync se detiene y devuelve desde qué página continuar.
-const PRESUPUESTO_MS = 45000;
+// Presupuesto de descarga. Una página tarda unos 14 s y la comprobación se
+// hace ANTES de pedirla, así que hay que reservar el tiempo de esa página
+// más el de la escritura. Con 30 s: arranca la última como muy tarde a los
+// 29, acaba sobre los 43, y quedan 15 s de margen sobre el límite de 60.
+const PRESUPUESTO_MS = 30000;
 
 function admin() {
   return createClient(process.env.NEXT_PUBLIC_SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY, {
