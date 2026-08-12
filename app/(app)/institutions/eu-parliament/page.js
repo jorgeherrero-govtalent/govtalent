@@ -494,8 +494,17 @@ function CommitteeRow({ committee, members, chairs, countryFilter, groupFilter, 
 
 function CommitteesTab({ committees, members, chairs }) {
   const [search, setSearch] = useState('');
+  const [committeeFilter, setCommitteeFilter] = useState(new Set());
   const [countryFilter, setCountryFilter] = useState(new Set());
   const [groupFilter, setGroupFilter] = useState(new Set());
+
+  const committeeOptions = useMemo(
+    () =>
+      [...committees]
+        .sort((a, b) => a.name.localeCompare(b.name))
+        .map((c) => ({ value: c.id, label: `${c.code} · ${c.name}` })),
+    [committees]
+  );
 
   const countryOptions = useMemo(() => {
     const codes = [...new Set(members.map((m) => m.country_code).filter(Boolean))];
@@ -530,15 +539,16 @@ function CommitteesTab({ committees, members, chairs }) {
 
   const filtered = useMemo(() => {
     let l = committees;
+    if (committeeFilter.size > 0) l = l.filter((c) => committeeFilter.has(c.id));
     if (search) {
       const q = normalize(search);
       l = l.filter((c) => normalize(c.name).includes(q) || normalize(c.code).includes(q));
     }
     if (hayFiltroPersona) l = l.filter((c) => (conteos.get(c.id) || 0) > 0);
     return [...l].sort((a, b) => a.name.localeCompare(b.name));
-  }, [committees, search, conteos, hayFiltroPersona]);
+  }, [committees, search, committeeFilter, conteos, hayFiltroPersona]);
 
-  const activeCount = countryFilter.size + groupFilter.size;
+  const activeCount = committeeFilter.size + countryFilter.size + groupFilter.size;
 
   return (
     <>
@@ -564,12 +574,18 @@ function CommitteesTab({ committees, members, chairs }) {
             style={{ border: 'none', outline: 'none', background: 'transparent', fontSize: 12.5, width: '100%' }}
           />
         </div>
+        <MultiSelectFilter label="Comisión" values={committeeOptions} selected={committeeFilter} onApply={setCommitteeFilter} />
         <MultiSelectFilter label="País" values={countryOptions} selected={countryFilter} onApply={setCountryFilter} />
         <MultiSelectFilter label="Grupo" values={groupOptions} selected={groupFilter} onApply={setGroupFilter} />
       </div>
 
       {activeCount > 0 && (
         <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap', marginBottom: 12 }}>
+          {[...committeeFilter].map((v) => (
+            <span key={`k${v}`} style={{ fontSize: 11, background: '#f0efe9', color: '#666', padding: '3px 10px', borderRadius: 14 }}>
+              {committees.find((c) => c.id === v)?.code || v}
+            </span>
+          ))}
           {[...countryFilter].map((v) => (
             <span key={`c${v}`} style={{ fontSize: 11, background: '#f0efe9', color: '#666', padding: '3px 10px', borderRadius: 14 }}>
               {countryName(v)}
@@ -585,6 +601,7 @@ function CommitteesTab({ committees, members, chairs }) {
           </span>
           <span
             onClick={() => {
+              setCommitteeFilter(new Set());
               setCountryFilter(new Set());
               setGroupFilter(new Set());
             }}
