@@ -132,7 +132,10 @@ function transformar(raw) {
       feedback_start: parseFecha(vigente.feedbackStartDate),
       feedback_end: parseFecha(vigente.feedbackEndDate),
       raw_statuses: estados,
-      source_url: `https://have-your-say.ec.europa.eu/initiatives/${id}`,
+      // Verificado: el portal redirige de /initiatives/{id} a la URL larga con
+    // título, así que basta el número. Reconstruir el slug sería frágil —
+    // usa la traducción inglesa, no el shortTitle que guardamos.
+    source_url: `https://ec.europa.eu/info/law/better-regulation/have-your-say/initiatives/${id}`,
       last_synced_at: new Date().toISOString(),
     },
     topics: (Array.isArray(raw.topics) ? raw.topics : [])
