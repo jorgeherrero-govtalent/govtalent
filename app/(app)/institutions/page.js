@@ -141,7 +141,7 @@ export default function InstitutionsHomePage() {
       <div style={{ marginBottom: 16 }}>
         <h1 style={{ fontSize: 19, fontWeight: 700, margin: 0 }}>Directorio institucional</h1>
         <p style={{ fontSize: 12.5, color: '#888', margin: '3px 0 0' }}>
-          Toda la información clave del ecosistema institucional en un solo lugar.
+          Quién decide en España y en la Unión Europea, con su cargo y su contacto.
         </p>
       </div>
 
@@ -248,7 +248,7 @@ export default function InstitutionsHomePage() {
             href="/institutions/eu-commission"
             icon="briefcase"
             title="Comisión Europea"
-            description="27 comisarios, sus gabinetes y 36 direcciones generales."
+            description="2.096 decisores: comisarios, gabinetes y jefes de unidad, con su contacto."
             cta="Ver Comisión Europea"
           />
         </div>
