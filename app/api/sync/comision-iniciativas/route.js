@@ -30,8 +30,12 @@ export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
 
 const BRP = 'https://ec.europa.eu/info/law/better-regulation/brpapi/searchInitiatives';
-const PAGE_SIZE_DEFECTO = 100;
-const TIMEOUT_MS = 20000;
+// El servidor CAPA a 100 registros por página, pero calcula totalPages con
+// el size que le mandes. Pedir 200 devuelve 100 y anuncia 21 páginas en vez
+// de 41: el recorrido se saltaría media fuente sin dar ningún error.
+// Verificado en diagnóstico: size=200 -> 100 registros.
+const PAGE_SIZE_MAXIMO = 100;
+const TIMEOUT_MS = 25000;
 const LOTE_BD = 500;
 // Margen para no chocar con el límite de 60 s de Vercel: cuando se supera,
 // el sync se detiene y devuelve desde qué página continuar.
@@ -158,11 +162,17 @@ export async function GET(request) {
   }
 
   const dry = sp.get('dry') === '1';
-  const size = Math.min(Math.max(parseInt(sp.get('size') || String(PAGE_SIZE_DEFECTO), 10), 1), 200);
+  // Se ignora cualquier size mayor que el máximo real: si se aceptara, el
+  // cálculo de páginas saldría mal y el recorrido dejaría registros fuera.
+  const sizePedido = parseInt(sp.get('size') || String(PAGE_SIZE_MAXIMO), 10);
+  const size = Math.min(Math.max(sizePedido, 1), PAGE_SIZE_MAXIMO);
   const desde = Math.max(parseInt(sp.get('from') || '0', 10), 0);
   const maxPaginas = parseInt(sp.get('pages') || '0', 10);
 
   const informe = { inicio: new Date().toISOString(), dry_run: dry, tamano_pagina: size, fases: {} };
+  if (sizePedido > PAGE_SIZE_MAXIMO) {
+    informe.aviso_size = `Se pidió size=${sizePedido} pero el servidor capa a ${PAGE_SIZE_MAXIMO}; se usa ${size}.`;
+  }
 
   // --- FASE 1: descarga paginada --------------------------------------
   // Se descarga con presupuesto de tiempo: si se acerca el límite de
@@ -184,7 +194,17 @@ export async function GET(request) {
     );
   }
 
-  const paginasTotales = Math.ceil(total / size);
+  // El número de páginas se calcula con lo que el servidor DEVUELVE, no con
+  // lo que se le pidió. Si algún día capa por debajo de 100, esto lo absorbe
+  // en vez de saltarse registros en silencio.
+  const devueltosPrimera = primera.contenido.length;
+  const sizeReal = devueltosPrimera > 0 ? devueltosPrimera : size;
+  const paginasTotales = Math.ceil(total / sizeReal);
+
+  if (sizeReal !== size) {
+    informe.aviso_size_real = `Se pidieron ${size} registros por página y el servidor devolvió ${sizeReal}. Se recalcula: ${paginasTotales} páginas.`;
+  }
+
   const hasta = maxPaginas > 0 ? Math.min(desde + maxPaginas, paginasTotales) : paginasTotales;
 
   let crudas = [...primera.contenido];
@@ -212,10 +232,13 @@ export async function GET(request) {
 
   informe.fases['1_descarga'] = {
     total_en_fuente: total,
+    size_real_por_pagina: sizeReal,
     paginas_totales: paginasTotales,
     desde_pagina: desde,
     ultima_procesada: ultimaPagina,
     registros: crudas.length,
+    // Registros únicos: si la fuente repitiera páginas, aquí se vería.
+    registros_unicos: new Set(crudas.map((c) => c?.id).filter((x) => x != null)).size,
     ms_por_pagina: tiempos.map((m) => Math.round(m)),
     ms_medio_pagina: Math.round(tiempos.reduce((a, b) => a + b, 0) / tiempos.length),
     cortado_por_tiempo: cortadoPorTiempo,
