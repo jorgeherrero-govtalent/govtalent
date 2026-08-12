@@ -11,6 +11,10 @@
     {
       "path": "/api/sync/instituciones-parlamento-europeo",
       "schedule": "0 6 * * *"
+    },
+    {
+      "path": "/api/sync/comision-iniciativas",
+      "schedule": "0 7 * * *"
     }
   ]
 }
