@@ -244,10 +244,12 @@ export default function InstitutionsHomePage() {
             description="719 eurodiputados, sus grupos políticos y sus comisiones."
             cta="Ver Parlamento Europeo"
           />
-          <SoonCard
+          <ModuleCard
+            href="/institutions/eu-commission"
             icon="briefcase"
             title="Comisión Europea"
-            description="Comisarios, gabinetes y direcciones generales."
+            description="27 comisarios, sus gabinetes y 36 direcciones generales."
+            cta="Ver Comisión Europea"
           />
         </div>
       </div>
