@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
-import { syncGovernment, debugBio } from '@/lib/instituciones/syncGovernment';
+import { syncGovernment, seedBios, debugBio } from '@/lib/instituciones/syncGovernment';
 
 export const maxDuration = 60;
 
@@ -16,21 +16,37 @@ export async function GET(request) {
   const key = sp.get('key');
 
   const isCron = authHeader === `Bearer ${process.env.CRON_SECRET}`;
-  const isDebug = !!process.env.DEBUG_KEY && key === process.env.DEBUG_KEY;
+  const isManual = !!process.env.DEBUG_KEY && key === process.env.DEBUG_KEY;
 
-  if (!isCron && !isDebug) {
+  if (!isCron && !isManual) {
     return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
   }
 
-  // Modo diagnóstico: comprueba la extracción de UNA ficha sin escribir nada.
-  //   ?debug=pedro-sanchez-perez-castejon&key=<DEBUG_KEY>
+  // --- Diagnóstico de una ficha, sin escribir -------------------------
+  //   ?debug=<slug>&key=<DEBUG_KEY>
   const debugSlug = sp.get('debug');
   if (debugSlug) {
-    if (!isDebug) return NextResponse.json({ error: 'El modo debug requiere ?key=<DEBUG_KEY>' }, { status: 401 });
-    const result = await debugBio(debugSlug);
-    return NextResponse.json(result);
+    if (!isManual) return NextResponse.json({ error: 'Requiere ?key=<DEBUG_KEY>' }, { status: 401 });
+    return NextResponse.json(await debugBio(debugSlug));
   }
 
+  // --- Carga de biografías, puntual y a mano --------------------------
+  //   ?seed-bios=1&key=<DEBUG_KEY>            rellena solo las vacías
+  //   ?seed-bios=1&force=1&key=<DEBUG_KEY>    reescribe todas
+  //   ?seed-bios=1&only=<slug>&key=<DEBUG_KEY>  una sola persona
+  //
+  // Deliberadamente NO forma parte del cron: las biografías son texto
+  // estable y descargarlas a diario solo añadía riesgo de borrado.
+  if (sp.get('seed-bios')) {
+    if (!isManual) return NextResponse.json({ error: 'Requiere ?key=<DEBUG_KEY>' }, { status: 401 });
+    const result = await seedBios({
+      force: sp.get('force') === '1',
+      only: sp.get('only') || null,
+    });
+    return NextResponse.json({ ok: true, ...result });
+  }
+
+  // --- Sincronización diaria ------------------------------------------
   const supabase = admin();
   const { data: run } = await supabase
     .from('institutional_sync_runs')
@@ -39,28 +55,12 @@ export async function GET(request) {
     .single();
 
   try {
-    // bioFailures no es una columna de institutional_sync_runs: se separa de
-    // stats para no romper el update con una clave que no existe.
-    const { bioFailures, ...stats } = await syncGovernment();
-
-    const hayFallos = bioFailures.length > 0;
-    const resumenFallos = hayFallos
-      ? `Sin biografía (${bioFailures.length}): ` + bioFailures.map((f) => `${f.slug} [${f.reason}]`).join('; ')
-      : null;
-
+    const stats = await syncGovernment();
     await supabase
       .from('institutional_sync_runs')
-      .update({
-        // 'partial' señala que el sync terminó pero no trajo todo. Antes esto
-        // se registraba como 'success' aunque no se extrajera ni una biografía.
-        status: hayFallos ? 'partial' : 'success',
-        finished_at: new Date().toISOString(),
-        error_message: resumenFallos,
-        ...stats,
-      })
+      .update({ status: 'success', finished_at: new Date().toISOString(), ...stats })
       .eq('id', run.id);
-
-    return NextResponse.json({ ok: true, ...stats, bio_failures: bioFailures });
+    return NextResponse.json({ ok: true, ...stats });
   } catch (error) {
     await supabase
       .from('institutional_sync_runs')
