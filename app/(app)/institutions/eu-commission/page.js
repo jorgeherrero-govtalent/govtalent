@@ -96,9 +96,29 @@ function Photo({ url, name, size = 56, radius = 10 }) {
 /* Pestaña — Comisarios                                                */
 /* ------------------------------------------------------------------ */
 function ComisariosTab({ comisarios }) {
-  const presidencia = comisarios.filter((c) => c.rank === 'presidenta' || c.rank === 'presidente');
-  const vices = comisarios.filter((c) => c.rank.startsWith('vicepresident') || c.rank.startsWith('alt'));
-  const resto = comisarios.filter(
+  const [soloES, setSoloES] = useState(false);
+  const [paisFilter, setPaisFilter] = useState(new Set());
+
+  const paisOptions = useMemo(() => {
+    const vistos = new Map();
+    for (const c of comisarios) {
+      if (c.country_code && !vistos.has(c.country_code)) vistos.set(c.country_code, c.country_name);
+    }
+    return [...vistos.entries()]
+      .map(([code, name]) => ({ value: code, label: name || code }))
+      .sort((a, b) => a.label.localeCompare(b.label));
+  }, [comisarios]);
+
+  const lista = useMemo(() => {
+    let l = comisarios;
+    if (soloES) l = l.filter((c) => c.country_code === 'ES');
+    if (paisFilter.size > 0) l = l.filter((c) => paisFilter.has(c.country_code));
+    return l;
+  }, [comisarios, soloES, paisFilter]);
+
+  const presidencia = lista.filter((c) => c.rank === 'presidenta' || c.rank === 'presidente');
+  const vices = lista.filter((c) => c.rank.startsWith('vicepresident') || c.rank.startsWith('alt'));
+  const resto = lista.filter(
     (c) => !c.rank.startsWith('presidente') && !c.rank.startsWith('presidenta') && !c.rank.startsWith('vicepresident') && !c.rank.startsWith('alt')
   );
 
@@ -118,7 +138,10 @@ function ComisariosTab({ comisarios }) {
                 <Photo url={c.photo_url} name={c.full_name} />
                 <div style={{ minWidth: 0, flex: 1 }}>
                   <div style={{ fontSize: 13, fontWeight: 700, lineHeight: 1.3 }}>{c.full_name}</div>
-                  <div style={{ fontSize: 10.5, color: '#999', marginTop: 2 }}>{RANGOS[c.rank] || c.rank}</div>
+                  <div style={{ fontSize: 10.5, color: '#999', marginTop: 2 }}>
+                    {RANGOS[c.rank] || c.rank}
+                    {c.country_name ? ` · ${c.country_name}` : ''}
+                  </div>
                   <div style={{ fontSize: 11.5, color: '#666', marginTop: 6, lineHeight: 1.45 }}>{c.portfolio_es}</div>
                 </div>
               </div>
@@ -140,9 +163,47 @@ function ComisariosTab({ comisarios }) {
 
   return (
     <>
-      <Bloque titulo="Presidencia" lista={presidencia} />
-      <Bloque titulo="Vicepresidencias ejecutivas y Alta Representante" lista={vices} />
-      <Bloque titulo="Comisarios" lista={resto} />
+      <div style={{ display: 'flex', gap: 8, marginBottom: 16, flexWrap: 'wrap' }}>
+        <span
+          onClick={() => {
+            setSoloES((v) => !v);
+            setPaisFilter(new Set());
+          }}
+          style={{
+            background: soloES ? '#e8f4f0' : '#fff',
+            border: `.5px solid ${soloES ? '#1d6f5c' : '#e0dfd8'}`,
+            color: soloES ? '#1d6f5c' : '#555',
+            borderRadius: 20,
+            padding: '7px 12px',
+            fontSize: 12,
+            cursor: 'pointer',
+            whiteSpace: 'nowrap',
+          }}
+        >
+          Solo España {soloES && <i className="ti ti-x" style={{ fontSize: 11 }}></i>}
+        </span>
+        <MultiSelectFilter label="País" values={paisOptions} selected={paisFilter} onApply={setPaisFilter} />
+        {lista.length !== comisarios.length && (
+          <span style={{ fontSize: 11.5, color: '#888', alignSelf: 'center' }}>
+            {lista.length} de {comisarios.length}
+          </span>
+        )}
+      </div>
+
+      {lista.length === 0 ? (
+        <div className="card">
+          <div className="empty-state">
+            <i className="ti ti-user-off"></i>
+            No hay comisarios con estos filtros.
+          </div>
+        </div>
+      ) : (
+        <>
+          <Bloque titulo="Presidencia" lista={presidencia} />
+          <Bloque titulo="Vicepresidencias ejecutivas y Alta Representante" lista={vices} />
+          <Bloque titulo="Comisarios" lista={resto} />
+        </>
+      )}
     </>
   );
 }
@@ -315,7 +376,8 @@ function PersonasTab({ people, bodies, bodyFilter, setBodyFilter }) {
   }, [current, totalPages]);
 
   const activeCount = bodyFilter.size + levelFilter.size;
-  const GRID = '1.9fr 1.2fr 1.5fr 28px';
+  // El correo ocupa columna propia: se muestra completo, no como icono.
+  const GRID = '1.7fr 1fr 1.2fr 1.4fr';
 
   return (
     <>
@@ -394,7 +456,7 @@ function PersonasTab({ people, bodies, bodyFilter, setBodyFilter }) {
             <div>Persona</div>
             <div>Cargo</div>
             <div>Unidad</div>
-            <div></div>
+            <div>Correo</div>
           </div>
 
           {slice.map((p) => (
@@ -442,13 +504,9 @@ function PersonasTab({ people, bodies, bodyFilter, setBodyFilter }) {
                 {p.unit || p.directorate || '—'}
               </div>
 
-              {p.email ? (
-                <a href={`mailto:${p.email}`} aria-label={`Escribir a ${p.full_name}`} title={p.email}>
-                  <i className="ti ti-mail" style={{ color: '#6d5aef', fontSize: 15 }}></i>
-                </a>
-              ) : (
-                <i className="ti ti-mail-off" style={{ color: '#ddd', fontSize: 15 }} aria-hidden="true"></i>
-              )}
+              <div style={{ fontSize: 11, color: '#999', minWidth: 0, wordBreak: 'break-all' }}>
+                {p.email || '—'}
+              </div>
             </div>
           ))}
 
