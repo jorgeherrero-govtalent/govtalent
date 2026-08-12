@@ -388,7 +388,10 @@ function MepsTab({ meps }) {
 /* ------------------------------------------------------------------ */
 /* Pestaña 2 — Comisiones                                              */
 /* ------------------------------------------------------------------ */
-function CommitteeRow({ committee, members, onlySpanish }) {
+function CommitteeRow({ committee, members, onlySpanish, chairs }) {
+  // La presidencia de la comisión viene de eu_committee_chairs: es el dato
+  // que más se busca y hasta ahora no se mostraba en ningún sitio.
+  const presidencia = (chairs || []).find((c) => c.body_code === committee.code && c.role === 'CHAIR');
   const [open, setOpen] = useState(false);
   const list = useMemo(() => {
     let l = members.filter((m) => m.body_id === committee.id);
@@ -428,6 +431,12 @@ function CommitteeRow({ committee, members, onlySpanish }) {
             <div style={{ fontSize: 11, color: '#999', marginTop: 1 }}>
               {committee.titulares} titulares · {committee.suplentes} suplentes · {committee.espanoles} españoles
             </div>
+            {presidencia && (
+              <div style={{ fontSize: 11, color: '#3C3489', marginTop: 3 }}>
+                <i className="ti ti-user-star" style={{ fontSize: 12, verticalAlign: -1 }}></i>{' '}
+                Preside {presidencia.full_name}
+              </div>
+            )}
           </div>
         </div>
         <i className={`ti ti-chevron-${open ? 'up' : 'down'}`} style={{ color: open ? '#1d6f5c' : '#999', fontSize: 16 }}></i>
@@ -473,7 +482,7 @@ function CommitteeRow({ committee, members, onlySpanish }) {
   );
 }
 
-function CommitteesTab({ committees, members }) {
+function CommitteesTab({ committees, members, chairs }) {
   const [search, setSearch] = useState('');
   const [onlySpanish, setOnlySpanish] = useState(false);
 
@@ -536,7 +545,9 @@ function CommitteesTab({ committees, members }) {
           </div>
         </div>
       ) : (
-        filtered.map((c) => <CommitteeRow key={c.id} committee={c} members={members} onlySpanish={onlySpanish} />)
+        filtered.map((c) => (
+          <CommitteeRow key={c.id} committee={c} members={members} onlySpanish={onlySpanish} chairs={chairs} />
+        ))
       )}
     </>
   );
@@ -582,6 +593,112 @@ function GroupsTab({ groups }) {
 }
 
 /* ------------------------------------------------------------------ */
+/* Pestaña — Órganos de gobierno                                       */
+/* ------------------------------------------------------------------ */
+function GobiernoTab({ governance, chairs }) {
+  const presidencia = governance.filter((g) => g.role === 'PRESIDENT');
+  const vicepresidencias = governance.filter((g) => g.role === 'PRESIDENT_VICE');
+  const cuestores = governance.filter((g) => g.role === 'QUAESTOR');
+  const otros = governance.filter(
+    (g) => !['PRESIDENT', 'PRESIDENT_VICE', 'QUAESTOR'].includes(g.role)
+  );
+
+  // Solo presidencias de comisión y subcomisión: las de delegación son
+  // muchas y desdibujan lo que importa.
+  const presidenciasComision = useMemo(
+    () =>
+      chairs
+        .filter((c) => c.role === 'CHAIR' && ['committee', 'subcommittee'].includes(c.body_type))
+        .sort((a, b) => (a.body_name || '').localeCompare(b.body_name || '')),
+    [chairs]
+  );
+
+  const Persona = ({ p, mostrarOrgano }) => (
+    <Link
+      href={`/institutions/eu-parliament/${p.slug}`}
+      style={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: 10,
+        padding: '9px 0',
+        borderBottom: '.5px solid #f0f0eb',
+        textDecoration: 'none',
+        color: 'inherit',
+      }}
+    >
+      <Photo url={p.photo_url} name={p.full_name} size={30} radius={15} />
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ fontSize: 12.5, fontWeight: 600 }}>{p.full_name}</div>
+        <div style={{ fontSize: 11, color: '#999' }}>
+          {mostrarOrgano && p.body_name ? `${p.body_name} · ` : ''}
+          {p.political_group_code} · {countryName(p.country_code)}
+        </div>
+      </div>
+      {mostrarOrgano && p.body_code && (
+        <span
+          style={{
+            fontSize: 10,
+            background: '#EEEDFE',
+            color: '#3C3489',
+            padding: '2px 8px',
+            borderRadius: 10,
+            whiteSpace: 'nowrap',
+          }}
+        >
+          {p.body_code}
+        </span>
+      )}
+    </Link>
+  );
+
+  const Bloque = ({ titulo, lista, mostrarOrgano }) =>
+    lista.length === 0 ? null : (
+      <div className="card" style={{ padding: 18, marginBottom: 12 }}>
+        <div
+          style={{
+            fontSize: 10.5,
+            fontWeight: 700,
+            color: '#999',
+            textTransform: 'uppercase',
+            letterSpacing: '.3px',
+            marginBottom: 12,
+          }}
+        >
+          {titulo} · {lista.length}
+        </div>
+        <div>
+          {lista.map((p, i) => (
+            <div key={`${p.mep_id}-${p.body_code || i}`} style={i === lista.length - 1 ? { borderBottom: 'none' } : undefined}>
+              <Persona p={p} mostrarOrgano={mostrarOrgano} />
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+
+  if (governance.length === 0 && presidenciasComision.length === 0) {
+    return (
+      <div className="card">
+        <div className="empty-state">
+          <i className="ti ti-users-off"></i>
+          No hay cargos de gobierno registrados.
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <>
+      <Bloque titulo="Presidencia del Parlamento" lista={presidencia} />
+      <Bloque titulo="Vicepresidencias" lista={vicepresidencias} />
+      <Bloque titulo="Cuestores" lista={cuestores} />
+      <Bloque titulo="Presidencias de comisión" lista={presidenciasComision} mostrarOrgano />
+      <Bloque titulo="Otros cargos" lista={otros} mostrarOrgano />
+    </>
+  );
+}
+
+/* ------------------------------------------------------------------ */
 /* Página                                                              */
 /* ------------------------------------------------------------------ */
 export default function EuParliamentPage() {
@@ -591,6 +708,8 @@ export default function EuParliamentPage() {
   const [committees, setCommittees] = useState([]);
   const [members, setMembers] = useState([]);
   const [groups, setGroups] = useState([]);
+  const [governance, setGovernance] = useState([]);
+  const [chairs, setChairs] = useState([]);
 
   useEffect(() => {
     Promise.all([
@@ -598,11 +717,15 @@ export default function EuParliamentPage() {
       supabase.from('eu_committees_directory').select('*'),
       supabase.from('eu_committee_members').select('*'),
       supabase.from('eu_groups_directory').select('*'),
-    ]).then(([m, c, mm, g]) => {
+      supabase.from('eu_ep_governance').select('*').order('rank_order'),
+      supabase.from('eu_committee_chairs').select('*').order('rank_order'),
+    ]).then(([m, c, mm, g, gov, ch]) => {
       setMeps(m.data || []);
       setCommittees(c.data || []);
       setMembers(mm.data || []);
       setGroups(g.data || []);
+      setGovernance(gov.data || []);
+      setChairs(ch.data || []);
     });
   }, []);
 
@@ -610,6 +733,7 @@ export default function EuParliamentPage() {
     { id: 'meps', label: 'Eurodiputados' },
     { id: 'committees', label: 'Comisiones' },
     { id: 'groups', label: 'Grupos políticos' },
+    { id: 'gobierno', label: 'Órganos de gobierno' },
   ];
 
   return (
@@ -664,9 +788,11 @@ export default function EuParliamentPage() {
       ) : tab === 'meps' ? (
         <MepsTab meps={meps} />
       ) : tab === 'committees' ? (
-        <CommitteesTab committees={committees} members={members} />
-      ) : (
+        <CommitteesTab committees={committees} members={members} chairs={chairs} />
+      ) : tab === 'groups' ? (
         <GroupsTab groups={groups} />
+      ) : (
+        <GobiernoTab governance={governance} chairs={chairs} />
       )}
     </div>
   );
