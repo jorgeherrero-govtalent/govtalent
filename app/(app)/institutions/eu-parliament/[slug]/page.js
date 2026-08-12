@@ -54,17 +54,45 @@ function longDate(s) {
 
 const countryName = (c) => COUNTRIES[c] || c || '—';
 
-// Los roles llegan como MEMBER, MEMBER_SUBSTITUTE, CHAIR... Solo se
-// etiquetan los que aportan información al usuario.
+// Todos los roles que devuelve la API. Antes solo se traducían MEMBER y
+// MEMBER_SUBSTITUTE y el resto se mostraba como código crudo o se perdía:
+// hay 90 presidencias de comisión, 361 vicepresidencias, 14 vicepresidencias
+// del Parlamento y 5 cuestores que no se estaban viendo.
 const ROLE_LABELS = {
   MEMBER: 'Titular',
   MEMBER_SUBSTITUTE: 'Suplente',
+  MEMBER_PARLIAMENT: 'Eurodiputado/a',
   CHAIR: 'Presidencia',
-  VICE_CHAIR: 'Vicepresidencia',
-  QUAESTOR: 'Cuestor',
+  CHAIR_VICE: 'Vicepresidencia',
+  CHAIR_CO: 'Copresidencia',
+  MEMBER_BUREAU: 'Miembro de la Mesa',
   PRESIDENT: 'Presidencia',
-  VICE_PRESIDENT: 'Vicepresidencia',
+  PRESIDENT_VICE: 'Vicepresidencia',
+  QUAESTOR: 'Cuestor/a',
+  TREASURER: 'Tesorería',
+  TREASURER_CO: 'Cotesorería',
+  PRESIDENT_PARLIAMENT_STOA: 'Presidencia de STOA',
+  CHAIR_VICE_BUREAU_TREASURER: 'Vicepresidencia y tesorería',
 };
+
+// Cargos de responsabilidad: se destacan frente a la simple pertenencia.
+const ROLES_DESTACADOS = new Set([
+  'CHAIR',
+  'CHAIR_CO',
+  'PRESIDENT',
+  'PRESIDENT_VICE',
+  'QUAESTOR',
+  'PRESIDENT_PARLIAMENT_STOA',
+]);
+
+// Convierte un código sin traducir en algo legible, en lugar de enseñarlo
+// tal cual: MEMBER_ALTERNATE -> "Member alternate".
+function roleLabel(code) {
+  if (!code) return null;
+  if (ROLE_LABELS[code]) return ROLE_LABELS[code];
+  const limpio = code.replace(/_/g, ' ').toLowerCase();
+  return limpio.charAt(0).toUpperCase() + limpio.slice(1);
+}
 
 const BODY_TYPE_LABELS = {
   committee: 'Comisión',
@@ -167,20 +195,20 @@ function CircleButton({ icon, label, onClick, href, active, disabled, title }) {
 }
 
 function RoleTag({ role }) {
-  const label = ROLE_LABELS[role];
+  const label = roleLabel(role);
   if (!label) return null;
-  const isMain = role === 'MEMBER';
+  const destacado = ROLES_DESTACADOS.has(role);
+  const titular = role === 'MEMBER';
+  // Tres niveles: cargo de responsabilidad en morado, titular en verde,
+  // suplente y demás en gris. Así se distingue de un vistazo quién manda
+  // en cada órgano.
+  const estilo = destacado
+    ? { background: '#EEEDFE', color: '#3C3489' }
+    : titular
+      ? { background: '#E1F5EE', color: '#0F6E56' }
+      : { background: '#F1EFE8', color: '#5F5E5A' };
   return (
-    <span
-      style={{
-        fontSize: 10.5,
-        padding: '3px 9px',
-        borderRadius: 12,
-        whiteSpace: 'nowrap',
-        background: isMain ? '#E1F5EE' : '#F1EFE8',
-        color: isMain ? '#0F6E56' : '#5F5E5A',
-      }}
-    >
+    <span style={{ fontSize: 10.5, padding: '3px 9px', borderRadius: 12, whiteSpace: 'nowrap', ...estilo }}>
       {label}
     </span>
   );
@@ -322,11 +350,18 @@ export default function MepDetailPage() {
       }));
 
     const byStartDesc = (a, b) => (b.start_date || '').localeCompare(a.start_date || '');
+    // Peso por rol: los cargos de responsabilidad van primero, luego los
+    // titulares y al final suplencias. Es lo que primero busca alguien que
+    // quiere saber quién decide.
+    const peso = (r) => (ROLES_DESTACADOS.has(r) ? 0 : r === 'MEMBER' ? 1 : 2);
+
     return {
-      current: mapped.filter((x) => x.is_current).sort((a, b) => {
-        if (a.role !== b.role) return a.role === 'MEMBER' ? -1 : 1;
-        return byStartDesc(a, b);
-      }),
+      current: mapped
+        .filter((x) => x.is_current)
+        .sort((a, b) => {
+          const d = peso(a.role) - peso(b.role);
+          return d !== 0 ? d : byStartDesc(a, b);
+        }),
       past: mapped.filter((x) => !x.is_current).sort((a, b) => (b.end_date || '').localeCompare(a.end_date || '')),
     };
   }, [memberships]);
