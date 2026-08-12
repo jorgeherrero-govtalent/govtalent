@@ -57,6 +57,8 @@ export default function InitiativesDirectoryPage() {
   const [topicFilter, setTopicFilter] = useState(new Set());
   const [actFilter, setActFilter] = useState(new Set());
   const [onlyOpen, setOnlyOpen] = useState(true);
+  // 'asc' = lo que antes cierra primero; 'desc' = lo que más tarde cierra.
+  const [orden, setOrden] = useState('asc');
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
 
@@ -110,16 +112,19 @@ export default function InitiativesDirectoryPage() {
     }
     if (actFilter.size > 0) list = list.filter((i) => actFilter.has(i.act_type));
 
-    // Con el filtro de abiertas, ordenar por lo que antes vence. Sin él,
-    // por lo más reciente.
-    return onlyOpen
-      ? [...list].sort((a, b) => new Date(a.feedback_end) - new Date(b.feedback_end))
-      : list;
-  }, [items, search, topicFilter, actFilter, onlyOpen]);
+    // Se ordena siempre por fecha de cierre; el sentido lo elige el usuario.
+    // Los que no tienen fecha van al final en ambos casos.
+    return [...list].sort((a, b) => {
+      if (!a.feedback_end) return 1;
+      if (!b.feedback_end) return -1;
+      const diff = new Date(a.feedback_end) - new Date(b.feedback_end);
+      return orden === 'asc' ? diff : -diff;
+    });
+  }, [items, search, topicFilter, actFilter, onlyOpen, orden]);
 
   useEffect(() => {
     setPage(1);
-  }, [search, topicFilter, actFilter, onlyOpen]);
+  }, [search, topicFilter, actFilter, onlyOpen, orden]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
   const current = Math.min(page, totalPages);
@@ -214,6 +219,30 @@ export default function InitiativesDirectoryPage() {
 
         <MultiSelectFilter label="Materia" values={topicOptions} selected={topicFilter} onApply={setTopicFilter} />
         <MultiSelectFilter label="Tipo de acto" values={actOptions} selected={actFilter} onApply={setActFilter} />
+
+        <span
+          onClick={() => setOrden((o) => (o === 'asc' ? 'desc' : 'asc'))}
+          title={orden === 'asc' ? 'Primero lo que antes cierra' : 'Primero lo que más tarde cierra'}
+          style={{
+            background: '#fff',
+            border: '.5px solid #e0dfd8',
+            borderRadius: 20,
+            padding: '7px 12px',
+            fontSize: 12,
+            color: '#555',
+            cursor: 'pointer',
+            whiteSpace: 'nowrap',
+            display: 'flex',
+            alignItems: 'center',
+            gap: 6,
+          }}
+        >
+          <i
+            className={`ti ti-sort-${orden === 'asc' ? 'ascending' : 'descending'}-2`}
+            style={{ fontSize: 14, color: '#6d5aef' }}
+          ></i>
+          {orden === 'asc' ? 'Cierra antes' : 'Cierra después'}
+        </span>
       </div>
 
       {activeCount > 0 && (
