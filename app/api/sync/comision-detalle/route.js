@@ -278,11 +278,17 @@ export async function GET(request) {
   // Sin memoria de posición: se piden las que aún no tienen detalle. Las
   // de ventana abierta primero, para que una carga interrumpida deje ya
   // cubierto lo que el usuario ve.
+  // El orden necesita un criterio de desempate DETERMINISTA. Con solo
+  // `feedback_end desc nulls last`, las 2.256 pendientes que tienen esa
+  // fecha a null quedan empatadas y PostgreSQL las devuelve en orden
+  // arbitrario, distinto en cada consulta: cada pasada traía un conjunto
+  // solapado con el anterior y la carga no avanzaba nunca.
   let q = supabase
     .from('eu_initiatives')
     .select('id, feedback_status, feedback_end, status')
     .is('detail_synced_at', null)
     .order('feedback_end', { ascending: false, nullsFirst: false })
+    .order('id', { ascending: true })
     .limit(max > 0 ? Math.min(max, MAX_POR_PASADA) : MAX_POR_PASADA);
 
   const { data: pendientes, error: errSel } = await q;
@@ -320,6 +326,10 @@ export async function GET(request) {
     }
   }
 
+  // Salvaguarda: si el lote trae filas que ya tenían detalle, el orden
+  // no está siendo estable y la carga daría vueltas sin avanzar.
+  const idsLote = cola.map((p) => p.id);
+  informe.rango_ids = idsLote.length ? { min: Math.min(...idsLote), max: Math.max(...idsLote) } : null;
   informe.pendientes_totales = pendientes.length;
   informe.abiertas_priorizadas = abiertas.length;
   informe.procesadas = filas.length;
