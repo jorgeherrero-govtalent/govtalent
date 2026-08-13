@@ -33,9 +33,14 @@ export const maxDuration = 60;
 
 const BRP = 'https://ec.europa.eu/info/law/better-regulation/brpapi/groupInitiatives';
 const TIMEOUT_MS = 15000;
-// El límite de Vercel en plan Hobby es 60 s. Se corta antes para que dé
-// tiempo a escribir en base de datos y devolver el informe.
-const PRESUPUESTO_MS = 42000;
+// El límite de Vercel en plan Hobby es 60 s. El presupuesto solo controla
+// la DESCARGA, así que hay que reservar tiempo para la escritura: con 500
+// filas actualizadas una a una se agotaban los 18 s restantes y la función
+// moría con FUNCTION_INVOCATION_TIMEOUT.
+const PRESUPUESTO_MS = 25000;
+// Tope de filas por pasada. Más allá, la escritura no cabe en el tiempo
+// que queda por mucho que la descarga sea rápida.
+const MAX_POR_PASADA = 300;
 
 function admin() {
   return createClient(process.env.NEXT_PUBLIC_SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY, {
@@ -181,7 +186,7 @@ export async function GET(request) {
     .select('id, feedback_status, feedback_end, status')
     .is('detail_synced_at', null)
     .order('feedback_end', { ascending: false, nullsFirst: false })
-    .limit(max > 0 ? max : 500);
+    .limit(max > 0 ? Math.min(max, MAX_POR_PASADA) : MAX_POR_PASADA);
 
   const { data: pendientes, error: errSel } = await q;
   if (errSel) {
@@ -237,14 +242,29 @@ export async function GET(request) {
   // --- Escritura ------------------------------------------------------
   // Uno a uno porque son actualizaciones sobre filas existentes: un upsert
   // masivo requeriría reenviar el resto de columnas y podría borrarlas.
+  // En paralelo por lotes: fila a fila, 300 actualizaciones tardaban más
+  // que toda la descarga y hacían que la función se pasara del límite.
+  const tEscritura = Date.now();
   let escritas = 0;
   const erroresBd = [];
-  for (const f of filas) {
-    const { id, ...campos } = f;
-    const { error } = await supabase.from('eu_initiatives').update(campos).eq('id', id);
-    if (error) erroresBd.push(`${id}: ${error.message}`);
-    else escritas += 1;
+  const LOTE_ESCRITURA = 20;
+  for (let i = 0; i < filas.length; i += LOTE_ESCRITURA) {
+    const grupo = filas.slice(i, i + LOTE_ESCRITURA);
+    const res = await Promise.all(
+      grupo.map(({ id, ...campos }) =>
+        supabase
+          .from('eu_initiatives')
+          .update(campos)
+          .eq('id', id)
+          .then(({ error }) => ({ id, error }))
+      )
+    );
+    for (const r of res) {
+      if (r.error) erroresBd.push(`${r.id}: ${r.error.message}`);
+      else escritas += 1;
+    }
   }
+  informe.ms_escritura = Date.now() - tEscritura;
 
   informe.escritas = escritas;
   informe.errores_bd = erroresBd.slice(0, 5);
