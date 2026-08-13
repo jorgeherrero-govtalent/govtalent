@@ -43,6 +43,10 @@ function stageLabel(code) {
   return limpio.charAt(0).toUpperCase() + limpio.slice(1);
 }
 
+// Tope de eurodiputados que se muestran de una vez. Por encima, la lista
+// deja de ser útil y conviene que el usuario filtre.
+const TOPE_MEPS = 60;
+
 const MESES = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
 
 function fechaCorta(iso) {
@@ -290,12 +294,16 @@ export default function InitiativeDetailPage() {
     }
     setCargandoMeps(true);
     setFiltroMeps(modo);
+    // Un expediente transversal puede tocar muchas comisiones: la media es
+    // de 162 eurodiputados y el máximo medido, 1.223. Sin tope, el botón
+    // "Todos" traería todo eso al navegador.
     let q = supabase
       .from('eu_initiative_meps')
       .select('*')
       .eq('initiative_id', item.id)
       .order('orden_rol')
-      .order('full_name');
+      .order('full_name')
+      .limit(TOPE_MEPS);
     if (modo === 'ES') q = q.eq('country_code', 'ES');
     const { data } = await q;
     setMeps(data || []);
@@ -572,11 +580,17 @@ export default function InitiativeDetailPage() {
 
           {cargandoMeps && <div style={{ fontSize: 12, color: '#aaa' }}>Cargando…</div>}
 
+          {meps && meps.length >= TOPE_MEPS && (
+            <div style={{ fontSize: 11, color: '#888', marginBottom: 10 }}>
+              Se muestran los {TOPE_MEPS} primeros por orden de responsabilidad. Filtra por España para acotar.
+            </div>
+          )}
+
           {meps && meps.length > 0 && (
             <div>
               {meps.map((m) => (
                 <Link
-                  key={`${m.mep_id}-${m.committee_code}`}
+                  key={m.mep_id}
                   href={`/institutions/eu-parliament/${m.slug}`}
                   style={{
                     display: 'flex',
@@ -619,7 +633,7 @@ export default function InitiativeDetailPage() {
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ fontSize: 12.5, fontWeight: 600 }}>{m.full_name}</div>
                     <div style={{ fontSize: 10.5, color: '#999', marginTop: 1 }}>
-                      {m.political_group_code} · {m.country_code} · {m.committee_code}
+                      {m.political_group_code} · {m.country_code} · {m.comisiones}
                     </div>
                   </div>
                   <span
