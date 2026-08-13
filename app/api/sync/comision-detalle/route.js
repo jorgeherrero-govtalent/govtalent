@@ -346,29 +346,57 @@ export async function GET(request) {
   const tEscritura = Date.now();
   let escritas = 0;
   let sinCoincidencia = 0;
+  let sinMarcar = 0;
   const erroresBd = [];
   const LOTE_ESCRITURA = 20;
 
   for (let i = 0; i < filas.length; i += LOTE_ESCRITURA) {
     const grupo = filas.slice(i, i + LOTE_ESCRITURA);
     const res = await Promise.all(
-      grupo.map(async ({ id, ...campos }) => {
+      grupo.map(async (f) => {
+        // Los campos se enumeran uno a uno en vez de usar el resto de una
+        // desestructuración: con `const {id, ...campos} = f` había 555 filas
+        // en las que se guardaba dg_code pero NO detail_synced_at, así que
+        // el sync las volvía a coger indefinidamente.
         const { data, error } = await supabase
           .from('eu_initiatives')
-          .update(campos)
-          .eq('id', id)
-          .select('id');
-        return { id, error, afectadas: Array.isArray(data) ? data.length : 0 };
+          .update({
+            summary_en: f.summary_en,
+            summary_es: f.summary_es,
+            dg_code: f.dg_code,
+            unit_name: f.unit_name,
+            expert_group: f.expert_group,
+            legal_basis: f.legal_basis,
+            committee_code: f.committee_code,
+            author_name: f.author_name,
+            author_email: f.author_email,
+            is_major: f.is_major,
+            is_evaluation: f.is_evaluation,
+            n_attachments: f.n_attachments,
+            attachments: f.attachments,
+            detail_synced_at: f.detail_synced_at,
+          })
+          .eq('id', f.id)
+          .select('id, detail_synced_at');
+        // Se comprueba que la marca de sincronizado quedó puesta: es lo que
+        // decide si la fila vuelve a la cola.
+        const marcada = Array.isArray(data) && data[0]?.detail_synced_at != null;
+        return { id: f.id, error, afectadas: Array.isArray(data) ? data.length : 0, marcada };
       })
     );
     for (const r of res) {
       if (r.error) erroresBd.push(`${r.id}: ${r.error.message}`);
       else if (r.afectadas === 0) sinCoincidencia += 1;
+      else if (!r.marcada) sinMarcar += 1;
       else escritas += 1;
     }
   }
   informe.ms_escritura = Date.now() - tEscritura;
   informe.sin_coincidencia = sinCoincidencia;
+  informe.sin_marcar = sinMarcar;
+  if (sinMarcar > 0) {
+    informe.aviso_marca = `${sinMarcar} filas se actualizaron pero detail_synced_at quedó a null: volverían a la cola.`;
+  }
   if (sinCoincidencia > 0) {
     informe.aviso_escritura = `${sinCoincidencia} actualizaciones no encontraron su fila. El id del listado no está casando con el de la tabla.`;
     informe.ids_sin_coincidencia = filas.slice(0, 3).map((f) => ({ id: f.id, tipo: typeof f.id }));
