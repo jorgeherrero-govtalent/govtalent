@@ -62,6 +62,20 @@ const MS_LANZAR_SIGUIENTE = 1500;
 function admin() {
   return createClient(process.env.NEXT_PUBLIC_SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY, {
     auth: { persistSession: false, autoRefreshToken: false },
+    global: {
+      // Next.js sustituye el fetch global por uno con caché. El cliente de
+      // Supabase lo usa por debajo, así que una consulta idéntica devolvía
+      // el resultado guardado en lugar de ir a la base de datos.
+      //
+      // El síntoma era inequívoco: tres pasadas seguidas devolvieron
+      // números IDÉNTICOS (con_resumen_es: 2, con_autor: 578, mismo rango
+      // de ids). Una réplica desfasada daría números parecidos; iguales al
+      // byte solo salen de una caché.
+      //
+      // Las escrituras no se veían afectadas porque no son GET: por eso
+      // los datos se guardaban y el select seguía viendo lo de antes.
+      fetch: (url, options = {}) => fetch(url, { ...options, cache: 'no-store' }),
+    },
   });
 }
 
