@@ -200,6 +200,10 @@ export default function InitiativeDetailPage() {
   const [radarNote, setRadarNote] = useState(false);
   const [actors, setActors] = useState(null);
   const [verSecundarios, setVerSecundarios] = useState(false);
+  const [resumenMeps, setResumenMeps] = useState(null);
+  const [meps, setMeps] = useState(null);
+  const [filtroMeps, setFiltroMeps] = useState(null);
+  const [cargandoMeps, setCargandoMeps] = useState(false);
 
   useEffect(() => {
     if (!slug) return;
@@ -236,6 +240,16 @@ export default function InitiativeDetailPage() {
       setStages(st || []);
       setActors(act || []);
 
+      // Solo el recuento: la lista de eurodiputados puede tener cientos de
+      // filas y se pide bajo demanda al pulsar un filtro.
+      const { data: res } = await supabase
+        .from('eu_initiative_meps_resumen')
+        .select('*')
+        .eq('initiative_id', data.id)
+        .limit(1)
+        .maybeSingle();
+      if (!cancelled) setResumenMeps(res || null);
+
       const uid = auth?.user?.id || null;
       setUserId(uid);
       if (uid) {
@@ -267,6 +281,26 @@ export default function InitiativeDetailPage() {
 
   const principales = useMemo(() => (actors || []).filter((a) => a.relevance === 'principal'), [actors]);
   const secundarios = useMemo(() => (actors || []).filter((a) => a.relevance !== 'principal'), [actors]);
+
+  async function cargarMeps(modo) {
+    if (filtroMeps === modo) {
+      setFiltroMeps(null);
+      setMeps(null);
+      return;
+    }
+    setCargandoMeps(true);
+    setFiltroMeps(modo);
+    let q = supabase
+      .from('eu_initiative_meps')
+      .select('*')
+      .eq('initiative_id', item.id)
+      .order('orden_rol')
+      .order('full_name');
+    if (modo === 'ES') q = q.eq('country_code', 'ES');
+    const { data } = await q;
+    setMeps(data || []);
+    setCargandoMeps(false);
+  }
 
   async function toggleSave() {
     if (!userId) {
@@ -486,6 +520,127 @@ export default function InitiativeDetailPage() {
           </div>
         )}
       </div>
+
+      {resumenMeps && resumenMeps.total > 0 && (
+        <div style={{ ...CARD, marginBottom: 12 }}>
+          <div style={LABEL}>En el Parlamento Europeo</div>
+
+          <div style={{ fontSize: 12, color: '#555', lineHeight: 1.6, marginBottom: 12 }}>
+            {resumenMeps.total} eurodiputados en {resumenMeps.comisiones === 1 ? 'la comisión' : 'las comisiones'} que
+            tramitarán este expediente
+            {resumenMeps.espanoles > 0 && (
+              <>
+                , <strong style={{ fontWeight: 600 }}>{resumenMeps.espanoles} de España</strong>
+              </>
+            )}
+            .
+          </div>
+
+          <div style={{ display: 'flex', gap: 7, marginBottom: 12, flexWrap: 'wrap' }}>
+            <button
+              type="button"
+              onClick={() => cargarMeps('ES')}
+              disabled={resumenMeps.espanoles === 0}
+              style={{
+                background: filtroMeps === 'ES' ? '#6d5aef' : '#fff',
+                color: filtroMeps === 'ES' ? '#fff' : resumenMeps.espanoles === 0 ? '#ccc' : '#555',
+                border: `.5px solid ${filtroMeps === 'ES' ? '#6d5aef' : '#e0dfd8'}`,
+                borderRadius: 20,
+                padding: '6px 13px',
+                fontSize: 11.5,
+                cursor: resumenMeps.espanoles === 0 ? 'not-allowed' : 'pointer',
+              }}
+            >
+              Españoles ({resumenMeps.espanoles})
+            </button>
+            <button
+              type="button"
+              onClick={() => cargarMeps('todos')}
+              style={{
+                background: filtroMeps === 'todos' ? '#6d5aef' : '#fff',
+                color: filtroMeps === 'todos' ? '#fff' : '#555',
+                border: `.5px solid ${filtroMeps === 'todos' ? '#6d5aef' : '#e0dfd8'}`,
+                borderRadius: 20,
+                padding: '6px 13px',
+                fontSize: 11.5,
+                cursor: 'pointer',
+              }}
+            >
+              Todos ({resumenMeps.total})
+            </button>
+          </div>
+
+          {cargandoMeps && <div style={{ fontSize: 12, color: '#aaa' }}>Cargando…</div>}
+
+          {meps && meps.length > 0 && (
+            <div>
+              {meps.map((m) => (
+                <Link
+                  key={`${m.mep_id}-${m.committee_code}`}
+                  href={`/institutions/eu-parliament/${m.slug}`}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 10,
+                    padding: '9px 0',
+                    borderBottom: '.5px solid #f0f0eb',
+                    textDecoration: 'none',
+                    color: 'inherit',
+                  }}
+                >
+                  {m.photo_url ? (
+                    <img
+                      src={m.photo_url}
+                      alt=""
+                      width={30}
+                      height={30}
+                      style={{ width: 30, height: 30, borderRadius: '50%', objectFit: 'cover', background: '#ece9e2', flexShrink: 0 }}
+                    />
+                  ) : (
+                    <div
+                      style={{
+                        width: 30,
+                        height: 30,
+                        borderRadius: '50%',
+                        background: '#ece9e2',
+                        color: '#8d8b83',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        fontSize: 10,
+                        fontWeight: 700,
+                        flexShrink: 0,
+                      }}
+                      aria-hidden="true"
+                    >
+                      {(m.full_name || '').split(' ').filter(Boolean).map((x) => x[0]).slice(0, 2).join('').toUpperCase()}
+                    </div>
+                  )}
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: 12.5, fontWeight: 600 }}>{m.full_name}</div>
+                    <div style={{ fontSize: 10.5, color: '#999', marginTop: 1 }}>
+                      {m.political_group_code} · {m.country_code} · {m.committee_code}
+                    </div>
+                  </div>
+                  <span
+                    style={{
+                      fontSize: 10,
+                      padding: '2px 8px',
+                      borderRadius: 10,
+                      whiteSpace: 'nowrap',
+                      flexShrink: 0,
+                      background: m.orden_rol <= 3 ? '#EEEDFE' : m.role === 'MEMBER' ? '#E1F5EE' : '#F1EFE8',
+                      color: m.orden_rol <= 3 ? '#3C3489' : m.role === 'MEMBER' ? '#0F6E56' : '#5F5E5A',
+                    }}
+                  >
+                    {m.role_label}
+                  </span>
+                </Link>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
 
       <div style={{ ...CARD, marginBottom: 12 }}>
         <div style={LABEL}>Quién decide sobre esta materia</div>
