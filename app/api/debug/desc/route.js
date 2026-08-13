@@ -118,65 +118,35 @@ export async function GET(request) {
   const id = sp.get('id') || '14858';
   const salida = { generado: new Date().toISOString(), iniciativa: id };
 
-  // --- A) La página pública: ¿trae el texto en el HTML? ---------------
-  const pagina = await pedir(
-    `https://ec.europa.eu/info/law/better-regulation/have-your-say/initiatives/${id}`
-  );
-  salida.a_pagina_publica = {
-    pregunta: '¿La página trae el resumen en el HTML, o lo pinta JavaScript?',
-    status: pagina.status,
-    tamano: pagina.texto?.length,
-    meta: pagina.texto ? metaDelHtml(pagina.texto) : null,
-    // Si el HTML es corto, el contenido lo carga el navegador y habría que
-    // buscar el endpoint que consulta.
-    veredicto:
-      pagina.texto && pagina.texto.length < 8000
-        ? 'HTML corto: lo renderiza JavaScript, hay que encontrar su endpoint'
-        : 'HTML largo: puede traer contenido extraíble',
-  };
-
-  // --- B) Endpoints de brpapi que puedan traer la ficha completa ------
-  const candidatos = [
-    `${BRP}/initiativeDetails/${id}`,
-    `${BRP}/initiative/${id}/details`,
-    `${BRP}/getInitiative?id=${id}`,
-    `${BRP}/initiatives/${id}/description`,
-    `${BRP}/searchInitiatives?text=&language=ES&size=1&initiativeId=${id}`,
-    `${BRP}/publications?initiativeId=${id}&size=3`,
-    `${BRP}/feedback?initiativeId=${id}&size=1`,
-  ];
-
-  const res = [];
-  for (const u of candidatos) {
-    const r = await pedir(u);
-    res.push({
-      url: u.replace(BRP, ''),
-      status: r.status,
-      es_json: !!r.data,
-      claves: r.data && !Array.isArray(r.data) ? Object.keys(r.data).slice(0, 10) : null,
-      campos_descriptivos: r.data ? buscarDescripcion(r.data).slice(0, 3) : null,
-      tamano: r.texto?.length ?? null,
-    });
-  }
-  salida.b_endpoints = {
-    pregunta: '¿Algún endpoint devuelve la ficha con descripción?',
-    candidatos: res,
-  };
-
-  // --- C) El propio listado, mirado a fondo ---------------------------
-  // Por si hubiera algún campo descriptivo que se nos pasara al revisar
-  // solo las claves de primer nivel.
-  const listado = await pedir(`${BRP}/searchInitiatives?text=&language=ES&size=1&page=0`);
-  const primera = listado.data?.initiativeResultDtoPage?.content?.[0];
-  salida.c_listado = {
-    pregunta: '¿Hay algún campo descriptivo escondido en el listado?',
-    claves: primera ? Object.keys(primera) : null,
-    campos_descriptivos: primera ? buscarDescripcion(primera) : null,
-    // Las traducciones tienen un campo 'field': quizá haya más tipos
-    // además de SHORT_TITLE.
-    tipos_de_traduccion: primera?.initiativeTranslations
-      ? [...new Set(primera.initiativeTranslations.map((t) => t.field))]
+  // --- ENDPOINT REAL, localizado en el panel de red del navegador -----
+  // groupInitiatives: no era adivinable. Siete rutas conjeturadas fallaron.
+  const real = await pedir(`${BRP}/groupInitiatives/${id}`);
+  salida.endpoint_real = {
+    url: `${BRP}/groupInitiatives/${id}`,
+    status: real.status,
+    ms: real.ms,
+    es_json: !!real.data,
+    tamano: real.texto?.length,
+    claves: real.data && !Array.isArray(real.data) ? Object.keys(real.data) : null,
+    campos_descriptivos: real.data ? buscarDescripcion(real.data) : null,
+    // Se busca también lo que no teníamos: departamento responsable y
+    // grupo de expertos, que aparecían en la página.
+    campos_responsable: real.data
+      ? (function buscar(o, ruta = '', h = [], p = 0) {
+          if (p > 6 || !o || typeof o !== 'object') return h;
+          const RE = /(dg|department|directorate|service|unit|lead|responsib|expert|group)/i;
+          for (const [k, v] of Object.entries(o)) {
+            const r = ruta ? `${ruta}.${k}` : k;
+            if (RE.test(k)) {
+              h.push({ campo: r, valor: typeof v === 'object' ? JSON.stringify(v).slice(0, 160) : v });
+            }
+            if (v && typeof v === 'object') buscar(v, r, h, p + 1);
+          }
+          return h;
+        })(real.data)
       : null,
+    // Recortado: el registro completo puede llevar traducciones a 24 idiomas
+    muestra: real.texto?.slice(0, 2500),
   };
 
   salida.siguiente_paso = 'Con ?url=<url> puedes probar cualquier otro endpoint de europa.eu.';
