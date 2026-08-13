@@ -10,6 +10,11 @@ import { toast } from '@/lib/toast';
 // muchas comisiones: la media es 162 y el máximo medido, 658.
 const TOPE_MEPS = 60;
 
+// Descarga de documentos. Verificada copiando el enlace desde el portal:
+// api/download/{documentId}, un nivel por encima de brpapi. No se dedujo
+// —el patrón no era adivinable— sino que se comprobó sobre un PDF real.
+const BASE_DESCARGA = 'https://ec.europa.eu/info/law/better-regulation/api/download';
+
 const ACT_TYPES = {
   REG: 'Reglamento',
   REG_DEL: 'Reglamento delegado',
@@ -784,22 +789,60 @@ export default function InitiativeDetailPage() {
             Documentos publicados por la Comisión en este expediente.
             {otrosIdiomas > 0 && ` Hay ${otrosIdiomas} versiones más en otras lenguas oficiales.`}
           </div>
-          {documentos.map((d, i) => (
-            <Persona
-              key={d.documento_id || i}
-              av={
+          {documentos.map((d, i) => {
+            const url = d.documento_id ? `${BASE_DESCARGA}/${d.documento_id}` : null;
+            const contenido = (
+              <>
                 <i
                   className="ti ti-file-type-pdf"
                   style={{ fontSize: 20, color: '#A32D2D', width: 32, textAlign: 'center', flexShrink: 0 }}
                   aria-hidden="true"
                 ></i>
-              }
-              nombre={d.titulo}
-              sub={[d.paginas ? `${d.paginas} páginas` : null, pesoLegible(d.bytes), fechaCorta(d.fecha)]
-                .filter(Boolean)
-                .join(' · ')}
-            />
-          ))}
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: 12.5, fontWeight: 600, lineHeight: 1.45 }}>{d.titulo}</div>
+                  <div style={{ fontSize: 10.5, color: '#999', marginTop: 3 }}>
+                    {[d.paginas ? `${d.paginas} páginas` : null, pesoLegible(d.bytes), fechaCorta(d.fecha)]
+                      .filter(Boolean)
+                      .join(' · ')}
+                  </div>
+                </div>
+                {url && (
+                  <i
+                    className="ti ti-download"
+                    style={{ fontSize: 16, color: '#6d5aef', flexShrink: 0 }}
+                    aria-hidden="true"
+                  ></i>
+                )}
+              </>
+            );
+            const estilo = {
+              display: 'flex',
+              alignItems: 'center',
+              gap: 10,
+              padding: '10px 0',
+              borderBottom: '.5px solid #f0f0eb',
+              textDecoration: 'none',
+              color: 'inherit',
+            };
+            // Sin documento_id no hay enlace posible: se muestra igual pero
+            // sin simular que se puede descargar.
+            return url ? (
+              <a
+                key={d.documento_id}
+                href={url}
+                target="_blank"
+                rel="noreferrer"
+                style={estilo}
+                title="Descargar de la Comisión Europea"
+              >
+                {contenido}
+              </a>
+            ) : (
+              <div key={i} style={estilo}>
+                {contenido}
+              </div>
+            );
+          })}
         </div>
       )}
 
