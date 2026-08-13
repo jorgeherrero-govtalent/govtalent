@@ -1,0 +1,165 @@
+// =====================================================================
+// RUTA TEMPORAL DE DIAGNÓSTICO — Procedimientos legislativos
+//
+// OBJETIVO: averiguar si podemos construir el recorrido completo de un
+// expediente (propuesta → lecturas → Consejo → pleno → trílogo → Diario
+// Oficial), que es lo que muestra Reversa.
+//
+// LO QUE YA SABEMOS:
+//   - Nuestras 3.790 iniciativas NO traen número interinstitucional.
+//     Solo referencias internas de la Comisión: Ares(2026)..., PLAN/...
+//   - 844 de ellas (22%) son propuestas legislativas (PROP_REG, PROP_DIR,
+//     PROP_DEC, PROP_RECO) y por tanto SÍ deberían tener número. Las
+//     1.514 de ejecución y delegadas no pasan por el Parlamento.
+//   - El Observatorio Legislativo (oeil.secure.europarl.europa.eu) NO
+//     tiene API: comprobado en el panel de red, 348 peticiones y ninguna
+//     de datos. Se sirve desde el servidor.
+//
+// LO QUE FALTA: si la API abierta del Parlamento —la misma que nos dio
+// los 719 eurodiputados— publica procedimientos con sus etapas.
+//
+// Uso:
+//   ?key=<DEBUG_KEY>          sondea los candidatos
+//   ?key=...&url=<url>        una URL suelta (solo europa.eu)
+//   ?key=...&ref=2021/0106    probar con otro procedimiento
+//
+// BORRAR ESTE ARCHIVO al cerrar el diagnóstico.
+// =====================================================================
+
+export const dynamic = 'force-dynamic';
+export const maxDuration = 60;
+
+const TIMEOUT_MS = 15000;
+const EP = 'https://data.europarl.europa.eu/api/v2';
+const HOST_PERMITIDO = /(^|\.)europa\.eu$/i;
+
+function hostOk(url) {
+  try {
+    const u = new URL(url);
+    return u.protocol === 'https:' && HOST_PERMITIDO.test(u.hostname);
+  } catch {
+    return false;
+  }
+}
+
+async function pedir(url) {
+  if (!hostOk(url)) return { url, error: 'host no permitido' };
+  const t0 = Date.now();
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
+  try {
+    const res = await fetch(url, {
+      signal: controller.signal,
+      headers: { Accept: 'application/ld+json, application/json' },
+      cache: 'no-store',
+    });
+    const txt = await res.text();
+    let data = null;
+    try {
+      data = JSON.parse(txt);
+    } catch {}
+    return { url, status: res.status, ms: Date.now() - t0, data, texto: txt };
+  } catch (e) {
+    return { url, status: null, ms: Date.now() - t0, error: e.name === 'AbortError' ? 'timeout' : e.message };
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+// Resume la forma de la respuesta sin volcar miles de líneas.
+function forma(data) {
+  if (!data) return null;
+  const lista = data.data || data.items || (Array.isArray(data) ? data : null);
+  if (Array.isArray(lista)) {
+    return {
+      es_lista: true,
+      elementos: lista.length,
+      claves_del_primero: lista[0] ? Object.keys(lista[0]) : null,
+      muestra: lista[0] ? JSON.stringify(lista[0]).slice(0, 900) : null,
+    };
+  }
+  return {
+    es_lista: false,
+    claves: Object.keys(data),
+    muestra: JSON.stringify(data).slice(0, 900),
+  };
+}
+
+// Busca el número interinstitucional (2021/0106(COD)) en cualquier parte
+// de la respuesta. Es la clave que uniría Comisión y Parlamento.
+function buscarNumeroProcedimiento(obj, ruta = '', h = [], p = 0) {
+  if (p > 6 || !obj || typeof obj !== 'object') return h;
+  const RE = /\b(19|20)\d{2}\/\d{4}\s*\(\s*[A-Z]{3,4}\s*\)/;
+  for (const [k, v] of Object.entries(obj)) {
+    const r = ruta ? `${ruta}.${k}` : k;
+    if (typeof v === 'string' && RE.test(v)) {
+      h.push({ campo: r, valor: v.slice(0, 120) });
+    } else if (v && typeof v === 'object') {
+      buscarNumeroProcedimiento(v, r, h, p + 1);
+    }
+  }
+  return h;
+}
+
+export async function GET(request) {
+  const sp = new URL(request.url).searchParams;
+  if (!process.env.DEBUG_KEY || sp.get('key') !== process.env.DEBUG_KEY) {
+    return Response.json({ error: 'no autorizado — usa ?key=<DEBUG_KEY>' }, { status: 401 });
+  }
+
+  if (sp.get('url')) {
+    const r = await pedir(sp.get('url'));
+    return Response.json({
+      modo: 'url suelta',
+      status: r.status,
+      ms: r.ms,
+      forma: forma(r.data),
+      numeros_procedimiento: r.data ? buscarNumeroProcedimiento(r.data).slice(0, 5) : null,
+      muestra_texto: !r.data ? r.texto?.slice(0, 500) : null,
+    });
+  }
+
+  const salida = { generado: new Date().toISOString() };
+
+  // --- A) ¿Qué endpoints existen? -------------------------------------
+  // Se pide la raíz de la API: suele listar los recursos disponibles y
+  // así no hay que adivinar rutas una por una.
+  const raiz = await pedir(`${EP}/`);
+  salida.a_raiz = {
+    pregunta: '¿La API lista sus propios recursos?',
+    status: raiz.status,
+    forma: forma(raiz.data),
+  };
+
+  // --- B) Candidatos de procedimientos --------------------------------
+  const candidatos = [
+    `${EP}/procedures?limit=2&format=application%2Fld%2Bjson`,
+    `${EP}/legislative-procedures?limit=2&format=application%2Fld%2Bjson`,
+    `${EP}/dossiers?limit=2&format=application%2Fld%2Bjson`,
+    `${EP}/adopted-texts?limit=2&format=application%2Fld%2Bjson`,
+    `${EP}/documents?limit=2&format=application%2Fld%2Bjson`,
+    `${EP}/events?limit=2&format=application%2Fld%2Bjson`,
+  ];
+
+  const res = [];
+  for (const u of candidatos) {
+    const r = await pedir(u);
+    res.push({
+      url: u.replace(EP, ''),
+      status: r.status,
+      ms: r.ms,
+      forma: r.status === 200 ? forma(r.data) : null,
+      numeros_procedimiento: r.data ? buscarNumeroProcedimiento(r.data).slice(0, 3) : null,
+    });
+  }
+  salida.b_endpoints = {
+    pregunta: '¿Alguno devuelve procedimientos legislativos con sus etapas?',
+    nota: 'Se busca el número interinstitucional 2021/0106(COD) en toda la respuesta: es la clave que uniría Comisión y Parlamento.',
+    candidatos: res,
+  };
+
+  salida.siguiente_paso =
+    'Con ?url=<url> se puede probar cualquier otro endpoint de europa.eu, incluido EUR-Lex si esta vía no da resultado.';
+
+  return Response.json(salida);
+}
