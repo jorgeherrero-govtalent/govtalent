@@ -375,7 +375,7 @@ export default function InitiativeDetailPage() {
 
   if (item === undefined) {
     return (
-      <div className="sec" style={{ maxWidth: 760 }}>
+      <div className="sec" style={{ maxWidth: 900 }}>
         <div className="spinner"></div>
       </div>
     );
@@ -383,7 +383,7 @@ export default function InitiativeDetailPage() {
 
   if (item === null) {
     return (
-      <div className="sec" style={{ maxWidth: 760 }}>
+      <div className="sec" style={{ maxWidth: 900 }}>
         <div className="card">
           <div className="empty-state">
             <i className="ti ti-file-off"></i>
@@ -400,7 +400,7 @@ export default function InitiativeDetailPage() {
   const abierta = item.is_open;
 
   return (
-    <div className="sec" style={{ maxWidth: 760 }}>
+    <div className="sec" style={{ maxWidth: 900 }}>
       <div style={{ marginBottom: 10, fontSize: 11.5, color: '#999' }}>
         <Link href="/initiatives" style={{ color: '#999', textDecoration: 'none' }}>
           Expedientes
@@ -446,15 +446,19 @@ export default function InitiativeDetailPage() {
           </div>
         </div>
 
+        {/* alignItems: start y no 'end': con nombres largos como "Comercio y
+            Seguridad Económica" cada columna crecía por su lado y las demás
+            quedaban descolgadas. Ahora todas arrancan a la misma altura y el
+            botón se ancla abajo con alignSelf. */}
         <div
           style={{
             display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(112px, 1fr))',
-            gap: 10,
-            paddingTop: 13,
-            marginTop: 13,
+            gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))',
+            gap: 14,
+            paddingTop: 14,
+            marginTop: 14,
             borderTop: '.5px solid #f0f0eb',
-            alignItems: 'end',
+            alignItems: 'start',
           }}
         >
           <div>
@@ -473,10 +477,12 @@ export default function InitiativeDetailPage() {
             <div style={{ fontSize: 10, color: '#999', marginBottom: 3 }}>Lo tramita</div>
             {/* El nombre completo, no la sigla: "RTD" no dice nada a nadie.
                 La sigla queda debajo para quien la reconozca. */}
-            <div style={{ fontSize: 13, fontWeight: 600, lineHeight: 1.3 }}>{dgNombre || item.dg_code || '—'}</div>
-            {dgNombre && item.dg_code && (
-              <div style={{ fontSize: 10, color: '#aaa', marginTop: 2 }}>{item.dg_code}</div>
-            )}
+            <div style={{ fontSize: 13, fontWeight: 600, lineHeight: 1.35 }}>
+              {dgNombre || item.dg_code || '—'}
+              {dgNombre && item.dg_code && (
+                <span style={{ fontSize: 10.5, color: '#aaa', fontWeight: 400 }}> · {item.dg_code}</span>
+              )}
+            </div>
           </div>
           <div>
             <div style={{ fontSize: 10, color: '#999', marginBottom: 3 }}>Responsable</div>
@@ -497,11 +503,12 @@ export default function InitiativeDetailPage() {
                 background: '#6d5aef',
                 color: '#fff',
                 borderRadius: 7,
-                padding: '8px 14px',
+                padding: '9px 14px',
                 fontSize: 11.5,
                 textDecoration: 'none',
                 whiteSpace: 'nowrap',
                 textAlign: 'center',
+                alignSelf: 'center',
               }}
             >
               Participar ↗
