@@ -339,29 +339,40 @@ export async function GET(request) {
   // --- Escritura ------------------------------------------------------
   // Uno a uno porque son actualizaciones sobre filas existentes: un upsert
   // masivo requeriría reenviar el resto de columnas y podría borrarlas.
-  // En paralelo por lotes: fila a fila, 300 actualizaciones tardaban más
-  // que toda la descarga y hacían que la función se pasara del límite.
+  // Se escribe con .select('id'): PostgREST devuelve entonces las filas
+  // realmente modificadas. Sin eso, un update que no encuentra nada
+  // devuelve éxito sin error, y el informe decía "600 escritas" mientras
+  // la tabla no cambiaba.
   const tEscritura = Date.now();
   let escritas = 0;
+  let sinCoincidencia = 0;
   const erroresBd = [];
   const LOTE_ESCRITURA = 20;
+
   for (let i = 0; i < filas.length; i += LOTE_ESCRITURA) {
     const grupo = filas.slice(i, i + LOTE_ESCRITURA);
     const res = await Promise.all(
-      grupo.map(({ id, ...campos }) =>
-        supabase
+      grupo.map(async ({ id, ...campos }) => {
+        const { data, error } = await supabase
           .from('eu_initiatives')
           .update(campos)
           .eq('id', id)
-          .then(({ error }) => ({ id, error }))
-      )
+          .select('id');
+        return { id, error, afectadas: Array.isArray(data) ? data.length : 0 };
+      })
     );
     for (const r of res) {
       if (r.error) erroresBd.push(`${r.id}: ${r.error.message}`);
+      else if (r.afectadas === 0) sinCoincidencia += 1;
       else escritas += 1;
     }
   }
   informe.ms_escritura = Date.now() - tEscritura;
+  informe.sin_coincidencia = sinCoincidencia;
+  if (sinCoincidencia > 0) {
+    informe.aviso_escritura = `${sinCoincidencia} actualizaciones no encontraron su fila. El id del listado no está casando con el de la tabla.`;
+    informe.ids_sin_coincidencia = filas.slice(0, 3).map((f) => ({ id: f.id, tipo: typeof f.id }));
+  }
 
   informe.escritas = escritas;
   informe.errores_bd = erroresBd.slice(0, 5);
