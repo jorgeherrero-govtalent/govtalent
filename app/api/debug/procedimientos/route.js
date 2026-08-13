@@ -157,6 +157,57 @@ export async function GET(request) {
     });
   }
 
+  // --- Modo: examinar un procedimiento buscando el puente ------------
+  // La pregunta concreta: ¿referencia el procedimiento del Parlamento el
+  // documento COM de la Comisión? Sería la clave que une ambos sistemas,
+  // porque nuestras iniciativas NO traen el número interinstitucional.
+  if (sp.get('proc')) {
+    const id = sp.get('proc');
+    const r = await pedir(`${EP}/procedures/${id}?format=application%2Fld%2Bjson`);
+    const p = r.data?.data?.[0] || r.data?.[0] || r.data;
+
+    if (!p) {
+      return Response.json({ modo: 'procedimiento', id, status: r.status, error: 'sin datos', muestra: r.texto?.slice(0, 400) });
+    }
+
+    // Se recogen todas las referencias a documentos que aparezcan en
+    // cualquier nivel: ahí estaría el COM si existe.
+    const docs = new Set();
+    (function recoger(o, prof = 0) {
+      if (prof > 6 || !o || typeof o !== 'object') return;
+      for (const v of Object.values(o)) {
+        if (typeof v === 'string' && v.includes('doc/')) docs.add(v);
+        else if (Array.isArray(v)) v.forEach((x) => (typeof x === 'string' && x.includes('doc/') ? docs.add(x) : recoger(x, prof + 1)));
+        else if (v && typeof v === 'object') recoger(v, prof + 1);
+      }
+    })(p);
+
+    const listaDocs = [...docs];
+    // Un documento de la Comisión se identifica por llevar COM en la
+    // referencia; los del Parlamento empiezan por A-, B-, C-, PV-, CRE-.
+    const posiblesCOM = listaDocs.filter((d) => /COM|SEC|SWD|JOIN/i.test(d));
+
+    return Response.json({
+      modo: 'procedimiento',
+      id,
+      claves: Object.keys(p),
+      label: p.label,
+      titulo: p.process_title,
+      tipo: p.process_type,
+      etapa_actual: p.current_stage,
+      // Este es el campo que más promete por su nombre
+      created_a_realization_of: p.created_a_realization_of,
+      participacion: Array.isArray(p.had_participation) ? p.had_participation.slice(0, 4) : p.had_participation,
+      n_actividades: Array.isArray(p.consists_of) ? p.consists_of.length : 0,
+      tipos_de_actividad: Array.isArray(p.consists_of)
+        ? [...new Set(p.consists_of.map((a) => a.had_activity_type).filter(Boolean))]
+        : null,
+      documentos_referenciados: listaDocs.length,
+      posibles_documentos_comision: posiblesCOM.slice(0, 10),
+      muestra_documentos: listaDocs.slice(0, 12),
+    });
+  }
+
   if (sp.get('url')) {
     const r = await pedir(sp.get('url'));
     return Response.json({
