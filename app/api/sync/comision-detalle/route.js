@@ -44,6 +44,21 @@ const TIMEOUT_MS = 15000;
 const PRESUPUESTO_MS = 40000;
 const MAX_POR_PASADA = 600;
 
+// Encadenamiento: al terminar, si quedan pendientes, la función se llama a
+// sí misma. Así una sola invocación completa toda la carga sin depender de
+// la frecuencia del cron, que en el plan Hobby está limitada a una vez al
+// día.
+//
+// El tope de eslabones es la salvaguarda: sin él, un fallo que impidiera
+// marcar detail_synced_at haría que se llamara indefinidamente. Con 12 y
+// 600 por pasada se cubren 7.200 iniciativas, casi el doble de las 3.790
+// que hay.
+const MAX_CADENA = 12;
+// Tiempo que se espera al lanzar el siguiente eslabón. No hay que esperar
+// la respuesta —tardaría 45 s y agotaría esta función—; solo lo suficiente
+// para que Vercel reciba la petición y arranque la nueva invocación.
+const MS_LANZAR_SIGUIENTE = 1500;
+
 function admin() {
   return createClient(process.env.NEXT_PUBLIC_SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY, {
     auth: { persistSession: false, autoRefreshToken: false },
@@ -151,6 +166,41 @@ function transformar(id, d) {
   };
 }
 
+/**
+ * Lanza la siguiente pasada sin esperar a que termine.
+ *
+ * Se aborta la espera a propósito: la nueva invocación tarda unos 45 s y
+ * esperarla agotaría el tiempo de esta. Basta con que Vercel reciba la
+ * petición para que arranque una función independiente.
+ *
+ * El AbortError que se produce al cortar NO es un fallo: es el
+ * comportamiento buscado.
+ */
+async function lanzarSiguiente(request, eslabon, params) {
+  const url = new URL(request.url);
+  url.searchParams.set('cadena', String(eslabon));
+  for (const [k, v] of Object.entries(params)) url.searchParams.set(k, v);
+
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), MS_LANZAR_SIGUIENTE);
+  try {
+    await fetch(url.toString(), {
+      signal: controller.signal,
+      headers: request.headers.get('authorization')
+        ? { authorization: request.headers.get('authorization') }
+        : {},
+      cache: 'no-store',
+    });
+    return { lanzado: true, motivo: 'respondió antes de tiempo' };
+  } catch (e) {
+    // Abortar es lo esperado: la petición ya salió y la función arrancó.
+    if (e.name === 'AbortError') return { lanzado: true };
+    return { lanzado: false, motivo: e.message };
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 export async function GET(request) {
   const t0 = Date.now();
   const sp = new URL(request.url).searchParams;
@@ -164,9 +214,16 @@ export async function GET(request) {
   const dry = sp.get('dry') === '1';
   const lote = Math.min(Math.max(parseInt(sp.get('lote') || '5', 10), 1), 10);
   const max = parseInt(sp.get('max') || '0', 10);
+  const eslabon = Math.max(parseInt(sp.get('cadena') || '0', 10), 0);
+  const encadenar = sp.get('encadenar') !== '0';
   const supabase = admin();
 
-  const informe = { inicio: new Date().toISOString(), dry_run: dry, paralelismo: lote };
+  const informe = {
+    inicio: new Date().toISOString(),
+    dry_run: dry,
+    paralelismo: lote,
+    eslabon,
+  };
 
   // --- Una iniciativa concreta ----------------------------------------
   const unaSola = sp.get('id');
@@ -273,8 +330,37 @@ export async function GET(request) {
   informe.ms_total = Date.now() - t0;
   informe.ms_por_iniciativa = filas.length ? Math.round((Date.now() - t0) / filas.length) : null;
 
-  if (cortado || pendientes.length > filas.length) {
-    informe.nota = 'Quedan pendientes. Vuelve a lanzarlo: busca las que aún no tienen detalle, no hace falta indicar por dónde ibas.';
+  // Se recuenta contra la base de datos, no se deduce de lo procesado: si
+  // alguna escritura falló, esas filas siguen pendientes y hay que verlo.
+  const { count: quedan } = await supabase
+    .from('eu_initiatives')
+    .select('id', { count: 'exact', head: true })
+    .is('detail_synced_at', null);
+
+  informe.quedan_pendientes = quedan ?? null;
+
+  if (quedan && quedan > 0) {
+    if (!encadenar) {
+      informe.nota = 'Quedan pendientes y el encadenado está desactivado.';
+    } else if (escritas === 0) {
+      // Si una pasada no escribe nada pero quedan pendientes, encadenar
+      // solo repetiría el fallo. Mejor parar y que se vea.
+      informe.nota = 'No se escribió ninguna fila pese a haber pendientes: se detiene la cadena para no repetir el error.';
+    } else if (eslabon + 1 >= MAX_CADENA) {
+      informe.nota = `Se alcanzó el tope de ${MAX_CADENA} eslabones. Vuelve a lanzarlo para continuar.`;
+    } else {
+      const r = await lanzarSiguiente(request, eslabon + 1, {
+        lote: String(lote),
+        ...(max > 0 ? { max: String(max) } : {}),
+        ...(sp.get('key') ? { key: sp.get('key') } : {}),
+      });
+      informe.siguiente_eslabon = { numero: eslabon + 1, ...r };
+      informe.nota = r.lanzado
+        ? 'Siguiente pasada lanzada automáticamente. No hace falta hacer nada.'
+        : `No se pudo encadenar (${r.motivo}). Vuelve a lanzarlo a mano.`;
+    }
+  } else {
+    informe.nota = 'Carga completa: no quedan iniciativas sin detalle.';
   }
 
   return NextResponse.json(informe);
