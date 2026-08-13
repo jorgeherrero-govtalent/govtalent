@@ -690,12 +690,10 @@ export default function InitiativeDetailPage() {
                 </>
               )}
 
-              {!item.dg_code && (
-                <div style={{ fontSize: 10.5, color: '#999', lineHeight: 1.6, marginTop: 14, paddingTop: 12, borderTop: '.5px solid #f0f0eb' }}>
-                  Responsables de las materias que toca el expediente. Aún no hemos descargado el detalle que indica qué
-                  dirección general lo lleva.
-                </div>
-              )}
+              {/* La nota de "aproximación por materia" ya no aplica a la
+                  Comisión: dg_code está en las 3.790 iniciativas, así que
+                  la dirección general es atribución, no deducción. Sigue
+                  siéndolo en el Parlamento, y ahí lo dice cada motivo. */}
             </>
           )}
         </div>
