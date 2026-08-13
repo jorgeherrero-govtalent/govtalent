@@ -629,8 +629,8 @@ export default function InitiativeDetailPage() {
                       borderRadius: 10,
                       whiteSpace: 'nowrap',
                       flexShrink: 0,
-                      background: m.orden_rol <= 3 ? '#EEEDFE' : m.role === 'MEMBER' ? '#E1F5EE' : '#F1EFE8',
-                      color: m.orden_rol <= 3 ? '#3C3489' : m.role === 'MEMBER' ? '#0F6E56' : '#5F5E5A',
+                      background: m.orden_rol <= 3 ? '#EEEDFE' : m.orden_rol === 4 ? '#E1F5EE' : '#F1EFE8',
+                      color: m.orden_rol <= 3 ? '#3C3489' : m.orden_rol === 4 ? '#0F6E56' : '#5F5E5A',
                     }}
                   >
                     {m.role_label}
