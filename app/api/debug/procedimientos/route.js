@@ -113,25 +113,38 @@ export async function GET(request) {
   // a la sección 'paths', que es justo la que hace falta.
   if (sp.get('spec')) {
     const r = await pedir(`${EP}/`);
-    const paths = r.data?.paths || {};
-    const filtro = sp.get('spec'); // por ejemplo: procedures
+    const spec = r.data || {};
+    const paths = spec.paths || {};
+    const filtro = sp.get('spec');
     const rutas = Object.keys(paths).filter((p) => p.toLowerCase().includes(filtro.toLowerCase()));
+
+    // El OpenAPI define los parámetros con $ref a components.parameters.
+    // Sin resolverlos, todos los campos salen vacíos.
+    const resolver = (p) => {
+      if (!p) return null;
+      if (p.$ref) {
+        const partes = p.$ref.replace(/^#\//, '').split('/');
+        let nodo = spec;
+        for (const t of partes) nodo = nodo?.[t];
+        return nodo || { nombre_sin_resolver: p.$ref };
+      }
+      return p;
+    };
 
     const detalle = rutas.slice(0, 6).map((ruta) => {
       const get = paths[ruta]?.get || {};
       return {
         ruta,
         resumen: get.summary || null,
-        parametros: (get.parameters || []).map((p) => ({
-          nombre: p.name,
-          en: p.in,
+        parametros: (get.parameters || []).map(resolver).filter(Boolean).map((p) => ({
+          nombre: p.name || null,
+          en: p.in || null,
           obligatorio: !!p.required,
           tipo: p.schema?.type || null,
-          // Los valores admitidos son lo más útil: dicen qué se puede
-          // filtrar sin tener que probar a ciegas.
-          valores: p.schema?.enum ? p.schema.enum.slice(0, 30) : null,
+          valores: p.schema?.enum ? p.schema.enum.slice(0, 40) : null,
           por_defecto: p.schema?.default ?? null,
-          descripcion: (p.description || '').slice(0, 120) || null,
+          maximo: p.schema?.maximum ?? null,
+          descripcion: (p.description || '').slice(0, 140) || null,
         })),
       };
     });
@@ -140,7 +153,6 @@ export async function GET(request) {
       modo: 'openapi',
       filtro,
       rutas_encontradas: rutas.length,
-      todas_las_rutas: Object.keys(paths),
       detalle,
     });
   }
