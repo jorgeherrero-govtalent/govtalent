@@ -469,9 +469,14 @@ export default function InitiativeDetailPage() {
                   : 'Sin ventana'}
             </div>
           </div>
-          <div>
+          <div style={{ minWidth: 0 }}>
             <div style={{ fontSize: 10, color: '#999', marginBottom: 3 }}>Lo tramita</div>
-            <div style={{ fontSize: 13, fontWeight: 600 }}>{item.dg_code || '—'}</div>
+            {/* El nombre completo, no la sigla: "RTD" no dice nada a nadie.
+                La sigla queda debajo para quien la reconozca. */}
+            <div style={{ fontSize: 13, fontWeight: 600, lineHeight: 1.3 }}>{dgNombre || item.dg_code || '—'}</div>
+            {dgNombre && item.dg_code && (
+              <div style={{ fontSize: 10, color: '#aaa', marginTop: 2 }}>{item.dg_code}</div>
+            )}
           </div>
           <div>
             <div style={{ fontSize: 10, color: '#999', marginBottom: 3 }}>Responsable</div>
