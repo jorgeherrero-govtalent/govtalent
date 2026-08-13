@@ -114,6 +114,81 @@ const LABEL = {
   marginBottom: 14,
 };
 
+function ActorRow({ a }) {
+  const esPE = a.ambito === 'parlamento';
+  const iniciales = (a.full_name || '')
+    .split(' ')
+    .filter(Boolean)
+    .map((p) => p[0])
+    .slice(0, 2)
+    .join('')
+    .toUpperCase();
+
+  const contenido = (
+    <>
+      {a.photo_url ? (
+        <img
+          src={a.photo_url}
+          alt=""
+          width={34}
+          height={34}
+          style={{ width: 34, height: 34, borderRadius: 8, objectFit: 'cover', background: '#ece9e2', flexShrink: 0 }}
+        />
+      ) : (
+        <div
+          style={{
+            width: 34,
+            height: 34,
+            borderRadius: 8,
+            background: '#ece9e2',
+            color: '#8d8b83',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            fontSize: 11,
+            fontWeight: 700,
+            flexShrink: 0,
+          }}
+          aria-hidden="true"
+        >
+          {iniciales}
+        </div>
+      )}
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ fontSize: 12.5, fontWeight: 600 }}>{a.full_name}</div>
+        <div style={{ fontSize: 11, color: '#999', marginTop: 1 }}>
+          {a.role} · {a.body_code}
+        </div>
+        <div style={{ fontSize: 10.5, color: '#3C3489', marginTop: 3 }}>{a.motivo}</div>
+      </div>
+      {a.email && !esPE && (
+        <span style={{ fontSize: 10.5, color: '#999', flexShrink: 0, wordBreak: 'break-all', maxWidth: 165 }}>
+          {a.email}
+        </span>
+      )}
+    </>
+  );
+
+  const estilo = {
+    display: 'flex',
+    alignItems: 'flex-start',
+    gap: 11,
+    padding: '10px 0',
+    borderBottom: '.5px solid #f0f0eb',
+    textDecoration: 'none',
+    color: 'inherit',
+  };
+
+  // Los eurodiputados tienen ficha propia; el personal de la Comisión no.
+  return esPE && a.person_slug ? (
+    <Link href={`/institutions/eu-parliament/${a.person_slug}`} style={estilo}>
+      {contenido}
+    </Link>
+  ) : (
+    <div style={estilo}>{contenido}</div>
+  );
+}
+
 export default function InitiativeDetailPage() {
   const supabase = createClient();
   const { slug } = useParams();
@@ -123,6 +198,8 @@ export default function InitiativeDetailPage() {
   const [userId, setUserId] = useState(null);
   const [saved, setSaved] = useState(false);
   const [radarNote, setRadarNote] = useState(false);
+  const [actors, setActors] = useState(null);
+  const [verSecundarios, setVerSecundarios] = useState(false);
 
   useEffect(() => {
     if (!slug) return;
@@ -143,13 +220,21 @@ export default function InitiativeDetailPage() {
       }
       setItem(data);
 
-      const [{ data: st }, { data: auth }] = await Promise.all([
+      const [{ data: st }, { data: act }, { data: auth }] = await Promise.all([
         supabase.from('eu_initiative_stages').select('*').eq('initiative_id', data.id).order('ord'),
+        supabase
+          .from('eu_initiative_actors')
+          .select('*')
+          .eq('initiative_id', data.id)
+          .order('orden_relevancia')
+          .order('orden_cargo')
+          .order('full_name'),
         supabase.auth.getUser(),
       ]);
 
       if (cancelled) return;
       setStages(st || []);
+      setActors(act || []);
 
       const uid = auth?.user?.id || null;
       setUserId(uid);
@@ -179,6 +264,9 @@ export default function InitiativeDetailPage() {
       return new Date(a.start_date) - new Date(b.start_date);
     });
   }, [stages]);
+
+  const principales = useMemo(() => (actors || []).filter((a) => a.relevance === 'principal'), [actors]);
+  const secundarios = useMemo(() => (actors || []).filter((a) => a.relevance !== 'principal'), [actors]);
 
   async function toggleSave() {
     if (!userId) {
@@ -399,19 +487,62 @@ export default function InitiativeDetailPage() {
         )}
       </div>
 
-      <div style={{ ...CARD, borderStyle: 'dashed' }}>
-        <div style={{ display: 'flex', gap: 11, alignItems: 'flex-start' }}>
-          <i className="ti ti-users" style={{ fontSize: 16, color: '#b0aea6', flexShrink: 0, marginTop: 1 }} aria-hidden="true"></i>
-          <div>
-            <div style={{ fontSize: 12.5, fontWeight: 600, color: '#666', marginBottom: 4 }}>
-              Actores de este expediente
-            </div>
-            <div style={{ fontSize: 11.5, color: '#999', lineHeight: 1.6 }}>
-              Aún no enlazamos las iniciativas de la Comisión con su tramitación en el Parlamento Europeo. Cuando lo
-              hagamos, aquí verás la comisión competente y su ponente.
-            </div>
+      <div style={{ ...CARD, marginBottom: 12 }}>
+        <div style={LABEL}>Quién decide sobre esta materia</div>
+
+        {actors === null ? (
+          <div style={{ fontSize: 12, color: '#aaa' }}>Cargando…</div>
+        ) : actors.length === 0 ? (
+          <div style={{ fontSize: 12, color: '#aaa' }}>
+            No hemos podido identificar responsables para las materias de este expediente.
           </div>
-        </div>
+        ) : (
+          <>
+            {principales.map((a) => (
+              <ActorRow key={`${a.ambito}-${a.person_id}-${a.body_code}`} a={a} />
+            ))}
+
+            {secundarios.length > 0 && (
+              <>
+                {verSecundarios && secundarios.map((a) => (
+                  <ActorRow key={`${a.ambito}-${a.person_id}-${a.body_code}`} a={a} />
+                ))}
+                <button
+                  type="button"
+                  onClick={() => setVerSecundarios((v) => !v)}
+                  style={{
+                    fontSize: 11.5,
+                    color: '#6d5aef',
+                    background: 'none',
+                    border: 'none',
+                    padding: '10px 0 0',
+                    cursor: 'pointer',
+                  }}
+                >
+                  {verSecundarios
+                    ? 'Ocultar departamentos que también intervienen'
+                    : `Ver ${secundarios.length} más que también intervienen`}
+                </button>
+              </>
+            )}
+
+            {/* Sin esta nota, la lista se leería como "estas personas llevan
+                este expediente", que es más de lo que el dato permite decir. */}
+            <div
+              style={{
+                fontSize: 11,
+                color: '#999',
+                lineHeight: 1.6,
+                marginTop: 14,
+                paddingTop: 12,
+                borderTop: '.5px solid #f0f0eb',
+              }}
+            >
+              Responsables de las materias que toca el expediente, no de su tramitación concreta: la Comisión no publica
+              qué unidad lleva cada iniciativa.
+            </div>
+          </>
+        )}
       </div>
 
       <div style={{ marginTop: 20, fontSize: 11, color: '#999', display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
