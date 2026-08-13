@@ -140,6 +140,43 @@ async function pedirDetalle(id) {
   }
 }
 
+/**
+ * Documentos publicados del expediente. Vienen anidados dentro de cada
+ * publicación; se aplanan, se quedan solo los publicados y se ordenan por
+ * fecha descendente. Se guardan los campos que la interfaz muestra, no el
+ * objeto entero: cada adjunto trae 20 campos y la mayoría son internos.
+ */
+function documentos(publicaciones) {
+  if (!Array.isArray(publicaciones)) return [];
+  const out = [];
+  for (const p of publicaciones) {
+    if (!Array.isArray(p.attachments)) continue;
+    for (const a of p.attachments) {
+      if (a.published === false) continue;
+      out.push({
+        titulo: a.title || null,
+        tipo: a.type || a.category || null,
+        fecha: a.date || a.createdDate || null,
+        paginas: typeof a.pages === 'number' ? a.pages : null,
+        bytes: typeof a.size === 'number' ? a.size : null,
+        idioma: a.language || null,
+        documento_id: a.documentId || null,
+      });
+    }
+  }
+  // Un mismo documento puede repetirse entre publicaciones
+  const vistos = new Set();
+  return out
+    .filter((x) => {
+      const k = x.documento_id || x.titulo;
+      if (!k || vistos.has(k)) return false;
+      vistos.add(k);
+      return true;
+    })
+    .sort((a, b) => String(b.fecha || '').localeCompare(String(a.fecha || '')))
+    .slice(0, 40);
+}
+
 function transformar(id, d) {
   const a = autor(d.publications);
   const adjuntos = Array.isArray(d.publications)
@@ -162,6 +199,7 @@ function transformar(id, d) {
     is_major: typeof d.isMajor === 'boolean' ? d.isMajor : null,
     is_evaluation: typeof d.isEvaluation === 'boolean' ? d.isEvaluation : null,
     n_attachments: adjuntos,
+    attachments: documentos(d.publications),
     detail_synced_at: new Date().toISOString(),
   };
 }
