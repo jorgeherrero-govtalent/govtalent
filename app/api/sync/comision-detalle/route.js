@@ -37,10 +37,12 @@ const TIMEOUT_MS = 15000;
 // la DESCARGA, así que hay que reservar tiempo para la escritura: con 500
 // filas actualizadas una a una se agotaban los 18 s restantes y la función
 // moría con FUNCTION_INVOCATION_TIMEOUT.
-const PRESUPUESTO_MS = 25000;
-// Tope de filas por pasada. Más allá, la escritura no cabe en el tiempo
-// que queda por mucho que la descarga sea rápida.
-const MAX_POR_PASADA = 300;
+//
+// Medido después: 300 iniciativas tardan 18 s en total (62 ms cada una,
+// más 3,4 s de escritura). Con 600 salen unos 45 s; con 800 se rozarían los
+// 60 y no merece la pena arriesgar una pasada perdida.
+const PRESUPUESTO_MS = 40000;
+const MAX_POR_PASADA = 600;
 
 function admin() {
   return createClient(process.env.NEXT_PUBLIC_SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY, {
