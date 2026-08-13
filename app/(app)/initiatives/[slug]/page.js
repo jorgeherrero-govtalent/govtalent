@@ -283,6 +283,13 @@ export default function InitiativeDetailPage() {
     });
   }, [stages]);
 
+  // El nombre de la dirección general sale de los actores ya cargados,
+  // así se evita una consulta extra solo para traducir el código.
+  const dgNombre = useMemo(
+    () => (actors || []).find((a) => a.body_code === item?.dg_code)?.body_name || null,
+    [actors, item]
+  );
+
   const principales = useMemo(() => (actors || []).filter((a) => a.relevance === 'principal'), [actors]);
   const secundarios = useMemo(() => (actors || []).filter((a) => a.relevance !== 'principal'), [actors]);
 
@@ -382,6 +389,21 @@ export default function InitiativeDetailPage() {
             {item.reference && (
               <div style={{ fontSize: 11.5, color: '#999', marginTop: 4 }}>{item.reference}</div>
             )}
+            {item.is_major && (
+              <span
+                style={{
+                  display: 'inline-block',
+                  fontSize: 10,
+                  background: '#FAEEDA',
+                  color: '#854F0B',
+                  padding: '2px 8px',
+                  borderRadius: 10,
+                  marginTop: 7,
+                }}
+              >
+                Iniciativa principal
+              </span>
+            )}
           </div>
 
           <div style={{ display: 'flex', gap: 7, flexShrink: 0 }}>
@@ -422,6 +444,22 @@ export default function InitiativeDetailPage() {
           </div>
         )}
       </div>
+
+      {(item.summary_es || item.summary_en) && (
+        <div style={{ ...CARD, marginBottom: 12 }}>
+          <div style={LABEL}>De qué trata</div>
+          <div style={{ fontSize: 13, color: '#333', lineHeight: 1.7, whiteSpace: 'pre-line' }}>
+            {item.summary_es || item.summary_en}
+          </div>
+          {/* Si solo hay versión inglesa, se avisa en vez de dejar que
+              parezca que el texto está mal traducido. */}
+          {!item.summary_es && item.summary_en && (
+            <div style={{ fontSize: 10.5, color: '#aaa', marginTop: 10 }}>
+              La Comisión no ha publicado versión en español de este resumen.
+            </div>
+          )}
+        </div>
+      )}
 
       {abierta && (
         <div
@@ -651,6 +689,78 @@ export default function InitiativeDetailPage() {
                   </span>
                 </Link>
               ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {(item.dg_code || item.author_email) && (
+        <div style={{ ...CARD, marginBottom: 12 }}>
+          <div style={LABEL}>Quién lo tramita</div>
+
+          {item.dg_code && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 11, paddingBottom: 11 }}>
+              <div
+                style={{
+                  width: 34,
+                  height: 34,
+                  borderRadius: 8,
+                  background: '#EEEDFE',
+                  color: '#3C3489',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontSize: item.dg_code.length > 4 ? 9 : 10,
+                  fontWeight: 700,
+                  flexShrink: 0,
+                }}
+              >
+                {item.dg_code}
+              </div>
+              <div style={{ minWidth: 0 }}>
+                <div style={{ fontSize: 12.5, fontWeight: 600 }}>{dgNombre || item.dg_code}</div>
+                <div style={{ fontSize: 11, color: '#999' }}>Dirección general responsable</div>
+              </div>
+            </div>
+          )}
+
+          {item.author_name && (
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 11,
+                paddingTop: item.dg_code ? 11 : 0,
+                borderTop: item.dg_code ? '.5px solid #f0f0eb' : 'none',
+              }}
+            >
+              <div
+                style={{
+                  width: 34,
+                  height: 34,
+                  borderRadius: 8,
+                  background: '#ece9e2',
+                  color: '#8d8b83',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontSize: 11,
+                  fontWeight: 700,
+                  flexShrink: 0,
+                }}
+                aria-hidden="true"
+              >
+                {item.author_name.split(' ').filter(Boolean).map((x) => x[0]).slice(0, 2).join('').toUpperCase()}
+              </div>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontSize: 12.5, fontWeight: 600 }}>{item.author_name}</div>
+                <div style={{ fontSize: 11, color: '#999' }}>Responsable del expediente</div>
+              </div>
+              {item.author_email && (
+                <span style={{ fontSize: 11, color: '#999', wordBreak: 'break-all', maxWidth: 200, textAlign: 'right' }}>
+                  {item.author_email}
+                </span>
+              )}
             </div>
           )}
         </div>
