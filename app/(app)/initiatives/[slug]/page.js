@@ -278,7 +278,22 @@ export default function InitiativeDetailPage() {
   );
   const principales = useMemo(() => (actors || []).filter((a) => a.relevance === 'principal'), [actors]);
   const secundarios = useMemo(() => (actors || []).filter((a) => a.relevance !== 'principal'), [actors]);
-  const documentos = useMemo(() => (Array.isArray(item?.attachments) ? item.attachments : []), [item]);
+  // Los documentos vienen en las 24 lenguas oficiales: 40 adjuntos suelen
+  // ser 2 documentos traducidos, no 40 distintos. No se pueden agrupar por
+  // número de páginas —la misma propuesta tiene 46 en inglés y 53 en
+  // búlgaro— ni por título, que cambia por completo. Se filtra por idioma:
+  // español si existe, inglés si no.
+  const { documentos, otrosIdiomas } = useMemo(() => {
+    const todos = Array.isArray(item?.attachments) ? item.attachments : [];
+    if (todos.length === 0) return { documentos: [], otrosIdiomas: 0 };
+
+    const es = todos.filter((d) => d.idioma === 'ES');
+    const en = todos.filter((d) => d.idioma === 'EN');
+    const sinIdioma = todos.filter((d) => !d.idioma);
+
+    const elegidos = es.length > 0 ? es : en.length > 0 ? en : sinIdioma.length > 0 ? sinIdioma : todos;
+    return { documentos: elegidos, otrosIdiomas: todos.length - elegidos.length };
+  }, [item]);
 
   // Las pestañas sin contenido se muestran en gris y no se pueden pulsar,
   // en vez de ocultarse: así el usuario sabe qué información existe para
@@ -767,6 +782,7 @@ export default function InitiativeDetailPage() {
         <div style={CARD}>
           <div style={{ fontSize: 11.5, color: '#888', marginBottom: 13 }}>
             Documentos publicados por la Comisión en este expediente.
+            {otrosIdiomas > 0 && ` Hay ${otrosIdiomas} versiones más en otras lenguas oficiales.`}
           </div>
           {documentos.map((d, i) => (
             <Persona
