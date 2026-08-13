@@ -15,6 +15,10 @@
     {
       "path": "/api/sync/comision-iniciativas",
       "schedule": "0 7 * * *"
+    },
+    {
+      "path": "/api/sync/comision-detalle",
+      "schedule": "15 * * * *"
     }
   ]
 }
