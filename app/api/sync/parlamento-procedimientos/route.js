@@ -1,0 +1,426 @@
+// =====================================================================
+// SYNC — Procedimientos legislativos del Parlamento Europeo
+// app/api/sync/parlamento-procedimientos/route.js
+//
+// Dos fases, porque tienen coste muy distinto:
+//
+//   FASE 1 (?fase=catalogo) — la ficha de cada procedimiento por años.
+//   Trae título, etapa y ponentes. Una petición por procedimiento.
+//
+//   FASE 2 (?fase=eventos) — el recorrido. Otra petición más, así que
+//   solo se piden los de procedimientos que aún no lo tengan, y primero
+//   los que están vivos: la cronología de uno cerrado en 2015 no corre
+//   prisa.
+//
+// LÍMITE DE LA API: 500 peticiones cada 5 minutos. Con paralelismo 5 y
+// pausa entre lotes se queda holgadamente por debajo.
+//
+// LECCIONES APLICADAS del sync de la Comisión, que costó media sesión:
+//   - Cliente de Supabase SIN caché de Next.js. Su fetch parcheado
+//     devolvía respuestas idénticas al byte y el sync daba vueltas.
+//   - Las escrituras se verifican con .select(): contar llamadas sin
+//     error no es contar filas modificadas.
+//   - Sin memoria de posición: se busca lo que falta, no dónde se iba.
+//
+// Uso:
+//   ?key=<DEBUG_KEY>&fase=catalogo&desde=2024&hasta=2026
+//   ?key=<DEBUG_KEY>&fase=eventos
+//   ?dry=1                sin escribir
+// =====================================================================
+
+import { NextResponse } from 'next/server';
+import { createClient } from '@supabase/supabase-js';
+
+export const dynamic = 'force-dynamic';
+export const maxDuration = 60;
+
+const EP = 'https://data.europarl.europa.eu/api/v2';
+const TIMEOUT_MS = 15000;
+const PRESUPUESTO_MS = 40000;
+// Conservador respecto al límite de 500/5min: con 5 en paralelo y una
+// pausa breve entre lotes, el ritmo se queda muy por debajo.
+const PARALELO = 5;
+const PAUSA_MS = 150;
+const MAX_POR_PASADA = 300;
+
+function admin() {
+  return createClient(process.env.NEXT_PUBLIC_SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY, {
+    auth: { persistSession: false, autoRefreshToken: false },
+    global: {
+      // Sin esto, Next.js cachea las consultas GET y el sync lee siempre
+      // el mismo resultado. Costó media sesión descubrirlo.
+      fetch: (url, options = {}) => fetch(url, { ...options, cache: 'no-store' }),
+    },
+  });
+}
+
+const espera = (ms) => new Promise((r) => setTimeout(r, ms));
+
+async function pedir(url) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
+  try {
+    const res = await fetch(url, {
+      signal: controller.signal,
+      headers: {
+        Accept: 'application/ld+json',
+        // La API pide identificarse; sin User-Agent puede limitar antes.
+        'User-Agent': 'GovTalent/1.0 (govtalent.app)',
+      },
+      cache: 'no-store',
+    });
+    if (res.status === 204) return { ok: true, vacio: true, data: [] };
+    if (res.status !== 200) return { ok: false, motivo: `HTTP ${res.status}` };
+    const d = await res.json();
+    return { ok: true, data: d?.data || (Array.isArray(d) ? d : [d]) };
+  } catch (e) {
+    return { ok: false, motivo: e.name === 'AbortError' ? 'timeout' : e.message };
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+function slugify(t) {
+  return (t || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/(^-|-$)/g, '')
+    .slice(0, 80);
+}
+
+// "def/ep-activities/PLENARY_VOTE" -> "PLENARY_VOTE"
+const ultimoTramo = (uri) => (uri ? String(uri).split('/').pop() : null);
+
+// "person/96852" -> "96852", que es eu_meps.id
+const idPersona = (uri) => {
+  const m = String(uri || '').match(/person\/(\d+)/);
+  return m ? m[1] : null;
+};
+
+// Las fases vienen como URI del vocabulario de la UE. Se traducen las
+// conocidas; el resto se muestra legible en vez de como URI cruda.
+const FASES = {
+  RDG1: 'Primera lectura',
+  RDG2: 'Segunda lectura',
+  RDG3: 'Tercera lectura',
+  AWAITING_SIGNATURE: 'Pendiente de firma',
+  SIGNED: 'Firmado',
+  PUBLISHED: 'Publicado',
+  PROCEDURE_COMPLETED: 'Procedimiento concluido',
+  PROCEDURE_LAPSED: 'Procedimiento caducado',
+  PROCEDURE_REJECTED: 'Procedimiento rechazado',
+};
+
+function faseLabel(uri) {
+  const cod = ultimoTramo(uri);
+  if (!cod) return null;
+  if (FASES[cod]) return FASES[cod];
+  const l = cod.replace(/_/g, ' ').toLowerCase();
+  return l.charAt(0).toUpperCase() + l.slice(1);
+}
+
+// Un procedimiento está cerrado si su fase lo dice. No se deduce de las
+// fechas: un expediente puede pasar años sin actividad y seguir vivo.
+const FASES_CERRADAS = new Set([
+  'PROCEDURE_COMPLETED',
+  'PROCEDURE_LAPSED',
+  'PROCEDURE_REJECTED',
+  'PUBLISHED',
+  'SIGNED',
+]);
+
+function transformarProcedimiento(p) {
+  const processId = p.process_id || String(p.id || '').split('/').pop();
+  if (!processId) return null;
+
+  const titulos = typeof p.process_title === 'object' && p.process_title ? p.process_title : {};
+  const titleEn = titulos.en?.trim() || null;
+  const titleEs = titulos.es?.trim() || null;
+  const fase = ultimoTramo(p.current_stage);
+
+  const actividades = Array.isArray(p.consists_of) ? p.consists_of : [];
+  const fechas = actividades.map((a) => a.activity_date).filter(Boolean).sort();
+
+  return {
+    process_id: processId,
+    label: p.label || processId,
+    slug: `${slugify(titleEs || titleEn || processId)}-${processId}`,
+    process_type: ultimoTramo(p.process_type) || p.process_type || null,
+    year: parseInt(String(processId).slice(0, 4), 10) || null,
+    title_es: titleEs,
+    title_en: titleEn,
+    current_stage: p.current_stage || null,
+    current_stage_label: faseLabel(p.current_stage),
+    started_at: fechas[0] || null,
+    last_activity_at: fechas[fechas.length - 1] || null,
+    is_closed: fase ? FASES_CERRADAS.has(fase) : false,
+    n_events: actividades.length,
+    raw: p,
+    synced_at: new Date().toISOString(),
+  };
+}
+
+function transformarParticipaciones(p, processId) {
+  const lista = Array.isArray(p.had_participation) ? p.had_participation : [];
+  const out = [];
+  for (const x of lista) {
+    const mep = Array.isArray(x.had_participant_person) ? idPersona(x.had_participant_person[0]) : idPersona(x.had_participant_person);
+    const rol = ultimoTramo(x.participation_role);
+    out.push({
+      id: String(x.id || `${processId}-${mep}-${x.activity_date}`).split('/').pop(),
+      process_id: processId,
+      mep_id: mep,
+      role: rol,
+      role_label:
+        rol === 'RAPPORTEUR'
+          ? 'Ponente'
+          : rol === 'RAPPORTEUR_SHADOW'
+            ? 'Ponente en la sombra'
+            : rol === 'RAPPORTEUR_CO'
+              ? 'Coponente'
+              : rol
+                ? rol.replace(/_/g, ' ').toLowerCase()
+                : null,
+      body_code: ultimoTramo(x.participation_in_name_of),
+      political_group: ultimoTramo(x.politicalGroup),
+      activity_date: x.activity_date || null,
+      stage: x.occured_at_stage || null,
+    });
+  }
+  // Deduplicar: la misma persona puede aparecer varias veces
+  const vistos = new Set();
+  return out.filter((x) => {
+    if (!x.id || vistos.has(x.id)) return false;
+    vistos.add(x.id);
+    return true;
+  });
+}
+
+// Escritura verificada: .select() hace que PostgREST devuelva las filas
+// afectadas. Contar llamadas sin error no es contar filas modificadas.
+async function escribir(supabase, tabla, filas, conflicto) {
+  if (filas.length === 0) return { escritas: 0, errores: [] };
+  let escritas = 0;
+  const errores = [];
+  const LOTE = 50;
+  for (let i = 0; i < filas.length; i += LOTE) {
+    const grupo = filas.slice(i, i + LOTE);
+    const { data, error } = await supabase.from(tabla).upsert(grupo, { onConflict: conflicto }).select(conflicto);
+    if (error) errores.push(error.message);
+    else escritas += Array.isArray(data) ? data.length : 0;
+  }
+  return { escritas, errores };
+}
+
+export async function GET(request) {
+  const t0 = Date.now();
+  const sp = new URL(request.url).searchParams;
+
+  const isCron = request.headers.get('authorization') === `Bearer ${process.env.CRON_SECRET}`;
+  const isManual = !!process.env.DEBUG_KEY && sp.get('key') === process.env.DEBUG_KEY;
+  if (!isCron && !isManual) {
+    return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
+  }
+
+  const dry = sp.get('dry') === '1';
+  const fase = sp.get('fase') || 'catalogo';
+  const supabase = admin();
+  const informe = { inicio: new Date().toISOString(), fase, dry_run: dry };
+
+  // ===================================================================
+  // FASE 1 — catálogo por años
+  // ===================================================================
+  if (fase === 'catalogo') {
+    const desde = parseInt(sp.get('desde') || '2024', 10);
+    const hasta = parseInt(sp.get('hasta') || String(new Date().getFullYear()), 10);
+    const tipo = sp.get('tipo') || 'COD';
+
+    const procedimientos = [];
+    const participaciones = [];
+    const fallidos = [];
+    const porAno = {};
+    let cortado = false;
+
+    for (let ano = hasta; ano >= desde; ano--) {
+      if (Date.now() - t0 > PRESUPUESTO_MS) {
+        cortado = true;
+        break;
+      }
+
+      // El listado solo da id, tipo y label: hace falta pedir cada ficha.
+      const lista = await pedir(`${EP}/procedures?process-type=${tipo}&year=${ano}&limit=200&format=application%2Fld%2Bjson`);
+      if (!lista.ok) {
+        fallidos.push({ ano, motivo: lista.motivo });
+        continue;
+      }
+      const ids = (lista.data || []).map((x) => x.process_id).filter(Boolean);
+      porAno[ano] = ids.length;
+
+      // Las que ya están cargadas no se vuelven a pedir.
+      const { data: existentes } = await supabase
+        .from('ep_procedures')
+        .select('process_id')
+        .in('process_id', ids.length ? ids : ['-']);
+      const yaEstan = new Set((existentes || []).map((x) => x.process_id));
+      const pendientes = ids.filter((id) => !yaEstan.has(id));
+
+      for (let i = 0; i < pendientes.length; i += PARALELO) {
+        if (Date.now() - t0 > PRESUPUESTO_MS) {
+          cortado = true;
+          break;
+        }
+        const grupo = pendientes.slice(i, i + PARALELO);
+        const res = await Promise.all(
+          grupo.map((id) => pedir(`${EP}/procedures/${id}?format=application%2Fld%2Bjson`))
+        );
+        for (let j = 0; j < res.length; j++) {
+          const r = res[j];
+          if (!r.ok) {
+            fallidos.push({ id: grupo[j], motivo: r.motivo });
+            continue;
+          }
+          const p = r.data?.[0];
+          if (!p) continue;
+          const fila = transformarProcedimiento(p);
+          if (!fila) continue;
+          procedimientos.push(fila);
+          participaciones.push(...transformarParticipaciones(p, fila.process_id));
+        }
+        await espera(PAUSA_MS);
+        if (procedimientos.length >= MAX_POR_PASADA) {
+          cortado = true;
+          break;
+        }
+      }
+      if (cortado) break;
+    }
+
+    informe.anos_recorridos = porAno;
+    informe.procedimientos = procedimientos.length;
+    informe.participaciones = participaciones.length;
+    informe.con_titulo_es = procedimientos.filter((p) => p.title_es).length;
+    informe.con_ponentes = new Set(participaciones.map((x) => x.process_id)).size;
+    informe.cerrados = procedimientos.filter((p) => p.is_closed).length;
+    informe.fallidos = fallidos.length;
+    informe.detalle_fallos = fallidos.slice(0, 5);
+    informe.cortado_por_tiempo = cortado;
+
+    if (dry) {
+      informe.muestra = procedimientos[0] ? { ...procedimientos[0], raw: '[...recortado]' } : null;
+      informe.muestra_participacion = participaciones[0] || null;
+      informe.ms_total = Date.now() - t0;
+      return NextResponse.json(informe);
+    }
+
+    const wProc = await escribir(supabase, 'ep_procedures', procedimientos, 'process_id');
+    const wPart = await escribir(supabase, 'ep_procedure_participants', participaciones, 'id');
+    informe.escritura = { procedimientos: wProc, participaciones: wPart };
+    informe.ms_total = Date.now() - t0;
+    informe.nota = cortado
+      ? 'Cortado por tiempo o tope. Vuelve a lanzarlo: solo pide los que faltan.'
+      : 'Catálogo al día para los años indicados.';
+    return NextResponse.json(informe);
+  }
+
+  // ===================================================================
+  // FASE 2 — eventos, primero de los procedimientos vivos
+  // ===================================================================
+  if (fase === 'eventos') {
+    const { data: pendientes, error } = await supabase
+      .from('ep_procedures')
+      .select('process_id, is_closed, last_activity_at')
+      .is('events_synced_at', null)
+      // Los vivos primero: la cronología de uno cerrado en 2015 no corre
+      // prisa. El desempate por process_id evita el orden inestable que
+      // hizo dar vueltas al sync de la Comisión.
+      .order('is_closed', { ascending: true })
+      .order('last_activity_at', { ascending: false, nullsFirst: false })
+      .order('process_id', { ascending: true })
+      .limit(MAX_POR_PASADA);
+
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    if (!pendientes?.length) {
+      return NextResponse.json({ ...informe, nada_pendiente: true, ms_total: Date.now() - t0 });
+    }
+
+    const eventos = [];
+    const hechos = [];
+    const fallidos = [];
+    let cortado = false;
+
+    for (let i = 0; i < pendientes.length; i += PARALELO) {
+      if (Date.now() - t0 > PRESUPUESTO_MS) {
+        cortado = true;
+        break;
+      }
+      const grupo = pendientes.slice(i, i + PARALELO);
+      const res = await Promise.all(
+        grupo.map((p) => pedir(`${EP}/procedures/${p.process_id}/events?format=application%2Fld%2Bjson`))
+      );
+      for (let j = 0; j < res.length; j++) {
+        const r = res[j];
+        const pid = grupo[j].process_id;
+        if (!r.ok) {
+          fallidos.push({ id: pid, motivo: r.motivo });
+          continue;
+        }
+        for (const e of r.data || []) {
+          const aid = e.activity_id || String(e.id || '').split('/').pop();
+          if (!aid) continue;
+          eventos.push({
+            id: aid,
+            process_id: pid,
+            activity_date: e.activity_date || null,
+            activity_type: ultimoTramo(e.had_activity_type),
+            stage: e.occured_at_stage || null,
+            raw: e,
+          });
+        }
+        hechos.push(pid);
+      }
+      await espera(PAUSA_MS);
+    }
+
+    informe.procedimientos_procesados = hechos.length;
+    informe.eventos = eventos.length;
+    informe.fallidos = fallidos.length;
+    informe.detalle_fallos = fallidos.slice(0, 5);
+    informe.cortado_por_tiempo = cortado;
+
+    if (dry) {
+      informe.muestra = eventos[0] ? { ...eventos[0], raw: '[...recortado]' } : null;
+      informe.ms_total = Date.now() - t0;
+      return NextResponse.json(informe);
+    }
+
+    const wEv = await escribir(supabase, 'ep_procedure_events', eventos, 'id');
+
+    // Se marcan como hechos aunque no tuvieran eventos: si no, volverían
+    // a la cola indefinidamente. Es el fallo que hizo repetir 600 filas
+    // en el sync de la Comisión.
+    let marcados = 0;
+    for (let i = 0; i < hechos.length; i += 50) {
+      const grupo = hechos.slice(i, i + 50);
+      const { data } = await supabase
+        .from('ep_procedures')
+        .update({ events_synced_at: new Date().toISOString() })
+        .in('process_id', grupo)
+        .select('process_id');
+      marcados += Array.isArray(data) ? data.length : 0;
+    }
+
+    const { count: quedan } = await supabase
+      .from('ep_procedures')
+      .select('process_id', { count: 'exact', head: true })
+      .is('events_synced_at', null);
+
+    informe.escritura = { eventos: wEv, procedimientos_marcados: marcados };
+    informe.quedan_pendientes = quedan ?? null;
+    informe.ms_total = Date.now() - t0;
+    return NextResponse.json(informe);
+  }
+
+  return NextResponse.json({ error: 'fase no reconocida: usa catalogo o eventos' }, { status: 400 });
+}
