@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
-import { groupColor, grupoCorto } from '../congreso/page';
+import { colorSigla, nombreSigla } from '@/lib/grupos';
 
 /**
  * Comisiones del Congreso.
@@ -13,26 +13,6 @@ import { groupColor, grupoCorto } from '../congreso/page';
  * caben en el propio desplegable. Abrir una página por comisión añadiría
  * un clic sin dar más información.
  */
-
-// Los grupos llegan en código corto ("GS", "GP", "GSUMAR"), distinto del
-// nombre completo que usa el resto de la aplicación.
-const SIGLAS = {
-  GP: 'Popular',
-  GS: 'Socialista',
-  GSUMAR: 'SUMAR',
-  GVOX: 'VOX',
-  GR: 'Republicano',
-  GJxCAT: 'Junts',
-  'GEH Bildu': 'EH Bildu',
-  'GV (EAJ-PNV)': 'Vasco (EAJ-PNV)',
-  GMx: 'Mixto',
-};
-
-const nombreSigla = (s) => SIGLAS[s] || s || '';
-
-// Reutiliza la paleta del módulo de iniciativas resolviendo la sigla a
-// su nombre completo, que es lo que espera groupColor.
-const colorSigla = (s) => groupColor(nombreSigla(s));
 
 function normalize(t) {
   return (t || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
