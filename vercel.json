@@ -23,6 +23,10 @@
     {
       "path": "/api/sync/parlamento-procedimientos",
       "schedule": "0 9 * * *"
+    },
+    {
+      "path": "/api/sync/congreso-iniciativas",
+      "schedule": "30 4 * * *"
     }
   ]
 }
