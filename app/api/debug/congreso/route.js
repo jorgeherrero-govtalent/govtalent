@@ -111,6 +111,42 @@ export async function GET(request) {
   }
 
   // --- Modo: descargar un fichero concreto ----------------------------
+  // --- Modo: examinar campos concretos sin cortar ---------------------
+  // La muestra genérica corta a 700 caracteres y los campos interesantes
+  // de ProyectosDeLey (PLAZOS, PONENTES, TRAMITACIONSEGUIDA) son texto
+  // libre largo. Sin verlos enteros no se puede diseñar el parseo.
+  if (sp.get('campos') && sp.get('de')) {
+    const r = await pedir(sp.get('de'));
+    if (!Array.isArray(r.data)) {
+      return Response.json({ error: 'no es una lista', status: r.status });
+    }
+    const campos = sp.get('campos').split(',').map((c) => c.trim());
+    const n = Math.min(parseInt(sp.get('n') || '3', 10), 8);
+
+    // Se eligen los registros con más contenido en esos campos: un
+    // expediente recién presentado tendría los campos vacíos y no
+    // enseñaría nada del formato.
+    const ordenados = [...r.data].sort((a, b) => {
+      const peso = (x) => campos.reduce((s, c) => s + String(x[c] || '').length, 0);
+      return peso(b) - peso(a);
+    });
+
+    return Response.json({
+      modo: 'campos',
+      registros_totales: r.data.length,
+      ejemplos: ordenados.slice(0, n).map((x) => {
+        const out = { NUMEXPEDIENTE: x.NUMEXPEDIENTE, OBJETO: String(x.OBJETO || '').slice(0, 90) };
+        for (const c of campos) out[c] = x[c] ?? null;
+        return out;
+      }),
+      // Cuántos registros tienen cada campo relleno: dice si se puede
+      // contar con él o si es excepcional.
+      cobertura: Object.fromEntries(
+        campos.map((c) => [c, r.data.filter((x) => x[c] && String(x[c]).trim()).length])
+      ),
+    });
+  }
+
   if (sp.get('url')) {
     const r = await pedir(sp.get('url'));
     return Response.json({
