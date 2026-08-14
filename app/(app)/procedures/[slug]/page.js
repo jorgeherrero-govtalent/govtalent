@@ -5,6 +5,7 @@ import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
 import { toast } from '@/lib/toast';
+import BackLink from '@/components/BackLink';
 import { GRUPO_COLORES, GRUPO_NOMBRES } from '../page';
 
 const colorGrupo = (g) => GRUPO_COLORES[g] || '#b0aea6';
@@ -343,21 +344,26 @@ export default function ProcedureDetailPage() {
             No se ha encontrado este procedimiento.
           </div>
         </div>
-        <Link href="/procedures" style={{ fontSize: 12.5, color: '#6d5aef' }}>
-          ← Volver a Procedimientos
-        </Link>
+        <BackLink fallbackHref="/procedures" fallbackLabel="Volver a Procedimientos" />
       </div>
     );
   }
 
   return (
     <div className="sec" style={{ maxWidth: 900 }}>
-      <div style={{ marginBottom: 10, fontSize: 11.5, color: '#999' }}>
-        <Link href="/procedures" style={{ color: '#999', textDecoration: 'none' }}>
-          Procedimientos
-        </Link>
-        {' › '}
-        <span style={{ color: '#666' }}>{item.label}</span>
+      {/* El atrás va antes de la miga de pan: la miga dice DÓNDE estás,
+          el atrás dice de dónde VIENES, y con cuatro caminos posibles a la
+          misma ficha esa distinción importa. */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 10, flexWrap: 'wrap' }}>
+        <BackLink fallbackHref="/procedures" fallbackLabel="Procedimientos" />
+        <span style={{ fontSize: 11.5, color: '#ddd' }}>|</span>
+        <span style={{ fontSize: 11.5, color: '#999' }}>
+          <Link href="/procedures" style={{ color: '#999', textDecoration: 'none' }}>
+            Procedimientos
+          </Link>
+          {' › '}
+          <span style={{ color: '#666' }}>{item.label}</span>
+        </span>
       </div>
 
       <div style={{ ...CARD, padding: 16, marginBottom: 12 }}>
