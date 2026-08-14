@@ -109,7 +109,7 @@ export default function AppLayout({ children }) {
                 : ''
             }`}
           >
-            <i className="ti ti-gavel"></i>Regulatorio
+            <i className="ti ti-timeline-event"></i>Regulatorio
           </Link>
           <div className="ni" style={{ cursor: 'default', color: '#bbb' }} title="Próximamente">
             <i className="ti ti-calendar-event"></i>Eventos (Próximamente)
