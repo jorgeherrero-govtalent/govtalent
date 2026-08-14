@@ -86,10 +86,12 @@ async function pedirComision(suborgano) {
     } catch {
       return { suborgano, ok: false, motivo: 'no es JSON' };
     }
-    if (!Array.isArray(data) || data.length === 0) {
+    // La respuesta viene envuelta: {"data":[...]}, no es un array suelto.
+    const lista = Array.isArray(data) ? data : data?.data;
+    if (!Array.isArray(lista) || lista.length === 0) {
       return { suborgano, ok: false, motivo: 'sin miembros' };
     }
-    return { suborgano, ok: true, data };
+    return { suborgano, ok: true, data: lista };
   } catch (e) {
     return { suborgano, ok: false, motivo: e.message };
   }
@@ -144,6 +146,12 @@ function tipoComision(nombre) {
   if (n.includes('mixta')) return 'mixta';
   if (n.includes('seguimiento') || n.includes('evaluación')) return 'seguimiento';
   return 'permanente';
+}
+
+// "...&codParlamentario=35&idLegislatura=XV" -> "35"
+function codParlamentario(url) {
+  const m = String(url || '').match(/codParlamentario=(\d+)/);
+  return m ? m[1] : null;
 }
 
 function normalizar(n) {
@@ -257,17 +265,28 @@ export async function GET(request) {
         synced_at: new Date().toISOString(),
       });
 
+      // El endpoint devuelve nombres de campo distintos a los del fichero
+      // que se descarga a mano: apellidosNombre / descCargo / siglas en
+      // lugar de Nombre / Cargo / Grupo. Se aceptan ambos por si acaso.
       miembrosPorSuborgano.set(
         c.suborgano,
         c.data
-          .map((m) => ({
-            nombre: (m.Nombre || '').trim(),
-            cargo: (m.Cargo || '').trim(),
-            orden_cargo: ordenCargo(m.Cargo),
-            grupo: (m.Grupo || '').trim() || null,
-            fecha_alta: fechaEs(m.FechaAlta),
-            fecha_baja: fechaEs(m.FechaBaja),
-          }))
+          .map((m) => {
+            const cargo = (m.descCargo || m.Cargo || '').trim();
+            return {
+              nombre: (m.apellidosNombre || m.Nombre || '').trim(),
+              cargo,
+              // idCargo da el orden sin depender de expresiones sobre el
+              // texto; el diccionario queda como respaldo.
+              orden_cargo: typeof m.idCargo === 'number' ? m.idCargo : ordenCargo(cargo),
+              grupo: (m.siglas || m.Grupo || '').trim() || null,
+              // El identificador oficial del diputado, mucho más fiable
+              // que cruzar por nombre. Viene dentro de la URL de su ficha.
+              cod_parlamentario: codParlamentario(m.urlFichaDiputado),
+              fecha_alta: fechaEs(m.fechaAltaFormat || m.FechaAlta),
+              fecha_baja: fechaEs(m.fechaBajaFormat || m.FechaBaja),
+            };
+          })
           .filter((m) => m.nombre && m.cargo)
       );
     }
@@ -302,20 +321,32 @@ export async function GET(request) {
     const idPorSuborgano = new Map((wCom.filas || []).map((c) => [c.suborgano_id, c.id]));
 
     // Enlace con el directorio de diputados y con los grupos.
-    const { data: diputados } = await supabase.from('deputies').select('id, full_name').eq('active', true);
+    const { data: diputados } = await supabase
+      .from('deputies')
+      .select('id, full_name, cod_parlamentario')
+      .eq('active', true);
+    // Se cruza primero por código oficial y solo se cae al nombre si
+    // falta: el código es inequívoco y el nombre puede tener variantes.
+    const porCodigo = new Map(
+      (diputados || []).filter((d) => d.cod_parlamentario).map((d) => [String(d.cod_parlamentario), d.id])
+    );
     const porNombre = new Map((diputados || []).map((d) => [normalizar(d.full_name), d.id]));
 
     const miembros = [];
     let enlazados = 0;
+    let porCod = 0;
     for (const [suborgano, lista] of miembrosPorSuborgano) {
       const cid = idPorSuborgano.get(suborgano);
       if (!cid) continue;
       for (const m of lista) {
-        const did = porNombre.get(normalizar(m.nombre)) || null;
+        let did = m.cod_parlamentario ? porCodigo.get(String(m.cod_parlamentario)) || null : null;
+        if (did) porCod += 1;
+        else did = porNombre.get(normalizar(m.nombre)) || null;
         if (did) enlazados += 1;
         miembros.push({ ...m, committee_id: cid, deputy_id: did });
       }
     }
+    informe.enlazados_por_codigo = porCod;
 
     // Se reemplazan enteros: si alguien causa baja, un upsert lo dejaría.
     const ids = [...idPorSuborgano.values()];
