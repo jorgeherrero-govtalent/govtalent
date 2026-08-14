@@ -55,6 +55,45 @@ function admin() {
 
 const espera = (ms) => new Promise((r) => setTimeout(r, ms));
 
+// La página HTML de la comisión. El endpoint de datos no trae el
+// nombre —solo data, fechaConstitucion y fechaDisolucion— así que hay
+// que sacarlo del título de la página.
+function urlPagina(suborgano, legislatura = 'XV') {
+  const p = new URLSearchParams({
+    p_p_id: 'organos',
+    p_p_lifecycle: '0',
+    p_p_state: 'normal',
+    p_p_mode: 'view',
+    _organos_selectedLegislatura: legislatura,
+    _organos_selectedOrganoSup: '1',
+    _organos_selectedSuborgano: String(suborgano),
+  });
+  return `${BASE}?${p.toString()}`;
+}
+
+/**
+ * Extrae el nombre del título de la página:
+ *   <h2>Composición Actual de la Comisión Constitucional</h2>
+ * Se prueban varias formas porque el marcado puede variar entre
+ * comisiones permanentes, mixtas y de investigación.
+ */
+function nombreDelHtml(html) {
+  const patrones = [
+    /Composición\s+Actual\s+de\s+la\s+([^<\n]{5,120}?)\s*</i,
+    /<h2[^>]*>\s*(?:Composición[^<]*?de\s+la\s+)?([^<]{5,120}?)\s*<\/h2>/i,
+    /<title>\s*([^<|]{5,120}?)\s*[|<]/i,
+  ];
+  for (const re of patrones) {
+    const m = html.match(re);
+    if (m && m[1]) {
+      const n = m[1].replace(/\s+/g, ' ').trim();
+      // El título genérico de la sección no sirve como nombre.
+      if (n && !/^composición en la legislatura$/i.test(n)) return n;
+    }
+  }
+  return null;
+}
+
 function urlComision(suborgano, legislatura = 'XV') {
   // searchOrgano, no opendataExport: el segundo devuelve HTTP 400.
   // Verificado en el panel de red, que es lo que usa la propia página.
@@ -91,7 +130,17 @@ async function pedirComision(suborgano) {
     if (!Array.isArray(lista) || lista.length === 0) {
       return { suborgano, ok: false, motivo: 'sin miembros' };
     }
-    return { suborgano, ok: true, data: lista };
+    // El nombre solo está en la página HTML, así que hace falta una
+    // segunda petición por comisión.
+    let nombre = null;
+    let fechaConstitucion = null;
+    try {
+      fechaConstitucion = data?.fechaConstitucion?.fechaConstitucion || null;
+      const resPag = await fetch(urlPagina(suborgano), { headers: HEADERS, cache: 'no-store' });
+      if (resPag.ok) nombre = nombreDelHtml(await resPag.text());
+    } catch {}
+
+    return { suborgano, ok: true, data: lista, nombre, fechaConstitucion };
   } catch (e) {
     return { suborgano, ok: false, motivo: e.message };
   }
@@ -264,8 +313,8 @@ export async function GET(request) {
     const miembrosPorSuborgano = new Map();
 
     for (const c of encontradas) {
-      // El nombre del órgano viene en cada registro, no en la cabecera.
-      const nombre = (c.data[0]?.NombreOrgano || '').trim();
+      // El nombre llega de la página HTML; los registros no lo traen.
+      const nombre = (c.nombre || c.data[0]?.NombreOrgano || '').trim();
       if (!nombre) continue;
 
       comisiones.push({
@@ -275,6 +324,7 @@ export async function GET(request) {
         slug: slugify(nombre),
         kind: tipoComision(nombre),
         n_members: c.data.length,
+        fecha_constitucion: fechaEs(c.fechaConstitucion),
         synced_at: new Date().toISOString(),
       });
 
