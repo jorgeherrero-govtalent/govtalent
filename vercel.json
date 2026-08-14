@@ -19,6 +19,10 @@
     {
       "path": "/api/sync/comision-detalle",
       "schedule": "0 8 * * *"
+    },
+    {
+      "path": "/api/sync/parlamento-procedimientos",
+      "schedule": "0 9 * * *"
     }
   ]
 }
