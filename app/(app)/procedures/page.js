@@ -167,7 +167,11 @@ export default function ProceduresDirectoryPage() {
 
   const vivos = (items || []).filter((i) => !i.is_closed).length;
   const activeCount = comisionFilter.size + anoFilter.size;
-  const GRID = '2.3fr 1fr 1.2fr 28px';
+  // El título de un procedimiento puede ocupar cinco líneas, así que la
+  // columna necesita separación real de la siguiente: con gap 8 el texto
+  // quedaba pegado a la comisión.
+  const GRID = '2.2fr 0.8fr 1.1fr 24px';
+  const GRID_GAP = 22;
 
   return (
     <div className="sec" style={{ maxWidth: 1080 }}>
@@ -285,7 +289,8 @@ export default function ProceduresDirectoryPage() {
             style={{
               display: 'grid',
               gridTemplateColumns: GRID,
-              padding: '10px 14px',
+              gap: GRID_GAP,
+              padding: '10px 16px',
               borderBottom: '.5px solid #f0f0eb',
               fontSize: 10.5,
               fontWeight: 700,
@@ -306,12 +311,14 @@ export default function ProceduresDirectoryPage() {
               style={{
                 display: 'grid',
                 gridTemplateColumns: GRID,
-                padding: '11px 14px',
+                gap: GRID_GAP,
+                padding: '13px 16px',
                 borderBottom: '.5px solid #f0f0eb',
-                alignItems: 'center',
+                // Alineado arriba, no al centro: con títulos de cinco
+                // líneas la comisión quedaba flotando en mitad de la fila.
+                alignItems: 'start',
                 textDecoration: 'none',
                 color: 'inherit',
-                gap: 8,
               }}
             >
               <div style={{ minWidth: 0 }}>
@@ -333,9 +340,9 @@ export default function ProceduresDirectoryPage() {
                 </div>
               </div>
 
-              <div style={{ fontSize: 11.5, color: '#666' }}>{p.comision_competente || '—'}</div>
+              <div style={{ fontSize: 11.5, color: '#666', paddingTop: 1 }}>{p.comision_competente || '—'}</div>
 
-              <div style={{ minWidth: 0 }}>
+              <div style={{ minWidth: 0, paddingTop: 1 }}>
                 {p.ponente ? (
                   <>
                     <div style={{ fontSize: 11.5, color: '#555' }}>{p.ponente}</div>
@@ -359,7 +366,7 @@ export default function ProceduresDirectoryPage() {
                 )}
               </div>
 
-              <i className="ti ti-chevron-right" style={{ color: '#ccc', fontSize: 14 }}></i>
+              <i className="ti ti-chevron-right" style={{ color: '#ccc', fontSize: 14, marginTop: 2 }}></i>
             </Link>
           ))}
 
