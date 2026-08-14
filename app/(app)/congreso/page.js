@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import MultiSelectFilter from '@/components/MultiSelectFilter';
 
@@ -97,6 +98,7 @@ function FlagES() {
 
 export default function CongresoDirectoryPage() {
   const supabase = createClient();
+  const searchParams = useSearchParams();
 
   const [items, setItems] = useState(null);
   const [search, setSearch] = useState('');
@@ -110,6 +112,16 @@ export default function CongresoDirectoryPage() {
     const saved = parseInt(window.localStorage.getItem('gt_page_size') || '20', 10);
     if (PAGE_SIZES.includes(saved)) setPageSize(saved);
   }, []);
+
+  // Llegando desde una comisión, el filtro viene puesto en la URL. Así
+  // el enlace se puede compartir y el atrás del navegador lo deshace.
+  useEffect(() => {
+    const c = searchParams.get('comision');
+    if (c) {
+      setSituacionFilter(new Set([c]));
+      setEstado('todas');
+    }
+  }, [searchParams]);
 
   useEffect(() => {
     supabase
@@ -205,14 +217,36 @@ export default function CongresoDirectoryPage() {
         <span style={{ color: '#666' }}>Congreso</span>
       </div>
 
-      <div style={{ marginBottom: 14 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 9, marginBottom: 3 }}>
-          <FlagES />
-          <h1 style={{ fontSize: 18, fontWeight: 700, margin: 0 }}>Iniciativas legislativas</h1>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12, marginBottom: 14, flexWrap: 'wrap' }}>
+        <div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 9, marginBottom: 3 }}>
+            <FlagES />
+            <h1 style={{ fontSize: 18, fontWeight: 700, margin: 0 }}>Iniciativas legislativas</h1>
+          </div>
+          <p style={{ fontSize: 12, color: '#888', margin: 0 }}>
+            {items ? `${items.length} en la XV Legislatura · ${vivas.length} en tramitación` : '—'}
+          </p>
         </div>
-        <p style={{ fontSize: 12, color: '#888', margin: 0 }}>
-          {items ? `${items.length} en la XV Legislatura · ${vivas.length} en tramitación` : '—'}
-        </p>
+        {/* Las comisiones son el otro lado del mismo asunto: dónde se
+            tramita cada iniciativa y quién negocia por cada grupo. */}
+        <Link
+          href="/comisiones"
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 7,
+            border: '.5px solid #e0dfd8',
+            borderRadius: 20,
+            padding: '7px 14px',
+            fontSize: 12,
+            color: '#555',
+            textDecoration: 'none',
+            whiteSpace: 'nowrap',
+          }}
+        >
+          <i className="ti ti-users" style={{ fontSize: 14, color: '#6d5aef' }}></i>
+          Comisiones
+        </Link>
       </div>
 
       <div style={{ display: 'flex', gap: 8, marginBottom: 13, flexWrap: 'wrap' }}>
