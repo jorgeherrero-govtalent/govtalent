@@ -99,6 +99,9 @@ export default function AppLayout({ children }) {
           <Link href="/initiatives" className={`ni ${pathname.startsWith('/initiatives') ? 'on' : ''}`}>
             <i className="ti ti-file-text"></i>Expedientes
           </Link>
+          <Link href="/procedures" className={`ni ${pathname.startsWith('/procedures') ? 'on' : ''}`}>
+            <i className="ti ti-gavel"></i>Procedimientos
+          </Link>
           <div className="ni" style={{ cursor: 'default', color: '#bbb' }} title="Próximamente">
             <i className="ti ti-calendar-event"></i>Eventos (Próximamente)
           </div>
