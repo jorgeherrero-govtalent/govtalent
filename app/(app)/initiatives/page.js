@@ -152,6 +152,14 @@ export default function InitiativesDirectoryPage() {
 
   return (
     <div className="sec" style={{ maxWidth: 1080 }}>
+      <div style={{ fontSize: 11.5, color: '#999', marginBottom: 10 }}>
+        <Link href="/regulatorio" style={{ color: '#999', textDecoration: 'none' }}>
+          Regulatorio
+        </Link>
+        {' › '}
+        <span style={{ color: '#666' }}>Expedientes</span>
+      </div>
+
       <div style={{ marginBottom: 14 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 9, marginBottom: 3 }}>
           <span
