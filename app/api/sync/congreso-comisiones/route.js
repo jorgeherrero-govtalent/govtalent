@@ -203,14 +203,27 @@ export async function GET(request) {
     try {
       const res = await fetch(url, { headers: HEADERS, cache: 'no-store' });
       const txt = await res.text();
+      let json = null;
+      try {
+        json = JSON.parse(txt);
+      } catch {}
+      const lista = Array.isArray(json) ? json : json?.data;
       return NextResponse.json({
         modo: 'probar',
         suborgano: n,
-        url,
         status: res.status,
-        content_type: res.headers.get('content-type'),
         tamano: txt.length,
-        empieza_por: txt.slice(0, 300),
+        // Las claves de la raíz dicen dónde vive el nombre del órgano:
+        // en el fichero manual venía en cada registro (NombreOrgano),
+        // pero el endpoint puede ponerlo aparte.
+        claves_raiz: json && !Array.isArray(json) ? Object.keys(json) : null,
+        registros: Array.isArray(lista) ? lista.length : null,
+        claves_registro: Array.isArray(lista) && lista[0] ? Object.keys(lista[0]) : null,
+        primer_registro: Array.isArray(lista) ? lista[0] : null,
+        // Todo lo que no sea la lista: ahí estaría el nombre.
+        fuera_de_la_lista: json && !Array.isArray(json)
+          ? Object.fromEntries(Object.entries(json).filter(([k]) => k !== 'data'))
+          : null,
       });
     } catch (e) {
       return NextResponse.json({ modo: 'probar', suborgano: n, url, error: e.message });
