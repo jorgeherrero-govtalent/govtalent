@@ -29,6 +29,10 @@ const HEADERS = {
   'User-Agent':
     'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
   Accept: 'application/json,text/html,*/*',
+  'Accept-Language': 'es-ES,es;q=0.9',
+  // El endpoint es una llamada interna de Liferay: sin Referer del
+  // propio sitio suele devolver la página en vez del JSON.
+  Referer: 'https://www.congreso.es/es/organos/composicion-en-la-legislatura',
 };
 
 // El rango cubre las comisiones conocidas con margen por arriba y por
@@ -179,6 +183,28 @@ export async function GET(request) {
   const isManual = !!process.env.DEBUG_KEY && sp.get('key') === process.env.DEBUG_KEY;
   if (!isCron && !isManual) {
     return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
+  }
+
+  // Modo diagnóstico: devuelve la respuesta cruda de un suborgano para
+  // ver por qué falla, en vez de suponerlo.
+  if (sp.get('probar')) {
+    const n = sp.get('probar');
+    const url = urlComision(n);
+    try {
+      const res = await fetch(url, { headers: HEADERS, cache: 'no-store' });
+      const txt = await res.text();
+      return NextResponse.json({
+        modo: 'probar',
+        suborgano: n,
+        url,
+        status: res.status,
+        content_type: res.headers.get('content-type'),
+        tamano: txt.length,
+        empieza_por: txt.slice(0, 300),
+      });
+    } catch (e) {
+      return NextResponse.json({ modo: 'probar', suborgano: n, url, error: e.message });
+    }
   }
 
   const dry = sp.get('dry') === '1';
