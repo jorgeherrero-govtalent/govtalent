@@ -176,7 +176,8 @@ const ORDEN_CARGOS = [
   [/^president/i, 1],
   [/^vicepresident/i, 2],
   [/^secretari[oa]/i, 3],
-  [/^portavoces adjuntos/i, 5],
+  [/^portavoces? (adjunt|suplent)/i, 5],
+  // Llega como "Portavoces" y como "Portavoces titulares" según el órgano.
   [/^portavoc/i, 4],
   [/^vocales/i, 6],
   [/^adscritos/i, 7],
@@ -339,9 +340,11 @@ export async function GET(request) {
             return {
               nombre: (m.apellidosNombre || m.Nombre || '').trim(),
               cargo,
-              // idCargo da el orden sin depender de expresiones sobre el
-              // texto; el diccionario queda como respaldo.
-              orden_cargo: typeof m.idCargo === 'number' ? m.idCargo : ordenCargo(cargo),
+              // Se usa el diccionario, no idCargo: ese número es el
+              // identificador interno del Congreso, no un orden de peso
+              // (Presidenta llega como 2 y Portavoces titulares como 13).
+              orden_cargo: ordenCargo(cargo),
+              id_cargo: typeof m.idCargo === 'number' ? m.idCargo : null,
               grupo: (m.siglas || m.Grupo || '').trim() || null,
               // El identificador oficial del diputado, mucho más fiable
               // que cruzar por nombre. Viene dentro de la URL de su ficha.
