@@ -155,6 +155,8 @@ export default function RegulatorioPage() {
     ventanas: null,
     procedimientos: null,
     tramitacion: null,
+    esTotal: null,
+    esVivas: null,
   });
 
   useEffect(() => {
@@ -167,22 +169,27 @@ export default function RegulatorioPage() {
         .from('ep_procedures')
         .select('process_id', { count: 'exact', head: true })
         .eq('is_closed', false),
-    ]).then(([exp, ven, proc, tram]) => {
+      supabase.from('es_initiatives').select('num_expediente', { count: 'exact', head: true }),
+      supabase
+        .from('es_initiatives')
+        .select('num_expediente', { count: 'exact', head: true })
+        .eq('is_closed', false),
+    ]).then(([exp, ven, proc, tram, esT, esV]) => {
       setCifras({
         expedientes: exp.count ?? null,
         ventanas: ven.count ?? null,
         procedimientos: proc.count ?? null,
         tramitacion: tram.count ?? null,
+        esTotal: esT.count ?? null,
+        esVivas: esV.count ?? null,
       });
     });
   }, []);
 
-  const enMarcha =
-    cifras.ventanas !== null && cifras.tramitacion !== null ? cifras.ventanas + cifras.tramitacion : null;
-  const total =
-    cifras.expedientes !== null && cifras.procedimientos !== null
-      ? cifras.expedientes + cifras.procedimientos
-      : null;
+  const suma = (...xs) => (xs.every((x) => x !== null) ? xs.reduce((a, b) => a + b, 0) : null);
+  const enMarchaUE = suma(cifras.ventanas, cifras.tramitacion);
+  const enMarcha = suma(cifras.ventanas, cifras.tramitacion, cifras.esVivas);
+  const total = suma(cifras.expedientes, cifras.procedimientos, cifras.esTotal);
 
   const Bloque = ({ children }) => (
     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 10 }}>
@@ -205,7 +212,7 @@ export default function RegulatorioPage() {
         <FlagEU />
         <span style={{ fontSize: 13, fontWeight: 600 }}>Unión Europea</span>
         <div style={{ flex: 1, height: '.5px', background: '#e0dfd8' }}></div>
-        {enMarcha !== null && <span style={{ fontSize: 11, color: '#888' }}>{enMarcha} en marcha</span>}
+        {enMarchaUE !== null && <span style={{ fontSize: 11, color: '#888' }}>{enMarchaUE} en marcha</span>}
       </div>
 
       <div style={{ marginBottom: 24 }}>
@@ -237,13 +244,9 @@ export default function RegulatorioPage() {
 
       <div style={{ display: 'flex', alignItems: 'center', gap: 9, marginBottom: 11 }}>
         <FlagES />
-        <span style={{ fontSize: 13, fontWeight: 600, color: '#888' }}>España</span>
+        <span style={{ fontSize: 13, fontWeight: 600 }}>España</span>
         <div style={{ flex: 1, height: '.5px', background: '#e0dfd8' }}></div>
-        <span
-          style={{ fontSize: 10.5, background: '#f0efe9', color: '#8d8b83', padding: '3px 9px', borderRadius: 10 }}
-        >
-          Próximamente
-        </span>
+        {cifras.esVivas !== null && <span style={{ fontSize: 11, color: '#888' }}>{cifras.esVivas} en trámite</span>}
       </div>
 
       <Bloque>
@@ -253,11 +256,16 @@ export default function RegulatorioPage() {
           fuente="Ministerios"
           descripcion="Consultas y audiencias de los ministerios, con sus plazos y potenciales actores."
         />
-        <SoonCard
+        <ModuloCard
+          href="/congreso"
           icon="building-bank"
-          titulo="Congreso y Senado"
+          titulo="Congreso"
           fuente="Cortes Generales"
-          descripcion="Proyectos de ley con su ponencia, actores y sus enmiendas."
+          descripcion="Proyectos y proposiciones de ley con su ponencia, actores y plazos de enmiendas."
+          cifras={[
+            { n: cifras.esVivas, label: 'en trámite', destacada: true },
+            { n: cifras.esTotal, label: 'total' },
+          ]}
         />
       </Bloque>
     </div>
