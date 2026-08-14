@@ -308,8 +308,27 @@ export async function GET(request) {
     informe.cortado_por_tiempo = cortado;
 
     if (dry) {
+      // Reparto de roles: had_participation no solo trae personas, también
+      // comisiones (COMMITTEE_LEAD). Sin ver el reparto no se sabe si se
+      // están perdiendo ponentes o si son otro tipo de participante.
+      const porRol = {};
+      for (const p of participaciones) {
+        const k = p.role || '(sin rol)';
+        if (!porRol[k]) porRol[k] = { total: 0, con_mep: 0, con_comision: 0 };
+        porRol[k].total += 1;
+        if (p.mep_id) porRol[k].con_mep += 1;
+        if (p.body_code) porRol[k].con_comision += 1;
+      }
+      informe.roles = porRol;
+      informe.sin_mep_ni_comision = participaciones.filter((p) => !p.mep_id && !p.body_code).length;
+      // Los identificadores en crudo de los que no tienen persona: ahí
+      // debería estar el código de comisión que no estoy extrayendo.
+      informe.ids_sin_persona = participaciones
+        .filter((p) => !p.mep_id)
+        .slice(0, 8)
+        .map((p) => ({ id: p.id, rol: p.role }));
       informe.muestra = procedimientos[0] ? { ...procedimientos[0], raw: '[...recortado]' } : null;
-      informe.muestra_participacion = participaciones[0] || null;
+      informe.muestra_participacion_persona = participaciones.find((p) => p.mep_id) || null;
       informe.ms_total = Date.now() - t0;
       return NextResponse.json(informe);
     }
