@@ -56,15 +56,17 @@ function admin() {
 const espera = (ms) => new Promise((r) => setTimeout(r, ms));
 
 function urlComision(suborgano, legislatura = 'XV') {
+  // searchOrgano, no opendataExport: el segundo devuelve HTTP 400.
+  // Verificado en el panel de red, que es lo que usa la propia página.
+  // Tampoco lleva statusOpenData.
   const p = new URLSearchParams({
     p_p_id: 'organos',
     p_p_lifecycle: '2',
     p_p_state: 'normal',
     p_p_mode: 'view',
-    p_p_resource_id: 'opendataExport',
+    p_p_resource_id: 'searchOrgano',
     p_p_cacheability: 'cacheLevelPage',
     _organos_selectedLegislatura: legislatura,
-    _organos_statusOpenData: 'true',
     _organos_selectedOrganoSup: '1',
     _organos_selectedSuborgano: String(suborgano),
   });
