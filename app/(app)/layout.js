@@ -96,11 +96,20 @@ export default function AppLayout({ children }) {
           <Link href="/institutions" className={`ni ${pathname.startsWith('/institutions') ? 'on' : ''}`}>
             <i className="ti ti-building-bank"></i>Instituciones
           </Link>
-          <Link href="/initiatives" className={`ni ${pathname.startsWith('/initiatives') ? 'on' : ''}`}>
-            <i className="ti ti-file-text"></i>Expedientes
-          </Link>
-          <Link href="/procedures" className={`ni ${pathname.startsWith('/procedures') ? 'on' : ''}`}>
-            <i className="ti ti-gavel"></i>Procedimientos
+          {/* Regulatorio sustituye a Expedientes y Procedimientos, que eran
+              dos entradas sueltas. Se marca activo también en sus rutas
+              hijas para que la barra no se apague al entrar en ellas. */}
+          <Link
+            href="/regulatorio"
+            className={`ni ${
+              pathname.startsWith('/regulatorio') ||
+              pathname.startsWith('/initiatives') ||
+              pathname.startsWith('/procedures')
+                ? 'on'
+                : ''
+            }`}
+          >
+            <i className="ti ti-gavel"></i>Regulatorio
           </Link>
           <div className="ni" style={{ cursor: 'default', color: '#bbb' }} title="Próximamente">
             <i className="ti ti-calendar-event"></i>Eventos (Próximamente)
