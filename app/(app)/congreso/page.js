@@ -1,57 +1,13 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { Suspense, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import MultiSelectFilter from '@/components/MultiSelectFilter';
+import { groupColor, grupoCorto } from '@/lib/grupos';
 
 const PAGE_SIZES = [20, 50, 100, 200];
-
-/**
- * Colores de los grupos parlamentarios.
- *
- * Es el único sitio del módulo donde se usa color más allá del morado: un
- * grupo político se reconoce por su color, y en las coaliciones —hasta
- * cinco firmando juntos— es lo que hace legible quién va con quién.
- *
- * Se busca por fragmento porque la denominación oficial varía ("Grupo
- * Parlamentario Popular en el Congreso", "Grupo Parlamentario
- * Plurinacional SUMAR"...). Mismo criterio que en la ficha de diputado.
- */
-const GROUP_COLORS = [
-  [/popular/i, '#1D6FB8'],
-  [/socialista/i, '#D4373F'],
-  [/vox/i, '#5B9E28'],
-  [/sumar/i, '#D6318C'],
-  [/republicano|esquerra/i, '#E0A32E'],
-  [/junts/i, '#12A89D'],
-  [/bildu|euskal herria/i, '#9DB81A'],
-  [/vasco|nacionalista vasco|eaj|pnv/i, '#3F9E52'],
-  [/mixto/i, '#888780'],
-];
-
-export function groupColor(name) {
-  if (!name) return '#b0aea6';
-  const hit = GROUP_COLORS.find(([re]) => re.test(name));
-  return hit ? hit[1] : '#b0aea6';
-}
-
-// "Grupo Parlamentario Plurinacional SUMAR" -> "GP SUMAR"
-export function grupoCorto(name) {
-  if (!name) return '';
-  // Los parlamentos autonómicos vienen con el nombre completo
-  // ("Comunidad Autónoma de Cataluña - Parlamento"), demasiado largo para
-  // una etiqueta. Se deja solo el territorio.
-  const auto = name.match(/^Comunidad(?:\s+Autónoma)?\s+(?:de\s+|del\s+)?(?:las\s+)?(.+?)\s*[-–]/i);
-  if (auto) return `Parlamento de ${auto[1].trim()}`;
-
-  return name
-    .replace(/^Grupo Parlamentario\s*/i, 'GP ')
-    .replace(/\s+en el Congreso$/i, '')
-    .replace(/Plurinacional\s+/i, '')
-    .trim();
-}
 
 function normalize(t) {
   return (t || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
@@ -96,7 +52,20 @@ function FlagES() {
   );
 }
 
+/**
+ * useSearchParams() obliga a envolver el componente en Suspense: sin él,
+ * Next.js no puede prerenderizar la página y la compilación falla con
+ * "Error occurred prerendering page". El wrapper de abajo lo resuelve.
+ */
 export default function CongresoDirectoryPage() {
+  return (
+    <Suspense fallback={<div className="sec" style={{ maxWidth: 1000 }}><div className="spinner"></div></div>}>
+      <CongresoDirectory />
+    </Suspense>
+  );
+}
+
+function CongresoDirectory() {
   const supabase = createClient();
   const searchParams = useSearchParams();
 
