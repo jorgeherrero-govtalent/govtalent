@@ -5,6 +5,7 @@ import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
 import { toast } from '@/lib/toast';
+import BackLink from '@/components/BackLink';
 
 function initials(fullName) {
   const parts = (fullName || '').trim().split(' ');
@@ -275,16 +276,22 @@ export default function GovernmentMemberProfilePage() {
 
   return (
     <div className="sec" style={{ maxWidth: 800 }}>
-      <div style={{ marginBottom: 12, fontSize: 11.5, color: '#999' }}>
-        <Link href="/institutions" style={{ color: '#999', textDecoration: 'none' }}>
-          Instituciones
-        </Link>
-        {' › '}
-        <Link href="/institutions/ministries" style={{ color: '#999', textDecoration: 'none' }}>
-          Ministerios
-        </Link>
-        {' › '}
-        <span style={{ color: '#666' }}>{member.full_name}</span>
+      {/* El atrás va antes de la miga: la miga dice DÓNDE estás, el atrás
+          de dónde VIENES. */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 12, flexWrap: 'wrap' }}>
+        <BackLink fallbackHref="/institutions/ministries" fallbackLabel="Ministerios" />
+        <span style={{ fontSize: 11.5, color: '#ddd' }}>|</span>
+        <span style={{ fontSize: 11.5, color: '#999' }}>
+          <Link href="/institutions" style={{ color: '#999', textDecoration: 'none' }}>
+            Instituciones
+          </Link>
+          {' › '}
+          <Link href="/institutions/ministries" style={{ color: '#999', textDecoration: 'none' }}>
+            Ministerios
+          </Link>
+          {' › '}
+          <span style={{ color: '#666' }}>{member.full_name}</span>
+        </span>
       </div>
 
       <div className="card" style={{ padding: 18 }}>
