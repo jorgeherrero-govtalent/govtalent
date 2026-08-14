@@ -150,14 +150,20 @@ function faseLabel(uri) {
   return l.charAt(0).toUpperCase() + l.slice(1);
 }
 
-// Un procedimiento está cerrado si su fase lo dice. No se deduce de las
-// fechas: un expediente puede pasar años sin actividad y seguir vivo.
-const FASES_CERRADAS = new Set([
+// Un procedimiento está cerrado si entre sus actividades hay firma o
+// publicación en el Diario Oficial.
+//
+// La primera versión miraba current_stage buscando PROCEDURE_COMPLETED y
+// similares. Estaba mal: comprobado sobre 378 procedimientos de 2017 a
+// 2026, current_stage solo toma dos valores, RDG1 y RDG2 — dice en qué
+// lectura va, no si terminó. Daba 0 cerrados, lo cual es imposible.
+const ACTIVIDADES_DE_CIERRE = new Set([
+  'PUBLICATION_OFFICIAL_JOURNAL',
+  'SIGNATURE',
+  'FINAL_ACT_SIGNED',
   'PROCEDURE_COMPLETED',
   'PROCEDURE_LAPSED',
   'PROCEDURE_REJECTED',
-  'PUBLISHED',
-  'SIGNED',
 ]);
 
 function transformarProcedimiento(p) {
@@ -167,10 +173,11 @@ function transformarProcedimiento(p) {
   const titulos = typeof p.process_title === 'object' && p.process_title ? p.process_title : {};
   const titleEn = titulos.en?.trim() || null;
   const titleEs = titulos.es?.trim() || null;
-  const fase = ultimoTramo(p.current_stage);
 
   const actividades = Array.isArray(p.consists_of) ? p.consists_of : [];
   const fechas = actividades.map((a) => a.activity_date).filter(Boolean).sort();
+  const tiposActividad = actividades.map((a) => ultimoTramo(a.had_activity_type)).filter(Boolean);
+  const cerrado = tiposActividad.some((t) => ACTIVIDADES_DE_CIERRE.has(t));
 
   return {
     process_id: processId,
@@ -184,7 +191,7 @@ function transformarProcedimiento(p) {
     current_stage_label: faseLabel(p.current_stage),
     started_at: fechas[0] || null,
     last_activity_at: fechas[fechas.length - 1] || null,
-    is_closed: fase ? FASES_CERRADAS.has(fase) : false,
+    is_closed: cerrado,
     n_events: actividades.length,
     raw: p,
     synced_at: new Date().toISOString(),
