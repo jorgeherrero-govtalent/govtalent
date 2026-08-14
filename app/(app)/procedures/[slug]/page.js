@@ -1,15 +1,51 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
-import { toast } from '@/lib/toast';
-import BackLink from '@/components/BackLink';
-import { GRUPO_COLORES, GRUPO_NOMBRES } from '../page';
+import MultiSelectFilter from '@/components/MultiSelectFilter';
+
+const PAGE_SIZES = [20, 50, 100, 200];
+
+// Colores de los grupos. Los ocho actuales cubren el 99% de las
+// participaciones; ID, GUE-NGL y ENF son de legislaturas anteriores y sí
+// aparecen en procedimientos antiguos, así que llevan color propio en
+// lugar de caer al gris genérico.
+export const GRUPO_COLORES = {
+  PPE: '#378ADD',
+  'S-D': '#E23B3B',
+  RENEW: '#FFD617',
+  'VERTS-ALE': '#3D9E56',
+  ECR: '#4A6FA5',
+  PFE: '#2B4C7E',
+  'THE-LEFT': '#8B1A1A',
+  ESN: '#6B4C9A',
+  ID: '#1B4F72',
+  'GUE-NGL': '#A03030',
+  ENF: '#264653',
+  NI: '#888780',
+};
+
+export const GRUPO_NOMBRES = {
+  PPE: 'Partido Popular Europeo',
+  'S-D': 'Socialistas y Demócratas',
+  RENEW: 'Renew Europe',
+  'VERTS-ALE': 'Verdes / ALE',
+  ECR: 'Conservadores y Reformistas',
+  PFE: 'Patriotas por Europa',
+  'THE-LEFT': 'La Izquierda',
+  ESN: 'Europa de las Naciones Soberanas',
+  ID: 'Identidad y Democracia',
+  'GUE-NGL': 'Izquierda Unitaria Europea',
+  ENF: 'Europa de las Naciones y de las Libertades',
+  NI: 'No inscritos',
+};
 
 const colorGrupo = (g) => GRUPO_COLORES[g] || '#b0aea6';
-const nombreGrupo = (g) => GRUPO_NOMBRES[g] || g;
+
+function normalize(t) {
+  return (t || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+}
 
 const MESES = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
 
@@ -20,642 +56,406 @@ function fechaCorta(iso) {
   return `${d.getDate()} ${MESES[d.getMonth()]} ${d.getFullYear()}`;
 }
 
-function fechaBreve(iso) {
-  if (!iso) return null;
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return null;
-  return `${MESES[d.getMonth()]} ${String(d.getFullYear()).slice(2)}`;
-}
-
-function iniciales(n) {
-  return (n || '').split(' ').filter(Boolean).map((x) => x[0]).slice(0, 2).join('').toUpperCase();
-}
-
-const CARD = { background: '#fff', border: '.5px solid #e0dfd8', borderRadius: 12, padding: 18 };
-const LABEL = { fontSize: 10.5, fontWeight: 700, color: '#999', textTransform: 'uppercase', letterSpacing: '.3px', marginBottom: 12 };
-
-// Los seis hitos que resumen el ciclo legislativo. Se eligen de entre los
-// 16 tipos de actividad porque son los que marcan un cambio de fase real;
-// el resto son actuaciones intermedias que se ven en la lista completa.
-const HITOS = [
-  { tipos: ['REFERRAL'], label: 'Remisión', icon: 'file-text' },
-  { tipos: ['COMMITTEE_ADOPTING_REPORT', 'COMMITTEE_TABLING_REPORT'], label: 'Informe', icon: 'users' },
-  { tipos: ['PLENARY_VOTE', 'PLENARY_VOTE_RESULTS'], label: 'Pleno', icon: 'checkbox' },
-  {
-    tipos: ['PLENARY_REFER_COMMITTEE_INTERINSTITUTIONAL_NEGOTIATIONS', 'COMMITTEE_APPROVE_PROVISIONAL_AGREEMENT'],
-    label: 'Trílogo',
-    icon: 'arrows-shuffle',
-  },
-  { tipos: ['SIGNATURE'], label: 'Firma', icon: 'writing-sign' },
-  { tipos: ['PUBLICATION_OFFICIAL_JOURNAL'], label: 'DOUE', icon: 'news' },
-];
-
-function CircleButton({ icon, label, onClick, active, disabled, title }) {
-  const [hover, setHover] = useState(false);
-  const on = active || (hover && !disabled);
+function FlagEU() {
   return (
-    <button
-      type="button"
-      aria-label={label}
-      title={title || label}
-      aria-disabled={disabled ? 'true' : undefined}
-      onClick={disabled ? undefined : onClick}
-      onMouseEnter={() => setHover(true)}
-      onMouseLeave={() => setHover(false)}
+    <span
+      role="img"
+      aria-label="Bandera de la Unión Europea"
       style={{
-        width: 32,
-        height: 32,
-        borderRadius: '50%',
-        border: `.5px solid ${on ? '#6d5aef' : '#e0dfd8'}`,
-        background: on ? '#EEEDFE' : '#fff',
-        color: disabled ? '#ccc' : on ? '#6d5aef' : '#888',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        cursor: disabled ? 'not-allowed' : 'pointer',
-        transition: 'all .15s ease',
-        padding: 0,
+        width: 20,
+        height: 14,
+        borderRadius: 3,
+        background: '#003399',
         flexShrink: 0,
+        border: '.5px solid rgba(0,0,0,.12)',
       }}
     >
-      <i className={`ti ti-${icon}`} style={{ fontSize: 15 }} aria-hidden="true"></i>
-    </button>
+      <span style={{ display: 'block', width: 8, height: 8, borderRadius: '50%', border: '1.5px solid #FFCC00' }} />
+    </span>
   );
 }
 
-function Avatar({ nombre, url, size = 28 }) {
-  const [falla, setFalla] = useState(false);
-  const base = { width: size, height: size, borderRadius: '50%', flexShrink: 0, objectFit: 'cover', background: '#ece9e2' };
-  if (url && !falla) {
-    return <img src={url} alt="" width={size} height={size} style={base} onError={() => setFalla(true)} />;
-  }
-  return (
-    <div
-      style={{
-        ...base,
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        color: '#8d8b83',
-        fontSize: Math.round(size * 0.33),
-        fontWeight: 700,
-      }}
-      aria-hidden="true"
-    >
-      {iniciales(nombre)}
-    </div>
-  );
-}
-
-/**
- * Reparto de ponentes por grupo, en semicírculo.
- *
- * Los arcos se calculan proporcionalmente sobre 180 grados. No hay orden
- * ideológico: se ordenan por tamaño, porque situar los grupos en un eje
- * izquierda-derecha sería una interpretación nuestra y no un dato.
- */
-function SemiCirculo({ reparto, total }) {
-  const arcos = useMemo(() => {
-    if (!reparto?.length || !total) return [];
-    const R = 125;
-    const cx = 150;
-    const cy = 140;
-    let ang = 180;
-    return reparto.map((g) => {
-      const barrido = (g.n / total) * 180;
-      const a1 = (ang * Math.PI) / 180;
-      const a2 = ((ang - barrido) * Math.PI) / 180;
-      const x1 = cx + R * Math.cos(a1);
-      const y1 = cy - R * Math.sin(a1);
-      const x2 = cx + R * Math.cos(a2);
-      const y2 = cy - R * Math.sin(a2);
-      ang -= barrido;
-      return { ...g, d: `M ${x1.toFixed(1)} ${y1.toFixed(1)} A ${R} ${R} 0 0 1 ${x2.toFixed(1)} ${y2.toFixed(1)}` };
-    });
-  }, [reparto, total]);
-
-  if (arcos.length === 0) return null;
-
-  return (
-    <div style={{ display: 'flex', justifyContent: 'center', margin: '2px 0 12px' }}>
-      <svg
-        viewBox="0 0 300 160"
-        style={{ width: '100%', maxWidth: 270, height: 'auto' }}
-        role="img"
-        aria-label={`Reparto de ${total} ponentes por grupo político`}
-      >
-        <title>Reparto por grupo</title>
-        <g fill="none" strokeWidth="24">
-          {arcos.map((a) => (
-            <path key={a.grupo} d={a.d} stroke={colorGrupo(a.grupo)}>
-              <title>{`${nombreGrupo(a.grupo)}: ${a.n}`}</title>
-            </path>
-          ))}
-        </g>
-        <text x="150" y="122" textAnchor="middle" fontSize="28" fontWeight="500" fill="#1a1a1a">
-          {total}
-        </text>
-        <text x="150" y="140" textAnchor="middle" fontSize="10.5" fill="#999">
-          ponentes
-        </text>
-      </svg>
-    </div>
-  );
-}
-
-export default function ProcedureDetailPage() {
+export default function ProceduresDirectoryPage() {
   const supabase = createClient();
-  const { slug } = useParams();
 
-  const [item, setItem] = useState(undefined);
-  const [people, setPeople] = useState([]);
-  const [committees, setCommittees] = useState([]);
-  const [events, setEvents] = useState([]);
-  const [userId, setUserId] = useState(null);
-  const [saved, setSaved] = useState(false);
-  const [tab, setTab] = useState('recorrido');
-  const [verTodos, setVerTodos] = useState(false);
+  const [items, setItems] = useState(null);
+  const [search, setSearch] = useState('');
+  const [comisionFilter, setComisionFilter] = useState(new Set());
+  const [anoFilter, setAnoFilter] = useState(new Set());
+  const [soloVivos, setSoloVivos] = useState(true);
   const [soloEspanoles, setSoloEspanoles] = useState(false);
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(20);
 
   useEffect(() => {
-    if (!slug) return;
-    let cancelled = false;
-
-    (async () => {
-      const { data } = await supabase
-        .from('ep_procedures_directory')
-        .select('*')
-        .eq('slug', slug)
-        .limit(1)
-        .maybeSingle();
-
-      if (cancelled) return;
-      if (!data) {
-        setItem(null);
-        return;
-      }
-      setItem(data);
-
-      const [{ data: pe }, { data: co }, { data: ev }, { data: auth }] = await Promise.all([
-        supabase
-          .from('ep_procedure_people')
-          .select('*')
-          .eq('process_id', data.process_id)
-          .order('orden_rol')
-          .order('full_name'),
-        supabase
-          .from('ep_procedure_committees')
-          .select('*')
-          .eq('process_id', data.process_id)
-          .order('bloque')
-          .order('body_code'),
-        supabase
-          .from('ep_procedure_timeline')
-          .select('*')
-          .eq('process_id', data.process_id)
-          .order('activity_date', { ascending: false }),
-        supabase.auth.getUser(),
-      ]);
-
-      if (cancelled) return;
-      setPeople(pe || []);
-      setCommittees(co || []);
-      setEvents(ev || []);
-
-      const uid = auth?.user?.id || null;
-      setUserId(uid);
-      if (uid) {
-        const { data: s } = await supabase
-          .from('saved_ep_procedures')
-          .select('id')
-          .eq('user_id', uid)
-          .eq('process_id', data.process_id)
-          .limit(1)
-          .maybeSingle();
-        if (!cancelled) setSaved(!!s);
-      }
-    })();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [slug]);
-
-  // Para cada hito se busca la actividad más reciente de ese tipo. Si no
-  // hay ninguna, el hito aparece apagado: el procedimiento aún no ha
-  // llegado ahí.
-  const hitos = useMemo(() => {
-    return HITOS.map((h) => {
-      const encontrados = events.filter((e) => h.tipos.includes(e.activity_type));
-      const ultimo = encontrados.sort((a, b) => String(b.activity_date || '').localeCompare(String(a.activity_date || '')))[0];
-      return { ...h, fecha: ultimo?.activity_date || null, hecho: !!ultimo };
-    });
-  }, [events]);
-
-  const porGrupo = useMemo(() => {
-    const mapa = new Map();
-    for (const p of people) {
-      const g = p.political_group || 'NI';
-      if (!mapa.has(g)) mapa.set(g, []);
-      mapa.get(g).push(p);
-    }
-    return [...mapa.entries()]
-      .map(([grupo, lista]) => ({
-        grupo,
-        lista,
-        // El grupo que lleva el informe se destaca: es quien redacta.
-        llevaInforme: lista.some((p) => p.orden_rol === 1),
-        espanoles: lista.filter((p) => p.country_code === 'ES').length,
-      }))
-      .sort((a, b) => {
-        if (a.llevaInforme !== b.llevaInforme) return a.llevaInforme ? -1 : 1;
-        return b.lista.length - a.lista.length;
-      });
-  }, [people]);
-
-  const gruposVisibles = verTodos ? porGrupo : porGrupo.slice(0, 3);
-
-  const bloquesComision = useMemo(() => {
-    const mapa = new Map();
-    for (const c of committees) {
-      if (!mapa.has(c.bloque)) mapa.set(c.bloque, { label: c.bloque_label, lista: [] });
-      mapa.get(c.bloque).lista.push(c);
-    }
-    return [...mapa.entries()].sort((a, b) => a[0] - b[0]).map(([bloque, v]) => ({ bloque, ...v }));
-  }, [committees]);
-
-  const pestanas = useMemo(
-    () => [
-      { id: 'recorrido', label: `Recorrido${events.length ? ` (${events.length})` : ''}`, activa: events.length > 0 },
-      { id: 'actores', label: `Actores${people.length ? ` (${people.length})` : ''}`, activa: people.length > 0 },
-      { id: 'comisiones', label: `Comisiones${committees.length ? ` (${committees.length})` : ''}`, activa: committees.length > 0 },
-      { id: 'resumen', label: 'Resumen', activa: false },
-      { id: 'votaciones', label: 'Votaciones', activa: false },
-    ],
-    [events, people, committees]
-  );
+    const saved = parseInt(window.localStorage.getItem('gt_page_size') || '20', 10);
+    if (PAGE_SIZES.includes(saved)) setPageSize(saved);
+  }, []);
 
   useEffect(() => {
-    const actual = pestanas.find((p) => p.id === tab);
-    if (actual && !actual.activa) {
-      const primera = pestanas.find((p) => p.activa);
-      if (primera) setTab(primera.id);
-    }
-  }, [pestanas, tab]);
+    supabase
+      .from('ep_procedures_directory')
+      .select('*')
+      .order('last_activity_at', { ascending: false, nullsFirst: false })
+      .then(({ data }) => setItems(data || []));
+  }, []);
 
-  async function toggleSave() {
-    if (!userId) {
-      toast('Inicia sesión para guardar procedimientos');
-      return;
-    }
-    if (saved) {
-      setSaved(false);
-      const { error } = await supabase
-        .from('saved_ep_procedures')
-        .delete()
-        .eq('user_id', userId)
-        .eq('process_id', item.process_id);
-      if (error) setSaved(true);
-      else toast('Eliminado de guardados');
-    } else {
-      setSaved(true);
-      const { error } = await supabase
-        .from('saved_ep_procedures')
-        .insert({ user_id: userId, process_id: item.process_id });
-      if (error) setSaved(false);
-      else toast('Procedimiento guardado ✓');
-    }
+  function changePageSize(n) {
+    setPageSize(n);
+    setPage(1);
+    try {
+      window.localStorage.setItem('gt_page_size', String(n));
+    } catch {}
   }
 
-  if (item === undefined) {
-    return (
-      <div className="sec" style={{ maxWidth: 900 }}>
-        <div className="spinner"></div>
+  const comisionOptions = useMemo(() => {
+    const cuenta = new Map();
+    for (const i of items || []) {
+      for (const c of (i.comision_competente || '').split(',').map((x) => x.trim()).filter(Boolean)) {
+        cuenta.set(c, (cuenta.get(c) || 0) + 1);
+      }
+    }
+    return [...cuenta.entries()]
+      .sort((a, b) => b[1] - a[1])
+      .map(([code, n]) => ({ value: code, label: `${code} (${n})` }));
+  }, [items]);
+
+  const anoOptions = useMemo(() => {
+    const anos = [...new Set((items || []).map((i) => i.year).filter(Boolean))];
+    return anos.sort((a, b) => b - a).map((a) => ({ value: a, label: String(a) }));
+  }, [items]);
+
+  const filtered = useMemo(() => {
+    let l = items || [];
+    if (soloVivos) l = l.filter((i) => !i.is_closed);
+    if (soloEspanoles) l = l.filter((i) => i.n_espanoles > 0);
+    if (search) {
+      const q = normalize(search);
+      l = l.filter((i) => normalize(i.title).includes(q) || normalize(i.label).includes(q));
+    }
+    if (comisionFilter.size > 0) {
+      l = l.filter((i) =>
+        (i.comision_competente || '')
+          .split(',')
+          .map((x) => x.trim())
+          .some((c) => comisionFilter.has(c))
+      );
+    }
+    if (anoFilter.size > 0) l = l.filter((i) => anoFilter.has(i.year));
+    return l;
+  }, [items, search, comisionFilter, anoFilter, soloVivos, soloEspanoles]);
+
+  useEffect(() => {
+    setPage(1);
+  }, [search, comisionFilter, anoFilter, soloVivos, soloEspanoles]);
+
+  const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
+  const current = Math.min(page, totalPages);
+  const slice = filtered.slice((current - 1) * pageSize, current * pageSize);
+  const from = filtered.length === 0 ? 0 : (current - 1) * pageSize + 1;
+  const to = Math.min(current * pageSize, filtered.length);
+
+  const pageNumbers = useMemo(() => {
+    if (totalPages <= 5) return Array.from({ length: totalPages }, (_, i) => i + 1);
+    if (current <= 3) return [1, 2, 3, '…', totalPages];
+    if (current >= totalPages - 2) return [1, '…', totalPages - 2, totalPages - 1, totalPages];
+    return [1, '…', current, '…', totalPages];
+  }, [current, totalPages]);
+
+  const vivos = (items || []).filter((i) => !i.is_closed).length;
+  const activeCount = comisionFilter.size + anoFilter.size;
+  // El título de un procedimiento puede ocupar cinco líneas, así que la
+  // columna necesita separación real de la siguiente: con gap 8 el texto
+  // quedaba pegado a la comisión.
+  const GRID = '2.2fr 0.8fr 1.1fr 24px';
+  const GRID_GAP = 22;
+
+  return (
+    <div className="sec" style={{ maxWidth: 1080 }}>
+      <div style={{ fontSize: 11.5, color: '#999', marginBottom: 10 }}>
+        <Link href="/regulatorio" style={{ color: '#999', textDecoration: 'none' }}>
+          Regulatorio
+        </Link>
+        {' › '}
+        <span style={{ color: '#666' }}>Procedimientos</span>
       </div>
-    );
-  }
 
-  if (item === null) {
-    return (
-      <div className="sec" style={{ maxWidth: 900 }}>
+      <div style={{ marginBottom: 14 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 9, marginBottom: 3 }}>
+          <FlagEU />
+          <h1 style={{ fontSize: 18, fontWeight: 700, margin: 0 }}>Procedimientos legislativos</h1>
+        </div>
+        <p style={{ fontSize: 12, color: '#888', margin: 0 }}>
+          {items ? `${items.length} procedimientos del Parlamento Europeo · ${vivos} en tramitación` : '—'}
+        </p>
+      </div>
+
+      <div style={{ display: 'flex', gap: 8, marginBottom: 12, flexWrap: 'wrap' }}>
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 8,
+            background: '#fff',
+            border: '.5px solid #e0dfd8',
+            borderRadius: 20,
+            padding: '7px 14px',
+            flex: '1 1 190px',
+          }}
+        >
+          <i className="ti ti-search" style={{ color: '#999', fontSize: 14 }}></i>
+          <input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Buscar por título o referencia..."
+            aria-label="Buscar procedimiento"
+            style={{ border: 'none', outline: 'none', background: 'transparent', fontSize: 12.5, width: '100%' }}
+          />
+        </div>
+
+        <span
+          onClick={() => setSoloVivos((v) => !v)}
+          style={{
+            background: soloVivos ? '#EEEDFE' : '#fff',
+            border: `.5px solid ${soloVivos ? '#6d5aef' : '#e0dfd8'}`,
+            color: soloVivos ? '#3C3489' : '#555',
+            borderRadius: 20,
+            padding: '7px 12px',
+            fontSize: 12,
+            cursor: 'pointer',
+            whiteSpace: 'nowrap',
+          }}
+        >
+          En tramitación {soloVivos && <i className="ti ti-x" style={{ fontSize: 11 }}></i>}
+        </span>
+
+        <span
+          onClick={() => setSoloEspanoles((v) => !v)}
+          style={{
+            background: soloEspanoles ? '#e8f4f0' : '#fff',
+            border: `.5px solid ${soloEspanoles ? '#1d6f5c' : '#e0dfd8'}`,
+            color: soloEspanoles ? '#1d6f5c' : '#555',
+            borderRadius: 20,
+            padding: '7px 12px',
+            fontSize: 12,
+            cursor: 'pointer',
+            whiteSpace: 'nowrap',
+          }}
+        >
+          Con españoles {soloEspanoles && <i className="ti ti-x" style={{ fontSize: 11 }}></i>}
+        </span>
+
+        <MultiSelectFilter
+          label="Comisión"
+          values={comisionOptions}
+          selected={comisionFilter}
+          onApply={setComisionFilter}
+        />
+        <MultiSelectFilter label="Año" values={anoOptions} selected={anoFilter} onApply={setAnoFilter} />
+      </div>
+
+      {activeCount > 0 && (
+        <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap', marginBottom: 12 }}>
+          {[...comisionFilter].map((v) => (
+            <span key={`c${v}`} style={{ fontSize: 11, background: '#f0efe9', color: '#666', padding: '3px 10px', borderRadius: 14 }}>
+              {v}
+            </span>
+          ))}
+          {[...anoFilter].map((v) => (
+            <span key={`a${v}`} style={{ fontSize: 11, background: '#f0efe9', color: '#666', padding: '3px 10px', borderRadius: 14 }}>
+              {v}
+            </span>
+          ))}
+          <span style={{ fontSize: 11, color: '#888' }}>{filtered.length} resultados</span>
+          <span
+            onClick={() => {
+              setComisionFilter(new Set());
+              setAnoFilter(new Set());
+            }}
+            style={{ fontSize: 11, color: '#999', textDecoration: 'underline', cursor: 'pointer' }}
+          >
+            Limpiar filtros
+          </span>
+        </div>
+      )}
+
+      {items === null ? (
+        <div className="spinner"></div>
+      ) : filtered.length === 0 ? (
         <div className="card">
           <div className="empty-state">
             <i className="ti ti-file-off"></i>
-            No se ha encontrado este procedimiento.
+            No hay procedimientos con estos filtros.
           </div>
         </div>
-        <BackLink fallbackHref="/procedures" fallbackLabel="Volver a Procedimientos" />
-      </div>
-    );
-  }
-
-  return (
-    <div className="sec" style={{ maxWidth: 900 }}>
-      {/* El atrás va antes de la miga de pan: la miga dice DÓNDE estás,
-          el atrás dice de dónde VIENES, y con cuatro caminos posibles a la
-          misma ficha esa distinción importa. */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 10, flexWrap: 'wrap' }}>
-        <BackLink fallbackHref="/procedures" fallbackLabel="Procedimientos" />
-        <span style={{ fontSize: 11.5, color: '#ddd' }}>|</span>
-        <span style={{ fontSize: 11.5, color: '#999' }}>
-          <Link href="/procedures" style={{ color: '#999', textDecoration: 'none' }}>
-            Procedimientos
-          </Link>
-          {' › '}
-          <span style={{ color: '#666' }}>{item.label}</span>
-        </span>
-      </div>
-
-      <div style={{ ...CARD, padding: 16, marginBottom: 12 }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'flex-start', marginBottom: 13 }}>
-          <div style={{ minWidth: 0 }}>
-            <h1 style={{ fontSize: 16, fontWeight: 700, margin: 0, lineHeight: 1.35 }}>{item.title}</h1>
-            <div style={{ fontSize: 11.5, color: '#666', marginTop: 5 }}>
-              Procedimiento legislativo ordinario · Parlamento Europeo
-              {item.comision_competente && ` · ${item.comision_competente}`}
-            </div>
-          </div>
-          <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
-            <CircleButton icon="bell" label="Seguir en Radar" title="Seguir en Radar · próximamente" disabled />
-            {userId && (
-              <CircleButton
-                icon={saved ? 'bookmark-filled' : 'bookmark'}
-                label={saved ? 'Quitar de guardados' : 'Guardar procedimiento'}
-                active={saved}
-                onClick={toggleSave}
-              />
-            )}
-          </div>
-        </div>
-
-        <div
-          style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))',
-            gap: 14,
-            paddingTop: 14,
-            borderTop: '.5px solid #f0f0eb',
-            alignItems: 'start',
-          }}
-        >
-          <div>
-            <div style={{ fontSize: 10, color: '#999', marginBottom: 3 }}>Estado</div>
-            <div style={{ fontSize: 13, fontWeight: 600, color: item.is_closed ? '#0F6E56' : '#3C3489', lineHeight: 1.3 }}>
-              {item.is_closed ? 'Concluido' : item.current_stage_label || 'En tramitación'}
-            </div>
-          </div>
-          <div>
-            <div style={{ fontSize: 10, color: '#999', marginBottom: 3 }}>Referencia</div>
-            <div style={{ fontSize: 13, fontWeight: 600 }}>{item.label}</div>
-          </div>
-          <div style={{ minWidth: 0 }}>
-            <div style={{ fontSize: 10, color: '#999', marginBottom: 3 }}>Ponente</div>
-            <div style={{ fontSize: 13, fontWeight: 600, lineHeight: 1.3 }}>
-              {item.ponente || '—'}
-              {item.ponente_grupo && (
-                <span style={{ fontSize: 10.5, color: '#aaa', fontWeight: 400 }}> · {item.ponente_grupo}</span>
-              )}
-            </div>
-          </div>
-          <div>
-            <div style={{ fontSize: 10, color: '#999', marginBottom: 3 }}>Españoles</div>
-            <div style={{ fontSize: 13, fontWeight: 600 }}>
-              {item.n_espanoles} de {item.n_ponentes}
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div style={{ display: 'flex', gap: 16, borderBottom: '.5px solid #e0dfd8', marginBottom: 14, overflowX: 'auto' }}>
-        {pestanas.map((p) => (
-          <button
-            key={p.id}
-            type="button"
-            onClick={p.activa ? () => setTab(p.id) : undefined}
-            aria-disabled={!p.activa ? 'true' : undefined}
-            title={!p.activa ? 'Sin datos para este procedimiento' : undefined}
+      ) : (
+        <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
+          <div
             style={{
-              fontSize: 12.5,
-              fontWeight: tab === p.id ? 600 : 400,
-              color: !p.activa ? '#ccc' : tab === p.id ? '#6d5aef' : '#999',
-              border: 'none',
-              borderBottom: `2px solid ${tab === p.id && p.activa ? '#6d5aef' : 'transparent'}`,
-              background: 'none',
-              padding: '0 0 8px',
-              cursor: p.activa ? 'pointer' : 'not-allowed',
-              whiteSpace: 'nowrap',
+              display: 'grid',
+              gridTemplateColumns: GRID,
+              gap: GRID_GAP,
+              padding: '10px 16px',
+              borderBottom: '.5px solid #f0f0eb',
+              fontSize: 10.5,
+              fontWeight: 700,
+              color: '#999',
+              textTransform: 'uppercase',
             }}
           >
-            {p.label}
-          </button>
-        ))}
-      </div>
+            <div>Procedimiento</div>
+            <div>Comisión</div>
+            <div>Ponente</div>
+            <div></div>
+          </div>
 
-      {tab === 'recorrido' && (
-        <div style={CARD}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 3, overflowX: 'auto', paddingBottom: 4, marginBottom: 16 }}>
-            {hitos.map((h, i) => (
-              <div key={h.label} style={{ display: 'contents' }}>
-                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', minWidth: 56, flex: 1 }}>
-                  <div
-                    style={{
-                      width: 28,
-                      height: 28,
-                      borderRadius: '50%',
-                      background: h.hecho ? (i === hitos.length - 1 ? '#0F6E56' : '#E1F5EE') : '#f0efe9',
-                      color: h.hecho ? (i === hitos.length - 1 ? '#fff' : '#0F6E56') : '#c5c3bb',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                    }}
-                  >
-                    <i className={`ti ti-${h.icon}`} style={{ fontSize: 14 }} aria-hidden="true"></i>
-                  </div>
-                  <div style={{ fontSize: 9.5, marginTop: 6, textAlign: 'center', color: h.hecho ? '#1a1a1a' : '#bbb' }}>
-                    {h.label}
-                  </div>
-                  <div style={{ fontSize: 9, color: h.hecho ? '#aaa' : '#ccc' }}>{fechaBreve(h.fecha) || '—'}</div>
+          {slice.map((p) => (
+            <Link
+              key={p.process_id}
+              href={`/procedures/${p.slug}`}
+              style={{
+                display: 'grid',
+                gridTemplateColumns: GRID,
+                gap: GRID_GAP,
+                padding: '13px 16px',
+                borderBottom: '.5px solid #f0f0eb',
+                // Alineado arriba, no al centro: con títulos de cinco
+                // líneas la comisión quedaba flotando en mitad de la fila.
+                alignItems: 'start',
+                textDecoration: 'none',
+                color: 'inherit',
+              }}
+            >
+              <div style={{ minWidth: 0 }}>
+                <div style={{ fontSize: 12.5, fontWeight: 600, lineHeight: 1.4 }}>{p.title}</div>
+                <div style={{ display: 'flex', gap: 7, alignItems: 'center', marginTop: 4, flexWrap: 'wrap' }}>
+                  <span style={{ fontSize: 10.5, color: '#999' }}>{p.label}</span>
+                  {!p.is_closed ? (
+                    <span style={{ fontSize: 10, background: '#EEEDFE', color: '#3C3489', padding: '2px 7px', borderRadius: 9 }}>
+                      {p.current_stage_label || 'En tramitación'}
+                    </span>
+                  ) : (
+                    <span style={{ fontSize: 10, background: '#E1F5EE', color: '#0F6E56', padding: '2px 7px', borderRadius: 9 }}>
+                      Concluido
+                    </span>
+                  )}
+                  {p.n_espanoles > 0 && (
+                    <span style={{ fontSize: 10, color: '#6d5aef' }}>{p.n_espanoles} españoles</span>
+                  )}
                 </div>
-                {i < hitos.length - 1 && (
-                  <div style={{ height: 1.5, background: hitos[i + 1].hecho ? '#c9e5da' : '#eeede7', flex: 1, marginTop: 14, minWidth: 8 }}></div>
+              </div>
+
+              <div style={{ fontSize: 11.5, color: '#666', paddingTop: 1 }}>{p.comision_competente || '—'}</div>
+
+              <div style={{ minWidth: 0, paddingTop: 1 }}>
+                {p.ponente ? (
+                  <>
+                    <div style={{ fontSize: 11.5, color: '#555' }}>{p.ponente}</div>
+                    {p.ponente_grupo && (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginTop: 2 }}>
+                        <span
+                          style={{
+                            width: 8,
+                            height: 8,
+                            borderRadius: 2,
+                            background: colorGrupo(p.ponente_grupo),
+                            flexShrink: 0,
+                          }}
+                        ></span>
+                        <span style={{ fontSize: 10, color: '#999' }}>{p.ponente_grupo}</span>
+                      </div>
+                    )}
+                  </>
+                ) : (
+                  <span style={{ fontSize: 11.5, color: '#bbb' }}>Sin ponente asignado</span>
                 )}
               </div>
-            ))}
-          </div>
 
-          <div style={{ borderTop: '.5px solid #f0f0eb', paddingTop: 14 }}>
-            <div style={LABEL}>Actuaciones</div>
-            {events.slice(0, verTodos ? events.length : 6).map((e) => (
-              <div
-                key={e.id}
-                style={{
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  gap: 10,
-                  padding: '7px 0',
-                  borderBottom: '.5px solid #f0f0eb',
-                }}
-              >
-                <span style={{ fontSize: 11.5, minWidth: 0 }}>{e.activity_label}</span>
-                <span style={{ fontSize: 10.5, color: '#aaa', flexShrink: 0 }}>{fechaCorta(e.activity_date) || '—'}</span>
-              </div>
-            ))}
-            {events.length > 6 && (
-              <button
-                type="button"
-                onClick={() => setVerTodos((v) => !v)}
-                style={{ fontSize: 11.5, color: '#6d5aef', background: 'none', border: 'none', padding: '11px 0 0', cursor: 'pointer' }}
-              >
-                {verTodos ? 'Ver solo las últimas' : `Ver las ${events.length} actuaciones`}
-              </button>
-            )}
-          </div>
-        </div>
-      )}
+              <i className="ti ti-chevron-right" style={{ color: '#ccc', fontSize: 14, marginTop: 2 }}></i>
+            </Link>
+          ))}
 
-      {tab === 'actores' && (
-        <div style={CARD}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4, flexWrap: 'wrap', gap: 8 }}>
-            <span style={LABEL}>Reparto por grupo</span>
-            {item.n_espanoles > 0 && (
-              <button
-                type="button"
-                onClick={() => setSoloEspanoles((v) => !v)}
-                style={{
-                  fontSize: 11,
-                  color: soloEspanoles ? '#fff' : '#6d5aef',
-                  background: soloEspanoles ? '#6d5aef' : 'none',
-                  border: `.5px solid ${soloEspanoles ? '#6d5aef' : 'transparent'}`,
-                  borderRadius: 20,
-                  padding: '4px 11px',
-                  cursor: 'pointer',
-                }}
-              >
-                {item.n_espanoles} españoles de {item.n_ponentes}
-              </button>
-            )}
-          </div>
-
-          <SemiCirculo reparto={item.reparto_grupos} total={item.n_ponentes} />
-
-          <div style={{ display: 'flex', gap: 9, flexWrap: 'wrap', justifyContent: 'center', marginBottom: 15 }}>
-            {(item.reparto_grupos || []).map((g) => (
-              <span key={g.grupo} style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 10.5, color: '#666' }}>
-                <span style={{ width: 9, height: 9, borderRadius: 2, background: colorGrupo(g.grupo) }}></span>
-                {g.grupo} {g.n}
-              </span>
-            ))}
-          </div>
-
-          <div style={{ borderTop: '.5px solid #f0f0eb', paddingTop: 14 }}>
-            {gruposVisibles.map((g) => {
-              const lista = soloEspanoles ? g.lista.filter((p) => p.country_code === 'ES') : g.lista;
-              if (lista.length === 0) return null;
-              return (
-                <div key={g.grupo} style={{ marginBottom: 14 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 7, flexWrap: 'wrap' }}>
-                    <span style={{ width: 9, height: 9, borderRadius: 2, background: colorGrupo(g.grupo), flexShrink: 0 }}></span>
-                    <span style={{ fontSize: 12, fontWeight: 600 }}>{g.grupo}</span>
-                    {g.llevaInforme && (
-                      <span style={{ fontSize: 9.5, background: '#EEEDFE', color: '#3C3489', padding: '2px 7px', borderRadius: 9 }}>
-                        Lleva el informe
-                      </span>
-                    )}
-                  </div>
-                  {lista.map((p) => (
-                    <Link
-                      key={p.mep_id}
-                      href={`/institutions/eu-parliament/${p.slug}`}
-                      style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: 9,
-                        padding: '8px 0',
-                        borderBottom: '.5px solid #f0f0eb',
-                        textDecoration: 'none',
-                        color: 'inherit',
-                      }}
-                    >
-                      <Avatar nombre={p.full_name} url={p.photo_url} />
-                      <span style={{ flex: 1, fontSize: 11.5, minWidth: 0 }}>
-                        {p.full_name}
-                        {p.country_code === 'ES' && (
-                          <span style={{ fontSize: 9, background: '#EEEDFE', color: '#3C3489', padding: '1px 6px', borderRadius: 8, marginLeft: 6 }}>
-                            ES
-                          </span>
-                        )}
-                      </span>
-                      <span style={{ fontSize: 10, color: '#999', flexShrink: 0, textAlign: 'right' }}>
-                        {p.role_label}
-                        {p.comisiones && ` · ${p.comisiones}`}
-                      </span>
-                      <i className="ti ti-chevron-right" style={{ color: '#ccc', fontSize: 14, flexShrink: 0 }}></i>
-                    </Link>
-                  ))}
-                </div>
-              );
-            })}
-
-            {porGrupo.length > 3 && (
-              <button
-                type="button"
-                onClick={() => setVerTodos((v) => !v)}
-                style={{ fontSize: 11.5, color: '#6d5aef', background: 'none', border: 'none', padding: '2px 0 0', cursor: 'pointer' }}
-              >
-                {verTodos ? 'Ver menos grupos' : `Ver los ${porGrupo.length - 3} grupos restantes`}
-              </button>
-            )}
-          </div>
-        </div>
-      )}
-
-      {tab === 'comisiones' && (
-        <div style={CARD}>
-          {bloquesComision.map((b) => (
-            <div key={b.bloque} style={{ marginBottom: 16 }}>
-              <div style={LABEL}>{b.label}</div>
-              {b.lista.map((c, i) => (
-                <div
-                  key={`${c.body_code}-${c.role}-${i}`}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 10,
-                    padding: '9px 0',
-                    borderBottom: '.5px solid #f0f0eb',
-                  }}
-                >
-                  <div
+          <div
+            style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              padding: '11px 14px',
+              background: '#fcfbf8',
+              flexWrap: 'wrap',
+              gap: 10,
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: 9 }}>
+              <span style={{ fontSize: 11.5, color: '#888' }}>Filas</span>
+              <div style={{ display: 'flex', gap: 2, background: '#fff', border: '.5px solid #e0dfd8', borderRadius: 7, padding: 2 }}>
+                {PAGE_SIZES.map((n) => (
+                  <span
+                    key={n}
+                    onClick={() => changePageSize(n)}
                     style={{
-                      width: 34,
-                      height: 34,
-                      borderRadius: 8,
-                      background: c.bloque === 1 ? '#EEEDFE' : '#f0efe9',
-                      color: c.bloque === 1 ? '#3C3489' : '#8d8b83',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      fontSize: c.body_code.length > 4 ? 8.5 : 9.5,
-                      fontWeight: 700,
-                      flexShrink: 0,
+                      fontSize: 11,
+                      padding: '3px 8px',
+                      borderRadius: 5,
+                      cursor: 'pointer',
+                      background: pageSize === n ? '#6d5aef' : 'transparent',
+                      color: pageSize === n ? '#fff' : '#666',
                     }}
                   >
-                    {c.body_code}
-                  </div>
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontSize: 12.5, fontWeight: 600 }}>{c.body_name}</div>
-                    <div style={{ fontSize: 10.5, color: '#999', marginTop: 1 }}>{c.role_label}</div>
-                  </div>
-                </div>
-              ))}
+                    {n}
+                  </span>
+                ))}
+              </div>
+              <span style={{ fontSize: 11.5, color: '#888' }}>
+                {from}–{to} de {filtered.length}
+              </span>
             </div>
-          ))}
+
+            <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+              <span
+                onClick={() => setPage(Math.max(1, current - 1))}
+                style={{ border: '.5px solid #e0dfd8', borderRadius: 6, padding: '4px 8px', cursor: 'pointer', color: current === 1 ? '#ccc' : '#555' }}
+              >
+                <i className="ti ti-chevron-left" style={{ fontSize: 13 }}></i>
+              </span>
+              {pageNumbers.map((n, i) =>
+                n === '…' ? (
+                  <span key={`e${i}`} style={{ fontSize: 11.5, color: '#aaa', padding: '0 3px' }}>…</span>
+                ) : (
+                  <span
+                    key={n}
+                    onClick={() => setPage(n)}
+                    style={{
+                      borderRadius: 6,
+                      padding: '4px 10px',
+                      fontSize: 11.5,
+                      cursor: 'pointer',
+                      background: n === current ? '#6d5aef' : 'transparent',
+                      color: n === current ? '#fff' : '#555',
+                      border: n === current ? 'none' : '.5px solid #e0dfd8',
+                    }}
+                  >
+                    {n}
+                  </span>
+                )
+              )}
+              <span
+                onClick={() => setPage(Math.min(totalPages, current + 1))}
+                style={{ border: '.5px solid #e0dfd8', borderRadius: 6, padding: '4px 8px', cursor: 'pointer', color: current === totalPages ? '#ccc' : '#555' }}
+              >
+                <i className="ti ti-chevron-right" style={{ fontSize: 13 }}></i>
+              </span>
+            </div>
+          </div>
         </div>
       )}
 
       <div style={{ marginTop: 20, fontSize: 11, color: '#999', display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
         <i className="ti ti-shield-check" style={{ fontSize: 13 }}></i>
-        Datos abiertos del Parlamento Europeo. El grupo político mostrado es el que tenía cada eurodiputado al participar.
+        Datos abiertos del Parlamento Europeo. Procedimientos legislativos ordinarios desde 2014.
       </div>
     </div>
   );
