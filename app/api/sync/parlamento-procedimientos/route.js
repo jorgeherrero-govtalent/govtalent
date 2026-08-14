@@ -36,7 +36,12 @@ export const maxDuration = 60;
 
 const EP = 'https://data.europarl.europa.eu/api/v2';
 const TIMEOUT_MS = 15000;
-const PRESUPUESTO_MS = 40000;
+// El presupuesto controla la DESCARGA, pero después viene la escritura y
+// el lanzamiento del siguiente eslabón. Medido en la fase de eventos: con
+// 40 s de presupuesto la función terminaba en 55,7 s, al borde del límite
+// de 60 de Vercel. Si un eslabón muere por timeout, no llega a lanzar el
+// siguiente y la cadena se rompe — que es lo que pasó a los 90 de 808.
+const PRESUPUESTO_MS = 30000;
 
 // LÍMITE REAL DE LA API: 500 peticiones cada 5 minutos = 1,67 por segundo.
 //
