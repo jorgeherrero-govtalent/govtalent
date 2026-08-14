@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
 import { toast } from '@/lib/toast';
 import UpgradeModal from '@/components/UpgradeModal';
+import BackLink from '@/components/BackLink';
 
 const TABS = [
   { id: 'resumen', label: 'Resumen' },
@@ -236,16 +237,23 @@ export default function DeputyProfilePage() {
 
   return (
     <div className="sec" style={{ maxWidth: 900 }}>
-      <div style={{ marginBottom: 12, fontSize: 11.5, color: '#999' }}>
-        <Link href="/institutions" style={{ color: '#999', textDecoration: 'none' }}>
-          Instituciones
-        </Link>
-        {' › '}
-        <Link href="/institutions/deputies" style={{ color: '#999', textDecoration: 'none' }}>
-          Diputados
-        </Link>
-        {' › '}
-        <span style={{ color: '#666' }}>{fullNameDisplay(deputy.full_name)}</span>
+      {/* El atrás va antes de la miga: la miga dice DÓNDE estás, el atrás
+          de dónde VIENES. A esta ficha se llega desde el directorio, desde
+          una comisión y desde un grupo parlamentario. */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 12, flexWrap: 'wrap' }}>
+        <BackLink fallbackHref="/institutions/deputies" fallbackLabel="Diputados" />
+        <span style={{ fontSize: 11.5, color: '#ddd' }}>|</span>
+        <span style={{ fontSize: 11.5, color: '#999' }}>
+          <Link href="/institutions" style={{ color: '#999', textDecoration: 'none' }}>
+            Instituciones
+          </Link>
+          {' › '}
+          <Link href="/institutions/deputies" style={{ color: '#999', textDecoration: 'none' }}>
+            Diputados
+          </Link>
+          {' › '}
+          <span style={{ color: '#666' }}>{fullNameDisplay(deputy.full_name)}</span>
+        </span>
       </div>
 
       <div className="card" style={{ padding: 18 }}>
