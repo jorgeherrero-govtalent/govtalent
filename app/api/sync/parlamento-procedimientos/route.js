@@ -99,6 +99,35 @@ const idPersona = (uri) => {
   return m ? m[1] : null;
 };
 
+// Los ocho roles observados en had_participation, medidos sobre los 35
+// procedimientos de 2026: 130 de 171 participaciones son personas y 41
+// son comisiones.
+const ROLES = {
+  RAPPORTEUR: 'Ponente',
+  RAPPORTEUR_CO: 'Coponente',
+  RAPPORTEUR_SHADOW: 'Ponente en la sombra',
+  RAPPORTEUR_OPINION: 'Ponente de opinión',
+  RAPPORTEUR_SHADOW_OPINION: 'Ponente en la sombra (opinión)',
+  COMMITTEE_LEAD: 'Comisión competente',
+  COMMITTEE_OPINION: 'Comisión de opinión',
+  COMMITTEE_BUDGETARY_ASSESSMENT: 'Evaluación presupuestaria',
+};
+
+function legibleRol(code) {
+  const l = code.replace(/_/g, ' ').toLowerCase();
+  return l.charAt(0).toUpperCase() + l.slice(1);
+}
+
+// Extrae el código de comisión del identificador de participación.
+// Formato observado: "2026-0010-MAIN-BUDG", "2026-0011-AVI-IMCO".
+// Solo se acepta si es un código de comisión plausible (2-6 letras en
+// mayúsculas), para no capturar fragmentos de otros formatos como
+// "2026-0011-NMSR-96833-2026-03-19".
+function comisionDelId(id) {
+  const ultimo = String(id || '').split('/').pop().split('-').pop();
+  return /^[A-Z]{2,6}$/.test(ultimo) ? ultimo : null;
+}
+
 // Las fases vienen como URI del vocabulario de la UE. Se traducen las
 // conocidas; el resto se muestra legible en vez de como URI cruda.
 const FASES = {
@@ -173,17 +202,14 @@ function transformarParticipaciones(p, processId) {
       process_id: processId,
       mep_id: mep,
       role: rol,
-      role_label:
-        rol === 'RAPPORTEUR'
-          ? 'Ponente'
-          : rol === 'RAPPORTEUR_SHADOW'
-            ? 'Ponente en la sombra'
-            : rol === 'RAPPORTEUR_CO'
-              ? 'Coponente'
-              : rol
-                ? rol.replace(/_/g, ' ').toLowerCase()
-                : null,
-      body_code: ultimoTramo(x.participation_in_name_of),
+      role_label: ROLES[rol] || (rol ? legibleRol(rol) : null),
+      // La comisión viene en participation_in_name_of cuando el
+      // participante es una persona. Cuando el participante ES la comisión
+      // (COMMITTEE_LEAD, COMMITTEE_OPINION), ese campo no existe y el
+      // código está al final del identificador: "2026-0010-MAIN-BUDG".
+      // Son 41 de 171 participaciones: la comisión competente de cada
+      // expediente, que es dato de primer nivel para asuntos públicos.
+      body_code: ultimoTramo(x.participation_in_name_of) || comisionDelId(x.id),
       political_group: ultimoTramo(x.politicalGroup),
       activity_date: x.activity_date || null,
       stage: x.occured_at_stage || null,
