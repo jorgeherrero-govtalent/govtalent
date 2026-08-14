@@ -5,6 +5,7 @@ import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
 import { toast } from '@/lib/toast';
+import BackLink from '@/components/BackLink';
 
 function initials(fullName) {
   const parts = (fullName || '').replace(',', '').trim().split(' ');
@@ -199,16 +200,23 @@ export default function GovernmentOfficialProfilePage() {
 
   return (
     <div className="sec" style={{ maxWidth: 800 }}>
-      <div style={{ marginBottom: 12, fontSize: 11.5, color: '#999' }}>
-        <Link href="/institutions" style={{ color: '#999', textDecoration: 'none' }}>
-          Instituciones
-        </Link>
-        {' › '}
-        <Link href="/institutions/ministries" style={{ color: '#999', textDecoration: 'none' }}>
-          Ministerios
-        </Link>
-        {' › '}
-        <span style={{ color: '#666' }}>{displayName}</span>
+      {/* A esta ficha se llega desde el directorio de Ministerios, desde el
+          equipo de un ministro y desde otras personas del mismo ministerio.
+          El atrás devuelve a donde estabas; la miga dice dónde estás. */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 12, flexWrap: 'wrap' }}>
+        <BackLink fallbackHref="/institutions/ministries" fallbackLabel="Ministerios" />
+        <span style={{ fontSize: 11.5, color: '#ddd' }}>|</span>
+        <span style={{ fontSize: 11.5, color: '#999' }}>
+          <Link href="/institutions" style={{ color: '#999', textDecoration: 'none' }}>
+            Instituciones
+          </Link>
+          {' › '}
+          <Link href="/institutions/ministries" style={{ color: '#999', textDecoration: 'none' }}>
+            Ministerios
+          </Link>
+          {' › '}
+          <span style={{ color: '#666' }}>{displayName}</span>
+        </span>
       </div>
 
       <div className="card" style={{ padding: 18 }}>
