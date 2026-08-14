@@ -5,6 +5,7 @@ import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
 import { toast } from '@/lib/toast';
+import BackLink from '@/components/BackLink';
 
 // Tope de eurodiputados por lista. Un expediente transversal puede tocar
 // muchas comisiones: la media es 162 y el máximo medido, 658.
@@ -390,9 +391,7 @@ export default function InitiativeDetailPage() {
             No se ha encontrado este expediente.
           </div>
         </div>
-        <Link href="/initiatives" style={{ fontSize: 12.5, color: '#6d5aef' }}>
-          ← Volver a Expedientes
-        </Link>
+        <BackLink fallbackHref="/initiatives" fallbackLabel="Volver a Expedientes" />
       </div>
     );
   }
@@ -401,12 +400,16 @@ export default function InitiativeDetailPage() {
 
   return (
     <div className="sec" style={{ maxWidth: 900 }}>
-      <div style={{ marginBottom: 10, fontSize: 11.5, color: '#999' }}>
-        <Link href="/initiatives" style={{ color: '#999', textDecoration: 'none' }}>
-          Expedientes
-        </Link>
-        {' › '}
-        <span style={{ color: '#666' }}>{item.reference || item.id}</span>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 10, flexWrap: 'wrap' }}>
+        <BackLink fallbackHref="/initiatives" fallbackLabel="Expedientes" />
+        <span style={{ fontSize: 11.5, color: '#ddd' }}>|</span>
+        <span style={{ fontSize: 11.5, color: '#999' }}>
+          <Link href="/initiatives" style={{ color: '#999', textDecoration: 'none' }}>
+            Expedientes
+          </Link>
+          {' › '}
+          <span style={{ color: '#666' }}>{item.reference || item.id}</span>
+        </span>
       </div>
 
       <div style={{ ...CARD, padding: 16, marginBottom: 12 }}>
