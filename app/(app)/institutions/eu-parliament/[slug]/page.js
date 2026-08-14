@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
+import BackLink from '@/components/BackLink';
 
 const GROUP_COLORS = {
   PPE: '#378ADD',
@@ -396,9 +397,7 @@ export default function MepDetailPage() {
             No se ha encontrado este eurodiputado.
           </div>
         </div>
-        <Link href="/institutions/eu-parliament" style={{ fontSize: 12.5, color: '#1d6f5c' }}>
-          ← Volver al Parlamento Europeo
-        </Link>
+        <BackLink fallbackHref="/institutions/eu-parliament" fallbackLabel="Volver al Parlamento Europeo" />
       </div>
     );
   }
@@ -415,12 +414,20 @@ export default function MepDetailPage() {
 
   return (
     <div className="sec" style={{ maxWidth: 720 }}>
-      <div style={{ fontSize: 11.5, color: '#999', marginBottom: 12 }}>
-        <Link href="/institutions" style={{ color: '#999', textDecoration: 'none' }}>Instituciones</Link>
-        {' › '}
-        <Link href="/institutions/eu-parliament" style={{ color: '#999', textDecoration: 'none' }}>Parlamento Europeo</Link>
-        {' › '}
-        <span style={{ color: '#666' }}>{mep.full_name}</span>
+      {/* A esta ficha se llega desde cuatro sitios: el directorio del PE,
+          una comisión, los actores de un expediente y los ponentes de un
+          procedimiento. El atrás devuelve a donde estabas; la miga de pan
+          sigue diciendo dónde está la página en la estructura. */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 12, flexWrap: 'wrap' }}>
+        <BackLink fallbackHref="/institutions/eu-parliament" fallbackLabel="Parlamento Europeo" />
+        <span style={{ fontSize: 11.5, color: '#ddd' }}>|</span>
+        <span style={{ fontSize: 11.5, color: '#999' }}>
+          <Link href="/institutions" style={{ color: '#999', textDecoration: 'none' }}>Instituciones</Link>
+          {' › '}
+          <Link href="/institutions/eu-parliament" style={{ color: '#999', textDecoration: 'none' }}>Parlamento Europeo</Link>
+          {' › '}
+          <span style={{ color: '#666' }}>{mep.full_name}</span>
+        </span>
       </div>
 
       <div style={{ ...CARD, marginBottom: 12 }}>
