@@ -37,11 +37,26 @@ export const maxDuration = 60;
 const EP = 'https://data.europarl.europa.eu/api/v2';
 const TIMEOUT_MS = 15000;
 const PRESUPUESTO_MS = 40000;
-// Conservador respecto al límite de 500/5min: con 5 en paralelo y una
-// pausa breve entre lotes, el ritmo se queda muy por debajo.
-const PARALELO = 5;
-const PAUSA_MS = 150;
-const MAX_POR_PASADA = 300;
+
+// LÍMITE REAL DE LA API: 500 peticiones cada 5 minutos = 1,67 por segundo.
+//
+// La primera versión iba con 5 en paralelo y 150 ms de pausa, o sea unas
+// 30 por segundo: dieciocho veces por encima. Resultado: 101 respuestas
+// HTTP 429 en una sola pasada.
+//
+// Con 3 en paralelo y 2 s de pausa el ritmo baja a ~1,5 por segundo, por
+// debajo del límite y con margen para los reintentos.
+const PARALELO = 3;
+const PAUSA_MS = 2000;
+// A ese ritmo, en los 40 s de presupuesto caben unas 60 peticiones.
+const MAX_POR_PASADA = 60;
+
+// Encadenamiento: al terminar, si queda trabajo, la función se llama a sí
+// misma. Ayer di por hecho que Vercel cortaba la petición saliente; era
+// falso. Lo que impedía avanzar era la caché de Next.js en el cliente de
+// Supabase, que hacía leer siempre el mismo resultado.
+const MAX_CADENA = 60;
+const MS_LANZAR_SIGUIENTE = 1500;
 
 function admin() {
   return createClient(process.env.NEXT_PUBLIC_SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY, {
@@ -70,6 +85,9 @@ async function pedir(url) {
       cache: 'no-store',
     });
     if (res.status === 204) return { ok: true, vacio: true, data: [] };
+    // 429 es "demasiadas peticiones": no es un fallo del dato, así que se
+    // marca aparte para poder frenar en vez de darlo por perdido.
+    if (res.status === 429) return { ok: false, motivo: 'HTTP 429', limitado: true };
     if (res.status !== 200) return { ok: false, motivo: `HTTP ${res.status}` };
     const d = await res.json();
     return { ok: true, data: d?.data || (Array.isArray(d) ? d : [d]) };
@@ -247,6 +265,32 @@ async function escribir(supabase, tabla, filas, conflicto) {
   return { escritas, errores };
 }
 
+/**
+ * Lanza la siguiente pasada sin esperar respuesta. Se aborta a propósito:
+ * basta con que Vercel reciba la petición para que arranque una función
+ * independiente. El AbortError es el comportamiento buscado, no un fallo.
+ */
+async function lanzarSiguiente(request, eslabon, extra = {}) {
+  const url = new URL(request.url);
+  url.searchParams.set('cadena', String(eslabon));
+  for (const [k, v] of Object.entries(extra)) url.searchParams.set(k, v);
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), MS_LANZAR_SIGUIENTE);
+  try {
+    await fetch(url.toString(), {
+      signal: controller.signal,
+      headers: request.headers.get('authorization') ? { authorization: request.headers.get('authorization') } : {},
+      cache: 'no-store',
+    });
+    return { lanzado: true };
+  } catch (e) {
+    if (e.name === 'AbortError') return { lanzado: true };
+    return { lanzado: false, motivo: e.message };
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 export async function GET(request) {
   const t0 = Date.now();
   const sp = new URL(request.url).searchParams;
@@ -259,14 +303,19 @@ export async function GET(request) {
 
   const dry = sp.get('dry') === '1';
   const fase = sp.get('fase') || 'catalogo';
+  const eslabon = Math.max(parseInt(sp.get('cadena') || '0', 10), 0);
+  const encadenar = sp.get('encadenar') !== '0';
   const supabase = admin();
-  const informe = { inicio: new Date().toISOString(), fase, dry_run: dry };
+  const informe = { inicio: new Date().toISOString(), fase, dry_run: dry, eslabon };
 
   // ===================================================================
   // FASE 1 — catálogo por años
   // ===================================================================
   if (fase === 'catalogo') {
-    const desde = parseInt(sp.get('desde') || '2024', 10);
+    // Por defecto, las tres legislaturas: 8ª (2014-2019), 9ª (2019-2024) y
+    // 10ª (2024-2029). El cron no lleva parámetros, así que estos valores
+    // son los que usará cada noche.
+    const desde = parseInt(sp.get('desde') || '2014', 10);
     const hasta = parseInt(sp.get('hasta') || String(new Date().getFullYear()), 10);
     const tipo = sp.get('tipo') || 'COD';
 
@@ -337,6 +386,7 @@ export async function GET(request) {
     informe.con_ponentes = new Set(participaciones.map((x) => x.process_id)).size;
     informe.cerrados = procedimientos.filter((p) => p.is_closed).length;
     informe.fallidos = fallidos.length;
+    informe.limitados_429 = fallidos.filter((f) => f.motivo === 'HTTP 429').length;
     informe.detalle_fallos = fallidos.slice(0, 5);
     informe.cortado_por_tiempo = cortado;
 
@@ -369,10 +419,46 @@ export async function GET(request) {
     const wProc = await escribir(supabase, 'ep_procedures', procedimientos, 'process_id');
     const wPart = await escribir(supabase, 'ep_procedure_participants', participaciones, 'id');
     informe.escritura = { procedimientos: wProc, participaciones: wPart };
+
+    // Se encadena si quedó trabajo. Tres frenos:
+    //   - si la API devolvió 429, se para: insistir empeora el bloqueo
+    //   - si no se escribió nada habiendo procesado, algo falla
+    //   - tope de eslabones como red de seguridad
+    const quedaTrabajo = cortado || procedimientos.length >= MAX_POR_PASADA;
+    const limitado = informe.limitados_429 > 0;
+
+    if (!quedaTrabajo) {
+      informe.nota = 'Catálogo al día para los años indicados.';
+      // Terminado el catálogo, se pasa sola a la fase de eventos: así una
+      // única invocación del cron completa el módulo entero.
+      if (encadenar && eslabon + 1 < MAX_CADENA) {
+        const r = await lanzarSiguiente(request, eslabon + 1, {
+          fase: 'eventos',
+          ...(sp.get('key') ? { key: sp.get('key') } : {}),
+        });
+        informe.siguiente_fase = { fase: 'eventos', ...r };
+        informe.nota = 'Catálogo completo. Lanzada la fase de eventos.';
+      }
+    } else if (limitado) {
+      informe.nota = `La API devolvió ${informe.limitados_429} veces HTTP 429. Se detiene la cadena; espera 5 minutos y relánzalo.`;
+    } else if (!encadenar) {
+      informe.nota = 'Queda trabajo y el encadenado está desactivado.';
+    } else if (wProc.escritas === 0 && procedimientos.length > 0) {
+      informe.nota = 'Se procesaron procedimientos pero no se escribió ninguno: se detiene la cadena para no repetir el error.';
+    } else if (eslabon + 1 >= MAX_CADENA) {
+      informe.nota = `Tope de ${MAX_CADENA} eslabones. Vuelve a lanzarlo para continuar.`;
+    } else {
+      const r = await lanzarSiguiente(request, eslabon + 1, {
+        fase: 'catalogo',
+        desde: String(desde),
+        hasta: String(hasta),
+        ...(sp.get('key') ? { key: sp.get('key') } : {}),
+      });
+      informe.siguiente_eslabon = { numero: eslabon + 1, ...r };
+      informe.nota = r.lanzado ? 'Siguiente pasada lanzada sola.' : `No se pudo encadenar (${r.motivo}).`;
+    }
+
     informe.ms_total = Date.now() - t0;
-    informe.nota = cortado
-      ? 'Cortado por tiempo o tope. Vuelve a lanzarlo: solo pide los que faltan.'
-      : 'Catálogo al día para los años indicados.';
     return NextResponse.json(informe);
   }
 
@@ -438,6 +524,7 @@ export async function GET(request) {
     informe.procedimientos_procesados = hechos.length;
     informe.eventos = eventos.length;
     informe.fallidos = fallidos.length;
+    informe.limitados_429 = fallidos.filter((f) => f.motivo === 'HTTP 429').length;
     informe.detalle_fallos = fallidos.slice(0, 5);
     informe.cortado_por_tiempo = cortado;
 
@@ -470,6 +557,27 @@ export async function GET(request) {
 
     informe.escritura = { eventos: wEv, procedimientos_marcados: marcados };
     informe.quedan_pendientes = quedan ?? null;
+    informe.limitados_429 = fallidos.filter((f) => f.motivo === 'HTTP 429').length;
+
+    if (!quedan || quedan === 0) {
+      informe.nota = 'Recorridos completos: no queda ningún procedimiento sin eventos.';
+    } else if (informe.limitados_429 > 0) {
+      informe.nota = `La API devolvió ${informe.limitados_429} veces HTTP 429. Se detiene la cadena; espera 5 minutos.`;
+    } else if (!encadenar) {
+      informe.nota = 'Quedan pendientes y el encadenado está desactivado.';
+    } else if (marcados === 0 && hechos.length > 0) {
+      informe.nota = 'Se procesaron procedimientos pero ninguno quedó marcado: se detiene la cadena.';
+    } else if (eslabon + 1 >= MAX_CADENA) {
+      informe.nota = `Tope de ${MAX_CADENA} eslabones. Vuelve a lanzarlo para continuar.`;
+    } else {
+      const r = await lanzarSiguiente(request, eslabon + 1, {
+        fase: 'eventos',
+        ...(sp.get('key') ? { key: sp.get('key') } : {}),
+      });
+      informe.siguiente_eslabon = { numero: eslabon + 1, ...r };
+      informe.nota = r.lanzado ? 'Siguiente pasada lanzada sola.' : `No se pudo encadenar (${r.motivo}).`;
+    }
+
     informe.ms_total = Date.now() - t0;
     return NextResponse.json(informe);
   }
