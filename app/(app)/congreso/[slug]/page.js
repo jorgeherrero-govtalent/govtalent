@@ -6,7 +6,7 @@ import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
 import { toast } from '@/lib/toast';
 import BackLink from '@/components/BackLink';
-import { groupColor, grupoCorto } from '../page';
+import { groupColor, grupoCorto } from '@/lib/grupos';
 
 const MESES = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
 
