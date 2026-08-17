@@ -147,6 +147,80 @@ export async function GET(request) {
     return Response.json({ error: 'no autorizado — usa ?key=<DEBUG_KEY>' }, { status: 401 });
   }
 
+  // Modo detalle: sigue el campo "enlace" de un registro para ver si
+  // hay una ficha completa por iniciativa.
+  //
+  // El listado solo da título, fechas, autor y resultado. Faltan
+  // situación, comisión competente, plazos, tramitación y ponentes, que
+  // son los campos que hacen útil la ficha de una ley. Si existe un
+  // endpoint de detalle —como groupInitiatives en Europa— estarían ahí.
+  //
+  // El enlace apunta a /wc/servidorCGI con estos parámetros:
+  //   {docs:"1-1", piece:"IWA5", query:"130.CINI.", cmd:"VERLST",
+  //    fmt:"INITZD1S.fmt", form1:"INITZLBA.fmt", base:"IW15"}
+  //
+  // fmt cambia de INITZLBA (listado) a INITZD1S (¿detalle?), así que
+  // probablemente sea eso: el mismo CGI con otro formato de salida.
+  if (sp.get('detalle')) {
+    const cini = sp.get('detalle');
+    const doc = sp.get('doc') || '1';
+
+    // Primero se pide el listado para obtener un enlace real, en vez de
+    // construirlo a mano.
+    const lst = await pedir(sp.get('ruta') || 'proposiciones-no-de-ley', { cini });
+    const lista = lst.data?.lista_iniciativas || {};
+    const primera = lista[Object.keys(lista)[0]];
+    if (!primera?.enlace) {
+      return Response.json({ modo: 'detalle', error: 'sin enlace en el listado', primera });
+    }
+
+    const e = primera.enlace;
+    const pruebas = [
+      // Tal como viene, con el formato de detalle
+      { nombre: 'enlace tal cual', params: { ...e, docs: `${doc}-${doc}` } },
+      // Con VER en vez de VERLST, por si el comando cambia
+      { nombre: 'cmd=VER', params: { ...e, docs: `${doc}-${doc}`, cmd: 'VER' } },
+      // Formato de ficha alternativo que usa el Congreso
+      { nombre: 'fmt=INITZD1S', params: { ...e, docs: `${doc}-${doc}`, fmt: 'INITZD1S.fmt' } },
+    ];
+
+    const salida = { modo: 'detalle', cini, enlace_original: e, id: primera.id_iniciativa, pruebas: [] };
+
+    for (const p of pruebas) {
+      const q = new URLSearchParams();
+      for (const [k, v] of Object.entries(p.params)) if (k !== 'url' && v != null) q.set(k, String(v));
+      const u = `https://www.congreso.es${e.url || '/wc/servidorCGI'}?${q.toString()}`;
+      try {
+        const res = await fetch(u, { headers: { ...HEADERS, Referer: `${BASE}/proposiciones-no-de-ley` }, cache: 'no-store' });
+        const txt = await res.text();
+        let json = null;
+        try {
+          json = JSON.parse(txt);
+        } catch {}
+        salida.pruebas.push({
+          nombre: p.nombre,
+          url: u.slice(0, 200),
+          status: res.status,
+          tamano: txt.length,
+          es_json: !!json,
+          claves: json && !Array.isArray(json) ? Object.keys(json) : null,
+          // Se buscan los campos que faltan en el listado
+          menciona: {
+            situacion: /situaci[óo]n/i.test(txt),
+            comision: /comisi[óo]n competente/i.test(txt),
+            plazos: /plazo/i.test(txt),
+            tramitacion: /tramitaci[óo]n seguida/i.test(txt),
+            ponentes: /ponente/i.test(txt),
+          },
+          muestra: txt.slice(0, 600),
+        });
+      } catch (err) {
+        salida.pruebas.push({ nombre: p.nombre, error: err.message });
+      }
+    }
+    return Response.json(salida);
+  }
+
   // Modo crudo: vuelca lista_iniciativas tal cual para ver su forma.
   // El resumen dice "object" pero no qué contiene, y sin eso no se puede
   // escribir el parseo.
