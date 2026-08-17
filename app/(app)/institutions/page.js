@@ -141,6 +141,8 @@ export default function InstitutionsHomePage() {
       { count: groupsCount },
       { count: mepsCount },
       { count: committeesCount },
+      { data: gobierno },
+      { count: euCommitteesCount },
       { count: commissionersCount },
       { count: ecPeopleCount },
       { data: leg },
@@ -149,6 +151,19 @@ export default function InstitutionsHomePage() {
       supabase.from('parliamentary_groups').select('id', { count: 'exact', head: true }).eq('active', true),
       supabase.from('eu_meps').select('id', { count: 'exact', head: true }).eq('active', true),
       supabase.from('es_committees').select('id', { count: 'exact', head: true }),
+      // No hay tabla de ministerios: el ministerio es un campo de texto en
+      // government_members y government_officials, así que los distintos
+      // se cuentan en la vista gobierno_resumen. Y los cargos son la suma
+      // de ministros y altos cargos.
+      supabase.from('gobierno_resumen').select('ministerios, cargos').limit(1).maybeSingle(),
+      // Comprobado en la base: el tipo es 'committee' en minúscula y la
+      // columna de vigencia se llama 'active', no 'is_current'. Sin el
+      // filtro salen 276, que es el histórico de varias legislaturas.
+      supabase
+        .from('eu_bodies')
+        .select('id', { count: 'exact', head: true })
+        .eq('body_type', 'committee')
+        .eq('active', true),
       supabase.from('ec_commissioners').select('id', { count: 'exact', head: true }),
       supabase.from('ec_people').select('id', { count: 'exact', head: true }).eq('active', true),
       supabase.from('legislatures').select('name').eq('active', true).limit(1).maybeSingle(),
@@ -158,6 +173,9 @@ export default function InstitutionsHomePage() {
       groups: groupsCount || 0,
       meps: mepsCount || 0,
       committees: committeesCount || 0,
+      ministries: gobierno?.ministerios || 0,
+      govPeople: gobierno?.cargos || 0,
+      euCommittees: euCommitteesCount || 0,
       commissioners: commissionersCount || 0,
       ecPeople: ecPeopleCount || 0,
     });
@@ -218,6 +236,10 @@ export default function InstitutionsHomePage() {
             title="Ministerios"
             description="Estructura del Gobierno y titulares de cada ministerio."
             cta="Ver ministerios"
+            cifras={[
+              { n: counts?.ministries ?? null, label: 'ministerios' },
+              { n: counts?.govPeople ?? null, label: 'cargos' },
+            ]}
           />
           <ModuleCard
             href="/institutions/deputies"
@@ -239,6 +261,11 @@ export default function InstitutionsHomePage() {
             cifras={[{ n: counts?.groups ?? null, label: 'grupos' }]}
           />
           <SoonCard
+            icon="building-castle"
+            title="Senado"
+            description="Senadores, grupos y comisiones de la cámara alta."
+          />
+          <SoonCard
             icon="scale"
             title="Organismos y entidades"
             description="Autoridades independientes, organismos públicos y otros entes."
@@ -255,7 +282,10 @@ export default function InstitutionsHomePage() {
             title="Parlamento Europeo"
             description="Eurodiputados, sus grupos políticos y sus comisiones."
             cta="Ver Parlamento Europeo"
-            cifras={[{ n: counts?.meps ?? null, label: 'eurodiputados' }]}
+            cifras={[
+              { n: counts?.meps ?? null, label: 'eurodiputados' },
+              { n: counts?.euCommittees ?? null, label: 'comisiones' },
+            ]}
           />
           <ModuleCard
             href="/institutions/eu-commission"
@@ -267,6 +297,11 @@ export default function InstitutionsHomePage() {
               { n: counts?.commissioners ?? null, label: 'comisarios' },
               { n: counts?.ecPeople ?? null, label: 'decisores' },
             ]}
+          />
+          <SoonCard
+            icon="users"
+            title="Consejo Europeo"
+            description="Jefes de Estado y de Gobierno, y las formaciones del Consejo de la UE."
           />
         </div>
       </div>
