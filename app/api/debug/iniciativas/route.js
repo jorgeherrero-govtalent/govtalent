@@ -147,6 +147,25 @@ export async function GET(request) {
     return Response.json({ error: 'no autorizado — usa ?key=<DEBUG_KEY>' }, { status: 401 });
   }
 
+  // Modo crudo: vuelca lista_iniciativas tal cual para ver su forma.
+  // El resumen dice "object" pero no qué contiene, y sin eso no se puede
+  // escribir el parseo.
+  if (sp.get('crudo')) {
+    const ruta = sp.get('ruta') || 'proposiciones-no-de-ley';
+    const r = await pedir(ruta, { cini: sp.get('crudo'), pagina: parseInt(sp.get('pagina') || '1', 10) });
+    const lista = r.data?.lista_iniciativas;
+    return Response.json({
+      modo: 'crudo',
+      encontradas: r.data?.iniciativas_encontradas ?? null,
+      tipo_de_lista: Array.isArray(lista) ? 'array' : typeof lista,
+      claves_de_la_lista: lista && !Array.isArray(lista) ? Object.keys(lista).slice(0, 10) : null,
+      // Si está indexada por número, el primer valor es un registro
+      primer_valor: lista && !Array.isArray(lista) ? lista[Object.keys(lista)[0]] : lista?.[0],
+      // Y el texto en bruto por si nada de lo anterior aclara la forma
+      muestra_texto: (r.texto || '').slice(0, 1200),
+    });
+  }
+
   // Modo suelto: un cini y una ruta concretos
   if (sp.get('cini')) {
     const ruta = sp.get('ruta') || 'proposiciones-no-de-ley';
