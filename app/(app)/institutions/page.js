@@ -97,26 +97,21 @@ function ModuleCard({ href, icon, title, description, cta, cifras }) {
   );
 }
 
-// Los módulos pendientes van en gris, no en morado: si todo llevara el
-// color de marca, lo disponible y lo que aún no existe pesarían igual.
-function SoonCard({ icon, title, description }) {
+/**
+ * Los módulos pendientes en una línea, no como tarjetas: si ocupan lo
+ * mismo que las funcionalidades reales, parece que media plataforma no
+ * existe. Conviene magnificar lo que ya funciona.
+ */
+function Proximamente({ items }) {
   return (
-    <div style={{ background: '#f4f4f0', borderRadius: 12, padding: 18, opacity: 0.75 }}>
-      <i className={`ti ti-${icon}`} style={{ color: '#999', fontSize: 19 }}></i>
-      <div style={{ fontSize: 14, fontWeight: 700, marginTop: 8, color: '#777' }}>{title}</div>
-      <div style={{ fontSize: 11.5, color: '#999', marginTop: 3, marginBottom: 10 }}>{description}</div>
-      <span
-        style={{
-          fontSize: 11,
-          fontWeight: 600,
-          color: '#999',
-          background: '#e5e4de',
-          padding: '3px 9px',
-          borderRadius: 10,
-        }}
-      >
-        Próximamente
-      </span>
+    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 10, flexWrap: 'wrap' }}>
+      <span style={{ fontSize: 10.5, color: '#aaa' }}>Próximamente</span>
+      {items.map((t, i) => (
+        <span key={t} style={{ fontSize: 11, color: '#999' }}>
+          {i > 0 && <span style={{ color: '#ddd', marginRight: 8 }}>·</span>}
+          {t}
+        </span>
+      ))}
     </div>
   );
 }
@@ -235,7 +230,7 @@ export default function InstitutionsHomePage() {
             icon="building-bank"
             title="Ministerios"
             description="Estructura del Gobierno y titulares de cada ministerio."
-            cta="Ver ministerios"
+            cta="Explorar ministerios"
             cifras={[
               { n: counts?.ministries ?? null, label: 'ministerios' },
               { n: counts?.govPeople ?? null, label: 'cargos' },
@@ -246,7 +241,7 @@ export default function InstitutionsHomePage() {
             icon="users-group"
             title="Diputados"
             description="Consulta los diputados del Congreso, sus cargos y comisiones."
-            cta="Ver diputados"
+            cta="Explorar diputados"
             cifras={[
               { n: counts?.deputies ?? null, label: 'diputados' },
               { n: counts?.committees ?? null, label: 'comisiones' },
@@ -257,20 +252,11 @@ export default function InstitutionsHomePage() {
             icon="flag"
             title="Grupos parlamentarios"
             description="Explora los grupos, sus portavoces y composición actual."
-            cta="Ver grupos"
+            cta="Explorar grupos"
             cifras={[{ n: counts?.groups ?? null, label: 'grupos' }]}
           />
-          <SoonCard
-            icon="building-castle"
-            title="Senado"
-            description="Senadores, grupos y comisiones de la cámara alta."
-          />
-          <SoonCard
-            icon="scale"
-            title="Organismos y entidades"
-            description="Autoridades independientes, organismos públicos y otros entes."
-          />
         </div>
+        <Proximamente items={['Senado', 'Organismos y entidades']} />
       </div>
 
       <div>
@@ -281,7 +267,7 @@ export default function InstitutionsHomePage() {
             icon="building-arch"
             title="Parlamento Europeo"
             description="Eurodiputados, sus grupos políticos y sus comisiones."
-            cta="Ver Parlamento Europeo"
+            cta="Explorar Parlamento Europeo"
             cifras={[
               { n: counts?.meps ?? null, label: 'eurodiputados' },
               { n: counts?.euCommittees ?? null, label: 'comisiones' },
@@ -292,19 +278,15 @@ export default function InstitutionsHomePage() {
             icon="briefcase"
             title="Comisión Europea"
             description="Comisarios, gabinetes y jefes de unidad, con su contacto."
-            cta="Ver Comisión Europea"
+            cta="Explorar Comisión Europea"
             cifras={[
               { n: counts?.commissioners ?? null, label: 'comisarios' },
               { n: counts?.ecPeople ?? null, label: 'decisores' },
             ]}
           />
-          <SoonCard
-            icon="users"
-            title="Consejo Europeo"
-            description="Jefes de Estado y de Gobierno, y las formaciones del Consejo de la UE."
-          />
         </div>
+        <Proximamente items={['Consejo Europeo']} />
       </div>
     </div>
   );
-}
+}2
