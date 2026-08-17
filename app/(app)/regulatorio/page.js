@@ -73,77 +73,50 @@ function Cifra({ n, label, destacada }) {
   );
 }
 
-function ModuloCard({ href, icon, titulo, fuente, descripcion, cifras }) {
+// Misma estructura que ModuleCard de Instituciones: el icono va suelto
+// arriba en morado —no dentro de un cuadrado con fondo— el título debajo,
+// y el "Ver..." cierra la tarjeta. Sin eso las dos secciones no se
+// sentían como el mismo producto.
+function ModuloCard({ href, icon, titulo, fuente, descripcion, cta, cifras }) {
   return (
-    <Link
-      href={href}
-      className="card"
-      style={{ padding: 16, textDecoration: 'none', color: 'inherit', display: 'block' }}
-    >
-      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 9 }}>
-        <div
-          style={{
-            width: 32,
-            height: 32,
-            borderRadius: 8,
-            background: '#EEEDFE',
-            color: '#3C3489',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            flexShrink: 0,
-          }}
-        >
-          <i className={`ti ti-${icon}`} style={{ fontSize: 16 }} aria-hidden="true"></i>
+    <Link href={href} className="card" style={{ padding: 18, textDecoration: 'none', color: 'inherit' }}>
+      <i className={`ti ti-${icon}`} style={{ color: '#6d5aef', fontSize: 19 }}></i>
+      <div style={{ fontSize: 14, fontWeight: 700, marginTop: 8 }}>{titulo}</div>
+      {fuente && <div style={{ fontSize: 10.5, color: '#aaa', marginTop: 2 }}>{fuente}</div>}
+      <div style={{ fontSize: 11.5, color: '#888', marginTop: 5, marginBottom: 10 }}>{descripcion}</div>
+      {cifras?.length > 0 && (
+        <div style={{ display: 'flex', gap: 18, paddingTop: 11, marginBottom: 11, borderTop: '.5px solid #f0f0eb' }}>
+          {cifras.map((c) => (
+            <Cifra key={c.label} {...c} />
+          ))}
         </div>
-        <div style={{ minWidth: 0 }}>
-          <div style={{ fontSize: 13, fontWeight: 600 }}>{titulo}</div>
-          <div style={{ fontSize: 10.5, color: '#999' }}>{fuente}</div>
-        </div>
-      </div>
-      <div style={{ fontSize: 11.5, color: '#666', lineHeight: 1.55, marginBottom: 11 }}>{descripcion}</div>
-      <div style={{ display: 'flex', gap: 16, paddingTop: 11, borderTop: '.5px solid #f0f0eb' }}>
-        {cifras.map((c) => (
-          <Cifra key={c.label} {...c} />
-        ))}
-      </div>
+      )}
+      <span style={{ fontSize: 12, color: '#6d5aef', fontWeight: 600 }}>{cta} →</span>
     </Link>
   );
 }
 
+// Los módulos pendientes van en gris, no en morado: si todo llevara el
+// color de marca, lo disponible y lo que aún no existe pesarían igual.
 function SoonCard({ icon, titulo, fuente, descripcion }) {
   return (
-    <div
-      style={{
-        background: '#fff',
-        border: '.5px dashed #d5d3c9',
-        borderRadius: 12,
-        padding: 16,
-        opacity: 0.72,
-      }}
-    >
-      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 9 }}>
-        <div
-          style={{
-            width: 32,
-            height: 32,
-            borderRadius: 8,
-            background: '#f0efe9',
-            color: '#8d8b83',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            flexShrink: 0,
-          }}
-        >
-          <i className={`ti ti-${icon}`} style={{ fontSize: 16 }} aria-hidden="true"></i>
-        </div>
-        <div style={{ minWidth: 0 }}>
-          <div style={{ fontSize: 13, fontWeight: 600, color: '#666' }}>{titulo}</div>
-          <div style={{ fontSize: 10.5, color: '#999' }}>{fuente}</div>
-        </div>
-      </div>
-      <div style={{ fontSize: 11.5, color: '#999', lineHeight: 1.55 }}>{descripcion}</div>
+    <div style={{ background: '#f4f4f0', borderRadius: 12, padding: 18, opacity: 0.75 }}>
+      <i className={`ti ti-${icon}`} style={{ color: '#999', fontSize: 19 }}></i>
+      <div style={{ fontSize: 14, fontWeight: 700, marginTop: 8, color: '#777' }}>{titulo}</div>
+      {fuente && <div style={{ fontSize: 10.5, color: '#aaa', marginTop: 2 }}>{fuente}</div>}
+      <div style={{ fontSize: 11.5, color: '#999', marginTop: 5, marginBottom: 10 }}>{descripcion}</div>
+      <span
+        style={{
+          fontSize: 11,
+          fontWeight: 600,
+          color: '#999',
+          background: '#e5e4de',
+          padding: '3px 9px',
+          borderRadius: 10,
+        }}
+      >
+        Próximamente
+      </span>
     </div>
   );
 }
@@ -234,6 +207,7 @@ export default function RegulatorioPage() {
             titulo="Expedientes"
             fuente="Comisión Europea"
             descripcion="Plazos, resumen y actores responsables de la tramitación."
+            cta="Ver expedientes"
             cifras={[
               { n: cifras.ventanas, label: 'abiertas', destacada: true },
               { n: cifras.expedientes, label: 'total' },
@@ -245,6 +219,7 @@ export default function RegulatorioPage() {
             titulo="Procedimientos"
             fuente="Parlamento Europeo"
             descripcion="Ponentes, fase normativa, comisiones y actores clave."
+            cta="Ver procedimientos"
             cifras={[
               { n: cifras.tramitacion, label: 'en marcha', destacada: true },
               { n: cifras.procedimientos, label: 'total' },
@@ -260,24 +235,33 @@ export default function RegulatorioPage() {
         {cifras.esVivas !== null && <span style={{ fontSize: 11, color: '#888' }}>{cifras.esVivas} en trámite</span>}
       </div>
 
+      {/* Lo que funciona va primero: una tarjeta en gris antes que una
+          activa haría parecer el módulo más vacío de lo que está. */}
       <Bloque>
-        <SoonCard
-          icon="messages"
-          titulo="Consultas públicas"
-          fuente="Ministerios"
-          descripcion="Consultas y audiencias de los ministerios, con sus plazos y potenciales actores."
-        />
         <ModuloCard
           href="/congreso"
           icon="building-bank"
           titulo="Actividad parlamentaria"
           fuente="Congreso de los Diputados"
           descripcion="Leyes, proposiciones no de ley y comparecencias, con sus actores y plazos."
+          cta="Ver actividad"
           cifras={[
             { n: cifras.esTotal, label: 'leyes' },
             { n: cifras.esPnl, label: 'PNL' },
             { n: cifras.esComparecencias, label: 'comparecencias' },
           ]}
+        />
+        <SoonCard
+          icon="messages"
+          titulo="Consultas públicas"
+          fuente="Ministerios"
+          descripcion="Consultas y audiencias de los ministerios, con sus plazos y potenciales actores."
+        />
+        <SoonCard
+          icon="building-castle"
+          titulo="Senado"
+          fuente="Cortes Generales"
+          descripcion="Tramitación en la cámara alta: enmiendas, vetos y comisiones."
         />
       </Bloque>
     </div>
