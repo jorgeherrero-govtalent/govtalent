@@ -5,37 +5,18 @@ import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
 import { toast } from '@/lib/toast';
-import UpgradeModal from '@/components/UpgradeModal';
+import { groupColor } from '@/lib/grupos';
 import BackLink from '@/components/BackLink';
 
+// El Resumen lleva lo que más se consulta —portavocías y últimas
+// ponencias— y las otras pestañas el detalle completo. Así lo habitual
+// no obliga a navegar.
 const TABS = [
   { id: 'resumen', label: 'Resumen' },
-  { id: 'cargos', label: 'Cargos y comisiones' },
-  { id: 'actividad', label: 'Actividad' },
+  { id: 'comisiones', label: 'Comisiones' },
+  { id: 'ponencias', label: 'Ponencias' },
   { id: 'biografia', label: 'Biografía' },
 ];
-
-// Color identificativo por grupo parlamentario, en la misma línea que el
-// cuadrito de grupo político del Parlamento Europeo. Se busca por fragmento
-// del nombre porque la denominación oficial varía ("Grupo Parlamentario
-// Popular en el Congreso", "Grupo Parlamentario Plurinacional SUMAR"...).
-const GROUP_COLORS = [
-  [/popular/i, '#1D6FB8'],
-  [/socialista/i, '#D4373F'],
-  [/vox/i, '#5B9E28'],
-  [/sumar/i, '#D6318C'],
-  [/republicano|esquerra/i, '#E0A32E'],
-  [/junts/i, '#12A89D'],
-  [/bildu|euskal herria/i, '#9DB81A'],
-  [/vasco|nacionalista vasco|eaj|pnv/i, '#3F9E52'],
-  [/mixto/i, '#888780'],
-];
-
-function groupColor(name) {
-  if (!name) return '#888780';
-  const hit = GROUP_COLORS.find(([re]) => re.test(name));
-  return hit ? hit[1] : '#888780';
-}
 
 function initials(fullName) {
   const [last, first] = (fullName || '').split(',').map((s) => s.trim());
@@ -47,11 +28,118 @@ function fullNameDisplay(officialName) {
   return first ? `${first} ${last}` : officialName;
 }
 
+/**
+ * La frase que resume el perfil, generada de los datos.
+ *
+ * No es un texto escrito a mano: sale de las portavocías, comisiones y
+ * ponencias que tenga cada uno. Si no tiene nada, devuelve null y el
+ * bloque no aparece — mejor eso que una frase vacía de contenido.
+ */
+function fraseResumen(p, comisiones) {
+  if (!p) return null;
+  const partes = [];
+
+  const portavocias = (p.portavocias || []).filter(Boolean);
+  if (portavocias.length === 1) {
+    partes.push(`Es portavoz de su grupo en ${limpiarComision(portavocias[0])}`);
+  } else if (portavocias.length > 1) {
+    const listado = portavocias.map(limpiarComision);
+    const ultimo = listado.pop();
+    partes.push(`Es portavoz de su grupo en ${listado.join(', ')} y ${ultimo}`);
+  }
+
+  if (p.n_comisiones > 0) {
+    const frase = `está en ${p.n_comisiones} ${p.n_comisiones === 1 ? 'comisión' : 'comisiones'}`;
+    partes.push(partes.length ? frase : frase.replace('está', 'Está'));
+  }
+
+  if (p.n_ponencias > 0) {
+    partes.push(`ha sido ponente de ${p.n_ponencias} ${p.n_ponencias === 1 ? 'ley' : 'leyes'}`);
+  }
+
+  if (partes.length === 0) return null;
+  const ultimo = partes.pop();
+  return `${partes.length ? `${partes.join(', ')} y ` : ''}${ultimo}.`;
+}
+
+// "Comisión de Sanidad" -> "Sanidad"
+function limpiarComision(n) {
+  return (n || '').replace(/^Comisión\s+(de\s+la\s+|del\s+|de\s+)?/i, '').trim() || n;
+}
+
 function formatDate(dateStr) {
   if (!dateStr) return null;
   return new Date(dateStr).toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric' });
 }
 
+const LABEL = {
+  fontSize: 10.5,
+  fontWeight: 700,
+  color: '#999',
+  textTransform: 'uppercase',
+  letterSpacing: '.3px',
+  marginBottom: 13,
+};
+
+const FILA = {
+  display: 'flex',
+  alignItems: 'center',
+  gap: 11,
+  padding: '9px 0',
+  borderBottom: '.5px solid #f0f0eb',
+  textDecoration: 'none',
+  color: 'inherit',
+};
+
+const ICONO_VERDE = {
+  width: 32,
+  height: 32,
+  borderRadius: 8,
+  background: '#e8f4f0',
+  color: '#1d6f5c',
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  flexShrink: 0,
+};
+
+const ICONO_GRIS = { ...ICONO_VERDE, background: '#f4f4f0', color: '#999' };
+
+const CHIP = {
+  fontSize: 10.5,
+  background: '#EEEDFE',
+  color: '#3C3489',
+  padding: '3px 9px',
+  borderRadius: 10,
+  whiteSpace: 'nowrap',
+  flexShrink: 0,
+};
+
+function Avatar({ nombre, url, size = 28 }) {
+  const [falla, setFalla] = useState(false);
+  const base = { width: size, height: size, borderRadius: '50%', flexShrink: 0, objectFit: 'cover', background: '#ece9e2' };
+  if (url && !falla) {
+    return <img src={url} alt="" width={size} height={size} style={base} onError={() => setFalla(true)} />;
+  }
+  return (
+    <div
+      style={{
+        ...base,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        color: '#8d8b83',
+        fontSize: Math.round(size * 0.33),
+        fontWeight: 700,
+      }}
+      aria-hidden="true"
+    >
+      {initials(nombre)}
+    </div>
+  );
+}
+
+// Los colores de grupo viven en lib/grupos, compartidos con el resto.
 // Botón circular gris que pasa a verde al pasar el ratón. Mismo componente
 // visual en las cuatro fichas del módulo de Instituciones.
 function CircleButton({ icon, label, onClick, href, active, disabled, title }) {
@@ -116,11 +204,13 @@ export default function DeputyProfilePage() {
   const [deputy, setDeputy] = useState(null);
   const [group, setGroup] = useState(null);
   const [legislature, setLegislature] = useState(null);
-  const [roles, setRoles] = useState([]);
+  const [perfil, setPerfil] = useState(null);
+  const [comisiones, setComisiones] = useState([]);
+  const [ponencias, setPonencias] = useState([]);
+  const [colegas, setColegas] = useState([]);
   const [userId, setUserId] = useState(null);
   const [saved, setSaved] = useState(false);
   const [tab, setTab] = useState('resumen');
-  const [upgradeModal, setUpgradeModal] = useState(false);
   const [notFound, setNotFound] = useState(false);
   const [radarNote, setRadarNote] = useState(false);
   const [photoFailed, setPhotoFailed] = useState(false);
@@ -139,7 +229,7 @@ export default function DeputyProfilePage() {
     }
     setDeputy(d);
 
-    const [{ data: g }, { data: leg }, { data: rolesData }, { data: authData }] = await Promise.all([
+    const [{ data: g }, { data: leg }, { data: authData }, { data: perfilData }, { data: comisionesData }, { data: ponenciasData }, { data: colegasData }] = await Promise.all([
       d.parliamentary_group_id
         ? supabase
             .from('parliamentary_groups')
@@ -149,17 +239,38 @@ export default function DeputyProfilePage() {
             .maybeSingle()
         : Promise.resolve({ data: null }),
       supabase.from('legislatures').select('code, name').eq('id', d.legislature_id).limit(1).maybeSingle(),
-      supabase
-        .from('deputy_roles')
-        .select('id, role, start_date, end_date, active, parliamentary_bodies(name), parliamentary_groups(name)')
-        .eq('deputy_id', d.id)
-        .order('start_date', { ascending: false }),
       supabase.auth.getUser(),
+      // El perfil conecta lo que ya estaba cargado y vivía suelto:
+      // comisiones, ponencias y con quién coincide.
+      supabase.from('deputy_profile').select('*').eq('deputy_id', d.id).limit(1).maybeSingle(),
+      supabase
+        .from('deputy_committees')
+        .select('*')
+        .eq('deputy_id', d.id)
+        .order('orden_cargo')
+        .order('committee_name'),
+      supabase
+        .from('deputy_ponencias')
+        .select('*')
+        .eq('deputy_id', d.id)
+        .order('is_closed')
+        .order('fecha_presentacion', { ascending: false }),
+      // Solo los cinco con más coincidencias: con ponencias de quince
+      // personas todos coinciden con todos y el dato se diluye.
+      supabase
+        .from('deputy_colleagues')
+        .select('*')
+        .eq('deputy_id', d.id)
+        .order('veces', { ascending: false })
+        .limit(5),
     ]);
 
     setGroup(g);
     setLegislature(leg);
-    setRoles(rolesData || []);
+    setPerfil(perfilData);
+    setComisiones(comisionesData || []);
+    setPonencias(ponenciasData || []);
+    setColegas(colegasData || []);
 
     const uid = authData.user?.id;
     if (uid) {
@@ -216,9 +327,13 @@ export default function DeputyProfilePage() {
 
   if (!deputy) return <div className="spinner"></div>;
 
-  const activeRoles = roles.filter((r) => r.active);
-  const pastRoles = roles.filter((r) => !r.active);
-  const uniqueBodies = [...new Set(activeRoles.map((r) => r.parliamentary_bodies?.name).filter(Boolean))];
+  // Las portavocías se separan del resto: es donde de verdad negocia
+  // por su grupo, y lo demás es pertenencia sin voz propia.
+  const portavocias = comisiones.filter((c) => c.es_portavoz);
+  const resto = comisiones.filter((c) => !c.es_portavoz);
+
+  // deputy_roles se diseñó para los cargos pero nunca se cargó: ahora
+  // vienen de es_committee_members a través de deputy_committees.
   const mandateYear = deputy.mandate_start ? new Date(deputy.mandate_start).getFullYear() : null;
   const groupName = group?.name || 'Grupo Mixto / sin asignar';
 
@@ -352,174 +467,201 @@ export default function DeputyProfilePage() {
       </div>
 
       {tab === 'resumen' && (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: 14 }}>
-          <div className="card" style={{ padding: 18 }}>
-            <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 10 }}>Representación</div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 8, fontSize: 12.5, color: '#555' }}>
-              <div>
-                <span style={{ color: '#999' }}>Circunscripción: </span>
-                {deputy.constituency}
-              </div>
-              {deputy.seat_number && (
-                <div>
-                  <span style={{ color: '#999' }}>Nº de escaño: </span>
-                  {deputy.seat_number}
-                </div>
-              )}
-              {formatDate(deputy.mandate_start) && (
-                <div>
-                  <span style={{ color: '#999' }}>Inicio de mandato: </span>
-                  {formatDate(deputy.mandate_start)}
-                </div>
-              )}
-              <div>
-                <span style={{ color: '#999' }}>Grupo: </span>
-                {group?.name || '—'}
-              </div>
-              {deputy.email && (
-                <div>
-                  <span style={{ color: '#999' }}>Correo institucional: </span>
-                  <a href={`mailto:${deputy.email}`} style={{ color: '#1d6f5c' }}>
-                    {deputy.email}
-                  </a>
-                </div>
-              )}
-            </div>
-          </div>
-
-          <div className="card" style={{ padding: 18 }}>
-            <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 10 }}>Responsabilidades parlamentarias</div>
-            {activeRoles.length === 0 ? (
-              <div style={{ fontSize: 12, color: '#999' }}>
-                Aún no disponible — estamos ampliando la sincronización para traer cargos y comisiones.
-              </div>
-            ) : (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                {activeRoles.slice(0, 3).map((r) => (
-                  <div key={r.id}>
-                    <div style={{ fontSize: 12.5, fontWeight: 600, color: '#333' }}>{r.role}</div>
-                    <div style={{ fontSize: 11.5, color: '#888' }}>
-                      {r.parliamentary_bodies?.name || r.parliamentary_groups?.name}
-                    </div>
-                  </div>
-                ))}
-                {activeRoles.length > 3 && (
-                  <span
-                    onClick={() => setTab('cargos')}
-                    style={{ fontSize: 11.5, color: '#1d6f5c', fontWeight: 600, cursor: 'pointer' }}
-                  >
-                    Ver todas las responsabilidades ({activeRoles.length}) →
-                  </span>
-                )}
-              </div>
-            )}
-          </div>
-
-          <div className="card" style={{ padding: 18, gridColumn: '1 / -1' }}>
-            <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 12 }}>Datos rápidos</div>
-            <div style={{ display: 'flex', gap: 24 }}>
-              <div>
-                <div style={{ fontSize: 20, fontWeight: 700 }}>{uniqueBodies.length || '—'}</div>
-                <div style={{ fontSize: 11, color: '#888' }}>comisiones</div>
-              </div>
-              <div>
-                <div style={{ fontSize: 20, fontWeight: 700 }}>{activeRoles.length || '—'}</div>
-                <div style={{ fontSize: 11, color: '#888' }}>cargos</div>
-              </div>
-              <div>
-                <div style={{ fontSize: 20, fontWeight: 700 }}>{mandateYear || '—'}</div>
-                <div style={{ fontSize: 11, color: '#888' }}>desde</div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+          {fraseResumen(perfil, comisiones) && (
+            <div className="card" style={{ padding: 18 }}>
+              <div style={LABEL}>Su terreno</div>
+              <div style={{ fontSize: 12.5, color: '#555', lineHeight: 1.65 }}>
+                {fraseResumen(perfil, comisiones)}
               </div>
             </div>
-          </div>
-        </div>
-      )}
+          )}
 
-      {tab === 'cargos' && (
-        <div className="card" style={{ padding: 18 }}>
-          <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 12 }}>Cargos en el Congreso</div>
-          {activeRoles.length === 0 ? (
-            <div className="empty-state">
-              <i className="ti ti-gavel"></i>
-              Aún no tenemos los cargos y comisiones de este diputado — es la siguiente ampliación prevista de la
-              sincronización.
-            </div>
-          ) : (
-            <div
-              style={{ display: 'flex', flexDirection: 'column', gap: 12, marginBottom: pastRoles.length > 0 ? 20 : 0 }}
-            >
-              {activeRoles.map((r) => (
-                <div
-                  key={r.id}
-                  style={{ display: 'flex', alignItems: 'center', gap: 10, paddingBottom: 10, borderBottom: '.5px solid #f0f0eb' }}
+          {/* Las portavocías primero: es donde de verdad negocia por su
+              grupo, y lo que busca un profesional de asuntos públicos. */}
+          {portavocias.length > 0 && (
+            <div className="card" style={{ padding: 18 }}>
+              <div style={LABEL}>Donde tiene voz</div>
+              {portavocias.map((c) => (
+                <Link
+                  key={c.committee_id}
+                  href={`/institutions/comisiones/${c.committee_slug}`}
+                  style={FILA}
                 >
-                  <i className="ti ti-point-filled" style={{ color: '#1d6f5c', fontSize: 10 }}></i>
-                  <div>
-                    <div style={{ fontSize: 12.5, fontWeight: 600 }}>{r.role}</div>
-                    <div style={{ fontSize: 11.5, color: '#888' }}>
-                      {r.parliamentary_bodies?.name || r.parliamentary_groups?.name}
-                      {formatDate(r.start_date) ? ` · Desde ${formatDate(r.start_date)}` : ''}
+                  <span style={ICONO_VERDE}>
+                    <i className="ti ti-microphone" style={{ fontSize: 15 }} aria-hidden="true"></i>
+                  </span>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: 12.5, fontWeight: 600 }}>{c.committee_name}</div>
+                    <div style={{ fontSize: 10.5, color: '#999', marginTop: 1 }}>
+                      {[c.cargo, formatDate(c.fecha_alta) ? `desde ${formatDate(c.fecha_alta)}` : null]
+                        .filter(Boolean)
+                        .join(' · ')}
                     </div>
                   </div>
+                  {c.n_leyes + c.n_actividad > 0 && (
+                    <span style={CHIP}>{c.n_leyes + c.n_actividad} en trámite</span>
+                  )}
+                  <i className="ti ti-chevron-right" style={{ color: '#ccc', fontSize: 14, flexShrink: 0 }}></i>
+                </Link>
+              ))}
+              {resto.length > 0 && (
+                <div style={{ fontSize: 11, color: '#888', paddingTop: 11 }}>
+                  Y {resto.length === 1 ? 'miembro de' : 'miembro de'}{' '}
+                  {resto.map((c) => limpiarComision(c.committee_name)).join(', ')}.
                 </div>
+              )}
+            </div>
+          )}
+
+          {ponencias.length > 0 && (
+            <div className="card" style={{ padding: 18 }}>
+              <div style={LABEL}>Leyes que ha llevado · {ponencias.length}</div>
+              {ponencias.slice(0, 4).map((p) => (
+                <Link key={p.num_expediente} href={`/congreso/${p.slug}`} style={{ ...FILA, alignItems: 'flex-start' }}>
+                  <span
+                    style={{
+                      width: 3,
+                      alignSelf: 'stretch',
+                      background: p.is_closed ? '#d5d3c9' : '#6d5aef',
+                      borderRadius: 2,
+                      flexShrink: 0,
+                    }}
+                  ></span>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: 12, fontWeight: 600, lineHeight: 1.4, color: p.is_closed ? '#666' : '#1a1a1a' }}>
+                      {p.title}
+                    </div>
+                    <div style={{ fontSize: 10.5, color: '#999', marginTop: 3 }}>
+                      {[p.comision, p.fase, p.n_ponentes > 1 ? `${p.n_ponentes} ponentes` : null]
+                        .filter(Boolean)
+                        .join(' · ')}
+                    </div>
+                  </div>
+                  <i className="ti ti-chevron-right" style={{ color: '#ccc', fontSize: 13, flexShrink: 0, marginTop: 3 }}></i>
+                </Link>
+              ))}
+              {ponencias.length > 4 && (
+                <span
+                  onClick={() => setTab('ponencias')}
+                  style={{ fontSize: 11.5, color: '#1d6f5c', fontWeight: 600, cursor: 'pointer', display: 'inline-block', paddingTop: 11 }}
+                >
+                  Ver las {ponencias.length} →
+                </span>
+              )}
+            </div>
+          )}
+
+          {/* Un patrón que sale de los datos: con quién comparte ponencia
+              de forma recurrente. Solo aparece si hay coincidencias
+              repetidas, para que no sea ruido. */}
+          {colegas.length > 0 && (
+            <div className="card" style={{ padding: 18 }}>
+              <div style={LABEL}>Con quién coincide en ponencia</div>
+              <div style={{ fontSize: 11.5, color: '#888', lineHeight: 1.6, marginBottom: 13 }}>
+                Diputados con los que ha compartido ponencia más de una vez.
+              </div>
+              {colegas.map((c) => (
+                <Link key={c.colleague_id} href={`/institutions/deputies/${c.colleague_slug}`} style={FILA}>
+                  <Avatar nombre={c.colleague_name} url={c.colleague_photo} />
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: 12 }}>{fullNameDisplay(c.colleague_name)}</div>
+                    {(c.comisiones || []).length > 0 && (
+                      <div style={{ fontSize: 10, color: '#999' }}>
+                        {c.comisiones.map(limpiarComision).slice(0, 2).join(', ')}
+                      </div>
+                    )}
+                  </div>
+                  <span
+                    style={{ width: 8, height: 8, borderRadius: 2, background: groupColor(c.colleague_grupo), flexShrink: 0 }}
+                  ></span>
+                  <span style={{ fontSize: 10.5, color: '#999', flexShrink: 0 }}>{c.veces}</span>
+                </Link>
               ))}
             </div>
           )}
 
-          {pastRoles.length > 0 && (
-            <>
-              <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 10 }}>Histórico</div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                {pastRoles.map((r) => (
-                  <div key={r.id} style={{ fontSize: 12, color: '#888' }}>
-                    <span style={{ color: '#555' }}>{r.role}</span> ·{' '}
-                    {r.parliamentary_bodies?.name || r.parliamentary_groups?.name} · {formatDate(r.start_date)} –{' '}
-                    {formatDate(r.end_date)}
-                  </div>
-                ))}
+          {!perfil?.n_comisiones && ponencias.length === 0 && (
+            <div className="card">
+              <div className="empty-state">
+                <i className="ti ti-file-off"></i>
+                Aún no tenemos actividad parlamentaria registrada de este diputado.
               </div>
-            </>
+            </div>
           )}
         </div>
       )}
 
-      {tab === 'actividad' && (
-        <div className="card" style={{ padding: 20 }}>
-          <div
-            style={{
-              background: '#eeecfd',
-              border: '.5px solid #6d5aef',
-              borderRadius: 10,
-              padding: '14px 16px',
-              display: 'flex',
-              alignItems: 'center',
-              gap: 10,
-              marginBottom: 4,
-              flexWrap: 'wrap',
-            }}
-          >
-            <span
-              style={{ background: '#6d5aef', color: '#fff', fontSize: 9, fontWeight: 700, padding: '2px 7px', borderRadius: 6 }}
-            >
-              PRO
-            </span>
-            <div style={{ flex: 1, fontSize: 12.5, color: '#4a3fb0' }}>
-              Accede a la actividad completa con GovTalent Pro.
+      {tab === 'comisiones' && (
+        <div className="card" style={{ padding: 18 }}>
+          {comisiones.length === 0 ? (
+            <div className="empty-state">
+              <i className="ti ti-users-off"></i>
+              No consta en ninguna comisión.
             </div>
-            <button
-              className="btn-ai"
-              style={{ fontSize: 12, padding: '7px 14px' }}
-              onClick={() =>
-                setUpgradeModal({
-                  title: 'Actividad parlamentaria',
-                  message:
-                    'Consulta iniciativas, intervenciones y votaciones de este diputado. Disponible en el plan Pro.',
-                })
-              }
-            >
-              Ver planes
-            </button>
-          </div>
+          ) : (
+            comisiones.map((c) => (
+              <Link key={c.committee_id} href={`/institutions/comisiones/${c.committee_slug}`} style={FILA}>
+                <span style={c.es_portavoz ? ICONO_VERDE : ICONO_GRIS}>
+                  <i
+                    className={`ti ti-${c.es_portavoz ? 'microphone' : c.es_mesa ? 'gavel' : 'users'}`}
+                    style={{ fontSize: 15 }}
+                    aria-hidden="true"
+                  ></i>
+                </span>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: 12.5, fontWeight: c.es_portavoz ? 600 : 400 }}>{c.committee_name}</div>
+                  <div style={{ fontSize: 10.5, color: '#999', marginTop: 1 }}>
+                    {[c.cargo, formatDate(c.fecha_alta) ? `desde ${formatDate(c.fecha_alta)}` : null]
+                      .filter(Boolean)
+                      .join(' · ')}
+                  </div>
+                </div>
+                {c.n_leyes + c.n_actividad > 0 && <span style={CHIP}>{c.n_leyes + c.n_actividad} en trámite</span>}
+                <i className="ti ti-chevron-right" style={{ color: '#ccc', fontSize: 14, flexShrink: 0 }}></i>
+              </Link>
+            ))
+          )}
+        </div>
+      )}
+
+      {tab === 'ponencias' && (
+        <div className="card" style={{ padding: 18 }}>
+          {ponencias.length === 0 ? (
+            <div className="empty-state">
+              <i className="ti ti-file-off"></i>
+              No ha sido ponente de ninguna ley en esta legislatura.
+            </div>
+          ) : (
+            ponencias.map((p) => (
+              <Link key={p.num_expediente} href={`/congreso/${p.slug}`} style={{ ...FILA, alignItems: 'flex-start' }}>
+                <span
+                  style={{
+                    width: 3,
+                    alignSelf: 'stretch',
+                    background: p.is_closed ? '#d5d3c9' : '#6d5aef',
+                    borderRadius: 2,
+                    flexShrink: 0,
+                  }}
+                ></span>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: 12, fontWeight: 600, lineHeight: 1.4, color: p.is_closed ? '#666' : '#1a1a1a' }}>
+                    {p.title}
+                  </div>
+                  <div style={{ fontSize: 10.5, color: '#999', marginTop: 3 }}>
+                    {[
+                      p.kind === 'proyecto' ? 'Proyecto de ley' : 'Proposición de ley',
+                      p.comision,
+                      p.is_closed ? p.resultado || 'Concluida' : p.fase,
+                    ]
+                      .filter(Boolean)
+                      .join(' · ')}
+                  </div>
+                </div>
+                <i className="ti ti-chevron-right" style={{ color: '#ccc', fontSize: 13, flexShrink: 0, marginTop: 3 }}></i>
+              </Link>
+            ))
+          )}
         </div>
       )}
 
@@ -552,9 +694,6 @@ export default function DeputyProfilePage() {
         </a>
       </div>
 
-      {upgradeModal && (
-        <UpgradeModal title={upgradeModal.title} message={upgradeModal.message} onClose={() => setUpgradeModal(false)} />
-      )}
     </div>
   );
 }
