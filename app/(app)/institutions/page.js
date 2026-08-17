@@ -71,12 +71,27 @@ function SectionTitle({ flag, children }) {
   );
 }
 
-function ModuleCard({ href, icon, title, description, cta }) {
+// Las cifras van dentro de cada tarjeta, no en una banda superior: así
+// se sabe a qué módulo pertenece cada número y los módulos no quedan
+// empujados por debajo del pliegue. Mismo patrón que en Regulatorio.
+function ModuleCard({ href, icon, title, description, cta, cifras }) {
   return (
     <Link href={href} className="card" style={{ padding: 18, textDecoration: 'none', color: 'inherit' }}>
       <i className={`ti ti-${icon}`} style={{ color: '#6d5aef', fontSize: 19 }}></i>
       <div style={{ fontSize: 14, fontWeight: 700, marginTop: 8 }}>{title}</div>
       <div style={{ fontSize: 11.5, color: '#888', marginTop: 3, marginBottom: 10 }}>{description}</div>
+      {cifras?.length > 0 && (
+        <div style={{ display: 'flex', gap: 18, paddingTop: 11, marginBottom: 11, borderTop: '.5px solid #f0f0eb' }}>
+          {cifras.map((c) => (
+            <div key={c.label}>
+              <div style={{ fontSize: 16, fontWeight: 700 }}>
+                {c.n === null || c.n === undefined ? '—' : c.n.toLocaleString('es-ES')}
+              </div>
+              <div style={{ fontSize: 10, color: '#999' }}>{c.label}</div>
+            </div>
+          ))}
+        </div>
+      )}
       <span style={{ fontSize: 12, color: '#6d5aef', fontWeight: 600 }}>{cta} →</span>
     </Link>
   );
@@ -120,14 +135,32 @@ export default function InstitutionsHomePage() {
   }, []);
 
   async function load() {
-    const [{ count: deputiesCount }, { count: groupsCount }, { count: mepsCount }, { data: leg }] =
-      await Promise.all([
-        supabase.from('deputies').select('id', { count: 'exact', head: true }).eq('active', true),
-        supabase.from('parliamentary_groups').select('id', { count: 'exact', head: true }).eq('active', true),
-        supabase.from('eu_meps').select('id', { count: 'exact', head: true }).eq('active', true),
-        supabase.from('legislatures').select('name').eq('active', true).limit(1).maybeSingle(),
-      ]);
-    setCounts({ deputies: deputiesCount || 0, groups: groupsCount || 0, meps: mepsCount || 0 });
+    // Solo recuentos, con head: true, así que no se traen filas.
+    const [
+      { count: deputiesCount },
+      { count: groupsCount },
+      { count: mepsCount },
+      { count: committeesCount },
+      { count: commissionersCount },
+      { count: ecPeopleCount },
+      { data: leg },
+    ] = await Promise.all([
+      supabase.from('deputies').select('id', { count: 'exact', head: true }).eq('active', true),
+      supabase.from('parliamentary_groups').select('id', { count: 'exact', head: true }).eq('active', true),
+      supabase.from('eu_meps').select('id', { count: 'exact', head: true }).eq('active', true),
+      supabase.from('es_committees').select('id', { count: 'exact', head: true }),
+      supabase.from('ec_commissioners').select('id', { count: 'exact', head: true }),
+      supabase.from('ec_people').select('id', { count: 'exact', head: true }).eq('active', true),
+      supabase.from('legislatures').select('name').eq('active', true).limit(1).maybeSingle(),
+    ]);
+    setCounts({
+      deputies: deputiesCount || 0,
+      groups: groupsCount || 0,
+      meps: mepsCount || 0,
+      committees: committeesCount || 0,
+      commissioners: commissionersCount || 0,
+      ecPeople: ecPeopleCount || 0,
+    });
     setLegislature(leg);
   }
 
@@ -142,6 +175,9 @@ export default function InstitutionsHomePage() {
         <h1 style={{ fontSize: 19, fontWeight: 700, margin: 0 }}>Directorio institucional</h1>
         <p style={{ fontSize: 12.5, color: '#888', margin: '3px 0 0' }}>
           Quién decide en España y en la Unión Europea, con su cargo y su contacto.
+          {/* La legislatura se cargaba para la banda de cifras; al quitarla
+              se queda aquí, que es donde de verdad sitúa al usuario. */}
+          {legislature?.name && ` · ${legislature.name}`}
         </p>
       </div>
 
@@ -169,38 +205,9 @@ export default function InstitutionsHomePage() {
         />
       </form>
 
-      <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns: '1fr .5px 1fr .5px 1fr .5px 1fr',
-          background: '#fff',
-          borderRadius: 12,
-          padding: '18px 8px',
-          marginBottom: 24,
-        }}
-      >
-        <div style={{ textAlign: 'center' }}>
-          <div style={{ fontSize: 22, fontWeight: 700, color: '#1a1a18' }}>{counts ? counts.deputies : '—'}</div>
-          <div style={{ fontSize: 11.5, color: '#888', marginTop: 2 }}>Diputados</div>
-        </div>
-        <div style={{ background: '#e0dfd8' }}></div>
-        <div style={{ textAlign: 'center' }}>
-          <div style={{ fontSize: 22, fontWeight: 700, color: '#1a1a18' }}>{counts ? counts.groups : '—'}</div>
-          <div style={{ fontSize: 11.5, color: '#888', marginTop: 2 }}>Grupos parlamentarios</div>
-        </div>
-        <div style={{ background: '#e0dfd8' }}></div>
-        <div style={{ textAlign: 'center' }}>
-          <div style={{ fontSize: 22, fontWeight: 700, color: '#1a1a18' }}>{counts ? counts.meps : '—'}</div>
-          <div style={{ fontSize: 11.5, color: '#888', marginTop: 2 }}>Eurodiputados</div>
-        </div>
-        <div style={{ background: '#e0dfd8' }}></div>
-        <div style={{ textAlign: 'center' }}>
-          <div style={{ fontSize: 16, fontWeight: 700, color: '#1a1a18', marginTop: 3 }}>
-            {legislature?.name?.split(' ')[0] || '—'} Legislatura
-          </div>
-          <div style={{ fontSize: 11.5, color: '#888', marginTop: 2 }}>Vigente</div>
-        </div>
-      </div>
+      {/* La banda de cifras se retiró: ocupaba media pantalla para decir
+          lo que cada tarjeta ya cuenta, y empujaba los módulos —que es a
+          donde el usuario va— por debajo del pliegue. */}
 
       <div style={{ marginBottom: 24 }}>
         <SectionTitle flag={<FlagES />}>España</SectionTitle>
@@ -218,6 +225,10 @@ export default function InstitutionsHomePage() {
             title="Diputados"
             description="Consulta los diputados del Congreso, sus cargos y comisiones."
             cta="Ver diputados"
+            cifras={[
+              { n: counts?.deputies ?? null, label: 'diputados' },
+              { n: counts?.committees ?? null, label: 'comisiones' },
+            ]}
           />
           <ModuleCard
             href="/institutions/groups"
@@ -225,6 +236,7 @@ export default function InstitutionsHomePage() {
             title="Grupos parlamentarios"
             description="Explora los grupos, sus portavoces y composición actual."
             cta="Ver grupos"
+            cifras={[{ n: counts?.groups ?? null, label: 'grupos' }]}
           />
           <SoonCard
             icon="scale"
@@ -241,15 +253,20 @@ export default function InstitutionsHomePage() {
             href="/institutions/eu-parliament"
             icon="building-arch"
             title="Parlamento Europeo"
-            description="719 eurodiputados, sus grupos políticos y sus comisiones."
+            description="Eurodiputados, sus grupos políticos y sus comisiones."
             cta="Ver Parlamento Europeo"
+            cifras={[{ n: counts?.meps ?? null, label: 'eurodiputados' }]}
           />
           <ModuleCard
             href="/institutions/eu-commission"
             icon="briefcase"
             title="Comisión Europea"
-            description="2.096 decisores: comisarios, gabinetes y jefes de unidad, con su contacto."
+            description="Comisarios, gabinetes y jefes de unidad, con su contacto."
             cta="Ver Comisión Europea"
+            cifras={[
+              { n: counts?.commissioners ?? null, label: 'comisarios' },
+              { n: counts?.ecPeople ?? null, label: 'decisores' },
+            ]}
           />
         </div>
       </div>
