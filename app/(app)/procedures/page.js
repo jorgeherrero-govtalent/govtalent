@@ -96,9 +96,13 @@ export default function ProceduresDirectoryPage() {
   }, []);
 
   useEffect(() => {
+    // Solo las columnas que la lista pinta: reparto_grupos es un jsonb
+    // que solo se usa en el semicírculo de la ficha.
     supabase
       .from('ep_procedures_directory')
-      .select('*')
+      .select(
+        'process_id, slug, label, title, current_stage_label, is_closed, ponente, ponente_grupo, comision_competente, n_espanoles, year, last_activity_at'
+      )
       .order('last_activity_at', { ascending: false, nullsFirst: false })
       .then(({ data }) => setItems(data || []));
   }, []);
@@ -175,6 +179,14 @@ export default function ProceduresDirectoryPage() {
 
   return (
     <div className="sec" style={{ maxWidth: 1080 }}>
+      <div style={{ fontSize: 11.5, color: '#999', marginBottom: 10 }}>
+        <Link href="/regulatorio" style={{ color: '#999', textDecoration: 'none' }}>
+          Regulatorio
+        </Link>
+        {' › '}
+        <span style={{ color: '#666' }}>Procedimientos</span>
+      </div>
+
       <div style={{ marginBottom: 14 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 9, marginBottom: 3 }}>
           <FlagEU />
