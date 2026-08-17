@@ -157,6 +157,8 @@ export default function RegulatorioPage() {
     tramitacion: null,
     esTotal: null,
     esVivas: null,
+    esPnl: null,
+    esComparecencias: null,
   });
 
   useEffect(() => {
@@ -174,7 +176,14 @@ export default function RegulatorioPage() {
         .from('es_initiatives')
         .select('num_expediente', { count: 'exact', head: true })
         .eq('is_closed', false),
-    ]).then(([exp, ven, proc, tram, esT, esV]) => {
+      // Las PNL y comparecencias viven en es_activity: la fuente da
+      // menos campos para ellas y no comparten estructura con las leyes.
+      supabase.from('es_activity').select('num_expediente', { count: 'exact', head: true }).eq('kind', 'pnl'),
+      supabase
+        .from('es_activity')
+        .select('num_expediente', { count: 'exact', head: true })
+        .eq('kind', 'comparecencia'),
+    ]).then(([exp, ven, proc, tram, esT, esV, pnl, comp]) => {
       setCifras({
         expedientes: exp.count ?? null,
         ventanas: ven.count ?? null,
@@ -182,6 +191,8 @@ export default function RegulatorioPage() {
         tramitacion: tram.count ?? null,
         esTotal: esT.count ?? null,
         esVivas: esV.count ?? null,
+        esPnl: pnl.count ?? null,
+        esComparecencias: comp.count ?? null,
       });
     });
   }, []);
@@ -189,7 +200,7 @@ export default function RegulatorioPage() {
   const suma = (...xs) => (xs.every((x) => x !== null) ? xs.reduce((a, b) => a + b, 0) : null);
   const enMarchaUE = suma(cifras.ventanas, cifras.tramitacion);
   const enMarcha = suma(cifras.ventanas, cifras.tramitacion, cifras.esVivas);
-  const total = suma(cifras.expedientes, cifras.procedimientos, cifras.esTotal);
+  const total = suma(cifras.expedientes, cifras.procedimientos, cifras.esTotal, cifras.esPnl, cifras.esComparecencias);
 
   const Bloque = ({ children }) => (
     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 10 }}>
@@ -201,11 +212,11 @@ export default function RegulatorioPage() {
     <div className="sec" style={{ maxWidth: 1080 }}>
       <div style={{ marginBottom: 18 }}>
         <h1 style={{ fontSize: 18, fontWeight: 700, margin: 0 }}>Regulatorio</h1>
-        <p style={{ fontSize: 12.5, color: '#888', margin: '4px 0 0' }}>
-          {total !== null
-            ? `${total.toLocaleString('es-ES')} asuntos · ${enMarcha?.toLocaleString('es-ES')} en marcha`
-            : 'Cargando…'}
+        <p style={{ fontSize: 12.5, color: '#888', margin: '4px 0 14px' }}>
+          Qué se está tramitando en España y en la Unión Europea, con sus plazos y actores.
+          {total !== null && ` ${total.toLocaleString('es-ES')} asuntos, ${enMarcha?.toLocaleString('es-ES')} en marcha.`}
         </p>
+
       </div>
 
       <div style={{ display: 'flex', alignItems: 'center', gap: 9, marginBottom: 11 }}>
@@ -259,12 +270,13 @@ export default function RegulatorioPage() {
         <ModuloCard
           href="/congreso"
           icon="building-bank"
-          titulo="Congreso"
-          fuente="Cortes Generales"
-          descripcion="Proyectos y proposiciones de ley con su ponencia, actores y plazos de enmiendas."
+          titulo="Actividad parlamentaria"
+          fuente="Congreso de los Diputados"
+          descripcion="Leyes, proposiciones no de ley y comparecencias, con sus actores y plazos."
           cifras={[
-            { n: cifras.esVivas, label: 'en trámite', destacada: true },
-            { n: cifras.esTotal, label: 'total' },
+            { n: cifras.esTotal, label: 'leyes' },
+            { n: cifras.esPnl, label: 'PNL' },
+            { n: cifras.esComparecencias, label: 'comparecencias' },
           ]}
         />
       </Bloque>
