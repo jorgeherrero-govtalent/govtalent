@@ -140,9 +140,10 @@ export default function LeyesList() {
 
   const filtered = useMemo(() => {
     let l = items || [];
+    // "Todas" incluye las concluidas: los decretos-ley lo están todos, y
+    // sin esto no aparecerían nunca.
     if (estado === 'progreso') l = l.filter((i) => !i.is_closed && !i.is_blocked);
     else if (estado === 'bloqueadas') l = l.filter((i) => i.is_blocked);
-    else l = l.filter((i) => !i.is_closed);
 
     if (search) {
       const q = normalize(search);
@@ -208,12 +209,33 @@ export default function LeyesList() {
           />
         </div>
 
-        <span onClick={() => setEstado('progreso')} style={chip(estado === 'progreso')}>
-          En progreso ({enProgreso})
-        </span>
-        <span onClick={() => setEstado('bloqueadas')} style={chip(estado === 'bloqueadas')}>
-          Bloqueadas ({bloqueadas})
-        </span>
+        {/* Los tres estados son excluyentes, así que van juntos como un
+            selector. Antes solo había dos botones y no se podía volver a
+            "todas": los 50 decretos-ley, que están todos concluidos,
+            quedaban invisibles al filtrar por tipo. */}
+        <div style={{ display: 'flex', gap: 2, background: '#fff', border: '.5px solid #e0dfd8', borderRadius: 22, padding: 3 }}>
+          {[
+            { id: 'progreso', label: `En progreso (${enProgreso})` },
+            { id: 'bloqueadas', label: `Bloqueadas (${bloqueadas})` },
+            { id: 'todas', label: `Todas (${(items || []).length})` },
+          ].map((e) => (
+            <span
+              key={e.id}
+              onClick={() => setEstado(e.id)}
+              style={{
+                fontSize: 12,
+                padding: '5px 11px',
+                borderRadius: 18,
+                cursor: 'pointer',
+                whiteSpace: 'nowrap',
+                background: estado === e.id ? '#6d5aef' : 'transparent',
+                color: estado === e.id ? '#fff' : '#666',
+              }}
+            >
+              {e.label}
+            </span>
+          ))}
+        </div>
 
         <MultiSelectFilter
           label="Situación"
@@ -221,7 +243,21 @@ export default function LeyesList() {
           selected={situacionFilter}
           onApply={setSituacionFilter}
         />
-        <MultiSelectFilter label="Tipo" values={tipoOptions} selected={tipoFilter} onApply={setTipoFilter} />
+        <MultiSelectFilter
+          label="Tipo"
+          values={tipoOptions}
+          selected={tipoFilter}
+          onApply={(sel) => {
+            setTipoFilter(sel);
+            // Si el tipo elegido no tiene ningún registro vivo —los
+            // decretos-ley están todos concluidos— se pasa a "todas" en
+            // vez de enseñar una lista vacía sin explicar por qué.
+            if (sel.size > 0) {
+              const hayVivos = (items || []).some((i) => sel.has(i.kind) && !i.is_closed);
+              if (!hayVivos) setEstado('todas');
+            }
+          }}
+        />
       </div>
 
       {activeCount > 0 && (
