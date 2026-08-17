@@ -91,8 +91,15 @@ function Actividad() {
       supabase.from('es_initiatives').select('num_expediente', { count: 'exact', head: true }),
       supabase.from('es_activity').select('num_expediente', { count: 'exact', head: true }).eq('kind', 'pnl'),
       supabase.from('es_activity').select('num_expediente', { count: 'exact', head: true }).eq('kind', 'comparecencia'),
-    ]).then(([l, p, c]) =>
-      setCifras({ leyes: l.count ?? null, pnl: p.count ?? null, comparecencia: c.count ?? null })
+      // Los decretos-ley se cuentan con las leyes aunque vivan en
+      // es_activity: son legislación, solo que sin tramitación propia.
+      supabase.from('es_activity').select('num_expediente', { count: 'exact', head: true }).eq('kind', 'decreto'),
+    ]).then(([l, p, c, d]) =>
+      setCifras({
+        leyes: l.count !== null && d.count !== null ? l.count + d.count : l.count ?? null,
+        pnl: p.count ?? null,
+        comparecencia: c.count ?? null,
+      })
     );
   }, []);
 
