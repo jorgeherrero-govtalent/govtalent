@@ -6,7 +6,7 @@ import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
 import { toast } from '@/lib/toast';
 import BackLink from '@/components/BackLink';
-import { groupColor, grupoCorto } from '@/lib/grupos';
+import { groupColor, grupoCorto, colorSigla, nombreSigla } from '@/lib/grupos';
 
 const MESES = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
 
@@ -109,6 +109,7 @@ export default function CongresoDetailPage() {
   const [item, setItem] = useState(undefined);
   const [etapas, setEtapas] = useState([]);
   const [personas, setPersonas] = useState([]);
+  const [comision, setComision] = useState(null);
   const [userId, setUserId] = useState(null);
   const [saved, setSaved] = useState(false);
   const [tab, setTab] = useState('recorrido');
@@ -133,19 +134,28 @@ export default function CongresoDetailPage() {
       }
       setItem(data);
 
-      const [{ data: et }, { data: pe }, { data: auth }] = await Promise.all([
+      const [{ data: et }, { data: pe }, { data: co }, { data: auth }] = await Promise.all([
         supabase
           .from('es_initiative_timeline')
           .select('*')
           .eq('num_expediente', data.num_expediente)
           .order('ord'),
         supabase.from('es_initiative_actors').select('*').eq('num_expediente', data.num_expediente),
+        // La comisión competente con sus portavoces: quienes negocian
+        // este texto por cada grupo.
+        supabase
+          .from('es_initiative_committee')
+          .select('*')
+          .eq('num_expediente', data.num_expediente)
+          .limit(1)
+          .maybeSingle(),
         supabase.auth.getUser(),
       ]);
 
       if (cancelled) return;
       setEtapas(et || []);
       setPersonas(pe || []);
+      setComision(co || null);
 
       const uid = auth?.user?.id || null;
       setUserId(uid);
@@ -188,12 +198,12 @@ export default function CongresoDetailPage() {
       {
         id: 'actores',
         label: `Actores${personas.length ? ` (${personas.length})` : ''}`,
-        activa: personas.length > 0 || (item?.grupos || []).length > 0,
+        activa: personas.length > 0 || (item?.grupos || []).length > 0 || !!comision,
       },
       { id: 'plazos', label: 'Plazos', activa: !!item?.texto_plazos },
       { id: 'docs', label: `Documentos${documentos.length ? ` (${documentos.length})` : ''}`, activa: documentos.length > 0 },
     ],
-    [etapas, personas, item, documentos]
+    [etapas, personas, item, documentos, comision]
   );
 
   useEffect(() => {
@@ -462,9 +472,112 @@ export default function CongresoDetailPage() {
 
       {tab === 'actores' && (
         <div style={CARD}>
+          {/* La comisión competente va primero: es quien decide el texto.
+              Vive en Instituciones como órgano, pero aquí aparece como
+              actor de esta norma concreta — mismo patrón que la dirección
+              general en los expedientes europeos. */}
+          {comision && (
+            <>
+              <div style={LABEL}>Quién lo decide</div>
+              <Link
+                href={`/institutions/comisiones/${comision.committee_slug}`}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 11,
+                  padding: '9px 0',
+                  borderBottom: '.5px solid #f0f0eb',
+                  textDecoration: 'none',
+                  color: 'inherit',
+                }}
+              >
+                <div
+                  style={{
+                    width: 34,
+                    height: 34,
+                    borderRadius: 8,
+                    background: '#EEEDFE',
+                    color: '#3C3489',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    flexShrink: 0,
+                  }}
+                >
+                  <i className="ti ti-users" style={{ fontSize: 16 }} aria-hidden="true"></i>
+                </div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: 12.5, fontWeight: 600 }}>{comision.committee_name}</div>
+                  <div style={{ fontSize: 10.5, color: '#999', marginTop: 1 }}>
+                    Comisión competente · {comision.n_members} miembros
+                  </div>
+                </div>
+                <i className="ti ti-chevron-right" style={{ color: '#ccc', fontSize: 14, flexShrink: 0 }}></i>
+              </Link>
+
+              {comision.presidente && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: 11, padding: '9px 0', borderBottom: '.5px solid #f0f0eb' }}>
+                  <Avatar nombre={comision.presidente} size={34} />
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: 12.5, fontWeight: 600 }}>{nombreLegible(comision.presidente)}</div>
+                    <div style={{ fontSize: 10.5, color: '#999', marginTop: 1 }}>Preside la comisión</div>
+                  </div>
+                  {comision.presidente_grupo && (
+                    <span style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
+                      <span style={{ width: 9, height: 9, borderRadius: 2, background: colorSigla(comision.presidente_grupo) }}></span>
+                      <span style={{ fontSize: 10.5, color: '#888' }}>{nombreSigla(comision.presidente_grupo)}</span>
+                    </span>
+                  )}
+                </div>
+              )}
+
+              {(comision.portavoces || []).length > 0 && (
+                <>
+                  <div style={{ ...LABEL, marginTop: 18 }}>
+                    Portavoces en la comisión · {comision.portavoces.length}
+                  </div>
+                  {comision.portavoces.map((p, i) => {
+                    const cuerpo = (
+                      <>
+                        <Avatar nombre={p.nombre} url={p.foto} size={30} />
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{ fontSize: 12, fontWeight: 600 }}>{nombreLegible(p.nombre)}</div>
+                          {p.senador && <div style={{ fontSize: 10, color: '#999', marginTop: 1 }}>Senado</div>}
+                        </div>
+                        <span style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
+                          <span style={{ width: 9, height: 9, borderRadius: 2, background: colorSigla(p.grupo) }}></span>
+                          <span style={{ fontSize: 10.5, color: '#888' }}>{nombreSigla(p.grupo)}</span>
+                        </span>
+                        {p.slug && <i className="ti ti-chevron-right" style={{ color: '#ccc', fontSize: 14, flexShrink: 0 }}></i>}
+                      </>
+                    );
+                    const estilo = {
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 10,
+                      padding: '8px 0',
+                      borderBottom: '.5px solid #f0f0eb',
+                      textDecoration: 'none',
+                      color: 'inherit',
+                    };
+                    return p.slug ? (
+                      <Link key={`pv-${i}`} href={`/institutions/deputies/${p.slug}`} style={estilo}>
+                        {cuerpo}
+                      </Link>
+                    ) : (
+                      <div key={`pv-${i}`} style={estilo}>
+                        {cuerpo}
+                      </div>
+                    );
+                  })}
+                </>
+              )}
+            </>
+          )}
+
           {(item.grupos || []).length > 0 && (
             <>
-              <div style={LABEL}>Quién la presenta</div>
+              <div style={{ ...LABEL, marginTop: comision ? 18 : 0 }}>Quién la presenta</div>
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 18 }}>
                 {item.grupos.map((g) => (
                   <span
