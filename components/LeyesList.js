@@ -63,11 +63,47 @@ export default function LeyesList() {
   }, [searchParams]);
 
   useEffect(() => {
-    supabase
-      .from('es_initiatives_directory')
-      .select('*')
-      .order('fecha_presentacion', { ascending: false, nullsFirst: false })
-      .then(({ data }) => setItems(data || []));
+    // Los decretos-ley viven en es_activity porque su tramitación no se
+    // parece a la de una ley —el Gobierno los aprueba y el Congreso los
+    // convalida— pero son legislación, así que se muestran aquí.
+    Promise.all([
+      supabase
+        .from('es_initiatives_directory')
+        .select('*')
+        .order('fecha_presentacion', { ascending: false, nullsFirst: false }),
+      supabase
+        .from('es_activity_directory')
+        .select('*')
+        .eq('kind', 'decreto')
+        .order('fecha_presentacion', { ascending: false, nullsFirst: false }),
+    ]).then(([{ data: leyes }, { data: decretos }]) => {
+      // Los decretos se adaptan a la forma de una ley para que la lista
+      // no tenga que distinguirlos en cada campo.
+      const normalizados = (decretos || []).map((d) => ({
+        num_expediente: d.num_expediente,
+        slug: d.slug,
+        // Se marca el origen: la ficha de un decreto es la simple, no la
+        // de una ley con sus pestañas.
+        es_actividad: true,
+        kind: 'decreto',
+        kind_label: 'Real decreto-ley',
+        title: d.titulo,
+        situacion: d.situacion,
+        fase: null,
+        comision: null,
+        resultado: d.resultado,
+        is_closed: d.is_closed,
+        is_blocked: false,
+        fecha_presentacion: d.fecha_presentacion,
+        dias_plazo: null,
+        n_prorrogas: 0,
+        n_ponentes: 0,
+        grupos: (d.autores || []).map((a) => ({ grupo: a.nombre, group_id: a.group_id })),
+      }));
+      setItems([...(leyes || []), ...normalizados].sort((a, b) =>
+        String(b.fecha_presentacion || '').localeCompare(String(a.fecha_presentacion || ''))
+      ));
+    });
   }, []);
 
   function changePageSize(n) {
@@ -99,6 +135,7 @@ export default function LeyesList() {
   const tipoOptions = [
     { value: 'proyecto', label: 'Proyecto de ley' },
     { value: 'proposicion', label: 'Proposición de ley' },
+    { value: 'decreto', label: 'Real decreto-ley' },
   ];
 
   const filtered = useMemo(() => {
@@ -221,7 +258,7 @@ export default function LeyesList() {
           {slice.map((i) => (
             <Link
               key={i.num_expediente}
-              href={`/congreso/${i.slug}`}
+              href={i.es_actividad ? `/congreso/actividad/${i.slug}` : `/congreso/${i.slug}`}
               style={{
                 display: 'flex',
                 gap: 13,
