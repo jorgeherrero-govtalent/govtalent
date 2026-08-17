@@ -67,13 +67,18 @@ export default function LeyesList() {
     // parece a la de una ley —el Gobierno los aprueba y el Congreso los
     // convalida— pero son legislación, así que se muestran aquí.
     Promise.all([
+      // Solo las columnas que la lista pinta: con select('*') viajaban
+      // también los textos completos de plazos y tramitación, que solo
+      // se usan en la ficha.
       supabase
         .from('es_initiatives_directory')
-        .select('*')
+        .select(
+          'num_expediente, slug, kind, kind_label, title, situacion, fase, comision, resultado, is_closed, is_blocked, motivo_bloqueo, fecha_presentacion, plazo_enmiendas, dias_plazo, n_prorrogas, ultima_actuacion, n_ponentes, grupos, tipo_tramitacion'
+        )
         .order('fecha_presentacion', { ascending: false, nullsFirst: false }),
       supabase
         .from('es_activity_directory')
-        .select('*')
+        .select('num_expediente, slug, titulo, situacion, resultado, is_closed, fecha_presentacion, autores')
         .eq('kind', 'decreto')
         .order('fecha_presentacion', { ascending: false, nullsFirst: false }),
     ]).then(([{ data: leyes }, { data: decretos }]) => {
