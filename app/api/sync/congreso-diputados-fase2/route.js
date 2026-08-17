@@ -204,6 +204,47 @@ export async function GET(request) {
     return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
   }
 
+  // Modo diagnóstico: enseña el HTML del listado para ver cómo vienen
+  // los enlaces. El fichero de datos abiertos no trae el código
+  // —comprobado: solo NOMBRE, CIRCUNSCRIPCION, FORMACIONELECTORAL,
+  // fechas, GRUPOPARLAMENTARIO y BIOGRAFIA— así que hay que sacarlo de
+  // aquí, y sin ver el marcado real es adivinar.
+  if (sp.get('inspeccionar')) {
+    const p = new URLSearchParams({
+      p_p_id: 'diputadomodule',
+      p_p_lifecycle: '0',
+      p_p_state: 'normal',
+      p_p_mode: 'view',
+      _diputadomodule_idLegislatura: 'XV',
+      _diputadomodule_delta: '400',
+    });
+    const url = `${LISTADO}?${p.toString()}`;
+    const res = await fetch(url, { headers: HEADERS, cache: 'no-store' });
+    const html = await res.text();
+
+    // Cuántas veces aparece cada pista, para saber por dónde tirar
+    const cuenta = (re) => (html.match(re) || []).length;
+    return NextResponse.json({
+      modo: 'inspeccionar',
+      url,
+      status: res.status,
+      tamano: html.length,
+      pistas: {
+        codParlamentario: cuenta(/codParlamentario/g),
+        codParlamentario_igual: cuenta(/codParlamentario=\d+/g),
+        mostrarFicha: cuenta(/mostrarFicha/g),
+        imagenDiputado: cuenta(/imagenDiputado/g),
+        congreso_es_mail: cuenta(/@congreso\.es/g),
+      },
+      // Un trozo alrededor de la primera mención, que es donde se ve la
+      // forma del enlace
+      contexto: (() => {
+        const i = html.indexOf('codParlamentario');
+        return i < 0 ? null : html.slice(Math.max(0, i - 400), i + 400);
+      })(),
+    });
+  }
+
   const dry = sp.get('dry') === '1';
   const paso = sp.get('paso') || 'codigos';
   const eslabon = Math.max(parseInt(sp.get('cadena') || '0', 10), 0);
