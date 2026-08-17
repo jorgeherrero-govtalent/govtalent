@@ -109,14 +109,23 @@ function resumen(r) {
   const base = { status: r.status, ms: r.ms, tipo: r.tipo, tamano: r.texto?.length };
 
   if (r.data) {
-    const lista = Array.isArray(r.data) ? r.data : r.data.data || r.data.iniciativas || null;
+    // La lista se llama lista_iniciativas, no data ni iniciativas: sin
+    // esto el resumen decía "registros: null" aunque hubiera resultados.
+    const lista = Array.isArray(r.data)
+      ? r.data
+      : r.data.lista_iniciativas || r.data.data || r.data.iniciativas || null;
     return {
       ...base,
       formato: 'JSON',
       claves: !Array.isArray(r.data) ? Object.keys(r.data) : null,
+      // El total de resultados, que dice el volumen de cada tipo
+      encontradas: r.data.iniciativas_encontradas ?? null,
+      paginacion: r.data.paginacion ?? null,
       registros: Array.isArray(lista) ? lista.length : null,
       campos: Array.isArray(lista) && lista[0] ? Object.keys(lista[0]) : null,
-      muestra: Array.isArray(lista) && lista[0] ? JSON.stringify(lista[0]).slice(0, 500) : null,
+      muestra: Array.isArray(lista) && lista[0] ? JSON.stringify(lista[0]).slice(0, 900) : null,
+      // Si la lista no es un array, enseñar qué es para poder ajustar
+      forma_lista: !Array.isArray(lista) && lista ? typeof lista : null,
     };
   }
 
