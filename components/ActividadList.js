@@ -58,9 +58,15 @@ export default function ActividadList({ kind }) {
     setItems(null);
     setPage(1);
     Promise.all([
+      // Solo las columnas que la lista pinta. Con select('*') se traía
+      // también `raw` —el registro original en jsonb— que pesa 6 MB de
+      // los 12 de la tabla y no se usa en ninguna parte de la interfaz.
+      // Medido: lo visible son 1,8 MB frente a 12 MB del select entero.
       supabase
         .from('es_activity_directory')
-        .select('*')
+        .select(
+          'num_expediente, slug, kind, kind_label, cini, titulo, fecha_presentacion, situacion, resultado, is_closed, autores, group_ids, committee_slug'
+        )
         .eq('kind', kind)
         .order('fecha_presentacion', { ascending: false, nullsFirst: false }),
       supabase.from('parliamentary_groups').select('id, name, slug').eq('active', true),
