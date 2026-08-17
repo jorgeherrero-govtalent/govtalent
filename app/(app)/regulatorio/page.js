@@ -96,27 +96,24 @@ function ModuloCard({ href, icon, titulo, fuente, descripcion, cta, cifras }) {
   );
 }
 
-// Los módulos pendientes van en gris, no en morado: si todo llevara el
-// color de marca, lo disponible y lo que aún no existe pesarían igual.
-function SoonCard({ icon, titulo, fuente, descripcion }) {
+/**
+ * Los módulos pendientes en una línea, no como tarjetas.
+ *
+ * Con tres tarjetas en gris frente a tres activas, la mitad de la
+ * pantalla comunicaba que el producto no funciona — cuando hay más de
+ * doce mil asuntos cargados. Conviene que la interfaz magnifique lo que
+ * ya existe, no lo que falta.
+ */
+function Proximamente({ items }) {
   return (
-    <div style={{ background: '#f4f4f0', borderRadius: 12, padding: 18, opacity: 0.75 }}>
-      <i className={`ti ti-${icon}`} style={{ color: '#999', fontSize: 19 }}></i>
-      <div style={{ fontSize: 14, fontWeight: 700, marginTop: 8, color: '#777' }}>{titulo}</div>
-      {fuente && <div style={{ fontSize: 10.5, color: '#aaa', marginTop: 2 }}>{fuente}</div>}
-      <div style={{ fontSize: 11.5, color: '#999', marginTop: 5, marginBottom: 10 }}>{descripcion}</div>
-      <span
-        style={{
-          fontSize: 11,
-          fontWeight: 600,
-          color: '#999',
-          background: '#e5e4de',
-          padding: '3px 9px',
-          borderRadius: 10,
-        }}
-      >
-        Próximamente
-      </span>
+    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 10, flexWrap: 'wrap' }}>
+      <span style={{ fontSize: 10.5, color: '#aaa' }}>Próximamente</span>
+      {items.map((t, i) => (
+        <span key={t} style={{ fontSize: 11, color: '#999' }}>
+          {i > 0 && <span style={{ color: '#ddd', marginRight: 8 }}>·</span>}
+          {t}
+        </span>
+      ))}
     </div>
   );
 }
@@ -132,6 +129,7 @@ export default function RegulatorioPage() {
     esVivas: null,
     esPnl: null,
     esComparecencias: null,
+    actividadViva: null,
   });
 
   useEffect(() => {
@@ -156,7 +154,8 @@ export default function RegulatorioPage() {
         .from('es_activity')
         .select('num_expediente', { count: 'exact', head: true })
         .eq('kind', 'comparecencia'),
-    ]).then(([exp, ven, proc, tram, esT, esV, pnl, comp]) => {
+      supabase.from('es_activity').select('num_expediente', { count: 'exact', head: true }).eq('is_closed', false),
+    ]).then(([exp, ven, proc, tram, esT, esV, pnl, comp, act]) => {
       setCifras({
         expedientes: exp.count ?? null,
         ventanas: ven.count ?? null,
@@ -166,6 +165,7 @@ export default function RegulatorioPage() {
         esVivas: esV.count ?? null,
         esPnl: pnl.count ?? null,
         esComparecencias: comp.count ?? null,
+        actividadViva: act.count ?? null,
       });
     });
   }, []);
@@ -174,6 +174,11 @@ export default function RegulatorioPage() {
   const enMarchaUE = suma(cifras.ventanas, cifras.tramitacion);
   const enMarcha = suma(cifras.ventanas, cifras.tramitacion, cifras.esVivas);
   const total = suma(cifras.expedientes, cifras.procedimientos, cifras.esTotal, cifras.esPnl, cifras.esComparecencias);
+
+  // España: lo vivo son las leyes en trámite más la actividad abierta.
+  // La cabecera decía 300 —solo leyes— cuando en realidad son 4.530.
+  const esEnTramite = suma(cifras.esVivas, cifras.actividadViva);
+  const esRegistradas = suma(cifras.esTotal, cifras.esPnl, cifras.esComparecencias);
 
   const Bloque = ({ children }) => (
     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 10 }}>
@@ -207,7 +212,7 @@ export default function RegulatorioPage() {
             titulo="Expedientes"
             fuente="Comisión Europea"
             descripcion="Plazos, resumen y actores responsables de la tramitación."
-            cta="Ver expedientes"
+            cta="Explorar expedientes"
             cifras={[
               { n: cifras.ventanas, label: 'abiertas', destacada: true },
               { n: cifras.expedientes, label: 'total' },
@@ -219,7 +224,7 @@ export default function RegulatorioPage() {
             titulo="Procedimientos"
             fuente="Parlamento Europeo"
             descripcion="Ponentes, fase normativa, comisiones y actores clave."
-            cta="Ver procedimientos"
+            cta="Explorar procedimientos"
             cifras={[
               { n: cifras.tramitacion, label: 'en marcha', destacada: true },
               { n: cifras.procedimientos, label: 'total' },
@@ -238,32 +243,25 @@ export default function RegulatorioPage() {
       {/* Lo que funciona va primero: una tarjeta en gris antes que una
           activa haría parecer el módulo más vacío de lo que está. */}
       <Bloque>
+        {/* Dos cifras, no tres. Antes ponía leyes, PNL y comparecencias
+            —stock histórico— junto a un "en trámite" en la cabecera, y no
+            se sabía qué número mirar. Ahora se distingue lo que está vivo
+            de lo que hay registrado, y el desglose por tipo vive dentro
+            del módulo, que es donde se puede filtrar. */}
         <ModuloCard
           href="/congreso"
           icon="building-bank"
           titulo="Actividad parlamentaria"
           fuente="Congreso de los Diputados"
           descripcion="Leyes, proposiciones no de ley y comparecencias, con sus actores y plazos."
-          cta="Ver actividad"
+          cta="Explorar actividad"
           cifras={[
-            { n: cifras.esTotal, label: 'leyes' },
-            { n: cifras.esPnl, label: 'PNL' },
-            { n: cifras.esComparecencias, label: 'comparecencias' },
+            { n: esEnTramite, label: 'en tramitación', destacada: true },
+            { n: esRegistradas, label: 'registradas' },
           ]}
         />
-        <SoonCard
-          icon="messages"
-          titulo="Consultas públicas"
-          fuente="Ministerios"
-          descripcion="Consultas y audiencias de los ministerios, con sus plazos y potenciales actores."
-        />
-        <SoonCard
-          icon="building-castle"
-          titulo="Senado"
-          fuente="Cortes Generales"
-          descripcion="Tramitación en la cámara alta: enmiendas, vetos y comisiones."
-        />
       </Bloque>
+      <Proximamente items={['Consultas públicas de los ministerios', 'Senado']} />
     </div>
   );
 }
