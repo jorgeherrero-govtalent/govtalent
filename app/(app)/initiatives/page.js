@@ -69,9 +69,13 @@ export default function InitiativesDirectoryPage() {
 
   useEffect(() => {
     Promise.all([
+      // Solo las diez columnas que la lista pinta. Con select('*') viajaba
+      // también `attachments` —los documentos de cada expediente en
+      // jsonb— que pesa 16 MB de los 26 de la tabla y solo se usa en la
+      // pestaña de Documentos de la ficha.
       supabase
         .from('eu_initiatives_directory')
-        .select('*')
+        .select('id, slug, reference, title, title_en, act_type, feedback_end, is_open, dias_restantes, topics')
         .order('feedback_end', { ascending: false, nullsFirst: false }),
       supabase.from('eu_topics_directory').select('*').order('label'),
     ]).then(([res, t]) => {
