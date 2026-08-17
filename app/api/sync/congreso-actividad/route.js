@@ -316,11 +316,20 @@ export async function GET(request) {
   }
 
   const ultimaPagina = pagina - 1;
-  const quedanPaginas = totalReal !== null && ultimaPagina * POR_PAGINA < totalReal;
+
+  // Se cuenta por REGISTROS ya recorridos, no por páginas: el bucle sale
+  // con `pagina` ya incrementada, y al terminar justo en el límite la
+  // comparación por páginas quedaba ambigua. Eso hizo que al acabar las
+  // proposiciones no de ley no saltara a las comparecencias, y hubo que
+  // lanzarlas a mano.
+  const yaRecorridos = ultimaPagina * POR_PAGINA;
+  const quedanPaginas = totalReal !== null && yaRecorridos < totalReal;
   cortado = quedanPaginas;
 
   informe.total_en_origen = totalReal;
   informe.paginas = { desde: desdePagina, hasta: ultimaPagina };
+  informe.recorridos = yaRecorridos;
+  informe.quedan = quedanPaginas;
   informe.registros = filas.length;
   informe.autores = autores.length;
   informe.con_grupo = autores.filter((a) => a.id_grupo).length;
