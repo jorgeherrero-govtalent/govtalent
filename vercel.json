@@ -27,6 +27,14 @@
     {
       "path": "/api/sync/congreso-iniciativas",
       "schedule": "30 4 * * *"
+    },
+    {
+      "path": "/api/sync/congreso-actividad",
+      "schedule": "0 3 * * *"
+    },
+    {
+      "path": "/api/sync/congreso-comisiones",
+      "schedule": "0 2 * * *"
     }
   ]
 }
