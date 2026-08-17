@@ -193,7 +193,7 @@ export default function ComisionDetailPage() {
             No se ha encontrado esta comisión.
           </div>
         </div>
-        <BackLink fallbackHref="/institutions/deputies" fallbackLabel="Volver a Diputados" />
+        <BackLink fallbackHref="/institutions/comisiones" fallbackLabel="Volver a Comisiones" />
       </div>
     );
   }
@@ -201,15 +201,15 @@ export default function ComisionDetailPage() {
   return (
     <div className="sec" style={{ maxWidth: 820 }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 12, flexWrap: 'wrap' }}>
-        <BackLink fallbackHref="/institutions/deputies" fallbackLabel="Comisiones" />
+        <BackLink fallbackHref="/institutions/comisiones" fallbackLabel="Comisiones" />
         <span style={{ fontSize: 11.5, color: '#ddd' }}>|</span>
         <span style={{ fontSize: 11.5, color: '#999' }}>
           <Link href="/institutions" style={{ color: '#999', textDecoration: 'none' }}>
             Instituciones
           </Link>
           {' › '}
-          <Link href="/institutions/deputies" style={{ color: '#999', textDecoration: 'none' }}>
-            Congreso
+          <Link href="/institutions/comisiones" style={{ color: '#999', textDecoration: 'none' }}>
+            Comisiones
           </Link>
           {' › '}
           <span style={{ color: '#666' }}>{comision.name}</span>
