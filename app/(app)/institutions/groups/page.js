@@ -3,11 +3,11 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
+import { groupColor } from '@/lib/grupos';
 
 export default function GroupsDirectoryPage() {
   const supabase = createClient();
   const [groups, setGroups] = useState(null);
-  const [portavozByGroup, setPortavozByGroup] = useState({});
   const [search, setSearch] = useState('');
 
   useEffect(() => {
@@ -15,32 +15,30 @@ export default function GroupsDirectoryPage() {
   }, []);
 
   async function load() {
-    const [{ data: groupsData }, { data: rolesData }] = await Promise.all([
-      supabase.from('parliamentary_groups').select('*').eq('active', true).order('member_count', { ascending: false }),
-      supabase
-        .from('deputy_roles')
-        .select('parliamentary_group_id, role, deputies(full_name)')
-        .eq('active', true)
-        .ilike('role', 'Portavoz'),
-    ]);
-    setGroups(groupsData || []);
-
-    const byGroup = {};
-    for (const r of rolesData || []) {
-      if (r.parliamentary_group_id && !byGroup[r.parliamentary_group_id]) {
-        byGroup[r.parliamentary_group_id] = r.deputies?.full_name;
-      }
-    }
-    setPortavozByGroup(byGroup);
+    // group_profile trae ya los recuentos. Antes se leía de deputy_roles,
+    // que se diseñó para esto pero nunca se llegó a cargar: por eso las
+    // nueve tarjetas mostraban "Portavoz: —".
+    const { data } = await supabase
+      .from('group_profile')
+      .select('group_id, slug, name, short_name, member_count, n_diputados, n_vivas, n_presentadas, n_leyes, n_portavocias')
+      .order('n_diputados', { ascending: false });
+    setGroups(data || []);
   }
 
-  const filtered = (groups || []).filter((g) => g.name.toLowerCase().includes(search.toLowerCase()));
+  // Sin tildes, igual que el resto de buscadores: nadie escribe
+  // "Catalunya" con acento al buscar.
+  const normalize = (t) => (t || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+  const filtered = (groups || []).filter((g) => normalize(g.name).includes(normalize(search)));
 
   return (
     <div className="sec" style={{ maxWidth: 1080 }}>
       <div style={{ marginBottom: 14 }}>
         <h1 style={{ fontSize: 18, fontWeight: 700, margin: 0 }}>Grupos parlamentarios</h1>
-        <p style={{ fontSize: 12, color: '#888', margin: '3px 0 0' }}>{groups ? groups.length : '—'} grupos · XV Legislatura</p>
+        <p style={{ fontSize: 12, color: '#888', margin: '3px 0 0' }}>
+          {groups
+            ? `${groups.length} grupos · ${groups.reduce((s, g) => s + (g.n_diputados || 0), 0)} diputados · XV Legislatura`
+            : '—'}
+        </p>
       </div>
 
       <div style={{ display: 'flex', gap: 16, borderBottom: '.5px solid #e0dfd8', marginBottom: 14 }}>
@@ -50,6 +48,9 @@ export default function GroupsDirectoryPage() {
         <span style={{ fontSize: 13, fontWeight: 600, color: '#1d6f5c', borderBottom: '2px solid #1d6f5c', paddingBottom: 8 }}>
           Grupos parlamentarios
         </span>
+        <Link href="/institutions/comisiones" style={{ fontSize: 13, color: '#999', paddingBottom: 8, textDecoration: 'none' }}>
+          Comisiones
+        </Link>
       </div>
 
       <div
@@ -87,38 +88,50 @@ export default function GroupsDirectoryPage() {
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: 12 }}>
           {filtered.map((g) => (
             <Link
-              key={g.id}
+              key={g.group_id}
               href={`/institutions/groups/${g.slug}`}
               className="card"
               style={{ padding: 16, textDecoration: 'none', color: 'inherit', display: 'block' }}
             >
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
-                <div
+              <div style={{ display: 'flex', alignItems: 'flex-start', gap: 11, marginBottom: 13 }}>
+                <span
                   style={{
-                    width: 40,
-                    height: 40,
+                    width: 38,
+                    height: 38,
                     borderRadius: 9,
-                    background: '#e8f4f0',
-                    color: '#1d6f5c',
+                    background: `${groupColor(g.name)}18`,
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    fontSize: 15,
                     flexShrink: 0,
-                    overflow: 'hidden',
                   }}
                 >
-                  {g.logo_url ? (
-                    <img src={g.logo_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                  ) : (
-                    <i className="ti ti-flag"></i>
-                  )}
+                  <span style={{ width: 15, height: 15, borderRadius: 3, background: groupColor(g.name) }}></span>
+                </span>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: 13.5, fontWeight: 700, lineHeight: 1.3 }}>{g.name}</div>
+                  <div style={{ fontSize: 10.5, color: '#999', marginTop: 3 }}>
+                    {[
+                      `${g.n_diputados} ${g.n_diputados === 1 ? 'diputado' : 'diputados'}`,
+                      g.n_portavocias > 0 ? `${g.n_portavocias} portavocías` : null,
+                    ]
+                      .filter(Boolean)
+                      .join(' · ')}
+                  </div>
                 </div>
-                <div style={{ fontSize: 13.5, fontWeight: 700, lineHeight: 1.25 }}>{g.name}</div>
               </div>
-              <div style={{ fontSize: 12, color: '#666' }}>{g.member_count} diputados</div>
-              <div style={{ fontSize: 11.5, color: '#888', marginTop: 2 }}>
-                Portavoz: {portavozByGroup[g.id] ? nameDisplay(portavozByGroup[g.id]) : '—'}
+
+              <div style={{ display: 'flex', gap: 16, paddingTop: 12, borderTop: '.5px solid #f0f0eb' }}>
+                <div>
+                  <div style={{ fontSize: 15, fontWeight: 700, color: '#1d6f5c' }}>
+                    {(g.n_vivas || 0).toLocaleString('es-ES')}
+                  </div>
+                  <div style={{ fontSize: 10, color: '#999' }}>en trámite</div>
+                </div>
+                <div>
+                  <div style={{ fontSize: 15, fontWeight: 700 }}>{g.n_leyes || 0}</div>
+                  <div style={{ fontSize: 10, color: '#999' }}>leyes</div>
+                </div>
               </div>
             </Link>
           ))}
@@ -126,9 +139,4 @@ export default function GroupsDirectoryPage() {
       )}
     </div>
   );
-}
-
-function nameDisplay(officialName) {
-  const [last, first] = officialName.split(',').map((s) => s.trim());
-  return first ? `${first} ${last}` : officialName;
 }
