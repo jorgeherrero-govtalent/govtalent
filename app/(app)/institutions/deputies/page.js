@@ -19,6 +19,8 @@ function DeputiesDirectoryInner() {
   const searchParams = useSearchParams();
 
   const [deputies, setDeputies] = useState(null);
+  const [comisionesPorDiputado, setComisionesPorDiputado] = useState({});
+  const [comisionFilter, setComisionFilter] = useState(new Set());
   const [groups, setGroups] = useState([]);
   const [rolesByDeputy, setRolesByDeputy] = useState({});
   const [userId, setUserId] = useState(null);
@@ -47,7 +49,7 @@ function DeputiesDirectoryInner() {
         .then(({ data }) => data && setSavedIds(new Set(data.map((r) => r.deputy_id))));
     }
 
-    const [{ data: deputiesData }, { data: groupsData }, { data: rolesData }] = await Promise.all([
+    const [{ data: deputiesData }, { data: groupsData }, { data: rolesData }, { data: comisionesData }] = await Promise.all([
       supabase
         .from('deputies')
         .select('id, full_name, first_name, last_name, slug, constituency, photo_url, parliamentary_group_id')
@@ -55,6 +57,10 @@ function DeputiesDirectoryInner() {
         .order('last_name', { ascending: true }),
       supabase.from('parliamentary_groups').select('id, name, short_name').eq('active', true).order('member_count', { ascending: false }),
       supabase.from('deputy_roles').select('deputy_id, role, parliamentary_body_id, parliamentary_bodies(name)').eq('active', true),
+      // Las comisiones vienen de es_committee_members, no de
+      // parliamentary_bodies: esa tabla se diseñó para esto pero nunca
+      // se llegó a cargar.
+      supabase.from('es_committee_people').select('deputy_id, committee_name, cargo_norm').not('deputy_id', 'is', null),
     ]);
 
     setDeputies(deputiesData || []);
@@ -68,6 +74,15 @@ function DeputiesDirectoryInner() {
       if (r.parliamentary_bodies?.name) byDeputy[r.deputy_id].bodies.push(r.parliamentary_bodies.name);
     }
     setRolesByDeputy(byDeputy);
+
+    // Un diputado suele estar en varias comisiones: se guarda la lista
+    // para poder filtrar y mostrarla en su tarjeta.
+    const porDiputado = {};
+    for (const c of comisionesData || []) {
+      if (!porDiputado[c.deputy_id]) porDiputado[c.deputy_id] = [];
+      porDiputado[c.deputy_id].push({ nombre: c.committee_name, cargo: c.cargo_norm });
+    }
+    setComisionesPorDiputado(porDiputado);
   }
 
   const groupById = useMemo(() => Object.fromEntries(groups.map((g) => [g.id, g])), [groups]);
@@ -92,8 +107,13 @@ function DeputiesDirectoryInner() {
     }
     if (groupFilter.size > 0) list = list.filter((d) => groupFilter.has(d.parliamentary_group_id));
     if (constituencyFilter.size > 0) list = list.filter((d) => constituencyFilter.has(d.constituency));
+    if (comisionFilter.size > 0) {
+      list = list.filter((d) =>
+        (comisionesPorDiputado[d.id] || []).some((c) => comisionFilter.has(c.nombre))
+      );
+    }
     return list;
-  }, [deputies, search, groupFilter, constituencyFilter, groupById]);
+  }, [deputies, search, groupFilter, constituencyFilter, comisionFilter, comisionesPorDiputado, groupById]);
 
   useEffect(() => {
     setPage(0);
@@ -121,9 +141,22 @@ function DeputiesDirectoryInner() {
     setSearch('');
     setGroupFilter(new Set());
     setConstituencyFilter(new Set());
+    setComisionFilter(new Set());
   }
 
-  const activeFiltersCount = groupFilter.size + constituencyFilter.size;
+  // Solo las comisiones que tienen miembros entre los diputados
+  // mostrados, para no ofrecer opciones sin resultados.
+  const comisionOptions = useMemo(() => {
+    const cuenta = new Map();
+    for (const lista of Object.values(comisionesPorDiputado)) {
+      for (const c of lista) cuenta.set(c.nombre, (cuenta.get(c.nombre) || 0) + 1);
+    }
+    return [...cuenta.entries()]
+      .sort((a, b) => b[1] - a[1])
+      .map(([nombre, n]) => ({ value: nombre, label: `${nombre} (${n})` }));
+  }, [comisionesPorDiputado]);
+
+  const activeFiltersCount = groupFilter.size + constituencyFilter.size + comisionFilter.size;
 
   return (
     <div className="sec" style={{ maxWidth: 1080 }}>
@@ -140,6 +173,11 @@ function DeputiesDirectoryInner() {
         </span>
         <Link href="/institutions/groups" style={{ fontSize: 13, color: '#999', paddingBottom: 8, textDecoration: 'none' }}>
           Grupos parlamentarios
+        </Link>
+        {/* Tercera vista del mismo Congreso: por persona, por partido y
+            por órgano. */}
+        <Link href="/institutions/comisiones" style={{ fontSize: 13, color: '#999', paddingBottom: 8, textDecoration: 'none' }}>
+          Comisiones
         </Link>
       </div>
 
@@ -176,20 +214,12 @@ function DeputiesDirectoryInner() {
           selected={constituencyFilter}
           onApply={setConstituencyFilter}
         />
-        <span
-          title="Próximamente"
-          style={{
-            background: '#f4f4f0',
-            border: '.5px solid #e0dfd8',
-            borderRadius: 20,
-            padding: '7px 14px',
-            fontSize: 12,
-            color: '#bbb',
-            cursor: 'default',
-          }}
-        >
-          Comisión ▾
-        </span>
+        <MultiSelectFilter
+          label="Comisión"
+          values={comisionOptions}
+          selected={comisionFilter}
+          onApply={setComisionFilter}
+        />
         {activeFiltersCount > 0 && (
           <span onClick={clearFilters} style={{ fontSize: 11.5, color: '#999', textDecoration: 'underline', cursor: 'pointer' }}>
             Limpiar filtros
