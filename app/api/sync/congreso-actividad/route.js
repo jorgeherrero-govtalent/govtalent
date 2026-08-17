@@ -70,6 +70,16 @@ const TIPOS = {
     label: 'Comparecencia',
     total: 3025,
   },
+  // Los decretos-ley son legislación, pero su tramitación no se parece a
+  // la de una ley: el Gobierno los aprueba y el Congreso los convalida o
+  // deroga en un solo acto. Sin plazo de enmiendas ni ponencia, así que
+  // encajan aquí y no en es_initiatives.
+  decreto: {
+    cini: '130.CINI.',
+    kind: 'decreto',
+    label: 'Real decreto-ley',
+    total: 50,
+  },
 };
 
 // El prefijo del expediente da el subtipo exacto.
@@ -81,6 +91,7 @@ const SUBTIPOS = {
   214: 'Comparecencia del Gobierno en comisión',
   219: 'Otras comparecencias en comisión',
   210: 'Comparecencia del Gobierno ante el pleno',
+  130: 'Real decreto-ley',
 };
 
 function admin() {
@@ -354,7 +365,10 @@ export async function GET(request) {
   informe.autores_enlazados = enlazados;
 
   // --- Encadenado ----------------------------------------------------
-  const siguienteTipo = clave === 'pnl' ? 'comparecencia' : null;
+  // El orden importa poco, pero conviene que sea determinista: pnl ->
+  // comparecencia -> decreto.
+  const ORDEN = ['pnl', 'comparecencia', 'decreto'];
+  const siguienteTipo = ORDEN[ORDEN.indexOf(clave) + 1] || null;
 
   if (!encadenar) {
     informe.nota = 'Queda trabajo y el encadenado está desactivado.';
