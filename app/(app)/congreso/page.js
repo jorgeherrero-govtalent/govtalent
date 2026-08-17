@@ -186,36 +186,17 @@ function CongresoDirectory() {
         <span style={{ color: '#666' }}>Congreso</span>
       </div>
 
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12, marginBottom: 14, flexWrap: 'wrap' }}>
-        <div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 9, marginBottom: 3 }}>
-            <FlagES />
-            <h1 style={{ fontSize: 18, fontWeight: 700, margin: 0 }}>Iniciativas legislativas</h1>
-          </div>
-          <p style={{ fontSize: 12, color: '#888', margin: 0 }}>
-            {items ? `${items.length} en la XV Legislatura · ${vivas.length} en tramitación` : '—'}
-          </p>
+      {/* Las comisiones viven en Instituciones: son órganos, no asuntos
+          en tramitación. Aquí solo aparecen dentro de cada norma, en la
+          pestaña de Actores. */}
+      <div style={{ marginBottom: 14 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 9, marginBottom: 3 }}>
+          <FlagES />
+          <h1 style={{ fontSize: 18, fontWeight: 700, margin: 0 }}>Iniciativas legislativas</h1>
         </div>
-        {/* Las comisiones son el otro lado del mismo asunto: dónde se
-            tramita cada iniciativa y quién negocia por cada grupo. */}
-        <Link
-          href="/comisiones"
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 7,
-            border: '.5px solid #e0dfd8',
-            borderRadius: 20,
-            padding: '7px 14px',
-            fontSize: 12,
-            color: '#555',
-            textDecoration: 'none',
-            whiteSpace: 'nowrap',
-          }}
-        >
-          <i className="ti ti-users" style={{ fontSize: 14, color: '#6d5aef' }}></i>
-          Comisiones
-        </Link>
+        <p style={{ fontSize: 12, color: '#888', margin: 0 }}>
+          {items ? `${items.length} en la XV Legislatura · ${vivas.length} en tramitación` : '—'}
+        </p>
       </div>
 
       <div style={{ display: 'flex', gap: 8, marginBottom: 13, flexWrap: 'wrap' }}>
@@ -356,7 +337,11 @@ function CongresoDirectory() {
                   {i.title}
                 </div>
 
+                {/* "En" delante de la situación evita que se confunda con
+                    el autor: "Gobierno · Contestación" a secas parecía que
+                    lo presentaba el Gobierno, cuando es dónde está. */}
                 <div style={{ fontSize: 10.5, color: i.is_blocked ? '#aaa' : '#999', marginTop: 4 }}>
+                  {i.situacion && <span style={{ color: '#bbb' }}>En </span>}
                   {[i.situacion, i.fase, i.n_ponentes > 0 ? `${i.n_ponentes} ponentes` : null]
                     .filter(Boolean)
                     .join(' · ')}
@@ -366,6 +351,7 @@ function CongresoDirectory() {
                     es lo que hace legible quién firma con quién. */}
                 {(i.grupos || []).length > 0 && (i.grupos || []).length <= 5 && !i.is_blocked && (
                   <div style={{ display: 'flex', alignItems: 'center', gap: 11, marginTop: 7, flexWrap: 'wrap' }}>
+                    <span style={{ fontSize: 10, color: '#bbb' }}>Presenta</span>
                     {i.grupos.map((g) => (
                       <span key={g.grupo} style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
                         <span
