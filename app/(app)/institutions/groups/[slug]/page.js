@@ -47,6 +47,10 @@ function fullNameDisplay(oficial) {
   return nom ? `${nom} ${ap}` : oficial;
 }
 
+function normalize(t) {
+  return (t || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+}
+
 // "Comisión de Sanidad" -> "Sanidad"
 function limpiarComision(n) {
   return (n || '').replace(/^Comisión\s+(de\s+la\s+|del\s+|de\s+)?/i, '').trim() || n;
@@ -70,6 +74,30 @@ const FILA = {
   textDecoration: 'none',
   color: 'inherit',
 };
+const BUSCADOR = {
+  display: 'flex',
+  alignItems: 'center',
+  gap: 8,
+  background: '#fff',
+  border: '.5px solid #e0dfd8',
+  borderRadius: 20,
+  padding: '7px 14px',
+  flex: '1 1 180px',
+};
+
+const INPUT = { border: 'none', outline: 'none', background: 'transparent', fontSize: 12.5, width: '100%' };
+
+const chip = (activo) => ({
+  background: activo ? '#e8f4f0' : '#fff',
+  border: `.5px solid ${activo ? '#1d6f5c' : '#e0dfd8'}`,
+  color: activo ? '#1d6f5c' : '#555',
+  borderRadius: 20,
+  padding: '7px 13px',
+  fontSize: 12,
+  cursor: 'pointer',
+  whiteSpace: 'nowrap',
+});
+
 const VER_MAS = { fontSize: 11, color: '#1d6f5c', fontWeight: 600, paddingTop: 10, cursor: 'pointer' };
 
 function CircleButton({ icon, label, onClick, active, disabled, title }) {
@@ -139,6 +167,11 @@ export default function GroupDetailPage() {
   const [ultimas, setUltimas] = useState([]);
   const [diputados, setDiputados] = useState([]);
   const [tab, setTab] = useState('resumen');
+  const [buscarPortavoz, setBuscarPortavoz] = useState('');
+  const [soloConActividad, setSoloConActividad] = useState(false);
+  const [buscarDiputado, setBuscarDiputado] = useState('');
+  const [circunscripcion, setCircunscripcion] = useState('');
+  const [soloDestacados, setSoloDestacados] = useState(false);
   const [userId, setUserId] = useState(null);
   const [saved, setSaved] = useState(false);
   const [siguiendo, setSiguiendo] = useState(false);
@@ -220,6 +253,36 @@ export default function GroupDetailPage() {
       cancelled = true;
     };
   }, [slug]);
+
+  const portavocesFiltrados = useMemo(() => {
+    let l = portavoces;
+    if (soloConActividad) l = l.filter((p) => p.n_actividad > 0);
+    if (buscarPortavoz) {
+      const q = normalize(buscarPortavoz);
+      l = l.filter((p) => normalize(p.full_name).includes(q) || normalize(p.committee_name).includes(q));
+    }
+    return l;
+  }, [portavoces, buscarPortavoz, soloConActividad]);
+
+  // Los diputados con portavocía: es lo que distingue a quien negocia
+  // por el grupo de quien solo ocupa escaño en la comisión.
+  const conPortavocia = useMemo(() => new Set(portavoces.map((p) => p.deputy_id)), [portavoces]);
+
+  const circunscripciones = useMemo(
+    () => [...new Set(diputados.map((d) => d.constituency).filter(Boolean))].sort((a, b) => a.localeCompare(b)),
+    [diputados]
+  );
+
+  const diputadosFiltrados = useMemo(() => {
+    let l = diputados;
+    if (soloDestacados) l = l.filter((d) => conPortavocia.has(d.id));
+    if (circunscripcion) l = l.filter((d) => d.constituency === circunscripcion);
+    if (buscarDiputado) {
+      const q = normalize(buscarDiputado);
+      l = l.filter((d) => normalize(d.full_name).includes(q) || normalize(d.constituency || '').includes(q));
+    }
+    return l;
+  }, [diputados, buscarDiputado, circunscripcion, soloDestacados, conPortavocia]);
 
   // Para las barras: la comisión con más actividad marca el 100%
   const maxVivas = useMemo(() => Math.max(1, ...comisiones.map((c) => c.n_vivas || 0)), [comisiones]);
@@ -476,14 +539,46 @@ export default function GroupDetailPage() {
       )}
 
       {tab === 'portavoces' && (
+        <>
+          {/* Con 74 portavocías en el PP, buscar por comisión es la
+              forma normal de llegar al interlocutor. */}
+          <div style={{ display: 'flex', gap: 8, marginBottom: 12, flexWrap: 'wrap' }}>
+            <div style={BUSCADOR}>
+              <i className="ti ti-search" style={{ color: '#999', fontSize: 14 }}></i>
+              <input
+                value={buscarPortavoz}
+                onChange={(e) => setBuscarPortavoz(e.target.value)}
+                placeholder="Buscar por nombre o comisión..."
+                aria-label="Buscar portavoz"
+                style={INPUT}
+              />
+            </div>
+            <span onClick={() => setSoloConActividad((v) => !v)} style={chip(soloConActividad)}>
+              Solo con actividad
+            </span>
+            {(buscarPortavoz || soloConActividad) && (
+              <span
+                onClick={() => {
+                  setBuscarPortavoz('');
+                  setSoloConActividad(false);
+                }}
+                style={{ fontSize: 11.5, color: '#999', textDecoration: 'underline', cursor: 'pointer', alignSelf: 'center' }}
+              >
+                Limpiar
+              </span>
+            )}
+          </div>
+
         <div style={CARD}>
-          {portavoces.length === 0 ? (
+          {portavocesFiltrados.length === 0 ? (
             <div className="empty-state">
               <i className="ti ti-microphone-off"></i>
-              No consta ningún portavoz de este grupo en las comisiones.
+              {portavoces.length === 0
+                ? 'No consta ningún portavoz de este grupo en las comisiones.'
+                : 'Ningún portavoz con estos filtros.'}
             </div>
           ) : (
-            portavoces.map((p) => (
+            portavocesFiltrados.map((p) => (
               <Link key={`${p.deputy_id}-${p.committee_id}`} href={`/institutions/deputies/${p.deputy_slug}`} style={FILA}>
                 <Avatar nombre={p.full_name} url={p.photo_url} size={32} />
                 <div style={{ flex: 1, minWidth: 0 }}>
@@ -511,7 +606,13 @@ export default function GroupDetailPage() {
               </Link>
             ))
           )}
+          {portavocesFiltrados.length > 0 && portavocesFiltrados.length < portavoces.length && (
+            <div style={{ fontSize: 11.5, color: '#888', paddingTop: 12 }}>
+              {portavocesFiltrados.length} de {portavoces.length} portavoces
+            </div>
+          )}
         </div>
+        </>
       )}
 
       {tab === 'iniciativas' && (
@@ -531,25 +632,94 @@ export default function GroupDetailPage() {
       )}
 
       {tab === 'diputados' && (
+        <>
+          <div style={{ display: 'flex', gap: 8, marginBottom: 12, flexWrap: 'wrap' }}>
+            <div style={BUSCADOR}>
+              <i className="ti ti-search" style={{ color: '#999', fontSize: 14 }}></i>
+              <input
+                value={buscarDiputado}
+                onChange={(e) => setBuscarDiputado(e.target.value)}
+                placeholder="Buscar por nombre o circunscripción..."
+                aria-label="Buscar diputado"
+                style={INPUT}
+              />
+            </div>
+            {circunscripciones.length > 1 && (
+              <select
+                value={circunscripcion}
+                onChange={(e) => setCircunscripcion(e.target.value)}
+                aria-label="Filtrar por circunscripción"
+                style={{ ...chip(!!circunscripcion), appearance: 'none', paddingRight: 28 }}
+              >
+                <option value="">Circunscripción</option>
+                {circunscripciones.map((c) => (
+                  <option key={c} value={c}>
+                    {c}
+                  </option>
+                ))}
+              </select>
+            )}
+            {/* Separa a quien negocia por el grupo de quien solo ocupa
+                escaño: con 137 diputados es la diferencia que importa. */}
+            <span onClick={() => setSoloDestacados((v) => !v)} style={chip(soloDestacados)}>
+              Con portavocía ({conPortavocia.size})
+            </span>
+            {(buscarDiputado || circunscripcion || soloDestacados) && (
+              <span
+                onClick={() => {
+                  setBuscarDiputado('');
+                  setCircunscripcion('');
+                  setSoloDestacados(false);
+                }}
+                style={{ fontSize: 11.5, color: '#999', textDecoration: 'underline', cursor: 'pointer', alignSelf: 'center' }}
+              >
+                Limpiar
+              </span>
+            )}
+          </div>
+
         <div style={CARD}>
-          {diputados.length === 0 ? (
+          {diputadosFiltrados.length === 0 ? (
             <div className="empty-state">
               <i className="ti ti-user-off"></i>
-              No hay diputados registrados en este grupo.
+              {diputados.length === 0
+                ? 'No hay diputados registrados en este grupo.'
+                : 'Ningún diputado con estos filtros.'}
             </div>
           ) : (
-            diputados.map((d) => (
+            diputadosFiltrados.map((d) => (
               <Link key={d.id} href={`/institutions/deputies/${d.slug}`} style={FILA}>
                 <Avatar nombre={d.full_name} url={d.photo_url} size={32} />
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ fontSize: 12.5, fontWeight: 600 }}>{fullNameDisplay(d.full_name)}</div>
                   <div style={{ fontSize: 10.5, color: '#999', marginTop: 1 }}>{d.constituency}</div>
                 </div>
+                {conPortavocia.has(d.id) && (
+                  <span
+                    style={{
+                      fontSize: 10,
+                      background: '#e8f4f0',
+                      color: '#1d6f5c',
+                      padding: '3px 9px',
+                      borderRadius: 10,
+                      whiteSpace: 'nowrap',
+                      flexShrink: 0,
+                    }}
+                  >
+                    Portavoz
+                  </span>
+                )}
                 <i className="ti ti-chevron-right" style={{ color: '#ccc', fontSize: 14, flexShrink: 0 }}></i>
               </Link>
             ))
           )}
+          {diputadosFiltrados.length > 0 && diputadosFiltrados.length < diputados.length && (
+            <div style={{ fontSize: 11.5, color: '#888', paddingTop: 12 }}>
+              {diputadosFiltrados.length} de {diputados.length} diputados
+            </div>
+          )}
         </div>
+        </>
       )}
 
       <div style={{ marginTop: 20, fontSize: 11, color: '#999', display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
