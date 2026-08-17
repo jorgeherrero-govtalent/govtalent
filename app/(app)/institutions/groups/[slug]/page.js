@@ -169,6 +169,7 @@ export default function GroupDetailPage() {
   const [tab, setTab] = useState('resumen');
   const [buscarPortavoz, setBuscarPortavoz] = useState('');
   const [soloConActividad, setSoloConActividad] = useState(false);
+  const [comisionPortavoz, setComisionPortavoz] = useState('');
   const [buscarDiputado, setBuscarDiputado] = useState('');
   const [circunscripcion, setCircunscripcion] = useState('');
   const [soloDestacados, setSoloDestacados] = useState(false);
@@ -254,15 +255,21 @@ export default function GroupDetailPage() {
     };
   }, [slug]);
 
+  const comisionesConPortavoz = useMemo(
+    () => [...new Set(portavoces.map((p) => p.committee_name))].sort((a, b) => a.localeCompare(b)),
+    [portavoces]
+  );
+
   const portavocesFiltrados = useMemo(() => {
     let l = portavoces;
+    if (comisionPortavoz) l = l.filter((p) => p.committee_name === comisionPortavoz);
     if (soloConActividad) l = l.filter((p) => p.n_actividad > 0);
     if (buscarPortavoz) {
       const q = normalize(buscarPortavoz);
       l = l.filter((p) => normalize(p.full_name).includes(q) || normalize(p.committee_name).includes(q));
     }
     return l;
-  }, [portavoces, buscarPortavoz, soloConActividad]);
+  }, [portavoces, buscarPortavoz, soloConActividad, comisionPortavoz]);
 
   // Los diputados con portavocía: es lo que distingue a quien negocia
   // por el grupo de quien solo ocupa escaño en la comisión.
@@ -553,14 +560,32 @@ export default function GroupDetailPage() {
                 style={INPUT}
               />
             </div>
+            {/* Desplegable además del buscador: así se ve de entrada en
+                qué comisiones tiene portavoz el grupo, sin adivinar. */}
+            {comisionesConPortavoz.length > 1 && (
+              <select
+                value={comisionPortavoz}
+                onChange={(e) => setComisionPortavoz(e.target.value)}
+                aria-label="Filtrar por comisión"
+                style={{ ...chip(!!comisionPortavoz), appearance: 'none', paddingRight: 28 }}
+              >
+                <option value="">Comisión</option>
+                {comisionesConPortavoz.map((c) => (
+                  <option key={c} value={c}>
+                    {limpiarComision(c)}
+                  </option>
+                ))}
+              </select>
+            )}
             <span onClick={() => setSoloConActividad((v) => !v)} style={chip(soloConActividad)}>
               Solo con actividad
             </span>
-            {(buscarPortavoz || soloConActividad) && (
+            {(buscarPortavoz || soloConActividad || comisionPortavoz) && (
               <span
                 onClick={() => {
                   setBuscarPortavoz('');
                   setSoloConActividad(false);
+                  setComisionPortavoz('');
                 }}
                 style={{ fontSize: 11.5, color: '#999', textDecoration: 'underline', cursor: 'pointer', alignSelf: 'center' }}
               >
@@ -621,12 +646,25 @@ export default function GroupDetailPage() {
             Este grupo ha presentado {(grupo.n_presentadas || 0).toLocaleString('es-ES')} iniciativas, de las que{' '}
             {(grupo.n_vivas || 0).toLocaleString('es-ES')} siguen en trámite.
           </div>
+          {/* Morado y no verde: este enlace lleva a Regulatorio, y el
+              color dice a dónde vas antes de pulsarlo. */}
           <Link
             href={`/congreso?tipo=pnl&grupo=${grupo.group_id}`}
-            className="btn-o"
-            style={{ textDecoration: 'none', display: 'inline-block' }}
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 7,
+              background: '#6d5aef',
+              color: '#fff',
+              borderRadius: 8,
+              padding: '9px 16px',
+              fontSize: 12.5,
+              fontWeight: 600,
+              textDecoration: 'none',
+            }}
           >
             Ver todas en Actividad parlamentaria
+            <i className="ti ti-arrow-right" style={{ fontSize: 14 }}></i>
           </Link>
         </div>
       )}
