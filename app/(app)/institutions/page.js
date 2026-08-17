@@ -151,14 +151,14 @@ export default function InstitutionsHomePage() {
       // se cuentan en la vista gobierno_resumen. Y los cargos son la suma
       // de ministros y altos cargos.
       supabase.from('gobierno_resumen').select('ministerios, cargos').limit(1).maybeSingle(),
-      // Comprobado en la base: el tipo es 'committee' en minúscula y la
-      // columna de vigencia se llama 'active', no 'is_current'. Sin el
-      // filtro salen 276, que es el histórico de varias legislaturas.
+      // Las comisiones vigentes son las que no tienen fecha de fin:
+      // 'active' está a true también en las de legislaturas pasadas, y
+      // por eso salían 276 en vez de las ~24 actuales.
       supabase
         .from('eu_bodies')
         .select('id', { count: 'exact', head: true })
         .eq('body_type', 'committee')
-        .eq('active', true),
+        .is('term_end', null),
       supabase.from('ec_commissioners').select('id', { count: 'exact', head: true }),
       supabase.from('ec_people').select('id', { count: 'exact', head: true }).eq('active', true),
       supabase.from('legislatures').select('name').eq('active', true).limit(1).maybeSingle(),
@@ -289,4 +289,4 @@ export default function InstitutionsHomePage() {
       </div>
     </div>
   );
-}2
+}
