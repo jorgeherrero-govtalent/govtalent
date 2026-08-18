@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
 import { toast } from '@/lib/toast';
 import BackLink from '@/components/BackLink';
+import FollowButton from '@/components/FollowButton';
 
 // Tope de eurodiputados por lista. Un expediente transversal puede tocar
 // muchas comisiones: la media es 162 y el máximo medido, 658.
@@ -93,39 +94,6 @@ const LABEL = {
   marginBottom: 12,
 };
 
-function CircleButton({ icon, label, onClick, active, disabled, title }) {
-  const [hover, setHover] = useState(false);
-  const on = active || (hover && !disabled);
-  return (
-    <button
-      type="button"
-      aria-label={label}
-      title={title || label}
-      aria-disabled={disabled ? 'true' : undefined}
-      onClick={disabled ? undefined : onClick}
-      onMouseEnter={() => setHover(true)}
-      onMouseLeave={() => setHover(false)}
-      style={{
-        width: 32,
-        height: 32,
-        borderRadius: '50%',
-        border: `.5px solid ${on ? '#6d5aef' : '#e0dfd8'}`,
-        background: on ? '#EEEDFE' : '#fff',
-        color: disabled ? '#ccc' : on ? '#6d5aef' : '#888',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        cursor: disabled ? 'not-allowed' : 'pointer',
-        transition: 'all .15s ease',
-        padding: 0,
-        flexShrink: 0,
-      }}
-    >
-      <i className={`ti ti-${icon}`} style={{ fontSize: 15 }} aria-hidden="true"></i>
-    </button>
-  );
-}
-
 function Persona({ av, nombre, sub, extra, href }) {
   const cuerpo = (
     <>
@@ -203,7 +171,6 @@ export default function InitiativeDetailPage() {
   const [filtroMeps, setFiltroMeps] = useState(null);
   const [cargandoMeps, setCargandoMeps] = useState(false);
   const [userId, setUserId] = useState(null);
-  const [saved, setSaved] = useState(false);
   const [tab, setTab] = useState('resumen');
   const [verSecundarios, setVerSecundarios] = useState(false);
   const [comisario, setComisario] = useState(null);
@@ -257,18 +224,9 @@ export default function InitiativeDetailPage() {
       setResumenMeps(res || null);
       setComisario(com || null);
 
-      const uid = auth?.user?.id || null;
-      setUserId(uid);
-      if (uid) {
-        const { data: s } = await supabase
-          .from('saved_initiatives')
-          .select('id')
-          .eq('user_id', uid)
-          .eq('initiative_id', data.id)
-          .limit(1)
-          .maybeSingle();
-        if (!cancelled) setSaved(!!s);
-      }
+      // FollowButton comprueba por su cuenta si se sigue; guardar ha
+      // desaparecido.
+      setUserId(auth?.user?.id || null);
     })();
 
     return () => {
@@ -361,28 +319,6 @@ export default function InitiativeDetailPage() {
     setCargandoMeps(false);
   }
 
-  async function toggleSave() {
-    if (!userId) {
-      toast('Inicia sesión para guardar expedientes');
-      return;
-    }
-    if (saved) {
-      setSaved(false);
-      const { error } = await supabase
-        .from('saved_initiatives')
-        .delete()
-        .eq('user_id', userId)
-        .eq('initiative_id', item.id);
-      if (error) setSaved(true);
-      else toast('Eliminado de guardados');
-    } else {
-      setSaved(true);
-      const { error } = await supabase.from('saved_initiatives').insert({ user_id: userId, initiative_id: item.id });
-      if (error) setSaved(false);
-      else toast('Expediente guardado ✓');
-    }
-  }
-
   if (item === undefined) {
     return (
       <div className="sec" style={{ maxWidth: 900 }}>
@@ -449,16 +385,23 @@ export default function InitiativeDetailPage() {
               </span>
             )}
           </div>
-          <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
-            <CircleButton icon="bell" label="Seguir en Radar" title="Seguir en Radar · próximamente" disabled />
-            {userId && (
-              <CircleButton
-                icon={saved ? 'bookmark-filled' : 'bookmark'}
-                label={saved ? 'Quitar de guardados' : 'Guardar expediente'}
-                active={saved}
-                onClick={toggleSave}
-              />
-            )}
+          <div style={{ display: 'flex', gap: 4, flexShrink: 0, alignItems: 'center' }}>
+            <FollowButton kind="expediente" refId={item.id} label={item.title_es || item.title_en} />
+            <span
+              title="Añadir a proyecto · próximamente"
+              aria-label="Añadir a proyecto · próximamente"
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                padding: '6px 8px',
+                borderRadius: 7,
+                color: '#c4c0b8',
+                cursor: 'not-allowed',
+              }}
+            >
+              <i className="ti ti-folder-plus" style={{ fontSize: 15 }} aria-hidden="true"></i>
+            </span>
           </div>
         </div>
 
