@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 
 /**
@@ -133,6 +134,8 @@ function Proximamente({ items }) {
 
 export default function RegulatorioPage() {
   const supabase = createClient();
+  const router = useRouter();
+  const [busqueda, setBusqueda] = useState('');
   const [cifras, setCifras] = useState({
     expedientes: null,
     ventanas: null,
@@ -143,7 +146,7 @@ export default function RegulatorioPage() {
     esPnl: null,
     esComparecencias: null,
     actividadViva: null,
-    boeHoy: null,
+    boeSemana: null,
     boeMes: null,
     boeSectores: [],
   });
@@ -174,7 +177,7 @@ export default function RegulatorioPage() {
       supabase
         .from('boe_documents')
         .select('id', { count: 'exact', head: true })
-        .eq('fecha_publicacion', new Date().toISOString().slice(0, 10)),
+        .gte('fecha_publicacion', new Date(Date.now() - 7 * 86400000).toISOString().slice(0, 10)),
       supabase
         .from('boe_documents')
         .select('id', { count: 'exact', head: true })
@@ -191,7 +194,7 @@ export default function RegulatorioPage() {
         esPnl: pnl.count ?? null,
         esComparecencias: comp.count ?? null,
         actividadViva: act.count ?? null,
-        boeHoy: boeH.count ?? null,
+        boeSemana: boeH.count ?? null,
         boeMes: boeM.count ?? null,
         boeSectores: (boeS.data || []).map((s) => ({ label: s.sector, n: s.n_ultimo_mes })),
       });
@@ -199,9 +202,10 @@ export default function RegulatorioPage() {
   }, []);
 
   const suma = (...xs) => (xs.every((x) => x !== null) ? xs.reduce((a, b) => a + b, 0) : null);
-  const enMarchaUE = suma(cifras.ventanas, cifras.tramitacion);
-  const enMarcha = suma(cifras.ventanas, cifras.tramitacion, cifras.esVivas);
-  const total = suma(cifras.expedientes, cifras.procedimientos, cifras.esTotal, cifras.esPnl, cifras.esComparecencias);
+  // Se retiraron los totales de cabecera y de bloque: "300 en trámite"
+  // contaba solo las leyes mientras la tarjeta de debajo decía 4.530, y
+  // se contradecían a la vista. Cada tarjeta lleva ahora sus propias
+  // cifras, que son las que se pueden explicar.
 
   // España: lo vivo son las leyes en trámite más la actividad abierta.
   // La cabecera decía 300 —solo leyes— cuando en realidad son 4.530.
@@ -219,17 +223,42 @@ export default function RegulatorioPage() {
       <div style={{ marginBottom: 18 }}>
         <h1 style={{ fontSize: 18, fontWeight: 700, margin: 0 }}>Regulatorio</h1>
         <p style={{ fontSize: 12.5, color: '#888', margin: '4px 0 14px' }}>
-          Qué se está tramitando en España y en la Unión Europea, con sus plazos y actores.
-          {total !== null && ` ${total.toLocaleString('es-ES')} asuntos, ${enMarcha?.toLocaleString('es-ES')} en marcha.`}
+          Qué se mueve en España y en la Unión Europea, con sus plazos y actores.
         </p>
 
+        {/* El buscador, como en el resto de directorios. Lleva a la
+            sección correspondiente según lo que se busque. */}
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 9,
+            background: '#fff',
+            border: '.5px solid #e0dfd8',
+            borderRadius: 22,
+            padding: '10px 16px',
+          }}
+        >
+          <i className="ti ti-search" style={{ color: '#a8a49c', fontSize: 15 }}></i>
+          <input
+            value={busqueda}
+            onChange={(e) => setBusqueda(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && busqueda.trim()) {
+                router.push(`/congreso?q=${encodeURIComponent(busqueda.trim())}`);
+              }
+            }}
+            placeholder="Buscar una norma, un expediente o un procedimiento..."
+            aria-label="Buscar en Regulatorio"
+            style={{ border: 'none', outline: 'none', background: 'transparent', fontSize: 13, width: '100%' }}
+          />
+        </div>
       </div>
 
       <div style={{ display: 'flex', alignItems: 'center', gap: 9, marginBottom: 11 }}>
         <FlagEU />
         <span style={{ fontSize: 13, fontWeight: 600 }}>Unión Europea</span>
         <div style={{ flex: 1, height: '.5px', background: '#e0dfd8' }}></div>
-        {enMarchaUE !== null && <span style={{ fontSize: 11, color: '#888' }}>{enMarchaUE} en marcha</span>}
       </div>
 
       <div style={{ marginBottom: 24 }}>
@@ -265,7 +294,6 @@ export default function RegulatorioPage() {
         <FlagES />
         <span style={{ fontSize: 13, fontWeight: 600 }}>España</span>
         <div style={{ flex: 1, height: '.5px', background: '#e0dfd8' }}></div>
-        {cifras.esVivas !== null && <span style={{ fontSize: 11, color: '#888' }}>{cifras.esVivas} en trámite</span>}
       </div>
 
       {/* Lo que funciona va primero: una tarjeta en gris antes que una
@@ -296,7 +324,9 @@ export default function RegulatorioPage() {
           descripcion="Disposiciones generales y nombramientos, clasificados por sector."
           cta="Explorar el BOE"
           cifras={[
-            { n: cifras.boeHoy, label: 'hoy', destacada: true },
+            // Semanal y no diario: en fin de semana o festivo el BOE no
+            // publica, y la tarjeta saldría con un cero.
+            { n: cifras.boeSemana, label: 'esta semana', destacada: true },
             { n: cifras.boeMes, label: 'último mes' },
           ]}
           etiquetas={cifras.boeSectores}
