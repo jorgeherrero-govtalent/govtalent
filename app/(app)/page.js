@@ -3,7 +3,6 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
-import RadiografiaModal from '@/components/RadiografiaModal';
 
 /**
  * Home.
@@ -49,7 +48,6 @@ export default function Home() {
   const [novedades, setNovedades] = useState([]);
   const [cifras, setCifras] = useState({ leyes: null, procedimientos: null, expedientes: null });
   const [nombre, setNombre] = useState('');
-  const [showRadiografia, setShowRadiografia] = useState(false);
 
   useEffect(() => {
     // El resumen de siempre: perfil, vacantes y organizaciones.
@@ -294,38 +292,36 @@ export default function Home() {
               </div>
             </Link>
           ))}
-
-          {/* Carrera va aquí y no en su propio bloque: son accesos, no
-              una sección que merezca competir con lo demás. */}
-          <div
-            style={{
-              display: 'flex',
-              gap: 16,
-              paddingTop: 14,
-              marginTop: 11,
-              borderTop: '.5px solid #f2f0ec',
-              flexWrap: 'wrap',
-            }}
-          >
-            <button
-              type="button"
-              onClick={() => setShowRadiografia(true)}
-              style={{ fontSize: 12, color: '#1d6f5c', background: 'none', border: 'none', padding: 0, cursor: 'pointer' }}
-            >
-              Radiografía profesional
-            </button>
-            <Link href="/profile" style={{ fontSize: 12, color: '#8b8780', textDecoration: 'none' }}>
-              Mi perfil
-              {!perfil.completo && <span style={{ color: '#c2410c' }}> · incompleto</span>}
-            </Link>
-            <Link href="/jobs?saved=1" style={{ fontSize: 12, color: '#8b8780', textDecoration: 'none' }}>
-              Ofertas guardadas
-            </Link>
-          </div>
         </div>
       )}
 
-      {showRadiografia && <RadiografiaModal onClose={() => setShowRadiografia(false)} />}
+      {/* Fuera del bloque de empleo: si no hay vacantes recomendadas ese
+          bloque no se pinta y el perfil quedaría escondido. El progreso
+          sustituye al aviso en rojo: completar el perfil es una mejora,
+          no un error. */}
+      <div style={{ ...CARD, padding: '16px 20px', marginTop: 14 }}>
+        {perfil.completo ? (
+          <Link href="/profile" style={{ fontSize: 12, color: '#8b8780', textDecoration: 'none' }}>
+            Ver mi perfil
+          </Link>
+        ) : (
+          <Link
+            href="/profile"
+            style={{ display: 'flex', alignItems: 'center', gap: 12, textDecoration: 'none', color: 'inherit' }}
+          >
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 9, marginBottom: 7, flexWrap: 'wrap' }}>
+                <span style={{ fontSize: 12, color: '#57534e' }}>Tu perfil está al {perfil.completion_pct ?? 0} %</span>
+                <span style={{ fontSize: 11, color: '#a8a49c' }}>· mejora tus recomendaciones</span>
+              </div>
+              <div style={{ height: 3, background: '#f2f0ec', borderRadius: 2, overflow: 'hidden', maxWidth: 220 }}>
+                <div style={{ width: `${perfil.completion_pct ?? 0}%`, height: '100%', background: '#1d6f5c' }}></div>
+              </div>
+            </div>
+            <span style={{ fontSize: 12, color: '#1d6f5c', whiteSpace: 'nowrap', flexShrink: 0 }}>Completar</span>
+          </Link>
+        )}
+      </div>
     </div>
   );
 }
