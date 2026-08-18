@@ -40,7 +40,10 @@ export default function LeyesList() {
   const searchParams = useSearchParams();
 
   const [items, setItems] = useState(null);
-  const [search, setSearch] = useState('');
+  // El buscador de la portada de Regulatorio llega con ?q=: se recoge
+  // aquí para que la búsqueda continúe donde el usuario la dejó.
+  const sp = useSearchParams();
+  const [search, setSearch] = useState(sp?.get('q') || '');
   const [estado, setEstado] = useState('progreso'); // progreso | bloqueadas | todas
   const [situacionFilter, setSituacionFilter] = useState(new Set());
   const [tipoFilter, setTipoFilter] = useState(new Set());
