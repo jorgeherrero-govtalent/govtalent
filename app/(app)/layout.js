@@ -17,6 +17,7 @@ export default function AppLayout({ children }) {
   const [user, setUser] = useState(null);
   const [authChecked, setAuthChecked] = useState(false);
   const [myOrg, setMyOrg] = useState(null);
+  const [novedades, setNovedades] = useState(0);
   const [needsOnboarding, setNeedsOnboarding] = useState(false);
   const [showMeMenu, setShowMeMenu] = useState(false);
   const [meMenuPos, setMeMenuPos] = useState({ top: 0, right: 0 });
@@ -54,6 +55,14 @@ export default function AppLayout({ children }) {
         .limit(1)
         .maybeSingle();
       if (active && membership) setMyOrg(membership);
+
+      // El punto de la barra: cuántas novedades hay sin ver. Solo cuenta,
+      // no trae las filas, para no cargar la barra en cada navegación.
+      const { count } = await supabase
+        .from('my_follow_events')
+        .select('event_id', { count: 'exact', head: true })
+        .eq('es_nueva', true);
+      if (active) setNovedades(count || 0);
     }
     load();
     return () => {
@@ -84,36 +93,63 @@ export default function AppLayout({ children }) {
           <Link href="/" className="nav-logo">
             gov<span>talent</span>
           </Link>
-          <Link href="/jobs" className={`ni ${pathname.startsWith('/jobs') ? 'on' : ''}`}>
-            <i className="ti ti-briefcase"></i>Empleos
-          </Link>
-          <Link
-            href="/organizations"
-            className={`ni ${pathname.startsWith('/organizations') && !pathname.includes('admin') ? 'on' : ''}`}
-          >
-            <i className="ti ti-building"></i>Organizaciones
-          </Link>
-          <Link href="/institutions" className={`ni ${pathname.startsWith('/institutions') ? 'on' : ''}`}>
-            <i className="ti ti-building-bank"></i>Instituciones
-          </Link>
-          {/* Regulatorio sustituye a Expedientes y Procedimientos, que eran
-              dos entradas sueltas. Se marca activo también en sus rutas
-              hijas para que la barra no se apague al entrar en ellas. */}
+          {/* El orden dice de qué va el producto: primero lo que se
+              mueve, luego quién decide, después lo tuyo, y el empleo al
+              final. Organizaciones pasa a vivir dentro de Instituciones.
+
+              Regulatorio se marca activo también en sus rutas hijas para
+              que la barra no se apague al entrar en un expediente. */}
           <Link
             href="/regulatorio"
             className={`ni ${
               pathname.startsWith('/regulatorio') ||
               pathname.startsWith('/initiatives') ||
-              pathname.startsWith('/procedures')
+              pathname.startsWith('/procedures') ||
+              pathname.startsWith('/congreso')
                 ? 'on'
                 : ''
             }`}
           >
             <i className="ti ti-timeline-event"></i>Regulatorio
           </Link>
-          <div className="ni" style={{ cursor: 'default', color: '#bbb' }} title="Próximamente">
-            <i className="ti ti-calendar-event"></i>Eventos (Próximamente)
-          </div>
+
+          <Link
+            href="/institutions"
+            className={`ni ${
+              pathname.startsWith('/institutions') ||
+              (pathname.startsWith('/organizations') && !pathname.includes('admin'))
+                ? 'on'
+                : ''
+            }`}
+          >
+            <i className="ti ti-building-bank"></i>Instituciones
+          </Link>
+
+          <Link href="/seguimiento" className={`ni ${pathname.startsWith('/seguimiento') ? 'on' : ''}`}>
+            <span style={{ position: 'relative', display: 'inline-flex' }}>
+              <i className="ti ti-bell"></i>
+              {novedades > 0 && (
+                <span
+                  style={{
+                    position: 'absolute',
+                    top: -2,
+                    right: -5,
+                    width: 7,
+                    height: 7,
+                    borderRadius: '50%',
+                    background: '#6d5aef',
+                    border: '1.5px solid #fff',
+                  }}
+                  aria-hidden="true"
+                ></span>
+              )}
+            </span>
+            Seguimiento
+          </Link>
+
+          <Link href="/jobs" className={`ni ${pathname.startsWith('/jobs') ? 'on' : ''}`}>
+            <i className="ti ti-briefcase"></i>Empleos
+          </Link>
 
           <div className="nav-sp"></div>
 
