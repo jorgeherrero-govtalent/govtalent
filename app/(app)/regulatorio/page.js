@@ -77,7 +77,7 @@ function Cifra({ n, label, destacada }) {
 // arriba en morado —no dentro de un cuadrado con fondo— el título debajo,
 // y el "Ver..." cierra la tarjeta. Sin eso las dos secciones no se
 // sentían como el mismo producto.
-function ModuloCard({ href, icon, titulo, fuente, descripcion, cta, cifras }) {
+function ModuloCard({ href, icon, titulo, fuente, descripcion, cta, cifras, etiquetas }) {
   return (
     <Link href={href} className="card" style={{ padding: 18, textDecoration: 'none', color: 'inherit' }}>
       <i className={`ti ti-${icon}`} style={{ color: '#6d5aef', fontSize: 19 }}></i>
@@ -88,6 +88,19 @@ function ModuloCard({ href, icon, titulo, fuente, descripcion, cta, cifras }) {
         <div style={{ display: 'flex', gap: 18, paddingTop: 11, marginBottom: 11, borderTop: '.5px solid #f0f0eb' }}>
           {cifras.map((c) => (
             <Cifra key={c.label} {...c} />
+          ))}
+        </div>
+      )}
+      {/* Los sectores dicen en qué terreno hay actividad sin entrar. */}
+      {etiquetas?.length > 0 && (
+        <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap', marginBottom: 12 }}>
+          {etiquetas.slice(0, 3).map((e) => (
+            <span
+              key={e.label}
+              style={{ fontSize: 10.5, color: '#57534e', background: '#f5f4f1', padding: '4px 9px', borderRadius: 12 }}
+            >
+              {e.label} {e.n}
+            </span>
           ))}
         </div>
       )}
@@ -130,6 +143,9 @@ export default function RegulatorioPage() {
     esPnl: null,
     esComparecencias: null,
     actividadViva: null,
+    boeHoy: null,
+    boeMes: null,
+    boeSectores: [],
   });
 
   useEffect(() => {
@@ -155,7 +171,16 @@ export default function RegulatorioPage() {
         .select('num_expediente', { count: 'exact', head: true })
         .eq('kind', 'comparecencia'),
       supabase.from('es_activity').select('num_expediente', { count: 'exact', head: true }).eq('is_closed', false),
-    ]).then(([exp, ven, proc, tram, esT, esV, pnl, comp, act]) => {
+      supabase
+        .from('boe_documents')
+        .select('id', { count: 'exact', head: true })
+        .eq('fecha_publicacion', new Date().toISOString().slice(0, 10)),
+      supabase
+        .from('boe_documents')
+        .select('id', { count: 'exact', head: true })
+        .gte('fecha_publicacion', new Date(Date.now() - 30 * 86400000).toISOString().slice(0, 10)),
+      supabase.from('boe_sectors').select('sector, n_ultimo_mes').order('n_ultimo_mes', { ascending: false }).limit(3),
+    ]).then(([exp, ven, proc, tram, esT, esV, pnl, comp, act, boeH, boeM, boeS]) => {
       setCifras({
         expedientes: exp.count ?? null,
         ventanas: ven.count ?? null,
@@ -166,6 +191,9 @@ export default function RegulatorioPage() {
         esPnl: pnl.count ?? null,
         esComparecencias: comp.count ?? null,
         actividadViva: act.count ?? null,
+        boeHoy: boeH.count ?? null,
+        boeMes: boeM.count ?? null,
+        boeSectores: (boeS.data || []).map((s) => ({ label: s.sector, n: s.n_ultimo_mes })),
       });
     });
   }, []);
@@ -259,6 +287,19 @@ export default function RegulatorioPage() {
             { n: esEnTramite, label: 'en tramitación', destacada: true },
             { n: esRegistradas, label: 'registradas' },
           ]}
+        />
+        <ModuloCard
+          href="/boe"
+          icon="news"
+          titulo="Boletín Oficial del Estado"
+          fuente="Normativa publicada y altos cargos"
+          descripcion="Disposiciones generales y nombramientos, clasificados por sector."
+          cta="Explorar el BOE"
+          cifras={[
+            { n: cifras.boeHoy, label: 'hoy', destacada: true },
+            { n: cifras.boeMes, label: 'último mes' },
+          ]}
+          etiquetas={cifras.boeSectores}
         />
       </Bloque>
       <Proximamente items={['Consultas públicas de los ministerios', 'Senado']} />
