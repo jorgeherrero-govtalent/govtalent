@@ -86,22 +86,41 @@ export async function GET(request) {
       `${BASE}/datosabiertos/api/legislacion-consolidada/id/${id}`,
       `${BASE}/datosabiertos/api/boe/id/${id}`,
     ];
-    const salida = { modo: 'documento', id, pruebas: [] };
-    for (const u of pruebas) {
-      const r = await pedir(u, 'application/json');
-      salida.pruebas.push({
-        url: u.replace(BASE, ''),
-        status: r.status,
-        es_json: !!r.data,
-        tamano: r.texto?.length,
-        // Lo que decide si sirve: ¿trae materias y departamento?
-        menciona_materia: /materia/i.test(r.texto || ''),
-        menciona_departamento: /departamento/i.test(r.texto || ''),
-        claves: r.data && !Array.isArray(r.data) ? Object.keys(r.data).slice(0, 15) : null,
-        muestra: (r.texto || '').slice(0, 600),
-      });
-    }
-    return Response.json(salida);
+    // Solo la ruta que funciona: las otras dos devolvían 400 y 404.
+    const r = await pedir(`${BASE}/diario_boe/xml.php?id=${id}`, 'application/xml');
+    const xml = r.texto || '';
+
+    // Se extrae cada etiqueta de los metadatos con su código, que es lo
+    // que permitiría filtrar sin depender del texto.
+    const sacar = (tag) => {
+      const re = new RegExp(`<${tag}(?:\\s+codigo="([^"]*)")?[^>]*>([^<]*)</${tag}>`, 'gi');
+      return [...xml.matchAll(re)].map((m) => ({ codigo: m[1] || null, valor: m[2] }));
+    };
+
+    // El bloque de materias completo, para ver cómo viene estructurado
+    const bloqueMaterias = xml.match(/<materias>[\s\S]*?<\/materias>/i);
+    const bloqueAnalisis = xml.match(/<analisis>[\s\S]*?<\/analisis>/i);
+
+    return Response.json({
+      modo: 'documento',
+      id,
+      status: r.status,
+      tamano: xml.length,
+      // Los metadatos que sirven para clasificar
+      metadatos: {
+        departamento: sacar('departamento'),
+        rango: sacar('rango'),
+        origen_legislativo: sacar('origen_legislativo'),
+        materia: sacar('materia'),
+        alerta: sacar('alerta'),
+        nota: sacar('nota'),
+      },
+      // Los bloques enteros, por si la estructura no es la que supongo
+      bloque_materias: bloqueMaterias ? bloqueMaterias[0].slice(0, 1500) : null,
+      bloque_analisis: bloqueAnalisis ? bloqueAnalisis[0].slice(0, 1500) : null,
+      // Todas las etiquetas del documento y cuántas veces salen
+      etiquetas: etiquetasXml(xml),
+    });
   }
 
   const fecha = sp.get('fecha') || fechaHoy();
