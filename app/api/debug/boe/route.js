@@ -123,6 +123,54 @@ export async function GET(request) {
     });
   }
 
+  // --- Modo: buscar normas de rango alto en un día --------------------
+  // Las materias podrían rellenarse solo en las disposiciones generales,
+  // no en resoluciones menores. Este modo saca las de la sección I para
+  // poder comprobarlo.
+  if (sp.get('generales')) {
+    const f = sp.get('generales');
+    const r = await pedir(`${BASE}/datosabiertos/api/boe/sumario/${f}`, 'application/json');
+    const secciones = r.data?.data?.sumario?.diario?.[0]?.seccion || [];
+    const seccionI = Array.isArray(secciones)
+      ? secciones.find((s) => s.codigo === '1' || /disposiciones generales/i.test(s.nombre || ''))
+      : null;
+
+    const items = [];
+    const recorrer = (nodo) => {
+      if (!nodo) return;
+      if (Array.isArray(nodo)) return nodo.forEach(recorrer);
+      if (nodo.item) {
+        const its = Array.isArray(nodo.item) ? nodo.item : [nodo.item];
+        for (const it of its) {
+          items.push({
+            id: it.identificador,
+            titulo: String(it.titulo || '').slice(0, 110),
+            departamento: nodo._departamento || null,
+          });
+        }
+      }
+      for (const [k, v] of Object.entries(nodo)) {
+        if (typeof v === 'object') {
+          if (k === 'departamento' && v.nombre) v._departamento = v.nombre;
+          recorrer(v);
+        }
+      }
+    };
+    recorrer(seccionI || secciones);
+
+    return Response.json({
+      modo: 'disposiciones_generales',
+      fecha: f,
+      seccion_encontrada: !!seccionI,
+      secciones_disponibles: Array.isArray(secciones)
+        ? secciones.map((s) => ({ codigo: s.codigo, nombre: s.nombre }))
+        : null,
+      n_items: items.length,
+      items: items.slice(0, 12),
+      nota: 'Prueba uno con ?doc=<identificador> para ver si trae materias.',
+    });
+  }
+
   const fecha = sp.get('fecha') || fechaHoy();
   const salida = { generado: new Date().toISOString(), fecha_probada: fecha };
 
