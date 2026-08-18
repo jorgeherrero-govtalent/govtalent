@@ -91,8 +91,11 @@ const TIPOS = {
   procedimiento: {
     tabla: 'ep_procedures',
     id: 'process_id',
-    etiqueta: (r) => r.title,
-    columnas: 'process_id, title, current_stage, is_closed, slug',
+    // No hay columna "title": son title_es y title_en, como en los
+    // expedientes. Con el nombre mal, el select fallaba en silencio y no
+    // se leía ninguno de los 906.
+    etiqueta: (r) => r.title_es || r.title_en || r.label,
+    columnas: 'process_id, label, title_es, title_en, current_stage, current_stage_label, is_closed, slug',
     huella: (r) => ({ stage: r.current_stage, is_closed: r.is_closed }),
     plazo: () => null,
     ruta: (r) => `/procedures/${r.slug}`,
@@ -178,12 +181,20 @@ export async function GET(request) {
       // El estado actual, por lotes para no traerlo todo de golpe
       let desde = 0;
       let filas = [];
+      let fallo = null;
       while (true) {
-        const { data } = await supabase
+        const { data, error } = await supabase
           .from(t.tabla)
           .select(t.columnas)
           .order(t.id, { ascending: true })
           .range(desde, desde + LOTE - 1);
+        // Un error aquí tiene que verse: una columna mal escrita hacía
+        // que no se leyera ningún procedimiento y el informe decía
+        // "revisados: 0" sin explicar por qué.
+        if (error) {
+          fallo = error.message;
+          break;
+        }
         if (!data || data.length === 0) break;
         filas = filas.concat(data);
         if (data.length < LOTE) break;
@@ -258,6 +269,7 @@ export async function GET(request) {
       }
 
       informe.tipos[clave] = { revisados: filas.length, cambios, nuevos, plazos: 0 };
+      if (fallo) informe.tipos[clave].error = fallo;
     }
 
     // Los avisos de plazo ya enviados, para no repetirlos
