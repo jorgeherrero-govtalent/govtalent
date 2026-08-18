@@ -3,405 +3,329 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
-import OrganizationFollowButton from '@/components/OrganizationFollowButton';
 import RadiografiaModal from '@/components/RadiografiaModal';
 
-const SECTOR_LABELS = {
-  energia_clima: 'Energía y clima',
-  telecomunicaciones: 'Telecomunicaciones',
-  tecnologia_digital: 'Tecnología y digital',
-  audiovisual_medios: 'Audiovisual y medios de comunicación',
-  transporte_movilidad: 'Transporte y movilidad',
-  farmaceutico_salud: 'Farmacéutico y salud',
-  financiero_banca_seguros: 'Financiero, banca y seguros',
-  turismo_hosteleria: 'Turismo y hostelería',
-  multisectorial: 'Multisectorial',
-};
+/**
+ * Home.
+ *
+ * Antes era una pantalla de empleabilidad: completar perfil, ofertas,
+ * radiografía. Ahora responde a "qué es relevante para mí hoy" desde el
+ * trabajo de asuntos públicos, con el empleo presente pero secundario.
+ *
+ * Los plazos mandan porque son lo único accionable: 178 ventanas
+ * abiertas entre España y Europa, ordenadas por lo que cierra antes. El
+ * resto —novedades, sector, empleo— acompaña.
+ */
 
-const TYPE_LABELS = {
-  empresa: 'Empresa',
-  empresa_publica: 'Empresa pública',
-  consultora_public_affairs: 'Consultora de Public Affairs',
-  asociacion_profesional: 'Asociación profesional',
-  sindicato: 'Sindicato',
-  tercer_sector_ong: 'Organización del tercer sector / ONG',
-  institucion_publica: 'Institución pública',
-  partido_politico: 'Partido político',
-  think_tank_fundacion: 'Think tank / Fundación',
-  universidad_centro_educativo: 'Universidad / Institución académica',
-  medios_comunicacion: 'Medios y comunicación',
-  otro: 'Otro',
-};
+const MESES = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
 
-const MODALITY_LABELS = { presencial: 'Presencial', hibrido: 'Híbrido', remoto: 'Remoto' };
-
-const CHECKLIST_LABELS = {
-  cv: { done: 'CV añadido', pending: 'CV pendiente' },
-  experiencia: { done: 'Experiencia añadida', pending: 'Experiencia pendiente' },
-  foto: { done: 'Foto añadida', pending: 'Foto pendiente' },
-  educacion: { done: 'Educación añadida', pending: 'Educación pendiente' },
-  web_linkedin: { done: 'Web o LinkedIn añadido', pending: 'Web o LinkedIn pendiente' },
-};
-
-function formatFecha(iso) {
+function haceCuanto(iso) {
   if (!iso) return null;
   const d = new Date(iso);
-  const dias = Math.floor((Date.now() - d.getTime()) / (1000 * 60 * 60 * 24));
-  if (dias <= 0) return 'Hoy';
-  if (dias === 1) return 'Ayer';
-  if (dias < 7) return `Hace ${dias} días`;
-  return d.toLocaleDateString('es-ES', { day: 'numeric', month: 'short' });
+  if (Number.isNaN(d.getTime())) return null;
+  const dias = Math.floor((Date.now() - d.getTime()) / 86400000);
+  if (dias < 1) return 'hoy';
+  if (dias === 1) return 'ayer';
+  if (dias < 30) return `hace ${dias} días`;
+  return `${d.getDate()} ${MESES[d.getMonth()]}`;
 }
 
-export default function RadarResumenHoy() {
-  const [data, setData] = useState(null);
-  const [userId, setUserId] = useState(null);
+function diasHasta(iso) {
+  if (!iso) return null;
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return null;
+  return Math.ceil((d.getTime() - Date.now()) / 86400000);
+}
+
+const CARD = { background: '#fff', borderRadius: 10, boxShadow: '0 1px 2px rgba(0,0,0,.04)' };
+const TITULO = { fontSize: 14, fontWeight: 500, letterSpacing: '-.15px' };
+const ENLACE = { fontSize: 12, color: '#8b8780', textDecoration: 'none' };
+
+export default function Home() {
+  const supabase = createClient();
+
+  const [resumen, setResumen] = useState(null);
+  const [plazos, setPlazos] = useState([]);
+  const [novedades, setNovedades] = useState([]);
+  const [cifras, setCifras] = useState({ leyes: null, procedimientos: null, expedientes: null });
+  const [nombre, setNombre] = useState('');
   const [showRadiografia, setShowRadiografia] = useState(false);
 
   useEffect(() => {
+    // El resumen de siempre: perfil, vacantes y organizaciones.
     fetch('/api/radar/summary')
       .then((r) => r.json())
-      .then(setData);
+      .then((d) => {
+        setResumen(d);
+        setNombre(d?.perfil?.nombre || '');
+      })
+      .catch(() => setResumen({}));
 
-    const supabase = createClient();
-    supabase.auth.getUser().then(({ data: authData }) => {
-      if (authData.user) setUserId(authData.user.id);
-    });
+    (async () => {
+      const [{ data: es }, { data: eu }, { data: nov }, l, p, x] = await Promise.all([
+        // Los plazos españoles: leyes con enmiendas abiertas
+        supabase
+          .from('es_initiatives_directory')
+          .select('num_expediente, slug, title, comision, plazo_enmiendas, dias_plazo')
+          .not('dias_plazo', 'is', null)
+          .eq('is_blocked', false)
+          .order('dias_plazo', { ascending: true })
+          .limit(6),
+        // Y los europeos: consultas de la Comisión
+        supabase
+          .from('eu_initiatives_directory')
+          .select('id, slug, title, act_type, feedback_end, dias_restantes')
+          .eq('is_open', true)
+          .not('dias_restantes', 'is', null)
+          .order('dias_restantes', { ascending: true })
+          .limit(6),
+        // Las novedades de lo que sigue. Si no sigue nada, viene vacío.
+        supabase
+          .from('my_follow_events')
+          .select('event_id, kind, title, detail, occurred_at, es_nueva')
+          .eq('es_nueva', true)
+          .order('occurred_at', { ascending: false })
+          .limit(4),
+        supabase.from('es_initiatives').select('num_expediente', { count: 'exact', head: true }).eq('is_closed', false),
+        supabase.from('ep_procedures').select('process_id', { count: 'exact', head: true }).eq('is_closed', false),
+        supabase.from('eu_initiatives_directory').select('id', { count: 'exact', head: true }).eq('is_open', true),
+      ]);
+
+      // Se mezclan los dos orígenes y se ordenan por lo que cierra antes:
+      // al usuario le da igual de qué institución venga.
+      const todos = [
+        ...(es || []).map((r) => ({
+          id: `es-${r.num_expediente}`,
+          dias: r.dias_plazo,
+          title: r.title,
+          fuente: ['Congreso', r.comision].filter(Boolean).join(' · '),
+          ruta: `/congreso/${r.slug}`,
+        })),
+        ...(eu || []).map((r) => ({
+          id: `eu-${r.id}`,
+          dias: r.dias_restantes,
+          title: r.title,
+          fuente: ['Comisión Europea', r.act_type].filter(Boolean).join(' · '),
+          ruta: `/initiatives/${r.slug}`,
+        })),
+      ].sort((a, b) => a.dias - b.dias);
+
+      setPlazos(todos.slice(0, 5));
+      setNovedades(nov || []);
+      setCifras({ leyes: l.count ?? null, procedimientos: p.count ?? null, expedientes: x.count ?? null });
+    })();
   }, []);
 
-  if (!data) {
-    return <div style={{ padding: '24px 28px', fontSize: 13, color: '#888' }}>Cargando tu resumen…</div>;
-  }
-
-  const { perfil, vacantes_recomendadas, organizaciones_recomendadas, novedades } = data;
+  const vacantes = resumen?.vacantes_recomendadas || [];
+  const perfil = resumen?.perfil || {};
 
   return (
-    <div style={{ maxWidth: 1080, margin: '0 auto', padding: '26px 20px 60px' }}>
-      {/* Cabecera */}
-      <div style={{ marginBottom: 22 }}>
-        <div style={{ fontSize: 22, fontWeight: 700, color: '#15140f' }}>Hola{perfil.nombre ? `, ${perfil.nombre}` : ''}</div>
-        <div style={{ fontSize: 13.5, color: '#8a897f', marginTop: 4 }}>
-          Aquí tienes una selección de oportunidades, organizaciones y novedades adaptadas a tu perfil.
-        </div>
+    <div style={{ maxWidth: 900, margin: '0 auto', padding: '26px 20px 60px' }}>
+      <div style={{ marginBottom: 20 }}>
+        <h1 style={{ fontSize: 21, fontWeight: 600, margin: 0, letterSpacing: '-.3px' }}>
+          Hola{nombre ? `, ${nombre}` : ''}
+        </h1>
+        <p style={{ fontSize: 12.5, color: '#8b8780', margin: '5px 0 0' }}>
+          Tu espacio de trabajo en asuntos públicos.
+        </p>
       </div>
 
-      {/* Bloque principal: completar perfil */}
-      {perfil.completo ? (
-        <div
-          style={{
-            background: '#eaf3ee',
-            border: '1px solid #cfe6d9',
-            borderRadius: 16,
-            padding: '22px 26px',
-            marginBottom: 26,
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-            flexWrap: 'wrap',
-            gap: 16,
-          }}
-        >
-          <div>
-            <div style={{ fontSize: 15.5, fontWeight: 700, color: '#15140f', marginBottom: 4 }}>
-              <i className="ti ti-circle-check-filled" style={{ color: '#1d6f5c', marginRight: 6 }}></i>
-              Tu perfil está completo
-            </div>
-            <div style={{ fontSize: 12.5, color: '#57564f' }}>
-              Tu perfil ya está visible para las organizaciones y listo para recibir mejores recomendaciones.
-            </div>
-          </div>
-          <Link
-            href="/profile"
-            style={{
-              padding: '10px 18px',
-              borderRadius: 8,
-              border: 'none',
-              background: '#1d6f5c',
-              color: '#fff',
-              fontSize: 12.5,
-              fontWeight: 600,
-              textDecoration: 'none',
-              whiteSpace: 'nowrap',
-            }}
+      {/* Las novedades primero cuando las hay: es lo que hace volver.
+          Si no sigue nada, este bloque no aparece y mandan los plazos. */}
+      {novedades.length > 0 && (
+        <div style={{ ...CARD, padding: 20, marginBottom: 14 }}>
+          <div
+            style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 14, gap: 10 }}
           >
-            Ver mi perfil
+            <div style={TITULO}>
+              {novedades.length} {novedades.length === 1 ? 'novedad' : 'novedades'} en lo que sigues
+            </div>
+            <Link href="/seguimiento" style={ENLACE}>
+              Ver todo
+            </Link>
+          </div>
+          {novedades.map((n) => (
+            <div key={n.event_id} style={{ display: 'flex', gap: 13, padding: '10px 0', alignItems: 'baseline' }}>
+              <span style={{ width: 5, height: 5, borderRadius: '50%', background: '#6d5aef', flexShrink: 0 }}></span>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontSize: 13, lineHeight: 1.45 }}>
+                  {n.title} <span style={{ color: '#8b8780' }}>{(n.detail || '').toLowerCase()}</span>
+                </div>
+                <div style={{ fontSize: 11, color: '#b8b4ac', marginTop: 3 }}>{haceCuanto(n.occurred_at)}</div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      <div style={{ ...CARD, padding: 20, marginBottom: 14 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 4, gap: 10 }}>
+          <div style={TITULO}>Plazos abiertos</div>
+          <Link href="/regulatorio" style={ENLACE}>
+            Ver Regulatorio
           </Link>
         </div>
-      ) : (
-        <div
-          style={{
-            background: 'linear-gradient(160deg, #faf9ff 0%, #f2effc 100%)',
-            border: '1px solid #e2dcf8',
-            borderRadius: 16,
-            padding: '22px 26px',
-            marginBottom: 26,
-          }}
-        >
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 16 }}>
-            <div style={{ flex: 1, minWidth: 240 }}>
-              <div style={{ fontSize: 15.5, fontWeight: 700, color: '#15140f', marginBottom: 4 }}>Completa tu perfil profesional</div>
-              <div style={{ fontSize: 12.5, color: '#57564f', marginBottom: 14 }}>
-                Cuanto más completo esté tu perfil, mejores serán las recomendaciones y más fácil será que las organizaciones te
-                encuentren.
-              </div>
+        <div style={{ fontSize: 11.5, color: '#8b8780', marginBottom: 15 }}>Ordenados por lo que cierra antes.</div>
 
-              <div style={{ height: 6, background: '#e2dcf8', borderRadius: 20, overflow: 'hidden', marginBottom: 8, maxWidth: 320 }}>
-                <div
-                  style={{
-                    height: '100%',
-                    width: `${perfil.completion_pct}%`,
-                    background: '#6d5aef',
-                    borderRadius: 20,
-                    transition: 'width .4s ease',
-                  }}
-                ></div>
-              </div>
-              <div style={{ fontSize: 12, fontWeight: 600, color: '#6d5aef', marginBottom: 14 }}>
-                Perfil completado al {perfil.completion_pct}%
-              </div>
-
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px 20px' }}>
-                {Object.entries(perfil.checklist).map(([key, done]) => (
-                  <div key={key} style={{ fontSize: 12, color: '#57564f', display: 'flex', alignItems: 'center', gap: 7 }}>
-                    <span
-                      style={{
-                        width: 16,
-                        height: 16,
-                        borderRadius: '50%',
-                        background: done ? '#6d5aef' : '#e0dfd8',
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        flexShrink: 0,
-                      }}
-                    >
-                      {done && <i className="ti ti-check" style={{ fontSize: 10, color: '#fff' }}></i>}
-                    </span>
-                    {CHECKLIST_LABELS[key][done ? 'done' : 'pending']}
-                  </div>
-                ))}
-              </div>
-            </div>
-
+        {plazos.length === 0 ? (
+          <div style={{ fontSize: 12.5, color: '#a8a49c', padding: '8px 0' }}>Cargando…</div>
+        ) : (
+          plazos.map((p) => (
             <Link
-              href="/profile"
+              key={p.id}
+              href={p.ruta}
               style={{
-                padding: '10px 18px',
-                borderRadius: 8,
-                border: 'none',
-                background: '#6d5aef',
-                color: '#fff',
-                fontSize: 12.5,
-                fontWeight: 600,
+                display: 'flex',
+                gap: 14,
+                padding: '12px 0',
+                borderTop: '.5px solid #f2f0ec',
+                alignItems: 'flex-start',
                 textDecoration: 'none',
-                whiteSpace: 'nowrap',
-                flexShrink: 0,
+                color: 'inherit',
               }}
             >
-              Ir a mi perfil
+              <div style={{ flexShrink: 0, width: 46, textAlign: 'center' }}>
+                <div style={{ fontSize: 18, fontWeight: 500, color: '#6d5aef', lineHeight: 1.1 }}>{p.dias}</div>
+                <div style={{ fontSize: 10, color: '#a8a49c' }}>{p.dias === 1 ? 'día' : 'días'}</div>
+              </div>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontSize: 13, fontWeight: 500, lineHeight: 1.4, letterSpacing: '-.1px' }}>{p.title}</div>
+                <div style={{ fontSize: 11, color: '#a8a49c', marginTop: 4 }}>{p.fuente}</div>
+              </div>
+              <i className="ti ti-chevron-right" style={{ color: '#d6d2ca', fontSize: 15, flexShrink: 0, marginTop: 4 }}></i>
+            </Link>
+          ))
+        )}
+      </div>
+
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 14, marginBottom: 14 }}>
+        <div style={{ ...CARD, padding: 20 }}>
+          <div style={{ ...TITULO, marginBottom: 14 }}>En tramitación</div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '6px 0' }}>
+            <div style={{ flex: 1, fontSize: 12.5, color: '#57534e' }}>Leyes en el Congreso</div>
+            <span style={{ fontSize: 13.5, fontWeight: 500 }}>{cifras.leyes ?? '—'}</span>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '6px 0' }}>
+            <div style={{ flex: 1, fontSize: 12.5, color: '#57534e' }}>Procedimientos del PE</div>
+            <span style={{ fontSize: 13.5, fontWeight: 500 }}>{cifras.procedimientos ?? '—'}</span>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '6px 0' }}>
+            <div style={{ flex: 1, fontSize: 12.5, color: '#57534e' }}>Consultas de la Comisión</div>
+            <span style={{ fontSize: 13.5, fontWeight: 500 }}>{cifras.expedientes ?? '—'}</span>
+          </div>
+          {/* Sin esta nota, un mes sin novedades españolas parecería que
+              los datos están sin actualizar. */}
+          <div style={{ fontSize: 10.5, color: '#b8b4ac', paddingTop: 11, lineHeight: 1.5 }}>
+            El Congreso reanuda su actividad ordinaria en septiembre.
+          </div>
+        </div>
+
+        {novedades.length === 0 && (
+          <div style={{ ...CARD, padding: 20 }}>
+            <div style={{ ...TITULO, marginBottom: 12 }}>Tu seguimiento</div>
+            <div style={{ fontSize: 12.5, color: '#8b8780', lineHeight: 1.6, marginBottom: 14 }}>
+              Sigue una ley o una comisión y sus novedades aparecerán aquí.
+            </div>
+            <Link
+              href="/congreso"
+              style={{
+                fontSize: 12.5,
+                color: '#6d5aef',
+                background: '#f0eefe',
+                padding: '7px 13px',
+                borderRadius: 7,
+                textDecoration: 'none',
+                display: 'inline-block',
+              }}
+            >
+              Explorar Regulatorio
+            </Link>
+          </div>
+        )}
+      </div>
+
+      {vacantes.length > 0 && (
+        <div style={{ ...CARD, padding: 20 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 14, gap: 10 }}>
+            <div style={TITULO}>Oportunidades para ti</div>
+            <Link href="/jobs" style={ENLACE}>
+              Ver empleos
+            </Link>
+          </div>
+
+          {vacantes.slice(0, 3).map((v) => (
+            <Link
+              key={v.id}
+              href={`/jobs?job=${v.id}`}
+              style={{
+                display: 'flex',
+                gap: 12,
+                padding: '10px 0',
+                borderTop: '.5px solid #f2f0ec',
+                alignItems: 'center',
+                textDecoration: 'none',
+                color: 'inherit',
+              }}
+            >
+              <span
+                style={{
+                  width: 30,
+                  height: 30,
+                  borderRadius: 7,
+                  background: '#f5f4f1',
+                  flexShrink: 0,
+                  overflow: 'hidden',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
+                {v.organization_logo ? (
+                  <img src={v.organization_logo} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                ) : (
+                  <i className="ti ti-building" style={{ fontSize: 14, color: '#a8a49c' }}></i>
+                )}
+              </span>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontSize: 12.5, fontWeight: 500 }}>{v.title}</div>
+                <div style={{ fontSize: 11, color: '#a8a49c', marginTop: 2 }}>
+                  {[v.organization_name, v.location].filter(Boolean).join(' · ')}
+                </div>
+              </div>
+            </Link>
+          ))}
+
+          {/* Carrera va aquí y no en su propio bloque: son accesos, no
+              una sección que merezca competir con lo demás. */}
+          <div
+            style={{
+              display: 'flex',
+              gap: 16,
+              paddingTop: 14,
+              marginTop: 11,
+              borderTop: '.5px solid #f2f0ec',
+              flexWrap: 'wrap',
+            }}
+          >
+            <button
+              type="button"
+              onClick={() => setShowRadiografia(true)}
+              style={{ fontSize: 12, color: '#1d6f5c', background: 'none', border: 'none', padding: 0, cursor: 'pointer' }}
+            >
+              Radiografía profesional
+            </button>
+            <Link href="/profile" style={{ fontSize: 12, color: '#8b8780', textDecoration: 'none' }}>
+              Mi perfil
+              {!perfil.completo && <span style={{ color: '#c2410c' }}> · incompleto</span>}
+            </Link>
+            <Link href="/jobs?saved=1" style={{ fontSize: 12, color: '#8b8780', textDecoration: 'none' }}>
+              Ofertas guardadas
             </Link>
           </div>
         </div>
       )}
 
-      {/* Oportunidades para ti */}
-      <div style={{ marginBottom: 26 }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 3 }}>
-          <div style={{ fontSize: 16, fontWeight: 700, color: '#15140f' }}>Oportunidades para ti</div>
-          <Link href="/jobs" style={{ fontSize: 12.5, fontWeight: 600, color: '#1d6f5c', textDecoration: 'none' }}>
-            Ver todas →
-          </Link>
-        </div>
-        <div style={{ fontSize: 12.5, color: '#8a897f', marginBottom: 12 }}>
-          Seleccionadas según tus intereses, experiencia y ubicación.
-        </div>
-        {vacantes_recomendadas.length > 0 ? (
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 14 }}>
-            {vacantes_recomendadas.map((v) => (
-              <Link key={v.id} href={`/jobs?job=${v.id}`} className="job-card-hover" style={{ textDecoration: 'none', display: 'block' }}>
-                <div style={{ background: '#fff', border: '1px solid #eceae2', borderRadius: 14, padding: '16px 18px', height: '100%' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
-                    <div
-                      style={{
-                        width: 34,
-                        height: 34,
-                        borderRadius: 9,
-                        background: '#f0efe9',
-                        flexShrink: 0,
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        overflow: 'hidden',
-                      }}
-                    >
-                      {v.organization_logo ? (
-                        <img src={v.organization_logo} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                      ) : (
-                        <i className="ti ti-building" style={{ color: '#a3a297' }}></i>
-                      )}
-                    </div>
-                    <div style={{ minWidth: 0 }}>
-                      <div style={{ fontSize: 13, fontWeight: 700, color: '#15140f', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                        {v.title}
-                      </div>
-                      <div style={{ fontSize: 11.5, color: '#8a897f', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                        {v.organization_name}
-                      </div>
-                    </div>
-                  </div>
-
-                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px 10px', marginBottom: 12 }}>
-                    {v.location && (
-                      <span style={{ fontSize: 11, color: '#57564f', display: 'flex', alignItems: 'center', gap: 3 }}>
-                        <i className="ti ti-map-pin" style={{ fontSize: 12 }}></i> {v.location}
-                      </span>
-                    )}
-                    {v.modality && (
-                      <span style={{ fontSize: 11, color: '#57564f', display: 'flex', alignItems: 'center', gap: 3 }}>
-                        <i className="ti ti-briefcase" style={{ fontSize: 12 }}></i> {MODALITY_LABELS[v.modality] || v.modality}
-                      </span>
-                    )}
-                    {v.organization_type && (
-                      <span style={{ fontSize: 11, color: '#57564f' }}>{TYPE_LABELS[v.organization_type] || v.organization_type}</span>
-                    )}
-                  </div>
-
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <span style={{ fontSize: 10.5, color: '#a3a297' }}>{formatFecha(v.published_at) || ''}</span>
-                    <span style={{ fontSize: 11.5, fontWeight: 600, color: '#1d6f5c' }}>Ver vacante →</span>
-                  </div>
-                  {v.views_count >= 3 && (
-                    <div style={{ fontSize: 10.5, color: '#a3a297', marginTop: 6, display: 'flex', alignItems: 'center', gap: 4 }}>
-                      <i className="ti ti-eye" style={{ fontSize: 11 }}></i>
-                      {v.views_count} personas han visto esta oferta
-                    </div>
-                  )}
-                </div>
-              </Link>
-            ))}
-          </div>
-        ) : (
-          <div style={{ fontSize: 12.5, color: '#a3a297' }}>Todavía no hay vacantes activas que mostrar.</div>
-        )}
-      </div>
-
-      {/* Radiografía Profesional */}
-      <div style={{ marginBottom: 26 }}>
-        <div
-          onClick={() => setShowRadiografia(true)}
-          className="job-card-hover"
-          style={{ cursor: 'pointer' }}
-        >
-          <div
-            style={{
-              background: 'linear-gradient(160deg, #faf9ff 0%, #f2effc 100%)',
-              border: '1px solid #e2dcf8',
-              borderRadius: 14,
-              padding: '18px 20px',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              flexWrap: 'wrap',
-              gap: 12,
-            }}
-          >
-            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-              <div
-                style={{
-                  width: 38,
-                  height: 38,
-                  borderRadius: 10,
-                  background: '#e5defc',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  flexShrink: 0,
-                }}
-              >
-                <i className="ti ti-chart-donut" style={{ fontSize: 18, color: '#6d5aef' }}></i>
-              </div>
-              <div>
-                <div style={{ fontSize: 13.5, fontWeight: 700, color: '#15140f' }}>Tu Radiografía Profesional</div>
-                <div style={{ fontSize: 12, color: '#57564f' }}>Descubre cómo encaja tu perfil en el sector</div>
-              </div>
-            </div>
-            <div style={{ fontSize: 12, fontWeight: 600, color: '#6d5aef', whiteSpace: 'nowrap' }}>Ver mi resultado →</div>
-          </div>
-        </div>
-      </div>
-
       {showRadiografia && <RadiografiaModal onClose={() => setShowRadiografia(false)} />}
-
-      {/* Organizaciones que pueden interesarte */}
-      <div style={{ marginBottom: 26 }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 3 }}>
-          <div style={{ fontSize: 16, fontWeight: 700, color: '#15140f' }}>Organizaciones que pueden interesarte</div>
-          <Link href="/organizations" style={{ fontSize: 12.5, fontWeight: 600, color: '#1d6f5c', textDecoration: 'none' }}>
-            Explorar directorio →
-          </Link>
-        </div>
-        <div style={{ fontSize: 12.5, color: '#8a897f', marginBottom: 12 }}>
-          Descubre organizaciones relacionadas con tus sectores e intereses.
-        </div>
-        {organizaciones_recomendadas.length > 0 ? (
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: 14 }}>
-            {organizaciones_recomendadas.map((o) => (
-              <div key={o.id} className="job-card-hover" style={{ background: '#fff', border: '1px solid #eceae2', borderRadius: 14, padding: '16px 18px' }}>
-                <Link href={`/organizations/${o.slug}`} style={{ textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
-                  <div
-                    style={{
-                      width: 38,
-                      height: 38,
-                      borderRadius: 9,
-                      background: '#f0efe9',
-                      flexShrink: 0,
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      overflow: 'hidden',
-                    }}
-                  >
-                    {o.logo_url ? (
-                      <img src={o.logo_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                    ) : (
-                      <i className="ti ti-building" style={{ color: '#a3a297' }}></i>
-                    )}
-                  </div>
-                  <div style={{ minWidth: 0 }}>
-                    <div style={{ fontSize: 13, fontWeight: 700, color: '#15140f', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                      {o.name}
-                    </div>
-                    <div style={{ fontSize: 11.5, color: '#8a897f' }}>
-                      {SECTOR_LABELS[o.sector] || 'Sector no especificado'}
-                      {o.org_type ? ` · ${TYPE_LABELS[o.org_type] || o.org_type}` : ''}
-                    </div>
-                  </div>
-                </Link>
-                <OrganizationFollowButton organizationId={o.id} organizationName={o.name} userId={userId} initialFollowing={false} />
-              </div>
-            ))}
-          </div>
-        ) : (
-          <div style={{ fontSize: 12.5, color: '#a3a297' }}>Todavía no hay organizaciones que recomendarte.</div>
-        )}
-      </div>
-
-      {/* Novedades del ecosistema — se oculta por completo si no hay ninguna */}
-      {novedades.length > 0 && (
-        <div style={{ background: '#15140f', borderRadius: 16, padding: '22px 26px' }}>
-          <div style={{ fontSize: 11, fontWeight: 600, color: '#a89dfc', letterSpacing: '.04em', marginBottom: 14 }}>
-            QUÉ ESTÁ PASANDO AHORA
-          </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-            {novedades.map((n, i) => (
-              <div key={i} style={{ fontSize: 13.5, color: '#fff', display: 'flex', gap: 9, alignItems: 'baseline' }}>
-                <span style={{ color: '#a89dfc', flexShrink: 0 }}>●</span>
-                <span>{n.title}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
     </div>
   );
 }
