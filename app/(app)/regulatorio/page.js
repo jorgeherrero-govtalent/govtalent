@@ -245,8 +245,11 @@ export default function RegulatorioPage() {
             value={busqueda}
             onChange={(e) => setBusqueda(e.target.value)}
             onKeyDown={(e) => {
-              if (e.key === 'Enter' && busqueda.trim()) {
-                router.push(`/congreso?q=${encodeURIComponent(busqueda.trim())}`);
+              // Al buscador transversal, no a /congreso: quien escribe
+              // "envases" quiere ver también el expediente europeo, que
+              // es el que tiene plazo abierto.
+              if (e.key === 'Enter' && busqueda.trim().length >= 3) {
+                router.push(`/regulatorio/buscar?q=${encodeURIComponent(busqueda.trim())}`);
               }
             }}
             placeholder="Buscar una norma, un expediente o un procedimiento..."
