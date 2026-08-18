@@ -3,6 +3,7 @@
 import { Suspense, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
+import MultiSelectFilter from '@/components/MultiSelectFilter';
 
 /**
  * Directorio del BOE.
@@ -57,7 +58,8 @@ function Boe() {
   const [items, setItems] = useState(null);
   const [sectores, setSectores] = useState([]);
   const [search, setSearch] = useState('');
-  const [sector, setSector] = useState('');
+  const [sectorFilter, setSectorFilter] = useState(new Set());
+  const [orden, setOrden] = useState('reciente');
   const [seccion, setSeccion] = useState('');
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(25);
@@ -81,21 +83,36 @@ function Boe() {
   const filtrados = useMemo(() => {
     let l = items || [];
     if (seccion) l = l.filter((i) => i.seccion === seccion);
-    if (sector) l = l.filter((i) => (i.sectores || []).includes(sector));
+    // Varios sectores a la vez: alguien de energía puede querer también
+    // medio ambiente, y son categorías que se solapan.
+    if (sectorFilter.size > 0) {
+      l = l.filter((i) => (i.sectores || []).some((s) => sectorFilter.has(s)));
+    }
     if (search) {
       const q = normalize(search);
       l = l.filter((i) => normalize(i.titulo).includes(q) || normalize(i.departamento || '').includes(q));
     }
-    return l;
-  }, [items, search, sector, seccion]);
+    // El orden se aplica sobre una copia: sort muta el array original y
+    // eso rompería el memo de la lista sin filtrar.
+    return [...l].sort((a, b) =>
+      orden === 'reciente'
+        ? String(b.fecha_publicacion).localeCompare(String(a.fecha_publicacion))
+        : String(a.fecha_publicacion).localeCompare(String(b.fecha_publicacion))
+    );
+  }, [items, search, sectorFilter, seccion, orden]);
 
   useEffect(() => {
     setPage(1);
-  }, [search, sector, seccion]);
+  }, [search, sectorFilter, seccion, orden]);
 
   const totalPages = Math.max(1, Math.ceil(filtrados.length / pageSize));
   const current = Math.min(page, totalPages);
   const slice = filtrados.slice((current - 1) * pageSize, current * pageSize);
+
+  const sectorOptions = useMemo(
+    () => sectores.map((s) => ({ value: s.sector, label: `${s.sector} (${s.n_documentos})` })),
+    [sectores]
+  );
 
   const hoy = (items || []).filter((i) => esHoy(i.fecha_publicacion)).length;
 
@@ -173,28 +190,46 @@ function Boe() {
           />
         </div>
 
-        {sectores.length > 0 && (
-          <select
-            value={sector}
-            onChange={(e) => setSector(e.target.value)}
-            aria-label="Filtrar por sector"
-            style={{
-              ...chip(!!sector),
-              appearance: 'none',
-              paddingRight: 28,
-              border: `.5px solid ${sector ? '#6d5aef' : '#e0dfd8'}`,
-              background: sector ? '#f0eefe' : '#fff',
-              borderRadius: 20,
-              padding: '8px 26px 8px 14px',
+        {sectorOptions.length > 0 && (
+          <MultiSelectFilter
+            label="Sector"
+            values={sectorOptions}
+            selected={sectorFilter}
+            onApply={setSectorFilter}
+          />
+        )}
+
+        <button
+          type="button"
+          onClick={() => setOrden((o) => (o === 'reciente' ? 'antiguo' : 'reciente'))}
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: 6,
+            background: '#fff',
+            border: '.5px solid #e0dfd8',
+            borderRadius: 20,
+            padding: '8px 14px',
+            fontSize: 12,
+            color: '#57534e',
+            cursor: 'pointer',
+            whiteSpace: 'nowrap',
+          }}
+        >
+          <i className={`ti ti-arrow-${orden === 'reciente' ? 'down' : 'up'}`} style={{ fontSize: 14 }}></i>
+          {orden === 'reciente' ? 'Más recientes' : 'Más antiguas'}
+        </button>
+
+        {(sectorFilter.size > 0 || search) && (
+          <span
+            onClick={() => {
+              setSectorFilter(new Set());
+              setSearch('');
             }}
+            style={{ fontSize: 11.5, color: '#a8a49c', textDecoration: 'underline', cursor: 'pointer', alignSelf: 'center' }}
           >
-            <option value="">Todos los sectores</option>
-            {sectores.map((s) => (
-              <option key={s.codigo} value={s.sector}>
-                {s.sector} ({s.n_documentos})
-              </option>
-            ))}
-          </select>
+            Limpiar
+          </span>
         )}
       </div>
 
