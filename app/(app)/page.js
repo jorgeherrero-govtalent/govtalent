@@ -41,6 +41,23 @@ const CARD = { background: '#fff', borderRadius: 10, boxShadow: '0 1px 2px rgba(
 const TITULO = { fontSize: 14, fontWeight: 500, letterSpacing: '-.15px' };
 const ENLACE = { fontSize: 12, color: '#8b8780', textDecoration: 'none' };
 
+/**
+ * Qué contador enseñar en una oferta.
+ *
+ * Las candidaturas dicen cuánta competencia hay, que es más útil que las
+ * visitas. Pero solo cuando hay varias: "1 candidatura" no informa.
+ *
+ * Y las visitas solo a partir de diez. Medido en los datos reales: hay
+ * ofertas con 2 visitas y otras con 77, y enseñar el 2 resta.
+ */
+function interes(v) {
+  const cand = v.application_count || 0;
+  const vistas = v.views_count || 0;
+  if (cand >= 3) return `${cand} candidaturas`;
+  if (vistas >= 10) return `${vistas} personas la han visto`;
+  return null;
+}
+
 export default function Home() {
   const supabase = createClient();
   const router = useRouter();
@@ -292,7 +309,7 @@ export default function Home() {
             </div>
           ) : (
             <>
-              {sector.slice(0, 5).map((m) => {
+              {sector.slice(0, 3).map((m) => {
                 const dias = diasHasta(m.plazo);
                 return (
                   <Link
@@ -356,7 +373,7 @@ export default function Home() {
 
         {tab === 'plazos' && (
           <>
-            {plazos.map((p) => (
+            {plazos.slice(0, 3).map((p) => (
               <Link
                 key={p.id}
                 href={p.ruta}
@@ -381,7 +398,7 @@ export default function Home() {
               </Link>
             ))}
             <Link href="/regulatorio" style={{ ...ENLACE, display: 'inline-block', paddingTop: 14, color: '#6d5aef' }}>
-              Ver Regulatorio →
+              Ver todos los plazos →
             </Link>
           </>
         )}
@@ -395,7 +412,7 @@ export default function Home() {
           ) : (
             <>
               {novedades.length > 0
-                ? novedades.slice(0, 4).map((n) => (
+                ? novedades.slice(0, 3).map((n) => (
                     <div
                       key={n.event_id}
                       style={{ display: 'flex', gap: 13, padding: '11px 0', borderTop: '.5px solid #f2f0ec', alignItems: 'baseline' }}
@@ -409,7 +426,7 @@ export default function Home() {
                       </div>
                     </div>
                   ))
-                : seguidos.slice(0, 5).map((s2) => (
+                : seguidos.slice(0, 3).map((s2) => (
                     <Link
                       key={s2.id}
                       href={s2.ruta || '/seguimiento'}
@@ -461,28 +478,6 @@ export default function Home() {
           </div>
         </div>
 
-        {novedades.length === 0 && (
-          <div style={{ ...CARD, padding: 20 }}>
-            <div style={{ ...TITULO, marginBottom: 12 }}>Tu seguimiento</div>
-            <div style={{ fontSize: 12.5, color: '#8b8780', lineHeight: 1.6, marginBottom: 14 }}>
-              Sigue una ley o una comisión y sus novedades aparecerán aquí.
-            </div>
-            <Link
-              href="/congreso"
-              style={{
-                fontSize: 12.5,
-                color: '#6d5aef',
-                background: '#f0eefe',
-                padding: '7px 13px',
-                borderRadius: 7,
-                textDecoration: 'none',
-                display: 'inline-block',
-              }}
-            >
-              Explorar Regulatorio
-            </Link>
-          </div>
-        )}
       </div>
 
       {vacantes.length > 0 && (
@@ -531,6 +526,9 @@ export default function Home() {
                 <div style={{ fontSize: 12.5, fontWeight: 500 }}>{v.title}</div>
                 <div style={{ fontSize: 11, color: '#a8a49c', marginTop: 2 }}>
                   {[v.organization_name, v.location].filter(Boolean).join(' · ')}
+                  {/* El interés solo se muestra a partir de diez visitas:
+                      con dos o tres restaría en vez de aportar. */}
+                  {interes(v) && <span style={{ color: '#8b8780' }}> · {interes(v)}</span>}
                 </div>
               </div>
             </Link>
@@ -544,8 +542,18 @@ export default function Home() {
           no un error. */}
       <div style={{ ...CARD, padding: '16px 20px', marginTop: 14 }}>
         {perfil.completo ? (
-          <Link href="/profile" style={{ fontSize: 12, color: '#8b8780', textDecoration: 'none' }}>
-            Ver mi perfil
+          <Link
+            href="/profile"
+            style={{ display: 'flex', alignItems: 'center', gap: 9, textDecoration: 'none', color: 'inherit' }}
+          >
+            <i className="ti ti-circle-check-filled" style={{ color: '#1d6f5c', fontSize: 15 }}></i>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontSize: 12.5, color: '#3f3d39' }}>Tu perfil está completo</div>
+              <div style={{ fontSize: 11, color: '#a8a49c', marginTop: 2 }}>
+                Visible para las organizaciones del sector.
+              </div>
+            </div>
+            <span style={{ fontSize: 12, color: '#8b8780', flexShrink: 0 }}>Ver</span>
           </Link>
         ) : (
           <Link
