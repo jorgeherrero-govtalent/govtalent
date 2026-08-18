@@ -163,6 +163,29 @@ function SemiCirculo({ reparto, total }) {
   );
 }
 
+/**
+ * Agrupa las actuaciones repetidas del mismo tipo y día.
+ *
+ * El Parlamento registra un evento por cada documento de enmiendas
+ * presentado. Comprobado en los datos: un procedimiento llega a tener 19
+ * el mismo día, con documentos consecutivos (CJ71-AM-790088, 790089...).
+ *
+ * El dato es correcto, pero mostrarlo como 19 líneas idénticas no dice
+ * nada. Agrupadas dicen algo útil: cuántas enmiendas y cuándo.
+ */
+function agrupar(events) {
+  const salida = [];
+  for (const e of events) {
+    const ultimo = salida[salida.length - 1];
+    if (ultimo && ultimo.activity_type === e.activity_type && ultimo.activity_date === e.activity_date) {
+      ultimo._n += 1;
+      continue;
+    }
+    salida.push({ ...e, _n: 1 });
+  }
+  return salida;
+}
+
 export default function ProcedureDetailPage() {
   const supabase = createClient();
   const { slug } = useParams();
@@ -244,6 +267,8 @@ export default function ProcedureDetailPage() {
   // Para cada hito se busca la actividad más reciente de ese tipo. Si no
   // hay ninguna, el hito aparece apagado: el procedimiento aún no ha
   // llegado ahí.
+  const agrupados = useMemo(() => agrupar(events || []), [events]);
+
   const hitos = useMemo(() => {
     return HITOS.map((h) => {
       const encontrados = events.filter((e) => h.tipos.includes(e.activity_type));
@@ -489,7 +514,7 @@ export default function ProcedureDetailPage() {
 
           <div style={{ borderTop: '.5px solid #f0f0eb', paddingTop: 14 }}>
             <div style={LABEL}>Actuaciones</div>
-            {events.slice(0, verTodos ? events.length : 6).map((e) => (
+            {agrupados.slice(0, verTodos ? agrupados.length : 6).map((e) => (
               <div
                 key={e.id}
                 style={{
@@ -500,17 +525,22 @@ export default function ProcedureDetailPage() {
                   borderBottom: '.5px solid #f0f0eb',
                 }}
               >
-                <span style={{ fontSize: 11.5, minWidth: 0 }}>{e.activity_label}</span>
+                <span style={{ fontSize: 11.5, minWidth: 0 }}>
+                  {e.activity_label}
+                  {e._n > 1 && (
+                    <span style={{ color: '#aaa' }}> · {e._n} documentos</span>
+                  )}
+                </span>
                 <span style={{ fontSize: 10.5, color: '#aaa', flexShrink: 0 }}>{fechaCorta(e.activity_date) || '—'}</span>
               </div>
             ))}
-            {events.length > 6 && (
+            {agrupados.length > 6 && (
               <button
                 type="button"
                 onClick={() => setVerTodos((v) => !v)}
                 style={{ fontSize: 11.5, color: '#6d5aef', background: 'none', border: 'none', padding: '11px 0 0', cursor: 'pointer' }}
               >
-                {verTodos ? 'Ver solo las últimas' : `Ver las ${events.length} actuaciones`}
+                {verTodos ? 'Ver solo las últimas' : `Ver las ${agrupados.length} actuaciones`}
               </button>
             )}
           </div>
