@@ -41,6 +41,21 @@ const PAUSA_MS = 200;
 // otro público.
 const SECCIONES = new Set(['1', '2A', '3']);
 
+// De la sección de personal solo se guardan los nombramientos y ceses de
+// altos cargos. Medido en tres semanas: de 428 documentos, 238 eran
+// oposiciones y 17 concursos de personal, que no aportan nada a asuntos
+// públicos y dominaban el selector de sector.
+//
+// El rango no sirve para distinguirlos: los Reales Decretos de esa
+// sección son ascensos militares y las Órdenes mezclan altos cargos con
+// funcionarios de cuerpo. El único criterio fiable es la alerta.
+const ALERTA_ALTOS_CARGOS = 'Nombramientos y ceses de altos cargos';
+
+function interesa(seccion, alertas) {
+  if (seccion !== '2A') return true;
+  return (alertas || []).some((a) => a.valor === ALERTA_ALTOS_CARGOS);
+}
+
 const HEADERS = {
   'User-Agent':
     'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
@@ -272,6 +287,7 @@ export async function GET(request) {
 
       // Cada documento aparte, para sus materias y referencias
       let cargados = 0;
+      let descartados = 0;
       for (let i = 0; i < items.length; i += PARALELO) {
         if (Date.now() - t0 > PRESUPUESTO_MS) break;
         const grupo = items.slice(i, i + PARALELO);
@@ -281,6 +297,14 @@ export async function GET(request) {
           const it = grupo[k];
           if (!r.ok) return;
           const d = parsearDocumento(r.texto);
+
+          // Los documentos de personal que no son de altos cargos se
+          // descartan aquí: hay que pedirlos igual para ver su alerta,
+          // pero no se guardan.
+          if (!interesa(it.seccion, d.alertas)) {
+            descartados += 1;
+            return;
+          }
 
           documentos.push({
             id: it.id,
@@ -325,8 +349,10 @@ export async function GET(request) {
       // presupuesto de tiempo lo cortó a la mitad, se deja sin registrar
       // para que la próxima ejecución lo repita — si no, quedaría a
       // medias para siempre.
-      const completo = cargados === items.length;
-      informe.dias.push({ fecha: f, items: items.length, cargados, completo });
+      // El día está completo si se revisaron todos, aunque algunos se
+      // descartaran por no ser de interés.
+      const completo = cargados + descartados === items.length;
+      informe.dias.push({ fecha: f, items: items.length, cargados, descartados, completo });
       if (completo) {
         registros.push({ fecha: aFecha(f), n_items: items.length, n_cargados: cargados, estado: 'ok' });
       }
