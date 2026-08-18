@@ -454,33 +454,71 @@ export default function Home() {
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 14, marginBottom: 14 }}>
         <div style={{ ...CARD, padding: 20 }}>
-          <div style={{ ...TITULO, marginBottom: 14 }}>En tramitación</div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '6px 0' }}>
-            <div style={{ flex: 1, fontSize: 12.5, color: '#57534e' }}>Leyes en el Congreso</div>
-            <span style={{ fontSize: 13.5, fontWeight: 500 }}>{cifras.leyes ?? '—'}</span>
-          </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '6px 0' }}>
-            <div style={{ flex: 1, fontSize: 12.5, color: '#57534e' }}>Procedimientos del PE</div>
-            <span style={{ fontSize: 13.5, fontWeight: 500 }}>{cifras.procedimientos ?? '—'}</span>
-          </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '6px 0' }}>
-            <div style={{ flex: 1, fontSize: 12.5, color: '#57534e' }}>Consultas de la Comisión</div>
-            <span style={{ fontSize: 13.5, fontWeight: 500 }}>{cifras.expedientes ?? '—'}</span>
-          </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '6px 0' }}>
-            <div style={{ flex: 1, fontSize: 12.5, color: '#57534e' }}>Publicado en el BOE</div>
-            <span style={{ fontSize: 13.5, fontWeight: 500 }}>{cifras.boe ?? '—'}</span>
-          </div>
+          <div style={{ ...TITULO, marginBottom: 15 }}>En tramitación</div>
+          {/* Barras y no un quesito: estas cuatro cifras no son partes de
+              un todo —leyes españolas, procedimientos europeos, consultas
+              con plazo y publicaciones— y sumarlas no significaría nada.
+              La barra da peso visual sin implicar proporción. */}
+          {[
+            { label: 'Leyes en el Congreso', n: cifras.leyes, href: '/congreso' },
+            { label: 'Procedimientos del PE', n: cifras.procedimientos, href: '/procedures' },
+            { label: 'Consultas de la Comisión', n: cifras.expedientes, href: '/initiatives' },
+            { label: 'Publicado en el BOE', n: cifras.boe, href: '/boe', periodo: 'esta semana' },
+          ].map((c) => {
+            const max = Math.max(1, cifras.leyes || 0, cifras.procedimientos || 0, cifras.expedientes || 0, cifras.boe || 0);
+            return (
+              <Link
+                key={c.label}
+                href={c.href}
+                style={{ display: 'block', padding: '8px 0', textDecoration: 'none', color: 'inherit' }}
+              >
+                <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, marginBottom: 6 }}>
+                  <div style={{ flex: 1, fontSize: 12.5, color: '#57534e' }}>
+                    {c.label}
+                    {/* Solo el BOE lleva periodo: las otras tres son
+                        cifras vivas, no de esta semana. Ponerlo en la
+                        cabecera diría que las cuatro lo son. */}
+                    {c.periodo && <span style={{ color: '#b8b4ac' }}> · {c.periodo}</span>}
+                  </div>
+                  <span style={{ fontSize: 15, fontWeight: 600, letterSpacing: '-.2px' }}>{c.n ?? '—'}</span>
+                </div>
+                <div style={{ height: 3, background: '#f2f0ec', borderRadius: 2, overflow: 'hidden' }}>
+                  <div
+                    style={{
+                      width: `${((c.n || 0) / max) * 100}%`,
+                      height: '100%',
+                      background: '#6d5aef',
+                      opacity: 0.75,
+                    }}
+                  ></div>
+                </div>
+              </Link>
+            );
+          })}
           {/* Sin esta nota, un mes sin novedades españolas parecería que
               los datos están sin actualizar. */}
-          <div style={{ fontSize: 10.5, color: '#b8b4ac', paddingTop: 11, lineHeight: 1.5 }}>
-            El BOE, esta semana. El Congreso reanuda su actividad ordinaria en septiembre.
+          <div
+            style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              gap: 10,
+              paddingTop: 13,
+              marginTop: 11,
+              borderTop: '.5px solid #f2f0ec',
+              flexWrap: 'wrap',
+            }}
+          >
+            <span style={{ fontSize: 10.5, color: '#b8b4ac', lineHeight: 1.5 }}>
+              El Congreso reanuda en septiembre.
+            </span>
+            <Link href="/regulatorio" style={{ fontSize: 12, color: '#6d5aef', textDecoration: 'none', whiteSpace: 'nowrap' }}>
+              Ver normativa →
+            </Link>
           </div>
         </div>
 
-      </div>
-
-      {vacantes.length > 0 && (
+        {vacantes.length > 0 && (
         <div style={{ ...CARD, padding: 20 }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 14, gap: 10 }}>
             <div style={TITULO}>Oportunidades para ti</div>
@@ -533,13 +571,13 @@ export default function Home() {
               </div>
             </Link>
           ))}
-        </div>
-      )}
+          </div>
+        )}
+      </div>
 
-      {/* Fuera del bloque de empleo: si no hay vacantes recomendadas ese
-          bloque no se pinta y el perfil quedaría escondido. El progreso
-          sustituye al aviso en rojo: completar el perfil es una mejora,
-          no un error. */}
+      {/* El perfil va debajo y a todo el ancho: si no hay vacantes
+          recomendadas el bloque de empleo no se pinta, y dentro de la
+          rejilla quedaría escondido. */}
       <div style={{ ...CARD, padding: '16px 20px', marginTop: 14 }}>
         {perfil.completo ? (
           <Link
