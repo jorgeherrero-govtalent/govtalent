@@ -30,7 +30,7 @@ export async function GET() {
     supabase.from('organization_follows').select('organization_id').eq('user_id', userId),
     supabase
       .from('jobs')
-      .select('id, title, area, location, modality, published_at, views_count, organization_id, organizations(name, slug, sector, org_type, logo_url)')
+      .select('id, title, area, location, modality, published_at, views_count, application_count, organization_id, organizations(name, slug, sector, org_type, logo_url)')
       .eq('status', 'activa')
       .order('published_at', { ascending: false, nullsFirst: false })
       .limit(50),
@@ -102,6 +102,9 @@ export async function GET() {
     modality: j.modality,
     published_at: j.published_at,
     views_count: j.views_count || 0,
+    // Para el contador de interés de la Home: las candidaturas dicen
+    // cuánta competencia hay, que es más útil que las visitas.
+    application_count: j.application_count || 0,
   }));
 
   // --- Organizaciones que pueden interesarte: 3, con relleno de destacadas/verificadas ---
