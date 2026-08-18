@@ -206,6 +206,7 @@ export default function InitiativeDetailPage() {
   const [saved, setSaved] = useState(false);
   const [tab, setTab] = useState('resumen');
   const [verSecundarios, setVerSecundarios] = useState(false);
+  const [comisario, setComisario] = useState(null);
 
   useEffect(() => {
     if (!slug) return;
@@ -226,7 +227,7 @@ export default function InitiativeDetailPage() {
       }
       setItem(data);
 
-      const [{ data: st }, { data: act }, { data: res }, { data: auth }] = await Promise.all([
+      const [{ data: st }, { data: act }, { data: res }, { data: auth }, { data: com }] = await Promise.all([
         supabase.from('eu_initiative_stages').select('*').eq('initiative_id', data.id).order('ord'),
         supabase
           .from('eu_initiative_actors')
@@ -242,12 +243,19 @@ export default function InitiativeDetailPage() {
           .limit(1)
           .maybeSingle(),
         supabase.auth.getUser(),
+        // El nivel político de la dirección general. Un funcionario
+        // tramita; quien decide políticamente es el comisario, y eso
+        // faltaba en la ficha.
+        data.dg_code
+          ? supabase.from('ec_dg_political').select('*').eq('dg_code', data.dg_code).limit(1).maybeSingle()
+          : Promise.resolve({ data: null }),
       ]);
 
       if (cancelled) return;
       setStages(st || []);
       setActors(act || []);
       setResumenMeps(res || null);
+      setComisario(com || null);
 
       const uid = auth?.user?.id || null;
       setUserId(uid);
@@ -306,7 +314,8 @@ export default function InitiativeDetailPage() {
   // otros expedientes y por qué en este no aparece.
   const pestanas = useMemo(() => {
     const resumen = !!(item?.summary_es || item?.summary_en);
-    const nActores = (actors || []).length + (item?.author_name ? 1 : 0);
+    // El comisario cuenta como actor: es quien responde políticamente.
+    const nActores = (actors || []).length + (item?.author_name ? 1 : 0) + (comisario ? 1 : 0);
     return [
       { id: 'resumen', label: 'Resumen', n: null, activa: resumen },
       { id: 'recorrido', label: 'Recorrido', n: recorrido.length || null, activa: recorrido.length > 0 },
@@ -319,7 +328,7 @@ export default function InitiativeDetailPage() {
       },
       { id: 'docs', label: 'Documentos', n: documentos.length || null, activa: documentos.length > 0 },
     ];
-  }, [item, actors, recorrido, resumenMeps, documentos]);
+  }, [item, actors, recorrido, comisario]);
 
   // Si la pestaña activa se queda sin contenido, se salta a la primera que
   // tenga algo. Sin esto, un expediente sin resumen abriría en blanco.
@@ -638,9 +647,28 @@ export default function InitiativeDetailPage() {
 
       {tab === 'actores' && (
         <div style={CARD}>
+          {/* El comisario va primero: es el nivel político, y quien
+              responde del expediente ante el Parlamento. */}
+          {comisario && (
+            <>
+              <div style={LABEL}>Quién responde políticamente</div>
+              <Persona
+                av={<Avatar texto={iniciales(comisario.full_name)} url={comisario.photo_url} />}
+                nombre={comisario.full_name}
+                sub={comisario.portfolio_es}
+                href={comisario.profile_url || null}
+                extra={
+                  comisario.country_name && (
+                    <span style={{ fontSize: 10.5, color: '#999', flexShrink: 0 }}>{comisario.country_name}</span>
+                  )
+                }
+              />
+            </>
+          )}
+
           {(item.dg_code || item.author_name) && (
             <>
-              <div style={LABEL}>Quién lo tramita</div>
+              <div style={{ ...LABEL, marginTop: comisario ? 18 : 0 }}>Quién lo tramita</div>
               {item.dg_code && (
                 <Persona
                   av={<Avatar texto={item.dg_code} morado />}
