@@ -321,8 +321,15 @@ export async function GET(request) {
         await espera(PAUSA_MS);
       }
 
-      informe.dias.push({ fecha: f, items: items.length, cargados });
-      registros.push({ fecha: aFecha(f), n_items: items.length, n_cargados: cargados, estado: 'ok' });
+      // Solo se marca el día como hecho si se cargó entero. Si el
+      // presupuesto de tiempo lo cortó a la mitad, se deja sin registrar
+      // para que la próxima ejecución lo repita — si no, quedaría a
+      // medias para siempre.
+      const completo = cargados === items.length;
+      informe.dias.push({ fecha: f, items: items.length, cargados, completo });
+      if (completo) {
+        registros.push({ fecha: aFecha(f), n_items: items.length, n_cargados: cargados, estado: 'ok' });
+      }
     }
 
     informe.documentos = documentos.length;
