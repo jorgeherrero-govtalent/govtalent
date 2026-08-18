@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
 import { toast } from '@/lib/toast';
 import BackLink from '@/components/BackLink';
+import FollowButton from '@/components/FollowButton';
 import { groupColor, grupoCorto, colorSigla, nombreSigla } from '@/lib/grupos';
 
 const MESES = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
@@ -45,39 +46,6 @@ const LABEL = {
   marginBottom: 12,
 };
 
-function CircleButton({ icon, label, onClick, active, disabled, title }) {
-  const [hover, setHover] = useState(false);
-  const on = active || (hover && !disabled);
-  return (
-    <button
-      type="button"
-      aria-label={label}
-      title={title || label}
-      aria-disabled={disabled ? 'true' : undefined}
-      onClick={disabled ? undefined : onClick}
-      onMouseEnter={() => setHover(true)}
-      onMouseLeave={() => setHover(false)}
-      style={{
-        width: 32,
-        height: 32,
-        borderRadius: '50%',
-        border: `.5px solid ${on ? '#6d5aef' : '#e0dfd8'}`,
-        background: on ? '#EEEDFE' : '#fff',
-        color: disabled ? '#ccc' : on ? '#6d5aef' : '#888',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        cursor: disabled ? 'not-allowed' : 'pointer',
-        transition: 'all .15s ease',
-        padding: 0,
-        flexShrink: 0,
-      }}
-    >
-      <i className={`ti ti-${icon}`} style={{ fontSize: 15 }} aria-hidden="true"></i>
-    </button>
-  );
-}
-
 function Avatar({ nombre, url, size = 30 }) {
   const [falla, setFalla] = useState(false);
   const base = { width: size, height: size, borderRadius: '50%', flexShrink: 0, objectFit: 'cover', background: '#ece9e2' };
@@ -111,7 +79,6 @@ export default function CongresoDetailPage() {
   const [personas, setPersonas] = useState([]);
   const [comision, setComision] = useState(null);
   const [userId, setUserId] = useState(null);
-  const [saved, setSaved] = useState(false);
   const [tab, setTab] = useState('recorrido');
   const [verTodo, setVerTodo] = useState(false);
 
@@ -157,18 +124,9 @@ export default function CongresoDetailPage() {
       setPersonas(pe || []);
       setComision(co || null);
 
-      const uid = auth?.user?.id || null;
-      setUserId(uid);
-      if (uid) {
-        const { data: s } = await supabase
-          .from('saved_es_initiatives')
-          .select('id')
-          .eq('user_id', uid)
-          .eq('num_expediente', data.num_expediente)
-          .limit(1)
-          .maybeSingle();
-        if (!cancelled) setSaved(!!s);
-      }
+      // Ya no se consulta si está guardado: FollowButton comprueba por
+      // su cuenta si se sigue, y guardar ha desaparecido.
+      setUserId(auth?.user?.id || null);
     })();
 
     return () => {
@@ -213,30 +171,6 @@ export default function CongresoDetailPage() {
       if (primera) setTab(primera.id);
     }
   }, [pestanas, tab]);
-
-  async function toggleSave() {
-    if (!userId) {
-      toast('Inicia sesión para guardar iniciativas');
-      return;
-    }
-    if (saved) {
-      setSaved(false);
-      const { error } = await supabase
-        .from('saved_es_initiatives')
-        .delete()
-        .eq('user_id', userId)
-        .eq('num_expediente', item.num_expediente);
-      if (error) setSaved(true);
-      else toast('Eliminado de guardados');
-    } else {
-      setSaved(true);
-      const { error } = await supabase
-        .from('saved_es_initiatives')
-        .insert({ user_id: userId, num_expediente: item.num_expediente });
-      if (error) setSaved(false);
-      else toast('Iniciativa guardada ✓');
-    }
-  }
 
   if (item === undefined) {
     return (
@@ -293,16 +227,26 @@ export default function CongresoDetailPage() {
               )}
             </div>
           </div>
-          <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
-            <CircleButton icon="bell" label="Seguir en Radar" title="Seguir en Radar · próximamente" disabled />
-            {userId && (
-              <CircleButton
-                icon={saved ? 'bookmark-filled' : 'bookmark'}
-                label={saved ? 'Quitar de guardados' : 'Guardar iniciativa'}
-                active={saved}
-                onClick={toggleSave}
-              />
-            )}
+          {/* Un solo concepto. Guardar desaparece absorbido por seguir:
+              era un marcador que no avisaba de nada, y tener dos cosas
+              parecidas confundía sin aportar. */}
+          <div style={{ display: 'flex', gap: 4, flexShrink: 0, alignItems: 'center' }}>
+            <FollowButton kind="ley" refId={item.num_expediente} label={item.title} />
+            <span
+              title="Añadir a proyecto · próximamente"
+              aria-label="Añadir a proyecto · próximamente"
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                padding: '6px 8px',
+                borderRadius: 7,
+                color: '#c4c0b8',
+                cursor: 'not-allowed',
+              }}
+            >
+              <i className="ti ti-folder-plus" style={{ fontSize: 15 }} aria-hidden="true"></i>
+            </span>
           </div>
         </div>
 
