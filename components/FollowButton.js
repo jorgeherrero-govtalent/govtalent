@@ -30,6 +30,9 @@ const QUE_AVISAMOS = {
   diputado: 'cuando cambie de grupo o de comisión',
   comision: 'cuando cambie su composición',
   grupo: 'cuando cambie su actividad',
+  // El BOE ya está publicado: lo que puede cambiar es que otra norma
+  // la modifique o la derogue.
+  boe: 'si otra norma la modifica o la deroga',
 };
 
 // Verde para lo institucional, morado para lo regulatorio
