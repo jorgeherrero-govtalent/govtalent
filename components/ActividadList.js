@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
+import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
 import MultiSelectFilter from '@/components/MultiSelectFilter';
@@ -47,7 +48,10 @@ export default function ActividadList({ kind }) {
 
   const [items, setItems] = useState(null);
   const [grupos, setGrupos] = useState([]);
-  const [search, setSearch] = useState('');
+  // El buscador de la portada de Regulatorio llega con ?q=: se recoge
+  // aquí para que la búsqueda continúe donde el usuario la dejó.
+  const sp = useSearchParams();
+  const [search, setSearch] = useState(sp?.get('q') || '');
   const [soloVivas, setSoloVivas] = useState(true);
   const [situacionFilter, setSituacionFilter] = useState(new Set());
   const [grupoFilter, setGrupoFilter] = useState(new Set());
