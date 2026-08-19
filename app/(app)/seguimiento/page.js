@@ -213,7 +213,7 @@ function Seguimiento() {
           Lo que sigo
         </button>
         <button type="button" onClick={() => setSeccion('avisos')} style={chip(seccion === 'avisos')}>
-          Avisos
+          Gestión de mis avisos
         </button>
       </div>
 
