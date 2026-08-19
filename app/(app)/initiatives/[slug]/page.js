@@ -421,12 +421,20 @@ export default function InitiativeDetailPage() {
             <div style={{ fontSize: 10, color: '#999', marginBottom: 3 }}>Lo tramita</div>
             {/* El nombre completo, no la sigla: "RTD" no dice nada a nadie.
                 La sigla queda debajo para quien la reconozca. */}
-            <div style={{ fontSize: 13, fontWeight: 600, lineHeight: 1.35 }}>
-              {dgNombre || item.dg_code || '—'}
-              {dgNombre && item.dg_code && (
-                <span style={{ fontSize: 10.5, color: '#aaa', fontWeight: 400 }}> · {item.dg_code}</span>
-              )}
-            </div>
+            {/* Enlazada a su ficha: hasta ahora "DG ENV" era texto
+                suelto, y detrás hay un actor con su comisario, su equipo
+                y sus expedientes. */}
+            {item.dg_code ? (
+              <Link
+                href={`/institutions/comision-europea/${item.dg_code}`}
+                style={{ fontSize: 13, fontWeight: 600, lineHeight: 1.35, color: 'inherit', textDecoration: 'none' }}
+              >
+                {dgNombre || item.dg_code}
+                {dgNombre && <span style={{ fontSize: 10.5, color: '#aaa', fontWeight: 400 }}> · {item.dg_code}</span>}
+              </Link>
+            ) : (
+              <div style={{ fontSize: 13, fontWeight: 600, lineHeight: 1.35 }}>—</div>
+            )}
           </div>
           <div>
             <div style={{ fontSize: 10, color: '#999', marginBottom: 3 }}>Responsable</div>
@@ -602,6 +610,7 @@ export default function InitiativeDetailPage() {
                   av={<Avatar texto={item.dg_code} morado />}
                   nombre={dgNombre || item.dg_code}
                   sub="Dirección general responsable"
+                  href={`/institutions/comision-europea/${item.dg_code}`}
                 />
               )}
               {item.author_name && (
