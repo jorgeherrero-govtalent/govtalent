@@ -5,6 +5,7 @@ import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
 import BackLink from '@/components/BackLink';
+import FollowButton from '@/components/FollowButton';
 
 const GROUP_COLORS = {
   PPE: '#378ADD',
@@ -278,7 +279,6 @@ export default function MepDetailPage() {
   const [mep, setMep] = useState(undefined); // undefined = cargando, null = no existe
   const [memberships, setMemberships] = useState([]);
   const [tab, setTab] = useState('actividad');
-  const [saved, setSaved] = useState(false);
   const [userId, setUserId] = useState(null);
   const [showAllPast, setShowAllPast] = useState(false);
   const [radarNote, setRadarNote] = useState(false);
@@ -316,14 +316,7 @@ export default function MepDetailPage() {
       const uid = auth?.user?.id || null;
       setUserId(uid);
       if (uid) {
-        const { data: s } = await supabase
-          .from('saved_meps')
-          .select('id')
-          .eq('user_id', uid)
-          .eq('mep_id', m.id)
-          .limit(1)
-          .maybeSingle();
-        if (!cancelled) setSaved(!!s);
+        // FollowButton comprueba por su cuenta si se sigue.
       }
     })();
 
@@ -366,19 +359,6 @@ export default function MepDetailPage() {
       past: mapped.filter((x) => !x.is_current).sort((a, b) => (b.end_date || '').localeCompare(a.end_date || '')),
     };
   }, [memberships]);
-
-  async function toggleSave() {
-    if (!userId || !mep) return;
-    if (saved) {
-      setSaved(false);
-      const { error } = await supabase.from('saved_meps').delete().eq('user_id', userId).eq('mep_id', mep.id);
-      if (error) setSaved(true); // revertir si falla
-    } else {
-      setSaved(true);
-      const { error } = await supabase.from('saved_meps').insert({ user_id: userId, mep_id: mep.id });
-      if (error) setSaved(false);
-    }
-  }
 
   if (mep === undefined) {
     return (
@@ -451,25 +431,11 @@ export default function MepDetailPage() {
             </div>
           </div>
 
-          <div style={{ display: 'flex', gap: 7, flexShrink: 0 }}>
-            {mep.email && (
-              <CircleButton icon="mail" label="Escribir email" href={`mailto:${mep.email}`} />
-            )}
-            <CircleButton
-              icon="bell"
-              label="Seguir en Radar"
-              title="Seguir en Radar · próximamente"
-              disabled
-              onClick={() => setRadarNote(true)}
-            />
-            {userId && (
-              <CircleButton
-                icon={saved ? 'bookmark-filled' : 'bookmark'}
-                label={saved ? 'Quitar de guardados' : 'Guardar'}
-                active={saved}
-                onClick={toggleSave}
-              />
-            )}
+          <div style={{ display: 'flex', gap: 6, flexShrink: 0, alignItems: 'center' }}>
+            {/* El correo se conserva: escribir a un eurodiputado es
+                accionable. Guardar desaparece absorbido por seguir. */}
+            {mep.email && <CircleButton icon="mail" label="Escribir email" href={`mailto:${mep.email}`} />}
+            <FollowButton kind="eurodiputado" refId={mep.slug} label={mep.full_name} />
           </div>
         </div>
 
