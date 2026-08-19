@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
 import { toast } from '@/lib/toast';
 import BackLink from '@/components/BackLink';
+import FollowButton from '@/components/FollowButton';
 import { groupColor, grupoCorto, colorSigla, nombreSigla } from '@/lib/grupos';
 
 /**
@@ -46,38 +47,6 @@ const LABEL = {
   marginBottom: 13,
 };
 
-function CircleButton({ icon, label, onClick, active, disabled, title }) {
-  const [hover, setHover] = useState(false);
-  const on = active || (hover && !disabled);
-  return (
-    <button
-      type="button"
-      aria-label={label}
-      title={title || label}
-      aria-disabled={disabled ? 'true' : undefined}
-      onClick={disabled ? undefined : onClick}
-      onMouseEnter={() => setHover(true)}
-      onMouseLeave={() => setHover(false)}
-      style={{
-        width: 32,
-        height: 32,
-        borderRadius: '50%',
-        border: `.5px solid ${on ? '#6d5aef' : '#e0dfd8'}`,
-        background: on ? '#EEEDFE' : '#fff',
-        color: disabled ? '#ccc' : on ? '#6d5aef' : '#888',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        cursor: disabled ? 'not-allowed' : 'pointer',
-        padding: 0,
-        flexShrink: 0,
-      }}
-    >
-      <i className={`ti ti-${icon}`} style={{ fontSize: 15 }} aria-hidden="true"></i>
-    </button>
-  );
-}
-
 function Avatar({ nombre, url, size = 30 }) {
   const [falla, setFalla] = useState(false);
   const base = { width: size, height: size, borderRadius: '50%', flexShrink: 0, objectFit: 'cover', background: '#ece9e2' };
@@ -109,7 +78,6 @@ export default function ActividadDetailPage() {
   const [item, setItem] = useState(undefined);
   const [comision, setComision] = useState(null);
   const [userId, setUserId] = useState(null);
-  const [saved, setSaved] = useState(false);
   const [verPortavoces, setVerPortavoces] = useState(false);
 
   useEffect(() => {
@@ -146,46 +114,13 @@ export default function ActividadDetailPage() {
 
       const uid = auth?.user?.id || null;
       setUserId(uid);
-      if (uid) {
-        const { data: s } = await supabase
-          .from('saved_es_activity')
-          .select('id')
-          .eq('user_id', uid)
-          .eq('num_expediente', data.num_expediente)
-          .limit(1)
-          .maybeSingle();
-        if (!cancelled) setSaved(!!s);
-      }
+      // FollowButton comprueba por su cuenta si se sigue.
     })();
 
     return () => {
       cancelled = true;
     };
   }, [slug]);
-
-  async function toggleSave() {
-    if (!userId) {
-      toast('Inicia sesión para guardar');
-      return;
-    }
-    if (saved) {
-      setSaved(false);
-      const { error } = await supabase
-        .from('saved_es_activity')
-        .delete()
-        .eq('user_id', userId)
-        .eq('num_expediente', item.num_expediente);
-      if (error) setSaved(true);
-      else toast('Eliminado de guardados');
-    } else {
-      setSaved(true);
-      const { error } = await supabase
-        .from('saved_es_activity')
-        .insert({ user_id: userId, num_expediente: item.num_expediente });
-      if (error) setSaved(false);
-      else toast('Guardado ✓');
-    }
-  }
 
   if (item === undefined) {
     return (
@@ -240,16 +175,8 @@ export default function ActividadDetailPage() {
               {item.kind_label} · Congreso de los Diputados
             </div>
           </div>
-          <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
-            <CircleButton icon="bell" label="Seguir en Radar" title="Seguir en Radar · próximamente" disabled />
-            {userId && (
-              <CircleButton
-                icon={saved ? 'bookmark-filled' : 'bookmark'}
-                label={saved ? 'Quitar de guardados' : 'Guardar'}
-                active={saved}
-                onClick={toggleSave}
-              />
-            )}
+          <div style={{ display: 'flex', gap: 4, flexShrink: 0, alignItems: 'center' }}>
+            <FollowButton kind="actividad" refId={item.num_expediente} label={item.titulo} />
           </div>
         </div>
 
