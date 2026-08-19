@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
 import { toast } from '@/lib/toast';
 import BackLink from '@/components/BackLink';
+import FollowButton from '@/components/FollowButton';
 import { groupColor, grupoCorto } from '@/lib/grupos';
 
 /**
@@ -100,38 +101,6 @@ const chip = (activo) => ({
 
 const VER_MAS = { fontSize: 11, color: '#1d6f5c', fontWeight: 600, paddingTop: 10, cursor: 'pointer' };
 
-function CircleButton({ icon, label, onClick, active, disabled, title }) {
-  const [hover, setHover] = useState(false);
-  const on = active || (hover && !disabled);
-  return (
-    <button
-      type="button"
-      aria-label={label}
-      title={title || label}
-      aria-disabled={disabled ? 'true' : undefined}
-      onClick={disabled ? undefined : onClick}
-      onMouseEnter={() => setHover(true)}
-      onMouseLeave={() => setHover(false)}
-      style={{
-        width: 34,
-        height: 34,
-        borderRadius: '50%',
-        border: `.5px solid ${on ? '#1d6f5c' : '#e0dfd8'}`,
-        background: on ? '#e8f4f0' : '#fff',
-        color: disabled ? '#ccc' : on ? '#1d6f5c' : '#888',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        cursor: disabled ? 'not-allowed' : 'pointer',
-        padding: 0,
-        flexShrink: 0,
-      }}
-    >
-      <i className={`ti ti-${icon}`} style={{ fontSize: 16 }} aria-hidden="true"></i>
-    </button>
-  );
-}
-
 function Avatar({ nombre, url, size = 28 }) {
   const [falla, setFalla] = useState(false);
   const base = { width: size, height: size, borderRadius: '50%', flexShrink: 0, objectFit: 'cover', background: '#ece9e2' };
@@ -174,8 +143,6 @@ export default function GroupDetailPage() {
   const [circunscripcion, setCircunscripcion] = useState('');
   const [soloDestacados, setSoloDestacados] = useState(false);
   const [userId, setUserId] = useState(null);
-  const [saved, setSaved] = useState(false);
-  const [siguiendo, setSiguiendo] = useState(false);
 
   useEffect(() => {
     if (!slug) return;
@@ -368,30 +335,8 @@ export default function GroupDetailPage() {
             </div>
           </div>
 
-          <div style={{ display: 'flex', gap: 7, flexShrink: 0 }}>
-            <CircleButton
-              icon="bell"
-              label="Seguir este grupo"
-              title="Seguir · próximamente"
-              active={siguiendo}
-              onClick={() => {
-                setSiguiendo((v) => !v);
-                toast(siguiendo ? 'Has dejado de seguir este grupo' : 'Seguirás la actividad de este grupo ✓');
-              }}
-            />
-            <CircleButton
-              icon={saved ? 'bookmark-filled' : 'bookmark'}
-              label={saved ? 'Quitar de guardados' : 'Guardar grupo'}
-              active={saved}
-              onClick={() => {
-                if (!userId) {
-                  toast('Inicia sesión para guardar');
-                  return;
-                }
-                setSaved((v) => !v);
-                toast(saved ? 'Eliminado de guardados' : 'Guardado ✓');
-              }}
-            />
+          <div style={{ display: 'flex', gap: 4, flexShrink: 0, alignItems: 'center' }}>
+            <FollowButton kind="grupo" refId={grupo.slug} label={grupo.name} />
           </div>
         </div>
 
