@@ -1,9 +1,11 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { Suspense, useEffect, useMemo, useState } from 'react';
+import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
 import { toast } from '@/lib/toast';
+import AvisosTab from '@/components/AvisosTab';
 
 /**
  * Lo que sigue el usuario, con sus novedades.
@@ -42,12 +44,34 @@ function haceCuanto(iso) {
 }
 
 export default function SeguimientoPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="sec" style={{ maxWidth: 780 }}>
+          <div className="spinner"></div>
+        </div>
+      }
+    >
+      <Seguimiento />
+    </Suspense>
+  );
+}
+
+function Seguimiento() {
   const supabase = createClient();
+  // Los dos correos enlazan a ?ajustes=1 para darse de baja.
+  const sp = useSearchParams();
 
   const [items, setItems] = useState(null);
   const [novedades, setNovedades] = useState([]);
   const [filtro, setFiltro] = useState('todo');
+  const [seccion, setSeccion] = useState('sigo');
+  const [nAlertas, setNAlertas] = useState(0);
   const [sinSesion, setSinSesion] = useState(false);
+
+  useEffect(() => {
+    if (sp?.get('ajustes') === '1') setSeccion('avisos');
+  }, [sp]);
 
   useEffect(() => {
     let cancelled = false;
@@ -61,13 +85,19 @@ export default function SeguimientoPage() {
         }
         return;
       }
-      const [{ data: f }, { data: e }] = await Promise.all([
+      const [{ data: f }, { data: e }, { count: nA }] = await Promise.all([
         supabase.from('my_follows').select('*').order('ultima_novedad', { ascending: false, nullsFirst: false }),
         supabase.from('my_follow_events').select('*').order('occurred_at', { ascending: false }).limit(40),
+        supabase
+          .from('sector_alerts')
+          .select('id', { count: 'exact', head: true })
+          .eq('user_id', uid)
+          .eq('activa', true),
       ]);
       if (cancelled) return;
       setItems(f || []);
       setNovedades(e || []);
+      setNAlertas(nA || 0);
     })();
     return () => {
       cancelled = true;
@@ -144,11 +174,23 @@ export default function SeguimientoPage() {
             ? '—'
             : items.length === 0
               ? 'Aún no sigues nada.'
-              : `${items.length} ${items.length === 1 ? 'asunto' : 'asuntos'}${nuevas.length > 0 ? ` · ${nuevas.length} ${nuevas.length === 1 ? 'novedad' : 'novedades'}` : ''}`}
+              : `${items.length} ${items.length === 1 ? 'asunto' : 'asuntos'}${nuevas.length > 0 ? ` · ${nuevas.length} ${nuevas.length === 1 ? 'novedad' : 'novedades'}` : ''}${nAlertas > 0 ? ` · ${nAlertas} ${nAlertas === 1 ? 'alerta activa' : 'alertas activas'}` : ''}`}
         </p>
       </div>
 
-      {items === null ? (
+      {/* Dos caras de lo mismo: qué vigilo y cómo me lo cuentan. */}
+      <div style={{ display: 'flex', gap: 2, marginBottom: 18, flexWrap: 'wrap' }}>
+        <button type="button" onClick={() => setSeccion('sigo')} style={chip(seccion === 'sigo')}>
+          Lo que sigo
+        </button>
+        <button type="button" onClick={() => setSeccion('avisos')} style={chip(seccion === 'avisos')}>
+          Avisos
+        </button>
+      </div>
+
+      {seccion === 'avisos' ? (
+        <AvisosTab />
+      ) : items === null ? (
         <div className="spinner"></div>
       ) : items.length === 0 ? (
         <div style={{ background: '#fff', borderRadius: 10, padding: 22, boxShadow: '0 1px 2px rgba(0,0,0,.04)' }}>
