@@ -5,6 +5,7 @@ import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
 import BackLink from '@/components/BackLink';
+import FollowButton from '@/components/FollowButton';
 import { colorSigla, nombreSigla } from '@/lib/grupos';
 
 const MESES = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
@@ -217,7 +218,16 @@ export default function ComisionDetailPage() {
       </div>
 
       <div style={{ ...CARD, marginBottom: 12 }}>
-        <h1 style={{ fontSize: 17, fontWeight: 700, margin: 0, lineHeight: 1.35 }}>{comision.name}</h1>
+        {/* Seguir una comisión es la forma natural de cubrir un ámbito
+            sin seguir cada ley una a una. */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 14 }}>
+          <h1 style={{ fontSize: 17, fontWeight: 700, margin: 0, lineHeight: 1.35, flex: 1, minWidth: 0 }}>
+            {comision.name}
+          </h1>
+          <div style={{ flexShrink: 0 }}>
+            <FollowButton kind="comision" refId={comision.slug} label={comision.name} />
+          </div>
+        </div>
         <div style={{ fontSize: 11.5, color: '#666', marginTop: 5 }}>
           {[
             TIPOS[comision.kind] || comision.kind,
