@@ -35,8 +35,6 @@ const QUE_AVISAMOS = {
   boe: 'si otra norma la modifica o la deroga',
 };
 
-// Verde para lo institucional, morado para lo regulatorio
-const VERDES = new Set(['diputado', 'comision', 'grupo']);
 
 /**
  * El botón de proyecto, bloqueado hasta que existan.
@@ -73,8 +71,12 @@ export default function FollowButton({ kind, refId, label, variant = 'button', c
   const [cargando, setCargando] = useState(true);
   const [hover, setHover] = useState(false);
 
-  const color = VERDES.has(kind) ? '#1d6f5c' : '#6d5aef';
-  const fondo = VERDES.has(kind) ? '#e8f4f0' : '#f0eefe';
+  // Siempre morado, sin importar la sección. Seguir es un solo concepto
+  // y tiene que verse igual en toda la plataforma: si en Instituciones
+  // saliera verde y en Regulatorio morado, parecerían dos cosas
+  // distintas.
+  const color = '#6d5aef';
+  const fondo = '#f0eefe';
 
   useEffect(() => {
     let cancelled = false;
