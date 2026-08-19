@@ -121,10 +121,11 @@ export default function DgDetailPage() {
     };
   }, [code]);
 
-  // El equipo de dirección: hasta jefe de unidad. El resto se pliega
-  // porque una DG con 59 personas llenaría la pantalla de asistentes.
-  const direccion = useMemo(() => personas.filter((p) => p.orden_cargo <= 4), [personas]);
-  const resto = useMemo(() => personas.filter((p) => p.orden_cargo > 4), [personas]);
+  // Solo la cúpula: director general, adjuntos y asesores principales.
+  // Con orden_cargo <= 4 entraban también los directores, que en una DG
+  // grande son seis o siete y obligaban a desplazar mucho.
+  const direccion = useMemo(() => personas.filter((p) => p.orden_cargo <= 3), [personas]);
+  const resto = useMemo(() => personas.filter((p) => p.orden_cargo > 3), [personas]);
 
   if (dg === undefined) {
     return (
@@ -148,7 +149,11 @@ export default function DgDetailPage() {
     );
   }
 
-  const mostradas = verTodas ? personas : direccion;
+  // La cúpula siempre, más hasta cuatro directores: son interlocutores
+  // útiles, pero los ocho de una DG grande obligaban a desplazar mucho.
+  const mostradas = verTodas
+    ? personas
+    : [...direccion, ...personas.filter((p) => p.orden_cargo === 4).slice(0, 4)];
 
   return (
     <div className="sec" style={{ maxWidth: 860 }}>
