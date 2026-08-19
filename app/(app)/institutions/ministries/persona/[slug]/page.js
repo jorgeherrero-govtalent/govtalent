@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
 import { toast } from '@/lib/toast';
 import BackLink from '@/components/BackLink';
+import FollowButton from '@/components/FollowButton';
 
 function initials(fullName) {
   const parts = (fullName || '').replace(',', '').trim().split(' ');
@@ -90,7 +91,6 @@ export default function GovernmentOfficialProfilePage() {
   const [colleagues, setColleagues] = useState([]);
   const [notFound, setNotFound] = useState(false);
   const [userId, setUserId] = useState(null);
-  const [saved, setSaved] = useState(false);
   const [tab, setTab] = useState('contacto');
   const [radarNote, setRadarNote] = useState(false);
 
@@ -123,38 +123,9 @@ export default function GovernmentOfficialProfilePage() {
       const uid = data.user?.id;
       if (!uid) return;
       setUserId(uid);
-      const { data: savedRow } = await supabase
-        .from('saved_government_officials')
-        .select('id')
-        .eq('user_id', uid)
-        .eq('government_official_id', official.id)
-        .limit(1)
-        .maybeSingle();
-      setSaved(!!savedRow);
+      // FollowButton comprueba por su cuenta si se sigue.
     });
   }, [official]);
-
-  async function toggleSave() {
-    if (!userId) {
-      toast('Inicia sesión para guardar');
-      return;
-    }
-    if (saved) {
-      await supabase
-        .from('saved_government_officials')
-        .delete()
-        .eq('user_id', userId)
-        .eq('government_official_id', official.id);
-      setSaved(false);
-      toast('Eliminado de guardados');
-    } else {
-      await supabase
-        .from('saved_government_officials')
-        .insert({ user_id: userId, government_official_id: official.id });
-      setSaved(true);
-      toast('Guardado ✓');
-    }
-  }
 
   function copyLink() {
     navigator.clipboard.writeText(window.location.href);
@@ -250,24 +221,11 @@ export default function GovernmentOfficialProfilePage() {
             </div>
           </div>
 
-          <div style={{ display: 'flex', gap: 7, flexShrink: 0 }}>
-            <CircleButton icon="share" label="Copiar enlace" onClick={copyLink} />
+          <div style={{ display: 'flex', gap: 6, flexShrink: 0, alignItems: 'center' }}>
             {official.unit_email && (
               <CircleButton icon="mail" label="Escribir a la unidad" href={`mailto:${official.unit_email}`} />
             )}
-            <CircleButton
-              icon="bell"
-              label="Seguir en Radar"
-              title="Seguir en Radar · próximamente"
-              disabled
-              onClick={() => setRadarNote(true)}
-            />
-            <CircleButton
-              icon={saved ? 'bookmark-filled' : 'bookmark'}
-              label={saved ? 'Quitar de guardados' : 'Guardar'}
-              active={saved}
-              onClick={toggleSave}
-            />
+            <FollowButton kind="cargo" refId={official.slug} label={official.full_name} />
           </div>
         </div>
 
