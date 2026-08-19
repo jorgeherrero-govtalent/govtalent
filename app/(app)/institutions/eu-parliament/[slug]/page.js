@@ -143,59 +143,6 @@ function Photo({ url, name, size = 70, radius = 12 }) {
   return <img src={url} alt="" width={size} height={size} style={base} onError={() => setFailed(true)} />;
 }
 
-function CircleButton({ icon, label, onClick, href, active, disabled, title }) {
-  const [hover, setHover] = useState(false);
-  const on = active || (hover && !disabled);
-
-  const style = {
-    width: 34,
-    height: 34,
-    borderRadius: '50%',
-    border: `.5px solid ${on ? '#1d6f5c' : '#e0dfd8'}`,
-    background: on ? '#e8f4f0' : '#fff',
-    color: disabled ? '#ccc' : on ? '#1d6f5c' : '#888',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    cursor: disabled ? 'not-allowed' : 'pointer',
-    transition: 'all .15s ease',
-    padding: 0,
-    flexShrink: 0,
-  };
-
-  const inner = <i className={`ti ti-${icon}`} style={{ fontSize: 16 }} aria-hidden="true"></i>;
-
-  if (href && !disabled) {
-    return (
-      <a
-        href={href}
-        aria-label={label}
-        title={title || label}
-        style={{ ...style, textDecoration: 'none' }}
-        onMouseEnter={() => setHover(true)}
-        onMouseLeave={() => setHover(false)}
-      >
-        {inner}
-      </a>
-    );
-  }
-
-  return (
-    <button
-      type="button"
-      aria-label={label}
-      title={title || label}
-      aria-disabled={disabled ? 'true' : undefined}
-      onClick={disabled ? undefined : onClick}
-      onMouseEnter={() => setHover(true)}
-      onMouseLeave={() => setHover(false)}
-      style={style}
-    >
-      {inner}
-    </button>
-  );
-}
-
 function RoleTag({ role }) {
   const label = roleLabel(role);
   if (!label) return null;
@@ -431,10 +378,9 @@ export default function MepDetailPage() {
             </div>
           </div>
 
-          <div style={{ display: 'flex', gap: 6, flexShrink: 0, alignItems: 'center' }}>
-            {/* El correo se conserva: escribir a un eurodiputado es
-                accionable. Guardar desaparece absorbido por seguir. */}
-            {mep.email && <CircleButton icon="mail" label="Escribir email" href={`mailto:${mep.email}`} />}
+          {/* Solo seguir: el correo vive en la pestaña de Contacto, que
+              es donde el usuario lo busca. */}
+          <div style={{ flexShrink: 0 }}>
             <FollowButton kind="eurodiputado" refId={mep.slug} label={mep.full_name} />
           </div>
         </div>
