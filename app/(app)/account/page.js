@@ -5,6 +5,31 @@ import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
 import { toast } from '@/lib/toast';
 
+const CARD = { background: '#fff', borderRadius: 10, boxShadow: '0 1px 2px rgba(0,0,0,.04)' };
+const LABEL = { fontSize: 11, color: '#a8a49c', letterSpacing: '.4px', marginBottom: 14 };
+
+// Los botones del resto de la plataforma: morado para la acción
+// principal, gris para la secundaria. Sin bordes ni verde.
+const BOTON = {
+  background: '#6d5aef',
+  color: '#fff',
+  border: 'none',
+  borderRadius: 8,
+  padding: '9px 16px',
+  fontSize: 12.5,
+  fontWeight: 500,
+  cursor: 'pointer',
+};
+const BOTON_SEC = {
+  background: '#f5f4f1',
+  color: '#57534e',
+  border: 'none',
+  borderRadius: 8,
+  padding: '9px 16px',
+  fontSize: 12.5,
+  cursor: 'pointer',
+};
+
 const GENDER_OPTIONS = [
   ['', 'Prefiero no decirlo'],
   ['mujer', 'Mujer'],
@@ -13,20 +38,19 @@ const GENDER_OPTIONS = [
   ['otro', 'Otro'],
 ];
 
-function Row({ icon, label, description, onClick, href, tone = 'default' }) {
+// Sin tono de peligro: el rojo no aporta nada aquí, porque esta fila
+// solo abre una pantalla donde se explica todo antes de decidir.
+function Row({ icon, label, description, onClick, href }) {
   const content = (
     <>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-        <i
-          className={`ti ${icon}`}
-          style={{ fontSize: 16, color: tone === 'danger' ? '#a33' : '#666', flexShrink: 0 }}
-        ></i>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 11 }}>
+        <i className={`ti ${icon}`} style={{ fontSize: 16, color: '#8b8780', flexShrink: 0 }}></i>
         <div>
-          <div style={{ fontSize: 13.5, fontWeight: 500, color: tone === 'danger' ? '#a33' : '#1a1a18' }}>{label}</div>
-          {description && <div style={{ fontSize: 12, color: '#999', marginTop: 1 }}>{description}</div>}
+          <div style={{ fontSize: 13, fontWeight: 500 }}>{label}</div>
+          {description && <div style={{ fontSize: 11.5, color: '#a8a49c', marginTop: 2 }}>{description}</div>}
         </div>
       </div>
-      <i className="ti ti-chevron-right" style={{ fontSize: 14, color: '#ccc', flexShrink: 0 }}></i>
+      <i className="ti ti-chevron-right" style={{ fontSize: 14, color: '#d6d2ca', flexShrink: 0 }}></i>
     </>
   );
   const style = {
@@ -35,9 +59,9 @@ function Row({ icon, label, description, onClick, href, tone = 'default' }) {
     justifyContent: 'space-between',
     gap: 12,
     padding: '13px 4px',
-    borderBottom: '.5px solid #f0f0eb',
     cursor: 'pointer',
     textDecoration: 'none',
+    color: 'inherit',
   };
   if (href) {
     return (
@@ -86,7 +110,7 @@ export default function AccountPage() {
 
   async function saveName() {
     if (!firstName.trim() || !lastName.trim()) {
-      toast('El nombre y los apellidos no pueden quedar vacíos');
+      toast.info('El nombre y los apellidos no pueden quedar vacíos');
       return;
     }
     setSavingName(true);
@@ -96,11 +120,11 @@ export default function AccountPage() {
       .eq('id', user.id);
     setSavingName(false);
     if (error) {
-      toast('No se pudo guardar');
+      toast.error('No se ha podido guardar');
       return;
     }
     setUser({ ...user, first_name: firstName.trim(), last_name: lastName.trim() });
-    toast('Guardado ✓');
+    toast('Guardado');
   }
 
   async function saveGender(value) {
@@ -108,11 +132,11 @@ export default function AccountPage() {
     const { error } = await supabase.from('users').update({ gender_identity: value || null }).eq('id', user.id);
     setSavingGender(false);
     if (error) {
-      toast('No se pudo guardar');
+      toast.error('No se ha podido guardar');
       return;
     }
     setUser({ ...user, gender_identity: value || null });
-    toast('Guardado ✓');
+    toast('Guardado');
   }
 
   async function saveBirthDate(value) {
@@ -120,11 +144,11 @@ export default function AccountPage() {
     const { error } = await supabase.from('users').update({ birth_date: value || null }).eq('id', user.id);
     setSavingBirthDate(false);
     if (error) {
-      toast('No se pudo guardar');
+      toast.error('No se ha podido guardar');
       return;
     }
     setUser({ ...user, birth_date: value || null });
-    toast('Guardado ✓');
+    toast('Guardado');
   }
 
   async function savePhone() {
@@ -132,11 +156,11 @@ export default function AccountPage() {
     const { error } = await supabase.from('users').update({ phone: phone.trim() || null }).eq('id', user.id);
     setSavingPhone(false);
     if (error) {
-      toast('No se pudo guardar');
+      toast.error('No se ha podido guardar');
       return;
     }
     setUser({ ...user, phone: phone.trim() || null });
-    toast('Guardado ✓');
+    toast('Guardado');
   }
 
   async function toggleMarketingEmails() {
@@ -145,11 +169,11 @@ export default function AccountPage() {
     const { error } = await supabase.from('users').update({ marketing_emails_enabled: newValue }).eq('id', user.id);
     setSavingPrefs(false);
     if (error) {
-      toast('No se pudo guardar la preferencia');
+      toast.error('No se ha podido guardar');
       return;
     }
     setUser({ ...user, marketing_emails_enabled: newValue });
-    toast('Preferencia guardada ✓');
+    toast('Guardado');
   }
 
   async function requestDeletion() {
@@ -157,7 +181,7 @@ export default function AccountPage() {
     const res = await fetch('/api/account/delete-request', { method: 'POST' });
     setDeleting(false);
     if (!res.ok) {
-      toast('No se pudo enviar la solicitud. Inténtalo de nuevo.');
+      toast.error('No se ha podido enviar la solicitud');
       return;
     }
     setUser({ ...user, deletion_requested_at: new Date().toISOString() });
@@ -167,53 +191,61 @@ export default function AccountPage() {
   if (loading) return <div className="spinner"></div>;
   if (!user) return null;
 
-  // --- Pantalla de confirmación de borrado, estilo LinkedIn: sin dramatismo,
-  // enseñando lo que se pierde, sin botones en rojo que griten "peligro". ---
+  // --- Solicitud de borrado -------------------------------------------
+  // Sobria y sin dramatismo: ni equis rojas ni emoji. Enumera lo que se
+  // pierde en frío, que informa más que cualquier adorno, y aclara que
+  // nada se borra al instante.
   if (view === 'delete-confirm') {
     return (
       <div className="sec" style={{ maxWidth: 560 }}>
-        <div className="card" style={{ padding: 28 }}>
-          <div
-            onClick={() => setView('main')}
-            style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, color: '#666', cursor: 'pointer', marginBottom: 20 }}
-          >
-            <i className="ti ti-arrow-left" style={{ fontSize: 14 }}></i> Volver
-          </div>
+        <button
+          type="button"
+          onClick={() => setView('main')}
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 6,
+            fontSize: 12.5,
+            color: '#8b8780',
+            background: 'none',
+            border: 'none',
+            cursor: 'pointer',
+            padding: 0,
+            marginBottom: 14,
+          }}
+        >
+          <i className="ti ti-arrow-left" style={{ fontSize: 14 }}></i> Mi cuenta
+        </button>
 
-          <h1 style={{ fontSize: 19, fontWeight: 700, marginBottom: 4 }}>Eliminar cuenta</h1>
-          <p style={{ fontSize: 14, color: '#3a3a36', marginBottom: 20 }}>
-            Qué pena que te vayas, {user.first_name} 👋
+        <div style={{ ...CARD, padding: 24 }}>
+          <h1 style={{ fontSize: 17, fontWeight: 600, margin: 0, letterSpacing: '-.2px' }}>Eliminar tu cuenta</h1>
+          <p style={{ fontSize: 12.5, color: '#8b8780', margin: '6px 0 22px', lineHeight: 1.6 }}>
+            Antes de seguir, conviene que sepas qué se pierde.
           </p>
 
-          <div style={{ background: '#f8f7f2', borderRadius: 10, padding: '16px 18px', marginBottom: 22 }}>
-            <div style={{ fontSize: 12.5, fontWeight: 600, color: '#888', marginBottom: 10 }}>Al eliminar tu cuenta perderás:</div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 8, fontSize: 13, color: '#3a3a36' }}>
-              <div style={{ display: 'flex', gap: 8 }}>
-                <i className="ti ti-x" style={{ color: '#a33', fontSize: 14, marginTop: 1 }}></i>
-                Tu perfil y tu visibilidad ante organizaciones del sector
-              </div>
-              <div style={{ display: 'flex', gap: 8 }}>
-                <i className="ti ti-x" style={{ color: '#a33', fontSize: 14, marginTop: 1 }}></i>
-                Tu historial de candidaturas
-              </div>
-              <div style={{ display: 'flex', gap: 8 }}>
-                <i className="ti ti-x" style={{ color: '#a33', fontSize: 14, marginTop: 1 }}></i>
-                Tus alertas de empleo y organizaciones seguidas
-              </div>
+          <div style={{ ...LABEL, marginBottom: 12 }}>DEJARÁS DE TENER</div>
+          {[
+            'Tu perfil y tu visibilidad ante las organizaciones del sector',
+            'El historial de tus candidaturas',
+            'Los asuntos que sigues y tus alertas',
+          ].map((t) => (
+            <div key={t} style={{ display: 'flex', gap: 11, padding: '9px 0', borderTop: '.5px solid #f2f0ec' }}>
+              <span style={{ width: 5, height: 5, borderRadius: '50%', background: '#c4c0b8', flexShrink: 0, marginTop: 7 }}></span>
+              <span style={{ fontSize: 13, color: '#3f3d39', lineHeight: 1.5 }}>{t}</span>
             </div>
-          </div>
+          ))}
 
-          <p style={{ fontSize: 12, color: '#999', marginBottom: 20 }}>
-            Enviaremos tu solicitud al equipo de GovTalent y te contactaremos para confirmarlo antes de procesar
-            nada — no se elimina nada de forma inmediata.
+          <p style={{ fontSize: 12, color: '#8b8780', lineHeight: 1.65, margin: '22px 0' }}>
+            No se borra nada al momento. Enviaremos tu solicitud y te escribiremos para confirmarla antes de procesar
+            nada.
           </p>
 
-          <div style={{ display: 'flex', gap: 8 }}>
-            <button className="btn-p" onClick={() => setView('main')}>
-              Seguir con mi cuenta
+          <div style={{ display: 'flex', gap: 9, flexWrap: 'wrap' }}>
+            <button type="button" style={BOTON} onClick={() => setView('main')}>
+              Conservar mi cuenta
             </button>
-            <button className="btn-o" disabled={deleting} onClick={requestDeletion}>
-              {deleting ? 'Enviando...' : 'Continuar'}
+            <button type="button" style={BOTON_SEC} disabled={deleting} onClick={requestDeletion}>
+              {deleting ? 'Enviando…' : 'Solicitar el borrado'}
             </button>
           </div>
         </div>
@@ -224,16 +256,33 @@ export default function AccountPage() {
   if (view === 'delete-done') {
     return (
       <div className="sec" style={{ maxWidth: 560 }}>
-        <div className="card" style={{ padding: 28, textAlign: 'center' }}>
-          <i className="ti ti-mail-check" style={{ fontSize: 28, color: '#1d6f5c', marginBottom: 10 }}></i>
-          <h1 style={{ fontSize: 17, fontWeight: 700, marginBottom: 8 }}>Solicitud enviada</h1>
-          <p style={{ fontSize: 13, color: '#666', marginBottom: 4 }}>
-            Nos pondremos en contacto contigo para confirmar el borrado de tu cuenta
-            {user.deletion_requested_at && ` (solicitado el ${new Date(user.deletion_requested_at).toLocaleDateString('es-ES')})`}.
-          </p>
-          <p style={{ fontSize: 12, color: '#999', marginTop: 8 }}>
-            Mientras tanto, tu cuenta sigue activa con normalidad.
-          </p>
+        <div style={{ ...CARD, padding: 24 }}>
+          <div style={{ display: 'flex', alignItems: 'flex-start', gap: 13 }}>
+            <span
+              style={{
+                width: 34,
+                height: 34,
+                borderRadius: 9,
+                background: '#e8f4f0',
+                color: '#1d6f5c',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                flexShrink: 0,
+              }}
+            >
+              <i className="ti ti-check" style={{ fontSize: 16 }}></i>
+            </span>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontSize: 15, fontWeight: 500, letterSpacing: '-.15px' }}>Solicitud enviada</div>
+              <p style={{ fontSize: 12.5, color: '#8b8780', lineHeight: 1.6, margin: '6px 0 0' }}>
+                Te escribiremos para confirmar el borrado
+                {user.deletion_requested_at &&
+                  `. La solicitaste el ${new Date(user.deletion_requested_at).toLocaleDateString('es-ES')}`}
+                . Mientras tanto tu cuenta sigue funcionando con normalidad.
+              </p>
+            </div>
+          </div>
         </div>
       </div>
     );
@@ -241,13 +290,15 @@ export default function AccountPage() {
 
   return (
     <div className="sec" style={{ maxWidth: 560 }}>
-      <h1 style={{ fontSize: 20, fontWeight: 700, marginBottom: 4 }}>Mi cuenta</h1>
-      <p style={{ fontSize: 13, color: '#888', marginBottom: 24 }}>
-        Gestiona tus datos de acceso, preferencias y tu cuenta en GovTalent.
-      </p>
+      <div style={{ marginBottom: 18 }}>
+        <h1 style={{ fontSize: 20, fontWeight: 600, margin: 0, letterSpacing: '-.2px' }}>Mi cuenta</h1>
+        <p style={{ fontSize: 12.5, color: '#8b8780', margin: '5px 0 0' }}>
+          Tus datos, tus preferencias y la gestión de tu cuenta.
+        </p>
+      </div>
 
-      <div className="card" style={{ padding: 22, marginBottom: 16 }}>
-        <h2 style={{ fontSize: 14.5, fontWeight: 700, marginBottom: 14 }}>Datos de la cuenta</h2>
+      <div style={{ ...CARD, padding: 20, marginBottom: 14 }}>
+        <div style={LABEL}>DATOS DE LA CUENTA</div>
         <div style={{ display: 'flex', gap: 10 }}>
           <div className="field" style={{ flex: 1 }}>
             <label>Nombre</label>
@@ -259,8 +310,8 @@ export default function AccountPage() {
           </div>
         </div>
         {(firstName !== user.first_name || lastName !== user.last_name) && (
-          <button className="btn-p" style={{ fontSize: 12.5, padding: '6px 14px', marginBottom: 13 }} disabled={savingName} onClick={saveName}>
-            {savingName ? 'Guardando...' : 'Guardar cambios'}
+          <button style={{ ...BOTON, marginBottom: 13 }} disabled={savingName} onClick={saveName}>
+            {savingName ? 'Guardando…' : 'Guardar cambios'}
           </button>
         )}
         <div style={{ display: 'flex', gap: 10 }}>
@@ -274,14 +325,14 @@ export default function AccountPage() {
           </div>
         </div>
         {phone !== (user.phone || '') && (
-          <button className="btn-p" style={{ fontSize: 12.5, padding: '6px 14px', marginTop: 4 }} disabled={savingPhone} onClick={savePhone}>
-            {savingPhone ? 'Guardando...' : 'Guardar cambios'}
+          <button style={{ ...BOTON, marginTop: 4 }} disabled={savingPhone} onClick={savePhone}>
+            {savingPhone ? 'Guardando…' : 'Guardar cambios'}
           </button>
         )}
       </div>
 
-      <div className="card" style={{ padding: 22, marginBottom: 16 }}>
-        <h2 style={{ fontSize: 14.5, fontWeight: 700, marginBottom: 4 }}>Información personal detallada</h2>
+      <div style={{ ...CARD, padding: 20, marginBottom: 14 }}>
+        <div style={{ ...LABEL, marginBottom: 4 }}>INFORMACIÓN PERSONAL</div>
         <p style={{ fontSize: 12, color: '#999', marginBottom: 14 }}>
           Opcional. Esta información nunca se muestra en tu perfil — solo la usamos para estadísticas internas
           agregadas.
@@ -309,8 +360,8 @@ export default function AccountPage() {
         </div>
       </div>
 
-      <div className="card" style={{ padding: 22, marginBottom: 16 }}>
-        <h2 style={{ fontSize: 14.5, fontWeight: 700, marginBottom: 4 }}>Preferencias de comunicación</h2>
+      <div style={{ ...CARD, padding: 20, marginBottom: 14 }}>
+        <div style={{ ...LABEL, marginBottom: 4 }}>CORREOS DE GOVTALENT</div>
         <p style={{ fontSize: 12.5, color: '#888', marginBottom: 14 }}>
           Esto no afecta a los emails esenciales, como confirmaciones de candidatura o alertas de empleo que hayas
           activado — esos siempre te llegarán.
@@ -326,10 +377,8 @@ export default function AccountPage() {
         </label>
       </div>
 
-      <div className="card" style={{ padding: '8px 18px' }}>
-        <div style={{ fontSize: 11, fontWeight: 700, color: '#999', letterSpacing: '.03em', padding: '10px 4px 2px' }}>
-          GESTIÓN DE LA CUENTA
-        </div>
+      <div style={{ ...CARD, padding: '6px 18px' }}>
+        <div style={{ ...LABEL, padding: '12px 4px 4px', marginBottom: 0 }}>GESTIÓN DE LA CUENTA</div>
         <Row
           icon="ti-trash"
           label="Eliminar cuenta"
