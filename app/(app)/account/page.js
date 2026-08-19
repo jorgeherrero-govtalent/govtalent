@@ -30,6 +30,43 @@ const BOTON_SEC = {
   cursor: 'pointer',
 };
 
+function Interruptor({ activo, onChange, disabled }) {
+  return (
+    <button
+      type="button"
+      role="switch"
+      aria-checked={activo}
+      onClick={disabled ? undefined : onChange}
+      style={{
+        width: 38,
+        height: 22,
+        borderRadius: 11,
+        background: activo ? '#6d5aef' : '#e0dfd8',
+        border: 'none',
+        padding: 0,
+        cursor: disabled ? 'default' : 'pointer',
+        flexShrink: 0,
+        position: 'relative',
+        opacity: disabled ? 0.6 : 1,
+        transition: 'background .18s ease',
+      }}
+    >
+      <span
+        style={{
+          position: 'absolute',
+          top: 2,
+          left: activo ? 18 : 2,
+          width: 18,
+          height: 18,
+          borderRadius: '50%',
+          background: '#fff',
+          transition: 'left .18s ease',
+        }}
+      ></span>
+    </button>
+  );
+}
+
 const GENDER_OPTIONS = [
   ['', 'Prefiero no decirlo'],
   ['mujer', 'Mujer'],
@@ -362,19 +399,26 @@ export default function AccountPage() {
 
       <div style={{ ...CARD, padding: 20, marginBottom: 14 }}>
         <div style={{ ...LABEL, marginBottom: 4 }}>CORREOS DE GOVTALENT</div>
-        <p style={{ fontSize: 12.5, color: '#888', marginBottom: 14 }}>
-          Esto no afecta a los emails esenciales, como confirmaciones de candidatura o alertas de empleo que hayas
-          activado — esos siempre te llegarán.
+        <p style={{ fontSize: 12, color: '#8b8780', marginBottom: 14, lineHeight: 1.6 }}>
+          No afecta a los correos que hayas pedido tú: confirmaciones de candidatura, alertas de empleo y avisos de
+          seguimiento siguen llegando.{' '}
+          <Link href="/seguimiento?ajustes=1" style={{ color: '#6d5aef', textDecoration: 'none' }}>
+            Gestionar mis avisos
+          </Link>
         </p>
-        <label style={{ display: 'flex', alignItems: 'center', gap: 9, fontSize: 13.5, color: '#1a1a18', cursor: 'pointer' }}>
-          <input
-            type="checkbox"
-            checked={!!user.marketing_emails_enabled}
+        <div style={{ display: 'flex', alignItems: 'flex-start', gap: 14, paddingTop: 4 }}>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontSize: 13.5, fontWeight: 500 }}>Novedades y consejos</div>
+            <div style={{ fontSize: 12, color: '#8b8780', lineHeight: 1.55, marginTop: 3 }}>
+              De vez en cuando, lo que vamos añadiendo a la plataforma.
+            </div>
+          </div>
+          <Interruptor
+            activo={!!user.marketing_emails_enabled}
             disabled={savingPrefs}
             onChange={toggleMarketingEmails}
           />
-          Quiero recibir novedades y consejos de GovTalent por email
-        </label>
+        </div>
       </div>
 
       <div style={{ ...CARD, padding: '6px 18px' }}>
