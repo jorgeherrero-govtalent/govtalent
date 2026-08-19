@@ -258,11 +258,11 @@ function UnidadesTab({ bodies, onSelect }) {
       ) : (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(210px, 1fr))', gap: 10 }}>
           {filtered.map((b) => (
-            <div
+            <Link
               key={b.code}
-              onClick={() => onSelect(b.code)}
+              href={`/institutions/eu-commission/${b.code}`}
               className="card"
-              style={{ padding: 14, cursor: 'pointer' }}
+              style={{ padding: 14, textDecoration: 'none', color: 'inherit', display: 'block' }}
             >
               <div style={{ display: 'flex', alignItems: 'center', gap: 9, marginBottom: 9 }}>
                 <div
@@ -298,8 +298,29 @@ function UnidadesTab({ bodies, onSelect }) {
                   <i className="ti ti-layout-grid" style={{ fontSize: 12, verticalAlign: -1, color: '#aaa' }}></i>{' '}
                   {b.unidades} unidades · {b.jefes_unidad} jefaturas
                 </div>
+                {/* Se conserva el filtrado que hacía la tarjeta antes,
+                    ahora como acción secundaria: pulsar la tarjeta abre
+                    la ficha, que es lo esperable. */}
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    onSelect(b.code);
+                  }}
+                  style={{
+                    fontSize: 11,
+                    color: '#6d5aef',
+                    background: 'none',
+                    border: 'none',
+                    padding: '7px 0 0',
+                    cursor: 'pointer',
+                  }}
+                >
+                  Ver sus personas →
+                </button>
               </div>
-            </div>
+            </Link>
           ))}
         </div>
       )}
