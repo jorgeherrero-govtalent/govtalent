@@ -575,14 +575,20 @@ export default function ProcedureDetailPage() {
             <div key={b.bloque} style={{ marginBottom: 16 }}>
               <div style={LABEL}>{b.label}</div>
               {b.lista.map((c, i) => (
-                <div
+                // Enlazada a su ficha: hasta ahora la sigla era texto
+                // suelto y detrás hay un actor con su mesa y lo que
+                // tramita.
+                <Link
                   key={`${c.body_code}-${c.role}-${i}`}
+                  href={`/institutions/eu-parliament/comisiones/${c.body_code}`}
                   style={{
                     display: 'flex',
                     alignItems: 'center',
                     gap: 10,
                     padding: '9px 0',
                     borderBottom: '.5px solid #f0f0eb',
+                    textDecoration: 'none',
+                    color: 'inherit',
                   }}
                 >
                   <div
@@ -606,7 +612,8 @@ export default function ProcedureDetailPage() {
                     <div style={{ fontSize: 12.5, fontWeight: 600 }}>{c.body_name}</div>
                     <div style={{ fontSize: 10.5, color: '#999', marginTop: 1 }}>{c.role_label}</div>
                   </div>
-                </div>
+                  <i className="ti ti-chevron-right" style={{ color: '#d6d2ca', fontSize: 14, flexShrink: 0 }}></i>
+                </Link>
               ))}
             </div>
           ))}
