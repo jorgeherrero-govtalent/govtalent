@@ -28,8 +28,11 @@ const QUE_AVISAMOS = {
   expediente: 'cuando cambie de fase, se publiquen documentos o se acerque el plazo',
   procedimiento: 'cuando avance de fase o concluya',
   diputado: 'cuando cambie de grupo o de comisión',
-  comision: 'cuando cambie su composición',
-  grupo: 'cuando cambie su actividad',
+  // Las comisiones se siguen para saber qué entra en ellas, no quién
+  // las preside: es la forma natural de cubrir un ámbito.
+  comision: 'cuando entren asuntos nuevos o cambien sus portavoces',
+  grupo: 'cuando presente iniciativas nuevas o cambie su composición',
+  cargo: 'si cambia de puesto o cesa',
   // El BOE ya está publicado: lo que puede cambiar es que otra norma
   // la modifique o la derogue.
   boe: 'si otra norma la modifica o la deroga',
