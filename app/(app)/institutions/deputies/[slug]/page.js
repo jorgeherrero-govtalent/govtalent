@@ -7,6 +7,7 @@ import { createClient } from '@/lib/supabase/client';
 import { toast } from '@/lib/toast';
 import { groupColor } from '@/lib/grupos';
 import BackLink from '@/components/BackLink';
+import FollowButton from '@/components/FollowButton';
 
 // El Resumen lleva lo que más se consulta —portavocías y últimas
 // ponencias— y las otras pestañas el detalle completo. Así lo habitual
@@ -141,7 +142,6 @@ function Avatar({ nombre, url, size = 28 }) {
 
 // Los colores de grupo viven en lib/grupos, compartidos con el resto.
 // Botón circular gris que pasa a verde al pasar el ratón. Mismo componente
-// visual en las cuatro fichas del módulo de Instituciones.
 function CircleButton({ icon, label, onClick, href, active, disabled, title }) {
   const [hover, setHover] = useState(false);
   const on = active || (hover && !disabled);
@@ -209,7 +209,6 @@ export default function DeputyProfilePage() {
   const [ponencias, setPonencias] = useState([]);
   const [colegas, setColegas] = useState([]);
   const [userId, setUserId] = useState(null);
-  const [saved, setSaved] = useState(false);
   const [tab, setTab] = useState('resumen');
   const [notFound, setNotFound] = useState(false);
   const [radarNote, setRadarNote] = useState(false);
@@ -272,34 +271,9 @@ export default function DeputyProfilePage() {
     setPonencias(ponenciasData || []);
     setColegas(colegasData || []);
 
-    const uid = authData.user?.id;
-    if (uid) {
-      setUserId(uid);
-      const { data: savedRow } = await supabase
-        .from('saved_deputies')
-        .select('id')
-        .eq('user_id', uid)
-        .eq('deputy_id', d.id)
-        .limit(1)
-        .maybeSingle();
-      setSaved(!!savedRow);
-    }
-  }
-
-  async function toggleSave() {
-    if (!userId) {
-      toast('Inicia sesión para guardar diputados');
-      return;
-    }
-    if (saved) {
-      await supabase.from('saved_deputies').delete().eq('user_id', userId).eq('deputy_id', deputy.id);
-      setSaved(false);
-      toast('Eliminado de guardados');
-    } else {
-      await supabase.from('saved_deputies').insert({ user_id: userId, deputy_id: deputy.id });
-      setSaved(true);
-      toast('Diputado guardado ✓');
-    }
+    // FollowButton comprueba por su cuenta si se sigue: se ahorra una
+    // consulta por visita.
+    setUserId(authData.user?.id || null);
   }
 
   function copyLink() {
@@ -418,22 +392,8 @@ export default function DeputyProfilePage() {
             </div>
           </div>
 
-          <div style={{ display: 'flex', gap: 7, flexShrink: 0 }}>
-            <CircleButton icon="share" label="Copiar enlace" onClick={copyLink} />
-            <CircleButton icon="external-link" label="Ver ficha oficial" href={officialFichaUrl} />
-            <CircleButton
-              icon="bell"
-              label="Seguir en Radar"
-              title="Seguir en Radar · próximamente"
-              disabled
-              onClick={() => setRadarNote(true)}
-            />
-            <CircleButton
-              icon={saved ? 'bookmark-filled' : 'bookmark'}
-              label={saved ? 'Quitar de guardados' : 'Guardar diputado'}
-              active={saved}
-              onClick={toggleSave}
-            />
+          <div style={{ display: 'flex', gap: 4, flexShrink: 0, alignItems: 'center' }}>
+            <FollowButton kind="diputado" refId={deputy.slug} label={deputy.full_name} />
           </div>
         </div>
 
