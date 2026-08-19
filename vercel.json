@@ -1,6 +1,10 @@
 {
   "crons": [
     {
+      "path": "/api/sync/boe",
+      "schedule": "0 1 * * *"
+    },
+    {
       "path": "/api/sync/instituciones",
       "schedule": "0 4 * * *"
     },
@@ -43,6 +47,10 @@
     {
       "path": "/api/alerts/weekly",
       "schedule": "30 10 * * 1"
+    },
+    {
+      "path": "/api/alerts/daily",
+      "schedule": "15 10 * * *"
     }
   ]
 }
