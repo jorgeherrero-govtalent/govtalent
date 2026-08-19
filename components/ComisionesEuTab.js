@@ -93,6 +93,7 @@ export default function ComisionesEuTab() {
   const [mesas, setMesas] = useState([]);
   const [search, setSearch] = useState('');
   const [grupoFilter, setGrupoFilter] = useState(new Set());
+  const [minEspanoles, setMinEspanoles] = useState(false);
 
   useEffect(() => {
     Promise.all([
@@ -126,6 +127,9 @@ export default function ComisionesEuTab() {
 
   const filtered = useMemo(() => {
     let l = items || [];
+    // Con españoles: en un Parlamento de 27 países, saber dónde hay
+    // representación propia es lo primero que se mira desde aquí.
+    if (minEspanoles) l = l.filter((c) => (c.espanoles || 0) > 0);
     if (grupoFilter.size > 0) l = l.filter((c) => grupoFilter.has(c.presidente_grupo));
     if (search) {
       const q = normalize(search);
@@ -137,7 +141,7 @@ export default function ComisionesEuTab() {
       );
     }
     return l;
-  }, [items, search, grupoFilter]);
+  }, [items, search, grupoFilter, minEspanoles]);
 
   if (items === null) return <div className="spinner"></div>;
 
@@ -167,6 +171,34 @@ export default function ComisionesEuTab() {
         </div>
         {grupoOptions.length > 1 && (
           <MultiSelectFilter label="Grupo" values={grupoOptions} selected={grupoFilter} onApply={setGrupoFilter} />
+        )}
+        <button
+          type="button"
+          onClick={() => setMinEspanoles((v) => !v)}
+          style={{
+            background: minEspanoles ? '#e8f4f0' : '#fff',
+            border: `.5px solid ${minEspanoles ? '#1d6f5c' : '#e0dfd8'}`,
+            color: minEspanoles ? '#1d6f5c' : '#555',
+            borderRadius: 20,
+            padding: '8px 14px',
+            fontSize: 12,
+            cursor: 'pointer',
+            whiteSpace: 'nowrap',
+          }}
+        >
+          Con españoles
+        </button>
+        {(minEspanoles || search || grupoFilter.size > 0) && (
+          <span
+            onClick={() => {
+              setMinEspanoles(false);
+              setSearch('');
+              setGrupoFilter(new Set());
+            }}
+            style={{ fontSize: 11.5, color: '#999', textDecoration: 'underline', cursor: 'pointer', alignSelf: 'center' }}
+          >
+            Limpiar
+          </span>
         )}
       </div>
 
