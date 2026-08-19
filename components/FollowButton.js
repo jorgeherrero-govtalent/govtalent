@@ -34,6 +34,7 @@ const QUE_AVISAMOS = {
   grupo: 'cuando presente iniciativas nuevas o cambie su composición',
   cargo: 'si cambia de puesto o cesa',
   eurodiputado: 'cuando cambie de comisión o sea ponente de un procedimiento',
+  direccion: 'cuando abra consultas nuevas o cambie su equipo',
   // El BOE ya está publicado: lo que puede cambiar es que otra norma
   // la modifique o la derogue.
   boe: 'si otra norma la modifica o la deroga',
