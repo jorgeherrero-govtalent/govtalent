@@ -387,21 +387,6 @@ export default function InitiativeDetailPage() {
           </div>
           <div style={{ display: 'flex', gap: 4, flexShrink: 0, alignItems: 'center' }}>
             <FollowButton kind="expediente" refId={item.id} label={item.title_es || item.title_en} />
-            <span
-              title="Añadir a proyecto · próximamente"
-              aria-label="Añadir a proyecto · próximamente"
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                padding: '6px 8px',
-                borderRadius: 7,
-                color: '#c4c0b8',
-                cursor: 'not-allowed',
-              }}
-            >
-              <i className="ti ti-folder-plus" style={{ fontSize: 15 }} aria-hidden="true"></i>
-            </span>
           </div>
         </div>
 
