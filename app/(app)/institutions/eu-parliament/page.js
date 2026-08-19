@@ -449,7 +449,19 @@ function CommitteeRow({ committee, members, chairs, countryFilter, groupFilter, 
             )}
           </div>
         </div>
-        <i className={`ti ti-chevron-${open ? 'up' : 'down'}`} style={{ color: open ? '#1d6f5c' : '#999', fontSize: 16 }}></i>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0 }}>
+          {/* La ficha va aparte del desplegable: pulsar la fila enseña
+              los miembros, este enlace lleva a lo que decide la comisión
+              y en qué opina. */}
+          <Link
+            href={`/institutions/eu-parliament/comisiones/${committee.code}`}
+            onClick={(e) => e.stopPropagation()}
+            style={{ fontSize: 11.5, color: '#6d5aef', textDecoration: 'none', whiteSpace: 'nowrap' }}
+          >
+            Ver ficha →
+          </Link>
+          <i className={`ti ti-chevron-${open ? 'up' : 'down'}`} style={{ color: open ? '#1d6f5c' : '#999', fontSize: 16 }}></i>
+        </div>
       </div>
 
       {open && (
