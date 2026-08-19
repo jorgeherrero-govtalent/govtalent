@@ -88,6 +88,31 @@ const TIPOS = {
     plazo: (r) => r.feedback_end,
     ruta: (r) => `/initiatives/${r.slug}`,
   },
+  // Los actores: seguir una comisión es la forma natural de cubrir un
+  // ámbito sin seguir cada ley una a una, así que lo que importa es
+  // cuántos asuntos entran, no solo quién la preside.
+  comision: {
+    tabla: 'es_committees_directory',
+    id: 'slug',
+    etiqueta: (r) => r.name,
+    columnas: 'slug, name, presidente, n_portavoces, n_asuntos',
+    huella: (r) => ({
+      presidente: r.presidente,
+      n_portavoces: r.n_portavoces,
+      n_asuntos: r.n_asuntos,
+    }),
+    plazo: () => null,
+    ruta: (r) => `/institutions/comisiones/${r.slug}`,
+  },
+  grupo: {
+    tabla: 'group_profile',
+    id: 'slug',
+    etiqueta: (r) => r.name,
+    columnas: 'slug, name, n_diputados, n_vivas',
+    huella: (r) => ({ n_diputados: r.n_diputados, n_vivas: r.n_vivas }),
+    plazo: () => null,
+    ruta: (r) => `/institutions/groups/${r.slug}`,
+  },
   procedimiento: {
     tabla: 'ep_procedures',
     id: 'process_id',
