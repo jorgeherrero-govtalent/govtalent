@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
 import { toast } from '@/lib/toast';
 import BackLink from '@/components/BackLink';
+import FollowButton from '@/components/FollowButton';
 import { GRUPO_COLORES, GRUPO_NOMBRES } from '../page';
 
 const colorGrupo = (g) => GRUPO_COLORES[g] || '#b0aea6';
@@ -49,39 +50,6 @@ const HITOS = [
   { tipos: ['SIGNATURE'], label: 'Firma', icon: 'writing-sign' },
   { tipos: ['PUBLICATION_OFFICIAL_JOURNAL'], label: 'DOUE', icon: 'news' },
 ];
-
-function CircleButton({ icon, label, onClick, active, disabled, title }) {
-  const [hover, setHover] = useState(false);
-  const on = active || (hover && !disabled);
-  return (
-    <button
-      type="button"
-      aria-label={label}
-      title={title || label}
-      aria-disabled={disabled ? 'true' : undefined}
-      onClick={disabled ? undefined : onClick}
-      onMouseEnter={() => setHover(true)}
-      onMouseLeave={() => setHover(false)}
-      style={{
-        width: 32,
-        height: 32,
-        borderRadius: '50%',
-        border: `.5px solid ${on ? '#6d5aef' : '#e0dfd8'}`,
-        background: on ? '#EEEDFE' : '#fff',
-        color: disabled ? '#ccc' : on ? '#6d5aef' : '#888',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        cursor: disabled ? 'not-allowed' : 'pointer',
-        transition: 'all .15s ease',
-        padding: 0,
-        flexShrink: 0,
-      }}
-    >
-      <i className={`ti ti-${icon}`} style={{ fontSize: 15 }} aria-hidden="true"></i>
-    </button>
-  );
-}
 
 function Avatar({ nombre, url, size = 28 }) {
   const [falla, setFalla] = useState(false);
@@ -195,7 +163,6 @@ export default function ProcedureDetailPage() {
   const [committees, setCommittees] = useState([]);
   const [events, setEvents] = useState([]);
   const [userId, setUserId] = useState(null);
-  const [saved, setSaved] = useState(false);
   const [tab, setTab] = useState('recorrido');
   const [verTodos, setVerTodos] = useState(false);
   const [soloEspanoles, setSoloEspanoles] = useState(false);
@@ -247,16 +214,7 @@ export default function ProcedureDetailPage() {
 
       const uid = auth?.user?.id || null;
       setUserId(uid);
-      if (uid) {
-        const { data: s } = await supabase
-          .from('saved_ep_procedures')
-          .select('id')
-          .eq('user_id', uid)
-          .eq('process_id', data.process_id)
-          .limit(1)
-          .maybeSingle();
-        if (!cancelled) setSaved(!!s);
-      }
+      // FollowButton comprueba por su cuenta si se sigue.
     })();
 
     return () => {
@@ -328,30 +286,6 @@ export default function ProcedureDetailPage() {
     }
   }, [pestanas, tab]);
 
-  async function toggleSave() {
-    if (!userId) {
-      toast('Inicia sesión para guardar procedimientos');
-      return;
-    }
-    if (saved) {
-      setSaved(false);
-      const { error } = await supabase
-        .from('saved_ep_procedures')
-        .delete()
-        .eq('user_id', userId)
-        .eq('process_id', item.process_id);
-      if (error) setSaved(true);
-      else toast('Eliminado de guardados');
-    } else {
-      setSaved(true);
-      const { error } = await supabase
-        .from('saved_ep_procedures')
-        .insert({ user_id: userId, process_id: item.process_id });
-      if (error) setSaved(false);
-      else toast('Procedimiento guardado ✓');
-    }
-  }
-
   if (item === undefined) {
     return (
       <div className="sec" style={{ maxWidth: 900 }}>
@@ -404,16 +338,8 @@ export default function ProcedureDetailPage() {
               {item.comision_competente && ` · ${item.comision_competente}`}
             </div>
           </div>
-          <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
-            <CircleButton icon="bell" label="Seguir en Radar" title="Seguir en Radar · próximamente" disabled />
-            {userId && (
-              <CircleButton
-                icon={saved ? 'bookmark-filled' : 'bookmark'}
-                label={saved ? 'Quitar de guardados' : 'Guardar procedimiento'}
-                active={saved}
-                onClick={toggleSave}
-              />
-            )}
+          <div style={{ display: 'flex', gap: 4, flexShrink: 0, alignItems: 'center' }}>
+            <FollowButton kind="procedimiento" refId={item.process_id} label={item.title_es || item.title_en} />
           </div>
         </div>
 
