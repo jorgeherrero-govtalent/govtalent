@@ -38,7 +38,35 @@ const QUE_AVISAMOS = {
 // Verde para lo institucional, morado para lo regulatorio
 const VERDES = new Set(['diputado', 'comision', 'grupo']);
 
-export default function FollowButton({ kind, refId, label, variant = 'button', className }) {
+/**
+ * El botón de proyecto, bloqueado hasta que existan.
+ *
+ * Va dentro de este componente y no suelto en cada ficha: así aparece en
+ * todas partes con el mismo aspecto, y el día que se active basta con
+ * tocarlo aquí.
+ */
+function BotonProyecto() {
+  return (
+    <span
+      title="Añadir a proyecto · próximamente"
+      aria-label="Añadir a proyecto · próximamente"
+      style={{
+        display: 'inline-flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: '6px 8px',
+        borderRadius: 7,
+        color: '#c4c0b8',
+        cursor: 'not-allowed',
+        flexShrink: 0,
+      }}
+    >
+      <i className="ti ti-folder-plus" style={{ fontSize: 15 }} aria-hidden="true"></i>
+    </span>
+  );
+}
+
+export default function FollowButton({ kind, refId, label, variant = 'button', className, conProyecto = true }) {
   const supabase = createClient();
   const [siguiendo, setSiguiendo] = useState(false);
   const [userId, setUserId] = useState(null);
@@ -163,6 +191,7 @@ export default function FollowButton({ kind, refId, label, variant = 'button', c
 
   // --- Variante botón: para fichas ------------------------------------
   return (
+    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, flexShrink: 0 }}>
     <button
       type="button"
       onClick={alternar}
@@ -187,5 +216,7 @@ export default function FollowButton({ kind, refId, label, variant = 'button', c
       <i className={`ti ti-bell${siguiendo ? '-filled' : ''}`} style={{ fontSize: 15 }} aria-hidden="true"></i>
       {siguiendo ? 'Siguiendo' : 'Seguir'}
     </button>
+    {conProyecto && <BotonProyecto />}
+    </span>
   );
 }
