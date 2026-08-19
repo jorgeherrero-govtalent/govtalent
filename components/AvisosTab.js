@@ -87,6 +87,8 @@ export default function AvisosTab() {
   const [conteos, setConteos] = useState({});
   const [cargado, setCargado] = useState(false);
   const [editando, setEditando] = useState(null);
+  // { tipo, nombre, alerta } — qué se confirma y sobre qué
+  const [confirmando, setConfirmando] = useState(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -134,6 +136,16 @@ export default function AvisosTab() {
     };
   }, []);
 
+  // Solo al desactivar: dejar de recibir avisos tiene consecuencias y
+  // conviene que sea deliberado. Activar no necesita confirmación.
+  function pedirPref(campo, valor) {
+    if (valor === false) {
+      setConfirmando({ tipo: campo });
+      return;
+    }
+    guardarPref(campo, valor);
+  }
+
   async function guardarPref(campo, valor) {
     const nuevo = { ...prefs, [campo]: valor };
     setPrefs(nuevo);
@@ -157,6 +169,14 @@ export default function AvisosTab() {
     }
   }
 
+  function pedirAlerta(a) {
+    if (a.activa) {
+      setConfirmando({ tipo: 'alerta', nombre: a.nombre, alerta: a });
+      return;
+    }
+    alternarAlerta(a);
+  }
+
   async function alternarAlerta(a) {
     const activa = !a.activa;
     setAlertas((prev) => prev.map((x) => (x.id === a.id ? { ...x, activa } : x)));
@@ -170,7 +190,10 @@ export default function AvisosTab() {
   async function guardarAlerta(a) {
     // El editor manda _borrar desde su botón de eliminar: así el editor
     // no necesita conocer la función de borrado.
-    if (a._borrar) return borrarAlerta(a);
+    if (a._borrar) {
+      setConfirmando({ tipo: 'borrar', nombre: a.nombre, alerta: a });
+      return;
+    }
 
     const limpio = {
       nombre: (a.nombre || '').trim() || 'Sin nombre',
@@ -240,7 +263,7 @@ export default function AvisosTab() {
               escribimos.
             </div>
           </div>
-          <Interruptor activo={prefs.diario} onChange={() => guardarPref('diario', !prefs.diario)} />
+          <Interruptor activo={prefs.diario} onChange={() => pedirPref('diario', !prefs.diario)} />
         </div>
 
         <div
@@ -252,7 +275,7 @@ export default function AvisosTab() {
               Lo que se ha movido en los asuntos que sigues durante la semana.
             </div>
           </div>
-          <Interruptor activo={prefs.semanal} onChange={() => guardarPref('semanal', !prefs.semanal)} />
+          <Interruptor activo={prefs.semanal} onChange={() => pedirPref('semanal', !prefs.semanal)} />
         </div>
 
         <div
@@ -333,7 +356,7 @@ export default function AvisosTab() {
                   >
                     Editar
                   </button>
-                  <Interruptor activo={a.activa} onChange={() => alternarAlerta(a)} size="pequeno" />
+                  <Interruptor activo={a.activa} onChange={() => pedirAlerta(a)} size="pequeno" />
                 </div>
                 <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap' }}>
                   {(a.keywords || []).slice(0, 3).map((k) => (
@@ -361,6 +384,21 @@ export default function AvisosTab() {
           })
         )}
       </div>
+
+      {confirmando && (
+        <ConfirmarBaja
+          tipo={confirmando.tipo}
+          nombre={confirmando.nombre}
+          onConfirmar={() => {
+            const c = confirmando;
+            setConfirmando(null);
+            if (c.tipo === 'alerta') alternarAlerta(c.alerta);
+            else if (c.tipo === 'borrar') borrarAlerta(c.alerta);
+            else guardarPref(c.tipo, false);
+          }}
+          onCancelar={() => setConfirmando(null)}
+        />
+      )}
 
       <div style={{ ...CARD, padding: 20 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap' }}>
@@ -394,6 +432,136 @@ export default function AvisosTab() {
         </div>
       </div>
     </>
+  );
+}
+
+/**
+ * Confirmación al desactivar los avisos.
+ *
+ * Dice qué se pierde exactamente, no un "¿estás seguro?" genérico: sin
+ * eso el usuario no sabe qué está decidiendo.
+ *
+ * Lleva X arriba a la derecha además del clic fuera, como el resto de
+ * modales de la plataforma.
+ */
+function ConfirmarBaja({ tipo, nombre, onConfirmar, onCancelar }) {
+  const textos = {
+    diario: {
+      titulo: 'Dejar de recibir avisos diarios',
+      cuerpo:
+        'Ya no te escribiremos cuando se publique o se mueva algo que encaja con tus alertas. Seguirás viéndolo al entrar en la plataforma.',
+      accion: 'Desactivar',
+    },
+    semanal: {
+      titulo: 'Dejar de recibir el resumen de los lunes',
+      cuerpo:
+        'Ya no te escribiremos con lo que se ha movido en los asuntos que sigues. Seguirás viéndolo en Seguimiento.',
+      accion: 'Desactivar',
+    },
+    alerta: {
+      titulo: `Desactivar «${nombre}»`,
+      cuerpo:
+        'Dejará de vigilar lo que se publica. Los criterios se conservan y puedes volver a activarla cuando quieras.',
+      accion: 'Desactivar',
+    },
+    // El borrado es lo único que no tiene vuelta atrás, y el texto lo
+    // dice: sin eso alguien confunde desactivar con eliminar.
+    borrar: {
+      titulo: `Eliminar «${nombre}»`,
+      cuerpo: 'Se perderán sus criterios y no podrás recuperarlos. Si solo quieres una pausa, desactívala en su lugar.',
+      accion: 'Eliminar',
+    },
+  };
+  const t = textos[tipo] || textos.diario;
+
+  return (
+    <div
+      onClick={onCancelar}
+      style={{
+        position: 'fixed',
+        inset: 0,
+        background: 'rgba(26,26,24,.35)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: 20,
+        zIndex: 9998,
+      }}
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        role="dialog"
+        aria-modal="true"
+        style={{
+          background: '#fff',
+          borderRadius: 12,
+          padding: 22,
+          maxWidth: 400,
+          width: '100%',
+          boxShadow: '0 12px 40px rgba(0,0,0,.18)',
+          position: 'relative',
+        }}
+      >
+        <button
+          type="button"
+          onClick={onCancelar}
+          aria-label="Cerrar"
+          style={{
+            position: 'absolute',
+            top: 14,
+            right: 14,
+            background: 'none',
+            border: 'none',
+            color: '#b8b4ac',
+            cursor: 'pointer',
+            padding: 4,
+            fontSize: 16,
+            lineHeight: 1,
+          }}
+        >
+          <i className="ti ti-x"></i>
+        </button>
+
+        <div style={{ fontSize: 15, fontWeight: 500, letterSpacing: '-.15px', marginBottom: 8, paddingRight: 24 }}>
+          {t.titulo}
+        </div>
+        <div style={{ fontSize: 12.5, color: '#8b8780', lineHeight: 1.6, marginBottom: 20 }}>{t.cuerpo}</div>
+
+        <div style={{ display: 'flex', gap: 9, justifyContent: 'flex-end', flexWrap: 'wrap' }}>
+          <button
+            type="button"
+            onClick={onCancelar}
+            style={{
+              fontSize: 12.5,
+              color: '#57534e',
+              background: '#f5f4f1',
+              border: 'none',
+              borderRadius: 8,
+              padding: '9px 16px',
+              cursor: 'pointer',
+            }}
+          >
+            Cancelar
+          </button>
+          <button
+            type="button"
+            onClick={onConfirmar}
+            style={{
+              fontSize: 12.5,
+              fontWeight: 500,
+              color: '#fff',
+              background: '#6d5aef',
+              border: 'none',
+              borderRadius: 8,
+              padding: '9px 16px',
+              cursor: 'pointer',
+            }}
+          >
+            {t.accion}
+          </button>
+        </div>
+      </div>
+    </div>
   );
 }
 
