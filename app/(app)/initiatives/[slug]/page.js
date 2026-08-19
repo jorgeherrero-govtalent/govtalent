@@ -426,7 +426,7 @@ export default function InitiativeDetailPage() {
                 y sus expedientes. */}
             {item.dg_code ? (
               <Link
-                href={`/institutions/comision-europea/${item.dg_code}`}
+                href={`/institutions/eu-commission/${item.dg_code}`}
                 style={{ fontSize: 13, fontWeight: 600, lineHeight: 1.35, color: 'inherit', textDecoration: 'none' }}
               >
                 {dgNombre || item.dg_code}
@@ -610,7 +610,7 @@ export default function InitiativeDetailPage() {
                   av={<Avatar texto={item.dg_code} morado />}
                   nombre={dgNombre || item.dg_code}
                   sub="Dirección general responsable"
-                  href={`/institutions/comision-europea/${item.dg_code}`}
+                  href={`/institutions/eu-commission/${item.dg_code}`}
                 />
               )}
               {item.author_name && (
