@@ -370,20 +370,43 @@ export default function InitiativeDetailPage() {
               {actLabel(item.act_type)} · Comisión Europea
               {(item.topics || []).length > 0 && ` · ${item.topics.map((t) => t.label).join(', ')}`}
             </div>
-            {item.is_major && (
-              <span
-                style={{
-                  display: 'inline-block',
-                  fontSize: 10,
-                  background: '#FAEEDA',
-                  color: '#854F0B',
-                  padding: '2px 8px',
-                  borderRadius: 10,
-                  marginTop: 7,
-                }}
-              >
-                Iniciativa principal
-              </span>
+            {/* "Iniciativa principal" no decía nada por sí solo: es la
+                marca que pone la Comisión a lo que considera de mayor
+                calado, y conviene explicarlo. También se enseña si es
+                una evaluación, que es otro tipo de trámite. */}
+            {(item.is_major || item.is_evaluation) && (
+              <div style={{ display: 'flex', gap: 6, marginTop: 8, flexWrap: 'wrap' }}>
+                {item.is_major && (
+                  <span
+                    title="La Comisión la considera una de sus iniciativas prioritarias"
+                    style={{
+                      display: 'inline-block',
+                      fontSize: 10,
+                      background: '#f0eefe',
+                      color: '#3C3489',
+                      padding: '3px 9px',
+                      borderRadius: 11,
+                    }}
+                  >
+                    Prioritaria para la Comisión
+                  </span>
+                )}
+                {item.is_evaluation && (
+                  <span
+                    title="Revisa cómo está funcionando una norma ya en vigor"
+                    style={{
+                      display: 'inline-block',
+                      fontSize: 10,
+                      background: '#f5f4f1',
+                      color: '#57534e',
+                      padding: '3px 9px',
+                      borderRadius: 11,
+                    }}
+                  >
+                    Evaluación de una norma vigente
+                  </span>
+                )}
+              </div>
             )}
           </div>
           <div style={{ display: 'flex', gap: 4, flexShrink: 0, alignItems: 'center' }}>
