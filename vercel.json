@@ -51,6 +51,10 @@
     {
       "path": "/api/alerts/daily",
       "schedule": "15 10 * * *"
+    },
+    {
+      "path": "/api/sync/eu-feedback",
+      "schedule": "30 9 * * *"
     }
   ]
 }
