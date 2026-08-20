@@ -62,25 +62,38 @@ const espera = (ms) => new Promise((r) => setTimeout(r, ms));
 /**
  * Las publicaciones de un expediente.
  *
- * Devuelve solo las que tienen contribuciones: `totalFeedback` lo dice
- * antes de pedirlas, así que no se gasta una llamada en las vacías.
+ * Se devuelven TODAS, no solo las que tienen contribuciones: son las
+ * fases del recorrido —preparación, evidencias, borrador, adopción— y
+ * hacen falta para el timeline. El sync de detalle guardaba solo la
+ * actual, por eso el recorrido mostraba una sola entrada.
+ *
+ * `totalFeedback` dice cuántas aportaciones tiene cada una antes de
+ * pedirlas, así que no se gasta una llamada en las vacías.
  */
 async function publicacionesDe(groupId) {
   try {
     const res = await fetch(`${BRP}/groupInitiatives/${groupId}`, { headers: HEADERS, cache: 'no-store' });
     if (!res.ok) return { ok: false, status: res.status };
     const data = await res.json();
-    const pubs = (data.publications || [])
-      .filter((p) => (p.totalFeedback || 0) > 0)
-      .map((p) => ({
-        id: p.id,
-        total: p.totalFeedback,
-        tipo: p.type,
-        estado: p.receivingFeedbackStatus,
-        fin: p.endDate,
-        reference: p.reference,
-      }));
-    return { ok: true, pubs, titulo: data.shortTitle };
+    const todas = (data.publications || []).map((p, i) => ({
+      id: p.id,
+      total: p.totalFeedback || 0,
+      tipo: p.type || p.frontEndStage,
+      stage: p.frontEndStage || p.stage,
+      estado: p.receivingFeedbackStatus,
+      inicio: p.startDate || p.feedbackStartDate,
+      fin: p.endDate || p.feedbackEndDate,
+      reference: p.reference,
+      orden: i,
+      raw: p,
+    }));
+    return {
+      ok: true,
+      todas,
+      // Las que tienen aportaciones, para pedirlas
+      pubs: todas.filter((p) => p.total > 0),
+      titulo: data.shortTitle,
+    };
   } catch (e) {
     return { ok: false, error: e.message };
   }
@@ -236,6 +249,7 @@ export async function GET(request) {
 
     // --- Recorrer -----------------------------------------------------
     const todas = [];
+    const fases = [];
     const registros = [];
     let conContribuciones = 0;
     let sinPublicaciones = 0;
@@ -247,8 +261,31 @@ export async function GET(request) {
       }
 
       const r = await publicacionesDe(exp.id);
-      if (!r.ok || (r.pubs || []).length === 0) {
+      if (!r.ok) {
         sinPublicaciones += 1;
+        await espera(PAUSA_MS);
+        continue;
+      }
+
+      // Todas las fases, tengan o no aportaciones: son el recorrido.
+      for (const p of r.todas || []) {
+        fases.push({
+          id: p.id,
+          initiative_id: exp.id,
+          tipo: p.tipo || null,
+          stage: p.stage || null,
+          estado: p.estado || null,
+          fecha_inicio: p.inicio ? new Date(String(p.inicio).replace(/\//g, '-')).toISOString() : null,
+          fecha_fin: p.fin ? new Date(String(p.fin).replace(/\//g, '-')).toISOString() : null,
+          reference: p.reference || null,
+          total_feedback: p.total,
+          orden: p.orden,
+          raw: p.raw,
+          updated_at: new Date().toISOString(),
+        });
+      }
+
+      if ((r.pubs || []).length === 0) {
         await espera(PAUSA_MS);
         continue;
       }
@@ -274,6 +311,7 @@ export async function GET(request) {
     }
 
     informe.sin_publicaciones = sinPublicaciones;
+    informe.fases = fases.length;
     informe.consultas_con_contribuciones = conContribuciones;
     informe.contribuciones = todas.length;
     informe.organizaciones = [...new Set(todas.map((t) => t.organizacion).filter(Boolean))].length;
@@ -296,6 +334,7 @@ export async function GET(request) {
     }
 
     informe.escritura = {
+      fases: await escribir(supabase, 'eu_initiative_publications', fases, 'id'),
       contribuciones: await escribir(supabase, 'eu_feedback', todas, 'id'),
       registro: await escribir(supabase, 'eu_feedback_scan', registros, 'publication_id'),
     };
