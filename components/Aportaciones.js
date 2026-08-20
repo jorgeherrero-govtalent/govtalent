@@ -22,6 +22,10 @@ const GRUPOS = [
   { id: 'otros', label: 'Otros', color: '#c4c0b8' },
 ];
 
+function normalizar(t) {
+  return (t || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+}
+
 const MESES = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
 
 function fechaCorta(iso) {
@@ -46,6 +50,7 @@ export default function Aportaciones({ initiativeId, diasRestantes }) {
   const [soloRegistro, setSoloRegistro] = useState(true);
   const [abierta, setAbierta] = useState(null);
   const [verTodas, setVerTodas] = useState(false);
+  const [busca, setBusca] = useState('');
 
   useEffect(() => {
     if (!initiativeId) return;
@@ -93,8 +98,14 @@ export default function Aportaciones({ initiativeId, diasRestantes }) {
     let l = items || [];
     if (soloRegistro) l = l.filter((i) => i.en_registro);
     if (filtro) l = l.filter((i) => i.grupo === filtro);
+    // Buscar por nombre: con 250 organizaciones, encontrar una concreta
+    // recorriendo la lista no es viable.
+    if (busca.trim().length >= 2) {
+      const q = normalizar(busca);
+      l = l.filter((i) => normalizar(i.organizacion || '').includes(q) || normalizar(i.pais || '').includes(q));
+    }
     return l;
-  }, [items, filtro, soloRegistro]);
+  }, [items, filtro, soloRegistro, busca]);
 
   if (items === null) return null;
   if (total === 0) return null;
@@ -164,6 +175,21 @@ export default function Aportaciones({ initiativeId, diasRestantes }) {
         ))}
       </div>
 
+      {verTodas && filtradas.length > 6 && (
+        <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 10 }}>
+          <button
+            type="button"
+            onClick={() => {
+              setVerTodas(false);
+              setAbierta(null);
+            }}
+            style={{ fontSize: 12, color: '#6d5aef', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
+          >
+            Ver menos
+          </button>
+        </div>
+      )}
+
       <div style={{ display: 'flex', gap: 2, flexWrap: 'wrap', marginBottom: 16, alignItems: 'center' }}>
         {barras.map((g) => (
           <button
@@ -184,9 +210,44 @@ export default function Aportaciones({ initiativeId, diasRestantes }) {
         </button>
       </div>
 
+      {/* Con 250 organizaciones, buscar una concreta es lo primero que
+          se necesita. */}
+      {(items || []).length > 12 && (
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 8,
+            background: '#faf9f7',
+            borderRadius: 8,
+            padding: '8px 12px',
+            marginBottom: 14,
+          }}
+        >
+          <i className="ti ti-search" style={{ color: '#a8a49c', fontSize: 13 }}></i>
+          <input
+            value={busca}
+            onChange={(e) => setBusca(e.target.value)}
+            placeholder="Buscar una organización…"
+            aria-label="Buscar organización"
+            style={{ border: 'none', outline: 'none', background: 'transparent', fontSize: 12.5, width: '100%', fontFamily: 'inherit' }}
+          />
+          {busca && (
+            <button
+              type="button"
+              onClick={() => setBusca('')}
+              aria-label="Limpiar"
+              style={{ background: 'none', border: 'none', color: '#b8b4ac', cursor: 'pointer', padding: 0, fontSize: 14 }}
+            >
+              ×
+            </button>
+          )}
+        </div>
+      )}
+
       {filtradas.length === 0 ? (
         <div style={{ fontSize: 12, color: '#a8a49c', padding: '10px 0', borderTop: '.5px solid #f2f0ec' }}>
-          Nadie de este tipo se ha pronunciado.
+          {busca ? `No hay ninguna organización que coincida con «${busca}».` : 'Nadie de este tipo se ha pronunciado.'}
         </div>
       ) : (
         visibles.map((f) => {
@@ -292,7 +353,10 @@ export default function Aportaciones({ initiativeId, diasRestantes }) {
       {filtradas.length > 6 && (
         <button
           type="button"
-          onClick={() => setVerTodas((v) => !v)}
+          onClick={() => {
+            setVerTodas((v) => !v);
+            setAbierta(null);
+          }}
           style={{ fontSize: 12, color: '#6d5aef', background: 'none', border: 'none', cursor: 'pointer', padding: '14px 0 0' }}
         >
           {verTodas ? 'Ver menos' : `Ver las ${filtradas.length}`}
