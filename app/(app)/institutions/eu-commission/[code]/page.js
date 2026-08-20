@@ -232,10 +232,10 @@ export default function DgDetailPage() {
       {dg.comisario && (
         <div style={{ ...CARD, padding: 20, marginBottom: 12 }}>
           <div style={LABEL}>QUIÉN RESPONDE POLÍTICAMENTE</div>
-          {/* Sin enlace: los comisarios no tienen ficha propia todavía,
-              y una flecha que no lleva a ningún sitio es peor que
-              ninguna. */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '8px 0' }}>
+          <Link
+            href={`/institutions/eu-commission/comisarios/${dg.comisario_slug}`}
+            style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '8px 0', textDecoration: 'none', color: 'inherit' }}
+          >
             <Avatar nombre={dg.comisario} url={dg.comisario_foto} size={38} />
             <div style={{ flex: 1, minWidth: 0 }}>
               <div style={{ fontSize: 13.5, fontWeight: 600 }}>{dg.comisario}</div>
@@ -246,7 +246,8 @@ export default function DgDetailPage() {
             {dg.comisario_pais && (
               <span style={{ fontSize: 11, color: '#a8a49c', flexShrink: 0 }}>{dg.comisario_pais}</span>
             )}
-          </div>
+            <i className="ti ti-chevron-right" style={{ color: '#d6d2ca', fontSize: 14, flexShrink: 0 }}></i>
+          </Link>
         </div>
       )}
 
