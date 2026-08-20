@@ -7,6 +7,7 @@ import { createClient } from '@/lib/supabase/client';
 import { toast } from '@/lib/toast';
 import BackLink from '@/components/BackLink';
 import FollowButton from '@/components/FollowButton';
+import Aportaciones from '@/components/Aportaciones';
 
 // Tope de eurodiputados por lista. Un expediente transversal puede tocar
 // muchas comisiones: la media es 162 y el máximo medido, 658.
@@ -417,6 +418,18 @@ export default function InitiativeDetailPage() {
                   : 'Sin ventana'}
             </div>
           </div>
+
+          {/* Solo cuando hay organizaciones registradas: con dos o tres
+              particulares la cifra no dice nada. */}
+          {item.n_contribuciones > 2 && (
+            <div>
+              <div style={{ fontSize: 10, color: '#999', marginBottom: 3 }}>Se han pronunciado</div>
+              <div style={{ fontSize: 13, fontWeight: 600 }}>
+                {item.n_contribuciones}
+                <span style={{ fontWeight: 400, color: '#888' }}> organizaciones</span>
+              </div>
+            </div>
+          )}
           <div style={{ minWidth: 0 }}>
             <div style={{ fontSize: 10, color: '#999', marginBottom: 3 }}>Lo tramita</div>
             {/* El nombre completo, no la sigla: "RTD" no dice nada a nadie.
@@ -613,6 +626,12 @@ export default function InitiativeDetailPage() {
                   href={`/institutions/eu-commission/${item.dg_code}`}
                 />
               )}
+
+              {/* Quién intenta influir, no solo quién tramita: es lo que
+                  faltaba para responder "quién está detrás de esto". */}
+              <div style={{ marginTop: 22, paddingTop: 18, borderTop: '.5px solid #f0f0eb' }}>
+                <Aportaciones initiativeId={item.id} diasRestantes={item.dias_restantes} />
+              </div>
               {item.author_name && (
                 <Persona
                   av={<Avatar texto={iniciales(item.author_name)} />}
