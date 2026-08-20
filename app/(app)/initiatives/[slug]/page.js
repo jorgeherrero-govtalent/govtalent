@@ -95,7 +95,7 @@ const LABEL = {
   marginBottom: 12,
 };
 
-function Persona({ av, nombre, sub, extra, href }) {
+function Persona({ av, nombre, sub, extra, href, seguir }) {
   const cuerpo = (
     <>
       {av}
@@ -111,12 +111,34 @@ function Persona({ av, nombre, sub, extra, href }) {
     alignItems: 'center',
     gap: 10,
     padding: '9px 0',
-    borderBottom: '.5px solid #f0f0eb',
     textDecoration: 'none',
     color: 'inherit',
+    flex: 1,
+    minWidth: 0,
   };
+
+  // El botón de seguir va fuera del enlace: si estuviera dentro,
+  // pulsarlo navegaría en vez de seguir.
+  if (seguir) {
+    return (
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, borderBottom: '.5px solid #f0f0eb' }}>
+        {href ? (
+          <Link href={href} style={estilo}>
+            {cuerpo}
+          </Link>
+        ) : (
+          <div style={estilo}>{cuerpo}</div>
+        )}
+        <div style={{ flexShrink: 0 }}>
+          <FollowButton kind={seguir.kind} refId={seguir.refId} label={seguir.label} conProyecto={false} />
+        </div>
+        {href && <i className="ti ti-chevron-right" style={{ color: '#d6d2ca', fontSize: 14, flexShrink: 0 }}></i>}
+      </div>
+    );
+  }
+
   return href ? (
-    <Link href={href} style={estilo}>
+    <Link href={href} style={{ ...estilo, borderBottom: '.5px solid #f0f0eb' }}>
       {cuerpo}
     </Link>
   ) : (
@@ -429,59 +451,48 @@ export default function InitiativeDetailPage() {
             alignItems: 'start',
           }}
         >
+          {/* Solo lo accionable, y en grande: cuánto queda y cuántos se
+              han pronunciado. El nombre de la DG, la persona de contacto
+              y los españoles del Parlamento bajan a sus pestañas, que es
+              donde se buscan. */}
           <div>
-            <div style={{ fontSize: 10, color: '#999', marginBottom: 3 }}>Plazo</div>
-            <div style={{ fontSize: 13, fontWeight: 600, color: abierta ? '#3C3489' : '#888' }}>
+            <div
+              style={{
+                fontSize: 24,
+                fontWeight: 600,
+                color: abierta ? '#6d5aef' : '#888',
+                lineHeight: 1,
+                letterSpacing: '-.5px',
+              }}
+            >
+              {abierta ? (item.dias_restantes === 0 ? 'Hoy' : item.dias_restantes) : '—'}
+            </div>
+            <div style={{ fontSize: 11, color: '#a8a49c', marginTop: 5 }}>
               {abierta
                 ? item.dias_restantes === 0
-                  ? 'Cierra hoy'
-                  : `${item.dias_restantes} días`
-                : fechaCorta(item.feedback_end)
-                  ? 'Cerrado'
-                  : 'Sin ventana'}
+                  ? 'cierra el plazo'
+                  : item.dias_restantes === 1
+                    ? 'día de plazo'
+                    : 'días de plazo'
+                : item.feedback_end
+                  ? 'plazo cerrado'
+                  : 'sin ventana de aportaciones'}
             </div>
           </div>
 
-          {/* Solo cuando hay organizaciones registradas: con dos o tres
-              particulares la cifra no dice nada. */}
           {item.n_contribuciones > 2 && (
             <div>
-              <div style={{ fontSize: 10, color: '#999', marginBottom: 3 }}>Se han pronunciado</div>
-              <div style={{ fontSize: 13, fontWeight: 600 }}>
+              <div style={{ fontSize: 24, fontWeight: 600, lineHeight: 1, letterSpacing: '-.5px' }}>
                 {item.n_contribuciones}
-                <span style={{ fontWeight: 400, color: '#888' }}> organizaciones</span>
+              </div>
+              <div style={{ fontSize: 11, color: '#a8a49c', marginTop: 5 }}>
+                {item.n_contribuciones === 1 ? 'organización se ha pronunciado' : 'organizaciones se han pronunciado'}
               </div>
             </div>
           )}
-          <div style={{ minWidth: 0 }}>
-            <div style={{ fontSize: 10, color: '#999', marginBottom: 3 }}>Lo tramita</div>
-            {/* El nombre completo, no la sigla: "RTD" no dice nada a nadie.
-                La sigla queda debajo para quien la reconozca. */}
-            {/* Enlazada a su ficha: hasta ahora "DG ENV" era texto
-                suelto, y detrás hay un actor con su comisario, su equipo
-                y sus expedientes. */}
-            {item.dg_code ? (
-              <Link
-                href={`/institutions/eu-commission/${item.dg_code}`}
-                style={{ fontSize: 13, fontWeight: 600, lineHeight: 1.35, color: 'inherit', textDecoration: 'none' }}
-              >
-                {dgNombre || item.dg_code}
-                {dgNombre && <span style={{ fontSize: 10.5, color: '#aaa', fontWeight: 400 }}> · {item.dg_code}</span>}
-              </Link>
-            ) : (
-              <div style={{ fontSize: 13, fontWeight: 600, lineHeight: 1.35 }}>—</div>
-            )}
-          </div>
-          <div>
-            <div style={{ fontSize: 10, color: '#999', marginBottom: 3 }}>Responsable</div>
-            <div style={{ fontSize: 13, fontWeight: 600 }}>{item.author_name || '—'}</div>
-          </div>
-          <div>
-            <div style={{ fontSize: 10, color: '#999', marginBottom: 3 }}>Españoles</div>
-            <div style={{ fontSize: 13, fontWeight: 600 }}>
-              {resumenMeps ? `${resumenMeps.espanoles} de ${resumenMeps.total}` : '—'}
-            </div>
-          </div>
+
+          <div style={{ flex: 1 }}></div>
+
           {abierta && item.source_url && (
             <a
               href={item.source_url}
@@ -624,16 +635,15 @@ export default function InitiativeDetailPage() {
           {comisario && (
             <>
               <div style={LABEL}>Quién responde políticamente</div>
+              {/* A su ficha, no a commission.europa.eu: dentro está su
+                  gabinete, lo que dirige y lo que se tramita bajo su
+                  cartera. */}
               <Persona
                 av={<Avatar texto={iniciales(comisario.full_name)} url={comisario.photo_url} />}
                 nombre={comisario.full_name}
-                sub={comisario.portfolio_es}
-                href={comisario.profile_url || null}
-                extra={
-                  comisario.country_name && (
-                    <span style={{ fontSize: 10.5, color: '#999', flexShrink: 0 }}>{comisario.country_name}</span>
-                  )
-                }
+                sub={[comisario.portfolio_es, comisario.country_name].filter(Boolean).join(' · ')}
+                href={`/institutions/eu-commission/comisarios/${comisario.slug}`}
+                seguir={{ kind: 'comisario', refId: comisario.slug, label: comisario.full_name }}
               />
             </>
           )}
@@ -645,9 +655,31 @@ export default function InitiativeDetailPage() {
                 <Persona
                   av={<Avatar texto={item.dg_code} morado />}
                   nombre={dgNombre || item.dg_code}
-                  sub="Dirección general responsable"
+                  sub={
+                    item.author_name
+                      ? `Dirección general · ${item.author_name} es la persona de contacto`
+                      : 'Dirección general responsable'
+                  }
                   href={`/institutions/eu-commission/${item.dg_code}`}
+                  seguir={{ kind: 'direccion', refId: item.dg_code, label: dgNombre || item.dg_code }}
                 />
+              )}
+
+              {resumenMeps?.total > 0 && (
+                <div style={{ marginTop: 18 }}>
+                  <div style={LABEL}>En el Parlamento Europeo</div>
+                  <div style={{ fontSize: 12.5, color: '#8b8780', lineHeight: 1.6 }}>
+                    {resumenMeps.total} eurodiputados participan en su tramitación
+                    {resumenMeps.espanoles > 0 && `, ${resumenMeps.espanoles} de ellos españoles`}.{' '}
+                    <button
+                      type="button"
+                      onClick={() => setTab('parlamento')}
+                      style={{ color: '#6d5aef', background: 'none', border: 'none', padding: 0, cursor: 'pointer', fontSize: 12.5 }}
+                    >
+                      Ver quiénes →
+                    </button>
+                  </div>
+                </div>
               )}
 
               {/* Quién intenta influir, no solo quién tramita: es lo que
