@@ -6,21 +6,26 @@
 // tipo, país y su número de registro de transparencia cuando lo
 // declaran.
 //
-// EL CRUCE VA AL REVÉS. No hay forma de saber qué publicationId
-// corresponde a cada expediente —lo comprobamos: ninguna ruta de la API
-// lo da—. Pero cada contribución trae referenceInitiative en formato
-// Ares(2019)7907872, que casa con el campo `reference` de
-// eu_initiatives. Así que se recorren los publicationId y ellos dicen a
-// qué expediente pertenecen.
+// CÓMO SE ENLAZA: /brpapi/groupInitiatives/<id> devuelve el expediente
+// con todas sus publicaciones dentro, y cada una trae su `id` —el
+// publicationId— junto a `totalFeedback`, que dice cuántas
+// contribuciones tiene antes de pedirlas.
+//
+// Se descartaron dos vías antes de dar con esta: la API /api/ no tiene
+// ninguna ruta que enlace iniciativa con publicación, y el cruce por
+// referencia Ares no funciona —el número del expediente y el de la
+// contribución son series distintas—.
+//
+// SOLO LO ABIERTO: para una consulta cerrada, saber quién contribuyó es
+// histórico; para una abierta, es inteligencia útil.
 //
 // OJO CON EL PARÁMETRO language: con él la API devuelve 500. Sin él
 // funciona y da las 374 contribuciones de una consulta en 4 páginas.
 //
 // Uso:
-//   ?key=<DEBUG_KEY>&dry=1           prueba sin escribir
-//   ?key=<DEBUG_KEY>&pub=12354       una publicación concreta
-//   ?key=<DEBUG_KEY>&desde=12000     barrido desde un id
-//   ?key=<DEBUG_KEY>                 continúa donde se quedó
+//   ?key=<DEBUG_KEY>&dry=1        prueba sin escribir
+//   ?key=<DEBUG_KEY>&id=19033     un expediente concreto
+//   ?key=<DEBUG_KEY>              todos los que tienen consulta abierta
 // =====================================================================
 
 import { NextResponse } from 'next/server';
@@ -30,13 +35,14 @@ export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
 
 const API = 'https://ec.europa.eu/info/law/better-regulation/api';
+const BRP = 'https://ec.europa.eu/info/law/better-regulation/brpapi';
 const PRESUPUESTO_MS = 45000;
 const PARALELO = 4;
 const PAUSA_MS = 150;
 
-// Cuántos publicationId se revisan por pasada. El barrido completo son
-// unos 15.000, así que se hace en varias.
-const POR_PASADA = 120;
+// Cuántos expedientes se revisan por pasada. Son pocos —los abiertos
+// rondan los 43— así que caben todos.
+const POR_PASADA = 40;
 
 const HEADERS = {
   'User-Agent':
@@ -52,6 +58,33 @@ function admin() {
 }
 
 const espera = (ms) => new Promise((r) => setTimeout(r, ms));
+
+/**
+ * Las publicaciones de un expediente.
+ *
+ * Devuelve solo las que tienen contribuciones: `totalFeedback` lo dice
+ * antes de pedirlas, así que no se gasta una llamada en las vacías.
+ */
+async function publicacionesDe(groupId) {
+  try {
+    const res = await fetch(`${BRP}/groupInitiatives/${groupId}`, { headers: HEADERS, cache: 'no-store' });
+    if (!res.ok) return { ok: false, status: res.status };
+    const data = await res.json();
+    const pubs = (data.publications || [])
+      .filter((p) => (p.totalFeedback || 0) > 0)
+      .map((p) => ({
+        id: p.id,
+        total: p.totalFeedback,
+        tipo: p.type,
+        estado: p.receivingFeedbackStatus,
+        fin: p.endDate,
+        reference: p.reference,
+      }));
+    return { ok: true, pubs, titulo: data.shortTitle };
+  } catch (e) {
+    return { ok: false, error: e.message };
+  }
+}
 
 async function pedirPagina(pub, page) {
   try {
@@ -96,10 +129,13 @@ async function contribuciones(pub, limiteMs) {
   return { total, items };
 }
 
-function mapear(f, pub) {
+function mapear(f, pub, initiativeId) {
   return {
     id: f.id,
     publication_id: pub,
+    // Se guarda al vuelo: ya sabemos de qué expediente viene, no hace
+    // falta cruzarlo después.
+    initiative_id: initiativeId,
     reference: f.referenceInitiative || null,
     fecha: f.dateFeedback ? new Date(f.dateFeedback.replace(/\//g, '-')).toISOString() : null,
     organizacion: f.organization || null,
@@ -150,77 +186,75 @@ export async function GET(request) {
   const informe = { inicio: new Date().toISOString(), dry_run: dry };
 
   try {
-    // --- Qué publicationId revisar ------------------------------------
-    let pubs = [];
-    if (sp.get('pub')) {
-      pubs = [parseInt(sp.get('pub'), 10)];
+    // --- Qué expedientes revisar --------------------------------------
+    // Solo los que tienen consulta abierta: para uno cerrado, saber
+    // quién contribuyó es histórico; para uno abierto, es inteligencia
+    // útil mientras se puede actuar.
+    let expedientes = [];
+    if (sp.get('id')) {
+      const { data } = await supabase
+        .from('eu_initiatives')
+        .select('id, title_es, title_en')
+        .eq('id', parseInt(sp.get('id'), 10))
+        .limit(1)
+        .maybeSingle();
+      if (data) expedientes = [data];
     } else {
-      const desde = sp.get('desde') ? parseInt(sp.get('desde'), 10) : null;
-      if (desde) {
-        pubs = Array.from({ length: POR_PASADA }, (_, i) => desde + i);
-      } else {
-        // Continúa donde se quedó el barrido anterior
-        const { data: ultimo } = await supabase
-          .from('eu_feedback_scan')
-          .select('publication_id')
-          .order('publication_id', { ascending: false })
-          .limit(1)
-          .maybeSingle();
-        const inicio = ultimo?.publication_id ? ultimo.publication_id + 1 : 10000;
-        pubs = Array.from({ length: POR_PASADA }, (_, i) => inicio + i);
-      }
+      const { data } = await supabase
+        .from('eu_initiatives')
+        .select('id, title_es, title_en, feedback_end')
+        .gt('feedback_end', new Date().toISOString())
+        .order('feedback_end', { ascending: true })
+        .limit(POR_PASADA);
+      expedientes = data || [];
     }
 
-    informe.rango = { desde: pubs[0], hasta: pubs[pubs.length - 1], n: pubs.length };
-
-    // Los ya revisados, para no repetirlos
-    const { data: hechos } = await supabase
-      .from('eu_feedback_scan')
-      .select('publication_id')
-      .in('publication_id', pubs);
-    const yaHechos = new Set((hechos || []).map((h) => h.publication_id));
-    const pendientes = sp.get('pub') ? pubs : pubs.filter((p) => !yaHechos.has(p));
-
-    informe.ya_revisados = pubs.length - pendientes.length;
+    informe.expedientes = expedientes.length;
+    if (expedientes.length === 0) {
+      return NextResponse.json({ ...informe, nota: 'Ningún expediente con consulta abierta.', ms_total: Date.now() - t0 });
+    }
 
     // --- Recorrer -----------------------------------------------------
     const todas = [];
     const registros = [];
-    let conContenido = 0;
+    let conContribuciones = 0;
+    let sinPublicaciones = 0;
 
-    for (let i = 0; i < pendientes.length; i += PARALELO) {
+    for (const exp of expedientes) {
       if (Date.now() - t0 > PRESUPUESTO_MS) {
         informe.cortado_por_tiempo = true;
         break;
       }
-      const grupo = pendientes.slice(i, i + PARALELO);
-      const res = await Promise.all(grupo.map((p) => contribuciones(p, 8000)));
 
-      res.forEach((r, k) => {
-        const pub = grupo[k];
-        if (r.error) {
-          registros.push({ publication_id: pub, estado: 'error', n_contribuciones: 0 });
-          return;
+      const r = await publicacionesDe(exp.id);
+      if (!r.ok || (r.pubs || []).length === 0) {
+        sinPublicaciones += 1;
+        await espera(PAUSA_MS);
+        continue;
+      }
+
+      for (const p of r.pubs) {
+        if (Date.now() - t0 > PRESUPUESTO_MS) break;
+        const c = await contribuciones(p.id, 8000);
+        if (c.error || (c.items || []).length === 0) {
+          registros.push({ publication_id: p.id, estado: c.error ? 'error' : 'vacio', n_contribuciones: 0 });
+          continue;
         }
-        if (r.vacio || (r.items || []).length === 0) {
-          registros.push({ publication_id: pub, estado: 'vacio', n_contribuciones: 0 });
-          return;
-        }
-        conContenido += 1;
-        const mapeadas = r.items.map((f) => mapear(f, pub));
-        todas.push(...mapeadas);
+        conContribuciones += 1;
+        todas.push(...c.items.map((f) => mapear(f, p.id, exp.id)));
         registros.push({
-          publication_id: pub,
-          reference: mapeadas[0]?.reference || null,
+          publication_id: p.id,
+          reference: p.reference || null,
           estado: 'ok',
-          n_contribuciones: r.total,
+          n_contribuciones: c.total,
         });
-      });
+      }
 
       await espera(PAUSA_MS);
     }
 
-    informe.con_contribuciones = conContenido;
+    informe.sin_publicaciones = sinPublicaciones;
+    informe.consultas_con_contribuciones = conContribuciones;
     informe.contribuciones = todas.length;
     informe.organizaciones = [...new Set(todas.map((t) => t.organizacion).filter(Boolean))].length;
     informe.con_registro = todas.filter((t) => t.tr_number).length;
@@ -245,14 +279,6 @@ export async function GET(request) {
       contribuciones: await escribir(supabase, 'eu_feedback', todas, 'id'),
       registro: await escribir(supabase, 'eu_feedback_scan', registros, 'publication_id'),
     };
-
-    // --- Cruzar con los expedientes -----------------------------------
-    // Se hace en SQL sobre las que acaban de entrar: cada contribución
-    // trae su referencia Ares y eu_initiatives la tiene en `reference`.
-    if (todas.length > 0) {
-      const { error } = await supabase.rpc('cruzar_feedback_iniciativas');
-      if (error) informe.error_cruce = error.message;
-    }
 
     informe.ms_total = Date.now() - t0;
     return NextResponse.json(informe);
