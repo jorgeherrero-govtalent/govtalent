@@ -133,7 +133,12 @@ function ComisariosTab({ comisarios }) {
         </div>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(230px, 1fr))', gap: 10 }}>
           {lista.map((c) => (
-            <div key={c.id} className="card" style={{ padding: 14 }}>
+            <Link
+              key={c.id}
+              href={`/institutions/eu-commission/comisarios/${c.slug}`}
+              className="card"
+              style={{ padding: 14, textDecoration: 'none', color: 'inherit', display: 'block' }}
+            >
               <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
                 <Photo url={c.photo_url} name={c.full_name} />
                 <div style={{ minWidth: 0, flex: 1 }}>
@@ -145,17 +150,10 @@ function ComisariosTab({ comisarios }) {
                   <div style={{ fontSize: 11.5, color: '#666', marginTop: 6, lineHeight: 1.45 }}>{c.portfolio_es}</div>
                 </div>
               </div>
-              {c.profile_url && (
-                <a
-                  href={c.profile_url}
-                  target="_blank"
-                  rel="noreferrer"
-                  style={{ fontSize: 11.5, color: '#6d5aef', textDecoration: 'none', display: 'inline-block', marginTop: 11 }}
-                >
-                  Ver ficha oficial ↗
-                </a>
-              )}
-            </div>
+              {/* El perfil oficial queda como acción secundaria: la
+                  tarjeta lleva a la ficha, que es lo esperable. */}
+              <div style={{ fontSize: 11.5, color: '#6d5aef', marginTop: 11 }}>Ver su ficha →</div>
+            </Link>
           ))}
         </div>
       </div>
