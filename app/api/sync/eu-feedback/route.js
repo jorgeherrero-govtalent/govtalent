@@ -155,7 +155,27 @@ function mapear(f, pub, initiativeId) {
   };
 }
 
+/**
+ * Escribe en lotes, quitando duplicados por la clave de conflicto.
+ *
+ * Postgres rechaza un upsert con dos filas de la misma clave en el mismo
+ * lote: "ON CONFLICT cannot affect row a second time". Y pasa de verdad,
+ * porque una contribución puede aparecer bajo dos publicaciones del
+ * mismo expediente.
+ */
+function sinDuplicados(filas, conflicto) {
+  const claves = conflicto.split(',').map((c) => c.trim());
+  const vistos = new Map();
+  for (const f of filas) {
+    const k = claves.map((c) => f[c]).join('|');
+    // Se queda la última: si algo cambió, la versión más reciente manda
+    vistos.set(k, f);
+  }
+  return [...vistos.values()];
+}
+
 async function escribir(supabase, tabla, filas, conflicto) {
+  filas = sinDuplicados(filas, conflicto);
   if (filas.length === 0) return { escritas: 0, errores: [] };
   let escritas = 0;
   const errores = [];
