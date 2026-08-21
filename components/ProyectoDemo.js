@@ -259,8 +259,25 @@ export default function ProyectoDemo() {
           <div style={{ fontSize: 12, color: '#555', lineHeight: 1.6 }}>
             Coste de cumplimiento para empresas de menos de 50 empleados.
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 7, borderTop: `.5px solid ${BORDE}`, marginTop: 12, paddingTop: 11, color: '#a8a49c', fontSize: 11.5 }}>
-            <i className="ti ti-message-plus" style={{ fontSize: 14 }}></i>Comentar o mencionar con @
+          {/* Las notas van pegadas al actor, no sueltas en el proyecto:
+              es lo que convierte el briefing en memoria. */}
+          <div style={{ borderTop: `.5px solid ${BORDE}`, marginTop: 12, paddingTop: 11 }}>
+            <div style={{ ...ETIQUETA, marginBottom: 8 }}>NOTAS SOBRE ESTE ACTOR</div>
+            <div style={{ display: 'flex', gap: 9, marginBottom: 10 }}>
+              <span style={{ width: 22, height: 22, borderRadius: '50%', background: '#f0f0eb', color: '#7a736b', fontSize: 9, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                MR
+              </span>
+              <div style={{ minWidth: 0 }}>
+                <div style={{ fontSize: 12, color: '#555', lineHeight: 1.55 }}>
+                  En la comparecencia dejó la puerta abierta al umbral de 50 empleados.
+                </div>
+                <div style={{ fontSize: 10.5, color: '#888', marginTop: 2 }}>hace 6 días</div>
+              </div>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, border: `.5px solid ${BORDE}`, borderRadius: 9, padding: '8px 11px', background: '#fafaf7' }}>
+              <i className="ti ti-message-plus" style={{ fontSize: 14, color: '#a8a49c' }}></i>
+              <span style={{ fontSize: 12, color: '#a8a49c' }}>Añade una nota o menciona con @</span>
+            </div>
           </div>
         </div>
 
@@ -351,11 +368,122 @@ export default function ProyectoDemo() {
       </div>
 
       <div style={{ textAlign: 'center' }}>
-        <a href="/precios" className="btn-ai">
+        <span className="btn-ai" style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
           <i className="ti ti-bolt"></i> Ver planes
-        </a>
+        </span>
         <div style={{ fontSize: 11.5, color: '#888', marginTop: 9 }}>
           Así se ve un proyecto en Pro. Incluye seguimiento, alertas y el directorio completo.
+        </div>
+      </div>
+    </div>
+  );
+}
+
+
+/**
+ * El Resumen del proyecto de ejemplo.
+ *
+ * Se separa de ProyectoDemo porque es otra pestaña, pero comparte los
+ * mismos datos: si mañana cambia DEMO, cambian las dos.
+ */
+export function ResumenDemo() {
+  return (
+    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 10 }}>
+      <div style={{ minWidth: 0 }}>
+        <div style={{ ...CARD, padding: '15px 18px', marginBottom: 10 }}>
+          <div style={{ ...ETIQUETA, marginBottom: 7 }}>OBJETIVO</div>
+          <div style={{ fontSize: 13, color: '#555', lineHeight: 1.7 }}>
+            Que la supervisión no imponga auditoría previa a los sistemas de riesgo limitado.
+          </div>
+        </div>
+
+        {/* La mención es lo que trae a alguien de vuelta al proyecto:
+            va arriba y con nombre, no escondida en una pestaña. */}
+        <div style={{ ...CARD, padding: '13px 16px', marginBottom: 10, borderColor: '#d8d3f5', background: '#fafaff' }}>
+          <div style={{ display: 'flex', gap: 10 }}>
+            <span style={{ width: 26, height: 26, borderRadius: '50%', background: '#eeedfe', color: MORADO, fontSize: 10, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, fontWeight: 600 }}>
+              MR
+            </span>
+            <div style={{ minWidth: 0 }}>
+              <div style={{ fontSize: 12.5, lineHeight: 1.55 }}>
+                <span style={{ fontWeight: 600 }}>María te ha mencionado</span> en una nota sobre la Secretaría de Estado.
+              </div>
+              <div style={{ fontSize: 12, color: '#555', lineHeight: 1.55, marginTop: 4 }}>
+                «Piden datos de impacto antes de fijar posición. <span style={{ color: MORADO }}>@Jorge</span> ¿tenemos el estudio?»
+              </div>
+              <div style={{ fontSize: 10.5, color: '#888', marginTop: 4 }}>hace 4 días</div>
+            </div>
+          </div>
+        </div>
+
+        <div style={{ ...CARD, padding: '15px 18px' }}>
+          <div style={{ ...ETIQUETA, marginBottom: 10 }}>ASUNTOS QUE SIGUE</div>
+          <div style={{ borderLeft: `2px solid ${MORADO}`, paddingLeft: 12, marginBottom: 11 }}>
+            <div style={{ fontSize: 12.5, fontWeight: 500 }}>{DEMO.norma.titulo}</div>
+            <div style={{ fontSize: 11, color: '#888', marginTop: 2 }}>Enmiendas · quedan 13 días</div>
+          </div>
+          <div style={{ borderLeft: `2px solid ${BORDE}`, paddingLeft: 12 }}>
+            <div style={{ fontSize: 12.5, fontWeight: 500 }}>Reglamento europeo de IA</div>
+            <div style={{ fontSize: 11, color: '#888', marginTop: 2 }}>Actos de ejecución · sin plazo abierto</div>
+          </div>
+        </div>
+      </div>
+
+      <div style={{ minWidth: 0 }}>
+        <div style={{ ...CARD, padding: '15px 16px', marginBottom: 10 }}>
+          <div style={{ display: 'flex', gap: 20, flexWrap: 'wrap' }}>
+            <div>
+              <div style={{ fontSize: 21, fontWeight: 600, color: MORADO, lineHeight: 1.1 }}>{DEMO.actores.length}</div>
+              <div style={{ fontSize: 11, color: '#888' }}>actores</div>
+            </div>
+            <div>
+              <div style={{ fontSize: 21, fontWeight: 600, color: MORADO, lineHeight: 1.1 }}>2</div>
+              <div style={{ fontSize: 11, color: '#888' }}>asuntos</div>
+            </div>
+            <div>
+              <div style={{ fontSize: 21, fontWeight: 600, color: '#1a1a18', lineHeight: 1.1 }}>
+                {DEMO.actores.filter((a) => a.relacion === 'sin_contactar').length}
+              </div>
+              <div style={{ fontSize: 11, color: '#888' }}>sin contactar</div>
+            </div>
+          </div>
+        </div>
+
+        <div style={{ ...CARD, padding: '15px 18px', marginBottom: 10 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+            <span style={ETIQUETA}>AGENDA</span>
+            <span style={{ fontSize: 11.5, color: MORADO }}>+ Acción</span>
+          </div>
+          {DEMO.agenda.map((a, i) => (
+            <div
+              key={a.titulo}
+              style={{
+                display: 'flex',
+                gap: 11,
+                padding: i === 0 ? '0 0 10px' : '10px 0',
+                borderBottom: i < DEMO.agenda.length - 1 ? `.5px solid ${BORDE}` : 'none',
+              }}
+            >
+              <div style={{ textAlign: 'center', flexShrink: 0, width: 32 }}>
+                <div style={{ fontSize: 15, fontWeight: 600, lineHeight: 1.1 }}>{a.dia}</div>
+                <div style={{ fontSize: 10, color: '#888' }}>{a.mes}</div>
+              </div>
+              <div style={{ minWidth: 0 }}>
+                <div style={{ fontSize: 12.5, lineHeight: 1.45, fontWeight: a.oficial ? 600 : 400 }}>{a.titulo}</div>
+                <div style={{ fontSize: 10.5, color: '#888', marginTop: 2 }}>{a.pie}</div>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        <div style={{ ...CARD, padding: '13px 16px', opacity: 0.55 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+            <i className="ti ti-lock" style={{ fontSize: 14, color: '#8b8780' }}></i>
+            <span style={ETIQUETA}>EQUIPO</span>
+          </div>
+          <div style={{ fontSize: 12.5, color: '#555', lineHeight: 1.55 }}>
+            Invitar a compañeros y repartir los actores llega con Teams.
+          </div>
         </div>
       </div>
     </div>
