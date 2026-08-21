@@ -3,9 +3,11 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { toast } from '@/lib/toast';
+import ActorAvatar, { esOrganizacion } from '@/components/ActorAvatar';
 import {
   RELACIONES,
   TIPOS_ENLACE,
+  enZonaDePrioridad,
   limiteActores,
   posicionLabel,
   puedeAnadirActor,
@@ -139,16 +141,20 @@ export default function MapaActores({ projectId }) {
           marginBottom: 14,
         }}
       >
-        <div style={{ fontSize: 12.5, color: '#666' }}>
+        {/* El estado se dice con texto y peso tipográfico, nunca con
+            color: es la regla que ya seguía el contador del trial. */}
+        <div style={{ fontSize: 12, color: '#888' }}>
           {resumen.total === 0 ? (
             'Todavía no hay actores en el mapa.'
           ) : resumen.prioridadSinContactar > 0 ? (
             <>
-              <strong style={{ fontWeight: 600 }}>{resumen.prioridadSinContactar}</strong> actores
-              decisivos con posición sin definir y sin contactar.
+              <span style={{ color: '#1a1a18', fontWeight: 600 }}>
+                {resumen.prioridadSinContactar} {resumen.prioridadSinContactar === 1 ? 'decisivo' : 'decisivos'}
+              </span>{' '}
+              sin posición definida y sin contactar · {resumen.total} en el mapa
             </>
           ) : (
-            `${resumen.total} actores · ${resumen.sinContactar} sin contactar`
+            `${resumen.total} en el mapa · ${resumen.sinContactar} sin contactar`
           )}
         </div>
         <button
@@ -222,6 +228,8 @@ export default function MapaActores({ projectId }) {
 
             {actores.map((a) => {
               const iniciada = a.relacion !== 'sin_contactar';
+              const org = esOrganizacion(a);
+              const prioritario = enZonaDePrioridad(a);
               return (
                 <button
                   key={a.id}
@@ -236,44 +244,57 @@ export default function MapaActores({ projectId }) {
                     transform: 'translate(-50%, -50%)',
                     display: 'flex',
                     alignItems: 'center',
-                    gap: 6,
+                    gap: 8,
                     background: '#fff',
                     border: `${iniciada ? '.5px solid' : '.5px dashed'} ${
                       arrastre.current.id === a.id ? MORADO : '#b8b4ac'
                     }`,
-                    borderRadius: 20,
-                    padding: '4px 10px 4px 4px',
+                    // El radio del chip también distingue: personas
+                    // redondas, organizaciones cuadradas.
+                    borderRadius: org ? 10 : 24,
+                    padding: '5px 13px 5px 5px',
                     whiteSpace: 'nowrap',
                     cursor: 'grab',
                     maxWidth: '46%',
-                    boxShadow: '0 1px 2px rgba(0,0,0,.04)',
+                    textAlign: 'left',
+                    boxShadow: iniciada ? '0 1px 3px rgba(0,0,0,.05)' : 'none',
                   }}
                 >
-                  <span
-                    style={{
-                      width: 20,
-                      height: 20,
-                      borderRadius: '50%',
-                      background: iniciada ? '#eeedfe' : '#f0f0eb',
-                      color: iniciada ? MORADO : '#8b8780',
-                      fontSize: 9.5,
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      flexShrink: 0,
-                    }}
-                  >
-                    {iniciales(a.nombre)}
-                  </span>
-                  <span
-                    style={{
-                      fontSize: 11.5,
-                      color: iniciada ? '#1a1a18' : '#555',
-                      overflow: 'hidden',
-                      textOverflow: 'ellipsis',
-                    }}
-                  >
-                    {a.nombre}
+                  <ActorAvatar
+                    actor={a}
+                    size={30}
+                    atenuado={!iniciada}
+                    fondo={prioritario ? '#eeedfe' : '#f0f0eb'}
+                  />
+                  <span style={{ minWidth: 0, overflow: 'hidden' }}>
+                    <span
+                      style={{
+                        display: 'block',
+                        fontSize: 12,
+                        fontWeight: 600,
+                        lineHeight: 1.3,
+                        color: iniciada ? '#1a1a18' : '#555',
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                      }}
+                    >
+                      {a.nombre}
+                    </span>
+                    {/* La segunda línea sale del directorio, no la
+                        escribe el usuario: es el cargo y la institución. */}
+                    {a.descripcion && (
+                      <span
+                        style={{
+                          display: 'block',
+                          fontSize: 10.5,
+                          color: '#888',
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
+                        }}
+                      >
+                        {a.descripcion}
+                      </span>
+                    )}
                   </span>
                 </button>
               );
@@ -481,22 +502,7 @@ function BuscadorActores({ projectId, categorias, yaEnMapa, onClose, onAdded }) 
                   borderBottom: `.5px solid ${BORDE}`,
                 }}
               >
-                <span
-                  style={{
-                    width: 28,
-                    height: 28,
-                    borderRadius: '50%',
-                    background: '#f0f0eb',
-                    color: '#8b8780',
-                    fontSize: 10.5,
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    flexShrink: 0,
-                  }}
-                >
-                  {iniciales(r.nombre)}
-                </span>
+                <ActorAvatar actor={r} size={30} />
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ fontSize: 12.5 }}>{r.nombre}</div>
                   {r.detalle && (
