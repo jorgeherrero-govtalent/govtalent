@@ -6,6 +6,7 @@ import { createClient } from '@/lib/supabase/client';
 import { toast } from '@/lib/toast';
 import UpgradeModal from '@/components/UpgradeModal';
 import MapaActores from '@/components/MapaActores';
+import ProyectoDemo from '@/components/ProyectoDemo';
 import {
   limiteProyectos,
   puedeCrearProyecto,
@@ -78,6 +79,8 @@ function Workspace() {
   const [modalUpsell, setModalUpsell] = useState(false);
   const [creando, setCreando] = useState(false);
   const [nombre, setNombre] = useState('');
+  // Free arranca en el mapa y no en el resumen: es lo más visual y lo
+  // único que explica el producto sin leer.
   const [pestana, setPestana] = useState('resumen');
 
   const esPro = tieneProyectos(user);
@@ -99,6 +102,7 @@ function Workspace() {
     setUser(perfil);
 
     if (perfil?.plan !== 'pro') {
+      setPestana('mapa');
       setCargando(false);
       setModalUpsell(true);
       return;
@@ -475,15 +479,7 @@ function Workspace() {
                 </div>
               )}
 
-              {pestana === 'mapa' &&
-                (esPro ? (
-                  <MapaActores projectId={activo.id} />
-                ) : (
-                  <div className="empty-state">
-                    <i className="ti ti-users"></i>
-                    <div style={{ fontSize: 13, color: '#666' }}>El mapa de actores es de Pro.</div>
-                  </div>
-                ))}
+              {pestana === 'mapa' && (esPro ? <MapaActores projectId={activo.id} /> : <ProyectoDemo />)}
             </>
           )}
         </div>
