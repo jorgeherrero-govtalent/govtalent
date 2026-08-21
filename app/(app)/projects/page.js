@@ -49,6 +49,23 @@ function haceCuanto(iso) {
   return `${d.getDate()} ${MESES[d.getMonth()]}`;
 }
 
+// Cómo se llama cada tipo cuando hay que enseñárselo a alguien.
+const TIPO_LABEL = {
+  ley: ['Congreso', 'ti-file-text'],
+  expediente: ['Comisión Europea', 'ti-file-text'],
+  procedimiento: ['Parlamento Europeo', 'ti-file-text'],
+  boe: ['BOE', 'ti-file-text'],
+  actividad: ['Actividad parlamentaria', 'ti-file-text'],
+  diputado: ['Congreso', 'ti-user'],
+  eurodiputado: ['Parlamento Europeo', 'ti-user'],
+  comisario: ['Comisión Europea', 'ti-user'],
+  cargo: ['Alto cargo', 'ti-user'],
+  comision: ['Comisión del Congreso', 'ti-building-bank'],
+  'comision-eu': ['Comisión del PE', 'ti-building-bank'],
+  grupo: ['Grupo parlamentario', 'ti-building-bank'],
+  direccion: ['Dirección general', 'ti-building-bank'],
+};
+
 const DEMO_LISTA = [
   { id: 'demo-1', name: 'Ley de gobernanza de la IA', objetivo: 'Congreso · fase de enmiendas' },
   { id: 'demo-2', name: 'Movilidad sostenible', objetivo: 'Trasposición · sin plazo abierto' },
@@ -87,6 +104,9 @@ function Proyectos() {
   const [menu, setMenu] = useState(null);
   const [renombrando, setRenombrando] = useState(null);
   const [confirmarBorrado, setConfirmarBorrado] = useState(null);
+  // Para el estado vacío: lo último que el usuario ha seguido. Tres,
+  // no más: es una sugerencia para arrancar, no un directorio.
+  const [seguidos, setSeguidos] = useState([]);
 
   const esPro = tieneProyectos(user);
 
@@ -147,6 +167,19 @@ function Proyectos() {
 
     setDatos(acc);
     setProyectos(data || []);
+
+    // Solo hace falta si no hay ningún proyecto: es lo que se ofrece
+    // en la pantalla vacía.
+    if ((data || []).length === 0) {
+      const { data: fs } = await supabase
+        .from('follows')
+        .select('kind, ref_id, label')
+        .eq('user_id', auth.user.id)
+        .order('created_at', { ascending: false })
+        .limit(3);
+      setSeguidos(fs || []);
+    }
+
     setCargando(false);
   }, [supabase]);
 
@@ -197,6 +230,31 @@ function Proyectos() {
     setDatos((prev) => ({ ...prev, [data.id]: { actores: 0, asuntos: 0, sinContactar: 0, novedades: 0, caras: [] } }));
     setNombre('');
     setCreando(false);
+    abrir(data.id);
+  }
+
+  // El proyecto nace con el asunto dentro, así que trae su histórico de
+  // avisos y sus plazos sin que haya que añadir nada.
+  async function crearDesde(f) {
+    const { data, error } = await supabase
+      .from('projects')
+      .insert({ user_id: user.id, name: f.label || 'Proyecto sin título' })
+      .select('id, name, description, objetivo, updated_at')
+      .single();
+    if (error) {
+      toast('No se ha podido crear el proyecto');
+      return;
+    }
+    const { error: e2 } = await supabase
+      .from('project_items')
+      .insert({ project_id: data.id, kind: f.kind, ref_id: f.ref_id, etiqueta: f.label });
+    if (e2) toast('El proyecto se ha creado, pero el asunto no se ha añadido');
+
+    setProyectos((prev) => [data, ...prev]);
+    setDatos((prev) => ({
+      ...prev,
+      [data.id]: { actores: 0, asuntos: e2 ? 0 : 1, sinContactar: 0, novedades: 0, caras: [] },
+    }));
     abrir(data.id);
   }
 
@@ -343,17 +401,99 @@ function Proyectos() {
           </div>
         )}
 
-        {proyectos.length === 0 && !creando && (
-          <div className="empty-state" style={{ ...CARD, padding: '40px 26px' }}>
-            <i className="ti ti-folder" style={{ fontSize: 30, color: '#c9c6bd' }}></i>
-            <div style={{ fontSize: 15, fontWeight: 500, marginTop: 12 }}>Todavía no tienes proyectos</div>
-            <p style={{ fontSize: 13, color: '#666', margin: '8px auto 20px', maxWidth: 400, lineHeight: 1.65 }}>
-              Un proyecto reúne los asuntos que sigues, los actores a los que quieres llegar y lo que vas
-              haciendo con cada uno.
-            </p>
-            <button className="btn-ai" onClick={() => setCreando(true)}>
-              <i className="ti ti-plus"></i> Crear el primero
-            </button>
+        {/* Sin empty-state a propósito: esa clase agranda los botones y
+            convierte el arranque en un cartel. */}
+        {proyectos.length === 0 && !creando && seguidos.length > 0 && (
+          <div style={{ ...CARD, padding: '18px 20px' }}>
+            <div style={{ fontSize: 15, fontWeight: 600 }}>Empieza por un asunto que ya sigues</div>
+            <div style={{ fontSize: 12.5, color: '#888', marginTop: 4, marginBottom: 14 }}>
+              El proyecto nacerá con ese asunto dentro, con su histórico y sus plazos.
+            </div>
+
+            {seguidos.map((f, i) => {
+              const [donde, icono] = TIPO_LABEL[f.kind] || ['Seguimiento', 'ti-bookmark'];
+              return (
+                <div
+                  key={`${f.kind}-${f.ref_id}`}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 11,
+                    padding: '10px 0',
+                    borderTop: `.5px solid ${BORDE}`,
+                    borderBottom: i === seguidos.length - 1 ? `.5px solid ${BORDE}` : 'none',
+                  }}
+                >
+                  <i className={`ti ${icono}`} style={{ fontSize: 16, color: '#a8a49c', flexShrink: 0 }}></i>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div
+                      style={{
+                        fontSize: 12.5,
+                        fontWeight: 500,
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                        whiteSpace: 'nowrap',
+                      }}
+                    >
+                      {f.label || 'Sin título'}
+                    </div>
+                    <div style={{ fontSize: 11, color: '#888', marginTop: 1 }}>{donde}</div>
+                  </div>
+                  <button className="btn-ai-o" onClick={() => crearDesde(f)} style={{ flexShrink: 0 }}>
+                    Crear proyecto
+                  </button>
+                </div>
+              );
+            })}
+
+            <div style={{ fontSize: 12, color: '#888', marginTop: 13 }}>
+              O{' '}
+              <button
+                onClick={() => setCreando(true)}
+                style={{ background: 'none', border: 'none', padding: 0, color: MORADO, fontSize: 12 }}
+              >
+                empieza uno en blanco
+              </button>
+              .
+            </div>
+          </div>
+        )}
+
+        {/* Quien no sigue nada todavía no tiene de dónde partir: se le
+            explica y se le deja escribir directamente. */}
+        {proyectos.length === 0 && !creando && seguidos.length === 0 && (
+          <div style={{ ...CARD, padding: '22px 24px' }}>
+            <div style={{ maxWidth: 430 }}>
+              <div style={{ fontSize: 16, fontWeight: 600, lineHeight: 1.4 }}>
+                Monitoriza, planifica y gestiona desde el mismo lugar
+              </div>
+              <div style={{ fontSize: 12.5, color: '#888', marginTop: 7, lineHeight: 1.6 }}>
+                Un proyecto reúne los asuntos que sigues, los actores a los que quieres llegar y lo que vas
+                haciendo con cada uno. Dale nombre al que estés trabajando.
+              </div>
+              <div style={{ display: 'flex', gap: 7, marginTop: 15, flexWrap: 'wrap' }}>
+                <input
+                  value={nombre}
+                  maxLength={140}
+                  onChange={(e) => setNombre(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && crear()}
+                  placeholder="Ley de gobernanza de la inteligencia artificial"
+                  style={{
+                    flex: 1,
+                    minWidth: 200,
+                    padding: '9px 12px',
+                    border: `1px solid ${MORADO}`,
+                    borderRadius: 9,
+                    fontSize: 13,
+                    outline: 'none',
+                    fontFamily: 'inherit',
+                  }}
+                />
+                <button className="btn-ai" onClick={crear} disabled={!nombre.trim()}>
+                  Crear
+                </button>
+              </div>
+            </div>
           </div>
         )}
 
