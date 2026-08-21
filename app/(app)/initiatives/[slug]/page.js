@@ -36,17 +36,6 @@ const ACT_TYPES = {
   OTHER: 'Otros',
 };
 
-const STAGES = {
-  PLANNING_WORKFLOW: 'Planificación',
-  ISC_WORKFLOW: 'Consulta entre servicios',
-  ADOPTION_WORKFLOW: 'Adopción',
-  FEEDBACK_WORKFLOW: 'Aportaciones',
-  PUBLICATION_WORKFLOW: 'Publicación',
-  INIT_PLANNED: 'Iniciativa planificada',
-  CALL_FOR_EVIDENCE: 'Convocatoria de aportaciones',
-  OPC_LAUNCHED: 'Consulta pública abierta',
-};
-
 const actLabel = (c) => ACT_TYPES[c] || legible(c);
 
 // Convierte un código sin traducir en algo leíble en vez de enseñarlo en
@@ -58,7 +47,8 @@ function legible(code) {
   return l.charAt(0).toUpperCase() + l.slice(1);
 }
 
-const stageLabel = (c) => (c ? STAGES[c] || legible(c) : 'Etapa sin identificar');
+// stageLabel se retiró: las fases llegan ya traducidas desde
+// eu_initiative_recorrido, que es donde debe vivir el diccionario.
 
 const MESES = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
 
@@ -218,7 +208,9 @@ export default function InitiativeDetailPage() {
       setItem(data);
 
       const [{ data: st }, { data: act }, { data: res }, { data: auth }, { data: com }] = await Promise.all([
-        supabase.from('eu_initiative_stages').select('*').eq('initiative_id', data.id).order('ord'),
+        // Las fases completas, no solo la actual: eu_initiative_stages
+        // guardaba una sola entrada por expediente.
+        supabase.from('eu_initiative_recorrido').select('*').eq('initiative_id', data.id).order('orden'),
         supabase
           .from('eu_initiative_actors')
           .select('*')
@@ -257,15 +249,9 @@ export default function InitiativeDetailPage() {
     };
   }, [slug]);
 
-  const recorrido = useMemo(
-    () =>
-      [...stages].sort((a, b) => {
-        if (!a.start_date) return 1;
-        if (!b.start_date) return -1;
-        return new Date(a.start_date) - new Date(b.start_date);
-      }),
-    [stages]
-  );
+  // El orden viene de la API y es el del ciclo, así que no hace falta
+  // reordenar por fecha: una fase futura puede no tenerla todavía.
+  const recorrido = stages || [];
 
   const dgNombre = useMemo(
     () => (actors || []).find((a) => a.body_code === item?.dg_code)?.body_name || null,
@@ -586,23 +572,35 @@ export default function InitiativeDetailPage() {
                     width: 9,
                     height: 9,
                     borderRadius: '50%',
-                    background: s.is_current ? '#6d5aef' : '#d5d3c9',
+                    background: s.es_actual ? '#6d5aef' : s.momento === 'proxima' ? '#e0dfd8' : '#d5d3c9',
                     border: '2px solid #fff',
                   }}
                 ></div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, flexWrap: 'wrap' }}>
                   <div style={{ minWidth: 0 }}>
-                    <div style={{ fontSize: 12.5, fontWeight: s.is_current ? 600 : 400, color: s.is_current ? '#1a1a1a' : '#666' }}>
-                      {stageLabel(s.stage)}
+                    <div
+                      style={{
+                        fontSize: 12.5,
+                        fontWeight: s.es_actual ? 600 : 400,
+                        color: s.es_actual ? '#1a1a1a' : s.momento === 'proxima' ? '#a8a49c' : '#666',
+                      }}
+                    >
+                      {s.fase}
                     </div>
-                    {s.feedback_status && s.feedback_status !== 'CLOSED' && (
-                      <div style={{ fontSize: 10.5, color: '#999', marginTop: 2 }}>
-                        Aportaciones · {s.feedback_status === 'OPEN' ? 'abiertas' : s.feedback_status.toLowerCase()}
+                    {/* Cuánta gente se pronunció en cada fase: dice si el
+                        asunto movió al sector o pasó desapercibido. */}
+                    {s.total_feedback > 0 && (
+                      <div style={{ fontSize: 10.5, color: '#999', marginTop: 3 }}>
+                        {s.total_feedback.toLocaleString('es-ES')}{' '}
+                        {s.total_feedback === 1 ? 'aportación' : 'aportaciones'}
                       </div>
+                    )}
+                    {s.momento === 'proxima' && (
+                      <div style={{ fontSize: 10.5, color: '#a8a49c', marginTop: 3 }}>Aún no ha empezado</div>
                     )}
                   </div>
                   <div style={{ textAlign: 'right', flexShrink: 0 }}>
-                    {s.is_current && (
+                    {s.es_actual && (
                       <span
                         style={{
                           fontSize: 10,
@@ -613,12 +611,12 @@ export default function InitiativeDetailPage() {
                           whiteSpace: 'nowrap',
                         }}
                       >
-                        Etapa actual
+                        {s.dias_restantes > 0 ? `Quedan ${s.dias_restantes} días` : 'Abierta'}
                       </span>
                     )}
-                    <div style={{ fontSize: 10.5, color: '#aaa', marginTop: s.is_current ? 4 : 0 }}>
-                      {fechaCorta(s.start_date) || '—'}
-                      {s.end_date ? ` – ${fechaCorta(s.end_date)}` : ''}
+                    <div style={{ fontSize: 10.5, color: '#aaa', marginTop: s.es_actual ? 4 : 0 }}>
+                      {fechaCorta(s.fecha_inicio) || '—'}
+                      {s.fecha_fin ? ` – ${fechaCorta(s.fecha_fin)}` : ''}
                     </div>
                   </div>
                 </div>
