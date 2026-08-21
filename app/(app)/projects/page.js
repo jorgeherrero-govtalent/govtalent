@@ -6,7 +6,7 @@ import { createClient } from '@/lib/supabase/client';
 import { toast } from '@/lib/toast';
 import UpgradeModal from '@/components/UpgradeModal';
 import MapaActores from '@/components/MapaActores';
-import ProyectoDemo from '@/components/ProyectoDemo';
+import ProyectoDemo, { ResumenDemo } from '@/components/ProyectoDemo';
 import {
   limiteProyectos,
   puedeCrearProyecto,
@@ -340,8 +340,14 @@ function Workspace() {
           )}
         </div>
 
-        {/* --- Contenido --- */}
-        <div style={{ padding: '18px 22px', minWidth: 0 }}>
+        {/* --- Contenido ---
+            En Free, un clic en cualquier punto abre el modal: la pantalla
+            es un escaparate, y que unas cosas respondan y otras no sería
+            más confuso que bloquearlo todo por igual. */}
+        <div
+          style={{ padding: '18px 22px', minWidth: 0 }}
+          onClick={esPro ? undefined : () => setModalUpsell(true)}
+        >
           {!activo ? (
             <div className="empty-state">
               <i className="ti ti-folder"></i>
@@ -373,35 +379,51 @@ function Workspace() {
                   flexWrap: 'wrap',
                 }}
               >
+                {/* Free ve las cinco pestañas: esconder Briefing, Agenda
+                    y Documentos sería vender un tercio del producto. Las
+                    tres van apagadas y llevan al modal, como todo lo
+                    demás de esta pantalla. */}
                 {[
-                  ['resumen', 'Resumen'],
-                  ['mapa', 'Mapa de actores'],
-                ].map(([id, texto]) => (
-                  <button
-                    key={id}
-                    onClick={() => setPestana(id)}
-                    style={{
-                      fontSize: 12.5,
-                      fontWeight: pestana === id ? 500 : 400,
-                      color: pestana === id ? MORADO : '#555',
-                      background: 'none',
-                      border: 'none',
-                      borderBottom: pestana === id ? `2px solid ${MORADO}` : '2px solid transparent',
-                      padding: '0 0 8px',
-                    }}
-                  >
-                    {texto}
-                  </button>
-                ))}
+                  ['resumen', 'Resumen', false],
+                  ['mapa', 'Mapa de actores', false],
+                  ['briefing', 'Briefing', true],
+                  ['agenda', 'Agenda', true],
+                  ['documentos', 'Documentos', true],
+                ]
+                  .filter(([, , bloqueada]) => !bloqueada || !esPro)
+                  .map(([id, texto, bloqueada]) => (
+                    <button
+                      key={id}
+                      onClick={() => (bloqueada ? setModalUpsell(true) : setPestana(id))}
+                      style={{
+                        fontSize: 12.5,
+                        fontWeight: pestana === id ? 500 : 400,
+                        color: bloqueada ? '#a8a49c' : pestana === id ? MORADO : '#555',
+                        background: 'none',
+                        border: 'none',
+                        borderBottom: pestana === id ? `2px solid ${MORADO}` : '2px solid transparent',
+                        padding: '0 0 8px',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: 5,
+                        cursor: bloqueada ? 'default' : 'pointer',
+                      }}
+                    >
+                      {bloqueada && <i className="ti ti-lock" style={{ fontSize: 12 }}></i>}
+                      {texto}
+                    </button>
+                  ))}
               </div>
 
-              {pestana === 'resumen' && (
+              {pestana === 'resumen' && !esPro && <ResumenDemo />}
+
+              {pestana === 'resumen' && esPro && (
                 <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1fr) minmax(0,290px)', gap: 18 }}>
                   <div style={{ minWidth: 0 }}>
                     <div style={{ fontSize: 11, color: '#888', letterSpacing: '.3px', marginBottom: 7 }}>
                       OBJETIVO
                     </div>
-                    {esPro ? (
+                    {true ? (
                       <textarea
                         defaultValue={activo.objetivo || ''}
                         placeholder="Qué quieres conseguir con este asunto"
@@ -479,7 +501,8 @@ function Workspace() {
                 </div>
               )}
 
-              {pestana === 'mapa' && (esPro ? <MapaActores projectId={activo.id} /> : <ProyectoDemo />)}
+              {pestana === 'mapa' && esPro && <MapaActores projectId={activo.id} />}
+              {pestana === 'mapa' && !esPro && <ProyectoDemo />}
             </>
           )}
         </div>
