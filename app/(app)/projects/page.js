@@ -1,55 +1,57 @@
 'use client';
 
-import { Suspense, useCallback, useEffect, useState } from 'react';
+import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import { toast } from '@/lib/toast';
 import UpgradeModal from '@/components/UpgradeModal';
 import MapaActores from '@/components/MapaActores';
+import AgendaProyecto from '@/components/AgendaProyecto';
+import ActorAvatar from '@/components/ActorAvatar';
 import ProyectoDemo, { ResumenDemo } from '@/components/ProyectoDemo';
-import {
-  limiteProyectos,
-  puedeCrearProyecto,
-  tieneProyectos,
-  upsellProyectos,
-} from '@/lib/proyectos';
+import { limiteProyectos, puedeCrearProyecto, tieneProyectos, upsellProyectos } from '@/lib/proyectos';
 
 /**
- * Proyectos — espacio de trabajo.
+ * Proyectos.
  *
- * Lateral con los proyectos y contenido a la derecha, sin recargar al
- * cambiar: el proyecto activo va en ?p= para que la URL siga siendo
- * compartible y el atrás del navegador funcione.
+ * Dos pantallas en una ruta:
+ *   /projects           → el índice, con buscador y tarjetas
+ *   /projects?p=<id>    → el proyecto abierto, con lateral para cambiar
  *
- * Free ve la pantalla con dos proyectos de muestra y el modal de Pro
- * encima. Una lista vacía y bloqueada no explica de qué te pierdes.
+ * Va en la misma ruta y no en /projects/[id] para que cambiar de
+ * proyecto no recargue la página, manteniendo la URL compartible.
  *
- * Patrones copiados: la anatomía de tarjeta con cifras es la de
- * Regulatorio; el modal es UpgradeModal. Morado #6d5aef (btn-ai) para
- * todo lo de Pro, nunca el verde de marca.
+ * Free ve el proyecto de ejemplo y el modal de Pro; cualquier clic en la
+ * zona de contenido lo abre.
+ *
+ * Patrones: la tarjeta con cifras es la de Regulatorio; el modal es
+ * UpgradeModal. Morado #6d5aef (btn-ai) para todo lo de Pro.
  */
 
-const BORDE = '#e0dfd8';
 const MORADO = '#6d5aef';
+const BORDE = '#e0dfd8';
 const CARD = { background: '#fff', border: `.5px solid ${BORDE}`, borderRadius: 10 };
+const ETIQUETA = { fontSize: 11, color: '#888', letterSpacing: '.3px' };
 
-const MUESTRA = [
-  {
-    id: 'demo-1',
-    name: 'Reglamento de IA',
-    objetivo: 'Que la supervisión no imponga auditoría previa a los sistemas de riesgo limitado.',
-    n_actores: 14,
-    n_asuntos: 4,
-    sin_contactar: 6,
-  },
-  {
-    id: 'demo-2',
-    name: 'Movilidad sostenible',
-    objetivo: 'Llegar a las comunidades antes de que se cierre el reglamento.',
-    n_actores: 9,
-    n_asuntos: 7,
-    sin_contactar: 2,
-  },
+const MESES = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
+
+function haceCuanto(iso) {
+  if (!iso) return null;
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return null;
+  const min = Math.floor((Date.now() - d.getTime()) / 60000);
+  if (min < 60) return 'hace un momento';
+  const h = Math.floor(min / 60);
+  if (h < 24) return `hace ${h} h`;
+  const dias = Math.floor(h / 24);
+  if (dias === 1) return 'ayer';
+  if (dias < 30) return `hace ${dias} días`;
+  return `${d.getDate()} ${MESES[d.getMonth()]}`;
+}
+
+const DEMO_LISTA = [
+  { id: 'demo-1', name: 'Ley de gobernanza de la IA', objetivo: 'Congreso · fase de enmiendas' },
+  { id: 'demo-2', name: 'Movilidad sostenible', objetivo: 'Trasposición · sin plazo abierto' },
 ];
 
 export default function ProjectsPage() {
@@ -61,31 +63,32 @@ export default function ProjectsPage() {
         </div>
       }
     >
-      <Workspace />
+      <Proyectos />
     </Suspense>
   );
 }
 
-function Workspace() {
+function Proyectos() {
   const supabase = createClient();
   const router = useRouter();
   const params = useSearchParams();
-  const activoId = params.get('p');
+  const abiertoId = params.get('p');
 
   const [cargando, setCargando] = useState(true);
   const [user, setUser] = useState(null);
   const [proyectos, setProyectos] = useState([]);
-  const [conteos, setConteos] = useState({});
+  const [datos, setDatos] = useState({});
   const [modalUpsell, setModalUpsell] = useState(false);
+  const [pestana, setPestana] = useState('resumen');
+  const [busqueda, setBusqueda] = useState('');
+  const [orden, setOrden] = useState('recientes');
   const [creando, setCreando] = useState(false);
   const [nombre, setNombre] = useState('');
-  // Free arranca en el mapa y no en el resumen: es lo más visual y lo
-  // único que explica el producto sin leer.
-  const [pestana, setPestana] = useState('resumen');
+  const [menu, setMenu] = useState(null);
+  const [renombrando, setRenombrando] = useState(null);
+  const [confirmarBorrado, setConfirmarBorrado] = useState(null);
 
   const esPro = tieneProyectos(user);
-  const lista = esPro ? proyectos : MUESTRA;
-  const activo = lista.find((p) => p.id === activoId) || lista[0] || null;
 
   const cargar = useCallback(async () => {
     const { data: auth } = await supabase.auth.getUser();
@@ -94,15 +97,10 @@ function Workspace() {
       return;
     }
 
-    const { data: perfil } = await supabase
-      .from('users')
-      .select('id, plan')
-      .eq('id', auth.user.id)
-      .single();
+    const { data: perfil } = await supabase.from('users').select('id, plan').eq('id', auth.user.id).single();
     setUser(perfil);
 
     if (perfil?.plan !== 'pro') {
-      setPestana('mapa');
       setCargando(false);
       setModalUpsell(true);
       return;
@@ -123,25 +121,31 @@ function Workspace() {
 
     const ids = (data || []).map((p) => p.id);
     const acc = {};
-    for (const id of ids) acc[id] = { actores: 0, asuntos: 0, sinContactar: 0, novedades: 0 };
+    for (const id of ids) acc[id] = { actores: 0, asuntos: 0, sinContactar: 0, novedades: 0, caras: [] };
 
-    // Tres consultas agregadas, no tres por proyecto: con veinte
-    // proyectos serían sesenta llamadas.
+    // Consultas agregadas, no una por proyecto: con veinte proyectos
+    // serían ochenta llamadas.
     if (ids.length) {
       const [{ data: items }, { data: actores }, { data: eventos }] = await Promise.all([
         supabase.from('project_items').select('project_id').in('project_id', ids),
-        supabase.from('project_actors').select('project_id, relacion').in('project_id', ids),
+        supabase
+          .from('project_actors')
+          .select('project_id, relacion, nombre, kind, ref_id')
+          .in('project_id', ids)
+          .order('created_at'),
         supabase.from('project_events').select('project_id, estado').in('project_id', ids),
       ]);
       for (const it of items || []) acc[it.project_id].asuntos += 1;
       for (const a of actores || []) {
-        acc[a.project_id].actores += 1;
-        if (a.relacion === 'sin_contactar') acc[a.project_id].sinContactar += 1;
+        const d = acc[a.project_id];
+        d.actores += 1;
+        if (a.relacion === 'sin_contactar') d.sinContactar += 1;
+        if (d.caras.length < 3) d.caras.push(a);
       }
       for (const e of eventos || []) if (e.estado === 'nuevo') acc[e.project_id].novedades += 1;
     }
 
-    setConteos(acc);
+    setDatos(acc);
     setProyectos(data || []);
     setCargando(false);
   }, [supabase]);
@@ -150,21 +154,39 @@ function Workspace() {
     cargar();
   }, [cargar]);
 
+  useEffect(() => {
+    if (!menu) return;
+    const cerrar = () => setMenu(null);
+    window.addEventListener('click', cerrar);
+    return () => window.removeEventListener('click', cerrar);
+  }, [menu]);
+
+  const lista = esPro ? proyectos : DEMO_LISTA;
+  const abierto = lista.find((p) => p.id === abiertoId) || (!esPro ? DEMO_LISTA[0] : null);
+
+  const visibles = useMemo(() => {
+    const q = busqueda.trim().toLowerCase();
+    let out = proyectos;
+    if (q) out = out.filter((p) => `${p.name} ${p.objetivo || ''}`.toLowerCase().includes(q));
+    if (orden === 'alfabetico') out = [...out].sort((a, b) => a.name.localeCompare(b.name, 'es'));
+    return out;
+  }, [proyectos, busqueda, orden]);
+
   function abrir(id) {
     router.replace(`/projects?p=${id}`, { scroll: false });
     setPestana('resumen');
   }
 
   async function crear() {
-    const titulo = nombre.trim();
-    if (!titulo) return;
+    const t = nombre.trim();
+    if (!t) return;
     if (!puedeCrearProyecto(user, proyectos.length)) {
       toast(`Has llegado al máximo de ${limiteProyectos()} proyectos`);
       return;
     }
     const { data, error } = await supabase
       .from('projects')
-      .insert({ user_id: user.id, name: titulo })
+      .insert({ user_id: user.id, name: t })
       .select('id, name, description, objetivo, updated_at')
       .single();
     if (error) {
@@ -172,18 +194,42 @@ function Workspace() {
       return;
     }
     setProyectos((prev) => [data, ...prev]);
-    setConteos((prev) => ({ ...prev, [data.id]: { actores: 0, asuntos: 0, sinContactar: 0, novedades: 0 } }));
+    setDatos((prev) => ({ ...prev, [data.id]: { actores: 0, asuntos: 0, sinContactar: 0, novedades: 0, caras: [] } }));
     setNombre('');
     setCreando(false);
     abrir(data.id);
   }
 
+  async function renombrar(id, texto) {
+    const t = texto.trim();
+    setRenombrando(null);
+    if (!t) return;
+    setProyectos((prev) => prev.map((p) => (p.id === id ? { ...p, name: t } : p)));
+    const { error } = await supabase.from('projects').update({ name: t }).eq('id', id);
+    if (error) toast('No se ha podido renombrar');
+  }
+
+  async function archivar(id) {
+    setProyectos((prev) => prev.filter((p) => p.id !== id));
+    if (abiertoId === id) router.replace('/projects', { scroll: false });
+    const { error } = await supabase.from('projects').update({ archived: true }).eq('id', id);
+    if (error) toast('No se ha podido archivar');
+  }
+
+  async function eliminar(id) {
+    setConfirmarBorrado(null);
+    setProyectos((prev) => prev.filter((p) => p.id !== id));
+    if (abiertoId === id) router.replace('/projects', { scroll: false });
+    const { error } = await supabase.from('projects').delete().eq('id', id);
+    if (error) toast('No se ha podido eliminar');
+  }
+
   async function guardarObjetivo(texto) {
-    if (!activo || !esPro) return;
+    if (!abierto || !esPro) return;
     const v = texto.trim();
-    if (v === (activo.objetivo || '')) return;
-    setProyectos((prev) => prev.map((p) => (p.id === activo.id ? { ...p, objetivo: v || null } : p)));
-    const { error } = await supabase.from('projects').update({ objetivo: v || null }).eq('id', activo.id);
+    if (v === (abierto.objetivo || '')) return;
+    setProyectos((prev) => prev.map((p) => (p.id === abierto.id ? { ...p, objetivo: v || null } : p)));
+    const { error } = await supabase.from('projects').update({ objetivo: v || null }).eq('id', abierto.id);
     if (error) toast('No se ha podido guardar el objetivo');
   }
 
@@ -195,45 +241,374 @@ function Workspace() {
     );
   }
 
-  const c = (esPro && activo ? conteos[activo.id] : null) || {
-    actores: activo?.n_actores || 0,
-    asuntos: activo?.n_asuntos || 0,
-    sinContactar: activo?.sin_contactar || 0,
-    novedades: 0,
-  };
+  // =====================================================================
+  // ÍNDICE
+  // =====================================================================
+  if (esPro && !abierto) {
+    const conPlazo = proyectos.length > 0;
+    return (
+      <div className="sec" style={{ maxWidth: 1080 }}>
+        <div
+          style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'flex-start',
+            gap: 12,
+            flexWrap: 'wrap',
+            marginBottom: 16,
+          }}
+        >
+          <div>
+            <h1 style={{ fontSize: 22, fontWeight: 600, margin: 0 }}>Proyectos</h1>
+            <div style={{ fontSize: 12.5, color: '#888', marginTop: 3 }}>
+              {conPlazo
+                ? `${proyectos.length} ${proyectos.length === 1 ? 'proyecto activo' : 'proyectos activos'}`
+                : 'Tus asuntos, sus actores y lo que se mueve en cada uno.'}
+            </div>
+          </div>
+          {!creando && (
+            <button className="btn-ai" onClick={() => setCreando(true)}>
+              <i className="ti ti-plus"></i> Nuevo proyecto
+            </button>
+          )}
+        </div>
+
+        {proyectos.length > 0 && (
+          <div style={{ display: 'flex', gap: 8, marginBottom: 14, flexWrap: 'wrap' }}>
+            <div
+              style={{
+                flex: 1,
+                minWidth: 200,
+                display: 'flex',
+                alignItems: 'center',
+                gap: 8,
+                ...CARD,
+                padding: '9px 12px',
+              }}
+            >
+              <i className="ti ti-search" style={{ fontSize: 15, color: '#a8a49c' }}></i>
+              <input
+                value={busqueda}
+                onChange={(e) => setBusqueda(e.target.value)}
+                placeholder="Buscar por nombre…"
+                style={{ border: 'none', outline: 'none', fontSize: 12.5, fontFamily: 'inherit', flex: 1, background: 'none' }}
+              />
+            </div>
+            <select className="fsel" value={orden} onChange={(e) => setOrden(e.target.value)}>
+              <option value="recientes">Recientes</option>
+              <option value="alfabetico">Por nombre</option>
+            </select>
+          </div>
+        )}
+
+        {creando && (
+          <div style={{ ...CARD, padding: 16, marginBottom: 12 }}>
+            <input
+              autoFocus
+              value={nombre}
+              maxLength={140}
+              onChange={(e) => setNombre(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') crear();
+                if (e.key === 'Escape') {
+                  setNombre('');
+                  setCreando(false);
+                }
+              }}
+              placeholder="Ley de gobernanza de la inteligencia artificial"
+              style={{
+                width: '100%',
+                padding: '10px 13px',
+                border: `1px solid ${MORADO}`,
+                borderRadius: 9,
+                fontSize: 13.5,
+                outline: 'none',
+                fontFamily: 'inherit',
+              }}
+            />
+            <div style={{ display: 'flex', gap: 8, marginTop: 11 }}>
+              <button className="btn-ai" onClick={crear} disabled={!nombre.trim()}>
+                Crear proyecto
+              </button>
+              <button
+                className="btn-o"
+                onClick={() => {
+                  setNombre('');
+                  setCreando(false);
+                }}
+              >
+                Cancelar
+              </button>
+            </div>
+          </div>
+        )}
+
+        {proyectos.length === 0 && !creando && (
+          <div className="empty-state" style={{ ...CARD, padding: '40px 26px' }}>
+            <i className="ti ti-folder" style={{ fontSize: 30, color: '#c9c6bd' }}></i>
+            <div style={{ fontSize: 15, fontWeight: 500, marginTop: 12 }}>Todavía no tienes proyectos</div>
+            <p style={{ fontSize: 13, color: '#666', margin: '8px auto 20px', maxWidth: 400, lineHeight: 1.65 }}>
+              Un proyecto reúne los asuntos que sigues, los actores a los que quieres llegar y lo que vas
+              haciendo con cada uno.
+            </p>
+            <button className="btn-ai" onClick={() => setCreando(true)}>
+              <i className="ti ti-plus"></i> Crear el primero
+            </button>
+          </div>
+        )}
+
+        {visibles.length === 0 && proyectos.length > 0 && (
+          <div style={{ fontSize: 12.5, color: '#999', padding: '20px 0', textAlign: 'center' }}>
+            Ningún proyecto coincide con «{busqueda}».
+          </div>
+        )}
+
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(290px, 1fr))', gap: 10 }}>
+          {visibles.map((p) => {
+            const d = datos[p.id] || { actores: 0, asuntos: 0, sinContactar: 0, novedades: 0, caras: [] };
+            return (
+              <div key={p.id} style={{ ...CARD, padding: '16px 18px', position: 'relative' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 10 }}>
+                  <div style={{ minWidth: 0, flex: 1 }}>
+                    {renombrando === p.id ? (
+                      <input
+                        autoFocus
+                        defaultValue={p.name}
+                        maxLength={140}
+                        onBlur={(e) => renombrar(p.id, e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') renombrar(p.id, e.target.value);
+                          if (e.key === 'Escape') setRenombrando(null);
+                        }}
+                        style={{
+                          width: '100%',
+                          padding: '5px 8px',
+                          border: `1px solid ${MORADO}`,
+                          borderRadius: 7,
+                          fontSize: 14.5,
+                          fontWeight: 600,
+                          outline: 'none',
+                          fontFamily: 'inherit',
+                        }}
+                      />
+                    ) : (
+                      <button
+                        onClick={() => abrir(p.id)}
+                        style={{
+                          background: 'none',
+                          border: 'none',
+                          padding: 0,
+                          textAlign: 'left',
+                          fontSize: 14.5,
+                          fontWeight: 600,
+                          lineHeight: 1.35,
+                          width: '100%',
+                        }}
+                      >
+                        {p.name}
+                      </button>
+                    )}
+                    {(p.objetivo || p.description) && (
+                      <div
+                        style={{
+                          fontSize: 11.5,
+                          color: '#888',
+                          marginTop: 3,
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
+                          whiteSpace: 'nowrap',
+                        }}
+                      >
+                        {p.objetivo || p.description}
+                      </div>
+                    )}
+                  </div>
+
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setMenu(menu === p.id ? null : p.id);
+                    }}
+                    aria-label="Opciones del proyecto"
+                    style={{ background: 'none', border: 'none', color: '#a8a49c', padding: 2, flexShrink: 0 }}
+                  >
+                    <i className="ti ti-dots" style={{ fontSize: 17 }}></i>
+                  </button>
+                </div>
+
+                {menu === p.id && (
+                  <div
+                    onClick={(e) => e.stopPropagation()}
+                    style={{
+                      position: 'absolute',
+                      right: 14,
+                      top: 40,
+                      ...CARD,
+                      boxShadow: '0 4px 14px rgba(0,0,0,.09)',
+                      padding: 5,
+                      width: 155,
+                      zIndex: 5,
+                    }}
+                  >
+                    {[
+                      ['Renombrar', () => { setMenu(null); setRenombrando(p.id); }],
+                      ['Archivar', () => { setMenu(null); archivar(p.id); }],
+                    ].map(([texto, accion]) => (
+                      <button
+                        key={texto}
+                        onClick={accion}
+                        style={{
+                          display: 'block',
+                          width: '100%',
+                          textAlign: 'left',
+                          fontSize: 12,
+                          padding: '7px 9px',
+                          borderRadius: 6,
+                          border: 'none',
+                          background: 'none',
+                          color: '#555',
+                        }}
+                      >
+                        {texto}
+                      </button>
+                    ))}
+                    <button
+                      onClick={() => { setMenu(null); setConfirmarBorrado(p); }}
+                      style={{
+                        display: 'block',
+                        width: '100%',
+                        textAlign: 'left',
+                        fontSize: 12,
+                        padding: '8px 9px 7px',
+                        borderRadius: 6,
+                        border: 'none',
+                        background: 'none',
+                        color: '#555',
+                        borderTop: `.5px solid ${BORDE}`,
+                        marginTop: 3,
+                      }}
+                    >
+                      Eliminar
+                    </button>
+                  </div>
+                )}
+
+                {/* Las caras dicen de qué va el proyecto más rápido que el
+                    título: se reconoce por quién hay dentro. */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6, margin: '14px 0 12px', minHeight: 26 }}>
+                  {d.caras.map((a, i) => (
+                    <span key={i} style={{ marginRight: -10, border: '1.5px solid #fff', borderRadius: 8, display: 'inline-flex' }}>
+                      <ActorAvatar actor={a} size={26} />
+                    </span>
+                  ))}
+                  {d.actores > 3 && (
+                    <span style={{ fontSize: 11.5, color: '#888', paddingLeft: 16 }}>y {d.actores - 3} más</span>
+                  )}
+                  {d.actores === 0 && <span style={{ fontSize: 11.5, color: '#a8a49c' }}>Sin actores todavía</span>}
+                </div>
+
+                <div style={{ display: 'flex', gap: 20, paddingTop: 12, borderTop: `.5px solid ${BORDE}` }}>
+                  <div>
+                    <div style={{ fontSize: 19, fontWeight: 600, color: MORADO, lineHeight: 1.1 }}>{d.actores}</div>
+                    <div style={{ fontSize: 10.5, color: '#888' }}>actores</div>
+                  </div>
+                  <div>
+                    <div style={{ fontSize: 19, fontWeight: 600, color: MORADO, lineHeight: 1.1 }}>{d.asuntos}</div>
+                    <div style={{ fontSize: 10.5, color: '#888' }}>asuntos</div>
+                  </div>
+                  <div>
+                    <div style={{ fontSize: 19, fontWeight: 600, color: d.novedades > 0 ? '#1a1a18' : '#a8a49c', lineHeight: 1.1 }}>
+                      {d.novedades}
+                    </div>
+                    <div style={{ fontSize: 10.5, color: '#888' }}>novedades</div>
+                  </div>
+                  <div style={{ marginLeft: 'auto', textAlign: 'right', alignSelf: 'flex-end' }}>
+                    <div style={{ fontSize: 10.5, color: '#888' }}>{haceCuanto(p.updated_at)}</div>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+
+        {confirmarBorrado && (
+          <div className="modal-ov on" onClick={(e) => e.target === e.currentTarget && setConfirmarBorrado(null)}>
+            <div className="modal-box" style={{ maxWidth: 420 }}>
+              <div className="modal-head">
+                <h2>Eliminar el proyecto</h2>
+                <div className="modal-x" onClick={() => setConfirmarBorrado(null)}>
+                  <i className="ti ti-x"></i>
+                </div>
+              </div>
+              <p style={{ fontSize: 13, color: '#555', lineHeight: 1.65 }}>
+                Se borran «{confirmarBorrado.name}», su mapa de actores, sus notas y su agenda. Los asuntos
+                que sigues no se ven afectados. No se puede deshacer.
+              </p>
+              <div style={{ display: 'flex', gap: 8, marginTop: 16 }}>
+                <button className="btn-o" onClick={() => setConfirmarBorrado(null)}>
+                  Cancelar
+                </button>
+                <button className="btn-ai" onClick={() => eliminar(confirmarBorrado.id)}>
+                  Eliminar
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {modalUpsell && <UpgradeModal {...upsellProyectos()} onClose={() => setModalUpsell(false)} />}
+      </div>
+    );
+  }
+
+  // =====================================================================
+  // PROYECTO ABIERTO
+  // =====================================================================
+  const d = (esPro && abierto ? datos[abierto.id] : null) || { actores: 0, asuntos: 0, sinContactar: 0, novedades: 0 };
+
+  const pestanas = esPro
+    ? [
+        ['resumen', 'Resumen', false],
+        ['mapa', 'Mapa de actores', false],
+        ['agenda', 'Agenda', false],
+      ]
+    : [
+        ['resumen', 'Resumen', false],
+        ['mapa', 'Mapa de actores', false],
+        ['briefing', 'Briefing', true],
+        ['agenda', 'Agenda', true],
+        ['documentos', 'Documentos', true],
+      ];
 
   return (
     <div className="sec" style={{ maxWidth: 1180 }}>
       <div style={{ ...CARD, display: 'grid', gridTemplateColumns: 'minmax(0,210px) minmax(0,1fr)' }}>
-        {/* --- Lateral --- */}
         <div style={{ borderRight: `.5px solid ${BORDE}`, padding: '16px 11px', background: '#fafaf7' }}>
-          <div
+          <button
+            onClick={() => esPro && router.replace('/projects', { scroll: false })}
             style={{
               display: 'flex',
               alignItems: 'center',
-              justifyContent: 'space-between',
-              marginBottom: 11,
+              gap: 6,
+              background: 'none',
+              border: 'none',
+              padding: '0 0 12px',
+              color: '#888',
+              fontSize: 11,
+              letterSpacing: '.3px',
             }}
           >
-            <span style={{ fontSize: 11, color: '#888', letterSpacing: '.3px' }}>PROYECTOS</span>
-            {esPro && (
-              <button
-                onClick={() => setCreando(true)}
-                aria-label="Nuevo proyecto"
-                style={{ background: 'none', border: 'none', color: MORADO, padding: 0 }}
-              >
-                <i className="ti ti-plus" style={{ fontSize: 16 }}></i>
-              </button>
-            )}
-          </div>
+            {esPro && <i className="ti ti-arrow-left" style={{ fontSize: 13 }}></i>}
+            PROYECTOS
+          </button>
 
           {lista.map((p) => {
-            const sel = activo?.id === p.id;
-            const nov = (esPro ? conteos[p.id]?.novedades : 0) || 0;
+            const sel = abierto?.id === p.id;
+            const nov = (esPro ? datos[p.id]?.novedades : 0) || 0;
             return (
               <button
                 key={p.id}
-                onClick={() => esPro ? abrir(p.id) : setModalUpsell(true)}
+                onClick={() => (esPro ? abrir(p.id) : setModalUpsell(true))}
                 style={{
                   width: '100%',
                   textAlign: 'left',
@@ -247,10 +622,7 @@ function Workspace() {
                   background: sel ? '#f0eefe' : 'transparent',
                 }}
               >
-                <i
-                  className="ti ti-folder"
-                  style={{ fontSize: 14, color: sel ? MORADO : '#a8a49c', flexShrink: 0 }}
-                ></i>
+                <i className="ti ti-folder" style={{ fontSize: 14, color: sel ? MORADO : '#a8a49c', flexShrink: 0 }}></i>
                 <span
                   style={{
                     fontSize: 12.5,
@@ -283,54 +655,24 @@ function Workspace() {
             );
           })}
 
-          {/* Crear escribiendo en la propia fila, no con un formulario
-              aparte: es lo que hace que se sienta ágil. */}
-          {creando ? (
-            <input
-              autoFocus
-              value={nombre}
-              maxLength={140}
-              onChange={(e) => setNombre(e.target.value)}
-              onBlur={() => (nombre.trim() ? crear() : setCreando(false))}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') crear();
-                if (e.key === 'Escape') {
-                  setNombre('');
-                  setCreando(false);
-                }
-              }}
-              placeholder="Nombre del proyecto"
+          {esPro && (
+            <button
+              onClick={() => router.replace('/projects', { scroll: false })}
               style={{
                 width: '100%',
+                textAlign: 'left',
+                display: 'flex',
+                alignItems: 'center',
+                gap: 7,
                 padding: '7px 9px',
-                border: `1px solid ${MORADO}`,
-                borderRadius: 8,
+                border: 'none',
+                background: 'none',
+                color: '#a8a49c',
                 fontSize: 12.5,
-                outline: 'none',
-                fontFamily: 'inherit',
-                background: '#fff',
               }}
-            />
-          ) : (
-            esPro && (
-              <button
-                onClick={() => setCreando(true)}
-                style={{
-                  width: '100%',
-                  textAlign: 'left',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 7,
-                  padding: '7px 9px',
-                  border: 'none',
-                  background: 'none',
-                  color: '#a8a49c',
-                  fontSize: 12.5,
-                }}
-              >
-                <i className="ti ti-plus" style={{ fontSize: 14 }}></i> Nuevo
-              </button>
-            )
+            >
+              <i className="ti ti-plus" style={{ fontSize: 14 }}></i> Nuevo
+            </button>
           )}
 
           {!esPro && (
@@ -340,171 +682,117 @@ function Workspace() {
           )}
         </div>
 
-        {/* --- Contenido ---
-            En Free, un clic en cualquier punto abre el modal: la pantalla
-            es un escaparate, y que unas cosas respondan y otras no sería
-            más confuso que bloquearlo todo por igual. */}
         <div
           style={{ padding: '18px 22px', minWidth: 0 }}
           onClick={esPro ? undefined : () => setModalUpsell(true)}
         >
-          {!activo ? (
-            <div className="empty-state">
-              <i className="ti ti-folder"></i>
-              <div style={{ fontSize: 15, fontWeight: 500, color: '#1a1a18' }}>
-                Todavía no tienes proyectos
-              </div>
-              <p style={{ fontSize: 13, color: '#666', margin: '8px auto 20px', maxWidth: 380, lineHeight: 1.65 }}>
-                Un proyecto reúne los asuntos que sigues, los actores a los que quieres llegar y lo
-                que vas haciendo con cada uno.
-              </p>
-              <button className="btn-ai" onClick={() => setCreando(true)}>
-                <i className="ti ti-plus"></i> Crear el primero
-              </button>
-            </div>
-          ) : (
-            <>
-              <div style={{ fontSize: 19, fontWeight: 600, lineHeight: 1.35 }}>{activo.name}</div>
-              <div style={{ fontSize: 12, color: '#888', marginTop: 3 }}>
-                {c.actores} {c.actores === 1 ? 'actor' : 'actores'} · {c.asuntos}{' '}
-                {c.asuntos === 1 ? 'asunto' : 'asuntos'}
-              </div>
+          <div style={{ fontSize: 19, fontWeight: 600, lineHeight: 1.35 }}>{abierto?.name}</div>
+          <div style={{ fontSize: 12, color: '#888', marginTop: 3 }}>
+            {d.actores} {d.actores === 1 ? 'actor' : 'actores'} · {d.asuntos}{' '}
+            {d.asuntos === 1 ? 'asunto' : 'asuntos'}
+          </div>
 
-              <div
+          <div style={{ display: 'flex', gap: 17, borderBottom: `.5px solid ${BORDE}`, margin: '14px 0 16px', flexWrap: 'wrap' }}>
+            {pestanas.map(([id, texto, bloqueada]) => (
+              <button
+                key={id}
+                onClick={() => (bloqueada ? setModalUpsell(true) : setPestana(id))}
                 style={{
-                  display: 'flex',
-                  gap: 17,
-                  borderBottom: `.5px solid ${BORDE}`,
-                  margin: '14px 0 16px',
-                  flexWrap: 'wrap',
+                  fontSize: 12.5,
+                  fontWeight: pestana === id ? 500 : 400,
+                  color: bloqueada ? '#a8a49c' : pestana === id ? MORADO : '#555',
+                  background: 'none',
+                  border: 'none',
+                  borderBottom: pestana === id ? `2px solid ${MORADO}` : '2px solid transparent',
+                  padding: '0 0 8px',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 5,
+                  cursor: bloqueada ? 'default' : 'pointer',
                 }}
               >
-                {/* Free ve las cinco pestañas: esconder Briefing, Agenda
-                    y Documentos sería vender un tercio del producto. Las
-                    tres van apagadas y llevan al modal, como todo lo
-                    demás de esta pantalla. */}
-                {[
-                  ['resumen', 'Resumen', false],
-                  ['mapa', 'Mapa de actores', false],
-                  ['briefing', 'Briefing', true],
-                  ['agenda', 'Agenda', true],
-                  ['documentos', 'Documentos', true],
-                ]
-                  .filter(([, , bloqueada]) => !bloqueada || !esPro)
-                  .map(([id, texto, bloqueada]) => (
-                    <button
-                      key={id}
-                      onClick={() => (bloqueada ? setModalUpsell(true) : setPestana(id))}
-                      style={{
-                        fontSize: 12.5,
-                        fontWeight: pestana === id ? 500 : 400,
-                        color: bloqueada ? '#a8a49c' : pestana === id ? MORADO : '#555',
-                        background: 'none',
-                        border: 'none',
-                        borderBottom: pestana === id ? `2px solid ${MORADO}` : '2px solid transparent',
-                        padding: '0 0 8px',
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        gap: 5,
-                        cursor: bloqueada ? 'default' : 'pointer',
-                      }}
-                    >
-                      {bloqueada && <i className="ti ti-lock" style={{ fontSize: 12 }}></i>}
-                      {texto}
-                    </button>
-                  ))}
+                {bloqueada && <i className="ti ti-lock" style={{ fontSize: 12 }}></i>}
+                {texto}
+              </button>
+            ))}
+          </div>
+
+          {pestana === 'resumen' && !esPro && <ResumenDemo />}
+          {pestana === 'mapa' && !esPro && <ProyectoDemo />}
+
+          {pestana === 'resumen' && esPro && (
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 16 }}>
+              <div style={{ minWidth: 0 }}>
+                <div style={{ ...ETIQUETA, marginBottom: 7 }}>OBJETIVO</div>
+                <textarea
+                  key={abierto.id}
+                  defaultValue={abierto.objetivo || ''}
+                  placeholder="Qué quieres conseguir con este asunto"
+                  onBlur={(e) => guardarObjetivo(e.target.value)}
+                  rows={3}
+                  style={{
+                    width: '100%',
+                    padding: '10px 12px',
+                    border: `.5px solid ${BORDE}`,
+                    borderRadius: 9,
+                    fontSize: 13,
+                    lineHeight: 1.7,
+                    outline: 'none',
+                    fontFamily: 'inherit',
+                    background: '#fafaf7',
+                    resize: 'vertical',
+                  }}
+                />
+                <div style={{ ...ETIQUETA, margin: '18px 0 7px' }}>ASUNTOS QUE SIGUE</div>
+                <div style={{ fontSize: 12.5, color: '#999', lineHeight: 1.65 }}>
+                  {d.asuntos === 0
+                    ? 'Todavía ninguno. Desde la ficha de una ley o un expediente podrás mandarla a este proyecto.'
+                    : `${d.asuntos} en seguimiento.`}
+                </div>
               </div>
 
-              {pestana === 'resumen' && !esPro && <ResumenDemo />}
-
-              {pestana === 'resumen' && esPro && (
-                <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1fr) minmax(0,290px)', gap: 18 }}>
-                  <div style={{ minWidth: 0 }}>
-                    <div style={{ fontSize: 11, color: '#888', letterSpacing: '.3px', marginBottom: 7 }}>
-                      OBJETIVO
+              <div style={{ minWidth: 0 }}>
+                <div style={{ ...CARD, padding: '15px 16px', marginBottom: 10 }}>
+                  <div style={{ display: 'flex', gap: 20, flexWrap: 'wrap' }}>
+                    <div>
+                      <div style={{ fontSize: 21, fontWeight: 600, color: MORADO, lineHeight: 1.1 }}>{d.actores}</div>
+                      <div style={{ fontSize: 11, color: '#888' }}>actores</div>
                     </div>
-                    {true ? (
-                      <textarea
-                        defaultValue={activo.objetivo || ''}
-                        placeholder="Qué quieres conseguir con este asunto"
-                        onBlur={(e) => guardarObjetivo(e.target.value)}
-                        rows={3}
+                    <div>
+                      <div style={{ fontSize: 21, fontWeight: 600, color: MORADO, lineHeight: 1.1 }}>{d.asuntos}</div>
+                      <div style={{ fontSize: 11, color: '#888' }}>asuntos</div>
+                    </div>
+                    <div>
+                      <div
                         style={{
-                          width: '100%',
-                          padding: '10px 12px',
-                          border: `.5px solid ${BORDE}`,
-                          borderRadius: 9,
-                          fontSize: 13,
-                          lineHeight: 1.7,
-                          outline: 'none',
-                          fontFamily: 'inherit',
-                          background: '#fafaf7',
-                          resize: 'vertical',
+                          fontSize: 21,
+                          fontWeight: 600,
+                          color: d.sinContactar > 0 ? '#1a1a18' : '#a8a49c',
+                          lineHeight: 1.1,
                         }}
-                      />
-                    ) : (
-                      <div style={{ fontSize: 13, color: '#555', lineHeight: 1.7 }}>{activo.objetivo}</div>
-                    )}
-
-                    <div style={{ fontSize: 11, color: '#888', letterSpacing: '.3px', margin: '18px 0 7px' }}>
-                      ASUNTOS QUE SIGUE
-                    </div>
-                    <div style={{ fontSize: 12.5, color: '#999', lineHeight: 1.65 }}>
-                      Desde la ficha de una ley o un expediente podrás mandarla a este proyecto. Lo
-                      activamos en cuanto el mapa esté rodado.
-                    </div>
-                  </div>
-
-                  {/* Tarjetas de cifras: el patrón de Regulatorio. */}
-                  <div style={{ minWidth: 0 }}>
-                    <div style={{ ...CARD, padding: '15px 16px', marginBottom: 10 }}>
-                      <div style={{ display: 'flex', gap: 20, flexWrap: 'wrap' }}>
-                        <div>
-                          <div style={{ fontSize: 21, fontWeight: 600, color: MORADO, lineHeight: 1.1 }}>
-                            {c.actores}
-                          </div>
-                          <div style={{ fontSize: 11, color: '#888' }}>actores</div>
-                        </div>
-                        <div>
-                          <div style={{ fontSize: 21, fontWeight: 600, color: MORADO, lineHeight: 1.1 }}>
-                            {c.asuntos}
-                          </div>
-                          <div style={{ fontSize: 11, color: '#888' }}>asuntos</div>
-                        </div>
-                        <div>
-                          <div
-                            style={{
-                              fontSize: 21,
-                              fontWeight: 600,
-                              // Sin color de estado: el contraste hace el trabajo.
-                              color: c.sinContactar > 0 ? '#1a1a18' : '#a8a49c',
-                              lineHeight: 1.1,
-                            }}
-                          >
-                            {c.sinContactar}
-                          </div>
-                          <div style={{ fontSize: 11, color: '#888' }}>sin contactar</div>
-                        </div>
+                      >
+                        {d.sinContactar}
                       </div>
-                    </div>
-
-                    <div style={{ ...CARD, padding: '15px 16px', opacity: 0.55 }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
-                        <i className="ti ti-lock" style={{ fontSize: 14, color: '#8b8780' }}></i>
-                        <span style={{ fontSize: 11, color: '#888', letterSpacing: '.3px' }}>EQUIPO</span>
-                      </div>
-                      <div style={{ fontSize: 12.5, color: '#555', lineHeight: 1.55 }}>
-                        Invitar a compañeros y repartir los actores llega con Teams.
-                      </div>
+                      <div style={{ fontSize: 11, color: '#888' }}>sin contactar</div>
                     </div>
                   </div>
                 </div>
-              )}
 
-              {pestana === 'mapa' && esPro && <MapaActores projectId={activo.id} />}
-              {pestana === 'mapa' && !esPro && <ProyectoDemo />}
-            </>
+                <div style={{ ...CARD, padding: '13px 16px', opacity: 0.55 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+                    <i className="ti ti-lock" style={{ fontSize: 14, color: '#8b8780' }}></i>
+                    <span style={ETIQUETA}>EQUIPO</span>
+                  </div>
+                  <div style={{ fontSize: 12.5, color: '#555', lineHeight: 1.55 }}>
+                    Invitar a compañeros y repartir los actores llega con Teams.
+                  </div>
+                </div>
+              </div>
+            </div>
           )}
+
+          {pestana === 'mapa' && esPro && <MapaActores projectId={abierto.id} />}
+          {pestana === 'agenda' && esPro && <AgendaProyecto projectId={abierto.id} />}
         </div>
       </div>
 
