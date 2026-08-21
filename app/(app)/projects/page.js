@@ -49,21 +49,16 @@ function haceCuanto(iso) {
   return `${d.getDate()} ${MESES[d.getMonth()]}`;
 }
 
-// Cómo se llama cada tipo cuando hay que enseñárselo a alguien.
-const TIPO_LABEL = {
-  ley: ['Congreso', 'ti-file-text'],
-  expediente: ['Comisión Europea', 'ti-file-text'],
-  procedimiento: ['Parlamento Europeo', 'ti-file-text'],
-  boe: ['BOE', 'ti-file-text'],
-  actividad: ['Actividad parlamentaria', 'ti-file-text'],
-  diputado: ['Congreso', 'ti-user'],
-  eurodiputado: ['Parlamento Europeo', 'ti-user'],
-  comisario: ['Comisión Europea', 'ti-user'],
-  cargo: ['Alto cargo', 'ti-user'],
-  comision: ['Comisión del Congreso', 'ti-building-bank'],
-  'comision-eu': ['Comisión del PE', 'ti-building-bank'],
-  grupo: ['Grupo parlamentario', 'ti-building-bank'],
-  direccion: ['Dirección general', 'ti-building-bank'],
+// Un proyecto arranca desde un ASUNTO, no desde una persona: quien
+// decide es un actor del mapa, no el objeto del trabajo. Por eso el
+// arranque solo ofrece los cinco tipos regulatorios y deja fuera
+// diputados, comisarios, comisiones y grupos.
+const TIPOS_ARRANQUE = {
+  ley: ['Congreso · proyecto de ley', 'ti-file-text'],
+  actividad: ['Congreso · actividad parlamentaria', 'ti-file-text'],
+  expediente: ['Comisión Europea · expediente', 'ti-file-text'],
+  procedimiento: ['Parlamento Europeo · procedimiento', 'ti-gavel'],
+  boe: ['BOE', 'ti-news'],
 };
 
 const DEMO_LISTA = [
@@ -175,6 +170,7 @@ function Proyectos() {
         .from('follows')
         .select('kind, ref_id, label')
         .eq('user_id', auth.user.id)
+        .in('kind', Object.keys(TIPOS_ARRANQUE))
         .order('created_at', { ascending: false })
         .limit(3);
       setSeguidos(fs || []);
@@ -321,7 +317,7 @@ function Proyectos() {
             <div style={{ fontSize: 12.5, color: '#888', marginTop: 3 }}>
               {conPlazo
                 ? `${proyectos.length} ${proyectos.length === 1 ? 'proyecto activo' : 'proyectos activos'}`
-                : 'Tus asuntos, sus actores y lo que se mueve en cada uno.'}
+                : 'Monitoriza, planifica y gestiona desde el mismo lugar.'}
             </div>
           </div>
           {!creando && (
@@ -411,7 +407,7 @@ function Proyectos() {
             </div>
 
             {seguidos.map((f, i) => {
-              const [donde, icono] = TIPO_LABEL[f.kind] || ['Seguimiento', 'ti-bookmark'];
+              const [donde, icono] = TIPOS_ARRANQUE[f.kind] || ['Seguimiento', 'ti-bookmark'];
               return (
                 <div
                   key={`${f.kind}-${f.ref_id}`}
