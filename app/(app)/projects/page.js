@@ -450,7 +450,8 @@ function Workspace() {
                             style={{
                               fontSize: 21,
                               fontWeight: 600,
-                              color: c.sinContactar > 0 ? '#a8792a' : '#a8a49c',
+                              // Sin color de estado: el contraste hace el trabajo.
+                              color: c.sinContactar > 0 ? '#1a1a18' : '#a8a49c',
                               lineHeight: 1.1,
                             }}
                           >
