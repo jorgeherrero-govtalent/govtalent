@@ -94,8 +94,8 @@ export default function AppLayout({ children }) {
             gov<span>talent</span>
           </Link>
           {/* El orden dice de qué va el producto: primero lo que se
-              mueve, luego quién decide, después lo tuyo, y el empleo al
-              final. Organizaciones pasa a vivir dentro de Instituciones.
+              mueve, luego quién decide, después dónde lo trabajas, y el
+              empleo al final. Organizaciones vive dentro de Instituciones.
 
               Regulatorio se marca activo también en sus rutas hijas para
               que la barra no se apague al entrar en un expediente. */}
@@ -125,26 +125,12 @@ export default function AppLayout({ children }) {
             <i className="ti ti-building-bank"></i>Instituciones
           </Link>
 
-          <Link href="/seguimiento" className={`ni ${pathname.startsWith('/seguimiento') ? 'on' : ''}`}>
-            <span style={{ position: 'relative', display: 'inline-flex' }}>
-              <i className="ti ti-bell"></i>
-              {novedades > 0 && (
-                <span
-                  style={{
-                    position: 'absolute',
-                    top: -2,
-                    right: -5,
-                    width: 7,
-                    height: 7,
-                    borderRadius: '50%',
-                    background: '#6d5aef',
-                    border: '1.5px solid #fff',
-                  }}
-                  aria-hidden="true"
-                ></span>
-              )}
-            </span>
-            Seguimiento
+          {/* Seguimiento ya no es una pestaña: pasa a la campana de la
+              derecha. Como pestaña competía con Proyectos —las dos decían
+              "aquí está lo que te importa"— y una campana no compite con
+              nada. La ruta /seguimiento sigue existiendo. */}
+          <Link href="/projects" className={`ni ${pathname.startsWith('/projects') ? 'on' : ''}`}>
+            <i className="ti ti-folder"></i>Proyectos
           </Link>
 
           <Link href="/jobs" className={`ni ${pathname.startsWith('/jobs') ? 'on' : ''}`}>
@@ -152,6 +138,40 @@ export default function AppLayout({ children }) {
           </Link>
 
           <div className="nav-sp"></div>
+
+          {/* La campana: todo lo que ha pasado, tenga proyecto o no. */}
+          <Link
+            href="/seguimiento"
+            className={`ni ${pathname.startsWith('/seguimiento') ? 'on' : ''}`}
+            aria-label={novedades > 0 ? `Avisos, ${novedades} sin leer` : 'Avisos'}
+            title="Avisos"
+          >
+            <span style={{ position: 'relative', display: 'inline-flex' }}>
+              <i className="ti ti-bell" style={{ fontSize: 19 }}></i>
+              {novedades > 0 && (
+                <span
+                  style={{
+                    position: 'absolute',
+                    top: -6,
+                    left: 11,
+                    minWidth: 15,
+                    height: 15,
+                    padding: '0 4px',
+                    borderRadius: 20,
+                    background: '#6d5aef',
+                    color: '#fff',
+                    fontSize: 10,
+                    lineHeight: '15px',
+                    textAlign: 'center',
+                    border: '1.5px solid #fff',
+                    fontWeight: 600,
+                  }}
+                >
+                  {novedades > 9 ? '9+' : novedades}
+                </span>
+              )}
+            </span>
+          </Link>
 
           {myOrg ? (
             <Link
