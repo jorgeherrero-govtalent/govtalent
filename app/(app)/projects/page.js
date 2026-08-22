@@ -7,6 +7,8 @@ import { toast } from '@/lib/toast';
 import UpgradeModal from '@/components/UpgradeModal';
 import MapaActores from '@/components/MapaActores';
 import AgendaProyecto from '@/components/AgendaProyecto';
+import NotasProyecto from '@/components/NotasProyecto';
+import AnclasProyecto from '@/components/AnclasProyecto';
 import ActorAvatar from '@/components/ActorAvatar';
 import ProyectoDemo, { ResumenDemo } from '@/components/ProyectoDemo';
 import { limiteProyectos, puedeCrearProyecto, tieneProyectos, upsellProyectos } from '@/lib/proyectos';
@@ -91,7 +93,6 @@ function Proyectos() {
   const [proyectos, setProyectos] = useState([]);
   const [datos, setDatos] = useState({});
   const [modalUpsell, setModalUpsell] = useState(false);
-  const [pestana, setPestana] = useState('resumen');
   const [busqueda, setBusqueda] = useState('');
   const [orden, setOrden] = useState('recientes');
   const [creando, setCreando] = useState(false);
@@ -102,6 +103,7 @@ function Proyectos() {
   // Para el estado vacío: lo último que el usuario ha seguido. Tres,
   // no más: es una sugerencia para arrancar, no un directorio.
   const [seguidos, setSeguidos] = useState([]);
+  const [asuntos, setAsuntos] = useState([]);
 
   const esPro = tieneProyectos(user);
 
@@ -203,8 +205,26 @@ function Proyectos() {
 
   function abrir(id) {
     router.replace(`/projects?p=${id}`, { scroll: false });
-    setPestana('resumen');
   }
+
+  // Los asuntos del proyecto abierto: solo la referencia (kind + ref_id),
+  // nunca una copia del dato regulatorio.
+  useEffect(() => {
+    if (!esPro || !abiertoId) {
+      setAsuntos([]);
+      return;
+    }
+    let vivo = true;
+    supabase
+      .from('project_items')
+      .select('id, kind, ref_id, etiqueta')
+      .eq('project_id', abiertoId)
+      .order('created_at')
+      .then(({ data }) => vivo && setAsuntos(data || []));
+    return () => {
+      vivo = false;
+    };
+  }, [supabase, esPro, abiertoId]);
 
   async function crear() {
     const t = nombre.trim();
@@ -702,18 +722,23 @@ function Proyectos() {
   // =====================================================================
   const d = (esPro && abierto ? datos[abierto.id] : null) || { actores: 0, asuntos: 0, sinContactar: 0, novedades: 0 };
 
-  const pestanas = esPro
+  // Una sola página que se recorre entera. La barra de arriba salta,
+  // no oculta: por eso solo se listan secciones que existen de verdad.
+  const secciones = esPro
     ? [
-        ['resumen', 'Resumen', false],
-        ['mapa', 'Mapa de actores', false],
-        ['agenda', 'Agenda', false],
+        { id: 'resumen', label: 'Resumen' },
+        { id: 'asuntos', label: 'Asuntos' },
+        { id: 'mapa', label: 'Mapa de actores' },
+        { id: 'agenda', label: 'Agenda' },
+        { id: 'notas', label: 'Notas' },
       ]
     : [
-        ['resumen', 'Resumen', false],
-        ['mapa', 'Mapa de actores', false],
-        ['briefing', 'Briefing', true],
-        ['agenda', 'Agenda', true],
-        ['documentos', 'Documentos', true],
+        { id: 'resumen', label: 'Resumen' },
+        { id: 'norma', label: 'La norma' },
+        { id: 'mapa', label: 'Mapa de actores' },
+        { id: 'briefing', label: 'Briefing' },
+        { id: 'agenda', label: 'Agenda' },
+        { id: 'documentos', label: 'Documentos' },
       ];
 
   return (
@@ -828,107 +853,119 @@ function Proyectos() {
             {d.asuntos === 1 ? 'asunto' : 'asuntos'}
           </div>
 
-          <div style={{ display: 'flex', gap: 17, borderBottom: `.5px solid ${BORDE}`, margin: '14px 0 16px', flexWrap: 'wrap' }}>
-            {pestanas.map(([id, texto, bloqueada]) => (
-              <button
-                key={id}
-                onClick={() => (bloqueada ? setModalUpsell(true) : setPestana(id))}
-                style={{
-                  fontSize: 12.5,
-                  fontWeight: pestana === id ? 500 : 400,
-                  color: bloqueada ? '#a8a49c' : pestana === id ? MORADO : '#555',
-                  background: 'none',
-                  border: 'none',
-                  borderBottom: pestana === id ? `2px solid ${MORADO}` : '2px solid transparent',
-                  padding: '0 0 8px',
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: 5,
-                  cursor: bloqueada ? 'default' : 'pointer',
-                }}
-              >
-                {bloqueada && <i className="ti ti-lock" style={{ fontSize: 12 }}></i>}
-                {texto}
-              </button>
-            ))}
-          </div>
+          <AnclasProyecto secciones={secciones} />
 
-          {pestana === 'resumen' && !esPro && <ResumenDemo />}
-          {pestana === 'mapa' && !esPro && <ProyectoDemo />}
-
-          {pestana === 'resumen' && esPro && (
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 16 }}>
-              <div style={{ minWidth: 0 }}>
-                <div style={{ ...ETIQUETA, marginBottom: 7 }}>OBJETIVO</div>
-                <textarea
-                  key={abierto.id}
-                  defaultValue={abierto.objetivo || ''}
-                  placeholder="Qué quieres conseguir con este asunto"
-                  onBlur={(e) => guardarObjetivo(e.target.value)}
-                  rows={3}
-                  style={{
-                    width: '100%',
-                    padding: '10px 12px',
-                    border: `.5px solid ${BORDE}`,
-                    borderRadius: 9,
-                    fontSize: 13,
-                    lineHeight: 1.7,
-                    outline: 'none',
-                    fontFamily: 'inherit',
-                    background: '#fafaf7',
-                    resize: 'vertical',
-                  }}
-                />
-                <div style={{ ...ETIQUETA, margin: '18px 0 7px' }}>ASUNTOS QUE SIGUE</div>
-                <div style={{ fontSize: 12.5, color: '#999', lineHeight: 1.65 }}>
-                  {d.asuntos === 0
-                    ? 'Todavía ninguno. Desde la ficha de una ley o un expediente podrás mandarla a este proyecto.'
-                    : `${d.asuntos} en seguimiento.`}
-                </div>
-              </div>
-
-              <div style={{ minWidth: 0 }}>
-                <div style={{ ...CARD, padding: '15px 16px', marginBottom: 10 }}>
-                  <div style={{ display: 'flex', gap: 20, flexWrap: 'wrap' }}>
-                    <div>
-                      <div style={{ fontSize: 21, fontWeight: 600, color: MORADO, lineHeight: 1.1 }}>{d.actores}</div>
-                      <div style={{ fontSize: 11, color: '#888' }}>actores</div>
-                    </div>
-                    <div>
-                      <div style={{ fontSize: 21, fontWeight: 600, color: MORADO, lineHeight: 1.1 }}>{d.asuntos}</div>
-                      <div style={{ fontSize: 11, color: '#888' }}>asuntos</div>
-                    </div>
-                    <div>
-                      <div
-                        style={{
-                          fontSize: 21,
-                          fontWeight: 600,
-                          color: d.sinContactar > 0 ? '#1a1a18' : '#a8a49c',
-                          lineHeight: 1.1,
-                        }}
-                      >
-                        {d.sinContactar}
-                      </div>
-                      <div style={{ fontSize: 11, color: '#888' }}>sin contactar</div>
-                    </div>
-                  </div>
-                </div>
-
-                <div style={{ ...CARD, padding: '13px 16px', opacity: 0.55 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
-                    <i className="ti ti-lock" style={{ fontSize: 14, color: '#8b8780' }}></i>
-                    <span style={ETIQUETA}>EQUIPO</span>
-                  </div>
-                  <div style={{ fontSize: 12.5, color: '#555', lineHeight: 1.55 }}>
-                    Invitar a compañeros y repartir los actores llega con Teams.
-                  </div>
-                </div>
-              </div>
-            </div>
+          {!esPro && (
+            <>
+              <ResumenDemo />
+              <div style={{ height: 24 }}></div>
+              <ProyectoDemo />
+            </>
           )}
 
-          {pestana === 'mapa' && esPro && <MapaActores projectId={abierto.id} />}
-          {pestana === 'agenda' && esPro && <AgendaProyecto projectId={abierto.id} />}
+          {esPro && (
+            <>
+              <section id="resumen" style={{ scrollMarginTop: 72, marginBottom: 30 }}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 16 }}>
+                  <div style={{ minWidth: 0 }}>
+                    <div style={{ ...ETIQUETA, marginBottom: 7 }}>OBJETIVO</div>
+                    {/* Click y a escribir: sin botón de guardar. */}
+                    <textarea
+                      key={abierto.id}
+                      defaultValue={abierto.objetivo || ''}
+                      placeholder="Qué quieres conseguir con este asunto"
+                      onBlur={(e) => guardarObjetivo(e.target.value)}
+                      rows={3}
+                      style={{
+                        width: '100%',
+                        padding: '10px 12px',
+                        border: `.5px solid ${BORDE}`,
+                        borderRadius: 9,
+                        fontSize: 13,
+                        lineHeight: 1.7,
+                        outline: 'none',
+                        fontFamily: 'inherit',
+                        background: '#fafaf7',
+                        resize: 'vertical',
+                      }}
+                    />
+                  </div>
+
+                  <div style={{ minWidth: 0 }}>
+                    <div style={{ ...CARD, padding: '15px 16px', marginBottom: 10 }}>
+                      <div style={{ display: 'flex', gap: 20, flexWrap: 'wrap' }}>
+                        <div>
+                          <div style={{ fontSize: 21, fontWeight: 600, color: MORADO, lineHeight: 1.1 }}>{d.actores}</div>
+                          <div style={{ fontSize: 11, color: '#888' }}>actores</div>
+                        </div>
+                        <div>
+                          <div style={{ fontSize: 21, fontWeight: 600, color: MORADO, lineHeight: 1.1 }}>{d.asuntos}</div>
+                          <div style={{ fontSize: 11, color: '#888' }}>asuntos</div>
+                        </div>
+                        <div>
+                          <div
+                            style={{
+                              fontSize: 21,
+                              fontWeight: 600,
+                              color: d.sinContactar > 0 ? '#1a1a18' : '#a8a49c',
+                              lineHeight: 1.1,
+                            }}
+                          >
+                            {d.sinContactar}
+                          </div>
+                          <div style={{ fontSize: 11, color: '#888' }}>sin contactar</div>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div style={{ ...CARD, padding: '13px 16px', opacity: 0.55 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+                        <i className="ti ti-lock" style={{ fontSize: 14, color: '#8b8780' }}></i>
+                        <span style={ETIQUETA}>EQUIPO</span>
+                      </div>
+                      <div style={{ fontSize: 12.5, color: '#555', lineHeight: 1.55 }}>
+                        Invitar a compañeros y repartir los actores llega con Teams.
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </section>
+
+              <section id="asuntos" style={{ scrollMarginTop: 72, marginBottom: 30 }}>
+                <div style={{ ...ETIQUETA, marginBottom: 10 }}>ASUNTOS QUE SIGUE</div>
+                {asuntos.length === 0 ? (
+                  <div style={{ fontSize: 12.5, color: '#999', lineHeight: 1.65, maxWidth: 460 }}>
+                    Todavía ninguno. Desde la ficha de una ley o un expediente podrás mandarla a este
+                    proyecto, y traerá su histórico y sus plazos.
+                  </div>
+                ) : (
+                  asuntos.map((a) => (
+                    <div key={a.id} style={{ borderLeft: `2px solid ${MORADO}`, paddingLeft: 12, marginBottom: 11 }}>
+                      <div style={{ fontSize: 12.5, fontWeight: 500 }}>{a.etiqueta || a.ref_id}</div>
+                      <div style={{ fontSize: 11, color: '#888', marginTop: 2 }}>
+                        {(TIPOS_ARRANQUE[a.kind] || ['Seguimiento'])[0]}
+                      </div>
+                    </div>
+                  ))
+                )}
+              </section>
+
+              <section id="mapa" style={{ scrollMarginTop: 72, marginBottom: 30 }}>
+                <div style={{ ...ETIQUETA, marginBottom: 12 }}>MAPA DE ACTORES</div>
+                <MapaActores projectId={abierto.id} />
+              </section>
+
+              <section id="agenda" style={{ scrollMarginTop: 72, marginBottom: 30 }}>
+                <div style={{ ...ETIQUETA, marginBottom: 12 }}>AGENDA</div>
+                <AgendaProyecto projectId={abierto.id} />
+              </section>
+
+              <section id="notas" style={{ scrollMarginTop: 72, marginBottom: 10 }}>
+                <div style={{ ...ETIQUETA, marginBottom: 12 }}>NOTAS</div>
+                <NotasProyecto projectId={abierto.id} userId={user.id} />
+              </section>
+            </>
+          )}
         </div>
       </div>
 
