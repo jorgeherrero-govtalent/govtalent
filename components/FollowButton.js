@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { toast } from '@/lib/toast';
 import SelectorProyecto from '@/components/SelectorProyecto';
+import UpgradeModal from '@/components/UpgradeModal';
 
 /**
  * Botón de seguir, compartido por toda la plataforma.
@@ -86,6 +87,8 @@ export default function FollowButton({ kind, refId, label, variant = 'button', c
   const [cargando, setCargando] = useState(true);
   const [hover, setHover] = useState(false);
   const [selector, setSelector] = useState(false);
+  const [esPro, setEsPro] = useState(false);
+  const [upsell, setUpsell] = useState(false);
 
   // Siempre morado, sin importar la sección. Seguir es un solo concepto
   // y tiene que verse igual en toda la plataforma: si en Instituciones
@@ -105,6 +108,11 @@ export default function FollowButton({ kind, refId, label, variant = 'button', c
         setCargando(false);
         return;
       }
+
+      // Seguir es de Pro. Se consulta aquí y no en cada ficha para que
+      // la regla viva en un solo sitio.
+      const { data: perfil } = await supabase.from('users').select('plan').eq('id', uid).single();
+      if (!cancelled) setEsPro(perfil?.plan === 'pro');
       const { data } = await supabase
         .from('follows')
         .select('id')
@@ -128,6 +136,13 @@ export default function FollowButton({ kind, refId, label, variant = 'button', c
     e?.stopPropagation();
     if (!userId) {
       toast.info('Inicia sesión para seguir esto');
+      return;
+    }
+
+    // Quien ya sigue algo desde antes puede dejar de seguirlo aunque no
+    // sea Pro: bloquear la salida sería encerrarle en algo que no eligió.
+    if (!esPro && !siguiendo) {
+      setUpsell(true);
       return;
     }
 
@@ -237,6 +252,13 @@ export default function FollowButton({ kind, refId, label, variant = 'button', c
     {conProyecto && <BotonProyecto onClick={() => setSelector(true)} />}
     {selector && (
       <SelectorProyecto kind={kind} refId={refId} label={label} onClose={() => setSelector(false)} />
+    )}
+    {upsell && (
+      <UpgradeModal
+        title="Seguir es una función de Pro"
+        message="Sigue leyes, expedientes y personas, y recibe un aviso cuando se mueva algo. Con alertas, proyectos y el directorio completo."
+        onClose={() => setUpsell(false)}
+      />
     )}
     </span>
   );
