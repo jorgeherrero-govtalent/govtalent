@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { toast } from '@/lib/toast';
+import SelectorProyecto from '@/components/SelectorProyecto';
 
 /**
  * Botón de seguir, compartido por toda la plataforma.
@@ -50,24 +51,31 @@ const QUE_AVISAMOS = {
  * todas partes con el mismo aspecto, y el día que se active basta con
  * tocarlo aquí.
  */
-function BotonProyecto() {
+function BotonProyecto({ onClick }) {
+  const [hover, setHover] = useState(false);
   return (
-    <span
-      title="Añadir a proyecto · próximamente"
-      aria-label="Añadir a proyecto · próximamente"
+    <button
+      onClick={onClick}
+      onMouseEnter={() => setHover(true)}
+      onMouseLeave={() => setHover(false)}
+      title="Añadir a un proyecto"
+      aria-label="Añadir a un proyecto"
       style={{
         display: 'inline-flex',
         alignItems: 'center',
         justifyContent: 'center',
         padding: '6px 8px',
         borderRadius: 7,
-        color: '#c4c0b8',
-        cursor: 'not-allowed',
+        border: 'none',
+        background: hover ? '#f0eefe' : 'transparent',
+        color: hover ? '#6d5aef' : '#a8a49c',
+        cursor: 'pointer',
         flexShrink: 0,
+        transition: 'background .15s ease, color .15s ease',
       }}
     >
       <i className="ti ti-folder-plus" style={{ fontSize: 15 }} aria-hidden="true"></i>
-    </span>
+    </button>
   );
 }
 
@@ -77,6 +85,7 @@ export default function FollowButton({ kind, refId, label, variant = 'button', c
   const [userId, setUserId] = useState(null);
   const [cargando, setCargando] = useState(true);
   const [hover, setHover] = useState(false);
+  const [selector, setSelector] = useState(false);
 
   // Siempre morado, sin importar la sección. Seguir es un solo concepto
   // y tiene que verse igual en toda la plataforma: si en Instituciones
@@ -225,7 +234,10 @@ export default function FollowButton({ kind, refId, label, variant = 'button', c
       <i className={`ti ti-bell${siguiendo ? '-filled' : ''}`} style={{ fontSize: 15 }} aria-hidden="true"></i>
       {siguiendo ? 'Siguiendo' : 'Seguir'}
     </button>
-    {conProyecto && <BotonProyecto />}
+    {conProyecto && <BotonProyecto onClick={() => setSelector(true)} />}
+    {selector && (
+      <SelectorProyecto kind={kind} refId={refId} label={label} onClose={() => setSelector(false)} />
+    )}
     </span>
   );
 }
