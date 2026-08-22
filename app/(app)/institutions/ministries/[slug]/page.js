@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
 import { toast } from '@/lib/toast';
 import BackLink from '@/components/BackLink';
+import FollowButton from '@/components/FollowButton';
 
 function initials(fullName) {
   const parts = (fullName || '').trim().split(' ');
@@ -122,10 +123,7 @@ export default function GovernmentMemberProfilePage() {
   const [officials, setOfficials] = useState([]);
   const [vicepresidents, setVicepresidents] = useState([]);
   const [notFound, setNotFound] = useState(false);
-  const [userId, setUserId] = useState(null);
-  const [saved, setSaved] = useState(false);
   const [tab, setTab] = useState('trayectoria');
-  const [radarNote, setRadarNote] = useState(false);
   const [photoFailed, setPhotoFailed] = useState(false);
 
   useEffect(() => {
@@ -172,23 +170,6 @@ export default function GovernmentMemberProfilePage() {
     };
   }, [slug]);
 
-  useEffect(() => {
-    if (!member) return;
-    supabase.auth.getUser().then(async ({ data }) => {
-      const uid = data.user?.id;
-      if (!uid) return;
-      setUserId(uid);
-      const { data: savedRow } = await supabase
-        .from('saved_government_members')
-        .select('id')
-        .eq('user_id', uid)
-        .eq('government_member_id', member.id)
-        .limit(1)
-        .maybeSingle();
-      setSaved(!!savedRow);
-    });
-  }, [member]);
-
   const team = useMemo(() => {
     if (!member) return [];
 
@@ -211,26 +192,6 @@ export default function GovernmentMemberProfilePage() {
       return true;
     });
   }, [member, officials, vicepresidents]);
-
-  async function toggleSave() {
-    if (!userId) {
-      toast('Inicia sesión para guardar');
-      return;
-    }
-    if (saved) {
-      await supabase
-        .from('saved_government_members')
-        .delete()
-        .eq('user_id', userId)
-        .eq('government_member_id', member.id);
-      setSaved(false);
-      toast('Eliminado de guardados');
-    } else {
-      await supabase.from('saved_government_members').insert({ user_id: userId, government_member_id: member.id });
-      setSaved(true);
-      toast('Guardado ✓');
-    }
-  }
 
   function copyLink() {
     navigator.clipboard.writeText(window.location.href);
@@ -338,27 +299,18 @@ export default function GovernmentMemberProfilePage() {
           <div style={{ display: 'flex', gap: 7, flexShrink: 0 }}>
             <CircleButton icon="share" label="Copiar enlace" onClick={copyLink} />
             {member.bio_url && <CircleButton icon="external-link" label="Ver ficha oficial" href={member.bio_url} />}
-            <CircleButton
-              icon="bell"
-              label="Seguir en Radar"
-              title="Seguir en Radar · próximamente"
-              disabled
-              onClick={() => setRadarNote(true)}
-            />
-            <CircleButton
-              icon={saved ? 'bookmark-filled' : 'bookmark'}
-              label={saved ? 'Quitar de guardados' : 'Guardar'}
-              active={saved}
-              onClick={toggleSave}
-            />
+            {/* Era la única ficha de la plataforma sin seguir ni proyecto:
+                usaba saved_government_members, la tabla anterior a
+                follows, y un botón de Radar en gris. Ahora usa el mismo
+                contrato (kind + ref_id) que el resto, así que sus avisos
+                llegan por el mismo camino. Va con kind "cargo": se
+                comprobó que ningún slug se repite entre
+                government_members y government_officials. */}
+            <FollowButton kind="cargo" refId={member.slug} label={member.full_name} />
           </div>
         </div>
 
-        {radarNote && (
-          <div style={{ fontSize: 11.5, color: '#888', marginTop: 12, paddingTop: 11, borderTop: '.5px solid #f0f0eb' }}>
-            El seguimiento en Radar estará disponible próximamente.
-          </div>
-        )}
+
       </div>
 
       <div style={{ display: 'flex', gap: 16, borderBottom: '.5px solid #e0dfd8', margin: '18px 0', overflowX: 'auto' }}>
