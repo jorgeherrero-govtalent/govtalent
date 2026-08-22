@@ -8,6 +8,7 @@ import UpgradeModal from '@/components/UpgradeModal';
 import MapaActores from '@/components/MapaActores';
 import AgendaProyecto from '@/components/AgendaProyecto';
 import NotasProyecto from '@/components/NotasProyecto';
+import AsuntosProyecto from '@/components/AsuntosProyecto';
 import AnclasProyecto from '@/components/AnclasProyecto';
 import ActorAvatar from '@/components/ActorAvatar';
 import ProyectoDemo, { ResumenDemo } from '@/components/ProyectoDemo';
@@ -103,7 +104,6 @@ function Proyectos() {
   // Para el estado vacío: lo último que el usuario ha seguido. Tres,
   // no más: es una sugerencia para arrancar, no un directorio.
   const [seguidos, setSeguidos] = useState([]);
-  const [asuntos, setAsuntos] = useState([]);
 
   const esPro = tieneProyectos(user);
 
@@ -207,24 +207,6 @@ function Proyectos() {
     router.replace(`/projects?p=${id}`, { scroll: false });
   }
 
-  // Los asuntos del proyecto abierto: solo la referencia (kind + ref_id),
-  // nunca una copia del dato regulatorio.
-  useEffect(() => {
-    if (!esPro || !abiertoId) {
-      setAsuntos([]);
-      return;
-    }
-    let vivo = true;
-    supabase
-      .from('project_items')
-      .select('id, kind, ref_id, etiqueta')
-      .eq('project_id', abiertoId)
-      .order('created_at')
-      .then(({ data }) => vivo && setAsuntos(data || []));
-    return () => {
-      vivo = false;
-    };
-  }, [supabase, esPro, abiertoId]);
 
   async function crear() {
     const t = nombre.trim();
@@ -932,22 +914,8 @@ function Proyectos() {
               </section>
 
               <section id="asuntos" style={{ scrollMarginTop: 72, marginBottom: 30 }}>
-                <div style={{ ...ETIQUETA, marginBottom: 10 }}>ASUNTOS QUE SIGUE</div>
-                {asuntos.length === 0 ? (
-                  <div style={{ fontSize: 12.5, color: '#999', lineHeight: 1.65, maxWidth: 460 }}>
-                    Todavía ninguno. Desde la ficha de una ley o un expediente podrás mandarla a este
-                    proyecto, y traerá su histórico y sus plazos.
-                  </div>
-                ) : (
-                  asuntos.map((a) => (
-                    <div key={a.id} style={{ borderLeft: `2px solid ${MORADO}`, paddingLeft: 12, marginBottom: 11 }}>
-                      <div style={{ fontSize: 12.5, fontWeight: 500 }}>{a.etiqueta || a.ref_id}</div>
-                      <div style={{ fontSize: 11, color: '#888', marginTop: 2 }}>
-                        {(TIPOS_ARRANQUE[a.kind] || ['Seguimiento'])[0]}
-                      </div>
-                    </div>
-                  ))
-                )}
+                <div style={{ ...ETIQUETA, marginBottom: 12 }}>ASUNTOS Y SU TRAMITACIÓN</div>
+                <AsuntosProyecto projectId={abierto.id} />
               </section>
 
               <section id="mapa" style={{ scrollMarginTop: 72, marginBottom: 30 }}>
