@@ -10,6 +10,7 @@ import AgendaProyecto from '@/components/AgendaProyecto';
 import NotasProyecto from '@/components/NotasProyecto';
 import AsuntosProyecto from '@/components/AsuntosProyecto';
 import BriefingProyecto from '@/components/BriefingProyecto';
+import DocumentosProyecto from '@/components/DocumentosProyecto';
 import AnclasProyecto from '@/components/AnclasProyecto';
 import ActorAvatar from '@/components/ActorAvatar';
 import ProyectoDemo, { ResumenDemo } from '@/components/ProyectoDemo';
@@ -714,6 +715,7 @@ function Proyectos() {
         { id: 'mapa', label: 'Mapa de actores' },
         { id: 'briefing', label: 'Briefing' },
         { id: 'agenda', label: 'Agenda' },
+        { id: 'documentos', label: 'Documentos' },
         { id: 'notas', label: 'Notas' },
       ]
     : [
@@ -933,6 +935,11 @@ function Proyectos() {
               <section id="agenda" style={{ scrollMarginTop: 72, marginBottom: 30 }}>
                 <div style={{ ...ETIQUETA, marginBottom: 12 }}>AGENDA</div>
                 <AgendaProyecto projectId={abierto.id} />
+              </section>
+
+              <section id="documentos" style={{ scrollMarginTop: 72, marginBottom: 30 }}>
+                <div style={{ ...ETIQUETA, marginBottom: 12 }}>DOCUMENTOS</div>
+                <DocumentosProyecto projectId={abierto.id} userId={user.id} />
               </section>
 
               <section id="notas" style={{ scrollMarginTop: 72, marginBottom: 10 }}>
