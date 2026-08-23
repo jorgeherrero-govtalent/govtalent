@@ -919,7 +919,7 @@ function Proyectos() {
 
               <section id="asuntos" style={{ scrollMarginTop: 72, marginBottom: 30 }}>
                 <div style={{ ...ETIQUETA, marginBottom: 12 }}>ASUNTOS Y SU TRAMITACIÓN</div>
-                <AsuntosProyecto projectId={abierto.id} />
+                <AsuntosProyecto projectId={abierto.id} userId={user.id} />
               </section>
 
               <section id="mapa" style={{ scrollMarginTop: 72, marginBottom: 30 }}>
