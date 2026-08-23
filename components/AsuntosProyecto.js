@@ -57,6 +57,8 @@ export default function AsuntosProyecto({ projectId, userId }) {
   const [comentando, setComentando] = useState(null);
   const [texto, setTexto] = useState('');
   const deshacer = useRef(null);
+  const [hayDeshacer, setHayDeshacer] = useState(false);
+  const [confirmar, setConfirmar] = useState(null);
 
   const cargar = useCallback(async () => {
     const [{ data: items }, { data: ns }] = await Promise.all([
@@ -175,33 +177,51 @@ export default function AsuntosProyecto({ projectId, userId }) {
     cargar();
   }, [cargar]);
 
-  // Se guarda la fila para poder reinsertarla: sin confirmación, con
-  // deshacer, como el resto del módulo.
+  // Aquí sí se pregunta, a diferencia del resto del módulo: al quitar
+  // un asunto se van encadenados sus comentarios, y eso es trabajo
+  // escrito que no se recupera con un deshacer de unos segundos.
   async function quitar(item) {
+    setConfirmar(null);
     setAsuntos((prev) => prev.filter((a) => a.id !== item.id));
-    deshacer.current = item;
     const { error } = await supabase.from('project_items').delete().eq('id', item.id);
     if (error) {
       setAsuntos((prev) => [...prev, item]);
-      deshacer.current = null;
       toast('No se ha podido quitar');
       return;
     }
     toast('Asunto quitado del proyecto');
   }
 
-  async function restaurar() {
-    const item = deshacer.current;
-    if (!item) return;
+  // Los comentarios sí se borran sin preguntar y con deshacer: son
+  // pequeños y se recuperan enteros.
+  async function borrarComentario(itemId, n) {
+    setNotas((prev) => ({ ...prev, [itemId]: (prev[itemId] || []).filter((x) => x.id !== n.id) }));
+    deshacer.current = { itemId, nota: n };
+    setHayDeshacer(true);
+    const { error } = await supabase.from('project_notes').delete().eq('id', n.id);
+    if (error) {
+      setNotas((prev) => ({ ...prev, [itemId]: [n, ...(prev[itemId] || [])] }));
+      deshacer.current = null;
+      setHayDeshacer(false);
+      toast('No se ha podido borrar');
+    }
+  }
+
+  async function restaurarComentario() {
+    const guardado = deshacer.current;
+    if (!guardado) return;
     deshacer.current = null;
-    const { error } = await supabase
-      .from('project_items')
-      .insert({ project_id: projectId, kind: item.kind, ref_id: item.ref_id, etiqueta: item.etiqueta });
+    setHayDeshacer(false);
+    const { data, error } = await supabase
+      .from('project_notes')
+      .insert({ project_id: projectId, item_id: guardado.itemId, author_id: userId, cuerpo: guardado.nota.cuerpo })
+      .select('id, item_id, cuerpo, created_at')
+      .single();
     if (error) {
       toast('No se ha podido recuperar');
       return;
     }
-    cargar();
+    setNotas((prev) => ({ ...prev, [guardado.itemId]: [data, ...(prev[guardado.itemId] || [])] }));
   }
 
   async function comentar(item) {
@@ -275,7 +295,7 @@ export default function AsuntosProyecto({ projectId, userId }) {
                   <i className="ti ti-message-plus" style={{ fontSize: 16 }}></i>
                 </button>
                 <button
-                  onClick={() => quitar(a)}
+                  onClick={() => setConfirmar(a)}
                   aria-label="Quitar del proyecto"
                   title="Quitar del proyecto"
                   style={{ background: 'none', border: 'none', color: '#c4c0b8', padding: 2 }}
@@ -345,12 +365,19 @@ export default function AsuntosProyecto({ projectId, userId }) {
                     >
                       <i className="ti ti-note" style={{ fontSize: 11 }}></i>
                     </span>
-                    <div style={{ minWidth: 0 }}>
+                    <div style={{ minWidth: 0, flex: 1 }}>
                       <div style={{ fontSize: 12, color: '#555', lineHeight: 1.55, whiteSpace: 'pre-wrap' }}>
                         {n.cuerpo}
                       </div>
                       <div style={{ fontSize: 10.5, color: '#888', marginTop: 2 }}>{fechaCorta(n.created_at)}</div>
                     </div>
+                    <button
+                      onClick={() => borrarComentario(a.id, n)}
+                      aria-label="Borrar comentario"
+                      style={{ background: 'none', border: 'none', color: '#c4c0b8', padding: 2, flexShrink: 0 }}
+                    >
+                      <i className="ti ti-x" style={{ fontSize: 13 }}></i>
+                    </button>
                   </div>
                 ))}
                 {misNotas.length > 3 && (
@@ -360,29 +387,47 @@ export default function AsuntosProyecto({ projectId, userId }) {
                 )}
 
                 {comentando === a.id && (
-                  <input
-                    autoFocus
-                    value={texto}
-                    onChange={(e) => setTexto(e.target.value)}
-                    onBlur={() => comentar(a)}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter') comentar(a);
-                      if (e.key === 'Escape') {
-                        setTexto('');
-                        setComentando(null);
-                      }
-                    }}
-                    placeholder="Comenta esta ley…"
-                    style={{
-                      width: '100%',
-                      padding: '8px 11px',
-                      border: `1px solid ${MORADO}`,
-                      borderRadius: 9,
-                      fontSize: 12,
-                      outline: 'none',
-                      fontFamily: 'inherit',
-                    }}
-                  />
+                  <div>
+                    <div style={{ display: 'flex', gap: 7, alignItems: 'center' }}>
+                      <input
+                        autoFocus
+                        value={texto}
+                        onChange={(e) => setTexto(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') comentar(a);
+                          if (e.key === 'Escape') {
+                            setTexto('');
+                            setComentando(null);
+                          }
+                        }}
+                        placeholder="Comenta esta ley…"
+                        style={{
+                          flex: 1,
+                          minWidth: 0,
+                          padding: '8px 11px',
+                          border: `1px solid ${MORADO}`,
+                          borderRadius: 9,
+                          fontSize: 12,
+                          outline: 'none',
+                          fontFamily: 'inherit',
+                        }}
+                      />
+                      {/* Cierre visible: sin él no se sabía cómo salir. */}
+                      <button
+                        onClick={() => {
+                          setTexto('');
+                          setComentando(null);
+                        }}
+                        aria-label="Cerrar sin comentar"
+                        style={{ background: 'none', border: 'none', color: '#a8a49c', padding: 4, flexShrink: 0 }}
+                      >
+                        <i className="ti ti-x" style={{ fontSize: 15 }}></i>
+                      </button>
+                    </div>
+                    <div style={{ fontSize: 10.5, color: '#a8a49c', marginTop: 5 }}>
+                      Enter para guardar · Esc para cancelar
+                    </div>
+                  </div>
                 )}
               </div>
             )}
@@ -390,13 +435,41 @@ export default function AsuntosProyecto({ projectId, userId }) {
         );
       })}
 
-      {deshacer.current && (
+      {hayDeshacer && (
         <button
-          onClick={restaurar}
+          onClick={restaurarComentario}
           style={{ background: 'none', border: 'none', color: MORADO, fontSize: 12, padding: '4px 0 0' }}
         >
-          Deshacer
+          Deshacer el comentario borrado
         </button>
+      )}
+
+      {confirmar && (
+        <div className="modal-ov on" onClick={(e) => e.target === e.currentTarget && setConfirmar(null)}>
+          <div className="modal-box" style={{ maxWidth: 420 }}>
+            <div className="modal-head">
+              <h2>Quitar el asunto</h2>
+              <div className="modal-x" onClick={() => setConfirmar(null)}>
+                <i className="ti ti-x"></i>
+              </div>
+            </div>
+            <p style={{ fontSize: 13, color: '#555', lineHeight: 1.65 }}>
+              «{confirmar.etiqueta || confirmar.ref_id}» sale de este proyecto
+              {(notas[confirmar.id] || []).length > 0 && (
+                <> y se borran sus {(notas[confirmar.id] || []).length} comentarios</>
+              )}
+              . El asunto sigue en Regulatorio y tu seguimiento no cambia.
+            </p>
+            <div style={{ display: 'flex', gap: 8, marginTop: 16 }}>
+              <button className="btn-o" onClick={() => setConfirmar(null)}>
+                Cancelar
+              </button>
+              <button className="btn-ai" onClick={() => quitar(confirmar)}>
+                Quitar del proyecto
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       {buscador && (
