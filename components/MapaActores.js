@@ -44,6 +44,8 @@ export default function MapaActores({ projectId }) {
   // Se guarda cuál se arrastra y si llegó a moverse: un clic limpio abre
   // la ficha, un arrastre no debe abrirla al soltar.
   const arrastre = useRef({ id: null, movido: false });
+  const deshacerActor = useRef(null);
+  const [hayDeshacer, setHayDeshacer] = useState(false);
 
   const cargar = useCallback(async () => {
     const [{ data: acts }, { data: cats }] = await Promise.all([
@@ -115,14 +117,49 @@ export default function MapaActores({ projectId }) {
     if (error) toast('No se ha podido guardar');
   }
 
+  // Sin confirmación: se quita y se ofrece deshacer unos segundos. Se
+  // guarda la fila entera para poder reinsertarla con su posición.
   async function quitar(id) {
+    const actor = actores.find((a) => a.id === id);
+    if (!actor) return;
+    setActores((prev) => prev.filter((a) => a.id !== id));
+    setAbierto(null);
+
     const { error } = await supabase.from('project_actors').delete().eq('id', id);
     if (error) {
+      setActores((prev) => [...prev, actor]);
       toast('No se ha podido quitar del mapa');
       return;
     }
-    setActores((prev) => prev.filter((a) => a.id !== id));
-    setAbierto(null);
+    deshacerActor.current = actor;
+    setHayDeshacer(true);
+    toast('Actor quitado del mapa');
+  }
+
+  async function restaurarActor() {
+    const a = deshacerActor.current;
+    if (!a) return;
+    deshacerActor.current = null;
+    setHayDeshacer(false);
+    const { error } = await supabase.from('project_actors').insert({
+      project_id: projectId,
+      kind: a.kind,
+      ref_id: a.ref_id,
+      es_propio: a.es_propio,
+      nombre: a.nombre,
+      descripcion: a.descripcion,
+      category_id: a.category_id,
+      posicion: a.posicion,
+      influencia: a.influencia,
+      relacion: a.relacion,
+      posicion_texto: a.posicion_texto,
+      argumentos: a.argumentos,
+    });
+    if (error) {
+      toast('No se ha podido recuperar el actor');
+      return;
+    }
+    cargar();
   }
 
   if (cargando) return <div className="spinner"></div>;
@@ -366,7 +403,16 @@ export default function MapaActores({ projectId }) {
           ></span>
           Sin contactar
         </span>
-        <span style={{ marginLeft: 'auto' }}>Arrastra para recolocar</span>
+        {hayDeshacer ? (
+          <button
+            onClick={restaurarActor}
+            style={{ marginLeft: 'auto', background: 'none', border: 'none', color: MORADO, fontSize: 11.5, padding: 0 }}
+          >
+            Deshacer
+          </button>
+        ) : (
+          <span style={{ marginLeft: 'auto' }}>Arrastra para recolocar</span>
+        )}
       </div>
 
       {buscador && (
