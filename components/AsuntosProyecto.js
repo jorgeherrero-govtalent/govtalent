@@ -1,8 +1,8 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
-import Link from 'next/link';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { createClient } from '@/lib/supabase/client';
+import { toast } from '@/lib/toast';
 
 /**
  * Los asuntos del proyecto, con su tramitación.
@@ -14,13 +14,13 @@ import { createClient } from '@/lib/supabase/client';
  * CUATRO FUENTES, UNA FORMA. Cada tipo guarda su recorrido en una tabla
  * distinta y con nombres distintos de columna:
  *
- *   ley / actividad  → es_initiative_timeline  (organo, fase, es_actual)
+ *   ley / actividad  → es_initiative_timeline  (fase, organo, es_actual)
  *   expediente       → eu_initiative_recorrido (fase, momento, es_actual)
  *   procedimiento    → ep_procedure_timeline   (activity_type, activity_date)
  *   boe              → no tiene: es una publicación, no una tramitación
  *
- * Aquí se normalizan a { etiqueta, cuando, estado } y se pintan igual.
- * No se copia nada: el dato sigue viviendo en Regulatorio.
+ * Se normalizan a { etiqueta, cuando, estado } y se pintan igual. No se
+ * copia nada: el dato sigue viviendo en Regulatorio.
  */
 
 const MORADO = '#6d5aef';
@@ -42,31 +42,40 @@ function fechaCorta(iso) {
   return `${d.getDate()} ${MESES[d.getMonth()]}`;
 }
 
-function diasHasta(iso) {
-  if (!iso) return null;
-  const d = new Date(iso.length <= 10 ? `${iso}T00:00:00` : iso);
-  if (Number.isNaN(d.getTime())) return null;
-  const hoy = new Date();
-  hoy.setHours(0, 0, 0, 0);
-  return Math.round((d - hoy) / 86400000);
-}
-
 function legible(codigo) {
   if (!codigo) return 'Fase';
-  return codigo.charAt(0).toUpperCase() + codigo.slice(1).toLowerCase().replace(/_/g, ' ');
+  const t = codigo.toLowerCase().replace(/_/g, ' ');
+  return t.charAt(0).toUpperCase() + t.slice(1);
 }
 
-export default function AsuntosProyecto({ projectId }) {
+export default function AsuntosProyecto({ projectId, userId }) {
   const supabase = createClient();
   const [asuntos, setAsuntos] = useState([]);
+  const [notas, setNotas] = useState({});
   const [cargando, setCargando] = useState(true);
+  const [buscador, setBuscador] = useState(false);
+  const [comentando, setComentando] = useState(null);
+  const [texto, setTexto] = useState('');
+  const deshacer = useRef(null);
 
   const cargar = useCallback(async () => {
-    const { data: items } = await supabase
-      .from('project_items')
-      .select('id, kind, ref_id, etiqueta')
-      .eq('project_id', projectId)
-      .order('created_at');
+    const [{ data: items }, { data: ns }] = await Promise.all([
+      supabase
+        .from('project_items')
+        .select('id, kind, ref_id, etiqueta')
+        .eq('project_id', projectId)
+        .order('created_at'),
+      supabase
+        .from('project_notes')
+        .select('id, item_id, cuerpo, created_at')
+        .eq('project_id', projectId)
+        .not('item_id', 'is', null)
+        .order('created_at', { ascending: false }),
+    ]);
+
+    const porItem = {};
+    for (const n of ns || []) (porItem[n.item_id] ||= []).push(n);
+    setNotas(porItem);
 
     if (!items || items.length === 0) {
       setAsuntos([]);
@@ -74,8 +83,7 @@ export default function AsuntosProyecto({ projectId }) {
       return;
     }
 
-    // Una consulta por tipo, no una por asunto: con ocho asuntos de tres
-    // tipos son tres llamadas, no ocho.
+    // Una consulta por tipo, no una por asunto.
     const porTipo = {};
     for (const it of items) (porTipo[it.kind] ||= []).push(it.ref_id);
 
@@ -107,29 +115,37 @@ export default function AsuntosProyecto({ projectId }) {
       let fases = [];
 
       if (it.kind === 'ley' || it.kind === 'actividad') {
+        // La etiqueta es la FASE, no el órgano: dos fases seguidas
+        // pueden pasar por la misma comisión, y usar el órgano las
+        // dejaba con el mismo nombre y sin distinguir.
         fases = (esp.data || [])
           .filter((e) => String(e.num_expediente) === String(it.ref_id))
           .map((e) => ({
-            etiqueta: e.organo,
-            detalle: e.fase,
+            etiqueta: e.fase || e.organo,
+            detalle: e.fase ? e.organo : null,
             cuando: fechaCorta(e.fecha_inicio),
             estado: e.es_actual ? 'actual' : e.fecha_inicio ? 'hecha' : 'futura',
             dias: null,
           }));
       } else if (it.kind === 'expediente') {
-        fases = (eu.data || [])
-          .filter((e) => String(e.initiative_id) === String(it.ref_id))
-          .map((e) => ({
-            etiqueta: e.fase,
+        const todas = (eu.data || []).filter((e) => String(e.initiative_id) === String(it.ref_id));
+        // La Comisión repite el mismo nombre de fase en momentos
+        // distintos: se numeran para poder distinguirlas.
+        const cuenta = {};
+        for (const e of todas) cuenta[e.fase] = (cuenta[e.fase] || 0) + 1;
+        const vistas = {};
+        fases = todas.map((e) => {
+          vistas[e.fase] = (vistas[e.fase] || 0) + 1;
+          return {
+            etiqueta: cuenta[e.fase] > 1 ? `${e.fase} ${vistas[e.fase]}` : e.fase,
             detalle: null,
             cuando: fechaCorta(e.fecha_fin),
             estado: e.es_actual ? 'actual' : e.momento === 'proxima' ? 'futura' : 'hecha',
             dias: e.es_actual ? e.dias_restantes : null,
-          }));
+          };
+        });
       } else if (it.kind === 'procedimiento') {
         const eventos = (pe.data || []).filter((e) => String(e.process_id) === String(it.ref_id));
-        // El PE registra muchos eventos del mismo tipo el mismo día: se
-        // colapsan, o el recorrido se vuelve ilegible.
         const vistos = new Set();
         fases = eventos
           .filter((e) => {
@@ -159,21 +175,80 @@ export default function AsuntosProyecto({ projectId }) {
     cargar();
   }, [cargar]);
 
-  if (cargando) return <div className="spinner"></div>;
-
-  if (asuntos.length === 0) {
-    return (
-      <div style={{ fontSize: 12.5, color: '#999', lineHeight: 1.65, maxWidth: 470 }}>
-        Todavía ninguno. Desde la ficha de una ley, un expediente o un procedimiento podrás mandarla a
-        este proyecto, y traerá su tramitación y sus plazos.
-      </div>
-    );
+  // Se guarda la fila para poder reinsertarla: sin confirmación, con
+  // deshacer, como el resto del módulo.
+  async function quitar(item) {
+    setAsuntos((prev) => prev.filter((a) => a.id !== item.id));
+    deshacer.current = item;
+    const { error } = await supabase.from('project_items').delete().eq('id', item.id);
+    if (error) {
+      setAsuntos((prev) => [...prev, item]);
+      deshacer.current = null;
+      toast('No se ha podido quitar');
+      return;
+    }
+    toast('Asunto quitado del proyecto');
   }
+
+  async function restaurar() {
+    const item = deshacer.current;
+    if (!item) return;
+    deshacer.current = null;
+    const { error } = await supabase
+      .from('project_items')
+      .insert({ project_id: projectId, kind: item.kind, ref_id: item.ref_id, etiqueta: item.etiqueta });
+    if (error) {
+      toast('No se ha podido recuperar');
+      return;
+    }
+    cargar();
+  }
+
+  async function comentar(item) {
+    const cuerpo = texto.trim();
+    if (!cuerpo) {
+      setComentando(null);
+      return;
+    }
+    const { data, error } = await supabase
+      .from('project_notes')
+      .insert({ project_id: projectId, item_id: item.id, author_id: userId, cuerpo })
+      .select('id, item_id, cuerpo, created_at')
+      .single();
+    if (error) {
+      toast('No se ha podido guardar el comentario');
+      return;
+    }
+    setNotas((prev) => ({ ...prev, [item.id]: [data, ...(prev[item.id] || [])] }));
+    setTexto('');
+    setComentando(null);
+  }
+
+  if (cargando) return <div className="spinner"></div>;
 
   return (
     <div>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, marginBottom: 12, flexWrap: 'wrap' }}>
+        <div style={{ fontSize: 12, color: '#888' }}>
+          {asuntos.length === 0
+            ? 'Ningún asunto todavía'
+            : `${asuntos.length} ${asuntos.length === 1 ? 'asunto' : 'asuntos'} en seguimiento`}
+        </div>
+        <button className="btn-ai-o" onClick={() => setBuscador(true)}>
+          <i className="ti ti-plus"></i> Añadir asunto
+        </button>
+      </div>
+
+      {asuntos.length === 0 && (
+        <div style={{ fontSize: 12.5, color: '#999', lineHeight: 1.65, maxWidth: 470 }}>
+          Añade una ley, un expediente o un procedimiento y traerá su tramitación y sus plazos. También
+          puedes mandarlos desde su ficha en Regulatorio.
+        </div>
+      )}
+
       {asuntos.map((a) => {
         const actual = a.fases.find((f) => f.estado === 'actual');
+        const misNotas = notas[a.id] || [];
         return (
           <div key={a.id} style={{ background: '#fff', border: `.5px solid ${BORDE}`, borderRadius: 10, padding: '15px 18px', marginBottom: 10 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12, flexWrap: 'wrap' }}>
@@ -181,12 +256,33 @@ export default function AsuntosProyecto({ projectId }) {
                 <div style={{ fontSize: 14, fontWeight: 600, lineHeight: 1.4 }}>{a.etiqueta || a.ref_id}</div>
                 <div style={{ fontSize: 11.5, color: '#888', marginTop: 3 }}>{ORIGEN[a.kind] || 'Seguimiento'}</div>
               </div>
-              {actual?.dias > 0 && (
-                <div style={{ textAlign: 'right', flexShrink: 0 }}>
-                  <div style={{ fontSize: 12.5, fontWeight: 600, lineHeight: 1.3 }}>Quedan {actual.dias} días</div>
-                  <div style={{ fontSize: 10.5, color: '#888' }}>{actual.etiqueta}</div>
-                </div>
-              )}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0 }}>
+                {actual?.dias > 0 && (
+                  <div style={{ textAlign: 'right' }}>
+                    <div style={{ fontSize: 12.5, fontWeight: 600, lineHeight: 1.3 }}>Quedan {actual.dias} días</div>
+                    <div style={{ fontSize: 10.5, color: '#888' }}>{actual.etiqueta}</div>
+                  </div>
+                )}
+                <button
+                  onClick={() => {
+                    setComentando(comentando === a.id ? null : a.id);
+                    setTexto('');
+                  }}
+                  aria-label="Comentar este asunto"
+                  title="Comentar"
+                  style={{ background: 'none', border: 'none', color: '#a8a49c', padding: 2 }}
+                >
+                  <i className="ti ti-message-plus" style={{ fontSize: 16 }}></i>
+                </button>
+                <button
+                  onClick={() => quitar(a)}
+                  aria-label="Quitar del proyecto"
+                  title="Quitar del proyecto"
+                  style={{ background: 'none', border: 'none', color: '#c4c0b8', padding: 2 }}
+                >
+                  <i className="ti ti-x" style={{ fontSize: 15 }}></i>
+                </button>
+              </div>
             </div>
 
             {a.fases.length === 0 ? (
@@ -196,8 +292,6 @@ export default function AsuntosProyecto({ projectId }) {
                   : 'Sin recorrido registrado todavía.'}
               </div>
             ) : (
-              // Barras en fila: se lee de un vistazo por dónde va, que es
-              // la única pregunta que se hace quien abre el proyecto.
               <div style={{ display: 'flex', gap: 6, marginTop: 15 }}>
                 {a.fases.map((f, i) => (
                   <div key={i} style={{ flex: 1, minWidth: 0, textAlign: 'center' }}>
@@ -230,9 +324,193 @@ export default function AsuntosProyecto({ projectId }) {
                 ))}
               </div>
             )}
+
+            {(misNotas.length > 0 || comentando === a.id) && (
+              <div style={{ borderTop: `.5px solid ${BORDE}`, marginTop: 14, paddingTop: 12 }}>
+                {misNotas.slice(0, 3).map((n) => (
+                  <div key={n.id} style={{ display: 'flex', gap: 9, marginBottom: 9 }}>
+                    <span
+                      style={{
+                        width: 20,
+                        height: 20,
+                        borderRadius: '50%',
+                        background: '#f0f0eb',
+                        color: '#a8a49c',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        flexShrink: 0,
+                        marginTop: 1,
+                      }}
+                    >
+                      <i className="ti ti-note" style={{ fontSize: 11 }}></i>
+                    </span>
+                    <div style={{ minWidth: 0 }}>
+                      <div style={{ fontSize: 12, color: '#555', lineHeight: 1.55, whiteSpace: 'pre-wrap' }}>
+                        {n.cuerpo}
+                      </div>
+                      <div style={{ fontSize: 10.5, color: '#888', marginTop: 2 }}>{fechaCorta(n.created_at)}</div>
+                    </div>
+                  </div>
+                ))}
+                {misNotas.length > 3 && (
+                  <div style={{ fontSize: 11, color: '#888', marginBottom: 9 }}>
+                    y {misNotas.length - 3} comentarios más
+                  </div>
+                )}
+
+                {comentando === a.id && (
+                  <input
+                    autoFocus
+                    value={texto}
+                    onChange={(e) => setTexto(e.target.value)}
+                    onBlur={() => comentar(a)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') comentar(a);
+                      if (e.key === 'Escape') {
+                        setTexto('');
+                        setComentando(null);
+                      }
+                    }}
+                    placeholder="Comenta esta ley…"
+                    style={{
+                      width: '100%',
+                      padding: '8px 11px',
+                      border: `1px solid ${MORADO}`,
+                      borderRadius: 9,
+                      fontSize: 12,
+                      outline: 'none',
+                      fontFamily: 'inherit',
+                    }}
+                  />
+                )}
+              </div>
+            )}
           </div>
         );
       })}
+
+      {deshacer.current && (
+        <button
+          onClick={restaurar}
+          style={{ background: 'none', border: 'none', color: MORADO, fontSize: 12, padding: '4px 0 0' }}
+        >
+          Deshacer
+        </button>
+      )}
+
+      {buscador && (
+        <BuscadorAsuntos
+          projectId={projectId}
+          yaEn={asuntos}
+          onClose={() => setBuscador(false)}
+          onAdded={() => {
+            setBuscador(false);
+            cargar();
+          }}
+        />
+      )}
+    </div>
+  );
+}
+
+// =====================================================================
+// Buscador: reutiliza regulatorio_search, la misma vista que alimenta
+// el buscador de Regulatorio, con el mismo par kind + ref_id.
+// =====================================================================
+
+function BuscadorAsuntos({ projectId, yaEn, onClose, onAdded }) {
+  const supabase = createClient();
+  const [q, setQ] = useState('');
+  const [resultados, setResultados] = useState([]);
+  const [buscando, setBuscando] = useState(false);
+  const [guardando, setGuardando] = useState(false);
+
+  const puestos = new Set(yaEn.map((a) => `${a.kind}|${a.ref_id}`));
+
+  useEffect(() => {
+    const t = setTimeout(async () => {
+      const texto = q.trim();
+      if (texto.length < 3) {
+        setResultados([]);
+        return;
+      }
+      setBuscando(true);
+      const { data } = await supabase
+        .from('regulatorio_search')
+        .select('kind, ref_id, titulo, contexto, fuente, plazo, fecha')
+        .ilike('titulo', `%${texto}%`)
+        .order('fecha', { ascending: false })
+        .limit(15);
+      setResultados((data || []).filter((r) => !puestos.has(`${r.kind}|${r.ref_id}`)));
+      setBuscando(false);
+    }, 280);
+    return () => clearTimeout(t);
+  }, [q, supabase]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  async function anadir(r) {
+    if (guardando) return;
+    setGuardando(true);
+    const { error } = await supabase
+      .from('project_items')
+      .insert({ project_id: projectId, kind: r.kind, ref_id: String(r.ref_id), etiqueta: r.titulo });
+    setGuardando(false);
+    if (error) {
+      toast(error.code === '23505' ? 'Ya estaba en el proyecto' : 'No se ha podido añadir');
+      return;
+    }
+    onAdded();
+  }
+
+  return (
+    <div className="modal-ov on" onClick={(e) => e.target === e.currentTarget && onClose()}>
+      <div className="modal-box" style={{ maxWidth: 560 }}>
+        <div className="modal-head">
+          <h2>Añadir un asunto</h2>
+          <div className="modal-x" onClick={onClose}>
+            <i className="ti ti-x"></i>
+          </div>
+        </div>
+
+        <div className="field">
+          <input
+            autoFocus
+            value={q}
+            onChange={(e) => setQ(e.target.value)}
+            placeholder="Busca una ley, un expediente o un procedimiento…"
+          />
+        </div>
+
+        {q.trim().length > 0 && q.trim().length < 3 && (
+          <div style={{ fontSize: 12, color: '#999', padding: '6px 0' }}>Escribe al menos tres letras.</div>
+        )}
+
+        {buscando && <div style={{ fontSize: 12.5, color: '#999', padding: '8px 0' }}>Buscando…</div>}
+
+        {!buscando && q.trim().length >= 3 && resultados.length === 0 && (
+          <div style={{ fontSize: 12.5, color: '#999', padding: '8px 0' }}>
+            Nada con ese título. Prueba con menos palabras.
+          </div>
+        )}
+
+        {resultados.map((r) => (
+          <div
+            key={`${r.kind}|${r.ref_id}`}
+            style={{ display: 'flex', alignItems: 'flex-start', gap: 11, padding: '10px 0', borderBottom: `.5px solid ${BORDE}` }}
+          >
+            <i className="ti ti-file-text" style={{ fontSize: 15, color: '#a8a49c', flexShrink: 0, marginTop: 2 }}></i>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontSize: 12.5, lineHeight: 1.45 }}>{r.titulo}</div>
+              <div style={{ fontSize: 11, color: '#888', marginTop: 2 }}>
+                {[ORIGEN[r.kind] || r.fuente, r.contexto].filter(Boolean).join(' · ')}
+              </div>
+            </div>
+            <button className="btn-g" onClick={() => anadir(r)} disabled={guardando} style={{ flexShrink: 0 }}>
+              Añadir
+            </button>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
