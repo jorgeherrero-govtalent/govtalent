@@ -40,11 +40,18 @@ export default function MapaActores({ projectId, abrirBuscador, onCerrarBuscador
   const [cargando, setCargando] = useState(true);
   const [abierto, setAbierto] = useState(null); // actor de la ficha lateral
   const [buscador, setBuscador] = useState(false);
+  // Tamaño de etiqueta global, no por chip: en un mapa de stakeholders
+  // el tamaño se lee como importancia, y la importancia ya es el eje
+  // vertical. Dos cosas diciendo lo mismo podrían contradecirse.
 
   // Se guarda cuál se arrastra y si llegó a moverse: un clic limpio abre
   // la ficha, un arrastre no debe abrirla al soltar.
   const arrastre = useRef({ id: null, movido: false });
   const deshacerActor = useRef(null);
+  // Redimensionar: se guarda desde qué tamaño se partía y el punto de
+  // origen, para convertir el arrastre en uno de los tres pasos.
+  const medida = useRef({ id: null, x0: 0, base: 2 });
+  const [midiendoId, setMidiendoId] = useState(null);
   const [hayDeshacer, setHayDeshacer] = useState(false);
 
   const cargar = useCallback(async () => {
@@ -114,6 +121,42 @@ export default function MapaActores({ projectId, abrirBuscador, onCerrarBuscador
     if (error) toast('No se ha podido guardar la posición');
   }
 
+  // --- Tamaño del chip ---------------------------------------------------
+
+  function medirDesde(e, actor) {
+    e.preventDefault();
+    e.stopPropagation();
+    medida.current = { id: actor.id, x0: e.clientX, base: actor.tamano || 2 };
+    setMidiendoId(actor.id);
+    e.currentTarget.setPointerCapture(e.pointerId);
+  }
+
+  function midiendo(e) {
+    const { id, x0, base } = medida.current;
+    if (!id) return;
+    e.stopPropagation();
+    // 26px de arrastre por paso: bastante para no cambiar sin querer,
+    // poco para que se note que responde.
+    const pasos = Math.round((e.clientX - x0) / 26);
+    const nuevo = Math.min(3, Math.max(1, base + pasos));
+    setActores((prev) => prev.map((a) => (a.id === id ? { ...a, tamano: nuevo } : a)));
+  }
+
+  async function medido(e) {
+    const { id } = medida.current;
+    medida.current = { id: null, x0: 0, base: 2 };
+    setMidiendoId(null);
+    if (e.currentTarget.hasPointerCapture?.(e.pointerId)) {
+      e.currentTarget.releasePointerCapture(e.pointerId);
+    }
+    if (!id) return;
+    e.stopPropagation();
+    const actual = actores.find((a) => a.id === id);
+    if (!actual) return;
+    const { error } = await supabase.from('project_actors').update({ tamano: actual.tamano }).eq('id', id);
+    if (error) toast('No se ha podido guardar el tamaño');
+  }
+
   // --- Guardar cambios de la ficha --------------------------------------
 
   async function actualizar(id, cambios) {
@@ -170,10 +213,14 @@ export default function MapaActores({ projectId, abrirBuscador, onCerrarBuscador
 
   if (cargando) return <div className="spinner"></div>;
 
+
   const resumen = resumenMapa(actores);
 
   return (
     <div>
+      <style>{`
+        .gt-chip:hover .gt-tirador { opacity: 1 !important; }
+      `}</style>
       <div
         style={{
           display: 'flex',
@@ -200,13 +247,16 @@ export default function MapaActores({ projectId, abrirBuscador, onCerrarBuscador
             `${resumen.total} en el mapa · ${resumen.sinContactar} sin contactar`
           )}
         </div>
-        <button
-          className="btn-ai-o"
-          onClick={() => setBuscador(true)}
-          disabled={!puedeAnadirActor(actores.length)}
-        >
-          <i className="ti ti-plus"></i> Añadir actor
-        </button>
+        <div style={{ display: 'flex', gap: 7, alignItems: 'center' }}>
+          
+          <button
+            className="btn-ai-o"
+            onClick={() => setBuscador(true)}
+            disabled={!puedeAnadirActor(actores.length)}
+          >
+            <i className="ti ti-plus"></i> Añadir actor
+          </button>
+        </div>
       </div>
 
       {/* El lienzo. La zona pintada arriba al centro es alta influencia y
@@ -273,9 +323,11 @@ export default function MapaActores({ projectId, abrirBuscador, onCerrarBuscador
               const iniciada = a.relacion !== 'sin_contactar';
               const org = esOrganizacion(a);
               const prioritario = enZonaDePrioridad(a);
+              const t = a.tamano || 2;
               return (
                 <button
                   key={a.id}
+                  className="gt-chip"
                   onPointerDown={(e) => alPulsar(e, a)}
                   onPointerMove={alMover}
                   onPointerUp={(e) => alSoltar(e, a)}
@@ -287,7 +339,7 @@ export default function MapaActores({ projectId, abrirBuscador, onCerrarBuscador
                     transform: 'translate(-50%, -50%)',
                     display: 'flex',
                     alignItems: 'center',
-                    gap: 8,
+                    gap: t === 1 ? 0 : 8,
                     background: '#fff',
                     border: `${iniciada ? '.5px solid' : '.5px dashed'} ${
                       arrastre.current.id === a.id ? MORADO : '#b8b4ac'
@@ -295,25 +347,26 @@ export default function MapaActores({ projectId, abrirBuscador, onCerrarBuscador
                     // El radio del chip también distingue: personas
                     // redondas, organizaciones cuadradas.
                     borderRadius: org ? 10 : 24,
-                    padding: '5px 13px 5px 5px',
+                    padding: t === 1 ? 4 : t === 3 ? '6px 14px 6px 6px' : '5px 13px 5px 5px',
                     whiteSpace: 'nowrap',
                     cursor: 'grab',
-                    maxWidth: '46%',
+                    maxWidth: t === 3 ? '52%' : '44%',
                     textAlign: 'left',
                     boxShadow: iniciada ? '0 1px 3px rgba(0,0,0,.05)' : 'none',
                   }}
                 >
                   <ActorAvatar
                     actor={a}
-                    size={30}
+                    size={t === 1 ? 26 : t === 3 ? 36 : 30}
                     atenuado={!iniciada}
                     fondo={prioritario ? '#eeedfe' : '#f0f0eb'}
                   />
+                  {t > 1 && (
                   <span style={{ minWidth: 0, overflow: 'hidden' }}>
                     <span
                       style={{
                         display: 'block',
-                        fontSize: 12,
+                        fontSize: t === 3 ? 13 : 12,
                         fontWeight: 600,
                         lineHeight: 1.3,
                         color: iniciada ? '#1a1a18' : '#555',
@@ -324,8 +377,10 @@ export default function MapaActores({ projectId, abrirBuscador, onCerrarBuscador
                       {a.nombre}
                     </span>
                     {/* La segunda línea sale del directorio, no la
-                        escribe el usuario: es el cargo y la institución. */}
-                    {a.descripcion && (
+                        escribe el usuario: es el cargo y la institución.
+                        Solo en el tamaño grande: es lo primero que sobra
+                        cuando el mapa se llena. */}
+                    {t === 3 && a.descripcion && (
                       <span
                         style={{
                           display: 'block',
@@ -339,6 +394,30 @@ export default function MapaActores({ projectId, abrirBuscador, onCerrarBuscador
                       </span>
                     )}
                   </span>
+                  )}
+
+                  {/* Tirador para cambiar el tamaño. Aparece al pasar
+                      por encima; si estuviera siempre visible el mapa se
+                      llenaría de puntitos. */}
+                  <span
+                    onPointerDown={(e) => medirDesde(e, a)}
+                    onPointerMove={midiendo}
+                    onPointerUp={medido}
+                    title="Arrastra para cambiar el tamaño"
+                    className="gt-tirador"
+                    style={{
+                      position: 'absolute',
+                      right: -5,
+                      bottom: -5,
+                      width: 13,
+                      height: 13,
+                      borderRadius: '50%',
+                      background: '#fff',
+                      border: `1px solid ${midiendoId === a.id ? MORADO : '#c4c0b8'}`,
+                      cursor: 'ew-resize',
+                      opacity: midiendoId === a.id ? 1 : 0,
+                    }}
+                  ></span>
                 </button>
               );
             })}
@@ -462,6 +541,16 @@ function iniciales(nombre) {
     .toUpperCase();
 }
 
+// Las nueve clases de actor agrupadas en tres familias, que es como se
+// buscan de verdad: o buscas a una persona, o a una organización, o a un
+// órgano.
+const FAMILIAS = {
+  todos: { label: 'Todos', kinds: [] },
+  personas: { label: 'Personas', kinds: ['diputado', 'eurodiputado', 'comisario', 'cargo'] },
+  organizaciones: { label: 'Organizaciones', kinds: ['organizacion'] },
+  organos: { label: 'Órganos', kinds: ['comision', 'comision-eu', 'grupo', 'direccion'] },
+};
+
 // =====================================================================
 // Buscador: el directorio y los actores propios en la misma lista
 // =====================================================================
@@ -472,6 +561,9 @@ function BuscadorActores({ projectId, categorias, yaEnMapa, onClose, onAdded }) 
   const [resultados, setResultados] = useState([]);
   const [buscando, setBuscando] = useState(false);
   const [categoria, setCategoria] = useState('');
+  // Sin este filtro las organizaciones no aparecían nunca: el orden es
+  // por tipo y con 2.100 cargos delante no llegaban al corte de doce.
+  const [familia, setFamilia] = useState('todos');
   const [guardando, setGuardando] = useState(false);
 
   // Los que ya están, para no ofrecerlos otra vez.
@@ -485,17 +577,17 @@ function BuscadorActores({ projectId, categorias, yaEnMapa, onClose, onAdded }) 
         return;
       }
       setBuscando(true);
-      const { data } = await supabase
+      let consulta = supabase
         .from('actor_search')
         .select('kind, ref_id, nombre, detalle, orden_tipo')
-        .ilike('nombre', `%${texto}%`)
-        .order('orden_tipo')
-        .limit(12);
+        .ilike('nombre', `%${texto}%`);
+      if (familia !== 'todos') consulta = consulta.in('kind', FAMILIAS[familia].kinds);
+      const { data } = await consulta.order('orden_tipo').limit(14);
       setResultados((data || []).filter((r) => !puestos.has(`${r.kind}|${r.ref_id}`)));
       setBuscando(false);
     }, 250);
     return () => clearTimeout(t);
-  }, [q, supabase]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [q, familia, supabase]); // eslint-disable-line react-hooks/exhaustive-deps
 
   async function anadir(fila) {
     if (guardando) return;
@@ -534,6 +626,25 @@ function BuscadorActores({ projectId, categorias, yaEnMapa, onClose, onAdded }) 
             onChange={(e) => setQ(e.target.value)}
             placeholder="Busca un diputado, una comisión, un cargo…"
           />
+        </div>
+
+        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 12 }}>
+          {Object.entries(FAMILIAS).map(([clave, cfg]) => (
+            <button
+              key={clave}
+              onClick={() => setFamilia(clave)}
+              style={{
+                fontSize: 11.5,
+                padding: '4px 11px',
+                borderRadius: 20,
+                border: familia === clave ? 'none' : `.5px solid ${BORDE}`,
+                background: familia === clave ? MORADO : '#fff',
+                color: familia === clave ? '#fff' : '#555',
+              }}
+            >
+              {cfg.label}
+            </button>
+          ))}
         </div>
 
         {q.trim().length >= 2 && (
