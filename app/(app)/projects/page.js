@@ -807,7 +807,7 @@ function Proyectos() {
               style={{ fontSize: 17, color: MORADO, flexShrink: 0, marginTop: 1 }}
             ></i>
             <div style={{ minWidth: 0 }}>
-              <div style={{ fontSize: 12.5, fontWeight: 600 }}>Trabájalo con tu equipo</div>
+              <div style={{ fontSize: 12.5, fontWeight: 600 }}>Trabaja con tu equipo</div>
               <div style={{ fontSize: 11.5, color: '#555', marginTop: 2, lineHeight: 1.5 }}>
                 Responsables por actor, menciones, registro de contactos y agenda compartida.
               </div>
