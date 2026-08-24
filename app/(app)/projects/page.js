@@ -104,8 +104,6 @@ function Proyectos() {
   const [menu, setMenu] = useState(null);
   const [renombrando, setRenombrando] = useState(null);
   const [confirmarBorrado, setConfirmarBorrado] = useState(null);
-  // Los botones de la cabecera abren el buscador de la sección que toca.
-  const [atajo, setAtajo] = useState(null);
   // Para el estado vacío: lo último que el usuario ha seguido. Tres,
   // no más: es una sugerencia para arrancar, no un directorio.
   const [seguidos, setSeguidos] = useState([]);
@@ -720,11 +718,12 @@ function Proyectos() {
   // por eso solo se listan secciones que existen de verdad.
   const secciones = esPro
     ? [
-        { id: 'resumen', label: 'Resumen' },
-        { id: 'asuntos', label: 'Asuntos' },
-        { id: 'mapa', label: 'Mapa de actores' },
-        { id: 'briefing', label: 'Briefing' },
-        { id: 'agenda', label: 'Agenda' },
+        // Asuntos ya no es sección propia: vive junto al objetivo, en
+        // el resumen, y el recorrido completo se abre en un modal.
+        { id: 'resumen', label: 'Resumen', cuenta: d.asuntos },
+        { id: 'mapa', label: 'Mapa de actores', cuenta: d.actores },
+        { id: 'briefing', label: 'Briefing', cuenta: d.briefings },
+        { id: 'agenda', label: 'Agenda', cuenta: d.acciones },
         { id: 'documentos', label: 'Documentos' },
         { id: 'notas', label: 'Notas' },
       ]
@@ -779,16 +778,6 @@ function Proyectos() {
           </div>
         </div>
 
-        {esPro && (
-          <div style={{ display: 'flex', gap: 6, flexShrink: 0, flexWrap: 'wrap' }}>
-            <button className="btn-ai-o" onClick={() => setAtajo('actor')}>
-              <i className="ti ti-plus"></i> Actor
-            </button>
-            <button className="btn-o" onClick={() => setAtajo('asunto')}>
-              <i className="ti ti-plus"></i> Asunto
-            </button>
-          </div>
-        )}
         {!esPro && (
           <button className="btn-ai" onClick={() => setModalUpsell(true)}>
             <i className="ti ti-bolt"></i> Desbloquear
@@ -812,29 +801,43 @@ function Proyectos() {
           {esPro && (
             <>
               <section id="resumen" style={{ scrollMarginTop: 72, marginBottom: 30 }}>
-                <div style={{ ...ETIQUETA, marginBottom: 7 }}>OBJETIVO</div>
-                <textarea
-                  key={abierto.id}
-                  defaultValue={abierto.objetivo || ''}
-                  placeholder="Qué quieres conseguir con este asunto"
-                  onBlur={(e) => guardarObjetivo(e.target.value)}
-                  rows={3}
-                  style={{
-                    width: '100%',
-                    maxWidth: 620,
-                    padding: '10px 12px',
-                    border: `.5px solid ${BORDE}`,
-                    borderRadius: 9,
-                    fontSize: 13,
-                    lineHeight: 1.7,
-                    outline: 'none',
-                    fontFamily: 'inherit',
-                    background: '#fafaf7',
-                    resize: 'vertical',
-                  }}
-                />
+                {/* El objetivo y los asuntos, juntos: son las dos cosas
+                    que contestan "de qué va esto" al abrir el proyecto. */}
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: 24 }}>
+                  <div style={{ minWidth: 0 }}>
+                    <div style={{ ...ETIQUETA, marginBottom: 7 }}>OBJETIVO</div>
+                    <textarea
+                      key={abierto.id}
+                      defaultValue={abierto.objetivo || ''}
+                      placeholder="Qué quieres conseguir con este asunto"
+                      onBlur={(e) => guardarObjetivo(e.target.value)}
+                      rows={4}
+                      style={{
+                        width: '100%',
+                        padding: '10px 12px',
+                        border: `.5px solid ${BORDE}`,
+                        borderRadius: 9,
+                        fontSize: 13,
+                        lineHeight: 1.7,
+                        outline: 'none',
+                        fontFamily: 'inherit',
+                        background: '#fafaf7',
+                        resize: 'vertical',
+                      }}
+                    />
+                  </div>
 
-                <div style={{ display: 'flex', gap: 22, flexWrap: 'wrap', marginTop: 16 }}>
+                  <div style={{ minWidth: 0 }}>
+                    <AsuntosProyecto
+                      projectId={abierto.id}
+                      userId={user.id}
+                      abrirBuscador={atajo === 'asunto'}
+                      onCerrarBuscador={() => setAtajo(null)}
+                    />
+                  </div>
+                </div>
+
+                <div style={{ display: 'flex', gap: 22, flexWrap: 'wrap', marginTop: 20 }}>
                   <div>
                     <div style={{ fontSize: 21, fontWeight: 600, color: MORADO, lineHeight: 1.1 }}>{d.actores}</div>
                     <div style={{ fontSize: 11, color: '#888' }}>actores</div>
@@ -863,23 +866,9 @@ function Proyectos() {
                 </div>
               </section>
 
-              <section id="asuntos" style={{ scrollMarginTop: 72, marginBottom: 30 }}>
-                <div style={{ ...ETIQUETA, marginBottom: 12 }}>ASUNTOS Y SU TRAMITACIÓN</div>
-                <AsuntosProyecto
-                  projectId={abierto.id}
-                  userId={user.id}
-                  abrirBuscador={atajo === 'asunto'}
-                  onCerrarBuscador={() => setAtajo(null)}
-                />
-              </section>
-
               <section id="mapa" style={{ scrollMarginTop: 72, marginBottom: 30 }}>
                 <div style={{ ...ETIQUETA, marginBottom: 12 }}>MAPA DE ACTORES</div>
-                <MapaActores
-                  projectId={abierto.id}
-                  abrirBuscador={atajo === 'actor'}
-                  onCerrarBuscador={() => setAtajo(null)}
-                />
+                <MapaActores projectId={abierto.id} />
               </section>
 
               <section id="briefing" style={{ scrollMarginTop: 72, marginBottom: 30 }}>
