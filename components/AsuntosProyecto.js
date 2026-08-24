@@ -48,7 +48,7 @@ function legible(codigo) {
   return t.charAt(0).toUpperCase() + t.slice(1);
 }
 
-export default function AsuntosProyecto({ projectId, userId }) {
+export default function AsuntosProyecto({ projectId, userId, abrirBuscador, onCerrarBuscador }) {
   const supabase = createClient();
   const [asuntos, setAsuntos] = useState([]);
   const [notas, setNotas] = useState({});
@@ -176,6 +176,12 @@ export default function AsuntosProyecto({ projectId, userId }) {
   useEffect(() => {
     cargar();
   }, [cargar]);
+
+  // Los botones "+ Actor" y "+ Asunto" de la cabecera del proyecto
+  // abren el buscador de la sección que corresponde.
+  useEffect(() => {
+    if (abrirBuscador) setBuscador(true);
+  }, [abrirBuscador]);
 
   // Aquí sí se pregunta, a diferencia del resto del módulo: al quitar
   // un asunto se van encadenados sus comentarios, y eso es trabajo
@@ -476,9 +482,13 @@ export default function AsuntosProyecto({ projectId, userId }) {
         <BuscadorAsuntos
           projectId={projectId}
           yaEn={asuntos}
-          onClose={() => setBuscador(false)}
+          onClose={() => {
+            setBuscador(false);
+            onCerrarBuscador?.();
+          }}
           onAdded={() => {
             setBuscador(false);
+            onCerrarBuscador?.();
             cargar();
           }}
         />
