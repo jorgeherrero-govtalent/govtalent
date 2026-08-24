@@ -86,13 +86,15 @@ export default function DocumentosProyecto({ projectId, userId }) {
   const [cargando, setCargando] = useState(true);
   const [subiendo, setSubiendo] = useState(false);
   const [arrastrando, setArrastrando] = useState(false);
+  const [confirmar, setConfirmar] = useState(null);
 
   const cargar = useCallback(async () => {
     const { data, error } = await supabase
       .from('project_files')
-      .select('id, nombre, storage_path, mime, bytes, created_at')
+      .select('id, nombre, storage_path, mime, bytes, orden, created_at')
       .eq('project_id', projectId)
-      .order('created_at', { ascending: false });
+      .is('actor_id', null)
+      .order('orden');
     if (error) toast('No se han podido cargar los documentos');
     setDocs(data || []);
     setCargando(false);
@@ -143,8 +145,10 @@ export default function DocumentosProyecto({ projectId, userId }) {
           storage_path: ruta,
           mime: f.type || null,
           bytes: f.size,
+          // Hueco de 10 entre documentos para poder intercalar después.
+          orden: (docs.length + 1) * 10,
         })
-        .select('id, nombre, storage_path, mime, bytes, created_at')
+        .select('id, nombre, storage_path, mime, bytes, orden, created_at')
         .single();
 
       if (error) {
@@ -156,11 +160,34 @@ export default function DocumentosProyecto({ projectId, userId }) {
         continue;
       }
 
-      setDocs((prev) => [data, ...prev]);
+      setDocs((prev) => [...prev, data]);
     }
 
     setSubiendo(false);
     if (input.current) input.current.value = '';
+  }
+
+  // Se intercambia el orden de dos vecinos: es lo más simple que hace
+  // falta y no obliga a renumerar la lista entera.
+  async function mover(indice, direccion) {
+    const otro = indice + direccion;
+    if (otro < 0 || otro >= docs.length) return;
+
+    const a = docs[indice];
+    const b = docs[otro];
+    const lista = [...docs];
+    lista[indice] = { ...b, orden: a.orden };
+    lista[otro] = { ...a, orden: b.orden };
+    setDocs(lista);
+
+    const [r1, r2] = await Promise.all([
+      supabase.from('project_files').update({ orden: b.orden }).eq('id', a.id),
+      supabase.from('project_files').update({ orden: a.orden }).eq('id', b.id),
+    ]);
+    if (r1.error || r2.error) {
+      toast('No se ha podido reordenar');
+      cargar();
+    }
   }
 
   async function abrir(doc) {
@@ -175,7 +202,11 @@ export default function DocumentosProyecto({ projectId, userId }) {
     window.open(data.signedUrl, '_blank', 'noopener,noreferrer');
   }
 
+  // Aquí sí se pregunta, a diferencia de las notas: un archivo sale del
+  // bucket y no hay nada que reinsertar. El deshacer no podría cumplir
+  // lo que promete.
   async function borrar(doc) {
+    setConfirmar(null);
     setDocs((prev) => prev.filter((d) => d.id !== doc.id));
     const { error } = await supabase.from('project_files').delete().eq('id', doc.id);
     if (error) {
@@ -277,14 +308,68 @@ export default function DocumentosProyecto({ projectId, userId }) {
           </button>
 
           <button
-            onClick={() => borrar(d)}
+            onClick={() => mover(i, -1)}
+            disabled={i === 0}
+            aria-label="Subir"
+            title="Subir"
+            style={{
+              background: 'none',
+              border: 'none',
+              color: i === 0 ? '#e0dfd8' : '#c4c0b8',
+              padding: 2,
+              flexShrink: 0,
+            }}
+          >
+            <i className="ti ti-chevron-up" style={{ fontSize: 15 }}></i>
+          </button>
+          <button
+            onClick={() => mover(i, 1)}
+            disabled={i === docs.length - 1}
+            aria-label="Bajar"
+            title="Bajar"
+            style={{
+              background: 'none',
+              border: 'none',
+              color: i === docs.length - 1 ? '#e0dfd8' : '#c4c0b8',
+              padding: 2,
+              flexShrink: 0,
+            }}
+          >
+            <i className="ti ti-chevron-down" style={{ fontSize: 15 }}></i>
+          </button>
+          <button
+            onClick={() => setConfirmar(d)}
             aria-label={`Eliminar ${d.nombre}`}
             style={{ background: 'none', border: 'none', color: '#c4c0b8', padding: 2, flexShrink: 0 }}
           >
-            <i className="ti ti-x" style={{ fontSize: 14 }}></i>
+            <i className="ti ti-trash" style={{ fontSize: 14 }}></i>
           </button>
         </div>
       ))}
+
+      {confirmar && (
+        <div className="modal-ov on" onClick={(e) => e.target === e.currentTarget && setConfirmar(null)}>
+          <div className="modal-box" style={{ maxWidth: 400 }}>
+            <div className="modal-head">
+              <h2>Eliminar el documento</h2>
+              <div className="modal-x" onClick={() => setConfirmar(null)}>
+                <i className="ti ti-x"></i>
+              </div>
+            </div>
+            <p style={{ fontSize: 13, color: '#555', lineHeight: 1.65 }}>
+              «{confirmar.nombre}» se borra del proyecto y del almacenamiento. No se puede deshacer.
+            </p>
+            <div style={{ display: 'flex', gap: 8, marginTop: 16 }}>
+              <button className="btn-o" onClick={() => setConfirmar(null)}>
+                Cancelar
+              </button>
+              <button className="btn-ai" onClick={() => borrar(confirmar)}>
+                Eliminar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
