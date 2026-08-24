@@ -24,6 +24,33 @@ const MESES = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'o
 // límite evita esperas largas sin barra de progreso.
 const MAX_BYTES = 20 * 1024 * 1024;
 
+// Los mismos tipos que acepta el bucket. Aquí la comprobación es solo
+// comodidad —avisar antes de subir en vez de después—; la que de verdad
+// se cumple está en el bucket, porque el navegador se lo salta cualquiera
+// llamando a la API. Fuera html, svg y zip: los dos primeros ejecutan
+// código al abrirse, el tercero esconde lo que lleva dentro.
+const TIPOS_OK = new Set([
+  'application/pdf',
+  'application/msword',
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  'application/vnd.oasis.opendocument.text',
+  'application/vnd.ms-excel',
+  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  'application/vnd.oasis.opendocument.spreadsheet',
+  'text/csv',
+  'application/vnd.ms-powerpoint',
+  'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+  'text/plain',
+  'image/png',
+  'image/jpeg',
+  'image/webp',
+]);
+
+// 5 minutos, la misma caducidad que usan los CV. Uno solo no daba para
+// descargar un PDF grande con mala conexión.
+const URL_SEGUNDOS = 300;
+
+
 function haceCuanto(iso) {
   if (!iso) return '';
   const d = new Date(iso);
@@ -85,6 +112,10 @@ export default function DocumentosProyecto({ projectId, userId }) {
         toast(`«${f.name}» pasa de 20 MB`);
         continue;
       }
+      if (!TIPOS_OK.has(f.type)) {
+        toast(`«${f.name}» no es un tipo admitido`);
+        continue;
+      }
 
       // El nombre se limpia para la ruta, pero el original se guarda en
       // la fila: al descargarlo debe llamarse como lo subió el usuario.
@@ -135,7 +166,7 @@ export default function DocumentosProyecto({ projectId, userId }) {
   async function abrir(doc) {
     const { data, error } = await supabase.storage
       .from('project-files')
-      .createSignedUrl(doc.storage_path, 60);
+      .createSignedUrl(doc.storage_path, URL_SEGUNDOS);
     if (error || !data?.signedUrl) {
       console.error('URL firmada fallida', { ruta: doc.storage_path, error });
       toast(`No se ha podido abrir: ${error?.message || 'sin permiso'}`);
@@ -186,11 +217,14 @@ export default function DocumentosProyecto({ projectId, userId }) {
         <div style={{ fontSize: 12.5, color: '#555', marginTop: 7 }}>
           {subiendo ? 'Subiendo…' : 'Arrastra un archivo o pulsa para elegirlo'}
         </div>
-        <div style={{ fontSize: 11, color: '#999', marginTop: 3 }}>Hasta 20 MB por archivo</div>
+        <div style={{ fontSize: 11, color: '#999', marginTop: 3 }}>
+          PDF, Word, Excel, PowerPoint o imagen · hasta 20 MB
+        </div>
         <input
           ref={input}
           type="file"
           multiple
+          accept={[...TIPOS_OK].join(',')}
           onChange={(e) => subir(e.target.files)}
           style={{ display: 'none' }}
         />
