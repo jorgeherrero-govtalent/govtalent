@@ -626,21 +626,26 @@ export default function ProfilePage() {
           left: 20px;
           font-size: 34px;
         }
-        /* La cámara iba a 1px de la esquina, y el avatar es un círculo
-           con overflow oculto: la esquina queda fuera del círculo y se
-           recortaba. A 108px de diámetro desaparecía del todo.
-
-           Con radio 54 y un botón de 28, su centro tiene que quedar a
-           menos de 40px del centro del avatar para no tocar el borde:
-           14px desde cada lado lo dejan a 37. */
-        .p-wrap .p-av .av-c {
-          bottom: 14px;
-          right: 14px;
-          width: 28px;
-          height: 28px;
+        /* El avatar ocupa de left:20 a left:128 y baja 54px por debajo de
+           la portada. La cámara se sitúa sobre su borde inferior derecho:
+           a 24px de la izquierda del extremo y 8 por encima del final. */
+        .p-wrap .p-cam {
+          position: absolute;
+          left: 96px;
+          bottom: -46px;
+          width: 26px;
+          height: 26px;
+          border-radius: 50%;
+          background: #1d6f5c;
           border: 2px solid #fff;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          color: #fff;
+          cursor: pointer;
+          z-index: 3;
         }
-        .p-wrap .p-av .av-c i { font-size: 13px; }
+        .p-wrap .p-cam i { font-size: 12px; }
         /* Una sola declaración con las cuatro medidas. Antes había dos
            reglas de padding para .p-info y la segunda pisaba a la
            primera, que es lo que dejaba el nombre bajo la foto.
@@ -733,11 +738,21 @@ export default function ProfilePage() {
                 <i className="ti ti-arrows-move"></i>
               </div>
             )}
-            <label className="av-c" style={{ cursor: 'pointer' }} onPointerDown={(e) => e.stopPropagation()} title="Cambiar foto de perfil">
-              {uploadingAvatar ? <i className="ti ti-loader-2"></i> : <i className="ti ti-camera"></i>}
-              <input type="file" accept="image/*" hidden onChange={handleAvatarUpload} disabled={uploadingAvatar} />
-            </label>
           </div>
+
+          {/* El botón vive FUERA del avatar, no dentro. Dentro dependía
+              de que un stopPropagation ganara al arrastre, y además el
+              overflow circular del avatar se comía la esquina. Aquí se
+              posiciona contra la portada y no le afecta ninguna de las
+              dos cosas. */}
+          <label
+            className="p-cam"
+            title="Cambiar foto de perfil"
+            onPointerDown={(e) => e.stopPropagation()}
+          >
+            {uploadingAvatar ? <i className="ti ti-loader-2"></i> : <i className="ti ti-camera"></i>}
+            <input type="file" accept="image/*" hidden onChange={handleAvatarUpload} disabled={uploadingAvatar} />
+          </label>
         </div>
         <div className="p-info" style={{ position: 'relative' }}>
           {/* A la derecha y a la altura del nombre: en el flujo vertical
