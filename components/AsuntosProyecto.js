@@ -59,6 +59,7 @@ export default function AsuntosProyecto({ projectId, userId, abrirBuscador, onCe
   const deshacer = useRef(null);
   const [hayDeshacer, setHayDeshacer] = useState(false);
   const [confirmar, setConfirmar] = useState(null);
+  const [editando, setEditando] = useState(null);
 
   const cargar = useCallback(async () => {
     const [{ data: items }, { data: ns }] = await Promise.all([
@@ -200,6 +201,21 @@ export default function AsuntosProyecto({ projectId, userId, abrirBuscador, onCe
 
   // Los comentarios sí se borran sin preguntar y con deshacer: son
   // pequeños y se recuperan enteros.
+  async function guardarComentario(itemId, id, valor) {
+    setEditando(null);
+    const cuerpo = valor.trim();
+    const actual = (notas[itemId] || []).find((x) => x.id === id);
+    if (!actual || cuerpo === actual.cuerpo) return;
+    if (!cuerpo) return borrarComentario(itemId, actual);
+
+    setNotas((prev) => ({
+      ...prev,
+      [itemId]: (prev[itemId] || []).map((x) => (x.id === id ? { ...x, cuerpo } : x)),
+    }));
+    const { error } = await supabase.from('project_notes').update({ cuerpo }).eq('id', id);
+    if (error) toast('No se ha podido guardar');
+  }
+
   async function borrarComentario(itemId, n) {
     setNotas((prev) => ({ ...prev, [itemId]: (prev[itemId] || []).filter((x) => x.id !== n.id) }));
     deshacer.current = { itemId, nota: n };
@@ -372,9 +388,40 @@ export default function AsuntosProyecto({ projectId, userId, abrirBuscador, onCe
                       <i className="ti ti-note" style={{ fontSize: 11 }}></i>
                     </span>
                     <div style={{ minWidth: 0, flex: 1 }}>
-                      <div style={{ fontSize: 12, color: '#555', lineHeight: 1.55, whiteSpace: 'pre-wrap' }}>
-                        {n.cuerpo}
-                      </div>
+                      {/* Click para editar, igual que en el resto de
+                          notas del módulo. */}
+                      {editando === n.id ? (
+                        <textarea
+                          autoFocus
+                          defaultValue={n.cuerpo}
+                          rows={2}
+                          onBlur={(e) => guardarComentario(a.id, n.id, e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Escape') setEditando(null);
+                            if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
+                              guardarComentario(a.id, n.id, e.target.value);
+                            }
+                          }}
+                          style={{
+                            width: '100%',
+                            padding: '7px 10px',
+                            border: `1px solid ${MORADO}`,
+                            borderRadius: 9,
+                            fontSize: 12,
+                            lineHeight: 1.55,
+                            outline: 'none',
+                            fontFamily: 'inherit',
+                            resize: 'vertical',
+                          }}
+                        />
+                      ) : (
+                        <div
+                          onClick={() => setEditando(n.id)}
+                          style={{ fontSize: 12, color: '#555', lineHeight: 1.55, whiteSpace: 'pre-wrap', cursor: 'text' }}
+                        >
+                          {n.cuerpo}
+                        </div>
+                      )}
                       <div style={{ fontSize: 10.5, color: '#888', marginTop: 2 }}>{fechaCorta(n.created_at)}</div>
                     </div>
                     <button
