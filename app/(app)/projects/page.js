@@ -103,6 +103,8 @@ function Proyectos() {
   const [menu, setMenu] = useState(null);
   const [renombrando, setRenombrando] = useState(null);
   const [confirmarBorrado, setConfirmarBorrado] = useState(null);
+  // Los botones de la cabecera abren el buscador de la sección que toca.
+  const [atajo, setAtajo] = useState(null);
   // Para el estado vacío: lo último que el usuario ha seguido. Tres,
   // no más: es una sugerencia para arrancar, no un directorio.
   const [seguidos, setSeguidos] = useState([]);
@@ -704,10 +706,17 @@ function Proyectos() {
   // =====================================================================
   // PROYECTO ABIERTO
   // =====================================================================
-  const d = (esPro && abierto ? datos[abierto.id] : null) || { actores: 0, asuntos: 0, sinContactar: 0, novedades: 0 };
+  const d = (esPro && abierto ? datos[abierto.id] : null) || {
+    actores: 0,
+    asuntos: 0,
+    sinContactar: 0,
+    novedades: 0,
+    briefings: 0,
+    acciones: 0,
+  };
 
-  // Una sola página que se recorre entera. La barra de arriba salta,
-  // no oculta: por eso solo se listan secciones que existen de verdad.
+  // Una sola página que se recorre entera. El índice salta, no oculta:
+  // por eso solo se listan secciones que existen de verdad.
   const secciones = esPro
     ? [
         { id: 'resumen', label: 'Resumen' },
@@ -729,118 +738,68 @@ function Proyectos() {
 
   return (
     <div className="sec" style={{ maxWidth: 1180 }}>
-      <div style={{ ...CARD, display: 'grid', gridTemplateColumns: 'minmax(0,210px) minmax(0,1fr)' }}>
-        <div style={{ borderRight: `.5px solid ${BORDE}`, padding: '16px 11px', background: '#fafaf7' }}>
-          <button
-            onClick={() => esPro && router.replace('/projects', { scroll: false })}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 6,
-              background: 'none',
-              border: 'none',
-              padding: '0 0 12px',
-              color: '#888',
-              fontSize: 11,
-              letterSpacing: '.3px',
-            }}
-          >
-            {esPro && <i className="ti ti-arrow-left" style={{ fontSize: 13 }}></i>}
-            PROYECTOS
-          </button>
+      <style>{`
+        .gt-proyecto { display: grid; grid-template-columns: minmax(0,1fr) minmax(0,168px); gap: 26px; }
+        @media (max-width: 900px) { .gt-proyecto { grid-template-columns: minmax(0,1fr); gap: 0; } }
+      `}</style>
 
-          {lista.map((p) => {
-            const sel = abierto?.id === p.id;
-            const nov = (esPro ? datos[p.id]?.novedades : 0) || 0;
-            return (
-              <button
-                key={p.id}
-                onClick={() => (esPro ? abrir(p.id) : setModalUpsell(true))}
-                style={{
-                  width: '100%',
-                  textAlign: 'left',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 7,
-                  padding: '7px 9px',
-                  marginBottom: 3,
-                  borderRadius: 8,
-                  border: 'none',
-                  background: sel ? '#f0eefe' : 'transparent',
-                }}
-              >
-                <i className="ti ti-folder" style={{ fontSize: 14, color: sel ? MORADO : '#a8a49c', flexShrink: 0 }}></i>
-                <span
-                  style={{
-                    fontSize: 12.5,
-                    fontWeight: sel ? 500 : 400,
-                    color: sel ? '#1a1a18' : '#555',
-                    flex: 1,
-                    minWidth: 0,
-                    overflow: 'hidden',
-                    textOverflow: 'ellipsis',
-                    whiteSpace: 'nowrap',
-                  }}
-                >
-                  {p.name}
-                </span>
-                {nov > 0 && (
-                  <span
-                    style={{
-                      fontSize: 10.5,
-                      background: MORADO,
-                      color: '#fff',
-                      borderRadius: 20,
-                      padding: '0 6px',
-                      flexShrink: 0,
-                    }}
-                  >
-                    {nov}
-                  </span>
-                )}
-              </button>
-            );
-          })}
-
-          {esPro && (
-            <button
-              onClick={() => router.replace('/projects', { scroll: false })}
-              style={{
-                width: '100%',
-                textAlign: 'left',
-                display: 'flex',
-                alignItems: 'center',
-                gap: 7,
-                padding: '7px 9px',
-                border: 'none',
-                background: 'none',
-                color: '#a8a49c',
-                fontSize: 12.5,
+      {/* Cabecera: el título es el selector de proyecto, y las acciones
+          a mano. Sin lateral izquierda — la columna se la queda el
+          índice, que es lo que se usa constantemente. */}
+      <div
+        style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'flex-start',
+          gap: 14,
+          flexWrap: 'wrap',
+          marginBottom: 18,
+        }}
+      >
+        <div style={{ minWidth: 0 }}>
+          {esPro ? (
+            <CambiarProyecto
+              proyectos={proyectos}
+              actual={abierto}
+              novedades={Object.fromEntries(Object.entries(datos).map(([k, v]) => [k, v.novedades]))}
+              onElegir={abrir}
+              onNuevo={() => {
+                router.replace('/projects', { scroll: false });
+                setCreando(true);
               }}
-            >
-              <i className="ti ti-plus" style={{ fontSize: 14 }}></i> Nuevo
-            </button>
+              onVerTodos={() => router.replace('/projects', { scroll: false })}
+            />
+          ) : (
+            <div style={{ fontSize: 19, fontWeight: 600, lineHeight: 1.35 }}>{abierto?.name}</div>
           )}
-
-          {!esPro && (
-            <button className="btn-ai" style={{ width: '100%', marginTop: 14 }} onClick={() => setModalUpsell(true)}>
-              <i className="ti ti-bolt"></i> Desbloquear
-            </button>
-          )}
-        </div>
-
-        <div
-          style={{ padding: '18px 22px', minWidth: 0 }}
-          onClick={esPro ? undefined : () => setModalUpsell(true)}
-        >
-          <div style={{ fontSize: 19, fontWeight: 600, lineHeight: 1.35 }}>{abierto?.name}</div>
-          <div style={{ fontSize: 12, color: '#888', marginTop: 3 }}>
+          <div style={{ fontSize: 12, color: '#888', marginTop: 4 }}>
             {d.actores} {d.actores === 1 ? 'actor' : 'actores'} · {d.asuntos}{' '}
             {d.asuntos === 1 ? 'asunto' : 'asuntos'}
           </div>
+        </div>
 
-          <AnclasProyecto secciones={secciones} />
+        {esPro && (
+          <div style={{ display: 'flex', gap: 6, flexShrink: 0, flexWrap: 'wrap' }}>
+            <button className="btn-ai-o" onClick={() => setAtajo('actor')}>
+              <i className="ti ti-plus"></i> Actor
+            </button>
+            <button className="btn-o" onClick={() => setAtajo('asunto')}>
+              <i className="ti ti-plus"></i> Asunto
+            </button>
+          </div>
+        )}
+        {!esPro && (
+          <button className="btn-ai" onClick={() => setModalUpsell(true)}>
+            <i className="ti ti-bolt"></i> Desbloquear
+          </button>
+        )}
+      </div>
 
+      <div className="gt-proyecto">
+        <div
+          style={{ minWidth: 0 }}
+          onClick={esPro ? undefined : () => setModalUpsell(true)}
+        >
           {!esPro && (
             <>
               <ResumenDemo />
@@ -852,79 +811,74 @@ function Proyectos() {
           {esPro && (
             <>
               <section id="resumen" style={{ scrollMarginTop: 72, marginBottom: 30 }}>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 16 }}>
-                  <div style={{ minWidth: 0 }}>
-                    <div style={{ ...ETIQUETA, marginBottom: 7 }}>OBJETIVO</div>
-                    {/* Click y a escribir: sin botón de guardar. */}
-                    <textarea
-                      key={abierto.id}
-                      defaultValue={abierto.objetivo || ''}
-                      placeholder="Qué quieres conseguir con este asunto"
-                      onBlur={(e) => guardarObjetivo(e.target.value)}
-                      rows={3}
-                      style={{
-                        width: '100%',
-                        padding: '10px 12px',
-                        border: `.5px solid ${BORDE}`,
-                        borderRadius: 9,
-                        fontSize: 13,
-                        lineHeight: 1.7,
-                        outline: 'none',
-                        fontFamily: 'inherit',
-                        background: '#fafaf7',
-                        resize: 'vertical',
-                      }}
-                    />
+                <div style={{ ...ETIQUETA, marginBottom: 7 }}>OBJETIVO</div>
+                <textarea
+                  key={abierto.id}
+                  defaultValue={abierto.objetivo || ''}
+                  placeholder="Qué quieres conseguir con este asunto"
+                  onBlur={(e) => guardarObjetivo(e.target.value)}
+                  rows={3}
+                  style={{
+                    width: '100%',
+                    maxWidth: 620,
+                    padding: '10px 12px',
+                    border: `.5px solid ${BORDE}`,
+                    borderRadius: 9,
+                    fontSize: 13,
+                    lineHeight: 1.7,
+                    outline: 'none',
+                    fontFamily: 'inherit',
+                    background: '#fafaf7',
+                    resize: 'vertical',
+                  }}
+                />
+
+                <div style={{ display: 'flex', gap: 22, flexWrap: 'wrap', marginTop: 16 }}>
+                  <div>
+                    <div style={{ fontSize: 21, fontWeight: 600, color: MORADO, lineHeight: 1.1 }}>{d.actores}</div>
+                    <div style={{ fontSize: 11, color: '#888' }}>actores</div>
                   </div>
-
-                  <div style={{ minWidth: 0 }}>
-                    <div style={{ ...CARD, padding: '15px 16px', marginBottom: 10 }}>
-                      <div style={{ display: 'flex', gap: 20, flexWrap: 'wrap' }}>
-                        <div>
-                          <div style={{ fontSize: 21, fontWeight: 600, color: MORADO, lineHeight: 1.1 }}>{d.actores}</div>
-                          <div style={{ fontSize: 11, color: '#888' }}>actores</div>
-                        </div>
-                        <div>
-                          <div style={{ fontSize: 21, fontWeight: 600, color: MORADO, lineHeight: 1.1 }}>{d.asuntos}</div>
-                          <div style={{ fontSize: 11, color: '#888' }}>asuntos</div>
-                        </div>
-                        <div>
-                          <div
-                            style={{
-                              fontSize: 21,
-                              fontWeight: 600,
-                              color: d.sinContactar > 0 ? '#1a1a18' : '#a8a49c',
-                              lineHeight: 1.1,
-                            }}
-                          >
-                            {d.sinContactar}
-                          </div>
-                          <div style={{ fontSize: 11, color: '#888' }}>sin contactar</div>
-                        </div>
-                      </div>
+                  <div>
+                    <div style={{ fontSize: 21, fontWeight: 600, color: MORADO, lineHeight: 1.1 }}>{d.asuntos}</div>
+                    <div style={{ fontSize: 11, color: '#888' }}>asuntos</div>
+                  </div>
+                  <div>
+                    <div
+                      style={{
+                        fontSize: 21,
+                        fontWeight: 600,
+                        color: d.sinContactar > 0 ? '#1a1a18' : '#a8a49c',
+                        lineHeight: 1.1,
+                      }}
+                    >
+                      {d.sinContactar}
                     </div>
-
-                    <div style={{ ...CARD, padding: '13px 16px', opacity: 0.55 }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
-                        <i className="ti ti-lock" style={{ fontSize: 14, color: '#8b8780' }}></i>
-                        <span style={ETIQUETA}>EQUIPO</span>
-                      </div>
-                      <div style={{ fontSize: 12.5, color: '#555', lineHeight: 1.55 }}>
-                        Invitar a compañeros y repartir los actores llega con Teams.
-                      </div>
-                    </div>
+                    <div style={{ fontSize: 11, color: '#888' }}>sin contactar</div>
+                  </div>
+                  <div style={{ opacity: 0.55, display: 'flex', alignItems: 'center', gap: 7 }}>
+                    <i className="ti ti-lock" style={{ fontSize: 14, color: '#8b8780' }}></i>
+                    <span style={{ fontSize: 11.5, color: '#555' }}>Equipo con Teams</span>
                   </div>
                 </div>
               </section>
 
               <section id="asuntos" style={{ scrollMarginTop: 72, marginBottom: 30 }}>
                 <div style={{ ...ETIQUETA, marginBottom: 12 }}>ASUNTOS Y SU TRAMITACIÓN</div>
-                <AsuntosProyecto projectId={abierto.id} userId={user.id} />
+                <AsuntosProyecto
+                  projectId={abierto.id}
+                  userId={user.id}
+                  abrirBuscador={atajo === 'asunto'}
+                  onCerrarBuscador={() => setAtajo(null)}
+                />
               </section>
 
               <section id="mapa" style={{ scrollMarginTop: 72, marginBottom: 30 }}>
                 <div style={{ ...ETIQUETA, marginBottom: 12 }}>MAPA DE ACTORES</div>
-                <MapaActores projectId={abierto.id} />
+                <MapaActores
+                  projectId={abierto.id}
+                  abrirBuscador={atajo === 'actor'}
+                  onCerrarBuscador={() => setAtajo(null)}
+                />
               </section>
 
               <section id="briefing" style={{ scrollMarginTop: 72, marginBottom: 30 }}>
@@ -949,6 +903,8 @@ function Proyectos() {
             </>
           )}
         </div>
+
+        <AnclasProyecto secciones={secciones} />
       </div>
 
       {!esPro && (
