@@ -106,6 +106,8 @@ function Proyectos() {
   const [confirmarBorrado, setConfirmarBorrado] = useState(null);
   // Los botones de la cabecera abren el buscador de la sección que toca.
   const [atajo, setAtajo] = useState(null);
+  // Vuelve a true al abrir cualquier proyecto: cerrarlo es un "ahora no".
+  const [teams, setTeams] = useState(true);
   // Para el estado vacío: lo último que el usuario ha seguido. Tres,
   // no más: es una sugerencia para arrancar, no un directorio.
   const [seguidos, setSeguidos] = useState([]);
@@ -210,6 +212,7 @@ function Proyectos() {
 
   function abrir(id) {
     router.replace(`/projects?p=${id}`, { scroll: false });
+    setTeams(true);
   }
 
 
@@ -781,6 +784,50 @@ function Proyectos() {
           </div>
         </div>
 
+        {/* El aviso de Teams vive arriba a la derecha, donde no compite
+            con nada. Se puede cerrar, pero vuelve al abrir un proyecto:
+            no se guarda que lo cerraste porque no es una preferencia,
+            es un "ahora no". */}
+        {esPro && teams && (
+          <div
+            style={{
+              ...CARD,
+              background: '#fafaff',
+              borderColor: '#d8d3f5',
+              padding: '11px 13px',
+              display: 'flex',
+              alignItems: 'flex-start',
+              gap: 10,
+              maxWidth: 370,
+              flexShrink: 0,
+            }}
+          >
+            <i
+              className="ti ti-users-group"
+              style={{ fontSize: 17, color: MORADO, flexShrink: 0, marginTop: 1 }}
+            ></i>
+            <div style={{ minWidth: 0 }}>
+              <div style={{ fontSize: 12.5, fontWeight: 600 }}>Trabájalo con tu equipo</div>
+              <div style={{ fontSize: 11.5, color: '#555', marginTop: 2, lineHeight: 1.5 }}>
+                Responsables por actor, menciones, registro de contactos y agenda compartida.
+              </div>
+              <a
+                href="/precios"
+                style={{ fontSize: 11.5, color: MORADO, display: 'inline-block', marginTop: 6 }}
+              >
+                Ver Teams →
+              </a>
+            </div>
+            <button
+              onClick={() => setTeams(false)}
+              aria-label="Cerrar"
+              style={{ background: 'none', border: 'none', color: '#a8a49c', padding: 2, flexShrink: 0 }}
+            >
+              <i className="ti ti-x" style={{ fontSize: 14 }}></i>
+            </button>
+          </div>
+        )}
+
         {!esPro && (
           <button className="btn-ai" onClick={() => setModalUpsell(true)}>
             <i className="ti ti-bolt"></i> Desbloquear
@@ -840,35 +887,6 @@ function Proyectos() {
                   </div>
                 </div>
 
-                {/* Aquí había una fila de cifras que repetía lo que ya
-                    dice el índice de la derecha. En su lugar, lo único
-                    que este espacio puede decir y el índice no: que
-                    trabajar esto en equipo existe. */}
-                <div
-                  style={{
-                    ...CARD,
-                    background: '#fafaff',
-                    borderColor: '#d8d3f5',
-                    padding: '14px 16px',
-                    marginTop: 20,
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 14,
-                    flexWrap: 'wrap',
-                  }}
-                >
-                  <i className="ti ti-users-group" style={{ fontSize: 20, color: MORADO, flexShrink: 0 }}></i>
-                  <div style={{ flex: 1, minWidth: 200 }}>
-                    <div style={{ fontSize: 13, fontWeight: 600 }}>Trabaja este proyecto con tu equipo</div>
-                    <div style={{ fontSize: 12, color: '#555', marginTop: 3, lineHeight: 1.55 }}>
-                      Un responsable por cada actor, menciones en las notas, registro de contactos con
-                      trazabilidad y agenda compartida.
-                    </div>
-                  </div>
-                  <a href="/precios" className="btn-ai-o" style={{ flexShrink: 0 }}>
-                    Ver Teams
-                  </a>
-                </div>
               </section>
 
               {/* El mapa es lo segundo que se mira y lo más propio del
