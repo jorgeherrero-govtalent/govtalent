@@ -188,7 +188,9 @@ export default function LoginPage() {
                   alinea arriba y el hueco entre módulos baja de 20 a 16
                   para que el bloque no crezca. */}
               <style>{`
-                .sl-features { gap: 16px !important; }
+                /* Sin el bloque de cierre debajo, el borde inferior de
+                   la lista quedaba suelto contra el vacío. */
+                .sl-features { gap: 16px !important; border-bottom: none !important; padding-bottom: 0 !important; margin-bottom: 0 !important; }
                 .sl-feature { align-items: flex-start !important; }
                 .sl-feature i { margin-top: 1px; }
                 .sl-feature em {
@@ -233,13 +235,9 @@ export default function LoginPage() {
                   <i className="ti ti-briefcase"></i>
                   <span>
                     Empleo
-                    <em>Descubre oportunidades profesionales.</em>
+                    <em>Descubre y publica oportunidades profesionales.</em>
                   </span>
                 </div>
-              </div>
-              <div className="sl-stat">
-                <div className="n">GovTalent</div>
-                <div className="l">Todo el ecosistema. Un único lugar.</div>
               </div>
             </div>
 
