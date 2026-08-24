@@ -626,7 +626,10 @@ export default function ProfilePage() {
           left: 20px;
           font-size: 34px;
         }
-        .p-wrap .p-info { padding-top: 44px; padding-right: 150px; }
+        /* La foto sobresale 54px por debajo de la portada, así que el
+           bloque necesita al menos eso más aire. Con 44 el nombre se le
+           metía encima. */
+        .p-wrap .p-info { padding-top: 66px; padding-right: 150px; }
         @media (max-width: 520px) { .p-wrap .p-info { padding-right: 20px; } }
         .p-wrap .p-info { padding: 34px 20px 16px; }
         /* Sobrescrito arriba: la foto es más alta y necesita más hueco. */
