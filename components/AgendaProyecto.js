@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { toast } from '@/lib/toast';
+import SelectorFecha from '@/components/SelectorFecha';
 
 /**
  * La agenda del proyecto.
@@ -43,6 +44,26 @@ const SUGERENCIAS = [
   'Solicitar reunión con el órgano competente',
   'Enviar la aportación antes del cierre de plazo',
 ];
+
+// Atajos que cubren casi todo sin abrir el calendario.
+function atajosFecha() {
+  const iso = (d) => {
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const dd = String(d.getDate()).padStart(2, '0');
+    return `${d.getFullYear()}-${m}-${dd}`;
+  };
+  const hoy = new Date();
+  const mas = (n) => {
+    const d = new Date(hoy);
+    d.setDate(d.getDate() + n);
+    return iso(d);
+  };
+  return [
+    { label: 'Hoy', iso: iso(hoy) },
+    { label: 'Mañana', iso: mas(1) },
+    { label: 'En una semana', iso: mas(7) },
+  ];
+}
 
 export default function AgendaProyecto({ projectId }) {
   const supabase = createClient();
@@ -198,18 +219,13 @@ export default function AgendaProyecto({ projectId }) {
             }}
           />
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
-            <input
-              type="date"
+            <SelectorFecha
               value={fecha}
-              onChange={(e) => setFecha(e.target.value)}
-              style={{
-                padding: '7px 10px',
-                border: `.5px solid ${BORDE}`,
-                borderRadius: 8,
-                fontSize: 12.5,
-                outline: 'none',
-                fontFamily: 'inherit',
-              }}
+              onChange={(v) => setFecha(v || '')}
+              placeholder="Sin fecha"
+              ancho={168}
+              desdeAno={new Date().getFullYear() - 1}
+              atajos={atajosFecha()}
             />
             <select
               className="fsel"
