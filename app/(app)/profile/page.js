@@ -39,7 +39,6 @@ export default function ProfilePage() {
   const [languages, setLanguages] = useState([]);
   const [savedJobs, setSavedJobs] = useState([]);
   const [appliedJobs, setAppliedJobs] = useState([]);
-  const [followedOrgs, setFollowedOrgs] = useState([]);
 
   const [tab, setTab] = useState('e');
   const [showEditProfile, setShowEditProfile] = useState(false);
@@ -144,10 +143,9 @@ export default function ProfilePage() {
           .eq('candidate_id', uid)
           .neq('status', 'retirada')
           .order('applied_at', { ascending: false }),
-        supabase.from('organization_follows').select('organizations(id, slug, name, logo_url)').eq('user_id', uid),
       ]);
 
-      const [rUser, rProfile, rExp, rEdu, rSk, rLang, rSaved, rApplied, rFollows] = results;
+      const [rUser, rProfile, rExp, rEdu, rSk, rLang, rSaved, rApplied] = results;
 
       results.forEach((r, i) => {
         if (r.status === 'rejected') console.error('Profile load query', i, 'rejected:', r.reason);
@@ -173,7 +171,6 @@ export default function ProfilePage() {
       setLanguages(rLang.status === 'fulfilled' ? rLang.value.data || [] : []);
       setSavedJobs(rSaved.status === 'fulfilled' ? rSaved.value.data || [] : []);
       setAppliedJobs(rApplied.status === 'fulfilled' ? rApplied.value.data || [] : []);
-      setFollowedOrgs(rFollows.status === 'fulfilled' ? rFollows.value.data || [] : []);
     } catch (err) {
       console.error('Error inesperado cargando el perfil:', err);
       // Aseguramos que la pantalla no se quede colgada aunque algo falle.
@@ -1538,41 +1535,66 @@ export default function ProfilePage() {
               </div>
             </div>
 
-            <div style={{ display: 'flex', alignItems: 'flex-start', gap: 9 }}>
-              <div
-                style={{
-                  width: 20,
-                  height: 20,
-                  borderRadius: '50%',
-                  background: '#e0dfd8',
-                  color: '#fff',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  fontSize: 11,
-                  fontWeight: 700,
-                  flexShrink: 0,
-                  marginTop: 1,
-                }}
-              >
-                2
-              </div>
-              <div style={{ flex: 1 }}>
-                <div style={{ fontSize: 12.5, fontWeight: 600 }}>Autocompleta con IA</div>
-                <div style={{ fontSize: 11.5, color: '#888', marginTop: 2, marginBottom: 7 }}>
-                  Rellena experiencia, educación y habilidades leyendo tu CV.
+            {/* La ayuda de la IA solo mientras sirve de algo: en cuanto
+                hay experiencia deja de ser el paso siguiente y pasa a
+                ser un botón enorme sin trabajo que hacer. */}
+            {mostrarIa && (
+              <div style={{ display: 'flex', alignItems: 'flex-start', gap: 9 }}>
+                <div
+                  style={{
+                    width: 20,
+                    height: 20,
+                    borderRadius: '50%',
+                    background: '#e0dfd8',
+                    color: '#fff',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    fontSize: 11,
+                    fontWeight: 700,
+                    flexShrink: 0,
+                    marginTop: 1,
+                  }}
+                >
+                  2
+                </div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: 12.5, fontWeight: 600 }}>Autocompleta con IA</div>
+                  <div style={{ fontSize: 11.5, color: '#888', marginTop: 2, marginBottom: 7 }}>
+                    Rellena experiencia, educación y habilidades leyendo tu CV.
+                  </div>
+                  <button
+                    className="btn-ai"
+                    style={{ width: '100%', fontSize: 12 }}
+                    disabled={!profile?.cv_url || extractingCv}
+                    onClick={extractFromCv}
+                    title={!profile?.cv_url ? 'Sube tu CV primero' : ''}
+                  >
+                    <i className="ti ti-bolt"></i>{' '}
+                    {extractingCv ? 'Leyendo tu CV...' : 'Autocompletar perfil con IA'}
+                  </button>
                 </div>
                 <button
-                  className="btn-ai"
-                  style={{ width: '100%', fontSize: 12 }}
-                  disabled={!profile?.cv_url || extractingCv}
-                  onClick={extractFromCv}
-                  title={!profile?.cv_url ? 'Sube tu CV primero' : ''}
+                  onClick={() => setIaCerrada(true)}
+                  aria-label="Ocultar el autocompletado"
+                  style={{ background: 'none', border: 'none', color: '#c4c0b8', padding: 2, flexShrink: 0 }}
                 >
-                  <i className="ti ti-bolt"></i> {extractingCv ? 'Leyendo tu CV...' : 'Autocompletar perfil con IA'}
+                  <i className="ti ti-x" style={{ fontSize: 14 }}></i>
                 </button>
               </div>
-            </div>
+            )}
+
+            {/* Con experiencia ya cargada se guarda aquí: sigue estando
+                para quien cambie de trabajo y suba un CV nuevo. */}
+            {!mostrarIa && profile?.cv_url && (
+              <button
+                onClick={extractFromCv}
+                disabled={extractingCv}
+                style={{ background: 'none', border: 'none', color: '#6d5aef', fontSize: 11.5, padding: 0 }}
+              >
+                {extractingCv ? 'Leyendo tu CV…' : 'Volver a autocompletar con IA'}
+              </button>
+            )}
           </div>
 
           {/* Antes había aquí una barra de "Completado al X%". La
@@ -1664,20 +1686,23 @@ export default function ProfilePage() {
                     ></div>
                   </div>
 
-                  {(radiografia.recomendaciones || []).slice(0, 3).map((r, i) => (
+                </div>
+              )}
+
+              {/* Las recomendaciones NO son lo que falta del perfil: van
+                  aparte y con su propia etiqueta. Debajo de "completo al
+                  100%" se leían como tareas pendientes y se contradecían. */}
+              {(radiografia.recomendaciones || []).length > 0 && (
+                <div style={{ borderTop: '.5px solid #e0dfd8', paddingTop: 14, marginBottom: 14 }}>
+                  <div style={{ fontSize: 11, color: '#888', letterSpacing: '.3px', marginBottom: 9 }}>
+                    PARA MEJORAR TU ENCAJE
+                  </div>
+                  {radiografia.recomendaciones.slice(0, 3).map((r, i) => (
                     <div
                       key={i}
-                      style={{ display: 'flex', alignItems: 'center', gap: 9, marginTop: 9, fontSize: 12.5, color: '#555' }}
+                      style={{ display: 'flex', alignItems: 'flex-start', gap: 8, marginBottom: 7, fontSize: 12.5, color: '#555', lineHeight: 1.5 }}
                     >
-                      <span
-                        style={{
-                          width: 15,
-                          height: 15,
-                          borderRadius: '50%',
-                          border: '1px solid #b8b4ac',
-                          flexShrink: 0,
-                        }}
-                      ></span>
+                      <span style={{ color: '#a8a49c', flexShrink: 0 }}>·</span>
                       {r.titulo}
                     </div>
                   ))}
@@ -1737,29 +1762,6 @@ export default function ProfilePage() {
             </Link>
           </div>
 
-          <div className="sw">
-            <h4>Organizaciones que sigues</h4>
-            {followedOrgs.length === 0 && <div style={{ fontSize: 12.5, color: '#999' }}>Ninguna todavía.</div>}
-            {followedOrgs.slice(0, 4).map((f, i) => (
-              <Link href={`/organizations/${f.organizations?.slug}`} className="sp" key={i} style={{ textDecoration: 'none', color: 'inherit' }}>
-                <div className="sp-av" style={{ borderRadius: 8, overflow: 'hidden' }}>
-                  {f.organizations?.logo_url ? (
-                    <img
-                      src={f.organizations.logo_url}
-                      alt=""
-                      style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                    />
-                  ) : (
-                    <i className="ti ti-building"></i>
-                  )}
-                </div>
-                <div style={{ fontSize: 13, fontWeight: 500 }}>{f.organizations?.name}</div>
-              </Link>
-            ))}
-            <Link href="/profile/organizations" style={{ fontSize: 12.5, color: '#1d6f5c' }}>
-              Ver todas
-            </Link>
-          </div>
         </div>
       </div>
 
