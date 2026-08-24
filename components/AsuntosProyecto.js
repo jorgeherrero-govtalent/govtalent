@@ -25,6 +25,7 @@ import { toast } from '@/lib/toast';
 
 const MORADO = '#6d5aef';
 const BORDE = '#e0dfd8';
+const ETIQUETA = { fontSize: 11, color: '#888', letterSpacing: '.3px' };
 const MESES = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
 
 const ORIGEN = {
@@ -60,6 +61,7 @@ export default function AsuntosProyecto({ projectId, userId, abrirBuscador, onCe
   const [hayDeshacer, setHayDeshacer] = useState(false);
   const [confirmar, setConfirmar] = useState(null);
   const [editando, setEditando] = useState(null);
+  const [abierto, setAbierto] = useState(null);
 
   const cargar = useCallback(async () => {
     const [{ data: items }, { data: ns }] = await Promise.all([
@@ -268,74 +270,101 @@ export default function AsuntosProyecto({ projectId, userId, abrirBuscador, onCe
 
   if (cargando) return <div className="spinner"></div>;
 
+  // El asunto abierto se re-lee de la lista para que el modal refleje
+  // los comentarios que se añaden dentro sin cerrarlo.
+  const detalle = asuntos.find((a) => a.id === abierto?.id) || null;
+
   return (
     <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, marginBottom: 12, flexWrap: 'wrap' }}>
-        <div style={{ fontSize: 12, color: '#888' }}>
-          {asuntos.length === 0
-            ? 'Ningún asunto todavía'
-            : `${asuntos.length} ${asuntos.length === 1 ? 'asunto' : 'asuntos'} en seguimiento`}
-        </div>
-        <button className="btn-ai-o" onClick={() => setBuscador(true)}>
-          <i className="ti ti-plus"></i> Añadir asunto
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8, marginBottom: 10, flexWrap: 'wrap' }}>
+        <span style={{ ...ETIQUETA }}>ASUNTOS</span>
+        <button
+          onClick={() => setBuscador(true)}
+          style={{ background: 'none', border: 'none', color: MORADO, fontSize: 11.5, padding: 0 }}
+        >
+          + Añadir
         </button>
       </div>
 
       {asuntos.length === 0 && (
-        <div style={{ fontSize: 12.5, color: '#999', lineHeight: 1.65, maxWidth: 470 }}>
-          Añade una ley, un expediente o un procedimiento y traerá su tramitación y sus plazos. También
-          puedes mandarlos desde su ficha en Regulatorio.
+        <div style={{ fontSize: 12, color: '#999', lineHeight: 1.6 }}>
+          Añade una ley, un expediente o un procedimiento y traerá su tramitación y sus plazos.
         </div>
       )}
 
-      {asuntos.map((a) => {
+      {/* Lista compacta: lo que se mira a diario es en qué fase está y
+          cuánto queda. El recorrido entero se consulta de vez en cuando,
+          y por eso vive en el modal. */}
+      {asuntos.map((a, i) => {
         const actual = a.fases.find((f) => f.estado === 'actual');
-        const misNotas = notas[a.id] || [];
+        const nComentarios = (notas[a.id] || []).length;
         return (
-          <div key={a.id} style={{ background: '#fff', border: `.5px solid ${BORDE}`, borderRadius: 10, padding: '15px 18px', marginBottom: 10 }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12, flexWrap: 'wrap' }}>
-              <div style={{ minWidth: 0, flex: 1 }}>
-                <div style={{ fontSize: 14, fontWeight: 600, lineHeight: 1.4 }}>{a.etiqueta || a.ref_id}</div>
-                <div style={{ fontSize: 11.5, color: '#888', marginTop: 3 }}>{ORIGEN[a.kind] || 'Seguimiento'}</div>
-              </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0 }}>
-                {actual?.dias > 0 && (
-                  <div style={{ textAlign: 'right' }}>
-                    <div style={{ fontSize: 12.5, fontWeight: 600, lineHeight: 1.3 }}>Quedan {actual.dias} días</div>
-                    <div style={{ fontSize: 10.5, color: '#888' }}>{actual.etiqueta}</div>
-                  </div>
-                )}
-                <button
-                  onClick={() => {
-                    setComentando(comentando === a.id ? null : a.id);
-                    setTexto('');
-                  }}
-                  aria-label="Comentar este asunto"
-                  title="Comentar"
-                  style={{ background: 'none', border: 'none', color: '#a8a49c', padding: 2 }}
-                >
-                  <i className="ti ti-message-plus" style={{ fontSize: 16 }}></i>
-                </button>
-                <button
-                  onClick={() => setConfirmar(a)}
-                  aria-label="Quitar del proyecto"
-                  title="Quitar del proyecto"
-                  style={{ background: 'none', border: 'none', color: '#c4c0b8', padding: 2 }}
-                >
-                  <i className="ti ti-x" style={{ fontSize: 15 }}></i>
-                </button>
+          <button
+            key={a.id}
+            onClick={() => setAbierto(a)}
+            style={{
+              display: 'block',
+              width: '100%',
+              textAlign: 'left',
+              background: 'none',
+              border: 'none',
+              borderTop: i === 0 ? `.5px solid ${BORDE}` : 'none',
+              borderBottom: `.5px solid ${BORDE}`,
+              padding: '10px 0',
+            }}
+          >
+            <div style={{ fontSize: 12.5, fontWeight: 500, lineHeight: 1.4 }}>{a.etiqueta || a.ref_id}</div>
+            <div
+              style={{
+                display: 'flex',
+                gap: 8,
+                alignItems: 'baseline',
+                flexWrap: 'wrap',
+                fontSize: 11,
+                color: '#888',
+                marginTop: 3,
+              }}
+            >
+              <span>{ORIGEN[a.kind] || 'Seguimiento'}</span>
+              {actual && (
+                <span style={{ color: '#1a1a18' }}>
+                  {actual.dias > 0 ? `Quedan ${actual.dias} días` : actual.etiqueta}
+                </span>
+              )}
+              {nComentarios > 0 && (
+                <span style={{ marginLeft: 'auto' }}>
+                  <i className="ti ti-message" style={{ fontSize: 12, verticalAlign: -1, marginRight: 3 }}></i>
+                  {nComentarios}
+                </span>
+              )}
+            </div>
+          </button>
+        );
+      })}
+
+      {detalle && (
+        <div className="modal-ov on" onClick={(e) => e.target === e.currentTarget && setAbierto(null)}>
+          <div className="modal-box" style={{ maxWidth: 640 }}>
+            <div className="modal-head">
+              <h2 style={{ lineHeight: 1.35 }}>{detalle.etiqueta || detalle.ref_id}</h2>
+              <div className="modal-x" onClick={() => setAbierto(null)}>
+                <i className="ti ti-x"></i>
               </div>
             </div>
 
-            {a.fases.length === 0 ? (
-              <div style={{ fontSize: 11.5, color: '#999', marginTop: 11, lineHeight: 1.6 }}>
-                {a.kind === 'boe'
+            <div style={{ fontSize: 11.5, color: '#888', marginTop: -6, marginBottom: 16 }}>
+              {ORIGEN[detalle.kind] || 'Seguimiento'}
+            </div>
+
+            {detalle.fases.length === 0 ? (
+              <div style={{ fontSize: 12, color: '#999', lineHeight: 1.6, marginBottom: 16 }}>
+                {detalle.kind === 'boe'
                   ? 'Publicado en el BOE: no tiene tramitación que seguir.'
                   : 'Sin recorrido registrado todavía.'}
               </div>
             ) : (
-              <div style={{ display: 'flex', gap: 6, marginTop: 15 }}>
-                {a.fases.map((f, i) => (
+              <div style={{ display: 'flex', gap: 6, marginBottom: 18 }}>
+                {detalle.fases.map((f, i) => (
                   <div key={i} style={{ flex: 1, minWidth: 0, textAlign: 'center' }}>
                     <div
                       style={{
@@ -367,160 +396,124 @@ export default function AsuntosProyecto({ projectId, userId, abrirBuscador, onCe
               </div>
             )}
 
-            {(misNotas.length > 0 || comentando === a.id) && (
-              <div style={{ borderTop: `.5px solid ${BORDE}`, marginTop: 14, paddingTop: 12 }}>
-                {misNotas.slice(0, 3).map((n) => (
-                  <div key={n.id} style={{ display: 'flex', gap: 9, marginBottom: 9 }}>
-                    <span
-                      style={{
-                        width: 20,
-                        height: 20,
-                        borderRadius: '50%',
-                        background: '#f0f0eb',
-                        color: '#a8a49c',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        flexShrink: 0,
-                        marginTop: 1,
-                      }}
-                    >
-                      <i className="ti ti-note" style={{ fontSize: 11 }}></i>
-                    </span>
-                    <div style={{ minWidth: 0, flex: 1 }}>
-                      {/* Click para editar, igual que en el resto de
-                          notas del módulo. */}
-                      {editando === n.id ? (
-                        <textarea
-                          autoFocus
-                          defaultValue={n.cuerpo}
-                          rows={2}
-                          onBlur={(e) => guardarComentario(a.id, n.id, e.target.value)}
-                          onKeyDown={(e) => {
-                            if (e.key === 'Escape') setEditando(null);
-                            if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
-                              guardarComentario(a.id, n.id, e.target.value);
-                            }
-                          }}
-                          style={{
-                            width: '100%',
-                            padding: '7px 10px',
-                            border: `1px solid ${MORADO}`,
-                            borderRadius: 9,
-                            fontSize: 12,
-                            lineHeight: 1.55,
-                            outline: 'none',
-                            fontFamily: 'inherit',
-                            resize: 'vertical',
-                          }}
-                        />
-                      ) : (
-                        <div
-                          onClick={() => setEditando(n.id)}
-                          style={{ fontSize: 12, color: '#555', lineHeight: 1.55, whiteSpace: 'pre-wrap', cursor: 'text' }}
-                        >
-                          {n.cuerpo}
-                        </div>
-                      )}
-                      <div style={{ fontSize: 10.5, color: '#888', marginTop: 2 }}>{fechaCorta(n.created_at)}</div>
-                    </div>
-                    <button
-                      onClick={() => borrarComentario(a.id, n)}
-                      aria-label="Borrar comentario"
-                      style={{ background: 'none', border: 'none', color: '#c4c0b8', padding: 2, flexShrink: 0 }}
-                    >
-                      <i className="ti ti-x" style={{ fontSize: 13 }}></i>
-                    </button>
-                  </div>
-                ))}
-                {misNotas.length > 3 && (
-                  <div style={{ fontSize: 11, color: '#888', marginBottom: 9 }}>
-                    y {misNotas.length - 3} comentarios más
-                  </div>
-                )}
+            <div style={{ borderTop: `.5px solid ${BORDE}`, paddingTop: 14 }}>
+              <div style={{ ...ETIQUETA, marginBottom: 10 }}>COMENTARIOS</div>
 
-                {comentando === a.id && (
-                  <div>
-                    <div style={{ display: 'flex', gap: 7, alignItems: 'center' }}>
-                      <input
+              {(notas[detalle.id] || []).map((n) => (
+                <div key={n.id} style={{ display: 'flex', gap: 9, marginBottom: 10 }}>
+                  <span
+                    style={{
+                      width: 20,
+                      height: 20,
+                      borderRadius: '50%',
+                      background: '#f0f0eb',
+                      color: '#a8a49c',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      flexShrink: 0,
+                      marginTop: 1,
+                    }}
+                  >
+                    <i className="ti ti-note" style={{ fontSize: 11 }}></i>
+                  </span>
+                  <div style={{ minWidth: 0, flex: 1 }}>
+                    {editando === n.id ? (
+                      <textarea
                         autoFocus
-                        value={texto}
-                        onChange={(e) => setTexto(e.target.value)}
+                        defaultValue={n.cuerpo}
+                        rows={2}
+                        onBlur={(e) => guardarComentario(detalle.id, n.id, e.target.value)}
                         onKeyDown={(e) => {
-                          if (e.key === 'Enter') comentar(a);
-                          if (e.key === 'Escape') {
-                            setTexto('');
-                            setComentando(null);
+                          if (e.key === 'Escape') setEditando(null);
+                          if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
+                            guardarComentario(detalle.id, n.id, e.target.value);
                           }
                         }}
-                        placeholder="Comenta esta ley…"
                         style={{
-                          flex: 1,
-                          minWidth: 0,
-                          padding: '8px 11px',
+                          width: '100%',
+                          padding: '7px 10px',
                           border: `1px solid ${MORADO}`,
                           borderRadius: 9,
                           fontSize: 12,
+                          lineHeight: 1.55,
                           outline: 'none',
                           fontFamily: 'inherit',
+                          resize: 'vertical',
                         }}
                       />
-                      {/* Cierre visible: sin él no se sabía cómo salir. */}
-                      <button
-                        onClick={() => {
-                          setTexto('');
-                          setComentando(null);
-                        }}
-                        aria-label="Cerrar sin comentar"
-                        style={{ background: 'none', border: 'none', color: '#a8a49c', padding: 4, flexShrink: 0 }}
+                    ) : (
+                      <div
+                        onClick={() => setEditando(n.id)}
+                        style={{ fontSize: 12, color: '#555', lineHeight: 1.55, whiteSpace: 'pre-wrap', cursor: 'text' }}
                       >
-                        <i className="ti ti-x" style={{ fontSize: 15 }}></i>
-                      </button>
-                    </div>
-                    <div style={{ fontSize: 10.5, color: '#a8a49c', marginTop: 5 }}>
-                      Enter para guardar · Esc para cancelar
-                    </div>
+                        {n.cuerpo}
+                      </div>
+                    )}
+                    <div style={{ fontSize: 10.5, color: '#888', marginTop: 2 }}>{fechaCorta(n.created_at)}</div>
                   </div>
-                )}
-              </div>
-            )}
-          </div>
-        );
-      })}
+                  <button
+                    onClick={() => borrarComentario(detalle.id, n)}
+                    aria-label="Borrar comentario"
+                    style={{ background: 'none', border: 'none', color: '#c4c0b8', padding: 2, flexShrink: 0 }}
+                  >
+                    <i className="ti ti-x" style={{ fontSize: 13 }}></i>
+                  </button>
+                </div>
+              ))}
 
-      {hayDeshacer && (
-        <button
-          onClick={restaurarComentario}
-          style={{ background: 'none', border: 'none', color: MORADO, fontSize: 12, padding: '4px 0 0' }}
-        >
-          Deshacer el comentario borrado
-        </button>
-      )}
+              <input
+                value={comentando === detalle.id ? texto : ''}
+                onChange={(e) => {
+                  setComentando(detalle.id);
+                  setTexto(e.target.value);
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') comentar(detalle);
+                  if (e.key === 'Escape') {
+                    setTexto('');
+                    setComentando(null);
+                  }
+                }}
+                placeholder="Comenta este asunto…"
+                style={{
+                  width: '100%',
+                  padding: '8px 11px',
+                  border: `.5px solid ${BORDE}`,
+                  borderRadius: 9,
+                  fontSize: 12,
+                  outline: 'none',
+                  fontFamily: 'inherit',
+                  background: '#fafaf7',
+                }}
+              />
 
-      {confirmar && (
-        <div className="modal-ov on" onClick={(e) => e.target === e.currentTarget && setConfirmar(null)}>
-          <div className="modal-box" style={{ maxWidth: 420 }}>
-            <div className="modal-head">
-              <h2>Quitar el asunto</h2>
-              <div className="modal-x" onClick={() => setConfirmar(null)}>
-                <i className="ti ti-x"></i>
-              </div>
-            </div>
-            <p style={{ fontSize: 13, color: '#555', lineHeight: 1.65 }}>
-              «{confirmar.etiqueta || confirmar.ref_id}» sale de este proyecto
-              {(notas[confirmar.id] || []).length > 0 && (
-                <> y se borran sus {(notas[confirmar.id] || []).length} comentarios</>
+              {hayDeshacer && (
+                <button
+                  onClick={restaurarComentario}
+                  style={{ background: 'none', border: 'none', color: MORADO, fontSize: 11.5, padding: '8px 0 0' }}
+                >
+                  Deshacer el comentario borrado
+                </button>
               )}
-              . El asunto sigue en Regulatorio y tu seguimiento no cambia.
-            </p>
-            <div style={{ display: 'flex', gap: 8, marginTop: 16 }}>
-              <button className="btn-o" onClick={() => setConfirmar(null)}>
-                Cancelar
-              </button>
-              <button className="btn-ai" onClick={() => quitar(confirmar)}>
-                Quitar del proyecto
-              </button>
             </div>
+
+            <button
+              onClick={() => {
+                setAbierto(null);
+                setConfirmar(detalle);
+              }}
+              style={{
+                background: 'none',
+                border: 'none',
+                color: '#999',
+                fontSize: 12,
+                padding: 0,
+                marginTop: 18,
+              }}
+            >
+              Quitar del proyecto
+            </button>
           </div>
         </div>
       )}
