@@ -104,6 +104,8 @@ function Proyectos() {
   const [menu, setMenu] = useState(null);
   const [renombrando, setRenombrando] = useState(null);
   const [confirmarBorrado, setConfirmarBorrado] = useState(null);
+  // Los botones de la cabecera abren el buscador de la sección que toca.
+  const [atajo, setAtajo] = useState(null);
   // Para el estado vacío: lo último que el usuario ha seguido. Tres,
   // no más: es una sugerencia para arrancar, no un directorio.
   const [seguidos, setSeguidos] = useState([]);
