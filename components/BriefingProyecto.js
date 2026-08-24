@@ -200,7 +200,10 @@ export default function BriefingProyecto({ projectId, userId }) {
         .from('project-files')
         .upload(ruta, f, { contentType: f.type || undefined, upsert: false });
       if (eSubida) {
-        toast(`No se ha podido subir «${f.name}»`);
+        // El motivo importa: sin él no se distingue un permiso denegado
+        // de un archivo duplicado o de un bucket que no existe.
+        console.error('Subida fallida', { ruta, error: eSubida });
+        toast(`No se ha podido subir «${f.name}»: ${eSubida.message || 'error desconocido'}`);
         continue;
       }
 
@@ -219,9 +222,11 @@ export default function BriefingProyecto({ projectId, userId }) {
         .single();
 
       if (error) {
-        // Sin fila, el archivo quedaría huérfano en el bucket.
+        // Si la fila falla, el archivo se queda huérfano en el bucket:
+        // se retira para no dejar basura que nadie puede ver ni borrar.
         await supabase.storage.from('project-files').remove([ruta]);
-        toast(`No se ha podido guardar «${f.name}»`);
+        console.error('Fila fallida', { ruta, error });
+        toast(`No se ha podido guardar «${f.name}»: ${error.message || error.code || 'error desconocido'}`);
         continue;
       }
       setDocs((prev) => ({ ...prev, [actor.id]: [data, ...(prev[actor.id] || [])] }));
@@ -234,7 +239,8 @@ export default function BriefingProyecto({ projectId, userId }) {
   async function abrirDoc(doc) {
     const { data, error } = await supabase.storage.from('project-files').createSignedUrl(doc.storage_path, 60);
     if (error || !data?.signedUrl) {
-      toast('No se ha podido abrir el documento');
+      console.error('URL firmada fallida', { ruta: doc.storage_path, error });
+      toast(`No se ha podido abrir: ${error?.message || 'sin permiso'}`);
       return;
     }
     window.open(data.signedUrl, '_blank', 'noopener,noreferrer');
