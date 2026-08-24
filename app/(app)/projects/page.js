@@ -12,6 +12,7 @@ import AsuntosProyecto from '@/components/AsuntosProyecto';
 import BriefingProyecto from '@/components/BriefingProyecto';
 import DocumentosProyecto from '@/components/DocumentosProyecto';
 import AnclasProyecto from '@/components/AnclasProyecto';
+import CambiarProyecto from '@/components/CambiarProyecto';
 import ActorAvatar from '@/components/ActorAvatar';
 import ProyectoDemo, { ResumenDemo } from '@/components/ProyectoDemo';
 import { limiteProyectos, puedeCrearProyecto, tieneProyectos, upsellProyectos } from '@/lib/proyectos';
