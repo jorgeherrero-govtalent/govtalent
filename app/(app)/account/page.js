@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
 import { toast } from '@/lib/toast';
+import SelectorFecha from '@/components/SelectorFecha';
 
 const CARD = { background: '#fff', borderRadius: 10, boxShadow: '0 1px 2px rgba(0,0,0,.04)' };
 const LABEL = { fontSize: 11, color: '#a8a49c', letterSpacing: '.4px', marginBottom: 14 };
@@ -387,11 +388,16 @@ export default function AccountPage() {
           </div>
           <div className="field" style={{ flex: 1, marginBottom: 0 }}>
             <label>Fecha de nacimiento</label>
-            <input
-              type="date"
-              value={user.birth_date || ''}
-              disabled={savingBirthDate}
-              onChange={(e) => saveBirthDate(e.target.value)}
+            {/* Calendario propio en vez del nativo: el del navegador
+                cambia de aspecto en cada uno y no se puede vestir. El mes
+                y el año van como desplegables, que para una fecha de
+                nacimiento es la diferencia entre dos clics y cuatrocientos. */}
+            <SelectorFecha
+              value={user.birth_date || null}
+              onChange={(v) => saveBirthDate(v || '')}
+              placeholder="Sin indicar"
+              desdeAno={new Date().getFullYear() - 100}
+              hastaAno={new Date().getFullYear() - 14}
             />
           </div>
         </div>
