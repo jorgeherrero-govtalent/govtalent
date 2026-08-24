@@ -97,7 +97,6 @@ export default function ProfilePage() {
     setSitu((s) => ({ ...s, [field]: value }));
   }
 
-  const bioRef = useRef(null);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const [uploadingCover, setUploadingCover] = useState(false);
   const [uploadingCv, setUploadingCv] = useState(false);
@@ -165,7 +164,7 @@ export default function ProfilePage() {
           last_name: '',
         }
       );
-      setProfile(p || { bio: '' });
+      setProfile(p || {});
       setExperiences(rExp.status === 'fulfilled' ? rExp.value.data || [] : []);
       setEducation(rEdu.status === 'fulfilled' ? rEdu.value.data || [] : []);
       setSkills(rSk.status === 'fulfilled' ? rSk.value.data || [] : []);
@@ -176,7 +175,7 @@ export default function ProfilePage() {
       console.error('Error inesperado cargando el perfil:', err);
       // Aseguramos que la pantalla no se quede colgada aunque algo falle.
       setUser((prev) => prev || { id: userId, first_name: 'Usuario', last_name: '' });
-      setProfile((prev) => prev || { bio: '' });
+      setProfile((prev) => prev || {});
     }
   }
 
@@ -194,7 +193,6 @@ export default function ProfilePage() {
     const profileUpdates = {
       website_url: f.get('website_url') || null,
       linkedin_url: f.get('linkedin_url') || null,
-      bio: f.get('bio') || null,
       contact_email: f.get('contact_email') || null,
       career_situation: situ.career_situation || null,
       // Si la situación no requiere entorno/rol/nivel (área no relacionada,
@@ -356,9 +354,6 @@ export default function ProfilePage() {
       await supabase.from('users').update(userUpdates).eq('id', userId);
     }
 
-    if (cvExtractResult.bio && !profile?.bio) {
-      await supabase.from('candidate_profiles').update({ bio: cvExtractResult.bio }).eq('user_id', userId);
-    }
 
     const expToInsert = cvExtractResult.experiences
       .filter((_, i) => selectedExpIdx.has(i))
@@ -394,7 +389,6 @@ export default function ProfilePage() {
     if (expRes.data?.length) setExperiences((prev) => [...expRes.data, ...prev]);
     if (eduRes.data?.length) setEducation((prev) => [...eduRes.data, ...prev]);
     if (userUpdates.professional_title) setUser((prev) => ({ ...prev, ...userUpdates }));
-    if (cvExtractResult.bio && !profile?.bio) setProfile((prev) => ({ ...prev, bio: cvExtractResult.bio }));
 
     const { data: freshSkills } = await supabase.from('skills').select('*').eq('user_id', userId);
     if (freshSkills) setSkills(freshSkills);
@@ -604,7 +598,6 @@ export default function ProfilePage() {
   const PIEZAS = [
     ['una foto', !!user?.avatar_url],
     ['tu CV', !!profile?.cv_url],
-    ['una descripción', !!profile?.bio],
     ['tu experiencia', experiences.length > 0],
     ['tu formación', education.length > 0],
     ['tus idiomas', languages.length > 0],
@@ -620,10 +613,11 @@ export default function ProfilePage() {
           fija de 3fr 2fr y la derecha quedaba ilegible. */}
       <style>{`
         .p-wrap { max-width: 1080px; margin: 0 auto; }
-        /* Cabecera un 35% más baja: la portada pasa de 190 a 130 y el
-           bloque de datos de 50px de sangría superior a 34, que es lo
-           justo para que quepa media foto. */
-        .p-wrap .p-cover { height: 130px; }
+        /* La portada ocupa ahora 1080px de ancho en vez de 630, así que
+           130px de alto la dejaban en 8:1 y parecía una banda. A 200
+           queda en 5:1, parecido a una portada de LinkedIn. La cabecera
+           adelgaza por el bloque de datos, no por la imagen. */
+        .p-wrap .p-cover { height: 200px; }
         .p-wrap .p-av { left: 20px; }
         .p-wrap .p-info { padding: 34px 20px 16px; }
         .p-wrap .p-name { font-size: 21px; margin-bottom: 2px; }
@@ -764,12 +758,6 @@ export default function ProfilePage() {
             </button>
           </div>
         </div>
-        <div className="p-sec" style={{ borderBottom: 'none' }}>
-          <h3>Acerca de</h3>
-          <div style={{ fontSize: 13.5, color: '#555', lineHeight: 1.7 }}>
-            {profile?.bio || 'Añade una biografía para que otros profesionales sepan más sobre ti.'}
-          </div>
-        </div>
       </div>
 
 {primeraVez && (
@@ -906,7 +894,8 @@ export default function ProfilePage() {
               if (combined.length === 0) {
                 return <div style={{ fontSize: 12.5, color: '#999' }}>Ninguno todavía.</div>;
               }
-              return combined.slice(0, 4).map((sj) => (
+              // Dos, para que la tarjeta mida lo mismo que las otras dos.
+              return combined.slice(0, 2).map((sj) => (
                 <div className="sp" key={sj.jobs.id}>
                   <div className="sp-av" style={{ borderRadius: 8, overflow: 'hidden' }}>
                     {sj.jobs?.organizations?.logo_url ? (
@@ -1110,27 +1099,6 @@ export default function ProfilePage() {
                   />
                 </div>
               </div>
-              <div className="field">
-                <label>Biografía</label>
-                <textarea
-                  ref={bioRef}
-                  name="bio"
-                  defaultValue={profile?.bio || ''}
-                  style={{
-                    width: '100%',
-                    minHeight: 100,
-                    padding: '10px 12px',
-                    border: '1px solid #e0dfd8',
-                    borderRadius: 9,
-                    fontSize: 13.5,
-                    fontFamily: 'inherit',
-                    outline: 'none',
-                    resize: 'vertical',
-                  }}
-                  placeholder="Cuenta tu experiencia y especialización..."
-                ></textarea>
-              </div>
-
               <div className="field" style={{ marginTop: 4 }}>
                 <label>Tu situación profesional</label>
                 <p style={{ fontSize: 11.5, color: '#999', marginBottom: 10 }}>
@@ -1780,11 +1748,6 @@ export default function ProfilePage() {
             {cvExtractResult.professional_title && !user.professional_title && (
               <div style={{ fontSize: 13, marginBottom: 12 }}>
                 <b>Título profesional:</b> {cvExtractResult.professional_title}
-              </div>
-            )}
-            {cvExtractResult.bio && !profile?.bio && (
-              <div style={{ fontSize: 13, marginBottom: 16, background: '#f8faf9', borderRadius: 8, padding: 10 }}>
-                <b>Biografía:</b> {cvExtractResult.bio}
               </div>
             )}
 
