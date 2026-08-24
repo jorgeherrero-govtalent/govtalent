@@ -180,18 +180,61 @@ export default function LoginPage() {
             <div className="sl-left">
               <h2>La plataforma all-in-one del ecosistema profesional de los asuntos públicos.</h2>
               <div className="sl-tagline">Todo lo que necesitas para crecer. En un único lugar.</div>
+              {/* Los cuatro módulos de la plataforma, en el mismo orden
+                  que la barra de navegación: lo primero que ve alguien
+                  sin cuenta es lo mismo que encontrará al entrar.
+
+                  Cada uno pasa de una línea a dos, así que el icono se
+                  alinea arriba y el hueco entre módulos baja de 20 a 16
+                  para que el bloque no crezca. */}
+              <style>{`
+                .sl-features { gap: 16px !important; }
+                .sl-feature { align-items: flex-start !important; }
+                .sl-feature i { margin-top: 1px; }
+                .sl-feature em {
+                  display: block;
+                  font-style: normal;
+                  font-size: 12.5px;
+                  font-weight: 400;
+                  color: rgba(255,255,255,.62);
+                  margin-top: 2px;
+                  line-height: 1.5;
+                }
+                /* Morado por decisión de producto, no por el sistema: en
+                   el resto de la plataforma el morado es Pro e IA y el
+                   verde la acción principal. */
+                .mbtn.mbtn-morado { background: #6d5aef; }
+                .mbtn.mbtn-morado:hover { background: #5c4ade; }
+              `}</style>
+
               <div className="sl-features">
                 <div className="sl-feature">
-                  <i className="ti ti-building-community"></i>Organizaciones
+                  <i className="ti ti-file-text"></i>
+                  <span>
+                    Regulatorio
+                    <em>Sigue normativa y procesos regulatorios.</em>
+                  </span>
                 </div>
                 <div className="sl-feature">
-                  <i className="ti ti-briefcase"></i>Empleo y oportunidades
+                  <i className="ti ti-building-bank"></i>
+                  <span>
+                    Instituciones
+                    <em>Explora instituciones, representantes y organizaciones.</em>
+                  </span>
                 </div>
                 <div className="sl-feature">
-                  <i className="ti ti-calendar-event"></i>Comunidad y eventos
+                  <i className="ti ti-folder"></i>
+                  <span>
+                    Proyectos
+                    <em>Organiza y gestiona tu actividad.</em>
+                  </span>
                 </div>
                 <div className="sl-feature">
-                  <i className="ti ti-radar-2"></i>Directorio inteligente
+                  <i className="ti ti-briefcase"></i>
+                  <span>
+                    Empleo
+                    <em>Descubre oportunidades profesionales.</em>
+                  </span>
                 </div>
               </div>
               <div className="sl-stat">
@@ -282,7 +325,7 @@ export default function LoginPage() {
                     ></i>
                   </div>
                 </div>
-                <button className="mbtn" disabled={loading}>
+                <button className="mbtn mbtn-morado" disabled={loading}>
                   {loading ? 'Un momento...' : view === 'signup' ? 'Crear cuenta' : 'Entrar'}
                 </button>
               </form>
