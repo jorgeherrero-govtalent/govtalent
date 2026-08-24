@@ -626,13 +626,14 @@ export default function ProfilePage() {
           left: 20px;
           font-size: 34px;
         }
-        /* La foto sobresale 54px por debajo de la portada, así que el
-           bloque necesita al menos eso más aire. Con 44 el nombre se le
-           metía encima. */
-        .p-wrap .p-info { padding-top: 66px; padding-right: 150px; }
-        @media (max-width: 520px) { .p-wrap .p-info { padding-right: 20px; } }
-        .p-wrap .p-info { padding: 34px 20px 16px; }
-        /* Sobrescrito arriba: la foto es más alta y necesita más hueco. */
+        /* Una sola declaración con las cuatro medidas. Antes había dos
+           reglas de padding para .p-info y la segunda pisaba a la
+           primera, que es lo que dejaba el nombre bajo la foto.
+
+           El hueco superior son los 54px que sobresale la foto más 14 de
+           aire. El derecho, sitio para el botón de editar. */
+        .p-wrap .p-info { padding: 68px 150px 18px 20px; }
+        @media (max-width: 520px) { .p-wrap .p-info { padding: 68px 20px 18px; } }
         .p-wrap .p-name { font-size: 21px; margin-bottom: 2px; }
         .p-wrap .p-title { font-size: 13.5px; margin-bottom: 5px; }
         .p-wrap .p-tabs { padding: 0 20px; }
