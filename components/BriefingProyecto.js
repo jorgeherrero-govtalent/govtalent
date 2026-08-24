@@ -83,6 +83,7 @@ export default function BriefingProyecto({ projectId, userId }) {
   const [estado, setEstado] = useState('');
   const [nota, setNota] = useState('');
   const [subiendo, setSubiendo] = useState(false);
+  const [confirmarDoc, setConfirmarDoc] = useState(null);
   const [editando, setEditando] = useState(null);
   const [hayDeshacer, setHayDeshacer] = useState(false);
   const borrada = useRef(null);
@@ -102,10 +103,10 @@ export default function BriefingProyecto({ projectId, userId }) {
         .order('created_at', { ascending: false }),
       supabase
         .from('project_files')
-        .select('id, actor_id, nombre, storage_path, bytes, created_at')
+        .select('id, actor_id, nombre, storage_path, bytes, orden, created_at')
         .eq('project_id', projectId)
         .not('actor_id', 'is', null)
-        .order('created_at', { ascending: false }),
+        .order('orden'),
     ]);
 
     const lista = acts || [];
@@ -248,8 +249,10 @@ export default function BriefingProyecto({ projectId, userId }) {
           storage_path: ruta,
           mime: f.type || null,
           bytes: f.size,
+          // Hueco de 10 entre documentos para poder intercalar después.
+          orden: ((docs[actor.id] || []).length + 1) * 10,
         })
-        .select('id, actor_id, nombre, storage_path, bytes, created_at')
+        .select('id, actor_id, nombre, storage_path, bytes, orden, created_at')
         .single();
 
       if (error) {
@@ -260,11 +263,48 @@ export default function BriefingProyecto({ projectId, userId }) {
         toast(`No se ha podido guardar «${f.name}»: ${error.message || error.code || 'error desconocido'}`);
         continue;
       }
-      setDocs((prev) => ({ ...prev, [actor.id]: [data, ...(prev[actor.id] || [])] }));
+      setDocs((prev) => ({ ...prev, [actor.id]: [...(prev[actor.id] || []), data] }));
     }
 
     setSubiendo(false);
     if (input.current) input.current.value = '';
+  }
+
+  async function moverDoc(indice, direccion) {
+    if (!actor) return;
+    const lista = [...(docs[actor.id] || [])];
+    const otro = indice + direccion;
+    if (otro < 0 || otro >= lista.length) return;
+
+    const a = lista[indice];
+    const b = lista[otro];
+    lista[indice] = { ...b, orden: a.orden };
+    lista[otro] = { ...a, orden: b.orden };
+    setDocs((prev) => ({ ...prev, [actor.id]: lista }));
+
+    const [r1, r2] = await Promise.all([
+      supabase.from('project_files').update({ orden: b.orden }).eq('id', a.id),
+      supabase.from('project_files').update({ orden: a.orden }).eq('id', b.id),
+    ]);
+    if (r1.error || r2.error) {
+      toast('No se ha podido reordenar');
+      cargar();
+    }
+  }
+
+  // Se pregunta, a diferencia de las notas: el archivo sale del bucket y
+  // no hay nada que reinsertar.
+  async function borrarDoc(doc) {
+    setConfirmarDoc(null);
+    setDocs((prev) => ({ ...prev, [actor.id]: (prev[actor.id] || []).filter((d) => d.id !== doc.id) }));
+    const { error } = await supabase.from('project_files').delete().eq('id', doc.id);
+    if (error) {
+      toast('No se ha podido eliminar');
+      cargar();
+      return;
+    }
+    await supabase.storage.from('project-files').remove([doc.storage_path]);
+    toast('Documento eliminado');
   }
 
   async function abrirDoc(doc) {
@@ -571,37 +611,92 @@ export default function BriefingProyecto({ projectId, userId }) {
                 </div>
               )}
 
-              {misDocs.map((f) => (
-                <button
-                  key={f.id}
-                  onClick={() => abrirDoc(f)}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 8,
-                    width: '100%',
-                    textAlign: 'left',
-                    background: 'none',
-                    border: 'none',
-                    padding: '5px 0',
-                  }}
-                >
-                  <i className="ti ti-file-text" style={{ fontSize: 14, color: '#a8a49c', flexShrink: 0 }}></i>
-                  <span
+              {misDocs.map((f, i) => (
+                <div key={f.id} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '4px 0' }}>
+                  <button
+                    onClick={() => abrirDoc(f)}
                     style={{
-                      fontSize: 12,
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 8,
                       flex: 1,
                       minWidth: 0,
-                      overflow: 'hidden',
-                      textOverflow: 'ellipsis',
-                      whiteSpace: 'nowrap',
+                      textAlign: 'left',
+                      background: 'none',
+                      border: 'none',
+                      padding: 0,
                     }}
                   >
-                    {f.nombre}
-                  </span>
-                  <span style={{ fontSize: 10.5, color: '#888', flexShrink: 0 }}>{fechaCorta(f.created_at)}</span>
-                </button>
+                    <i className="ti ti-file-text" style={{ fontSize: 14, color: '#a8a49c', flexShrink: 0 }}></i>
+                    <span
+                      style={{
+                        fontSize: 12,
+                        flex: 1,
+                        minWidth: 0,
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                        whiteSpace: 'nowrap',
+                      }}
+                    >
+                      {f.nombre}
+                    </span>
+                  </button>
+                  <button
+                    onClick={() => moverDoc(i, -1)}
+                    disabled={i === 0}
+                    aria-label="Subir"
+                    style={{ background: 'none', border: 'none', color: i === 0 ? '#e0dfd8' : '#c4c0b8', padding: 1, flexShrink: 0 }}
+                  >
+                    <i className="ti ti-chevron-up" style={{ fontSize: 14 }}></i>
+                  </button>
+                  <button
+                    onClick={() => moverDoc(i, 1)}
+                    disabled={i === misDocs.length - 1}
+                    aria-label="Bajar"
+                    style={{
+                      background: 'none',
+                      border: 'none',
+                      color: i === misDocs.length - 1 ? '#e0dfd8' : '#c4c0b8',
+                      padding: 1,
+                      flexShrink: 0,
+                    }}
+                  >
+                    <i className="ti ti-chevron-down" style={{ fontSize: 14 }}></i>
+                  </button>
+                  <button
+                    onClick={() => setConfirmarDoc(f)}
+                    aria-label={`Eliminar ${f.nombre}`}
+                    style={{ background: 'none', border: 'none', color: '#c4c0b8', padding: 1, flexShrink: 0 }}
+                  >
+                    <i className="ti ti-trash" style={{ fontSize: 13 }}></i>
+                  </button>
+                </div>
               ))}
+
+              {confirmarDoc && (
+                <div className="modal-ov on" onClick={(e) => e.target === e.currentTarget && setConfirmarDoc(null)}>
+                  <div className="modal-box" style={{ maxWidth: 400 }}>
+                    <div className="modal-head">
+                      <h2>Eliminar el documento</h2>
+                      <div className="modal-x" onClick={() => setConfirmarDoc(null)}>
+                        <i className="ti ti-x"></i>
+                      </div>
+                    </div>
+                    <p style={{ fontSize: 13, color: '#555', lineHeight: 1.65 }}>
+                      «{confirmarDoc.nombre}» se borra del proyecto y del almacenamiento. No se puede
+                      deshacer.
+                    </p>
+                    <div style={{ display: 'flex', gap: 8, marginTop: 16 }}>
+                      <button className="btn-o" onClick={() => setConfirmarDoc(null)}>
+                        Cancelar
+                      </button>
+                      <button className="btn-ai" onClick={() => borrarDoc(confirmarDoc)}>
+                        Eliminar
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
           </>
         )}
