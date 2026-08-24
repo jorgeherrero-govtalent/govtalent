@@ -21,7 +21,10 @@ import { useEffect, useRef, useState } from 'react';
 const MORADO = '#6d5aef';
 const BORDE = '#e0dfd8';
 
-export default function AnclasProyecto({ secciones, offset = 16 }) {
+// 64px de la barra de navegación (.nav es sticky) más aire.
+const BAJO_LA_BARRA = 80;
+
+export default function AnclasProyecto({ secciones }) {
   const [activa, setActiva] = useState(secciones[0]?.id);
   const saltando = useRef(false);
 
@@ -36,7 +39,7 @@ export default function AnclasProyecto({ secciones, offset = 16 }) {
           .sort((a, b) => a.boundingClientRect.top - b.boundingClientRect.top);
         if (visibles[0]) setActiva(visibles[0].target.id);
       },
-      { rootMargin: '-80px 0px -55% 0px', threshold: 0 }
+      { rootMargin: `-${BAJO_LA_BARRA + 10}px 0px -55% 0px`, threshold: 0 }
     );
 
     for (const s of secciones) {
@@ -51,7 +54,7 @@ export default function AnclasProyecto({ secciones, offset = 16 }) {
     if (!el) return;
     saltando.current = true;
     setActiva(id);
-    window.scrollTo({ top: el.getBoundingClientRect().top + window.scrollY - 72, behavior: 'smooth' });
+    window.scrollTo({ top: el.getBoundingClientRect().top + window.scrollY - BAJO_LA_BARRA, behavior: 'smooth' });
     setTimeout(() => {
       saltando.current = false;
     }, 700);
@@ -64,15 +67,19 @@ export default function AnclasProyecto({ secciones, offset = 16 }) {
           líneas. */}
       <style>{`
         .gt-anclas {
+          /* Por debajo de la cabecera de la aplicación: con 16px el
+             título quedaba escondido detrás de ella. */
           position: sticky;
-          top: 16px;
+          top: 84px;
           align-self: start;
         }
         .gt-anclas-lista { display: flex; flex-direction: column; gap: 1px; }
         @media (max-width: 900px) {
           .gt-anclas {
             position: sticky;
-            top: 0;
+            top: 64px;
+            max-height: none;
+            overflow-y: visible;
             z-index: 3;
             background: #fff;
             border-bottom: .5px solid ${BORDE};
