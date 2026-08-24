@@ -590,9 +590,9 @@ export default function ProfilePage() {
 
   if (!user) return <div className="spinner"></div>;
 
-  // La ayuda de la IA se enseña mientras el perfil esté vacío de
-  // experiencia: es cuando autocompletar ahorra trabajo de verdad.
-  const mostrarIa = !iaCerrada && experiences.length === 0;
+  // Basta con haberla cerrado para que no vuelva en esta sesión: quien
+  // escribe a mano no quiere verla, y quien acaba de subir el CV sí.
+  const mostrarIa = !iaCerrada;
 
 
   return (
@@ -1036,6 +1036,44 @@ export default function ProfilePage() {
                   <i className="ti ti-plus"></i> Añadir
                 </button>
               </h3>
+
+              {/* La IA vive aquí, junto a lo que rellena, y no en la
+                  tarjeta del CV: allí competía por atención con el propio
+                  currículum. Pequeña y con X, porque quien escribe su
+                  experiencia a mano no quiere verla cada vez. */}
+              {mostrarIa && profile?.cv_url && (
+                <div
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 9,
+                    background: '#faf9ff',
+                    border: '.5px solid #d8d3f5',
+                    borderRadius: 9,
+                    padding: '8px 11px',
+                    marginBottom: 14,
+                  }}
+                >
+                  <i className="ti ti-bolt" style={{ fontSize: 15, color: '#6d5aef', flexShrink: 0 }}></i>
+                  <span style={{ fontSize: 12, color: '#555', flex: 1, minWidth: 0, lineHeight: 1.5 }}>
+                    Podemos rellenar esto leyendo tu CV.
+                  </span>
+                  <button
+                    onClick={extractFromCv}
+                    disabled={extractingCv}
+                    style={{ background: 'none', border: 'none', color: '#6d5aef', fontSize: 12, padding: 0, flexShrink: 0 }}
+                  >
+                    {extractingCv ? 'Leyendo…' : 'Autocompletar'}
+                  </button>
+                  <button
+                    onClick={() => setIaCerrada(true)}
+                    aria-label="Ocultar"
+                    style={{ background: 'none', border: 'none', color: '#c4c0b8', padding: 2, flexShrink: 0 }}
+                  >
+                    <i className="ti ti-x" style={{ fontSize: 13 }}></i>
+                  </button>
+                </div>
+              )}
               {showExpForm && (
                 <form onSubmit={addExperience} style={{ marginBottom: 16, background: '#f8faf9', padding: 14, borderRadius: 10 }}>
                   <div className="form-row">
@@ -1535,66 +1573,6 @@ export default function ProfilePage() {
               </div>
             </div>
 
-            {/* La ayuda de la IA solo mientras sirve de algo: en cuanto
-                hay experiencia deja de ser el paso siguiente y pasa a
-                ser un botón enorme sin trabajo que hacer. */}
-            {mostrarIa && (
-              <div style={{ display: 'flex', alignItems: 'flex-start', gap: 9 }}>
-                <div
-                  style={{
-                    width: 20,
-                    height: 20,
-                    borderRadius: '50%',
-                    background: '#e0dfd8',
-                    color: '#fff',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    fontSize: 11,
-                    fontWeight: 700,
-                    flexShrink: 0,
-                    marginTop: 1,
-                  }}
-                >
-                  2
-                </div>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontSize: 12.5, fontWeight: 600 }}>Autocompleta con IA</div>
-                  <div style={{ fontSize: 11.5, color: '#888', marginTop: 2, marginBottom: 7 }}>
-                    Rellena experiencia, educación y habilidades leyendo tu CV.
-                  </div>
-                  <button
-                    className="btn-ai"
-                    style={{ width: '100%', fontSize: 12 }}
-                    disabled={!profile?.cv_url || extractingCv}
-                    onClick={extractFromCv}
-                    title={!profile?.cv_url ? 'Sube tu CV primero' : ''}
-                  >
-                    <i className="ti ti-bolt"></i>{' '}
-                    {extractingCv ? 'Leyendo tu CV...' : 'Autocompletar perfil con IA'}
-                  </button>
-                </div>
-                <button
-                  onClick={() => setIaCerrada(true)}
-                  aria-label="Ocultar el autocompletado"
-                  style={{ background: 'none', border: 'none', color: '#c4c0b8', padding: 2, flexShrink: 0 }}
-                >
-                  <i className="ti ti-x" style={{ fontSize: 14 }}></i>
-                </button>
-              </div>
-            )}
-
-            {/* Con experiencia ya cargada se guarda aquí: sigue estando
-                para quien cambie de trabajo y suba un CV nuevo. */}
-            {!mostrarIa && profile?.cv_url && (
-              <button
-                onClick={extractFromCv}
-                disabled={extractingCv}
-                style={{ background: 'none', border: 'none', color: '#6d5aef', fontSize: 11.5, padding: 0 }}
-              >
-                {extractingCv ? 'Leyendo tu CV…' : 'Volver a autocompletar con IA'}
-              </button>
-            )}
           </div>
 
           {/* Antes había aquí una barra de "Completado al X%". La
@@ -1681,31 +1659,11 @@ export default function ProfilePage() {
                       style={{
                         width: `${Math.min(100, Math.max(0, radiografia.perfil_completado_pct))}%`,
                         height: '100%',
-                        background: '#1a1a18',
+                        background: '#1d6f5c',
                       }}
                     ></div>
                   </div>
 
-                </div>
-              )}
-
-              {/* Las recomendaciones NO son lo que falta del perfil: van
-                  aparte y con su propia etiqueta. Debajo de "completo al
-                  100%" se leían como tareas pendientes y se contradecían. */}
-              {(radiografia.recomendaciones || []).length > 0 && (
-                <div style={{ borderTop: '.5px solid #e0dfd8', paddingTop: 14, marginBottom: 14 }}>
-                  <div style={{ fontSize: 11, color: '#888', letterSpacing: '.3px', marginBottom: 9 }}>
-                    PARA MEJORAR TU ENCAJE
-                  </div>
-                  {radiografia.recomendaciones.slice(0, 3).map((r, i) => (
-                    <div
-                      key={i}
-                      style={{ display: 'flex', alignItems: 'flex-start', gap: 8, marginBottom: 7, fontSize: 12.5, color: '#555', lineHeight: 1.5 }}
-                    >
-                      <span style={{ color: '#a8a49c', flexShrink: 0 }}>·</span>
-                      {r.titulo}
-                    </div>
-                  ))}
                 </div>
               )}
 
