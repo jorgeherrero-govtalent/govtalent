@@ -6,8 +6,8 @@ import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
 import { toast } from '@/lib/toast';
 import { useDragPosition, parsePosition } from '@/lib/useDragPosition';
-import ProgressChecklist from '@/components/ProgressChecklist';
 import FirstTimeHint from '@/components/FirstTimeHint';
+import RadiografiaModal from '@/components/RadiografiaModal';
 import {
   CAREER_SITUATIONS,
   ORG_TYPES,
@@ -53,16 +53,10 @@ export default function ProfilePage() {
   const [langName, setLangName] = useState('');
   const [langLevel, setLangLevel] = useState('B2');
   const [dragIndex, setDragIndex] = useState(null);
-  const [savingLookingForJob, setSavingLookingForJob] = useState(false);
-  const [showInterestsMenu, setShowInterestsMenu] = useState(false);
-  const [interestsMenuPos, setInterestsMenuPos] = useState({ top: 0, left: 0 });
-  const interestsBtnRef = useRef(null);
 
-  function openInterestsMenu() {
-    const rect = interestsBtnRef.current?.getBoundingClientRect();
-    if (rect) setInterestsMenuPos({ top: rect.bottom + 6, left: rect.left });
-    setShowInterestsMenu(true);
-  }
+  const [radiografia, setRadiografia] = useState(null);
+  const [verRadiografia, setVerRadiografia] = useState(false);
+
   const [showAiCvTip, setShowAiCvTip] = useState(true);
 
   // Cada vez que se abre "Editar perfil", el aviso vuelve a aparecer,
@@ -102,26 +96,6 @@ export default function ProfilePage() {
     setSitu((s) => ({ ...s, [field]: value }));
   }
 
-  const INTEREST_OPTIONS = [
-    {
-      key: 'contrataciones',
-      icon: 'ti-users',
-      title: 'Contrataciones',
-      desc: 'Comparte que estás buscando personal y atrae a candidatos cualificados.',
-    },
-    {
-      key: 'buscar_empleo',
-      icon: 'ti-briefcase',
-      title: 'Encontrar un nuevo empleo',
-      desc: 'Muestra que buscas empleo a las organizaciones que ven tu perfil.',
-    },
-    {
-      key: 'ofrecer_servicios',
-      icon: 'ti-tool',
-      title: 'Ofrecer servicios',
-      desc: 'Muestra los servicios que ofreces para que nuevos clientes puedan descubrirte.',
-    },
-  ];
   const bioRef = useRef(null);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const [uploadingCover, setUploadingCover] = useState(false);
@@ -135,6 +109,17 @@ export default function ProfilePage() {
 
   useEffect(() => {
     load();
+  }, []);
+
+  // La radiografía se pide una vez al cargar el perfil. Si falla, la
+  // tarjeta no aparece: mejor que enseñar un hueco con un error.
+  useEffect(() => {
+    fetch('/api/radiografia/calcular')
+      .then((r) => r.json())
+      .then((d) => {
+        if (!d?.error) setRadiografia(d);
+      })
+      .catch(() => {});
   }, []);
 
   async function load() {
@@ -194,22 +179,6 @@ export default function ProfilePage() {
       setUser((prev) => prev || { id: userId, first_name: 'Usuario', last_name: '' });
       setProfile((prev) => prev || { bio: '' });
     }
-  }
-
-  async function toggleInterest(key) {
-    const current = user.interests || [];
-    const newInterests = current.includes(key) ? current.filter((i) => i !== key) : [...current, key];
-    setSavingLookingForJob(true);
-    const { error } = await supabase
-      .from('users')
-      .update({ interests: newInterests, looking_for_job: newInterests.includes('buscar_empleo') })
-      .eq('id', userId);
-    setSavingLookingForJob(false);
-    if (error) {
-      toast('No se pudo actualizar');
-      return;
-    }
-    setUser((prev) => ({ ...prev, interests: newInterests, looking_for_job: newInterests.includes('buscar_empleo') }));
   }
 
   async function saveProfileEdit(e) {
@@ -623,12 +592,17 @@ export default function ProfilePage() {
 
   if (!user) return <div className="spinner"></div>;
 
-  const completion = computeCompletion(user, profile, experiences, education, skills);
 
   return (
     <div className="sec">
 
-      <div style={{ display: 'grid', gridTemplateColumns: '3fr 2fr', gap: 13, maxWidth: 1080, margin: '0 auto' }}>
+      {/* En móvil las dos columnas se apilan: antes era una rejilla
+          fija de 3fr 2fr y la derecha quedaba ilegible. */}
+      <style>{`
+        .p-grid { display: grid; grid-template-columns: 3fr 2fr; gap: 13px; max-width: 1080px; margin: 0 auto; }
+        @media (max-width: 860px) { .p-grid { grid-template-columns: 1fr; } }
+      `}</style>
+      <div className="p-grid">
         <div>
           <div className="card" style={{ marginBottom: 13 }}>
             <div
@@ -711,15 +685,6 @@ export default function ProfilePage() {
                 <i className="ti ti-map-pin" style={{ fontSize: 12 }}></i> {user.location}
               </span>
             )}
-            {(user.interests || []).map((key) => {
-              const opt = INTEREST_OPTIONS.find((o) => o.key === key);
-              if (!opt) return null;
-              return (
-                <span key={key} style={{ color: '#1d6f5c', fontWeight: 500 }}>
-                  <i className={`ti ${opt.icon}`} style={{ fontSize: 12 }}></i> {opt.title}
-                </span>
-              );
-            })}
             {profile?.website_url && (
               <span>
                 <i className="ti ti-world" style={{ fontSize: 12 }}></i>{' '}
@@ -748,80 +713,17 @@ export default function ProfilePage() {
             )}
           </div>
 
-          <div style={{ position: 'relative', marginTop: 10 }}>
-            <button
-              ref={interestsBtnRef}
-              className="btn-o"
-              style={{ fontSize: 12.5 }}
-              onClick={() => (showInterestsMenu ? setShowInterestsMenu(false) : openInterestsMenu())}
-            >
-              <i className="ti ti-target-arrow"></i> Tengo interés en...{' '}
-              <i className={`ti ${showInterestsMenu ? 'ti-chevron-up' : 'ti-chevron-down'}`}></i>
+          {/* El único botón de editar de la tarjeta: antes había otro en
+              "Acerca de", y dos hacían dudar de si editaban cosas
+              distintas. */}
+          <div style={{ marginTop: 12 }}>
+            <button className="btn-o" style={{ fontSize: 12.5 }} onClick={() => setShowEditProfile(true)}>
+              <i className="ti ti-edit"></i> Editar perfil
             </button>
-
-            {showInterestsMenu &&
-              typeof document !== 'undefined' &&
-              createPortal(
-                <>
-                  <div onClick={() => setShowInterestsMenu(false)} style={{ position: 'fixed', inset: 0, zIndex: 200 }}></div>
-                  <div
-                    style={{
-                      position: 'fixed',
-                      top: interestsMenuPos.top,
-                      left: interestsMenuPos.left,
-                      background: '#fff',
-                      border: '1px solid #e0dfd8',
-                      borderRadius: 10,
-                      boxShadow: '0 8px 24px rgba(0,0,0,.16)',
-                      zIndex: 201,
-                      width: 320,
-                      maxWidth: 'calc(100vw - 32px)',
-                      padding: 6,
-                    }}
-                  >
-                    {INTEREST_OPTIONS.map((opt) => {
-                      const active = (user.interests || []).includes(opt.key);
-                      return (
-                        <label
-                          key={opt.key}
-                          style={{
-                            display: 'flex',
-                            alignItems: 'flex-start',
-                            gap: 10,
-                            padding: '10px 10px',
-                            borderRadius: 8,
-                            cursor: 'pointer',
-                          }}
-                          onMouseEnter={(e) => (e.currentTarget.style.background = '#f8faf9')}
-                          onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
-                        >
-                          <input
-                            type="checkbox"
-                            checked={active}
-                            disabled={savingLookingForJob}
-                            onChange={() => toggleInterest(opt.key)}
-                            style={{ marginTop: 3 }}
-                          />
-                          <div>
-                            <div style={{ fontSize: 13.5, fontWeight: 600 }}>{opt.title}</div>
-                            <div style={{ fontSize: 12, color: '#888' }}>{opt.desc}</div>
-                          </div>
-                        </label>
-                      );
-                    })}
-                  </div>
-                </>,
-                document.body
-              )}
           </div>
         </div>
         <div className="p-sec" style={{ borderBottom: 'none' }}>
-          <h3>
-            Acerca de
-            <button className="btn-p" onClick={() => setShowEditProfile(true)}>
-              <i className="ti ti-edit"></i> Editar
-            </button>
-          </h3>
+          <h3>Acerca de</h3>
           <div style={{ fontSize: 13.5, color: '#555', lineHeight: 1.7 }}>
             {profile?.bio || 'Añade una biografía para que otros profesionales sepan más sobre ti.'}
           </div>
@@ -1668,22 +1570,67 @@ export default function ProfilePage() {
             </div>
           </div>
 
-          <ProgressChecklist
-            title="Tu visibilidad"
-            pct={completion}
-            items={[
-              { label: 'Foto de perfil', done: !!user?.avatar_url },
-              { label: 'Foto de portada', done: !!profile?.cover_url },
-              { label: 'CV subido', done: !!profile?.cv_url },
-              { label: 'Biografía', done: !!profile?.bio },
-              { label: 'Título profesional', done: !!user?.professional_title },
-              { label: 'Web o LinkedIn', done: !!(profile?.website_url || profile?.linkedin_url) },
-              { label: 'Experiencia', done: experiences.length > 0 },
-              { label: 'Educación', done: education.length > 0 },
-              { label: 'Habilidades', done: skills.length > 0 },
-            ]}
-            hint="Cuanto más completo esté tu perfil, más fácil es que una organización te encuentre."
-          />
+          {/* Antes había aquí una barra de "Completado al X%". La
+              radiografía dice lo mismo mejor: en vez de un porcentaje
+              abstracto, qué falta y para qué sirve. */}
+          {radiografia && (
+            <div className="card" style={{ marginBottom: 13, borderColor: '#d8d3f5' }}>
+              <h4>Tu Radiografía Profesional</h4>
+              {radiografia.trayectoria?.rol && (
+                <>
+                  <div style={{ fontSize: 11, color: '#888', letterSpacing: '.3px', marginTop: 10 }}>
+                    TU TRAYECTORIA SE APROXIMA A
+                  </div>
+                  <div
+                    style={{
+                      display: 'inline-block',
+                      background: '#f0eefe',
+                      border: '.5px solid #d8d3f5',
+                      borderRadius: 8,
+                      padding: '6px 12px',
+                      fontSize: 13.5,
+                      fontWeight: 600,
+                      margin: '7px 0 11px',
+                    }}
+                  >
+                    {radiografia.trayectoria.rol}
+                  </div>
+                </>
+              )}
+              {typeof radiografia.benchmark?.porcentaje === 'number' && (
+                <>
+                  <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
+                    <span style={{ fontSize: 22, fontWeight: 600, color: '#6d5aef', lineHeight: 1 }}>
+                      {radiografia.benchmark.porcentaje}%
+                    </span>
+                    <span style={{ fontSize: 11.5, color: '#888' }}>
+                      de encaje con las ofertas del sector
+                    </span>
+                  </div>
+                  <div
+                    style={{
+                      height: 5,
+                      background: '#f0f0eb',
+                      borderRadius: 3,
+                      margin: '9px 0 13px',
+                      overflow: 'hidden',
+                    }}
+                  >
+                    <div
+                      style={{
+                        width: `${Math.min(100, Math.max(0, radiografia.benchmark.porcentaje))}%`,
+                        height: '100%',
+                        background: '#6d5aef',
+                      }}
+                    ></div>
+                  </div>
+                </>
+              )}
+              <button className="btn-ai-o" style={{ fontSize: 11.5 }} onClick={() => setVerRadiografia(true)}>
+                Ver la radiografía completa
+              </button>
+            </div>
+          )}
 
           <div className="sw">
             <h4>Mis empleos guardados y solicitados</h4>
@@ -1757,6 +1704,8 @@ export default function ProfilePage() {
           </div>
         </div>
       </div>
+
+      {verRadiografia && <RadiografiaModal onClose={() => setVerRadiografia(false)} />}
 
       {cvExtractResult && (
         <div className="modal-ov on" onClick={(e) => e.target === e.currentTarget && setCvExtractResult(null)}>
@@ -1887,19 +1836,4 @@ function EmptySection({ icon, title, description, ctaLabel, onCta }) {
       )}
     </div>
   );
-}
-
-function computeCompletion(user, profile, exp, edu, skills) {
-  let pts = 0;
-  const total = 9;
-  if (user?.avatar_url) pts++;
-  if (profile?.cover_url) pts++;
-  if (profile?.cv_url) pts++;
-  if (profile?.bio) pts++;
-  if (user?.professional_title) pts++;
-  if (profile?.website_url || profile?.linkedin_url) pts++;
-  if (exp.length > 0) pts++;
-  if (edu.length > 0) pts++;
-  if (skills.length > 0) pts++;
-  return Math.round((pts / total) * 100);
 }
