@@ -55,6 +55,7 @@ export default function ProfilePage() {
   const [dragIndex, setDragIndex] = useState(null);
 
   const [radiografia, setRadiografia] = useState(null);
+  const [iaCerrada, setIaCerrada] = useState(false);
   const [verRadiografia, setVerRadiografia] = useState(false);
 
   const [showAiCvTip, setShowAiCvTip] = useState(true);
@@ -591,6 +592,10 @@ export default function ProfilePage() {
   }
 
   if (!user) return <div className="spinner"></div>;
+
+  // La ayuda de la IA se enseña mientras el perfil esté vacío de
+  // experiencia: es cuando autocompletar ahorra trabajo de verdad.
+  const mostrarIa = !iaCerrada && experiences.length === 0;
 
 
   return (
@@ -1575,10 +1580,14 @@ export default function ProfilePage() {
               abstracto, qué falta y para qué sirve. */}
           {radiografia && (
             <div className="card" style={{ marginBottom: 13, borderColor: '#d8d3f5' }}>
-              <h4>Tu Radiografía Profesional</h4>
+              <h4 style={{ marginBottom: 14 }}>Tu Radiografía Profesional</h4>
+
+              {/* El rol puede venir vacío si la trayectoria es corta.
+                  Antes descolocaba la tarjeta; ahora sencillamente no
+                  sale y el encaje ocupa su sitio. */}
               {radiografia.trayectoria?.rol && (
-                <>
-                  <div style={{ fontSize: 11, color: '#888', letterSpacing: '.3px', marginTop: 10 }}>
+                <div style={{ marginBottom: 16 }}>
+                  <div style={{ fontSize: 11, color: '#888', letterSpacing: '.3px', marginBottom: 7 }}>
                     TU TRAYECTORIA SE APROXIMA A
                   </div>
                   <div
@@ -1590,32 +1599,29 @@ export default function ProfilePage() {
                       padding: '6px 12px',
                       fontSize: 13.5,
                       fontWeight: 600,
-                      margin: '7px 0 11px',
                     }}
                   >
                     {radiografia.trayectoria.rol}
                   </div>
-                </>
+                </div>
               )}
+
               {typeof radiografia.benchmark?.porcentaje === 'number' && (
-                <>
+                <div style={{ marginBottom: 16 }}>
+                  <div style={{ fontSize: 11, color: '#888', letterSpacing: '.3px', marginBottom: 7 }}>
+                    ENCAJE CON LAS OFERTAS DEL SECTOR
+                  </div>
                   <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
-                    <span style={{ fontSize: 22, fontWeight: 600, color: '#6d5aef', lineHeight: 1 }}>
+                    <span style={{ fontSize: 26, fontWeight: 600, color: '#6d5aef', lineHeight: 1 }}>
                       {radiografia.benchmark.porcentaje}%
                     </span>
-                    <span style={{ fontSize: 11.5, color: '#888' }}>
-                      de encaje con las ofertas del sector
-                    </span>
+                    {radiografia.benchmark.criterios_evaluados > 0 && (
+                      <span style={{ fontSize: 11.5, color: '#888' }}>
+                        sobre {radiografia.benchmark.criterios_evaluados} criterios
+                      </span>
+                    )}
                   </div>
-                  <div
-                    style={{
-                      height: 5,
-                      background: '#f0f0eb',
-                      borderRadius: 3,
-                      margin: '9px 0 13px',
-                      overflow: 'hidden',
-                    }}
-                  >
+                  <div style={{ height: 5, background: '#f0f0eb', borderRadius: 3, marginTop: 10, overflow: 'hidden' }}>
                     <div
                       style={{
                         width: `${Math.min(100, Math.max(0, radiografia.benchmark.porcentaje))}%`,
@@ -1624,8 +1630,60 @@ export default function ProfilePage() {
                       }}
                     ></div>
                   </div>
-                </>
+                </div>
               )}
+
+              {/* El porcentaje de perfil va aquí y no en una barra
+                  aparte: completar el perfil sube el encaje, y juntos lo
+                  explican sin tener que decirlo. */}
+              {typeof radiografia.perfil_completado_pct === 'number' && (
+                <div style={{ borderTop: '.5px solid #e0dfd8', paddingTop: 14, marginBottom: 14 }}>
+                  <div
+                    style={{
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'baseline',
+                      marginBottom: 8,
+                    }}
+                  >
+                    <span style={{ fontSize: 11, color: '#888', letterSpacing: '.3px' }}>TU PERFIL</span>
+                    <span style={{ fontSize: 12, color: '#555' }}>
+                      completo al{' '}
+                      <span style={{ fontWeight: 600, color: '#1a1a18' }}>
+                        {radiografia.perfil_completado_pct}%
+                      </span>
+                    </span>
+                  </div>
+                  <div style={{ height: 5, background: '#f0f0eb', borderRadius: 3, overflow: 'hidden' }}>
+                    <div
+                      style={{
+                        width: `${Math.min(100, Math.max(0, radiografia.perfil_completado_pct))}%`,
+                        height: '100%',
+                        background: '#1a1a18',
+                      }}
+                    ></div>
+                  </div>
+
+                  {(radiografia.recomendaciones || []).slice(0, 3).map((r, i) => (
+                    <div
+                      key={i}
+                      style={{ display: 'flex', alignItems: 'center', gap: 9, marginTop: 9, fontSize: 12.5, color: '#555' }}
+                    >
+                      <span
+                        style={{
+                          width: 15,
+                          height: 15,
+                          borderRadius: '50%',
+                          border: '1px solid #b8b4ac',
+                          flexShrink: 0,
+                        }}
+                      ></span>
+                      {r.titulo}
+                    </div>
+                  ))}
+                </div>
+              )}
+
               <button className="btn-ai-o" style={{ fontSize: 11.5 }} onClick={() => setVerRadiografia(true)}>
                 Ver la radiografía completa
               </button>
