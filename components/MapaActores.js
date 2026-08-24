@@ -31,7 +31,7 @@ import {
 const BORDE = '#e0dfd8';
 const MORADO = '#6d5aef';
 
-export default function MapaActores({ projectId }) {
+export default function MapaActores({ projectId, abrirBuscador, onCerrarBuscador }) {
   const supabase = createClient();
   const lienzo = useRef(null);
 
@@ -64,6 +64,12 @@ export default function MapaActores({ projectId }) {
   useEffect(() => {
     cargar();
   }, [cargar]);
+
+  // Los botones "+ Actor" y "+ Asunto" de la cabecera del proyecto
+  // abren el buscador de la sección que corresponde.
+  useEffect(() => {
+    if (abrirBuscador) setBuscador(true);
+  }, [abrirBuscador]);
 
   // --- Arrastre ---------------------------------------------------------
 
@@ -420,9 +426,13 @@ export default function MapaActores({ projectId }) {
           projectId={projectId}
           categorias={categorias}
           yaEnMapa={actores}
-          onClose={() => setBuscador(false)}
+          onClose={() => {
+            setBuscador(false);
+            onCerrarBuscador?.();
+          }}
           onAdded={() => {
             setBuscador(false);
+            onCerrarBuscador?.();
             cargar();
           }}
         />
