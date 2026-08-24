@@ -866,7 +866,18 @@ function Proyectos() {
                 </div>
               </section>
 
-              <section id="mapa" style={{ scrollMarginTop: 72, marginBottom: 30 }}>
+              {/* El mapa es lo segundo que se mira y lo más propio del
+                  producto, así que se destaca: tarjeta blanca con borde
+                  frente al resto de secciones, que van sobre el fondo. */}
+              <section
+                id="mapa"
+                style={{
+                  scrollMarginTop: 72,
+                  marginBottom: 30,
+                  ...CARD,
+                  padding: '18px 20px',
+                }}
+              >
                 <div style={{ ...ETIQUETA, marginBottom: 12 }}>MAPA DE ACTORES</div>
                 <MapaActores projectId={abierto.id} />
               </section>
