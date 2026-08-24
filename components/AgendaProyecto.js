@@ -33,6 +33,17 @@ function diasHasta(iso) {
   return Math.round((d - hoy) / 86400000);
 }
 
+// Lo que se hace en casi cualquier asunto, en el orden en que se hace.
+// No son acciones de mentira pintadas en gris: se pulsan y se crean de
+// verdad, sin fecha, para que el usuario la ponga. Una plantilla que
+// solo decora se acaba leyendo como si fueran tus acciones.
+const SUGERENCIAS = [
+  'Fijar la posición interna',
+  'Preparar el argumentario',
+  'Solicitar reunión con el órgano competente',
+  'Enviar la aportación antes del cierre de plazo',
+];
+
 export default function AgendaProyecto({ projectId }) {
   const supabase = createClient();
   const [acciones, setAcciones] = useState([]);
@@ -82,6 +93,19 @@ export default function AgendaProyecto({ projectId }) {
     setFecha('');
     setRecordatorio('');
     setCreando(false);
+  }
+
+  async function crearSugerida(titulo) {
+    const { data, error } = await supabase
+      .from('project_actions')
+      .insert({ project_id: projectId, titulo })
+      .select('id, titulo, detalle, fecha, recordatorio_dias, estado, actor_id')
+      .single();
+    if (error) {
+      toast('No se ha podido crear la acción');
+      return;
+    }
+    setAcciones((prev) => [...prev, data]);
   }
 
   async function cambiarEstado(a) {
@@ -210,14 +234,45 @@ export default function AgendaProyecto({ projectId }) {
         </div>
       )}
 
-      {lista.length === 0 && !creando && (
-        <div className="empty-state">
-          <i className="ti ti-calendar"></i>
-          <div style={{ fontSize: 13, color: '#666', maxWidth: 330, margin: '8px auto 0', lineHeight: 1.6 }}>
-            {verHechas
-              ? 'Todavía no has cerrado ninguna acción.'
-              : 'Anota lo que hay que hacer y cuándo. Los plazos de las normas que sigues aparecerán aquí solos.'}
+      {/* La plantilla solo mientras la agenda esté vacía del todo: en
+          cuanto hay una acción propia, sobra. */}
+      {acciones.length === 0 && !creando && !verHechas && (
+        <div>
+          <div style={{ fontSize: 12.5, color: '#666', lineHeight: 1.6, marginBottom: 14, maxWidth: 460 }}>
+            Anota lo que hay que hacer y cuándo. Los plazos de las normas que sigues aparecerán aquí solos.
           </div>
+          <div style={{ fontSize: 11, color: '#888', letterSpacing: '.3px', marginBottom: 9 }}>
+            EMPIEZA POR AQUÍ
+          </div>
+          {SUGERENCIAS.map((t) => (
+            <button
+              key={t}
+              onClick={() => crearSugerida(t)}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 10,
+                width: '100%',
+                textAlign: 'left',
+                padding: '9px 12px',
+                marginBottom: 6,
+                border: `.5px dashed #c4c0b8`,
+                borderRadius: 9,
+                background: 'transparent',
+                color: '#555',
+                fontSize: 12.5,
+              }}
+            >
+              <i className="ti ti-plus" style={{ fontSize: 14, color: '#a8a49c', flexShrink: 0 }}></i>
+              {t}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {lista.length === 0 && !creando && (acciones.length > 0 || verHechas) && (
+        <div style={{ fontSize: 12.5, color: '#999', lineHeight: 1.6, padding: '8px 0' }}>
+          {verHechas ? 'Todavía no has cerrado ninguna acción.' : 'No queda nada pendiente.'}
         </div>
       )}
 
