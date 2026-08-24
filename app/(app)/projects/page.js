@@ -839,32 +839,34 @@ function Proyectos() {
                   </div>
                 </div>
 
-                <div style={{ display: 'flex', gap: 22, flexWrap: 'wrap', marginTop: 20 }}>
-                  <div>
-                    <div style={{ fontSize: 21, fontWeight: 600, color: MORADO, lineHeight: 1.1 }}>{d.actores}</div>
-                    <div style={{ fontSize: 11, color: '#888' }}>actores</div>
-                  </div>
-                  <div>
-                    <div style={{ fontSize: 21, fontWeight: 600, color: MORADO, lineHeight: 1.1 }}>{d.asuntos}</div>
-                    <div style={{ fontSize: 11, color: '#888' }}>asuntos</div>
-                  </div>
-                  <div>
-                    <div
-                      style={{
-                        fontSize: 21,
-                        fontWeight: 600,
-                        color: d.sinContactar > 0 ? '#1a1a18' : '#a8a49c',
-                        lineHeight: 1.1,
-                      }}
-                    >
-                      {d.sinContactar}
+                {/* Aquí había una fila de cifras que repetía lo que ya
+                    dice el índice de la derecha. En su lugar, lo único
+                    que este espacio puede decir y el índice no: que
+                    trabajar esto en equipo existe. */}
+                <div
+                  style={{
+                    ...CARD,
+                    background: '#fafaff',
+                    borderColor: '#d8d3f5',
+                    padding: '14px 16px',
+                    marginTop: 20,
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 14,
+                    flexWrap: 'wrap',
+                  }}
+                >
+                  <i className="ti ti-users-group" style={{ fontSize: 20, color: MORADO, flexShrink: 0 }}></i>
+                  <div style={{ flex: 1, minWidth: 200 }}>
+                    <div style={{ fontSize: 13, fontWeight: 600 }}>Trabaja este proyecto con tu equipo</div>
+                    <div style={{ fontSize: 12, color: '#555', marginTop: 3, lineHeight: 1.55 }}>
+                      Un responsable por cada actor, menciones en las notas, registro de contactos con
+                      trazabilidad y agenda compartida.
                     </div>
-                    <div style={{ fontSize: 11, color: '#888' }}>sin contactar</div>
                   </div>
-                  <div style={{ opacity: 0.55, display: 'flex', alignItems: 'center', gap: 7 }}>
-                    <i className="ti ti-lock" style={{ fontSize: 14, color: '#8b8780' }}></i>
-                    <span style={{ fontSize: 11.5, color: '#555' }}>Equipo con Teams</span>
-                  </div>
+                  <a href="/precios" className="btn-ai-o" style={{ flexShrink: 0 }}>
+                    Ver Teams
+                  </a>
                 </div>
               </section>
 
@@ -889,7 +891,12 @@ function Proyectos() {
                 <BriefingProyecto projectId={abierto.id} userId={user.id} />
               </section>
 
-              <section id="agenda" style={{ scrollMarginTop: 72, marginBottom: 30 }}>
+              {/* En tarjeta, como el mapa: son las dos secciones que se
+                  usan a diario y conviene que se distingan del resto. */}
+              <section
+                id="agenda"
+                style={{ scrollMarginTop: 72, marginBottom: 30, ...CARD, padding: '18px 20px' }}
+              >
                 <div style={{ ...ETIQUETA, marginBottom: 12 }}>AGENDA</div>
                 <AgendaProyecto projectId={abierto.id} />
               </section>
