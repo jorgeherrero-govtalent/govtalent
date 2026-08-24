@@ -29,6 +29,7 @@ const ETIQUETA = { fontSize: 11, color: '#888', letterSpacing: '.3px' };
 const MESES = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
 
 const ORIGEN = {
+  propio: 'Asunto propio',
   ley: 'Congreso · proyecto de ley',
   actividad: 'Congreso · actividad parlamentaria',
   expediente: 'Comisión Europea · expediente',
@@ -358,9 +359,11 @@ export default function AsuntosProyecto({ projectId, userId, abrirBuscador, onCe
 
             {detalle.fases.length === 0 ? (
               <div style={{ fontSize: 12, color: '#999', lineHeight: 1.6, marginBottom: 16 }}>
-                {detalle.kind === 'boe'
-                  ? 'Publicado en el BOE: no tiene tramitación que seguir.'
-                  : 'Sin recorrido registrado todavía.'}
+                {detalle.kind === 'propio'
+                  ? 'Asunto tuyo, no viene del directorio: no tiene tramitación que seguir ni recibirá avisos automáticos.'
+                  : detalle.kind === 'boe'
+                    ? 'Publicado en el BOE: no tiene tramitación que seguir.'
+                    : 'Sin recorrido registrado todavía.'}
               </div>
             ) : (
               <div style={{ display: 'flex', gap: 6, marginBottom: 18 }}>
@@ -580,6 +583,28 @@ function BuscadorAsuntos({ projectId, yaEn, onClose, onAdded }) {
     return () => clearTimeout(t);
   }, [q, supabase]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Un asunto que no está en el directorio: una consulta autonómica, un
+  // trámite de otro país, algo que aún no hemos incorporado. Lleva kind
+  // 'propio' y un ref_id generado, así que nunca cruzará con
+  // follow_events — y el modal lo dice sin rodeos.
+  async function crearPropio() {
+    const titulo = q.trim();
+    if (!titulo || guardando) return;
+    setGuardando(true);
+    const { error } = await supabase.from('project_items').insert({
+      project_id: projectId,
+      kind: 'propio',
+      ref_id: crypto.randomUUID(),
+      etiqueta: titulo,
+    });
+    setGuardando(false);
+    if (error) {
+      toast('No se ha podido crear el asunto');
+      return;
+    }
+    onAdded();
+  }
+
   async function anadir(r) {
     if (guardando) return;
     setGuardando(true);
@@ -614,7 +639,9 @@ function BuscadorAsuntos({ projectId, yaEn, onClose, onAdded }) {
         </div>
 
         {q.trim().length > 0 && q.trim().length < 3 && (
-          <div style={{ fontSize: 12, color: '#999', padding: '6px 0' }}>Escribe al menos tres letras.</div>
+          <div style={{ fontSize: 12, color: '#999', padding: '6px 0' }}>
+            Escribe al menos tres letras para buscar.
+          </div>
         )}
 
         {buscando && <div style={{ fontSize: 12.5, color: '#999', padding: '8px 0' }}>Buscando…</div>}
@@ -622,6 +649,43 @@ function BuscadorAsuntos({ projectId, yaEn, onClose, onAdded }) {
         {!buscando && q.trim().length >= 3 && resultados.length === 0 && (
           <div style={{ fontSize: 12.5, color: '#999', padding: '8px 0' }}>
             Nada con ese título. Prueba con menos palabras.
+          </div>
+        )}
+
+        {q.trim().length >= 3 && (
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 11,
+              padding: '12px 0',
+              borderBottom: `.5px solid ${BORDE}`,
+            }}
+          >
+            <span
+              style={{
+                width: 28,
+                height: 28,
+                borderRadius: 8,
+                border: `.5px dashed #b8b4ac`,
+                color: '#8b8780',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                flexShrink: 0,
+              }}
+            >
+              <i className="ti ti-plus" style={{ fontSize: 14 }}></i>
+            </span>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontSize: 12.5, lineHeight: 1.45 }}>Crear «{q.trim()}» como asunto propio</div>
+              <div style={{ fontSize: 11, color: '#888', marginTop: 2 }}>
+                Sin tramitación ni avisos: no viene del directorio
+              </div>
+            </div>
+            <button className="btn-g" onClick={crearPropio} disabled={guardando} style={{ flexShrink: 0 }}>
+              Crear
+            </button>
           </div>
         )}
 
