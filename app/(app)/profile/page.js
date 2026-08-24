@@ -55,6 +55,7 @@ export default function ProfilePage() {
 
   const [radiografia, setRadiografia] = useState(null);
   const [iaCerrada, setIaCerrada] = useState(false);
+  const [cvCerrado, setCvCerrado] = useState(false);
   const [verRadiografia, setVerRadiografia] = useState(false);
 
   const [showAiCvTip, setShowAiCvTip] = useState(true);
@@ -592,7 +593,10 @@ export default function ProfilePage() {
 
   // Basta con haberla cerrado para que no vuelva en esta sesión: quien
   // escribe a mano no quiere verla, y quien acaba de subir el CV sí.
-  const mostrarIa = !iaCerrada;
+  const mostrarIa = !iaCerrada && !!profile?.cv_url;
+  // Primera vez de verdad: sin CV y sin experiencia. Con cualquiera de
+  // las dos cosas, esta persona ya ha pasado por aquí.
+  const primeraVez = !cvCerrado && !profile?.cv_url && experiences.length === 0;
 
 
   return (
@@ -1041,6 +1045,41 @@ export default function ProfilePage() {
                   tarjeta del CV: allí competía por atención con el propio
                   currículum. Pequeña y con X, porque quien escribe su
                   experiencia a mano no quiere verla cada vez. */}
+              {/* El CV se gestiona aquí una vez desaparece su tarjeta:
+                  junto a lo que rellena, y sin ocupar la columna. */}
+              {profile?.cv_url && (
+                <div
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 8,
+                    flexWrap: 'wrap',
+                    fontSize: 11.5,
+                    color: '#888',
+                    marginBottom: 12,
+                  }}
+                >
+                  <i className="ti ti-file-cv" style={{ fontSize: 14, color: '#a8a49c' }}></i>
+                  <span>
+                    CV subido
+                    {profile.cv_uploaded_at &&
+                      ` el ${new Date(profile.cv_uploaded_at).toLocaleDateString('es-ES')}`}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={viewCv}
+                    style={{ background: 'none', border: 'none', color: '#1d6f5c', fontSize: 11.5, padding: 0 }}
+                  >
+                    Ver
+                  </button>
+                  <span style={{ color: '#d5d3c9' }}>·</span>
+                  <label style={{ color: '#1d6f5c', fontSize: 11.5, cursor: 'pointer' }}>
+                    {uploadingCv ? 'Subiendo…' : 'Reemplazar'}
+                    <input type="file" accept="application/pdf" hidden onChange={handleCvUpload} disabled={uploadingCv} />
+                  </label>
+                </div>
+              )}
+
               {mostrarIa && profile?.cv_url && (
                 <div
                   style={{
@@ -1526,7 +1565,20 @@ export default function ProfilePage() {
         </div>
 
         <div>
-          <div className="sw">
+          {/* Solo la primera vez: sin CV y sin experiencia. Después, el
+              currículum se gestiona desde la línea que hay bajo Experiencia,
+              y esta tarjeta deja de ocupar la mejor posición de la columna.
+              Se puede cerrar siempre. */}
+          {primeraVez && (
+            <div style={{ position: 'relative' }}>
+              <button
+                onClick={() => setCvCerrado(true)}
+                aria-label="Ocultar"
+                style={{ position: 'absolute', right: 12, top: 12, zIndex: 2, background: 'none', border: 'none', color: '#c4c0b8', padding: 2 }}
+              >
+                <i className="ti ti-x" style={{ fontSize: 14 }}></i>
+              </button>
+<div className="sw">
             <h4>Currículum (CV)</h4>
 
             <div style={{ display: 'flex', alignItems: 'flex-start', gap: 9, marginBottom: 14 }}>
@@ -1574,7 +1626,8 @@ export default function ProfilePage() {
             </div>
 
           </div>
-
+            </div>
+          )}
           {/* Antes había aquí una barra de "Completado al X%". La
               radiografía dice lo mismo mejor: en vez de un porcentaje
               abstracto, qué falta y para qué sirve. */}
@@ -1606,7 +1659,10 @@ export default function ProfilePage() {
                 </div>
               )}
 
-              {typeof radiografia.benchmark?.porcentaje === 'number' && (
+              {/* Un 0% enorme en tu perfil no es información, es un
+                  cartel de que algo no funciona. Si no hay encaje que
+                  enseñar, se dice qué falta para calcularlo. */}
+              {radiografia.benchmark?.porcentaje > 0 ? (
                 <div style={{ marginBottom: 16 }}>
                   <div style={{ fontSize: 11, color: '#888', letterSpacing: '.3px', marginBottom: 7 }}>
                     ENCAJE CON LAS OFERTAS DEL SECTOR
@@ -1621,7 +1677,7 @@ export default function ProfilePage() {
                       </span>
                     )}
                   </div>
-                  <div style={{ height: 5, background: '#f0f0eb', borderRadius: 3, marginTop: 10, overflow: 'hidden' }}>
+                  <div style={{ height: 6, width: '100%', background: '#ece9e2', borderRadius: 3, marginTop: 10, overflow: 'hidden' }}>
                     <div
                       style={{
                         width: `${Math.min(100, Math.max(0, radiografia.benchmark.porcentaje))}%`,
@@ -1630,6 +1686,11 @@ export default function ProfilePage() {
                       }}
                     ></div>
                   </div>
+                </div>
+              ) : (
+                <div style={{ fontSize: 12.5, color: '#888', lineHeight: 1.6, marginBottom: 16 }}>
+                  Todavía no podemos calcular tu encaje con las ofertas del sector. Completa tu
+                  experiencia y tu formación y aparecerá aquí.
                 </div>
               )}
 
@@ -1654,7 +1715,7 @@ export default function ProfilePage() {
                       </span>
                     </span>
                   </div>
-                  <div style={{ height: 5, background: '#f0f0eb', borderRadius: 3, overflow: 'hidden' }}>
+                  <div style={{ height: 6, width: '100%', background: '#ece9e2', borderRadius: 3, overflow: 'hidden' }}>
                     <div
                       style={{
                         width: `${Math.min(100, Math.max(0, radiografia.perfil_completado_pct))}%`,
