@@ -56,6 +56,9 @@ export default function BriefingProyecto({ projectId, userId }) {
   const [estado, setEstado] = useState('');
   const [nota, setNota] = useState('');
   const [subiendo, setSubiendo] = useState(false);
+  const [editando, setEditando] = useState(null);
+  const [hayDeshacer, setHayDeshacer] = useState(false);
+  const borrada = useRef(null);
 
   const cargar = useCallback(async () => {
     const [{ data: acts }, { data: ns }, { data: fs }] = await Promise.all([
@@ -130,6 +133,54 @@ export default function BriefingProyecto({ projectId, userId }) {
     }
     setNotas((prev) => ({ ...prev, [actor.id]: [data, ...(prev[actor.id] || [])] }));
     setNota('');
+  }
+
+  // Click sobre la nota para editarla, y se guarda al salir del campo.
+  async function guardarNota(n, texto) {
+    const cuerpo = texto.trim();
+    setEditando(null);
+    if (cuerpo === n.cuerpo) return;
+    if (!cuerpo) return borrarNota(n);
+
+    setNotas((prev) => ({
+      ...prev,
+      [n.actor_id]: (prev[n.actor_id] || []).map((x) => (x.id === n.id ? { ...x, cuerpo } : x)),
+    }));
+    const { error } = await supabase.from('project_notes').update({ cuerpo }).eq('id', n.id);
+    if (error) toast('No se ha podido guardar');
+  }
+
+  async function borrarNota(n) {
+    setNotas((prev) => ({
+      ...prev,
+      [n.actor_id]: (prev[n.actor_id] || []).filter((x) => x.id !== n.id),
+    }));
+    borrada.current = n;
+    setHayDeshacer(true);
+    const { error } = await supabase.from('project_notes').delete().eq('id', n.id);
+    if (error) {
+      setNotas((prev) => ({ ...prev, [n.actor_id]: [n, ...(prev[n.actor_id] || [])] }));
+      borrada.current = null;
+      setHayDeshacer(false);
+      toast('No se ha podido borrar');
+    }
+  }
+
+  async function restaurarNota() {
+    const n = borrada.current;
+    if (!n) return;
+    borrada.current = null;
+    setHayDeshacer(false);
+    const { data, error } = await supabase
+      .from('project_notes')
+      .insert({ project_id: projectId, actor_id: n.actor_id, author_id: userId, cuerpo: n.cuerpo })
+      .select('id, actor_id, cuerpo, created_at')
+      .single();
+    if (error) {
+      toast('No se ha podido recuperar');
+      return;
+    }
+    setNotas((prev) => ({ ...prev, [n.actor_id]: [data, ...(prev[n.actor_id] || [])] }));
   }
 
   async function subir(archivos) {
@@ -388,14 +439,46 @@ export default function BriefingProyecto({ projectId, userId }) {
                   >
                     <i className="ti ti-note" style={{ fontSize: 11 }}></i>
                   </span>
-                  <div style={{ minWidth: 0 }}>
-                    <div style={{ fontSize: 12, color: '#555', lineHeight: 1.55, whiteSpace: 'pre-wrap' }}>
-                      {n.cuerpo}
-                    </div>
+                  <div style={{ minWidth: 0, flex: 1 }}>
+                    {editando === n.id ? (
+                      <textarea
+                        autoFocus
+                        defaultValue={n.cuerpo}
+                        rows={2}
+                        onBlur={(e) => guardarNota(n, e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Escape') setEditando(null);
+                          if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) guardarNota(n, e.target.value);
+                        }}
+                        style={{ ...campo, padding: '7px 10px', fontSize: 12, background: '#fff', border: `1px solid ${MORADO}` }}
+                      />
+                    ) : (
+                      <div
+                        onClick={() => setEditando(n.id)}
+                        style={{ fontSize: 12, color: '#555', lineHeight: 1.55, whiteSpace: 'pre-wrap', cursor: 'text' }}
+                      >
+                        {n.cuerpo}
+                      </div>
+                    )}
                     <div style={{ fontSize: 10.5, color: '#888', marginTop: 2 }}>{fechaCorta(n.created_at)}</div>
                   </div>
+                  <button
+                    onClick={() => borrarNota(n)}
+                    aria-label="Borrar nota"
+                    style={{ background: 'none', border: 'none', color: '#c4c0b8', padding: 2, flexShrink: 0 }}
+                  >
+                    <i className="ti ti-x" style={{ fontSize: 13 }}></i>
+                  </button>
                 </div>
               ))}
+              {hayDeshacer && (
+                <button
+                  onClick={restaurarNota}
+                  style={{ background: 'none', border: 'none', color: MORADO, fontSize: 11.5, padding: '0 0 9px' }}
+                >
+                  Deshacer
+                </button>
+              )}
               {misNotas.length > 4 && (
                 <div style={{ fontSize: 11, color: '#888', marginBottom: 9 }}>
                   y {misNotas.length - 4} notas más
