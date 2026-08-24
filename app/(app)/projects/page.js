@@ -726,8 +726,9 @@ function Proyectos() {
         { id: 'mapa', label: 'Mapa de actores', cuenta: d.actores },
         { id: 'briefing', label: 'Briefing', cuenta: d.briefings },
         { id: 'agenda', label: 'Agenda', cuenta: d.acciones },
-        { id: 'documentos', label: 'Documentos' },
-        { id: 'notas', label: 'Notas' },
+        // Una sola entrada: las dos secciones están en la misma fila,
+        // así que dos anclas llevarían al mismo sitio.
+        { id: 'documentos', label: 'Documentos y notas' },
       ]
     : [
         { id: 'resumen', label: 'Resumen' },
@@ -901,15 +902,30 @@ function Proyectos() {
                 <AgendaProyecto projectId={abierto.id} />
               </section>
 
-              <section id="documentos" style={{ scrollMarginTop: 72, marginBottom: 30 }}>
-                <div style={{ ...ETIQUETA, marginBottom: 12 }}>DOCUMENTOS</div>
-                <DocumentosProyecto projectId={abierto.id} userId={user.id} />
+              {/* Documentos y notas, una al lado de la otra: ninguna
+                  de las dos necesita el ancho entero, y juntas se leen
+                  como lo que son — el material del proyecto. */}
+              <section
+                id="documentos"
+                style={{
+                  scrollMarginTop: 72,
+                  marginBottom: 10,
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
+                  gap: 12,
+                }}
+              >
+                <div style={{ ...CARD, padding: '16px 18px' }}>
+                  <div style={{ ...ETIQUETA, marginBottom: 12 }}>DOCUMENTOS</div>
+                  <DocumentosProyecto projectId={abierto.id} userId={user.id} />
+                </div>
+
+                <div style={{ ...CARD, padding: '16px 18px' }}>
+                  <div style={{ ...ETIQUETA, marginBottom: 12 }}>NOTAS</div>
+                  <NotasProyecto projectId={abierto.id} userId={user.id} />
+                </div>
               </section>
 
-              <section id="notas" style={{ scrollMarginTop: 72, marginBottom: 10 }}>
-                <div style={{ ...ETIQUETA, marginBottom: 12 }}>NOTAS</div>
-                <NotasProyecto projectId={abierto.id} userId={user.id} />
-              </section>
             </>
           )}
         </div>
