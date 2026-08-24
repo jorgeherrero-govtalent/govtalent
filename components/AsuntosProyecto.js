@@ -63,6 +63,7 @@ export default function AsuntosProyecto({ projectId, userId, abrirBuscador, onCe
   const [confirmar, setConfirmar] = useState(null);
   const [editando, setEditando] = useState(null);
   const [abierto, setAbierto] = useState(null);
+  const [renombrando, setRenombrando] = useState(false);
 
   const cargar = useCallback(async () => {
     const [{ data: items }, { data: ns }] = await Promise.all([
@@ -249,6 +250,17 @@ export default function AsuntosProyecto({ projectId, userId, abrirBuscador, onCe
     setNotas((prev) => ({ ...prev, [guardado.itemId]: [data, ...(prev[guardado.itemId] || [])] }));
   }
 
+  // Solo los propios: el título de una ley viene del directorio y
+  // cambiarlo aquí lo desincronizaría de su ficha en Regulatorio.
+  async function renombrar(item, valor) {
+    setRenombrando(false);
+    const titulo = valor.trim();
+    if (!titulo || titulo === item.etiqueta) return;
+    setAsuntos((prev) => prev.map((a) => (a.id === item.id ? { ...a, etiqueta: titulo } : a)));
+    const { error } = await supabase.from('project_items').update({ etiqueta: titulo }).eq('id', item.id);
+    if (error) toast('No se ha podido renombrar');
+  }
+
   async function comentar(item) {
     const cuerpo = texto.trim();
     if (!cuerpo) {
@@ -347,7 +359,43 @@ export default function AsuntosProyecto({ projectId, userId, abrirBuscador, onCe
         <div className="modal-ov on" onClick={(e) => e.target === e.currentTarget && setAbierto(null)}>
           <div className="modal-box" style={{ maxWidth: 640 }}>
             <div className="modal-head">
-              <h2 style={{ lineHeight: 1.35 }}>{detalle.etiqueta || detalle.ref_id}</h2>
+              {detalle.kind === 'propio' && renombrando ? (
+                <input
+                  autoFocus
+                  defaultValue={detalle.etiqueta || ''}
+                  maxLength={200}
+                  onBlur={(e) => renombrar(detalle, e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') renombrar(detalle, e.target.value);
+                    if (e.key === 'Escape') setRenombrando(false);
+                  }}
+                  style={{
+                    flex: 1,
+                    minWidth: 0,
+                    padding: '6px 10px',
+                    border: `1px solid ${MORADO}`,
+                    borderRadius: 8,
+                    fontSize: 17,
+                    fontWeight: 600,
+                    outline: 'none',
+                    fontFamily: 'inherit',
+                  }}
+                />
+              ) : (
+                <h2
+                  style={{ lineHeight: 1.35, cursor: detalle.kind === 'propio' ? 'text' : 'default' }}
+                  onClick={() => detalle.kind === 'propio' && setRenombrando(true)}
+                  title={detalle.kind === 'propio' ? 'Pulsa para renombrar' : undefined}
+                >
+                  {detalle.etiqueta || detalle.ref_id}
+                  {detalle.kind === 'propio' && (
+                    <i
+                      className="ti ti-pencil"
+                      style={{ fontSize: 14, color: '#c4c0b8', marginLeft: 8, verticalAlign: 2 }}
+                    ></i>
+                  )}
+                </h2>
+              )}
               <div className="modal-x" onClick={() => setAbierto(null)}>
                 <i className="ti ti-x"></i>
               </div>
@@ -524,8 +572,42 @@ export default function AsuntosProyecto({ projectId, userId, abrirBuscador, onCe
                 marginTop: 18,
               }}
             >
-              Quitar del proyecto
+              {detalle.kind === 'propio' ? 'Eliminar este asunto' : 'Quitar del proyecto'}
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* Se había perdido al reestructurar la sección en lista compacta:
+          el estado se ponía pero no había nada que lo pintara, así que
+          "Quitar del proyecto" no hacía nada visible. */}
+      {confirmar && (
+        <div className="modal-ov on" onClick={(e) => e.target === e.currentTarget && setConfirmar(null)}>
+          <div className="modal-box" style={{ maxWidth: 420 }}>
+            <div className="modal-head">
+              <h2>Quitar el asunto</h2>
+              <div className="modal-x" onClick={() => setConfirmar(null)}>
+                <i className="ti ti-x"></i>
+              </div>
+            </div>
+            <p style={{ fontSize: 13, color: '#555', lineHeight: 1.65 }}>
+              «{confirmar.etiqueta || confirmar.ref_id}» sale de este proyecto
+              {(notas[confirmar.id] || []).length > 0 && (
+                <> y se borran sus {(notas[confirmar.id] || []).length} comentarios</>
+              )}
+              .{' '}
+              {confirmar.kind === 'propio'
+                ? 'Al ser un asunto tuyo, se borra del todo.'
+                : 'El asunto sigue en Regulatorio y tu seguimiento no cambia.'}
+            </p>
+            <div style={{ display: 'flex', gap: 8, marginTop: 16 }}>
+              <button className="btn-o" onClick={() => setConfirmar(null)}>
+                Cancelar
+              </button>
+              <button className="btn-ai" onClick={() => quitar(confirmar)}>
+                {confirmar.kind === 'propio' ? 'Eliminar' : 'Quitar del proyecto'}
+              </button>
+            </div>
           </div>
         </div>
       )}
