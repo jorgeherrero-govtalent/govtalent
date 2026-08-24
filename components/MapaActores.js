@@ -624,7 +624,7 @@ function BuscadorActores({ projectId, categorias, yaEnMapa, onClose, onAdded }) 
             autoFocus
             value={q}
             onChange={(e) => setQ(e.target.value)}
-            placeholder="Busca un diputado, una comisión, un cargo…"
+            placeholder="Busca un diputado, una comisión, una organización…"
           />
         </div>
 
