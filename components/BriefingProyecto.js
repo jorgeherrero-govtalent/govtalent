@@ -462,6 +462,16 @@ export default function BriefingProyecto({ projectId, userId }) {
                     )}
                     <div style={{ fontSize: 10.5, color: '#888', marginTop: 2 }}>{fechaCorta(n.created_at)}</div>
                   </div>
+                  {/* El click sobre el texto ya edita, pero sin un
+                      icono nadie lo descubre. */}
+                  <button
+                    onClick={() => setEditando(n.id)}
+                    aria-label="Editar"
+                    className="gt-nota-editar"
+                    style={{ background: 'none', border: 'none', color: '#c4c0b8', padding: 2, flexShrink: 0 }}
+                  >
+                    <i className="ti ti-pencil" style={{ fontSize: 13 }}></i>
+                  </button>
                   <button
                     onClick={() => borrarNota(n)}
                     aria-label="Borrar nota"
