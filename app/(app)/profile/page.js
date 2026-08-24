@@ -598,6 +598,20 @@ export default function ProfilePage() {
   // las dos cosas, esta persona ya ha pasado por aquí.
   const primeraVez = !cvCerrado && !profile?.cv_url && experiences.length === 0;
 
+  // Seis piezas, cada una vale lo mismo. Se calcula aquí y no en el
+  // endpoint de la radiografía para que esta tarjeta no dependa de que
+  // aquel funcione.
+  const PIEZAS = [
+    ['una foto', !!user?.avatar_url],
+    ['tu CV', !!profile?.cv_url],
+    ['una descripción', !!profile?.bio],
+    ['tu experiencia', experiences.length > 0],
+    ['tu formación', education.length > 0],
+    ['tus idiomas', languages.length > 0],
+  ];
+  const perfilPct = Math.round((PIEZAS.filter(([, ok]) => ok).length / PIEZAS.length) * 100);
+  const perfilFalta = PIEZAS.filter(([, ok]) => !ok).map(([etiqueta]) => etiqueta);
+
 
   return (
     <div className="sec">
@@ -1631,53 +1645,58 @@ export default function ProfilePage() {
           {/* Antes había aquí una barra de "Completado al X%". La
               radiografía dice lo mismo mejor: en vez de un porcentaje
               abstracto, qué falta y para qué sirve. */}
-          {radiografia && (
-            <div className="card" style={{ marginBottom: 13, borderColor: '#d8d3f5' }}>
-              <h4 style={{ marginBottom: 14 }}>Tu Radiografía Profesional</h4>
+          {/* DOS TARJETAS, NO UNA. Antes iban juntas con el argumento de
+              que completar el perfil sube el encaje, pero ese argumento
+              solo se sostiene cuando hay encaje. Sin él parecían dos
+              tarjetas pegadas con una línea a sangre en medio.
 
-              {/* El rol puede venir vacío si la trayectoria es corta.
-                  Antes descolocaba la tarjeta; ahora sencillamente no
-                  sale y el encaje ocupa su sitio. */}
+              Márgenes: la clase .sw ya da 14px por todos lados, así que
+              aquí no se añade ningún padding propio y todo queda
+              alineado con el título por defecto. */}
+
+          {radiografia && (radiografia.trayectoria?.rol || radiografia.benchmark?.porcentaje > 0) && (
+            <div className="sw" style={{ borderColor: '#d8d3f5' }}>
+              <h4>Tu Radiografía Profesional</h4>
+
               {radiografia.trayectoria?.rol && (
-                <div style={{ marginBottom: 16 }}>
-                  <div style={{ fontSize: 11, color: '#888', letterSpacing: '.3px', marginBottom: 7 }}>
+                <>
+                  <div style={{ fontSize: 11, color: '#888', letterSpacing: '.3px', marginBottom: 6 }}>
                     TU TRAYECTORIA SE APROXIMA A
                   </div>
                   <div
                     style={{
-                      display: 'inline-block',
                       background: '#f0eefe',
                       border: '.5px solid #d8d3f5',
                       borderRadius: 8,
-                      padding: '6px 12px',
-                      fontSize: 13.5,
+                      padding: '7px 11px',
+                      fontSize: 13,
                       fontWeight: 600,
+                      lineHeight: 1.4,
+                      marginBottom: 14,
                     }}
                   >
                     {radiografia.trayectoria.rol}
                   </div>
-                </div>
+                </>
               )}
 
-              {/* Un 0% enorme en tu perfil no es información, es un
-                  cartel de que algo no funciona. Si no hay encaje que
-                  enseñar, se dice qué falta para calcularlo. */}
-              {radiografia.benchmark?.porcentaje > 0 ? (
-                <div style={{ marginBottom: 16 }}>
-                  <div style={{ fontSize: 11, color: '#888', letterSpacing: '.3px', marginBottom: 7 }}>
-                    ENCAJE CON LAS OFERTAS DEL SECTOR
-                  </div>
-                  <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
-                    <span style={{ fontSize: 26, fontWeight: 600, color: '#6d5aef', lineHeight: 1 }}>
+              {radiografia.benchmark?.porcentaje > 0 && (
+                <>
+                  <div
+                    style={{
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'baseline',
+                      gap: 8,
+                      marginBottom: 7,
+                    }}
+                  >
+                    <span style={{ fontSize: 11, color: '#888', letterSpacing: '.3px' }}>ENCAJE</span>
+                    <span style={{ fontSize: 18, fontWeight: 600, color: '#6d5aef', lineHeight: 1 }}>
                       {radiografia.benchmark.porcentaje}%
                     </span>
-                    {radiografia.benchmark.criterios_evaluados > 0 && (
-                      <span style={{ fontSize: 11.5, color: '#888' }}>
-                        sobre {radiografia.benchmark.criterios_evaluados} criterios
-                      </span>
-                    )}
                   </div>
-                  <div style={{ height: 6, width: '100%', background: '#ece9e2', borderRadius: 3, marginTop: 10, overflow: 'hidden' }}>
+                  <div style={{ height: 6, background: '#ece9e2', borderRadius: 3, overflow: 'hidden' }}>
                     <div
                       style={{
                         width: `${Math.min(100, Math.max(0, radiografia.benchmark.porcentaje))}%`,
@@ -1686,53 +1705,59 @@ export default function ProfilePage() {
                       }}
                     ></div>
                   </div>
-                </div>
-              ) : (
-                <div style={{ fontSize: 12.5, color: '#888', lineHeight: 1.6, marginBottom: 16 }}>
-                  Todavía no podemos calcular tu encaje con las ofertas del sector. Completa tu
-                  experiencia y tu formación y aparecerá aquí.
-                </div>
+                  <div style={{ fontSize: 11.5, color: '#888', marginTop: 7, lineHeight: 1.5 }}>
+                    con las ofertas del sector
+                  </div>
+                </>
               )}
 
-              {/* El porcentaje de perfil va aquí y no en una barra
-                  aparte: completar el perfil sube el encaje, y juntos lo
-                  explican sin tener que decirlo. */}
-              {typeof radiografia.perfil_completado_pct === 'number' && (
-                <div style={{ borderTop: '.5px solid #e0dfd8', paddingTop: 14, marginBottom: 14 }}>
-                  <div
-                    style={{
-                      display: 'flex',
-                      justifyContent: 'space-between',
-                      alignItems: 'baseline',
-                      marginBottom: 8,
-                    }}
-                  >
-                    <span style={{ fontSize: 11, color: '#888', letterSpacing: '.3px' }}>TU PERFIL</span>
-                    <span style={{ fontSize: 12, color: '#555' }}>
-                      completo al{' '}
-                      <span style={{ fontWeight: 600, color: '#1a1a18' }}>
-                        {radiografia.perfil_completado_pct}%
-                      </span>
-                    </span>
-                  </div>
-                  <div style={{ height: 6, width: '100%', background: '#ece9e2', borderRadius: 3, overflow: 'hidden' }}>
-                    <div
-                      style={{
-                        width: `${Math.min(100, Math.max(0, radiografia.perfil_completado_pct))}%`,
-                        height: '100%',
-                        background: '#1d6f5c',
-                      }}
-                    ></div>
-                  </div>
-
-                </div>
-              )}
-
-              <button className="btn-ai-o" style={{ fontSize: 11.5 }} onClick={() => setVerRadiografia(true)}>
+              {/* Ancho completo: un botón suelto con ancho arbitrario no
+                  se alinea con nada de lo que tiene encima. */}
+              <button
+                className="btn-ai-o"
+                style={{ width: '100%', justifyContent: 'center', fontSize: 12, marginTop: 14 }}
+                onClick={() => setVerRadiografia(true)}
+              >
                 Ver la radiografía completa
               </button>
             </div>
           )}
+
+          {/* El perfil se calcula aquí y no en el endpoint: así esta
+              tarjeta funciona aunque la radiografía falle, que es
+              justo lo que estaba pasando. */}
+          <div className="sw">
+            <h4>Tu perfil</h4>
+
+            <div
+              style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'baseline',
+                gap: 8,
+                marginBottom: 7,
+              }}
+            >
+              <span style={{ fontSize: 11, color: '#888', letterSpacing: '.3px' }}>COMPLETADO</span>
+              <span style={{ fontSize: 18, fontWeight: 600, color: '#1d6f5c', lineHeight: 1 }}>
+                {perfilPct}%
+              </span>
+            </div>
+            <div style={{ height: 6, background: '#ece9e2', borderRadius: 3, overflow: 'hidden' }}>
+              <div style={{ width: `${perfilPct}%`, height: '100%', background: '#1d6f5c' }}></div>
+            </div>
+
+            {perfilFalta.length > 0 && (
+              <div style={{ fontSize: 11.5, color: '#888', marginTop: 9, lineHeight: 1.6 }}>
+                Te falta {perfilFalta.join(', ')}.
+              </div>
+            )}
+            {perfilFalta.length === 0 && (
+              <div style={{ fontSize: 11.5, color: '#888', marginTop: 9, lineHeight: 1.6 }}>
+                Tu perfil está completo.
+              </div>
+            )}
+          </div>
 
           <div className="sw">
             <h4>Mis empleos guardados y solicitados</h4>
