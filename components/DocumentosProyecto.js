@@ -87,6 +87,7 @@ export default function DocumentosProyecto({ projectId, userId }) {
   const [subiendo, setSubiendo] = useState(false);
   const [arrastrando, setArrastrando] = useState(false);
   const [confirmar, setConfirmar] = useState(null);
+  const [modal, setModal] = useState(false);
 
   const cargar = useCallback(async () => {
     const { data, error } = await supabase
@@ -164,6 +165,7 @@ export default function DocumentosProyecto({ projectId, userId }) {
     }
 
     setSubiendo(false);
+    setModal(false);
     if (input.current) input.current.value = '';
   }
 
@@ -221,45 +223,98 @@ export default function DocumentosProyecto({ projectId, userId }) {
   if (cargando) return <div className="spinner"></div>;
 
   return (
-    <div style={{ maxWidth: 620 }}>
-      <div
-        onDragOver={(e) => {
-          e.preventDefault();
-          setArrastrando(true);
-        }}
-        onDragLeave={() => setArrastrando(false)}
-        onDrop={(e) => {
-          e.preventDefault();
-          setArrastrando(false);
-          subir(e.dataTransfer.files);
-        }}
-        onClick={() => input.current?.click()}
-        style={{
-          border: `1px dashed ${arrastrando ? MORADO : '#c4c0b8'}`,
-          background: arrastrando ? '#f0eefe' : '#fafaf7',
-          borderRadius: 10,
-          padding: '18px 16px',
-          textAlign: 'center',
-          cursor: 'pointer',
-          marginBottom: 16,
-        }}
-      >
-        <i className="ti ti-upload" style={{ fontSize: 19, color: arrastrando ? MORADO : '#a8a49c' }}></i>
-        <div style={{ fontSize: 12.5, color: '#555', marginTop: 7 }}>
-          {subiendo ? 'Subiendo…' : 'Arrastra un archivo o pulsa para elegirlo'}
-        </div>
-        <div style={{ fontSize: 11, color: '#999', marginTop: 3 }}>
-          PDF, Word, Excel, PowerPoint o imagen · hasta 20 MB
-        </div>
-        <input
-          ref={input}
-          type="file"
-          multiple
-          accept={[...TIPOS_OK].join(',')}
-          onChange={(e) => subir(e.target.files)}
-          style={{ display: 'none' }}
-        />
+    <div
+      onDragOver={(e) => {
+        e.preventDefault();
+        setArrastrando(true);
+      }}
+      onDragLeave={(e) => {
+        if (!e.currentTarget.contains(e.relatedTarget)) setArrastrando(false);
+      }}
+      onDrop={(e) => {
+        e.preventDefault();
+        setArrastrando(false);
+        subir(e.dataTransfer.files);
+      }}
+    >
+      {/* Un botón, no un cartel: con seis documentos en la lista, una
+          caja de arrastre de 80px de alto se come la tarjeta. La caja
+          sigue existiendo, pero dentro del modal. */}
+      <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 12 }}>
+        <button className="btn-ai-o" onClick={() => setModal(true)} disabled={subiendo}>
+          <i className="ti ti-upload"></i> {subiendo ? 'Subiendo…' : 'Subir'}
+        </button>
       </div>
+
+      {/* Aunque el botón abra el modal, soltar un archivo sobre la
+          tarjeta sigue funcionando: es lo que la gente intenta primero. */}
+      {arrastrando && (
+        <div
+          style={{
+            border: `1px dashed ${MORADO}`,
+            background: '#f0eefe',
+            borderRadius: 10,
+            padding: '14px 16px',
+            textAlign: 'center',
+            fontSize: 12.5,
+            color: MORADO,
+            marginBottom: 12,
+          }}
+        >
+          Suelta para subir
+        </div>
+      )}
+
+      <input
+        ref={input}
+        type="file"
+        multiple
+        accept={[...TIPOS_OK].join(',')}
+        onChange={(e) => subir(e.target.files)}
+        style={{ display: 'none' }}
+      />
+
+      {modal && (
+        <div className="modal-ov on" onClick={(e) => e.target === e.currentTarget && setModal(false)}>
+          <div className="modal-box" style={{ maxWidth: 460 }}>
+            <div className="modal-head">
+              <h2>Subir documentos</h2>
+              <div className="modal-x" onClick={() => setModal(false)}>
+                <i className="ti ti-x"></i>
+              </div>
+            </div>
+            <div
+              onDragOver={(e) => {
+                e.preventDefault();
+                setArrastrando(true);
+              }}
+              onDragLeave={() => setArrastrando(false)}
+              onDrop={(e) => {
+                e.preventDefault();
+                setArrastrando(false);
+                subir(e.dataTransfer.files);
+              }}
+              onClick={() => input.current?.click()}
+              style={{
+                border: `1px dashed ${arrastrando ? MORADO : '#c4c0b8'}`,
+                background: arrastrando ? '#f0eefe' : '#fafaf7',
+                borderRadius: 10,
+                padding: '30px 16px',
+                textAlign: 'center',
+                cursor: 'pointer',
+              }}
+            >
+              <i className="ti ti-upload" style={{ fontSize: 22, color: arrastrando ? MORADO : '#a8a49c' }}></i>
+              <div style={{ fontSize: 13, color: '#555', marginTop: 9 }}>
+                {subiendo ? 'Subiendo…' : 'Arrastra los archivos o pulsa para elegirlos'}
+              </div>
+              <div style={{ fontSize: 11.5, color: '#999', marginTop: 4 }}>
+                PDF, Word, Excel, PowerPoint o imagen · hasta 20 MB
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {docs.length === 0 && (
         <div style={{ fontSize: 12.5, color: '#999', lineHeight: 1.65 }}>
