@@ -25,6 +25,33 @@ const ETIQUETA = { fontSize: 11, color: '#888', letterSpacing: '.3px' };
 const MESES = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
 const MAX_BYTES = 20 * 1024 * 1024;
 
+// Los mismos tipos que acepta el bucket. Aquí la comprobación es solo
+// comodidad —avisar antes de subir en vez de después—; la que de verdad
+// se cumple está en el bucket, porque el navegador se lo salta cualquiera
+// llamando a la API. Fuera html, svg y zip: los dos primeros ejecutan
+// código al abrirse, el tercero esconde lo que lleva dentro.
+const TIPOS_OK = new Set([
+  'application/pdf',
+  'application/msword',
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  'application/vnd.oasis.opendocument.text',
+  'application/vnd.ms-excel',
+  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  'application/vnd.oasis.opendocument.spreadsheet',
+  'text/csv',
+  'application/vnd.ms-powerpoint',
+  'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+  'text/plain',
+  'image/png',
+  'image/jpeg',
+  'image/webp',
+]);
+
+// 5 minutos, la misma caducidad que usan los CV. Uno solo no daba para
+// descargar un PDF grande con mala conexión.
+const URL_SEGUNDOS = 300;
+
+
 function fechaCorta(iso) {
   if (!iso) return null;
   const d = new Date(iso.length <= 10 ? `${iso}T00:00:00` : iso);
@@ -193,6 +220,10 @@ export default function BriefingProyecto({ projectId, userId }) {
         toast(`«${f.name}» pasa de 20 MB`);
         continue;
       }
+      if (!TIPOS_OK.has(f.type)) {
+        toast(`«${f.name}» no es un tipo admitido`);
+        continue;
+      }
       const limpio = f.name.replace(/[^a-zA-Z0-9._-]/g, '_').slice(-80);
       const ruta = `${projectId}/${crypto.randomUUID()}-${limpio}`;
 
@@ -237,7 +268,7 @@ export default function BriefingProyecto({ projectId, userId }) {
   }
 
   async function abrirDoc(doc) {
-    const { data, error } = await supabase.storage.from('project-files').createSignedUrl(doc.storage_path, 60);
+    const { data, error } = await supabase.storage.from('project-files').createSignedUrl(doc.storage_path, URL_SEGUNDOS);
     if (error || !data?.signedUrl) {
       console.error('URL firmada fallida', { ruta: doc.storage_path, error });
       toast(`No se ha podido abrir: ${error?.message || 'sin permiso'}`);
@@ -528,6 +559,7 @@ export default function BriefingProyecto({ projectId, userId }) {
                   ref={input}
                   type="file"
                   multiple
+                  accept={[...TIPOS_OK].join(',')}
                   onChange={(e) => subir(e.target.files)}
                   style={{ display: 'none' }}
                 />
