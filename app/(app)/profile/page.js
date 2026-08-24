@@ -626,6 +626,21 @@ export default function ProfilePage() {
           left: 20px;
           font-size: 34px;
         }
+        /* La cámara iba a 1px de la esquina, y el avatar es un círculo
+           con overflow oculto: la esquina queda fuera del círculo y se
+           recortaba. A 108px de diámetro desaparecía del todo.
+
+           Con radio 54 y un botón de 28, su centro tiene que quedar a
+           menos de 40px del centro del avatar para no tocar el borde:
+           14px desde cada lado lo dejan a 37. */
+        .p-wrap .p-av .av-c {
+          bottom: 14px;
+          right: 14px;
+          width: 28px;
+          height: 28px;
+          border: 2px solid #fff;
+        }
+        .p-wrap .p-av .av-c i { font-size: 13px; }
         /* Una sola declaración con las cuatro medidas. Antes había dos
            reglas de padding para .p-info y la segunda pisaba a la
            primera, que es lo que dejaba el nombre bajo la foto.
