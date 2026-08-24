@@ -619,12 +619,34 @@ export default function ProfilePage() {
       {/* En móvil las dos columnas se apilan: antes era una rejilla
           fija de 3fr 2fr y la derecha quedaba ilegible. */}
       <style>{`
-        .p-grid { display: grid; grid-template-columns: 3fr 2fr; gap: 13px; max-width: 1080px; margin: 0 auto; }
-        @media (max-width: 860px) { .p-grid { grid-template-columns: 1fr; } }
+        .p-wrap { max-width: 1080px; margin: 0 auto; }
+        /* Cabecera un 35% más baja: la portada pasa de 190 a 130 y el
+           bloque de datos de 50px de sangría superior a 34, que es lo
+           justo para que quepa media foto. */
+        .p-wrap .p-cover { height: 130px; }
+        .p-wrap .p-av { left: 20px; }
+        .p-wrap .p-info { padding: 34px 20px 16px; }
+        .p-wrap .p-name { font-size: 21px; margin-bottom: 2px; }
+        .p-wrap .p-title { font-size: 13.5px; margin-bottom: 5px; }
+        .p-wrap .p-tabs { padding: 0 20px; }
+        /* Las acciones de cada experiencia, secundarias: aparecen al
+           pasar por encima en vez de competir con el contenido. */
+        .p-wrap .exp-acciones { opacity: 0; transition: opacity .15s ease; }
+        .p-wrap .exp-fila:hover .exp-acciones,
+        .p-wrap .exp-fila:focus-within .exp-acciones { opacity: 1; }
+        @media (hover: none) { .p-wrap .exp-acciones { opacity: 1; } }
+        /* Empleos más ancho: es el único de los tres que lleva lista. */
+        .p-widgets { display: grid; grid-template-columns: 1fr 1fr 1.6fr; gap: 13px; margin-bottom: 13px; }
+        @media (max-width: 980px) { .p-widgets { grid-template-columns: 1fr 1fr; } }
+        @media (max-width: 620px) { .p-widgets { grid-template-columns: 1fr; } }
       `}</style>
-      <div className="p-grid">
-        <div>
-          <div className="card" style={{ marginBottom: 13 }}>
+      {/* ESTRUCTURA: cabecera, una fila de tres widgets y la trayectoria
+          a ancho completo. Antes la columna derecha se llevaba dos
+          quintos de la pantalla para información secundaria, y la
+          trayectoria —que es el contenido del perfil— quedaba encajonada
+          en la izquierda. */}
+      <div className="p-wrap">
+<div className="card" style={{ marginBottom: 13 }}>
             <div
               ref={coverDrag.containerRef}
               className="p-cover"
@@ -749,6 +771,168 @@ export default function ProfilePage() {
           </div>
         </div>
       </div>
+
+{primeraVez && (
+            <div style={{ position: 'relative' }}>
+              <button
+                onClick={() => setCvCerrado(true)}
+                aria-label="Ocultar"
+                style={{ position: 'absolute', right: 12, top: 12, zIndex: 2, background: 'none', border: 'none', color: '#c4c0b8', padding: 2 }}
+              >
+                <i className="ti ti-x" style={{ fontSize: 14 }}></i>
+              </button>
+<div className="sw">
+            <h4>Currículum (CV)</h4>
+
+            <div style={{ display: 'flex', alignItems: 'flex-start', gap: 9, marginBottom: 14 }}>
+              <div
+                style={{
+                  width: 20,
+                  height: 20,
+                  borderRadius: '50%',
+                  background: profile?.cv_url ? '#1d6f5c' : '#e0dfd8',
+                  color: '#fff',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontSize: 11,
+                  fontWeight: 700,
+                  flexShrink: 0,
+                  marginTop: 1,
+                }}
+              >
+                {profile?.cv_url ? <i className="ti ti-check" style={{ fontSize: 11 }}></i> : '1'}
+              </div>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontSize: 12.5, fontWeight: 600 }}>Sube tu CV</div>
+                {profile?.cv_url ? (
+                  <div style={{ fontSize: 11.5, color: '#888', marginTop: 3 }}>
+                    CV subido
+                    {profile.cv_uploaded_at && ` · ${new Date(profile.cv_uploaded_at).toLocaleDateString('es-ES')}`}
+                    <div style={{ display: 'flex', gap: 8, marginTop: 6 }}>
+                      <button type="button" onClick={viewCv} className="btn-o" style={{ fontSize: 11.5, padding: '5px 10px' }}>
+                        Ver CV
+                      </button>
+                      <label className="btn-g" style={{ fontSize: 11.5, padding: '5px 10px', cursor: 'pointer' }}>
+                        {uploadingCv ? 'Subiendo...' : 'Reemplazar'}
+                        <input type="file" accept="application/pdf" hidden onChange={handleCvUpload} disabled={uploadingCv} />
+                      </label>
+                    </div>
+                  </div>
+                ) : (
+                  <label className="btn-p" style={{ display: 'inline-block', marginTop: 6, cursor: 'pointer', fontSize: 12 }}>
+                    {uploadingCv ? 'Subiendo...' : 'Subir CV'}
+                    <input type="file" accept="application/pdf" hidden onChange={handleCvUpload} disabled={uploadingCv} />
+                  </label>
+                )}
+              </div>
+            </div>
+
+          </div>
+            </div>
+          )}
+
+        {/* Tres widgets, con Empleos más ancho porque es el único que
+            lleva una lista. Los otros dos son una cifra y un enlace. */}
+        <div className="p-widgets">
+          <div className="sw" style={{ marginBottom: 0 }}>
+            <h4>Radiografía profesional</h4>
+            {radiografia?.benchmark?.porcentaje > 0 ? (
+              <>
+                <div style={{ fontSize: 26, fontWeight: 600, color: '#6d5aef', lineHeight: 1.1 }}>
+                  {radiografia.benchmark.porcentaje}%
+                </div>
+                <div style={{ fontSize: 12, color: '#888', marginTop: 3 }}>Encaje con el sector</div>
+              </>
+            ) : (
+              <div style={{ fontSize: 12, color: '#888', lineHeight: 1.6 }}>
+                Aún sin datos suficientes para calcular tu encaje con el sector.
+              </div>
+            )}
+            <button
+              onClick={() => setVerRadiografia(true)}
+              style={{
+                background: 'none',
+                border: 'none',
+                padding: 0,
+                marginTop: 12,
+                color: '#6d5aef',
+                fontSize: 12.5,
+              }}
+            >
+              Ver radiografía →
+            </button>
+          </div>
+
+          <div className="sw" style={{ marginBottom: 0 }}>
+            <h4>Perfil completado</h4>
+            <div style={{ display: 'flex', alignItems: 'baseline', gap: 7 }}>
+              <span style={{ fontSize: 26, fontWeight: 600, color: '#1d6f5c', lineHeight: 1.1 }}>
+                {perfilPct}%
+              </span>
+              {perfilPct === 100 && <i className="ti ti-check" style={{ fontSize: 15, color: '#1d6f5c' }}></i>}
+            </div>
+            {/* La barra solo mientras falte algo: al 100% no aporta nada
+                que el número no diga ya. */}
+            {perfilPct < 100 && (
+              <div style={{ height: 5, background: '#ece9e2', borderRadius: 3, overflow: 'hidden', marginTop: 9 }}>
+                <div style={{ width: `${perfilPct}%`, height: '100%', background: '#1d6f5c' }}></div>
+              </div>
+            )}
+            <div style={{ fontSize: 12, color: '#888', marginTop: 9, lineHeight: 1.55 }}>
+              {perfilFalta.length === 0 ? 'Tu perfil está completo.' : `Te falta ${perfilFalta.join(', ')}.`}
+            </div>
+          </div>
+
+<div className="sw" style={{ marginBottom: 0 }}>
+            <h4>Mis empleos guardados y solicitados</h4>
+            {(() => {
+              // Une ambas listas y quita duplicados por si una oferta está
+              // guardada y solicitada a la vez — para el usuario es "el
+              // mismo empleo", no dos entradas distintas. Las ofertas
+              // pausadas/borradas se quedan fuera de este resumen a
+              // propósito: aquí solo se listan activas. El detalle completo
+              // (incluidas las no disponibles, con aviso) vive en
+              // /profile/jobs, no aquí.
+              const seen = new Set();
+              const combined = [];
+              for (const item of [...appliedJobs, ...savedJobs]) {
+                if (!item.jobs || item.jobs.status !== 'activa') continue;
+                const jobId = item.jobs.id;
+                if (seen.has(jobId)) continue;
+                seen.add(jobId);
+                combined.push(item);
+              }
+              if (combined.length === 0) {
+                return <div style={{ fontSize: 12.5, color: '#999' }}>Ninguno todavía.</div>;
+              }
+              return combined.slice(0, 4).map((sj) => (
+                <div className="sp" key={sj.jobs.id}>
+                  <div className="sp-av" style={{ borderRadius: 8, overflow: 'hidden' }}>
+                    {sj.jobs?.organizations?.logo_url ? (
+                      <img
+                        src={sj.jobs.organizations.logo_url}
+                        alt=""
+                        style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                      />
+                    ) : (
+                      <i className="ti ti-briefcase"></i>
+                    )}
+                  </div>
+                  <div>
+                    <div style={{ fontSize: 13, fontWeight: 500 }}>{sj.jobs?.title}</div>
+                    <div style={{ fontSize: 11.5, color: '#888' }}>{sj.jobs?.organizations?.name}</div>
+                  </div>
+                </div>
+              ));
+            })()}
+            <Link href="/profile/jobs" style={{ fontSize: 12.5, color: '#1d6f5c' }}>
+              Ver todos los empleos
+            </Link>
+          </div>
+        </div>
+
+
 
       {showEditProfile && (
         <div className="modal-ov on" onClick={(e) => e.target === e.currentTarget && setShowEditProfile(false)}>
@@ -1220,7 +1404,7 @@ export default function ProfilePage() {
                   </form>
                 ) : (
                   <div
-                    className="exp-item"
+                    className="exp-item exp-fila"
                     key={exp.id}
                     draggable
                     onDragStart={(e) => handleCardDragStart(e, i, exp.title)}
@@ -1241,7 +1425,7 @@ export default function ProfilePage() {
                       </div>
                       <div className="ed">{exp.description}</div>
                     </div>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 4, height: 'fit-content' }}>
+                    <div className="exp-acciones" style={{ display: 'flex', flexDirection: 'column', gap: 4, height: 'fit-content' }}>
                       <div style={{ display: 'flex', gap: 4 }}>
                         <button
                           className="btn-g"
@@ -1348,7 +1532,7 @@ export default function ProfilePage() {
                   </form>
                 ) : (
                   <div
-                    className="exp-item"
+                    className="exp-item exp-fila"
                     key={ed.id}
                     draggable
                     onDragStart={(e) => handleCardDragStart(e, i, ed.degree)}
@@ -1365,7 +1549,7 @@ export default function ProfilePage() {
                       <div className="et">{ed.degree}</div>
                       <div className="eo">{ed.institution}</div>
                     </div>
-                    <div style={{ display: 'flex', gap: 4, height: 'fit-content' }}>
+                    <div className="exp-acciones" style={{ display: 'flex', gap: 4, height: 'fit-content' }}>
                       <button
                         className="btn-g"
                         style={{ padding: '5px 7px' }}
@@ -1528,7 +1712,7 @@ export default function ProfilePage() {
                   </form>
                 ) : (
                   <div
-                    className="exp-item"
+                    className="exp-item exp-fila"
                     key={l.id}
                     draggable
                     onDragStart={(e) => handleCardDragStart(e, i, l.language_name)}
@@ -1546,7 +1730,7 @@ export default function ProfilePage() {
                         {l.language_name} <span className="badge bg" style={{ marginLeft: 6 }}>{l.proficiency}</span>
                       </div>
                     </div>
-                    <div style={{ display: 'flex', gap: 4, height: 'fit-content' }}>
+                    <div className="exp-acciones" style={{ display: 'flex', gap: 4, height: 'fit-content' }}>
                       <button
                         className="btn-g"
                         style={{ padding: '5px 7px' }}
@@ -1575,237 +1759,6 @@ export default function ProfilePage() {
               )}
             </div>
           )}
-        </div>
-        </div>
-
-        <div>
-          {/* Solo la primera vez: sin CV y sin experiencia. Después, el
-              currículum se gestiona desde la línea que hay bajo Experiencia,
-              y esta tarjeta deja de ocupar la mejor posición de la columna.
-              Se puede cerrar siempre. */}
-          {primeraVez && (
-            <div style={{ position: 'relative' }}>
-              <button
-                onClick={() => setCvCerrado(true)}
-                aria-label="Ocultar"
-                style={{ position: 'absolute', right: 12, top: 12, zIndex: 2, background: 'none', border: 'none', color: '#c4c0b8', padding: 2 }}
-              >
-                <i className="ti ti-x" style={{ fontSize: 14 }}></i>
-              </button>
-<div className="sw">
-            <h4>Currículum (CV)</h4>
-
-            <div style={{ display: 'flex', alignItems: 'flex-start', gap: 9, marginBottom: 14 }}>
-              <div
-                style={{
-                  width: 20,
-                  height: 20,
-                  borderRadius: '50%',
-                  background: profile?.cv_url ? '#1d6f5c' : '#e0dfd8',
-                  color: '#fff',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  fontSize: 11,
-                  fontWeight: 700,
-                  flexShrink: 0,
-                  marginTop: 1,
-                }}
-              >
-                {profile?.cv_url ? <i className="ti ti-check" style={{ fontSize: 11 }}></i> : '1'}
-              </div>
-              <div style={{ flex: 1 }}>
-                <div style={{ fontSize: 12.5, fontWeight: 600 }}>Sube tu CV</div>
-                {profile?.cv_url ? (
-                  <div style={{ fontSize: 11.5, color: '#888', marginTop: 3 }}>
-                    CV subido
-                    {profile.cv_uploaded_at && ` · ${new Date(profile.cv_uploaded_at).toLocaleDateString('es-ES')}`}
-                    <div style={{ display: 'flex', gap: 8, marginTop: 6 }}>
-                      <button type="button" onClick={viewCv} className="btn-o" style={{ fontSize: 11.5, padding: '5px 10px' }}>
-                        Ver CV
-                      </button>
-                      <label className="btn-g" style={{ fontSize: 11.5, padding: '5px 10px', cursor: 'pointer' }}>
-                        {uploadingCv ? 'Subiendo...' : 'Reemplazar'}
-                        <input type="file" accept="application/pdf" hidden onChange={handleCvUpload} disabled={uploadingCv} />
-                      </label>
-                    </div>
-                  </div>
-                ) : (
-                  <label className="btn-p" style={{ display: 'inline-block', marginTop: 6, cursor: 'pointer', fontSize: 12 }}>
-                    {uploadingCv ? 'Subiendo...' : 'Subir CV'}
-                    <input type="file" accept="application/pdf" hidden onChange={handleCvUpload} disabled={uploadingCv} />
-                  </label>
-                )}
-              </div>
-            </div>
-
-          </div>
-            </div>
-          )}
-          {/* Antes había aquí una barra de "Completado al X%". La
-              radiografía dice lo mismo mejor: en vez de un porcentaje
-              abstracto, qué falta y para qué sirve. */}
-          {/* DOS TARJETAS, NO UNA. Antes iban juntas con el argumento de
-              que completar el perfil sube el encaje, pero ese argumento
-              solo se sostiene cuando hay encaje. Sin él parecían dos
-              tarjetas pegadas con una línea a sangre en medio.
-
-              Márgenes: la clase .sw ya da 14px por todos lados, así que
-              aquí no se añade ningún padding propio y todo queda
-              alineado con el título por defecto. */}
-
-          {radiografia && (radiografia.trayectoria?.rol || radiografia.benchmark?.porcentaje > 0) && (
-            <div className="sw" style={{ borderColor: '#d8d3f5' }}>
-              <h4>Tu Radiografía Profesional</h4>
-
-              {radiografia.trayectoria?.rol && (
-                <>
-                  <div style={{ fontSize: 11, color: '#888', letterSpacing: '.3px', marginBottom: 6 }}>
-                    TU TRAYECTORIA SE APROXIMA A
-                  </div>
-                  <div
-                    style={{
-                      background: '#f0eefe',
-                      border: '.5px solid #d8d3f5',
-                      borderRadius: 8,
-                      padding: '7px 11px',
-                      fontSize: 13,
-                      fontWeight: 600,
-                      lineHeight: 1.4,
-                      marginBottom: 14,
-                    }}
-                  >
-                    {radiografia.trayectoria.rol}
-                  </div>
-                </>
-              )}
-
-              {radiografia.benchmark?.porcentaje > 0 && (
-                <>
-                  <div
-                    style={{
-                      display: 'flex',
-                      justifyContent: 'space-between',
-                      alignItems: 'baseline',
-                      gap: 8,
-                      marginBottom: 7,
-                    }}
-                  >
-                    <span style={{ fontSize: 11, color: '#888', letterSpacing: '.3px' }}>ENCAJE</span>
-                    <span style={{ fontSize: 18, fontWeight: 600, color: '#6d5aef', lineHeight: 1 }}>
-                      {radiografia.benchmark.porcentaje}%
-                    </span>
-                  </div>
-                  <div style={{ height: 6, background: '#ece9e2', borderRadius: 3, overflow: 'hidden' }}>
-                    <div
-                      style={{
-                        width: `${Math.min(100, Math.max(0, radiografia.benchmark.porcentaje))}%`,
-                        height: '100%',
-                        background: '#6d5aef',
-                      }}
-                    ></div>
-                  </div>
-                  <div style={{ fontSize: 11.5, color: '#888', marginTop: 7, lineHeight: 1.5 }}>
-                    con las ofertas del sector
-                  </div>
-                </>
-              )}
-
-              {/* Ancho completo: un botón suelto con ancho arbitrario no
-                  se alinea con nada de lo que tiene encima. */}
-              <button
-                className="btn-ai-o"
-                style={{ width: '100%', justifyContent: 'center', fontSize: 12, marginTop: 14 }}
-                onClick={() => setVerRadiografia(true)}
-              >
-                Ver la radiografía completa
-              </button>
-            </div>
-          )}
-
-          {/* El perfil se calcula aquí y no en el endpoint: así esta
-              tarjeta funciona aunque la radiografía falle, que es
-              justo lo que estaba pasando. */}
-          <div className="sw">
-            <h4>Tu perfil</h4>
-
-            <div
-              style={{
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'baseline',
-                gap: 8,
-                marginBottom: 7,
-              }}
-            >
-              <span style={{ fontSize: 11, color: '#888', letterSpacing: '.3px' }}>COMPLETADO</span>
-              <span style={{ fontSize: 18, fontWeight: 600, color: '#1d6f5c', lineHeight: 1 }}>
-                {perfilPct}%
-              </span>
-            </div>
-            <div style={{ height: 6, background: '#ece9e2', borderRadius: 3, overflow: 'hidden' }}>
-              <div style={{ width: `${perfilPct}%`, height: '100%', background: '#1d6f5c' }}></div>
-            </div>
-
-            {perfilFalta.length > 0 && (
-              <div style={{ fontSize: 11.5, color: '#888', marginTop: 9, lineHeight: 1.6 }}>
-                Te falta {perfilFalta.join(', ')}.
-              </div>
-            )}
-            {perfilFalta.length === 0 && (
-              <div style={{ fontSize: 11.5, color: '#888', marginTop: 9, lineHeight: 1.6 }}>
-                Tu perfil está completo.
-              </div>
-            )}
-          </div>
-
-          <div className="sw">
-            <h4>Mis empleos guardados y solicitados</h4>
-            {(() => {
-              // Une ambas listas y quita duplicados por si una oferta está
-              // guardada y solicitada a la vez — para el usuario es "el
-              // mismo empleo", no dos entradas distintas. Las ofertas
-              // pausadas/borradas se quedan fuera de este resumen a
-              // propósito: aquí solo se listan activas. El detalle completo
-              // (incluidas las no disponibles, con aviso) vive en
-              // /profile/jobs, no aquí.
-              const seen = new Set();
-              const combined = [];
-              for (const item of [...appliedJobs, ...savedJobs]) {
-                if (!item.jobs || item.jobs.status !== 'activa') continue;
-                const jobId = item.jobs.id;
-                if (seen.has(jobId)) continue;
-                seen.add(jobId);
-                combined.push(item);
-              }
-              if (combined.length === 0) {
-                return <div style={{ fontSize: 12.5, color: '#999' }}>Ninguno todavía.</div>;
-              }
-              return combined.slice(0, 4).map((sj) => (
-                <div className="sp" key={sj.jobs.id}>
-                  <div className="sp-av" style={{ borderRadius: 8, overflow: 'hidden' }}>
-                    {sj.jobs?.organizations?.logo_url ? (
-                      <img
-                        src={sj.jobs.organizations.logo_url}
-                        alt=""
-                        style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                      />
-                    ) : (
-                      <i className="ti ti-briefcase"></i>
-                    )}
-                  </div>
-                  <div>
-                    <div style={{ fontSize: 13, fontWeight: 500 }}>{sj.jobs?.title}</div>
-                    <div style={{ fontSize: 11.5, color: '#888' }}>{sj.jobs?.organizations?.name}</div>
-                  </div>
-                </div>
-              ));
-            })()}
-            <Link href="/profile/jobs" style={{ fontSize: 12.5, color: '#1d6f5c' }}>
-              Ver todos los empleos
-            </Link>
-          </div>
-
         </div>
       </div>
 
