@@ -240,6 +240,15 @@ export default function NotasProyecto({ projectId, userId }) {
             </div>
           </div>
 
+          {/* El click sobre el texto ya edita, pero sin un icono nadie
+              lo descubre. */}
+          <button
+            onClick={() => setEditando(n.id)}
+            aria-label="Editar nota"
+            style={{ background: 'none', border: 'none', color: '#c4c0b8', padding: 2, flexShrink: 0 }}
+          >
+            <i className="ti ti-pencil" style={{ fontSize: 13 }}></i>
+          </button>
           <button
             onClick={() => borrar(n.id)}
             aria-label="Eliminar nota"
