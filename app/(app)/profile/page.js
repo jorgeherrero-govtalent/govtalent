@@ -612,14 +612,24 @@ export default function ProfilePage() {
       {/* En móvil las dos columnas se apilan: antes era una rejilla
           fija de 3fr 2fr y la derecha quedaba ilegible. */}
       <style>{`
-        .p-wrap { max-width: 1080px; margin: 0 auto; }
-        /* La portada ocupa ahora 1080px de ancho en vez de 630, así que
-           130px de alto la dejaban en 8:1 y parecía una banda. A 200
-           queda en 5:1, parecido a una portada de LinkedIn. La cabecera
-           adelgaza por el bloque de datos, no por la imagen. */
-        .p-wrap .p-cover { height: 200px; }
-        .p-wrap .p-av { left: 20px; }
+        /* El mismo ancho que la home: 900px. A 1080 la portada quedaba
+           demasiado apaisada por mucho que subiera de alto. */
+        .p-wrap { max-width: 900px; margin: 0 auto; }
+        /* 900 de ancho por 160 de alto son 5.6:1, proporción de portada.
+           Y la foto sube de 84 a 108 para que no se pierda contra ella:
+           antes ocupaba menos de la mitad del alto de la portada. */
+        .p-wrap .p-cover { height: 160px; }
+        .p-wrap .p-av {
+          width: 108px;
+          height: 108px;
+          bottom: -54px;
+          left: 20px;
+          font-size: 34px;
+        }
+        .p-wrap .p-info { padding-top: 44px; padding-right: 150px; }
+        @media (max-width: 520px) { .p-wrap .p-info { padding-right: 20px; } }
         .p-wrap .p-info { padding: 34px 20px 16px; }
+        /* Sobrescrito arriba: la foto es más alta y necesita más hueco. */
         .p-wrap .p-name { font-size: 21px; margin-bottom: 2px; }
         .p-wrap .p-title { font-size: 13.5px; margin-bottom: 5px; }
         .p-wrap .p-tabs { padding: 0 20px; }
@@ -710,7 +720,17 @@ export default function ProfilePage() {
             </label>
           </div>
         </div>
-        <div className="p-info">
+        <div className="p-info" style={{ position: 'relative' }}>
+          {/* A la derecha y a la altura del nombre: en el flujo vertical
+              empujaba todo hacia abajo y alargaba la cabecera. */}
+          <button
+            className="btn-o"
+            style={{ position: 'absolute', top: 16, right: 20, fontSize: 12.5 }}
+            onClick={() => setShowEditProfile(true)}
+          >
+            <i className="ti ti-edit"></i> Editar perfil
+          </button>
+
           <div className="p-name">
             {user.first_name} {user.last_name}
           </div>
@@ -747,15 +767,6 @@ export default function ProfilePage() {
                 </a>
               </span>
             )}
-          </div>
-
-          {/* El único botón de editar de la tarjeta: antes había otro en
-              "Acerca de", y dos hacían dudar de si editaban cosas
-              distintas. */}
-          <div style={{ marginTop: 12 }}>
-            <button className="btn-o" style={{ fontSize: 12.5 }} onClick={() => setShowEditProfile(true)}>
-              <i className="ti ti-edit"></i> Editar perfil
-            </button>
           </div>
         </div>
       </div>
