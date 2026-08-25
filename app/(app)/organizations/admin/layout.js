@@ -136,10 +136,12 @@ export default function OrganizationAdminLayout({ children }) {
           </span>
 
           <div style={{ minWidth: 0, flex: 1 }}>
-            <div style={{ fontSize: 19, fontWeight: 600, lineHeight: 1.3 }}>Talento</div>
+            {/* El nombre de la organización, no el del módulo: este es su
+                espacio, y qué sección estás mirando ya lo dice la pestaña
+                activa de abajo. */}
+            <div style={{ fontSize: 19, fontWeight: 600, lineHeight: 1.3 }}>{org?.name || '·'}</div>
             <div style={{ fontSize: 12, color: '#888', marginTop: 2 }}>
-              {org?.name}
-              {org && <> · {planLabel(org)}</>}
+              {org && planLabel(org)}
               {cifras && (
                 <>
                   {' · '}
