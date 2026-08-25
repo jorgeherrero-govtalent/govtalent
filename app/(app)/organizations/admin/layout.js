@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { createClient } from '@/lib/supabase/client';
-import { planLabel, sidebarTrialLabel } from '@/lib/plan';
+import { getEffectiveTier, planLabel, sidebarTrialLabel } from '@/lib/plan';
 
 /**
  * Talento: todo lo que es contratar, en un solo sitio.
@@ -90,6 +90,7 @@ export default function OrganizationAdminLayout({ children }) {
   }
 
   const trial = org ? sidebarTrialLabel(org) : null;
+  const dePago = org ? getEffectiveTier(org) !== 'free' : false;
 
   return (
     <div>
@@ -139,18 +140,38 @@ export default function OrganizationAdminLayout({ children }) {
             {/* El nombre de la organización, no el del módulo: este es su
                 espacio, y qué sección estás mirando ya lo dice la pestaña
                 activa de abajo. */}
-            <div style={{ fontSize: 19, fontWeight: 600, lineHeight: 1.3 }}>{org?.name || '·'}</div>
-            <div style={{ fontSize: 12, color: '#888', marginTop: 2 }}>
-              {org && planLabel(org)}
-              {cifras && (
+            {/* La etiqueta pegada al nombre, no perdida entre las cifras.
+                Free en gris y los de pago en lila: se distingue de un
+                vistazo sin gritar. */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 9, flexWrap: 'wrap' }}>
+              <span style={{ fontSize: 19, fontWeight: 600, lineHeight: 1.3 }}>{org?.name || '·'}</span>
+              {org && (
+                <span
+                  style={{
+                    fontSize: 11,
+                    fontWeight: 500,
+                    borderRadius: 20,
+                    padding: '3px 10px',
+                    background: dePago ? '#f0eefe' : '#f0f0eb',
+                    color: dePago ? '#3c3489' : '#7a736b',
+                  }}
+                >
+                  {planLabel(org)}
+                </span>
+              )}
+            </div>
+            {/* Con cero ofertas y cero candidaturas, tres ceros no dicen
+                nada y dan sensación de sitio vacío: se dice qué hacer. */}
+            <div style={{ fontSize: 12, color: '#888', marginTop: 3 }}>
+              {cifras && cifras.ofertas === 0 ? (
+                'Publica tu primera oferta para empezar a recibir candidaturas'
+              ) : cifras ? (
                 <>
-                  {' · '}
                   {cifras.ofertas} {cifras.ofertas === 1 ? 'oferta activa' : 'ofertas activas'}
                   {' · '}
-                  {cifras.candidaturas}{' '}
-                  {cifras.candidaturas === 1 ? 'candidatura' : 'candidaturas'}
+                  {cifras.candidaturas} {cifras.candidaturas === 1 ? 'candidatura' : 'candidaturas'}
                 </>
-              )}
+              ) : null}
             </div>
           </div>
 
