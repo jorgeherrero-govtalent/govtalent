@@ -289,6 +289,20 @@ export default function AsuntosProyecto({ projectId, userId, abrirBuscador, onCe
 
   return (
     <div>
+      {/* Cinco fases repartidas en 380px dejan 70 por fase y los nombres
+          cortados: en móvil pasan a columna, con la barra a la izquierda
+          haciendo de línea de tiempo. */}
+              <style>{`
+                .gt-fases { display: flex; gap: 6px; }
+                .gt-fases > div { flex: 1; min-width: 0; text-align: center; }
+                @media (max-width: 720px) {
+                  .gt-fases { flex-direction: column; gap: 0; }
+                  .gt-fases > div { text-align: left; display: flex; align-items: baseline; gap: 10px; padding: 7px 0; }
+                  .gt-fases > div > div:first-child { width: 3px; height: 18px; margin: 0; flex-shrink: 0; }
+                  .gt-fases > div > div:nth-child(2) { flex: 1; white-space: normal !important; }
+                }
+              `}</style>
+
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8, marginBottom: 10, flexWrap: 'wrap' }}>
         <span style={{ ...ETIQUETA }}>ASUNTOS</span>
         <button
@@ -414,9 +428,9 @@ export default function AsuntosProyecto({ projectId, userId, abrirBuscador, onCe
                     : 'Sin recorrido registrado todavía.'}
               </div>
             ) : (
-              <div style={{ display: 'flex', gap: 6, marginBottom: 18 }}>
+              <div className="gt-fases" style={{ marginBottom: 18 }}>
                 {detalle.fases.map((f, i) => (
-                  <div key={i} style={{ flex: 1, minWidth: 0, textAlign: 'center' }}>
+                  <div key={i}>
                     <div
                       style={{
                         height: 3,
