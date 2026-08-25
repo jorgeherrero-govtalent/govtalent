@@ -14,11 +14,27 @@
  * guardar nada en base de datos.
  */
 
-// Los kind que son organismos u organizaciones. El resto son personas.
-const ORGANIZACIONES = new Set(['comision', 'comision-eu', 'grupo', 'direccion', 'organizacion']);
+// Tres familias, no dos. La distinción que importa en asuntos públicos
+// es público / privado, y hasta ahora el avatar solo separaba personas
+// de "todo lo demás".
+const INSTITUCIONES = new Set(['comision', 'comision-eu', 'grupo', 'direccion']);
+const ORGANIZACIONES = new Set(['organizacion']);
+
+export function esInstitucion(actor) {
+  return actor?.familia === 'institucion' || INSTITUCIONES.has(actor?.kind);
+}
 
 export function esOrganizacion(actor) {
-  return ORGANIZACIONES.has(actor?.kind);
+  return (
+    actor?.familia === 'organizacion' ||
+    ORGANIZACIONES.has(actor?.kind) ||
+    INSTITUCIONES.has(actor?.kind)
+  );
+}
+
+// Lo que no es persona: sirve para decidir forma y encaje de la imagen.
+function noEsPersona(actor) {
+  return esInstitucion(actor) || actor?.familia === 'organizacion' || ORGANIZACIONES.has(actor?.kind);
 }
 
 // Paletas sobrias, dentro de los grises de la plataforma. Nada saturado:
@@ -48,18 +64,28 @@ function iniciales(nombre) {
 }
 
 export default function ActorAvatar({ actor, size = 30, atenuado = false, fondo = '#f0f0eb' }) {
-  const org = esOrganizacion(actor);
+  const org = noEsPersona(actor);
+  const institucion = esInstitucion(actor);
   const clave = actor?.ref_id || actor?.id || actor?.nombre || '';
-  const foto = actor?.photo_url || actor?.logo_url;
+  const foto = actor?.imagen || actor?.photo_url || actor?.logo_url;
 
+  // Círculo la persona, esquina casi recta la institución y esquina
+  // redondeada la organización. Lo recto se lee como público y lo
+  // redondeado como privado.
+  //
+  // Y el borde marcado solo en instituciones: a 26px —el chip pequeño
+  // del mapa— un borde sobrevive donde un icono de esquina sería un
+  // punto sin forma.
   const estiloBase = {
     width: size,
     height: size,
     flexShrink: 0,
     display: 'block',
     opacity: atenuado ? 0.6 : 1,
-    borderRadius: org ? Math.round(size * 0.27) : '50%',
+    borderRadius: !org ? '50%' : institucion ? Math.round(size * 0.1) : Math.round(size * 0.27),
   };
+
+  const bordeFamilia = institucion ? '1.5px solid #b8b4ac' : '.5px solid #e0dfd8';
 
   // --- Con imagen del directorio ---------------------------------------
   if (foto) {
@@ -73,7 +99,7 @@ export default function ActorAvatar({ actor, size = 30, atenuado = false, fondo 
           ...estiloBase,
           objectFit: org ? 'contain' : 'cover',
           background: '#fff',
-          border: org ? '.5px solid #e0dfd8' : 'none',
+          border: org ? bordeFamilia : 'none',
         }}
       />
     );
@@ -87,7 +113,7 @@ export default function ActorAvatar({ actor, size = 30, atenuado = false, fondo 
         style={{
           ...estiloBase,
           background: fondo,
-          border: '.5px solid #e0dfd8',
+          border: bordeFamilia,
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
