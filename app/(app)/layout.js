@@ -1,7 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
-import { createPortal } from 'react-dom';
+import { useEffect, useState } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
@@ -9,6 +8,7 @@ import Toast from '@/components/Toast';
 import OnboardingModal from '@/components/OnboardingModal';
 import PublicHeader from '@/components/PublicHeader';
 import Footer from '@/components/Footer';
+import MenuUsuario from '@/components/MenuUsuario';
 
 export default function AppLayout({ children }) {
   const supabase = createClient();
@@ -16,18 +16,9 @@ export default function AppLayout({ children }) {
   const router = useRouter();
   const [user, setUser] = useState(null);
   const [authChecked, setAuthChecked] = useState(false);
-  const [myOrg, setMyOrg] = useState(null);
+  const [misOrgs, setMisOrgs] = useState([]);
   const [novedades, setNovedades] = useState(0);
   const [needsOnboarding, setNeedsOnboarding] = useState(false);
-  const [showMeMenu, setShowMeMenu] = useState(false);
-  const [meMenuPos, setMeMenuPos] = useState({ top: 0, right: 0 });
-  const meBtnRef = useRef(null);
-
-  function openMeMenu() {
-    const rect = meBtnRef.current?.getBoundingClientRect();
-    if (rect) setMeMenuPos({ top: rect.bottom + 8, right: window.innerWidth - rect.right });
-    setShowMeMenu(true);
-  }
 
   useEffect(() => {
     let active = true;
@@ -48,13 +39,15 @@ export default function AppLayout({ children }) {
       setAuthChecked(true);
       setNeedsOnboarding(!!profile && !profile.onboarding_completed);
 
-      const { data: membership } = await supabase
+      // Todas, no solo una: el menú es un selector y con .limit(1) solo
+      // aparecería la primera de quien pertenezca a varias.
+      const { data: membresias } = await supabase
         .from('organization_members')
-        .select('organization_id, organizations(slug, name)')
-        .eq('user_id', data.user.id)
-        .limit(1)
-        .maybeSingle();
-      if (active && membership) setMyOrg(membership);
+        .select('organization_id, organizations(slug, name, logo_url)')
+        .eq('user_id', data.user.id);
+      if (active) {
+        setMisOrgs((membresias || []).map((m) => m.organizations).filter(Boolean));
+      }
 
       // El punto de la barra: cuántas novedades hay sin ver. Solo cuenta,
       // no trae las filas, para no cargar la barra en cada navegación.
@@ -81,7 +74,6 @@ export default function AppLayout({ children }) {
     window.location.reload();
   }
 
-  const initial = user ? (user.first_name?.[0] || 'U').toUpperCase() : '';
 
   return (
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
@@ -94,8 +86,8 @@ export default function AppLayout({ children }) {
             gov<span>talent</span>
           </Link>
           {/* El orden dice de qué va el producto: primero lo que se
-              mueve, luego quién decide, después dónde lo trabajas, y el
-              empleo al final. Organizaciones vive dentro de Instituciones.
+              mueve, luego quién decide, después lo tuyo, y el empleo al
+              final. Organizaciones pasa a vivir dentro de Instituciones.
 
               Regulatorio se marca activo también en sus rutas hijas para
               que la barra no se apague al entrar en un expediente. */}
@@ -125,12 +117,26 @@ export default function AppLayout({ children }) {
             <i className="ti ti-building-bank"></i>Instituciones
           </Link>
 
-          {/* Seguimiento ya no es una pestaña: pasa a la campana de la
-              derecha. Como pestaña competía con Proyectos —las dos decían
-              "aquí está lo que te importa"— y una campana no compite con
-              nada. La ruta /seguimiento sigue existiendo. */}
-          <Link href="/projects" className={`ni ${pathname.startsWith('/projects') ? 'on' : ''}`}>
-            <i className="ti ti-folder"></i>Proyectos
+          <Link href="/seguimiento" className={`ni ${pathname.startsWith('/seguimiento') ? 'on' : ''}`}>
+            <span style={{ position: 'relative', display: 'inline-flex' }}>
+              <i className="ti ti-bell"></i>
+              {novedades > 0 && (
+                <span
+                  style={{
+                    position: 'absolute',
+                    top: -2,
+                    right: -5,
+                    width: 7,
+                    height: 7,
+                    borderRadius: '50%',
+                    background: '#6d5aef',
+                    border: '1.5px solid #fff',
+                  }}
+                  aria-hidden="true"
+                ></span>
+              )}
+            </span>
+            Seguimiento
           </Link>
 
           <Link href="/jobs" className={`ni ${pathname.startsWith('/jobs') ? 'on' : ''}`}>
@@ -139,92 +145,17 @@ export default function AppLayout({ children }) {
 
           <div className="nav-sp"></div>
 
-          {/* La campana: todo lo que ha pasado, tenga proyecto o no. */}
-          <Link
-            href="/seguimiento"
-            className={`ni ${pathname.startsWith('/seguimiento') ? 'on' : ''}`}
-            aria-label={novedades > 0 ? `Avisos, ${novedades} sin leer` : 'Avisos'}
-            title="Avisos"
-          >
-            <span style={{ position: 'relative', display: 'inline-flex' }}>
-              <i className="ti ti-bell" style={{ fontSize: 19 }}></i>
-              {novedades > 0 && (
-                <span
-                  style={{
-                    position: 'absolute',
-                    top: -6,
-                    left: 11,
-                    minWidth: 15,
-                    height: 15,
-                    padding: '0 4px',
-                    borderRadius: 20,
-                    background: '#6d5aef',
-                    color: '#fff',
-                    fontSize: 10,
-                    lineHeight: '15px',
-                    textAlign: 'center',
-                    border: '1.5px solid #fff',
-                    fontWeight: 600,
-                  }}
-                >
-                  {novedades > 9 ? '9+' : novedades}
-                </span>
-              )}
-            </span>
-          </Link>
+          {/* "Mi organización" y "Para empresas" desaparecen de la
+              barra: eran dos elementos que hacían lo mismo según si
+              tenías organización o no, y ahora viven dentro del menú
+              junto al resto de contextos. */}
 
-          {myOrg ? (
-            <Link
-              href="/organizations/admin"
-              className={`ni ${pathname.includes('/organizations/admin') ? 'on' : ''}`}
-            >
-              <i className="ti ti-settings"></i>Mi organización
-            </Link>
-          ) : (
-            <Link href="/organizations/new" className="nav-ebtn">
-              <i className="ti ti-building"></i> Para empresas
-            </Link>
-          )}
-
-          <div className="nav-me">
-            <div className="ni" ref={meBtnRef} onClick={() => (showMeMenu ? setShowMeMenu(false) : openMeMenu())}>
-              <div className="nav-av">{user?.avatar_url ? <img src={user.avatar_url} alt="" /> : initial || '·'}</div>
-              <span style={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                Tú <i className={`ti ${showMeMenu ? 'ti-chevron-up' : 'ti-chevron-down'}`} style={{ fontSize: 12 }}></i>
-              </span>
-            </div>
-
-            {showMeMenu &&
-              typeof document !== 'undefined' &&
-              createPortal(
-                <>
-                  <div onClick={() => setShowMeMenu(false)} style={{ position: 'fixed', inset: 0, zIndex: 300 }}></div>
-                  <div className="nav-me-menu" style={{ position: 'fixed', top: meMenuPos.top, right: meMenuPos.right, zIndex: 301 }}>
-                    <Link href="/profile" className="nav-me-item" onClick={() => setShowMeMenu(false)}>
-                      <i className="ti ti-user"></i> Ver mi perfil
-                    </Link>
-                    <Link href="/account" className="nav-me-item" onClick={() => setShowMeMenu(false)}>
-                      <i className="ti ti-settings"></i> Mi cuenta
-                    </Link>
-                    {user?.role === 'platform_admin' && (
-                      <Link href="/backoffice" className="nav-me-item" onClick={() => setShowMeMenu(false)}>
-                        <i className="ti ti-shield-lock" style={{ color: '#6d5aef' }}></i> Acceso Backoffice
-                      </Link>
-                    )}
-                    <button
-                      className="nav-me-item"
-                      onClick={() => {
-                        setShowMeMenu(false);
-                        signOut();
-                      }}
-                    >
-                      <i className="ti ti-logout"></i> Cerrar sesión
-                    </button>
-                  </div>
-                </>,
-                document.body
-              )}
-          </div>
+          <MenuUsuario
+            user={user}
+            organizaciones={misOrgs}
+            enOrganizacion={pathname.includes('/organizations/admin') ? misOrgs[0]?.slug : null}
+            onSignOut={signOut}
+          />
         </div>
       </nav>
       )}
