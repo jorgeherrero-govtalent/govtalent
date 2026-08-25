@@ -195,11 +195,14 @@ export default function CompanyPagePage() {
   // Una sola declaración, en el ámbito del componente: dentro del
   // if (!org) no existía para el return principal.
   const estilos = `
-    .co-form { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 170px); gap: 26px; align-items: start; }
+    /* La rejilla envuelve la vista previa y el formulario a la vez: así
+       la cabecera queda del ancho de la columna y el índice arranca a su
+       altura, no doscientos píxeles más abajo. */
+    .co-todo { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 170px); gap: 26px; align-items: start; }
     .co-indice { position: sticky; top: 90px; display: flex; flex-direction: column; gap: 2px; }
-    .co-campos section { padding-bottom: 22px; }
+    .co-todo section { padding-bottom: 22px; }
     @media (max-width: 860px) {
-      .co-form { grid-template-columns: minmax(0, 1fr); gap: 0; }
+      .co-todo { grid-template-columns: minmax(0, 1fr); gap: 0; }
       .co-indice {
         position: sticky;
         top: 64px;
@@ -243,6 +246,8 @@ export default function CompanyPagePage() {
             peso que el título. */}
       </div>
 
+      <div className="co-todo">
+        <div style={{ minWidth: 0 }}>
       <div className="card" style={{ marginBottom: 16 }}>
         <div
           ref={coverDrag.containerRef}
@@ -363,8 +368,7 @@ export default function CompanyPagePage() {
 
               Sigue siendo un solo formulario: las secciones se recorren,
               no se ocultan, y se guarda todo de una vez. */}
-          <form onSubmit={saveOrgEdit} className="co-form">
-            <div className="co-campos">
+          <form onSubmit={saveOrgEdit}>
 
             <section id="identidad" style={{ scrollMarginTop: 90 }}>
             <div style={SECCION}>IDENTIDAD</div>
@@ -490,34 +494,36 @@ export default function CompanyPagePage() {
               <i className="ti ti-check"></i> {saving ? 'Guardando...' : 'Guardar cambios'}
             </button>
             </section>
-            </div>
 
-            {/* El índice, fijo mientras se rellena. Mismas pastillas que
-                Seguimiento: fondo lila y texto morado, sin subrayado. */}
-            <nav className="co-indice" aria-label="Secciones">
-              {SECCIONES.map((sec) => (
-                <button
-                  key={sec.id}
-                  type="button"
-                  onClick={() => irA(sec.id)}
-                  style={{
-                    padding: '6px 12px',
-                    borderRadius: 7,
-                    fontSize: 12.5,
-                    cursor: 'pointer',
-                    border: 'none',
-                    textAlign: 'left',
-                    background: activa === sec.id ? '#f0eefe' : 'transparent',
-                    color: activa === sec.id ? '#6d5aef' : '#8b8780',
-                    whiteSpace: 'nowrap',
-                  }}
-                >
-                  {sec.label}
-                </button>
-              ))}
-            </nav>
           </form>
         </div>
+      </div>
+        </div>
+
+        {/* El índice, fijo mientras se rellena. Mismas pastillas que
+            Seguimiento: fondo lila y texto morado, sin subrayado. */}
+        <nav className="co-indice" aria-label="Secciones">
+          {SECCIONES.map((sec) => (
+            <button
+              key={sec.id}
+              type="button"
+              onClick={() => irA(sec.id)}
+              style={{
+                padding: '6px 12px',
+                borderRadius: 7,
+                fontSize: 12.5,
+                cursor: 'pointer',
+                border: 'none',
+                textAlign: 'left',
+                background: activa === sec.id ? '#f0eefe' : 'transparent',
+                color: activa === sec.id ? '#6d5aef' : '#8b8780',
+                whiteSpace: 'nowrap',
+              }}
+            >
+              {sec.label}
+            </button>
+          ))}
+        </nav>
       </div>
     </div>
   );
