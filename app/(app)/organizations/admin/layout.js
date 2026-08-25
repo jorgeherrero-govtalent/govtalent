@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { createClient } from '@/lib/supabase/client';
-import { sidebarTrialLabel } from '@/lib/plan';
+import { planLabel, sidebarTrialLabel } from '@/lib/plan';
 
 /**
  * Talento: todo lo que es contratar, en un solo sitio.
@@ -26,10 +26,14 @@ import { sidebarTrialLabel } from '@/lib/plan';
 
 const BORDE = '#e0dfd8';
 
+// Nombradas por lo que se hace, no por lo que contienen: "Ofertas" no
+// dice si sirve para verlas o para publicarlas.
 const PESTANAS = [
-  { href: '/organizations/admin/jobs', label: 'Ofertas' },
-  { href: '/organizations/admin/candidates', label: 'Candidatos' },
-  { href: '/organizations/admin/company', label: 'Página de empresa' },
+  { href: '/organizations/admin/company', label: 'Editar página' },
+  { href: '/organizations/admin/jobs', label: 'Publicar oferta' },
+  { href: '/organizations/admin/candidates', label: 'Gestionar candidatos' },
+  { href: '/organizations/admin/plan', label: 'Plan' },
+  { href: '/organizations/admin/settings', label: 'Configuración' },
 ];
 
 export default function OrganizationAdminLayout({ children }) {
@@ -49,7 +53,7 @@ export default function OrganizationAdminLayout({ children }) {
 
     const { data: membresia } = await supabase
       .from('organization_members')
-      .select('organization_id, organizations(id, name, slug, logo_url, plan, plan_status, trial_ends_at)')
+      .select('organization_id, organizations(id, name, slug, logo_url, plan, plan_status, trial_ends_at, is_founding_member)')
       .eq('user_id', uid)
       .limit(1)
       .maybeSingle();
@@ -135,6 +139,7 @@ export default function OrganizationAdminLayout({ children }) {
             <div style={{ fontSize: 19, fontWeight: 600, lineHeight: 1.3 }}>Talento</div>
             <div style={{ fontSize: 12, color: '#888', marginTop: 2 }}>
               {org?.name}
+              {org && <> · {planLabel(org)}</>}
               {cifras && (
                 <>
                   {' · '}
