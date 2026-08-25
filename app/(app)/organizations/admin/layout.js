@@ -6,187 +6,200 @@ import { useEffect, useState } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { sidebarTrialLabel } from '@/lib/plan';
 
-const NAV = [
-  { href: '/organizations/admin', label: 'Dashboard', icon: 'ti-layout-dashboard', exact: true },
-  { href: '/organizations/admin/company', label: 'Página de empresa', icon: 'ti-building' },
-  { href: '/organizations/admin/jobs', label: 'Ofertas', icon: 'ti-briefcase' },
-  { href: '/organizations/admin/candidates', label: 'Candidatos', icon: 'ti-users' },
-  { href: '/organizations/admin/database', label: 'Directorio inteligente', icon: 'ti-radar-2' },
-  { href: '/organizations/admin/influence-log', label: 'Transparencia', icon: 'ti-shield-check' },
-  { href: '/organizations/admin/plan', label: 'Plan', icon: 'ti-diamond' },
+/**
+ * Talento: todo lo que es contratar, en un solo sitio.
+ *
+ * ANTES ERA UNA LATERAL DE SIETE ENTRADAS. Se queda en tres pestañas y
+ * el resto se recoloca:
+ *
+ *   Dashboard              se disuelve — era una pantalla entera para
+ *                          tres cifras y una lista que ya está en la
+ *                          pestaña de al lado. Las cifras suben aquí.
+ *   Página de empresa      entra en Talento: es lo que ve un candidato
+ *                          cuando le llega tu oferta.
+ *   Transparencia          pasa a ser una sección dentro de esa página.
+ *   Plan                   sube al menú de la esquina: es facturación,
+ *                          no trabajo diario.
+ *   Directorio inteligente sale del menú hasta decidir dónde vive. La
+ *                          ruta sigue funcionando.
+ */
+
+const VERDE = '#1d6f5c';
+const BORDE = '#e0dfd8';
+
+const PESTANAS = [
+  { href: '/organizations/admin/jobs', label: 'Ofertas' },
+  { href: '/organizations/admin/candidates', label: 'Candidatos' },
+  { href: '/organizations/admin/company', label: 'Página de empresa' },
 ];
 
 export default function OrganizationAdminLayout({ children }) {
   const pathname = usePathname();
-  const [collapsed, setCollapsed] = useState(false);
   const [org, setOrg] = useState(null);
+  const [cifras, setCifras] = useState(null);
 
   useEffect(() => {
-    const saved = localStorage.getItem('gt_org_admin_collapsed');
-    if (saved === '1') setCollapsed(true);
-    loadOrg();
+    cargar();
   }, []);
 
-  async function loadOrg() {
+  async function cargar() {
     const supabase = createClient();
     const { data: authData } = await supabase.auth.getUser();
     const uid = authData.user?.id;
     if (!uid) return;
-    const { data: membership } = await supabase
+
+    const { data: membresia } = await supabase
       .from('organization_members')
-      .select('organizations(plan, plan_status, trial_ends_at)')
+      .select('organization_id, organizations(id, name, slug, logo_url, plan, plan_status, trial_ends_at)')
       .eq('user_id', uid)
       .limit(1)
       .maybeSingle();
-    if (membership?.organizations) setOrg(membership.organizations);
-  }
 
-  const trialLabel = org ? sidebarTrialLabel(org) : null;
+    const o = membresia?.organizations;
+    if (!o) return;
+    setOrg(o);
 
-  function toggleCollapsed() {
-    setCollapsed((prev) => {
-      localStorage.setItem('gt_org_admin_collapsed', !prev ? '1' : '0');
-      return !prev;
+    // Las cifras que antes eran el Dashboard entero. La cabecera se
+    // pinta en todas las pestañas, así que solo se cuenta: nunca se
+    // traen las filas.
+    //
+    // Las candidaturas se cuentan por job_id y no por organización:
+    // job_applications no tiene organization_id, cuelga de la oferta.
+    const { data: ofertas } = await supabase
+      .from('jobs')
+      .select('id, status')
+      .eq('organization_id', o.id);
+
+    const ids = (ofertas || []).map((j) => j.id);
+    let candidaturas = 0;
+    if (ids.length) {
+      const { count } = await supabase
+        .from('job_applications')
+        .select('id', { count: 'exact', head: true })
+        .in('job_id', ids);
+      candidaturas = count || 0;
+    }
+
+    setCifras({
+      ofertas: (ofertas || []).filter((j) => j.status === 'activa').length,
+      candidaturas,
     });
   }
 
-  const sidebarWidth = collapsed ? 64 : 208;
+  const trial = org ? sidebarTrialLabel(org) : null;
 
   return (
-    <div style={{ display: 'flex', minHeight: 'calc(100vh - 64px)' }}>
-      <aside
-        style={{
-          width: sidebarWidth,
-          flexShrink: 0,
-          background: '#fff',
-          borderRight: '.5px solid #e0dfd8',
-          padding: collapsed ? '18px 10px' : '18px 14px',
-          display: 'flex',
-          flexDirection: 'column',
-          gap: 2,
-          transition: 'width .15s ease',
-          position: 'sticky',
-          top: 64,
-          height: 'calc(100vh - 64px)',
-        }}
-      >
-        <div
-          style={{
-            padding: collapsed ? '0 0 14px' : '0 6px 14px',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: collapsed ? 'center' : 'space-between',
-          }}
-        >
-          {!collapsed && <div style={{ fontSize: 11, fontWeight: 700, color: '#999', letterSpacing: '.04em' }}>MI ORGANIZACIÓN</div>}
-          <button
-            onClick={toggleCollapsed}
-            aria-label={collapsed ? 'Expandir menú' : 'Contraer menú'}
+    <div>
+      <style>{`
+        .gt-tal-cab { max-width: 1080px; margin: 0 auto; padding: 20px 20px 0; }
+        .gt-tal-tabs { display: flex; gap: 20px; border-bottom: .5px solid ${BORDE}; margin-top: 16px; }
+        .gt-tal-cuerpo { max-width: 1080px; margin: 0 auto; padding: 20px; }
+        @media (max-width: 720px) {
+          .gt-tal-cab { padding: 16px 14px 0; }
+          .gt-tal-cuerpo { padding: 16px 14px; }
+          /* Las pestañas se desplazan en vez de partirse en dos líneas. */
+          .gt-tal-tabs { gap: 16px; overflow-x: auto; scrollbar-width: none; }
+          .gt-tal-tabs::-webkit-scrollbar { display: none; }
+          .gt-tal-tabs a { white-space: nowrap; }
+        }
+      `}</style>
+
+      <div className="gt-tal-cab">
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+          <span
             style={{
-              width: 24,
-              height: 24,
-              borderRadius: 7,
-              border: '.5px solid #e0dfd8',
-              background: '#fff',
-              color: '#888',
+              width: 38,
+              height: 38,
+              borderRadius: 9,
+              background: '#f0f0eb',
+              border: `.5px solid ${BORDE}`,
+              overflow: 'hidden',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
               flexShrink: 0,
+              fontSize: 14,
+              fontWeight: 600,
+              color: '#7a736b',
             }}
           >
-            <i className={`ti ${collapsed ? 'ti-layout-sidebar-right-expand' : 'ti-layout-sidebar-left-expand'}`} style={{ fontSize: 13 }}></i>
-          </button>
-        </div>
+            {org?.logo_url ? (
+              <img src={org.logo_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
+            ) : (
+              (org?.name || '·').charAt(0).toUpperCase()
+            )}
+          </span>
 
-        {NAV.map((item) => {
-          const active = item.exact ? pathname === item.href : pathname.startsWith(item.href);
-          const showTrialBadge = item.href === '/organizations/admin/plan' && trialLabel !== null;
-          return (
+          <div style={{ minWidth: 0, flex: 1 }}>
+            <div style={{ fontSize: 19, fontWeight: 600, lineHeight: 1.3 }}>Talento</div>
+            <div style={{ fontSize: 12, color: '#888', marginTop: 2 }}>
+              {org?.name}
+              {cifras && (
+                <>
+                  {' · '}
+                  {cifras.ofertas} {cifras.ofertas === 1 ? 'oferta activa' : 'ofertas activas'}
+                  {' · '}
+                  {cifras.candidaturas}{' '}
+                  {cifras.candidaturas === 1 ? 'candidatura' : 'candidaturas'}
+                </>
+              )}
+            </div>
+          </div>
+
+          {/* El aviso de la prueba estaba en la lateral, junto a Plan.
+              Sin lateral vive aquí, que es donde se ve siempre. */}
+          {trial && (
             <Link
-              key={item.href}
-              href={item.href}
-              title={collapsed ? (showTrialBadge ? `${item.label} · ${trialLabel}` : item.label) : undefined}
+              href="/organizations/admin/plan"
               style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: collapsed ? 'center' : 'flex-start',
-                gap: 9,
-                padding: collapsed ? '9px' : '9px 10px',
-                borderRadius: 8,
-                color: active ? '#1d6f5c' : '#666',
-                background: active ? '#f0f8f5' : 'transparent',
-                fontWeight: active ? 600 : 500,
+                fontSize: 11.5,
+                background: '#f0eefe',
+                color: '#3c3489',
+                borderRadius: 20,
+                padding: '4px 11px',
                 textDecoration: 'none',
-                fontSize: 13,
-                position: 'relative',
+                flexShrink: 0,
               }}
             >
-              <i className={`ti ${item.icon}`} style={{ fontSize: 15, flexShrink: 0 }}></i>
-              {!collapsed && item.label}
-              {/* Pill de recordatorio: mismo tratamiento visual siempre (fondo, borde,
-                  tipografía) en cualquier estado — la diferencia la comunica solo el
-                  texto (sidebarTrialLabel), nunca el color. */}
-              {!collapsed && showTrialBadge && (
-                <span
-                  style={{
-                    marginLeft: 'auto',
-                    fontSize: 10.5,
-                    fontWeight: 700,
-                    color: '#666',
-                    background: '#f0efe9',
-                    border: '.5px solid #e0dfd8',
-                    padding: '2px 7px',
-                    borderRadius: 20,
-                    whiteSpace: 'nowrap',
-                  }}
-                >
-                  {trialLabel}
-                </span>
-              )}
-              {collapsed && showTrialBadge && (
-                <span
-                  style={{
-                    position: 'absolute',
-                    top: 4,
-                    right: 4,
-                    width: 7,
-                    height: 7,
-                    borderRadius: '50%',
-                    background: '#999',
-                  }}
-                ></span>
-              )}
+              {trial}
             </Link>
-          );
-        })}
+          )}
 
-        <div style={{ flex: 1 }} />
+          {org?.slug && (
+            <Link
+              href={`/organizations/${org.slug}`}
+              style={{ fontSize: 12, color: '#888', textDecoration: 'none', flexShrink: 0 }}
+            >
+              Ver como candidato →
+            </Link>
+          )}
+        </div>
 
-        <Link
-          href="/jobs"
-          title={collapsed ? 'Volver a GovTalent' : undefined}
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: collapsed ? 'center' : 'flex-start',
-            gap: 9,
-            padding: collapsed ? '9px' : '9px 10px',
-            borderRadius: 8,
-            color: '#999',
-            textDecoration: 'none',
-            fontSize: 12.5,
-            borderTop: '.5px solid #e0dfd8',
-            marginTop: 8,
-            paddingTop: 14,
-          }}
-        >
-          <i className="ti ti-arrow-back" style={{ fontSize: 14, flexShrink: 0 }}></i>
-          {!collapsed && 'Volver a GovTalent'}
-        </Link>
-      </aside>
+        <nav className="gt-tal-tabs" aria-label="Secciones de Talento">
+          {PESTANAS.map((p) => {
+            const on = pathname.startsWith(p.href);
+            return (
+              <Link
+                key={p.href}
+                href={p.href}
+                aria-current={on ? 'page' : undefined}
+                style={{
+                  fontSize: 13,
+                  fontWeight: on ? 500 : 400,
+                  color: on ? VERDE : '#555',
+                  textDecoration: 'none',
+                  paddingBottom: 10,
+                  borderBottom: `2px solid ${on ? VERDE : 'transparent'}`,
+                }}
+              >
+                {p.label}
+              </Link>
+            );
+          })}
+        </nav>
+      </div>
 
-      <main style={{ flex: 1, minWidth: 0 }}>{children}</main>
+      <div className="gt-tal-cuerpo">{children}</div>
     </div>
   );
 }
