@@ -210,6 +210,7 @@ export default function MapaActores({ projectId, abrirBuscador, onCerrarBuscador
       es_propio: a.es_propio,
       nombre: a.nombre,
       descripcion: a.descripcion,
+      imagen: a.imagen,
       category_id: a.category_id,
       posicion: a.posicion,
       influencia: a.influencia,
@@ -675,7 +676,7 @@ function BuscadorActores({ projectId, categorias, yaEnMapa, onClose, onAdded }) 
       setBuscando(true);
       let consulta = supabase
         .from('actor_search')
-        .select('kind, ref_id, nombre, detalle, orden_tipo')
+        .select('kind, ref_id, nombre, detalle, imagen, familia, orden_tipo')
         .ilike('nombre', `%${texto}%`);
       if (familia !== 'todos') consulta = consulta.in('kind', FAMILIAS[familia].kinds);
       const { data } = await consulta.order('orden_tipo').limit(14);
@@ -695,6 +696,9 @@ function BuscadorActores({ projectId, categorias, yaEnMapa, onClose, onAdded }) 
       es_propio: !fila.kind,
       nombre: fila.nombre,
       descripcion: fila.detalle || null,
+      // La foto o el logotipo viajan con el actor: si no, al añadirlo se
+      // quedaban en el directorio y el chip salía con silueta.
+      imagen: fila.imagen || null,
       category_id: categoria || null,
     });
     setGuardando(false);
