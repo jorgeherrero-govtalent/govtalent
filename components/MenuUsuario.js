@@ -236,9 +236,15 @@ export default function MenuUsuario({ user, organizaciones = [], enOrganizacion 
                 );
               })}
 
-              {/* Buscar antes que crear: hay más de dos mil organizaciones
-                  en el directorio, y dejar crear a la primera llenaría la
-                  base de duplicados. */}
+              {/* Solo si no tienes ninguna. Pertenecer a dos organizaciones
+                  es un caso raro, y ofrecerlo a quien ya tiene la suya
+                  convierte el menú en una invitación permanente a algo que
+                  no va a hacer.
+
+                  Y lleva al directorio, no a crear: con más de dos mil
+                  organizaciones cargadas, dejar crear a la primera llenaría
+                  la base de duplicados. */}
+              {organizaciones.length === 0 && (
               <Link
                 href="/organizations"
                 onClick={() => setAbierto(false)}
@@ -260,14 +266,13 @@ export default function MenuUsuario({ user, organizaciones = [], enOrganizacion 
                   <i className="ti ti-plus" style={{ fontSize: 13 }}></i>
                 </span>
                 <span style={{ minWidth: 0, flex: 1 }}>
-                  <span style={{ display: 'block', color: '#1a1a18' }}>
-                    {organizaciones.length ? 'Añadir otra organización' : 'Añadir tu organización'}
-                  </span>
+                  <span style={{ display: 'block', color: '#1a1a18' }}>Añadir tu organización</span>
                   <span style={{ display: 'block', fontSize: 10.5, color: '#888', marginTop: 1 }}>
                     Gratis, para transparencia y ofertas
                   </span>
                 </span>
               </Link>
+              )}
 
               <div style={{ borderTop: `.5px solid ${BORDE}`, marginTop: 6, paddingTop: 5 }}>
                 <Link href="/profile" onClick={() => setAbierto(false)} style={fila}>
