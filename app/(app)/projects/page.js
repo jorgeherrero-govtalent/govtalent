@@ -778,9 +778,18 @@ function Proyectos() {
           ) : (
             <div style={{ fontSize: 19, fontWeight: 600, lineHeight: 1.35 }}>{abierto?.name}</div>
           )}
+          {/* En Free la cabecera leía los datos reales del usuario —cero
+              y cero— mientras el cuerpo enseña los del ejemplo. Quien no
+              supiera que es una demostración lo leía como un fallo. */}
           <div style={{ fontSize: 12, color: '#888', marginTop: 4 }}>
-            {d.actores} {d.actores === 1 ? 'actor' : 'actores'} · {d.asuntos}{' '}
-            {d.asuntos === 1 ? 'asunto' : 'asuntos'}
+            {esPro ? (
+              <>
+                {d.actores} {d.actores === 1 ? 'actor' : 'actores'} · {d.asuntos}{' '}
+                {d.asuntos === 1 ? 'asunto' : 'asuntos'}
+              </>
+            ) : (
+              'Un proyecto de ejemplo, con datos de muestra'
+            )}
           </div>
         </div>
 
