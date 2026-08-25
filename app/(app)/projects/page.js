@@ -97,6 +97,8 @@ function Proyectos() {
   const [proyectos, setProyectos] = useState([]);
   const [datos, setDatos] = useState({});
   const [modalUpsell, setModalUpsell] = useState(false);
+  const [modalCompartidos, setModalCompartidos] = useState(false);
+  const [tieneOrganizacion, setTieneOrganizacion] = useState(false);
   const [busqueda, setBusqueda] = useState('');
   const [orden, setOrden] = useState('recientes');
   const [arrastrando, setArrastrando] = useState(null);
@@ -124,6 +126,14 @@ function Proyectos() {
 
     const { data: perfil } = await supabase.from('users').select('id, plan').eq('id', auth.user.id).single();
     setUser(perfil);
+
+    // Solo para saber qué decir en el modal de compartidos: quien no
+    // tiene organización no puede contratar Teams por su cuenta.
+    const { count: nOrgs } = await supabase
+      .from('organization_members')
+      .select('organization_id', { count: 'exact', head: true })
+      .eq('user_id', auth.user.id);
+    setTieneOrganizacion((nOrgs || 0) > 0);
 
     if (perfil?.plan !== 'pro') {
       setCargando(false);
@@ -406,6 +416,40 @@ function Proyectos() {
                 style={{ border: 'none', outline: 'none', fontSize: 12.5, fontFamily: 'inherit', flex: 1, background: 'none' }}
               />
             </div>
+            {/* Con la etiqueta del plan y sin candado: ya usas ese
+                distintivo en Configuración y en la cabecera de la
+                organización, y además dice qué plan lo abre. Un candado
+                solo dice "cerrado". */}
+            <button
+              type="button"
+              onClick={() => setModalCompartidos(true)}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 7,
+                border: `.5px solid ${BORDE}`,
+                borderRadius: 8,
+                padding: '6px 10px',
+                background: '#fff',
+                fontSize: 12.5,
+                color: '#555',
+                whiteSpace: 'nowrap',
+              }}
+            >
+              Compartidos
+              <span
+                style={{
+                  fontSize: 10.5,
+                  background: '#f0eefe',
+                  color: '#3c3489',
+                  borderRadius: 20,
+                  padding: '2px 8px',
+                }}
+              >
+                Teams
+              </span>
+            </button>
+
             <select className="fsel" value={orden} onChange={(e) => setOrden(e.target.value)}>
               <option value="recientes">Recientes</option>
               <option value="alfabetico">Por nombre</option>
@@ -777,6 +821,21 @@ function Proyectos() {
         )}
 
         {modalUpsell && <UpgradeModal {...upsellProyectos()} onClose={() => setModalUpsell(false)} />}
+
+        {/* Quien no tiene organización no puede contratar Teams: lo
+            contrata su empresa. Decirle "hazte Teams" sería mandarle a
+            una puerta que no puede abrir. */}
+        {modalCompartidos && (
+          <UpgradeModal
+            title="Los proyectos compartidos llegan con Teams"
+            message={
+              tieneOrganizacion
+                ? 'Todo el equipo sobre el mismo asunto: un responsable por cada actor, menciones en las notas, registro de contactos con trazabilidad y agenda compartida.'
+                : 'Todo el equipo sobre el mismo asunto: un responsable por cada actor, menciones en las notas y agenda compartida. Lo contrata tu organización, así que habla con quien la gestione en GovTalent.'
+            }
+            onClose={() => setModalCompartidos(false)}
+          />
+        )}
       </div>
     );
   }
