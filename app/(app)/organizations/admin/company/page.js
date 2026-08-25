@@ -238,15 +238,9 @@ export default function CompanyPagePage() {
           <h2 style={{ fontSize: 19, fontWeight: 700 }}>Página de empresa</h2>
           <p style={{ fontSize: 13, color: '#888' }}>Así es como te ven los candidatos y el resto de organizaciones en GovTalent.</p>
         </div>
-        <a
-          href={`/organizations/${org.slug}`}
-          target="_blank"
-          rel="noreferrer"
-          className="btn-o"
-          style={{ textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 6, flexShrink: 0 }}
-        >
-          <i className="ti ti-eye"></i> Ver como candidato
-        </a>
+        {/* "Ver como candidato" vive en la cabecera de Talento, junto
+            al nombre de la organización. Aquí estaba repetido y con más
+            peso que el título. */}
       </div>
 
       <div className="card" style={{ marginBottom: 16 }}>
@@ -352,7 +346,10 @@ export default function CompanyPagePage() {
               </span>
             )}
           </div>
-          <div style={{ fontSize: 12.5, color: '#555' }}>{org.bio || org.sector || 'Añade una descripción'}</div>
+          {/* La descripción salía aquí sin poder editarse, y repetía lo
+              que hay abajo en su propia sección. Se queda el sector, que
+              sí sitúa a la organización de un vistazo. */}
+          {org.sector && <div style={{ fontSize: 12.5, color: '#555' }}>{org.sector}</div>}
         </div>
       </div>
 
@@ -470,7 +467,7 @@ export default function CompanyPagePage() {
                 </div>
               </div>
               <a href="/organizations/admin/influence-log" style={{ fontSize: 12, color: '#1d6f5c', display: 'inline-block', marginTop: 8 }}>
-                Ir al registro de actividad de influencia →
+                Ir a registro de actividad y transparencia →
               </a>
             </div>
 
