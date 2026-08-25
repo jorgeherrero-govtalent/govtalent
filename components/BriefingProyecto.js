@@ -92,7 +92,7 @@ export default function BriefingProyecto({ projectId, userId }) {
     const [{ data: acts }, { data: ns }, { data: fs }] = await Promise.all([
       supabase
         .from('project_actors')
-        .select('id, kind, ref_id, nombre, descripcion, posicion, influencia, relacion, posicion_texto, argumentos, posicion_fuente, posicion_fecha')
+        .select('id, kind, ref_id, nombre, descripcion, imagen, posicion, influencia, relacion, posicion_texto, argumentos, posicion_fuente, posicion_fecha')
         .eq('project_id', projectId)
         .order('created_at'),
       supabase
