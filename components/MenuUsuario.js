@@ -268,7 +268,7 @@ export default function MenuUsuario({ user, organizaciones = [], enOrganizacion 
                 <span style={{ minWidth: 0, flex: 1 }}>
                   <span style={{ display: 'block', color: '#1a1a18' }}>Añadir tu organización</span>
                   <span style={{ display: 'block', fontSize: 10.5, color: '#888', marginTop: 1 }}>
-                    Gratis, para transparencia y ofertas
+                    Gratis para publicar y gestionar ofertas
                   </span>
                 </span>
               </Link>
