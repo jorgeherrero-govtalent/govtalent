@@ -11,6 +11,7 @@ import {
   limiteActores,
   posicionLabel,
   puedeAnadirActor,
+  relacionLabel,
   resumenMapa,
   tieneSeguimiento,
   urlDeEnlace,
@@ -52,6 +53,18 @@ export default function MapaActores({ projectId, abrirBuscador, onCerrarBuscador
   // origen, para convertir el arrastre en uno de los tres pasos.
   const medida = useRef({ id: null, x0: 0, base: 2 });
   const [midiendoId, setMidiendoId] = useState(null);
+  // En un teléfono el plano no cabe y arrastrar choca con el gesto de
+  // deslizar la página: se cambia por una lista agrupada. Se mira con
+  // matchMedia y no con CSS porque hay que dejar de montar el lienzo,
+  // no solo esconderlo.
+  const [esMovil, setEsMovil] = useState(false);
+  useEffect(() => {
+    const mq = window.matchMedia('(max-width: 720px)');
+    const aplicar = () => setEsMovil(mq.matches);
+    aplicar();
+    mq.addEventListener('change', aplicar);
+    return () => mq.removeEventListener('change', aplicar);
+  }, []);
   const [hayDeshacer, setHayDeshacer] = useState(false);
 
   const cargar = useCallback(async () => {
@@ -216,6 +229,25 @@ export default function MapaActores({ projectId, abrirBuscador, onCerrarBuscador
 
   const resumen = resumenMapa(actores);
 
+  // Los actores agrupados, para la lista del móvil. El orden importa:
+  // primero los que deciden y no sabes de qué lado están, que es la
+  // pregunta que el mapa contesta de un vistazo.
+  const grupos = [
+    { titulo: 'Zona de prioridad', destacado: true, actores: actores.filter(enZonaDePrioridad) },
+    {
+      titulo: 'A favor',
+      actores: actores.filter((a) => !enZonaDePrioridad(a) && posicionLabel(a.posicion) === 'A favor'),
+    },
+    {
+      titulo: 'Neutral',
+      actores: actores.filter((a) => !enZonaDePrioridad(a) && posicionLabel(a.posicion) === 'Neutral'),
+    },
+    {
+      titulo: 'En contra',
+      actores: actores.filter((a) => !enZonaDePrioridad(a) && posicionLabel(a.posicion) === 'En contra'),
+    },
+  ].filter((g) => g.actores.length > 0);
+
   return (
     <div>
       <style>{`
@@ -261,6 +293,69 @@ export default function MapaActores({ projectId, abrirBuscador, onCerrarBuscador
 
       {/* El lienzo. La zona pintada arriba al centro es alta influencia y
           posición indefinida: donde se decide el asunto. */}
+      {esMovil ? (
+        <div>
+          {grupos.map((g) => (
+            <div key={g.titulo} style={{ marginBottom: 16 }}>
+              <div
+                style={{
+                  fontSize: 11,
+                  letterSpacing: '.3px',
+                  color: g.destacado ? MORADO : '#888',
+                  marginBottom: 8,
+                }}
+              >
+                {g.titulo.toUpperCase()} · {g.actores.length}
+              </div>
+
+              {g.actores.map((a, i) => {
+                const iniciada = a.relacion !== 'sin_contactar';
+                return (
+                  <button
+                    key={a.id}
+                    onClick={() => setAbierto(a)}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 10,
+                      width: '100%',
+                      textAlign: 'left',
+                      background: 'none',
+                      border: 'none',
+                      borderTop: i === 0 ? 'none' : `.5px solid ${BORDE}`,
+                      padding: '10px 0',
+                    }}
+                  >
+                    <ActorAvatar actor={a} size={30} atenuado={!iniciada} />
+                    <span style={{ flex: 1, minWidth: 0 }}>
+                      <span
+                        style={{
+                          display: 'block',
+                          fontSize: 13,
+                          fontWeight: 500,
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
+                          whiteSpace: 'nowrap',
+                        }}
+                      >
+                        {a.nombre}
+                      </span>
+                      <span style={{ display: 'block', fontSize: 11.5, color: '#888', marginTop: 1 }}>
+                        {[a.descripcion, relacionLabel(a.relacion).toLowerCase()].filter(Boolean).join(' · ')}
+                      </span>
+                    </span>
+                    <i className="ti ti-chevron-right" style={{ fontSize: 15, color: '#c4c0b8', flexShrink: 0 }}></i>
+                  </button>
+                );
+              })}
+            </div>
+          ))}
+
+          <div style={{ fontSize: 11.5, color: '#888', lineHeight: 1.6 }}>
+            El mapa con los dos ejes se ve desde un ordenador.
+          </div>
+        </div>
+      ) : (
       <div style={{ display: 'flex', gap: 8 }}>
         <div style={{ display: 'flex', alignItems: 'center', flexShrink: 0 }}>
           <span
@@ -462,6 +557,7 @@ export default function MapaActores({ projectId, abrirBuscador, onCerrarBuscador
           </div>
         </div>
       </div>
+      )}
 
       <div
         style={{
