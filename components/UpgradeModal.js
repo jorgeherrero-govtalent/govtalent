@@ -2,6 +2,9 @@
 
 import Link from 'next/link';
 
+// El botón va en btn-ai (morado) y no en btn-p (verde de marca): este
+// modal vende Pro, y en el sistema el morado es Pro e IA. Como todas las
+// llamadas al upsell pasan por aquí, el arreglo alcanza a todas.
 export default function UpgradeModal({ title, message, onClose }) {
   return (
     <div className="modal-ov on" onClick={(e) => e.target === e.currentTarget && onClose()}>
@@ -18,7 +21,7 @@ export default function UpgradeModal({ title, message, onClose }) {
         <Link
           href="/precios"
           target="_blank"
-          className="btn-p"
+          className="btn-ai"
           style={{ textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 6 }}
         >
           <i className="ti ti-arrow-up-right"></i> Ver planes
