@@ -236,6 +236,21 @@ export default function MenuUsuario({ user, organizaciones = [], enOrganizacion 
                 );
               })}
 
+              {/* El plan de la organización vivía en la lateral de
+                  Talento, junto a Ofertas y Candidatos. Es facturación,
+                  no trabajo diario: su sitio está aquí, al lado del plan
+                  personal. */}
+              {organizaciones.length > 0 && (
+                <Link
+                  href="/organizations/admin/plan"
+                  onClick={() => setAbierto(false)}
+                  style={{ ...fila, fontSize: 11.5, color: '#888', paddingTop: 2, paddingBottom: 8 }}
+                >
+                  <span style={{ width: 24 }}></span>
+                  Plan de la organización
+                </Link>
+              )}
+
               {/* Solo si no tienes ninguna. Pertenecer a dos organizaciones
                   es un caso raro, y ofrecerlo a quien ya tiene la suya
                   convierte el menú en una invitación permanente a algo que
