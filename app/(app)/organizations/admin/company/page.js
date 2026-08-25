@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { toast } from '@/lib/toast';
+import SelectorFecha from '@/components/SelectorFecha';
 import { hasInterestGroupBadge } from '@/lib/interestGroupBadge';
 import { useDragPosition, parsePosition } from '@/lib/useDragPosition';
 import { SECTORS } from '@/lib/orgTaxonomy';
@@ -27,6 +28,7 @@ export default function CompanyPagePage() {
   const [uploadingOrgCover, setUploadingOrgCover] = useState(false);
   const [saving, setSaving] = useState(false);
   const [hayCambios, setHayCambios] = useState(false);
+  const [fechaRegistro, setFechaRegistro] = useState(null);
   const [activa, setActiva] = useState('identidad');
   const saltando = useRef(false);
 
@@ -102,6 +104,7 @@ export default function CompanyPagePage() {
 
     if (!membership) return setLoading(false);
     setOrg(membership.organizations);
+    setFechaRegistro(membership.organizations.interest_group_registered_at || null);
     setLoading(false);
   }
 
@@ -161,7 +164,9 @@ export default function CompanyPagePage() {
 
     const interestGroupRegistered = f.get('interest_group_registered') === 'on';
     const interestGroupRegistryNumber = f.get('interest_group_registry_number') || '';
-    const interestGroupRegisteredAt = f.get('interest_group_registered_at') || '';
+    // Ya no es un campo del formulario: SelectorFecha guarda en estado,
+    // así que el valor se toma de ahí.
+    const interestGroupRegisteredAt = fechaRegistro || '';
     if (interestGroupRegistered && (!interestGroupRegistryNumber.trim() || !interestGroupRegisteredAt)) {
       toast('Si marcáis que estáis inscritos como grupo de interés, indica también el número de inscripción y la fecha');
       return;
@@ -496,7 +501,19 @@ export default function CompanyPagePage() {
                 </div>
                 <div className="field">
                   <label>Fecha de inscripción</label>
-                  <input name="interest_group_registered_at" type="date" defaultValue={org.interest_group_registered_at || ''} />
+                  {/* El mismo calendario que la fecha de nacimiento en Mi
+                      cuenta. El nativo cambia de aspecto en cada navegador
+                      y no se puede vestir. */}
+                  <SelectorFecha
+                    value={fechaRegistro}
+                    onChange={(v) => {
+                      setFechaRegistro(v);
+                      setHayCambios(true);
+                    }}
+                    placeholder="Sin indicar"
+                    desdeAno={2020}
+                    hastaAno={new Date().getFullYear()}
+                  />
                 </div>
               </div>
               <a href="/organizations/admin/influence-log" style={{ fontSize: 12, color: '#1d6f5c', display: 'inline-block', marginTop: 8 }}>
