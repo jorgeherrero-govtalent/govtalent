@@ -30,7 +30,7 @@ const BORDE = '#e0dfd8';
 // dice si sirve para verlas o para publicarlas.
 const PESTANAS = [
   { href: '/organizations/admin/company', label: 'Editar página' },
-  { href: '/organizations/admin/jobs', label: 'Publicar oferta' },
+  { href: '/organizations/admin/jobs', label: 'Ofertas' },
   { href: '/organizations/admin/candidates', label: 'Gestionar candidatos' },
   { href: '/organizations/admin/plan', label: 'Plan' },
   { href: '/organizations/admin/settings', label: 'Configuración' },
