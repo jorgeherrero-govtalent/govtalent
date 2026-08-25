@@ -5,7 +5,32 @@ import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
 import { toast } from '@/lib/toast';
+import MultiSelectFilter from '@/components/MultiSelectFilter';
 import UpgradeModal from '@/components/UpgradeModal';
+
+const ETIQUETA_MODAL = { fontSize: 11, color: '#a8a49c', letterSpacing: '.3px' };
+
+// Para enseñar la etapa como texto en el modal, sin ofrecer cambiarla:
+// eso se hace arrastrando en el tablero.
+const ETIQUETA_ESTADO = {
+  enviada: 'Enviada',
+  en_revision: 'En revisión',
+  entrevista: 'Entrevista',
+  oferta: 'Oferta',
+  rechazada: 'Rechazada',
+};
+
+function tiempoDesde(iso) {
+  if (!iso) return null;
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return null;
+  const dias = Math.floor((Date.now() - d.getTime()) / 86400000);
+  if (dias < 1) return 'se postuló hoy';
+  if (dias === 1) return 'se postuló ayer';
+  if (dias < 30) return `se postuló hace ${dias} días`;
+  const meses = Math.round(dias / 30);
+  return `se postuló hace ${meses} ${meses === 1 ? 'mes' : 'meses'}`;
+}
 
 const COLUMNS = [
   ['enviada', 'Enviada'],
@@ -15,10 +40,12 @@ const COLUMNS = [
   ['rechazada', 'Rechazada'],
 ];
 
-// Cuatro y "ver todas": lo normal es mirar las últimas, no recorrer
-// la lista entera cada vez.
-const POR_PAGINA = 4;
-
+const SCORE_FILTERS = [
+  ['', 'Todas las puntuaciones'],
+  ['high', 'Alto encaje (70+)'],
+  ['mid', 'Encaje medio (40-69)'],
+  ['low', 'Encaje bajo (<40)'],
+];
 
 export default function CandidatesBoardPage() {
   return (
@@ -37,15 +64,17 @@ function CandidatesBoardInner() {
   const searchParams = useSearchParams();
   const [jobFilter, setJobFilter] = useState(searchParams.get('job') || '');
   const [scoreFilter, setScoreFilter] = useState('');
+  const [ofertaFiltro, setOfertaFiltro] = useState(new Set());
+  const [puntuacionFiltro, setPuntuacionFiltro] = useState(new Set());
   const [nameFilter, setNameFilter] = useState('');
+  const [dragId, setDragId] = useState(null);
   const [ranking, setRanking] = useState(false);
   const [upgradeModal, setUpgradeModal] = useState(null);
+  const PAGE_SIZE = 6;
+  const [visibleCounts, setVisibleCounts] = useState({});
 
   const [detailApp, setDetailApp] = useState(null);
-  const [etapa, setEtapa] = useState('');
-  const [verTodos, setVerTodos] = useState(false);
-  const [notesDraft, setNotesDraft] = useState('');
-  const [savingNotes, setSavingNotes] = useState(false);
+  const [estadoNotas, setEstadoNotas] = useState('');
   const [summaryLoading, setSummaryLoading] = useState(false);
 
   // Modal que aparece al mover un candidato a "Oferta" o "Rechazada"
@@ -67,6 +96,10 @@ function CandidatesBoardInner() {
   ];
 
   useEffect(() => {
+    setJobFilter(ofertaFiltro.size === 1 ? [...ofertaFiltro][0] : '');
+  }, [ofertaFiltro]);
+
+  useEffect(() => {
     load();
   }, []);
 
@@ -86,7 +119,7 @@ function CandidatesBoardInner() {
   }
 
   useEffect(() => {
-    setVerTodos(false);
+    setVisibleCounts({});
   }, [nameFilter, jobFilter, scoreFilter]);
 
   async function load() {
@@ -154,19 +187,17 @@ function CandidatesBoardInner() {
     if (error) toast('No se pudo mover el candidato');
   }
 
-  // Cambiar de etapa no es solo actualizar un campo: rechazar pide un
-  // motivo y pasar a entrevista u oferta ofrece escribir al candidato.
-  // Esa lógica vivía en el arrastre del tablero; ahora vive aquí, que es
-  // el único sitio desde donde se cambia.
-  function cambiarEtapa(appId, nuevoEstado) {
-    if (nuevoEstado === 'rechazada') {
-      setStatusAction({ appId, targetStatus: 'rechazada', step: 'reason' });
-    } else if (nuevoEstado === 'oferta' || nuevoEstado === 'entrevista') {
-      updateStatus(appId, nuevoEstado);
-      setStatusAction({ appId, targetStatus: nuevoEstado, step: 'message' });
+  function onDrop(newStatus) {
+    if (!dragId) return;
+    if (newStatus === 'rechazada') {
+      setStatusAction({ appId: dragId, targetStatus: 'rechazada', step: 'reason' });
+    } else if (newStatus === 'oferta' || newStatus === 'entrevista') {
+      updateStatus(dragId, newStatus);
+      setStatusAction({ appId: dragId, targetStatus: newStatus, step: 'message' });
     } else {
-      updateStatus(appId, nuevoEstado);
+      updateStatus(dragId, newStatus);
     }
+    setDragId(null);
   }
 
   function closeStatusAction() {
@@ -215,26 +246,28 @@ function CandidatesBoardInner() {
 
   function openDetail(app) {
     setDetailApp(app);
-    setNotesDraft(app.notes || '');
   }
 
   function closeDetail() {
     setDetailApp(null);
-    setNotesDraft('');
   }
 
-  async function saveNotes() {
+  // Guardar al salir del campo, con un aviso discreto en vez de un
+  // botón: si hay que acordarse de pulsarlo, se pierden notas.
+  async function guardarNotasSolo(valor) {
     if (!detailApp) return;
-    setSavingNotes(true);
-    const { error } = await supabase.from('job_applications').update({ notes: notesDraft }).eq('id', detailApp.id);
-    setSavingNotes(false);
+    const texto = valor.trim();
+    if (texto === (detailApp.notes || '').trim()) return;
+    setEstadoNotas('Guardando…');
+    const { error } = await supabase.from('job_applications').update({ notes: texto }).eq('id', detailApp.id);
     if (error) {
-      toast('No se pudieron guardar las notas');
+      setEstadoNotas('No se han podido guardar');
       return;
     }
-    setApplications((prev) => prev.map((a) => (a.id === detailApp.id ? { ...a, notes: notesDraft } : a)));
-    setDetailApp((prev) => ({ ...prev, notes: notesDraft }));
-    toast('Notas guardadas ✓');
+    setApplications((prev) => prev.map((a) => (a.id === detailApp.id ? { ...a, notes: texto } : a)));
+    setDetailApp((prev) => ({ ...prev, notes: texto }));
+    setEstadoNotas('Guardado');
+    setTimeout(() => setEstadoNotas(''), 1600);
   }
 
   async function generateSummary(app) {
@@ -309,10 +342,7 @@ function CandidatesBoardInner() {
     return true;
   }
 
-  // Dos listas: una con todos los filtros menos la etapa —para contar
-  // cuántos hay en cada pastilla— y otra con la etapa ya aplicada.
-  const sinEtapa = applications.filter(passesFilters);
-  const filtered = etapa ? sinEtapa.filter((a) => a.status === etapa) : sinEtapa;
+  const filtered = applications.filter(passesFilters);
 
   function sortedForColumn(list) {
     if (!jobFilter) return list;
@@ -332,29 +362,16 @@ function CandidatesBoardInner() {
     );
   }
 
-  const totalFiltrado = filtered.length;
-  const lista = sortedForColumn(filtered).slice(0, verTodos ? totalFiltrado : POR_PAGINA);
-
-  const chip = (activo) => ({
-    padding: '6px 12px',
-    borderRadius: 7,
-    fontSize: 12.5,
-    cursor: 'pointer',
-    border: 'none',
-    background: activo ? '#f0eefe' : 'transparent',
-    color: activo ? '#6d5aef' : '#8b8780',
-    whiteSpace: 'nowrap',
-  });
-
   return (
-    <div>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 10, marginBottom: 14 }}>
+    <div className="sec">
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 10, marginBottom: 12 }}>
         <div>
           <h2 style={{ fontSize: 19, fontWeight: 700 }}>Candidatos</h2>
-          <p style={{ fontSize: 13, color: '#888' }}>
-            {totalFiltrado} {totalFiltrado === 1 ? 'candidatura' : 'candidaturas'}
-          </p>
+          <p style={{ fontSize: 13, color: '#888' }}>Arrastra las tarjetas entre columnas, o haz clic en una para ver el detalle</p>
         </div>
+        {/* Los mismos filtros que el resto de la plataforma: etiqueta,
+            recuento de lo seleccionado y buscador dentro. Antes eran
+            desplegables sueltos, con otro aspecto. */}
         <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
           <input
             className="fsel"
@@ -363,135 +380,138 @@ function CandidatesBoardInner() {
             onChange={(e) => setNameFilter(e.target.value)}
             style={{ minWidth: 150 }}
           />
-          <select className="fsel" value={jobFilter} onChange={(e) => { setJobFilter(e.target.value); setScoreFilter(''); }}>
-            <option value="">Todas las ofertas</option>
-            {jobs.map((j) => (
-              <option key={j.id} value={j.id}>
-                {j.title}
-              </option>
-            ))}
-          </select>
+          <MultiSelectFilter
+            label="Oferta"
+            values={jobs.map((j) => ({ value: j.id, label: j.title }))}
+            selected={ofertaFiltro}
+            onApply={(sel) => {
+              setOfertaFiltro(sel);
+              // La puntuación solo tiene sentido dentro de una oferta:
+              // comparar candidatos de procesos distintos no dice nada.
+              if (sel.size !== 1) {
+                setScoreFilter('');
+                setPuntuacionFiltro(new Set());
+              }
+            }}
+          />
+          {ofertaFiltro.size === 1 && (
+            <MultiSelectFilter
+              label="Puntuación"
+              values={SCORE_FILTERS.filter(([k]) => k).map(([k, l]) => ({ value: k, label: l }))}
+              selected={puntuacionFiltro}
+              onApply={(sel) => {
+                setPuntuacionFiltro(sel);
+                setScoreFilter([...sel][0] || '');
+              }}
+            />
+          )}
           <button className="btn-ai" disabled={ranking || !jobFilter} onClick={rankCandidates} title={!jobFilter ? 'Elige una oferta concreta primero' : ''}>
             <i className="ti ti-bolt"></i> {ranking ? 'Ordenando...' : 'Ordenar con IA'}
           </button>
         </div>
       </div>
 
-      {/* Pastillas, como en Seguimiento y en el resto de la plataforma.
-          Antes la etapa se elegía desde un desplegable, que esconde
-          cuántas candidaturas hay en cada una. */}
-      <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', marginBottom: 12 }}>
-        <button type="button" onClick={() => setEtapa('')} style={chip(etapa === '')}>
-          Todas {sinEtapa.length}
-        </button>
-        {COLUMNS.map(([key, label]) => (
-          <button key={key} type="button" onClick={() => setEtapa(key)} style={chip(etapa === key)}>
-            {label} {sinEtapa.filter((a) => a.status === key).length}
-          </button>
-        ))}
-      </div>
-
-      {/* Una sola vista, en lista. El tablero de cinco columnas obligaba
-          a desplazarse en horizontal y no cabía en un teléfono; la etapa
-          se cambia desde el desplegable de cada fila. */}
-      <div className="card" style={{ padding: '4px 18px' }}>
-        {lista.length === 0 && (
-          <div style={{ fontSize: 12.5, color: '#999', padding: '22px 0', textAlign: 'center' }}>
-            Ninguna candidatura con estos filtros.
-          </div>
-        )}
-
-        {lista.map((a, i) => (
-          <div
-            key={a.id}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 12,
-              padding: '13px 0',
-              borderTop: i === 0 ? 'none' : '.5px solid #e0dfd8',
-            }}
-          >
-            <button
-              onClick={() => openDetail(a)}
-              style={{ display: 'flex', alignItems: 'center', gap: 12, flex: 1, minWidth: 0, background: 'none', border: 'none', textAlign: 'left', padding: 0 }}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 12, overflowX: 'auto' }}>
+        {COLUMNS.map(([key, label]) => {
+          const items = sortedForColumn(filtered.filter((a) => a.status === key));
+          const visibleCount = visibleCounts[key] || PAGE_SIZE;
+          const visibleItems = items.slice(0, visibleCount);
+          const remaining = items.length - visibleItems.length;
+          return (
+            <div
+              key={key}
+              onDragOver={(e) => e.preventDefault()}
+              onDrop={() => onDrop(key)}
+              style={{ background: '#f4f4f0', borderRadius: 10, padding: 10, minHeight: 300 }}
             >
-              <span
-                style={{
-                  width: 34,
-                  height: 34,
-                  borderRadius: '50%',
-                  background: '#e8f4f0',
-                  color: '#1d6f5c',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  fontSize: 12.5,
-                  fontWeight: 600,
-                  flexShrink: 0,
-                  overflow: 'hidden',
-                }}
-              >
-                {a.users?.avatar_url ? (
-                  <img src={a.users.avatar_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                ) : (
-                  (a.users?.first_name || '?').charAt(0).toUpperCase()
-                )}
-              </span>
-              <span style={{ flex: 1, minWidth: 0 }}>
-                <span style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
-                  <span style={{ fontSize: 13.5, fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                    {a.users?.first_name} {a.users?.last_name}
-                  </span>
-                  {a.ai_score != null && (
-                    <span
-                      className="badge"
-                      style={{
-                        background: a.ai_score >= 70 ? '#e8f4f0' : a.ai_score >= 40 ? '#fff8e1' : '#fdecea',
-                        color: a.ai_score >= 70 ? '#1d6f5c' : a.ai_score >= 40 ? '#b8860b' : '#b3261e',
-                        fontSize: 10.5,
-                        flexShrink: 0,
-                      }}
-                      title={a.ai_rationale || ''}
-                    >
-                      {a.ai_score}/100
-                    </span>
-                  )}
-                </span>
-                <span style={{ display: 'block', fontSize: 11.5, color: '#888', marginTop: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                  {[a.jobs?.title, a.users?.professional_title].filter(Boolean).join(' · ')}
-                </span>
-              </span>
-            </button>
-
-            <select
-              className="fsel"
-              value={a.status}
-              onChange={(e) => cambiarEtapa(a.id, e.target.value)}
-              style={{ width: 'auto', flexShrink: 0, fontSize: 12 }}
-            >
-              {COLUMNS.map(([key, label]) => (
-                <option key={key} value={key}>
-                  {label}
-                </option>
+              <div style={{ fontSize: 12.5, fontWeight: 600, color: '#555', marginBottom: 10, display: 'flex', justifyContent: 'space-between' }}>
+                {label}
+                <span style={{ color: '#aaa' }}>{items.length}</span>
+              </div>
+              {visibleItems.map((a) => (
+                <div
+                  key={a.id}
+                  draggable
+                  onDragStart={() => setDragId(a.id)}
+                  onClick={() => openDetail(a)}
+                  style={{
+                    background: '#fff',
+                    border: '1px solid #e0dfd8',
+                    borderRadius: 10,
+                    padding: 10,
+                    marginBottom: 8,
+                    cursor: 'pointer',
+                  }}
+                >
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 6 }}>
+                    <div style={{ fontSize: 12.5, fontWeight: 600 }}>
+                      {a.users?.first_name} {a.users?.last_name}
+                    </div>
+                    {a.ai_score != null && (
+                      <span
+                        className="badge"
+                        style={{
+                          background: a.ai_score >= 70 ? '#e8f4f0' : a.ai_score >= 40 ? '#fff8e1' : '#fdecea',
+                          color: a.ai_score >= 70 ? '#1d6f5c' : a.ai_score >= 40 ? '#b8860b' : '#b3261e',
+                          fontSize: 10.5,
+                        }}
+                        title={a.ai_rationale || ''}
+                      >
+                        {a.ai_score}/100
+                      </span>
+                    )}
+                  </div>
+                  <div style={{ fontSize: 11, color: '#888', marginBottom: 4 }}>{a.users?.professional_title}</div>
+                  {!jobFilter && <div style={{ fontSize: 10.5, color: '#1d6f5c', marginBottom: 4 }}>{a.jobs?.title}</div>}
+                  <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', fontSize: 10.5, color: '#999' }}>
+                    {a.users?.phone && <span>{a.users.phone}</span>}
+                    {a.notes && (
+                      <span style={{ color: '#1d6f5c' }}>
+                        <i className="ti ti-note" style={{ fontSize: 11 }}></i> Con notas
+                      </span>
+                    )}
+                    {a.ai_summary && (
+                      <span style={{ color: '#6d5aef' }}>
+                        <i className="ti ti-bolt" style={{ fontSize: 11 }}></i> Resumen IA
+                      </span>
+                    )}
+                  </div>
+                </div>
               ))}
-            </select>
-          </div>
-        ))}
+              {items.length === 0 && <div style={{ fontSize: 11, color: '#bbb', textAlign: 'center', padding: 20 }}>Sin candidatos</div>}
+              {remaining > 0 && (
+                <button
+                  type="button"
+                  onClick={() => setVisibleCounts((prev) => ({ ...prev, [key]: visibleCount + PAGE_SIZE }))}
+                  style={{
+                    width: '100%',
+                    padding: '8px',
+                    border: '.5px dashed #cfcec6',
+                    borderRadius: 8,
+                    background: '#fff',
+                    color: '#666',
+                    fontSize: 11.5,
+                    fontWeight: 600,
+                  }}
+                >
+                  Ver {Math.min(remaining, PAGE_SIZE)} más ({remaining} restantes)
+                </button>
+              )}
+            </div>
+          );
+        })}
       </div>
-
-      {!verTodos && totalFiltrado > POR_PAGINA && (
-        <button
-          onClick={() => setVerTodos(true)}
-          style={{ background: 'none', border: 'none', color: '#6d5aef', fontSize: 12.5, padding: '12px 0 0' }}
-        >
-          Ver todas ({totalFiltrado}) →
-        </button>
-      )}
 
       {detailApp && (
         <div className="modal-ov on" onClick={(e) => e.target === e.currentTarget && closeDetail()}>
-          <div className="modal-box" style={{ maxWidth: 620 }}>
+          <div className="modal-box" style={{ maxWidth: 480 }}>
+            {/* Sin colores y sin botones grandes, como el briefing de un
+                proyecto: el color se reservaba para el puesto y para el
+                fondo del resumen, dos cosas que no lo necesitaban.
+
+                Tampoco lleva selector de etapa: eso se hace arrastrando
+                en el tablero, y dos formas de mover a alguien invitan a
+                preguntarse cuál es la buena. */}
             <div className="modal-head">
               <h2>
                 {detailApp.users?.first_name} {detailApp.users?.last_name}
@@ -501,103 +521,96 @@ function CandidatesBoardInner() {
               </div>
             </div>
 
-            <div style={{ fontSize: 13, color: '#666', marginBottom: 4 }}>{detailApp.users?.professional_title}</div>
-            <div style={{ fontSize: 12, color: '#1d6f5c', marginBottom: 14 }}>{detailApp.jobs?.title}</div>
-
-            {/* Cambiar de etapa es lo que de verdad se hace desde aquí.
-                Antes había que cerrar el modal y arrastrar la tarjeta. */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: 9, marginBottom: 16 }}>
-              <span style={{ fontSize: 12, color: '#888' }}>Etapa</span>
-              <select
-                className="fsel"
-                value={detailApp.status}
-                onChange={(e) => cambiarEtapa(detailApp.id, e.target.value)}
-                style={{ width: 'auto', fontSize: 12.5 }}
-              >
-                {COLUMNS.map(([key, label]) => (
-                  <option key={key} value={key}>
-                    {label}
-                  </option>
-                ))}
-              </select>
+            <div style={{ fontSize: 12.5, color: '#888', marginTop: -6, marginBottom: 14 }}>
+              {[detailApp.users?.professional_title, tiempoDesde(detailApp.applied_at)]
+                .filter(Boolean)
+                .join(' · ')}
             </div>
 
-
-
-            <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap', fontSize: 12.5, color: '#666', marginBottom: 14 }}>
-              {detailApp.contact_email && (
-                <span>
-                  <i className="ti ti-mail"></i> {detailApp.contact_email}
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 8,
+                flexWrap: 'wrap',
+                paddingBottom: 14,
+                marginBottom: 14,
+                borderBottom: '.5px solid #e0dfd8',
+                fontSize: 12,
+                color: '#888',
+              }}
+            >
+              <span>{detailApp.jobs?.title}</span>
+              <span style={{ color: '#d5d3c9' }}>·</span>
+              <span>{ETIQUETA_ESTADO[detailApp.status] || detailApp.status}</span>
+              {detailApp.ai_score != null && (
+                <span style={{ marginLeft: 'auto' }} title={detailApp.ai_rationale || ''}>
+                  {detailApp.ai_score}/100
                 </span>
               )}
-              {detailApp.users?.phone && (
-                <span>
-                  <i className="ti ti-phone"></i> {detailApp.users.phone}
-                </span>
-              )}
+            </div>
+
+            <div style={{ ...ETIQUETA_MODAL, marginBottom: 8 }}>CONTACTO</div>
+            <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap', fontSize: 12.5, marginBottom: 18 }}>
+              {detailApp.contact_email && <span style={{ color: '#555' }}>{detailApp.contact_email}</span>}
+              {detailApp.users?.phone && <span style={{ color: '#555' }}>{detailApp.users.phone}</span>}
               {detailApp.cv_url_snapshot && (
-                <span
+                <button
                   onClick={() => viewCandidateCv(detailApp.id)}
-                  style={{ color: '#1d6f5c', fontWeight: 500, cursor: 'pointer' }}
+                  style={{ background: 'none', border: 'none', color: '#1d6f5c', fontSize: 12.5, padding: 0 }}
                 >
-                  <i className="ti ti-file-cv"></i> Ver CV
-                </span>
+                  Ver CV
+                </button>
               )}
             </div>
 
             {detailApp.cover_note && (
-              <div style={{ marginBottom: 16 }}>
-                <div style={{ fontSize: 12.5, fontWeight: 600, marginBottom: 5 }}>Carta de presentación</div>
-                <div style={{ fontSize: 12.5, color: '#555', background: '#f8faf9', borderRadius: 8, padding: 10, lineHeight: 1.6 }}>
+              <>
+                <div style={{ ...ETIQUETA_MODAL, marginBottom: 8 }}>CARTA DE PRESENTACIÓN</div>
+                <div style={{ fontSize: 12.5, color: '#555', lineHeight: 1.65, marginBottom: 18 }}>
                   {detailApp.cover_note}
                 </div>
-              </div>
+              </>
             )}
 
-            <div style={{ marginBottom: 16 }}>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 5 }}>
-                <div style={{ fontSize: 12.5, fontWeight: 600 }}>Resumen con IA</div>
-                <button className="btn-ai-o" style={{ fontSize: 11, padding: '4px 9px' }} disabled={summaryLoading} onClick={() => generateSummary(detailApp)}>
-                  <i className="ti ti-bolt" style={{ fontSize: 11 }}></i>{' '}
-                  {summaryLoading ? 'Generando...' : detailApp.ai_summary ? 'Regenerar' : 'Generar'}
-                </button>
-              </div>
-              {detailApp.ai_summary ? (
-                <div style={{ fontSize: 12.5, color: '#555', background: '#faf9ff', border: '1px solid #d8d3fb', borderRadius: 8, padding: 10, lineHeight: 1.6 }}>
-                  {detailApp.ai_summary}
-                </div>
-              ) : (
-                <div style={{ fontSize: 12, color: '#999' }}>Todavía no se ha generado un resumen para este candidato.</div>
-              )}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 8 }}>
+              <span style={ETIQUETA_MODAL}>RESUMEN CON IA</span>
+              <button
+                onClick={() => generateSummary(detailApp)}
+                disabled={summaryLoading}
+                style={{ background: 'none', border: 'none', color: '#6d5aef', fontSize: 11.5, padding: 0 }}
+              >
+                {summaryLoading ? 'Generando…' : detailApp.ai_summary ? 'Regenerar' : 'Generar'}
+              </button>
+            </div>
+            <div style={{ fontSize: 12.5, color: detailApp.ai_summary ? '#555' : '#999', lineHeight: 1.65, marginBottom: 18 }}>
+              {detailApp.ai_summary || 'Todavía no se ha generado un resumen para este candidato.'}
             </div>
 
-            <div>
-              <div style={{ fontSize: 12.5, fontWeight: 600, marginBottom: 5 }}>Tus notas privadas</div>
-              <p style={{ fontSize: 11, color: '#999', marginBottom: 6 }}>
-                Útil para apuntar impresiones de una llamada o entrevista. Solo lo ve tu equipo.
-              </p>
-              <textarea
-                value={notesDraft}
-                onChange={(e) => setNotesDraft(e.target.value)}
-                placeholder="Escribe aquí tus notas..."
-                style={{
-                  width: '100%',
-                  minHeight: 110,
-                  padding: '10px 12px',
-                  border: '1px solid #e0dfd8',
-                  borderRadius: 9,
-                  fontSize: 13,
-                  fontFamily: 'inherit',
-                  outline: 'none',
-                  resize: 'vertical',
-                }}
-              ></textarea>
-              <div className="m-foot">
-                <div></div>
-                <button className="m-next" disabled={savingNotes} onClick={saveNotes}>
-                  <i className="ti ti-check"></i> {savingNotes ? 'Guardando...' : 'Guardar notas'}
-                </button>
-              </div>
+            <div style={{ ...ETIQUETA_MODAL, marginBottom: 8 }}>NOTAS</div>
+            {/* Se guardan al salir del campo, como en Proyectos: un botón
+                de guardar obliga a acordarse de pulsarlo. */}
+            <textarea
+              key={detailApp.id}
+              defaultValue={detailApp.notes || ''}
+              onBlur={(e) => guardarNotasSolo(e.target.value)}
+              placeholder="Apunta lo que salga de una llamada o entrevista…"
+              style={{
+                width: '100%',
+                minHeight: 84,
+                padding: '9px 11px',
+                border: '.5px solid #e0dfd8',
+                borderRadius: 9,
+                fontSize: 12.5,
+                lineHeight: 1.6,
+                fontFamily: 'inherit',
+                outline: 'none',
+                resize: 'vertical',
+                background: '#fafaf7',
+              }}
+            ></textarea>
+            <div style={{ fontSize: 11, color: '#999', marginTop: 6 }}>
+              {estadoNotas || 'Se guardan solas. Solo las ve tu equipo.'}
             </div>
           </div>
         </div>
