@@ -549,6 +549,11 @@ function Proyectos() {
                           fontWeight: 600,
                           lineHeight: 1.35,
                           width: '100%',
+                          // Safari en iOS pinta de azul los botones sin
+                          // color declarado. En escritorio heredaba el
+                          // negro y por eso no se veía.
+                          color: '#1a1a18',
+                          fontFamily: 'inherit',
                         }}
                       >
                         {p.name}
