@@ -1,206 +1,119 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { usePathname, useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { createClient } from '@/lib/supabase/client';
-import Toast from '@/components/Toast';
-import OnboardingModal from '@/components/OnboardingModal';
-import PublicHeader from '@/components/PublicHeader';
-import Footer from '@/components/Footer';
-import MenuUsuario from '@/components/MenuUsuario';
-import BarraMovil from '@/components/BarraMovil';
+import { usePathname } from 'next/navigation';
 
-export default function AppLayout({ children }) {
-  const supabase = createClient();
-  const pathname = usePathname();
-  const router = useRouter();
-  const [user, setUser] = useState(null);
-  const [authChecked, setAuthChecked] = useState(false);
-  const [misOrgs, setMisOrgs] = useState([]);
-  const [novedades, setNovedades] = useState(0);
-  const [needsOnboarding, setNeedsOnboarding] = useState(false);
+/**
+ * La barra de módulos, abajo, en móvil.
+ *
+ * POR QUÉ ABAJO Y NO ARRIBA: los cuatro son sitios donde se está, no
+ * acciones que se ejecutan, y abajo quedan al alcance del pulgar. Arriba
+ * no cabían: los elementos llevan flex-shrink:0 y se desbordaban.
+ *
+ * Y deja sitio para el quinto cuando llegue Talento.
+ */
 
+const VERDE = '#1d6f5c';
+
+const MODULOS = [
+  {
+    href: '/regulatorio',
+    etiqueta: 'Regulatorio',
+    icono: 'ti-timeline-event',
+    // Las rutas hijas también marcan activo, o la barra se apaga al
+    // entrar en un expediente.
+    activo: (p) =>
+      p.startsWith('/regulatorio') ||
+      p.startsWith('/initiatives') ||
+      p.startsWith('/procedures') ||
+      p.startsWith('/congreso'),
+  },
+  {
+    href: '/institutions',
+    etiqueta: 'Instituciones',
+    icono: 'ti-building-bank',
+    activo: (p) => p.startsWith('/institutions') || p.startsWith('/organizations'),
+  },
+  { href: '/projects', etiqueta: 'Proyectos', icono: 'ti-folder', activo: (p) => p.startsWith('/projects') },
+  { href: '/jobs', etiqueta: 'Empleos', icono: 'ti-briefcase', activo: (p) => p.startsWith('/jobs') },
+];
+
+export default function BarraMovil() {
+  const pathname = usePathname() || '/';
+  const [escribiendo, setEscribiendo] = useState(false);
+
+  // Con el teclado abierto, una barra fija se queda flotando encima y
+  // tapa justo el campo en el que escribes. Se esconde mientras haya un
+  // campo enfocado y vuelve al salir.
   useEffect(() => {
-    let active = true;
-    async function load() {
-      const { data } = await supabase.auth.getUser();
-      if (!active) return;
-      if (!data.user) {
-        setAuthChecked(true);
-        return;
-      }
-      const { data: profile } = await supabase
-        .from('users')
-        .select('*')
-        .eq('id', data.user.id)
-        .single();
-      if (!active) return;
-      setUser(profile);
-      setAuthChecked(true);
-      setNeedsOnboarding(!!profile && !profile.onboarding_completed);
-
-      // Todas, no solo una: el menú es un selector y con .limit(1) solo
-      // aparecería la primera de quien pertenezca a varias.
-      const { data: membresias } = await supabase
-        .from('organization_members')
-        .select('organization_id, organizations(slug, name, logo_url)')
-        .eq('user_id', data.user.id);
-      if (active) {
-        setMisOrgs((membresias || []).map((m) => m.organizations).filter(Boolean));
-      }
-
-      // El punto de la barra: cuántas novedades hay sin ver. Solo cuenta,
-      // no trae las filas, para no cargar la barra en cada navegación.
-      const { count } = await supabase
-        .from('my_follow_events')
-        .select('event_id', { count: 'exact', head: true })
-        .eq('es_nueva', true);
-      if (active) setNovedades(count || 0);
+    function mirar() {
+      const el = document.activeElement;
+      const etiqueta = el?.tagName;
+      setEscribiendo(
+        etiqueta === 'INPUT' || etiqueta === 'TEXTAREA' || el?.isContentEditable === true
+      );
     }
-    load();
+    document.addEventListener('focusin', mirar);
+    document.addEventListener('focusout', mirar);
     return () => {
-      active = false;
+      document.removeEventListener('focusin', mirar);
+      document.removeEventListener('focusout', mirar);
     };
-  }, [pathname]);
-
-  async function signOut() {
-    await supabase.auth.signOut();
-    router.push('/login');
-  }
-
-  function handleOnboardingComplete() {
-    // Recarga completa para que toda la app (nav incluida) refleje
-    // los nuevos datos de perfil sin tener que replicar el estado a mano.
-    window.location.reload();
-  }
-
+  }, []);
 
   return (
-    <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
-      {authChecked && !user ? (
-        <PublicHeader />
-      ) : (
-        <nav className="nav">
-        {/* En móvil los módulos bajan a BarraMovil y aquí solo quedan
-            el logotipo, la campana y el menú. Antes se desbordaban: los
-            elementos llevan flex-shrink:0 y no se encogen. */}
-        <style>{`
-          @media (max-width: 720px) {
-            .nav-inner { padding: 0 14px; gap: 2px; overflow: visible; }
-            .nav-inner .ni-modulo { display: none; }
+    <>
+      <style>{`
+        .gt-movil { display: none; }
+        @media (max-width: 720px) {
+          .gt-movil {
+            display: flex;
+            position: fixed;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            z-index: 190;
+            background: #fff;
+            border-top: .5px solid #e5e4de;
+            /* Los últimos 34px de un iPhone son de la barra de gestos:
+               sin esto los iconos quedan debajo de la raya. */
+            padding-bottom: env(safe-area-inset-bottom, 0px);
           }
-        `}</style>
-        <div className="nav-inner">
-          <Link href="/" className="nav-logo">
-            gov<span>talent</span>
-          </Link>
-          {/* El orden dice de qué va el producto: primero lo que se
-              mueve, luego quién decide, después lo tuyo, y el empleo al
-              final. Organizaciones pasa a vivir dentro de Instituciones.
+          .gt-movil.escondida { display: none; }
+          /* Hueco al final de la página para que la barra no tape lo
+             último de cada pantalla. */
+          body { padding-bottom: calc(58px + env(safe-area-inset-bottom, 0px)); }
+        }
+      `}</style>
 
-              Regulatorio se marca activo también en sus rutas hijas para
-              que la barra no se apague al entrar en un expediente. */}
-          <Link
-            href="/regulatorio"
-            className={`ni ni-modulo ${
-              pathname.startsWith('/regulatorio') ||
-              pathname.startsWith('/initiatives') ||
-              pathname.startsWith('/procedures') ||
-              pathname.startsWith('/congreso')
-                ? 'on'
-                : ''
-            }`}
-          >
-            <i className="ti ti-timeline-event"></i>Regulatorio
-          </Link>
-
-          <Link
-            href="/institutions"
-            className={`ni ni-modulo ${
-              pathname.startsWith('/institutions') ||
-              (pathname.startsWith('/organizations') && !pathname.includes('admin'))
-                ? 'on'
-                : ''
-            }`}
-          >
-            <i className="ti ti-building-bank"></i>Instituciones
-          </Link>
-
-          {/* Seguimiento deja de ser pestaña y pasa a la campana de la
-              derecha: como pestaña competía con Proyectos —las dos decían
-              "aquí está lo que te importa"— y una campana no compite con
-              nada. La ruta /seguimiento sigue existiendo. */}
-          <Link href="/projects" className={`ni ni-modulo ${pathname.startsWith('/projects') ? 'on' : ''}`}>
-            <i className="ti ti-folder"></i>Proyectos
-          </Link>
-
-          <Link href="/jobs" className={`ni ni-modulo ${pathname.startsWith('/jobs') ? 'on' : ''}`}>
-            <i className="ti ti-briefcase"></i>Empleos
-          </Link>
-
-          <div className="nav-sp"></div>
-
-          {/* Todo lo que ha pasado, tenga proyecto o no. Con el número y
-              no un punto: saber que hay tres es distinto de saber que hay
-              algo. */}
-          <Link
-            href="/seguimiento"
-            className={`ni ${pathname.startsWith('/seguimiento') ? 'on' : ''}`}
-            aria-label={novedades > 0 ? `Avisos, ${novedades} sin leer` : 'Avisos'}
-            title="Avisos"
-          >
-            <span style={{ position: 'relative', display: 'inline-flex' }}>
-              <i className="ti ti-bell" style={{ fontSize: 19 }}></i>
-              {novedades > 0 && (
-                <span
-                  style={{
-                    position: 'absolute',
-                    top: -6,
-                    left: 11,
-                    minWidth: 15,
-                    height: 15,
-                    padding: '0 4px',
-                    borderRadius: 20,
-                    background: '#6d5aef',
-                    color: '#fff',
-                    fontSize: 10,
-                    lineHeight: '15px',
-                    textAlign: 'center',
-                    border: '1.5px solid #fff',
-                    fontWeight: 600,
-                  }}
-                >
-                  {novedades > 9 ? '9+' : novedades}
-                </span>
-              )}
-            </span>
-          </Link>
-
-          {/* "Mi organización" y "Para empresas" desaparecen de la
-              barra: eran dos elementos que hacían lo mismo según si
-              tenías organización o no, y ahora viven dentro del menú
-              junto al resto de contextos. */}
-
-          <MenuUsuario
-            user={user}
-            organizaciones={misOrgs}
-            enOrganizacion={pathname.includes('/organizations/admin') ? misOrgs[0]?.slug : null}
-            onSignOut={signOut}
-          />
-        </div>
+      <nav className={`gt-movil ${escribiendo ? 'escondida' : ''}`} aria-label="Módulos">
+        {MODULOS.map((m) => {
+          const on = m.activo(pathname);
+          return (
+            <Link
+              key={m.href}
+              href={m.href}
+              aria-current={on ? 'page' : undefined}
+              style={{
+                flex: 1,
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                gap: 3,
+                padding: '8px 2px 7px',
+                textDecoration: 'none',
+                color: on ? VERDE : '#8b8780',
+              }}
+            >
+              <i className={`ti ${m.icono}`} style={{ fontSize: 19 }} aria-hidden="true"></i>
+              <span style={{ fontSize: 10, fontWeight: on ? 600 : 400, whiteSpace: 'nowrap' }}>
+                {m.etiqueta}
+              </span>
+            </Link>
+          );
+        })}
       </nav>
-      )}
-
-      <BarraMovil />
-
-      <main style={{ flex: 1 }}>{children}</main>
-      <Footer />
-      <Toast />
-
-      {needsOnboarding && user && pathname !== '/organizations/new' && (
-        <OnboardingModal userId={user.id} onComplete={handleOnboardingComplete} />
-      )}
-    </div>
+    </>
   );
 }
