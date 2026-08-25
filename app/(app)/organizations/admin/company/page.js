@@ -26,6 +26,7 @@ export default function CompanyPagePage() {
   const [uploadingLogo, setUploadingLogo] = useState(false);
   const [uploadingOrgCover, setUploadingOrgCover] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [hayCambios, setHayCambios] = useState(false);
   const [activa, setActiva] = useState('identidad');
   const saltando = useRef(false);
 
@@ -187,6 +188,9 @@ export default function CompanyPagePage() {
       toast('No se pudieron guardar los cambios');
       return;
     }
+    // Solo cuando ha ido bien: si falla, la barra sigue avisando de que
+    // hay cambios pendientes en vez de dar por hecho que se guardaron.
+    setHayCambios(false);
     setOrg({ ...org, ...updates });
     toast('Página de empresa actualizada ✓ (visible para ti y para los candidatos)');
   }
@@ -201,6 +205,30 @@ export default function CompanyPagePage() {
     .co-todo { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 170px); gap: 26px; align-items: start; }
     .co-indice { position: sticky; top: 90px; display: flex; flex-direction: column; gap: 2px; }
     .co-todo section { padding-bottom: 22px; }
+    .co-barra {
+      position: fixed;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      z-index: 120;
+      background: #fff;
+      border-top: .5px solid #e0dfd8;
+      box-shadow: 0 -2px 12px rgba(0,0,0,.05);
+      padding: 11px 20px calc(11px + env(safe-area-inset-bottom, 0px));
+    }
+    .co-barra-in {
+      max-width: 900px;
+      margin: 0 auto;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+    @media (max-width: 720px) {
+      /* Por encima de la barra de módulos, que también está fija. */
+      .co-barra { bottom: calc(58px + env(safe-area-inset-bottom, 0px)); padding-bottom: 11px; }
+    }
     @media (max-width: 860px) {
       .co-todo { grid-template-columns: minmax(0, 1fr); gap: 0; }
       .co-indice {
@@ -366,7 +394,10 @@ export default function CompanyPagePage() {
 
               Sigue siendo un solo formulario: las secciones se recorren,
               no se ocultan, y se guarda todo de una vez. */}
-          <form onSubmit={saveOrgEdit}>
+          {/* onInput en el formulario entero: no hace falta vigilar once
+              campos uno a uno, y cualquier cambio —escribir, marcar la
+              casilla, elegir fecha— enciende la barra igual. */}
+          <form onSubmit={saveOrgEdit} onInput={() => setHayCambios(true)} onChange={() => setHayCambios(true)}>
 
             <section id="identidad" style={{ scrollMarginTop: 90 }}>
             <div style={SECCION}>IDENTIDAD</div>
@@ -488,9 +519,22 @@ export default function CompanyPagePage() {
               ></textarea>
             </div>
 
-            <button className="btn-p" style={{ width: '100%' }} disabled={saving}>
-              <i className="ti ti-check"></i> {saving ? 'Guardando...' : 'Guardar cambios'}
-            </button>
+            {/* Barra fija abajo, solo cuando hay algo que guardar: el
+                botón estaba al final de un formulario largo y había que
+                recorrerlo entero para llegar a él.
+
+                Se queda dentro del <form> para que siga siendo su submit
+                y no haga falta un manejador aparte. */}
+            {hayCambios && (
+              <div className="co-barra">
+                <div className="co-barra-in">
+                  <span style={{ fontSize: 12.5, color: '#555' }}>Tienes cambios sin guardar</span>
+                  <button className="btn-p" disabled={saving}>
+                    <i className="ti ti-check"></i> {saving ? 'Guardando...' : 'Guardar cambios'}
+                  </button>
+                </div>
+              </div>
+            )}
             </section>
 
           </form>
