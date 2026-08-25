@@ -24,7 +24,6 @@ import { sidebarTrialLabel } from '@/lib/plan';
  *                          ruta sigue funcionando.
  */
 
-const VERDE = '#1d6f5c';
 const BORDE = '#e0dfd8';
 
 const PESTANAS = [
@@ -92,13 +91,15 @@ export default function OrganizationAdminLayout({ children }) {
     <div>
       <style>{`
         .gt-tal-cab { max-width: 1080px; margin: 0 auto; padding: 20px 20px 0; }
-        .gt-tal-tabs { display: flex; gap: 20px; border-bottom: .5px solid ${BORDE}; margin-top: 16px; }
+        /* Pastillas, como en Seguimiento: fondo lila y texto morado
+           cuando está activa, sin línea inferior. */
+        .gt-tal-tabs { display: flex; gap: 4px; margin-top: 16px; padding-bottom: 4px; }
         .gt-tal-cuerpo { max-width: 1080px; margin: 0 auto; padding: 20px; }
         @media (max-width: 720px) {
           .gt-tal-cab { padding: 16px 14px 0; }
           .gt-tal-cuerpo { padding: 16px 14px; }
           /* Las pestañas se desplazan en vez de partirse en dos líneas. */
-          .gt-tal-tabs { gap: 16px; overflow-x: auto; scrollbar-width: none; }
+            .gt-tal-tabs { gap: 4px; overflow-x: auto; scrollbar-width: none; }
           .gt-tal-tabs::-webkit-scrollbar { display: none; }
           .gt-tal-tabs a { white-space: nowrap; }
         }
@@ -184,12 +185,13 @@ export default function OrganizationAdminLayout({ children }) {
                 href={p.href}
                 aria-current={on ? 'page' : undefined}
                 style={{
-                  fontSize: 13,
-                  fontWeight: on ? 500 : 400,
-                  color: on ? VERDE : '#555',
+                  padding: '6px 12px',
+                  borderRadius: 7,
+                  fontSize: 12.5,
                   textDecoration: 'none',
-                  paddingBottom: 10,
-                  borderBottom: `2px solid ${on ? VERDE : 'transparent'}`,
+                  background: on ? '#f0eefe' : 'transparent',
+                  color: on ? '#6d5aef' : '#8b8780',
+                  whiteSpace: 'nowrap',
                 }}
               >
                 {p.label}
