@@ -267,10 +267,14 @@ export default function MenuUsuario({
                     padding: '11px 10px 4px',
                   }}
                 >
+                  {/* Sin botón sólido: quien es Free y no tiene
+                      organización vería dos ofertas seguidas, cada una con
+                      el suyo, y se anularían entre sí. La de Pro se queda
+                      con el botón; esta, con un enlace. */}
                   <div style={{ fontSize: 12.5, fontWeight: 600, marginBottom: 3 }}>
                     Anuncia un empleo gratis
                   </div>
-                  <div style={{ fontSize: 11.5, color: '#555', lineHeight: 1.5, marginBottom: 9 }}>
+                  <div style={{ fontSize: 11.5, color: '#555', lineHeight: 1.5, marginBottom: 7 }}>
                     {organizaciones.length
                       ? 'Publica tu primera oferta y recibe candidaturas sin coste.'
                       : 'Crea la página de tu organización y publica sin coste.'}
@@ -278,10 +282,9 @@ export default function MenuUsuario({
                   <Link
                     href={organizaciones.length ? '/organizations/admin/jobs' : '/organizations'}
                     onClick={() => setAbierto(false)}
-                    className="btn-p"
-                    style={{ fontSize: 11.5, textDecoration: 'none', display: 'inline-block' }}
+                    style={{ fontSize: 11.5, color: VERDE, textDecoration: 'none' }}
                   >
-                    {organizaciones.length ? 'Publicar oferta' : 'Crear mi página'}
+                    {organizaciones.length ? 'Publicar oferta →' : 'Crear mi página →'}
                   </Link>
                 </div>
               )}
