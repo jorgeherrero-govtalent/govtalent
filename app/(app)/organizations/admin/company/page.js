@@ -9,6 +9,16 @@ import { SECTORS } from '@/lib/orgTaxonomy';
 import { normalizeUrl } from '@/lib/normalizeUrl';
 import { normalizeLocation } from '@/lib/normalizeLocation';
 
+
+const SECCION = { fontSize: 11, color: '#a8a49c', letterSpacing: '.4px', margin: '0 0 12px' };
+
+const SECCIONES = [
+  { id: 'identidad', label: 'Identidad' },
+  { id: 'contacto', label: 'Contacto' },
+  { id: 'transparencia', label: 'Transparencia' },
+  { id: 'descripcion', label: 'Descripción' },
+];
+
 export default function CompanyPagePage() {
   const supabase = createClient();
   const [org, setOrg] = useState(null);
@@ -16,16 +26,38 @@ export default function CompanyPagePage() {
   const [uploadingLogo, setUploadingLogo] = useState(false);
   const [uploadingOrgCover, setUploadingOrgCover] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [generatingOrgDesc, setGeneratingOrgDesc] = useState(false);
-  const [showAiTip, setShowAiTip] = useState(true);
+  const [activa, setActiva] = useState('identidad');
+  const saltando = useRef(false);
 
-  function dismissAiTip() {
-    setShowAiTip(false);
-    try {
-      if (org?.id) localStorage.setItem(`gt_hint_seen_org_ai_description_${org.id}`, '1');
-    } catch {
-      // localStorage no disponible: no pasa nada, simplemente no se recuerda.
+  // Marca la sección en la que estás mientras rellenas. Durante un salto
+  // se ignora, o parpadearía al pasar por las intermedias.
+  useEffect(() => {
+    const obs = new IntersectionObserver(
+      (entradas) => {
+        if (saltando.current) return;
+        const visibles = entradas
+          .filter((e) => e.isIntersecting)
+          .sort((a, b) => a.boundingClientRect.top - b.boundingClientRect.top);
+        if (visibles[0]) setActiva(visibles[0].target.id);
+      },
+      { rootMargin: '-100px 0px -55% 0px', threshold: 0 }
+    );
+    for (const sec of SECCIONES) {
+      const el = document.getElementById(sec.id);
+      if (el) obs.observe(el);
     }
+    return () => obs.disconnect();
+  });
+
+  function irA(id) {
+    const el = document.getElementById(id);
+    if (!el) return;
+    saltando.current = true;
+    setActiva(id);
+    window.scrollTo({ top: el.getBoundingClientRect().top + window.scrollY - 90, behavior: 'smooth' });
+    setTimeout(() => {
+      saltando.current = false;
+    }, 700);
   }
 
   const orgNameRef = useRef(null);
@@ -69,13 +101,6 @@ export default function CompanyPagePage() {
 
     if (!membership) return setLoading(false);
     setOrg(membership.organizations);
-    try {
-      if (localStorage.getItem(`gt_hint_seen_org_ai_description_${membership.organizations.id}`)) {
-        setShowAiTip(false);
-      }
-    } catch {
-      // localStorage no disponible: no pasa nada, simplemente no se recuerda.
-    }
     setLoading(false);
   }
 
@@ -129,40 +154,6 @@ export default function CompanyPagePage() {
     await supabase.from('organizations').update({ cover_position: value }).eq('id', org.id);
   }
 
-  async function fillOrgWithAI() {
-    const websiteUrl = orgWebsiteRef.current?.value;
-    if (!websiteUrl || !websiteUrl.trim()) {
-      toast('Añade primero la web de la organización');
-      return;
-    }
-    setGeneratingOrgDesc(true);
-    try {
-      const res = await fetch('/api/ai/org-description', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          websiteUrl,
-          linkedinUrl: orgLinkedinRef.current?.value,
-          name: orgNameRef.current?.value,
-          orgType: org?.org_type,
-        }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Error desconocido');
-
-      if (data.sector && orgSectorRef.current) orgSectorRef.current.value = data.sector;
-      if (data.location && orgLocationRef.current) orgLocationRef.current.value = data.location;
-      if (data.founded_year && orgFoundedYearRef.current) orgFoundedYearRef.current.value = data.founded_year;
-      if (data.size_range && orgSizeRef.current) orgSizeRef.current.value = data.size_range;
-      if (data.bio && orgBioRef.current) orgBioRef.current.value = data.bio;
-
-      toast('Datos rellenados ✓ revísalos antes de guardar');
-    } catch (err) {
-      toast('No se pudo rellenar automáticamente: ' + err.message);
-    }
-    setGeneratingOrgDesc(false);
-  }
-
   async function saveOrgEdit(e) {
     e.preventDefault();
     const f = new FormData(e.target);
@@ -200,10 +191,36 @@ export default function CompanyPagePage() {
     toast('Página de empresa actualizada ✓ (visible para ti y para los candidatos)');
   }
 
+
+  // Una sola declaración, en el ámbito del componente: dentro del
+  // if (!org) no existía para el return principal.
+  const estilos = `
+    .co-form { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 170px); gap: 26px; align-items: start; }
+    .co-indice { position: sticky; top: 90px; display: flex; flex-direction: column; gap: 2px; }
+    .co-campos section { padding-bottom: 22px; }
+    @media (max-width: 860px) {
+      .co-form { grid-template-columns: minmax(0, 1fr); gap: 0; }
+      .co-indice {
+        position: sticky;
+        top: 64px;
+        z-index: 3;
+        flex-direction: row;
+        overflow-x: auto;
+        background: #fff;
+        padding: 10px 0;
+        margin-bottom: 14px;
+        order: -1;
+        scrollbar-width: none;
+      }
+      .co-indice::-webkit-scrollbar { display: none; }
+    }
+  `;
+
   if (loading) return <div className="spinner"></div>;
 
   if (!org) {
-    return (
+
+  return (
       <div className="sec">
         <div className="empty-state">
           <i className="ti ti-building-off"></i>
@@ -215,6 +232,7 @@ export default function CompanyPagePage() {
 
   return (
     <div className="sec" style={{ maxWidth: 900 }}>
+      <style>{estilos}</style>
       <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', flexWrap: 'wrap', gap: 10, marginBottom: 16 }}>
         <div>
           <h2 style={{ fontSize: 19, fontWeight: 700 }}>Página de empresa</h2>
@@ -340,52 +358,19 @@ export default function CompanyPagePage() {
 
       <div className="card">
         <div className="cp">
-          {showAiTip && (
-          <div
-            style={{
-              background: '#faf9ff',
-              border: '1px solid #d8d3fb',
-              borderRadius: 10,
-              padding: 14,
-              marginBottom: 16,
-              position: 'relative',
-            }}
-          >
-            <div
-              onClick={dismissAiTip}
-              title="Cerrar"
-              style={{
-                position: 'absolute',
-                top: 10,
-                right: 10,
-                cursor: 'pointer',
-                color: '#aaa',
-                width: 24,
-                height: 24,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                borderRadius: '50%',
-              }}
-            >
-              <i className="ti ti-x" style={{ fontSize: 14 }}></i>
-            </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
-              <i className="ti ti-bolt" style={{ color: '#6d5aef', fontSize: 15 }}></i>
-              <span style={{ fontSize: 13, fontWeight: 600 }}>Rellenar con IA</span>
-              <span className="badge-ai" style={{ fontSize: 9.5, padding: '1px 6px' }}>BETA</span>
-            </div>
-            <p style={{ fontSize: 11.5, color: '#888', marginBottom: 10 }}>
-              Añade la web de la organización más abajo y rellenamos el resto de campos automáticamente (sector,
-              sede, año de fundación, tamaño y descripción), leyendo el contenido real de la página.
-            </p>
-            <button type="button" className="btn-ai" style={{ width: '100%', fontSize: 12.5 }} disabled={generatingOrgDesc} onClick={fillOrgWithAI}>
-              <i className="ti ti-bolt"></i> {generatingOrgDesc ? 'Leyendo la web...' : 'Rellenar con IA'}
-            </button>
-          </div>
-          )}
 
-          <form onSubmit={saveOrgEdit}>
+
+          {/* Cuatro secciones con índice fijo, como en un proyecto: el
+              formulario tenía once campos seguidos y había que recorrerlo
+              entero para encontrar cualquier cosa.
+
+              Sigue siendo un solo formulario: las secciones se recorren,
+              no se ocultan, y se guarda todo de una vez. */}
+          <form onSubmit={saveOrgEdit} className="co-form">
+            <div className="co-campos">
+
+            <section id="identidad" style={{ scrollMarginTop: 90 }}>
+            <div style={SECCION}>IDENTIDAD</div>
             <div className="field">
               <label>Nombre de la organización</label>
               <input ref={orgNameRef} name="name" defaultValue={org.name} required />
@@ -435,6 +420,10 @@ export default function CompanyPagePage() {
               </div>
             </div>
 
+            </section>
+
+            <section id="contacto" style={{ scrollMarginTop: 90 }}>
+            <div style={SECCION}>CONTACTO</div>
             <div className="field">
               <label>Email de notificaciones</label>
               <input name="notification_email" type="email" defaultValue={org.notification_email || ''} placeholder="rrhh@organizacion.com" />
@@ -444,6 +433,10 @@ export default function CompanyPagePage() {
               </p>
             </div>
 
+            </section>
+
+            <section id="transparencia" style={{ scrollMarginTop: 90 }}>
+            <div style={SECCION}>TRANSPARENCIA</div>
             <div
               style={{
                 background: '#f8faf9',
@@ -481,6 +474,10 @@ export default function CompanyPagePage() {
               </a>
             </div>
 
+            </section>
+
+            <section id="descripcion" style={{ scrollMarginTop: 90 }}>
+            <div style={SECCION}>DESCRIPCIÓN</div>
             <div className="field">
               <label>Descripción de la organización</label>
               <textarea
@@ -495,6 +492,33 @@ export default function CompanyPagePage() {
             <button className="btn-p" style={{ width: '100%' }} disabled={saving}>
               <i className="ti ti-check"></i> {saving ? 'Guardando...' : 'Guardar cambios'}
             </button>
+            </section>
+            </div>
+
+            {/* El índice, fijo mientras se rellena. Mismas pastillas que
+                Seguimiento: fondo lila y texto morado, sin subrayado. */}
+            <nav className="co-indice" aria-label="Secciones">
+              {SECCIONES.map((sec) => (
+                <button
+                  key={sec.id}
+                  type="button"
+                  onClick={() => irA(sec.id)}
+                  style={{
+                    padding: '6px 12px',
+                    borderRadius: 7,
+                    fontSize: 12.5,
+                    cursor: 'pointer',
+                    border: 'none',
+                    textAlign: 'left',
+                    background: activa === sec.id ? '#f0eefe' : 'transparent',
+                    color: activa === sec.id ? '#6d5aef' : '#8b8780',
+                    whiteSpace: 'nowrap',
+                  }}
+                >
+                  {sec.label}
+                </button>
+              ))}
+            </nav>
           </form>
         </div>
       </div>
