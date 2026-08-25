@@ -384,15 +384,32 @@ export default function BriefingProyecto({ projectId, userId }) {
 
   return (
     <div
+      className="gt-brief"
       style={{
         background: '#fff',
         border: `.5px solid ${BORDE}`,
         borderRadius: 10,
-        display: 'grid',
-        gridTemplateColumns: 'minmax(0, 215px) minmax(0, 1fr)',
         overflow: 'hidden',
       }}
     >
+      {/* En un teléfono la columna de actores se comía media pantalla:
+          se apila y pasa a ser una fila que se desplaza en horizontal. */}
+      <style>{`
+        .gt-brief { display: grid; grid-template-columns: minmax(0, 215px) minmax(0, 1fr); }
+        @media (max-width: 720px) {
+          .gt-brief { grid-template-columns: minmax(0, 1fr); }
+          .gt-brief > div:first-child {
+            border-right: none;
+            border-bottom: .5px solid ${BORDE};
+            display: flex;
+            gap: 6px;
+            overflow-x: auto;
+            scrollbar-width: none;
+          }
+          .gt-brief > div:first-child > div { display: none; }
+          .gt-brief > div:first-child button { width: auto; flex-shrink: 0; }
+        }
+      `}</style>
       <div style={{ borderRight: `.5px solid ${BORDE}`, padding: '13px 10px', background: '#fafaf7' }}>
         {prioritarios.length > 0 && (
           <>
