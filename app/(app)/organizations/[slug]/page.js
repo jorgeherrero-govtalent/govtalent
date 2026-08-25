@@ -6,6 +6,7 @@ import { normalizeUrl } from '@/lib/normalizeUrl';
 import OrganizationFollowButton from '@/components/OrganizationFollowButton';
 import OrganizationClaimBanner from '@/components/OrganizationClaimBanner';
 import HoverTooltip from '@/components/HoverTooltip';
+import BackLink from '@/components/BackLink';
 import TransparencyIcon from '@/components/TransparencyIcon';
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://govtalent.app';
@@ -119,11 +120,13 @@ export default async function OrganizationPublicPage({ params }) {
     <div className="sec">
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
 
+      {/* A una ficha de organización se llega desde el directorio, desde
+          una oferta, desde el mapa de un proyecto o desde un actor: el
+          buscador casi nunca es el sitio del que vienes. BackLink usa el
+          historial y solo cae al directorio si no hay a dónde volver. */}
       {userId && (
         <div style={{ maxWidth: 900, margin: '0 auto 10px' }}>
-          <Link href="/organizations" style={{ fontSize: 12.5, color: '#1d6f5c', textDecoration: 'none' }}>
-            <i className="ti ti-arrow-left"></i> Volver al buscador
-          </Link>
+          <BackLink fallbackHref="/organizations" fallbackLabel="Volver al buscador" />
         </div>
       )}
 
