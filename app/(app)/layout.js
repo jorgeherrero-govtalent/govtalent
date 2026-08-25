@@ -9,6 +9,7 @@ import OnboardingModal from '@/components/OnboardingModal';
 import PublicHeader from '@/components/PublicHeader';
 import Footer from '@/components/Footer';
 import MenuUsuario from '@/components/MenuUsuario';
+import BarraMovil from '@/components/BarraMovil';
 
 export default function AppLayout({ children }) {
   const supabase = createClient();
@@ -81,6 +82,15 @@ export default function AppLayout({ children }) {
         <PublicHeader />
       ) : (
         <nav className="nav">
+        {/* En móvil los módulos bajan a BarraMovil y aquí solo quedan
+            el logotipo, la campana y el menú. Antes se desbordaban: los
+            elementos llevan flex-shrink:0 y no se encogen. */}
+        <style>{`
+          @media (max-width: 720px) {
+            .nav-inner { padding: 0 14px; gap: 2px; overflow: visible; }
+            .nav-inner .ni-modulo { display: none; }
+          }
+        `}</style>
         <div className="nav-inner">
           <Link href="/" className="nav-logo">
             gov<span>talent</span>
@@ -93,7 +103,7 @@ export default function AppLayout({ children }) {
               que la barra no se apague al entrar en un expediente. */}
           <Link
             href="/regulatorio"
-            className={`ni ${
+            className={`ni ni-modulo ${
               pathname.startsWith('/regulatorio') ||
               pathname.startsWith('/initiatives') ||
               pathname.startsWith('/procedures') ||
@@ -107,7 +117,7 @@ export default function AppLayout({ children }) {
 
           <Link
             href="/institutions"
-            className={`ni ${
+            className={`ni ni-modulo ${
               pathname.startsWith('/institutions') ||
               (pathname.startsWith('/organizations') && !pathname.includes('admin'))
                 ? 'on'
@@ -121,11 +131,11 @@ export default function AppLayout({ children }) {
               derecha: como pestaña competía con Proyectos —las dos decían
               "aquí está lo que te importa"— y una campana no compite con
               nada. La ruta /seguimiento sigue existiendo. */}
-          <Link href="/projects" className={`ni ${pathname.startsWith('/projects') ? 'on' : ''}`}>
+          <Link href="/projects" className={`ni ni-modulo ${pathname.startsWith('/projects') ? 'on' : ''}`}>
             <i className="ti ti-folder"></i>Proyectos
           </Link>
 
-          <Link href="/jobs" className={`ni ${pathname.startsWith('/jobs') ? 'on' : ''}`}>
+          <Link href="/jobs" className={`ni ni-modulo ${pathname.startsWith('/jobs') ? 'on' : ''}`}>
             <i className="ti ti-briefcase"></i>Empleos
           </Link>
 
@@ -181,6 +191,8 @@ export default function AppLayout({ children }) {
         </div>
       </nav>
       )}
+
+      <BarraMovil />
 
       <main style={{ flex: 1 }}>{children}</main>
       <Footer />
