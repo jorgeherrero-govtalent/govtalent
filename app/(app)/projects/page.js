@@ -99,6 +99,7 @@ function Proyectos() {
   const [modalUpsell, setModalUpsell] = useState(false);
   const [busqueda, setBusqueda] = useState('');
   const [orden, setOrden] = useState('recientes');
+  const [arrastrando, setArrastrando] = useState(null);
   const [creando, setCreando] = useState(false);
   const [nombre, setNombre] = useState('');
   const [menu, setMenu] = useState(null);
@@ -132,7 +133,7 @@ function Proyectos() {
 
     const { data, error } = await supabase
       .from('projects')
-      .select('id, name, description, objetivo, updated_at')
+      .select('id, name, description, objetivo, orden, updated_at')
       .eq('user_id', auth.user.id)
       .eq('archived', false)
       .order('updated_at', { ascending: false });
@@ -207,8 +208,55 @@ function Proyectos() {
     let out = proyectos;
     if (q) out = out.filter((p) => `${p.name} ${p.objetivo || ''}`.toLowerCase().includes(q));
     if (orden === 'alfabetico') out = [...out].sort((a, b) => a.name.localeCompare(b.name, 'es'));
+    // El orden manual no compite con los otros dos: es una opción más, y
+    // se selecciona sola en cuanto arrastras una tarjeta.
+    if (orden === 'manual') out = [...out].sort((a, b) => (a.orden ?? 0) - (b.orden ?? 0));
     return out;
   }, [proyectos, busqueda, orden]);
+
+  // Mismo patrón que en el perfil: se sustituye el fantasma del
+  // navegador —una foto semitransparente de la tarjeta entera— por una
+  // etiqueta limpia con el nombre.
+  function alEmpezarArrastre(e, indice, nombre) {
+    setArrastrando(indice);
+    const pastilla = document.createElement('div');
+    pastilla.textContent = nombre;
+    pastilla.style.cssText =
+      'position:fixed;top:-999px;left:-999px;background:#6d5aef;color:#fff;padding:7px 16px;' +
+      'border-radius:20px;font-size:13px;font-weight:500;white-space:nowrap;' +
+      'font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;' +
+      'box-shadow:0 4px 12px rgba(0,0,0,.25);';
+    document.body.appendChild(pastilla);
+    e.dataTransfer.setDragImage(pastilla, 16, 16);
+    requestAnimationFrame(() => requestAnimationFrame(() => pastilla.remove()));
+  }
+
+  // Se renumera la lista entera y se guarda de una vez: con pocos
+  // proyectos es más simple que intercambiar vecinos, y deja los huecos
+  // de 10 en su sitio.
+  async function soltarEn(destino) {
+    const desde = arrastrando;
+    setArrastrando(null);
+    if (desde == null || desde === destino) return;
+
+    const nueva = [...visibles];
+    const [movido] = nueva.splice(desde, 1);
+    nueva.splice(destino, 0, movido);
+
+    const conOrden = nueva.map((p, i) => ({ ...p, orden: (i + 1) * 10 }));
+    setProyectos((prev) =>
+      prev.map((p) => conOrden.find((x) => x.id === p.id) || p)
+    );
+    setOrden('manual');
+
+    const res = await Promise.all(
+      conOrden.map((p) => supabase.from('projects').update({ orden: p.orden }).eq('id', p.id))
+    );
+    if (res.some((r) => r.error)) {
+      toast('No se ha podido guardar el orden');
+      cargar();
+    }
+  }
 
   function abrir(id) {
     router.replace(`/projects?p=${id}`, { scroll: false });
@@ -226,7 +274,7 @@ function Proyectos() {
     const { data, error } = await supabase
       .from('projects')
       .insert({ user_id: user.id, name: t })
-      .select('id, name, description, objetivo, updated_at')
+      .select('id, name, description, objetivo, orden, updated_at')
       .single();
     if (error) {
       toast('No se ha podido crear el proyecto');
@@ -245,7 +293,7 @@ function Proyectos() {
     const { data, error } = await supabase
       .from('projects')
       .insert({ user_id: user.id, name: f.label || 'Proyecto sin título' })
-      .select('id, name, description, objetivo, updated_at')
+      .select('id, name, description, objetivo, orden, updated_at')
       .single();
     if (error) {
       toast('No se ha podido crear el proyecto');
@@ -361,6 +409,7 @@ function Proyectos() {
             <select className="fsel" value={orden} onChange={(e) => setOrden(e.target.value)}>
               <option value="recientes">Recientes</option>
               <option value="alfabetico">Por nombre</option>
+              <option value="manual">Mi orden</option>
             </select>
           </div>
         )}
@@ -510,15 +559,31 @@ function Proyectos() {
         )}
 
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(290px, 1fr))', gap: 10 }}>
-          {visibles.map((p) => {
+          {visibles.map((p, i) => {
             const d = datos[p.id] || { actores: 0, asuntos: 0, sinContactar: 0, novedades: 0, caras: [] };
             return (
-              <div key={p.id} style={{ ...CARD, padding: '16px 18px', position: 'relative' }}>
+              <div
+                key={p.id}
+                draggable={renombrando !== p.id}
+                onDragStart={(e) => alEmpezarArrastre(e, i, p.name)}
+                onDragOver={(e) => e.preventDefault()}
+                onDrop={() => soltarEn(i)}
+                onDragEnd={() => setArrastrando(null)}
+                style={{
+                  ...CARD,
+                  padding: '16px 18px',
+                  position: 'relative',
+                  cursor: 'grab',
+                  opacity: arrastrando === i ? 0.4 : 1,
+                }}
+              >
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 10 }}>
                   <div style={{ minWidth: 0, flex: 1 }}>
                     {renombrando === p.id ? (
                       <input
                         autoFocus
+                        draggable={false}
+                        onDragStart={(e) => e.stopPropagation()}
                         defaultValue={p.name}
                         maxLength={140}
                         onBlur={(e) => renombrar(p.id, e.target.value)}
@@ -576,6 +641,10 @@ function Proyectos() {
                   </div>
 
                   <button
+                    // Sin esto, pulsar el menú dentro de una tarjeta
+                    // arrastrable empieza a moverla.
+                    draggable={false}
+                    onDragStart={(e) => e.preventDefault()}
                     onClick={(e) => {
                       e.stopPropagation();
                       setMenu(menu === p.id ? null : p.id);
