@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import Link from 'next/link';
+import { planLabel } from '@/lib/plan';
 
 /**
  * El menú de la esquina: quién eres, qué plan tienes, en qué contexto
@@ -22,7 +23,13 @@ const MORADO = '#6d5aef';
 const VERDE = '#1d6f5c';
 const BORDE = '#e0dfd8';
 
-export default function MenuUsuario({ user, organizaciones = [], enOrganizacion = null, onSignOut }) {
+export default function MenuUsuario({
+  user,
+  organizaciones = [],
+  enOrganizacion = null,
+  tieneOfertas = false,
+  onSignOut,
+}) {
   const [abierto, setAbierto] = useState(false);
   const [pos, setPos] = useState({ top: 0, right: 0 });
   const boton = useRef(null);
@@ -173,18 +180,22 @@ export default function MenuUsuario({ user, organizaciones = [], enOrganizacion 
                 </div>
               )}
 
-              <div
-                style={{
-                  fontSize: 10,
-                  color: '#a8a49c',
-                  letterSpacing: '.3px',
-                  padding: '6px 9px 5px',
-                  borderTop: `.5px solid ${BORDE}`,
-                  marginTop: 4,
-                }}
-              >
-                ORGANIZACIONES
-              </div>
+              {/* Sin organizaciones el título quedaba solo sobre un
+                  hueco. */}
+              {organizaciones.length > 0 && (
+                <div
+                  style={{
+                    fontSize: 10,
+                    color: '#a8a49c',
+                    letterSpacing: '.3px',
+                    padding: '6px 9px 5px',
+                    borderTop: `.5px solid ${BORDE}`,
+                    marginTop: 4,
+                  }}
+                >
+                  ORGANIZACIONES
+                </div>
+              )}
 
               {organizaciones.map((o) => {
                 const activa = enOrganizacion === o.slug;
@@ -218,75 +229,61 @@ export default function MenuUsuario({ user, organizaciones = [], enOrganizacion 
                         (o.name || '?').charAt(0).toUpperCase()
                       )}
                     </span>
-                    <span
-                      style={{
-                        flex: 1,
-                        minWidth: 0,
-                        overflow: 'hidden',
-                        textOverflow: 'ellipsis',
-                        whiteSpace: 'nowrap',
-                        color: activa ? '#1a1a18' : '#555',
-                        fontWeight: activa ? 500 : 400,
-                      }}
-                    >
-                      {o.name}
+                    <span style={{ flex: 1, minWidth: 0 }}>
+                      <span
+                        style={{
+                          display: 'block',
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
+                          whiteSpace: 'nowrap',
+                          color: activa ? '#1a1a18' : '#555',
+                          fontWeight: activa ? 500 : 400,
+                        }}
+                      >
+                        {o.name}
+                      </span>
+                      {/* El plan, debajo del nombre. Antes había un enlace
+                          suelto llamado "Plan de la organización" que no
+                          decía cuál era. */}
+                      <span style={{ display: 'block', fontSize: 11, color: '#888', marginTop: 1 }}>
+                        Plan {planLabel(o)}
+                      </span>
                     </span>
                     {activa && <i className="ti ti-check" style={{ fontSize: 14, color: VERDE, flexShrink: 0 }}></i>}
                   </Link>
                 );
               })}
 
-              {/* El plan de la organización vivía en la lateral de
-                  Talento, junto a Ofertas y Candidatos. Es facturación,
-                  no trabajo diario: su sitio está aquí, al lado del plan
-                  personal. */}
-              {organizaciones.length > 0 && (
-                <Link
-                  href="/organizations/admin/plan"
-                  onClick={() => setAbierto(false)}
-                  style={{ ...fila, fontSize: 11.5, color: '#888', paddingTop: 2, paddingBottom: 8 }}
-                >
-                  <span style={{ width: 24 }}></span>
-                  Plan de la organización
-                </Link>
-              )}
 
-              {/* Solo si no tienes ninguna. Pertenecer a dos organizaciones
-                  es un caso raro, y ofrecerlo a quien ya tiene la suya
-                  convierte el menú en una invitación permanente a algo que
-                  no va a hacer.
-
-                  Y lleva al directorio, no a crear: con más de dos mil
-                  organizaciones cargadas, dejar crear a la primera llenaría
-                  la base de duplicados. */}
-              {organizaciones.length === 0 && (
-              <Link
-                href="/organizations"
-                onClick={() => setAbierto(false)}
-                style={{ ...fila, border: `.5px dashed #c4c0b8`, margin: '2px 0' }}
-              >
-                <span
+              {/* Tres estados y ninguno se solapa:
+                  sin organización → crear la página publicando algo;
+                  con organización y sin ofertas → publicar la primera;
+                  con ofertas ya publicadas → no aparece, ya lo hiciste. */}
+              {!tieneOfertas && (
+                <div
                   style={{
-                    width: 24,
-                    height: 24,
-                    borderRadius: 6,
-                    border: `.5px dashed #b8b4ac`,
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    flexShrink: 0,
-                    color: '#a8a49c',
+                    borderTop: `.5px solid ${BORDE}`,
+                    marginTop: 6,
+                    padding: '11px 10px 4px',
                   }}
                 >
-                  <i className="ti ti-plus" style={{ fontSize: 13 }}></i>
-                </span>
-                <span style={{ minWidth: 0, flex: 1 }}>
-                  <span style={{ display: 'block', color: '#1a1a18' }}>Añadir tu organización</span>
-                  <span style={{ display: 'block', fontSize: 10.5, color: '#888', marginTop: 1 }}>
-                    Gratis para publicar y gestionar ofertas
-                  </span>
-                </span>
-              </Link>
+                  <div style={{ fontSize: 12.5, fontWeight: 600, marginBottom: 3 }}>
+                    Anuncia un empleo gratis
+                  </div>
+                  <div style={{ fontSize: 11.5, color: '#555', lineHeight: 1.5, marginBottom: 9 }}>
+                    {organizaciones.length
+                      ? 'Publica tu primera oferta y recibe candidaturas sin coste.'
+                      : 'Crea la página de tu organización y publica sin coste.'}
+                  </div>
+                  <Link
+                    href={organizaciones.length ? '/organizations/admin/jobs' : '/organizations'}
+                    onClick={() => setAbierto(false)}
+                    className="btn-p"
+                    style={{ fontSize: 11.5, textDecoration: 'none', display: 'inline-block' }}
+                  >
+                    {organizaciones.length ? 'Publicar oferta' : 'Crear mi página'}
+                  </Link>
+                </div>
               )}
 
               <div style={{ borderTop: `.5px solid ${BORDE}`, marginTop: 6, paddingTop: 5 }}>
