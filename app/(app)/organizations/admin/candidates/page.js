@@ -15,12 +15,10 @@ const COLUMNS = [
   ['rechazada', 'Rechazada'],
 ];
 
-const SCORE_FILTERS = [
-  ['', 'Todas las puntuaciones'],
-  ['high', 'Alto encaje (70+)'],
-  ['mid', 'Encaje medio (40-69)'],
-  ['low', 'Encaje bajo (<40)'],
-];
+// Cuatro y "ver todas": lo normal es mirar las últimas, no recorrer
+// la lista entera cada vez.
+const POR_PAGINA = 4;
+
 
 export default function CandidatesBoardPage() {
   return (
@@ -40,18 +38,15 @@ function CandidatesBoardInner() {
   const [jobFilter, setJobFilter] = useState(searchParams.get('job') || '');
   const [scoreFilter, setScoreFilter] = useState('');
   const [nameFilter, setNameFilter] = useState('');
-  const [dragId, setDragId] = useState(null);
   const [ranking, setRanking] = useState(false);
   const [upgradeModal, setUpgradeModal] = useState(null);
-  const PAGE_SIZE = 6;
-  const [visibleCounts, setVisibleCounts] = useState({});
 
   const [detailApp, setDetailApp] = useState(null);
+  const [etapa, setEtapa] = useState('');
+  const [verTodos, setVerTodos] = useState(false);
   const [notesDraft, setNotesDraft] = useState('');
   const [savingNotes, setSavingNotes] = useState(false);
   const [summaryLoading, setSummaryLoading] = useState(false);
-  const [savedCandidateIds, setSavedCandidateIds] = useState(new Set());
-  const [savingCandidateId, setSavingCandidateId] = useState(null);
 
   // Modal que aparece al mover un candidato a "Oferta" o "Rechazada"
   const [statusAction, setStatusAction] = useState(null); // { appId, targetStatus, step }
@@ -91,7 +86,7 @@ function CandidatesBoardInner() {
   }
 
   useEffect(() => {
-    setVisibleCounts({});
+    setVerTodos(false);
   }, [nameFilter, jobFilter, scoreFilter]);
 
   async function load() {
@@ -150,12 +145,6 @@ function CandidatesBoardInner() {
 
     setApplications(appsWithContactEmail);
 
-    const { data: savedRows } = await supabase
-      .from('saved_candidates')
-      .select('candidate_id')
-      .eq('organization_id', membership.organizations.id);
-    setSavedCandidateIds(new Set((savedRows || []).map((r) => r.candidate_id)));
-
     setLoading(false);
   }
 
@@ -165,17 +154,19 @@ function CandidatesBoardInner() {
     if (error) toast('No se pudo mover el candidato');
   }
 
-  function onDrop(newStatus) {
-    if (!dragId) return;
-    if (newStatus === 'rechazada') {
-      setStatusAction({ appId: dragId, targetStatus: 'rechazada', step: 'reason' });
-    } else if (newStatus === 'oferta' || newStatus === 'entrevista') {
-      updateStatus(dragId, newStatus);
-      setStatusAction({ appId: dragId, targetStatus: newStatus, step: 'message' });
+  // Cambiar de etapa no es solo actualizar un campo: rechazar pide un
+  // motivo y pasar a entrevista u oferta ofrece escribir al candidato.
+  // Esa lógica vivía en el arrastre del tablero; ahora vive aquí, que es
+  // el único sitio desde donde se cambia.
+  function cambiarEtapa(appId, nuevoEstado) {
+    if (nuevoEstado === 'rechazada') {
+      setStatusAction({ appId, targetStatus: 'rechazada', step: 'reason' });
+    } else if (nuevoEstado === 'oferta' || nuevoEstado === 'entrevista') {
+      updateStatus(appId, nuevoEstado);
+      setStatusAction({ appId, targetStatus: nuevoEstado, step: 'message' });
     } else {
-      updateStatus(dragId, newStatus);
+      updateStatus(appId, nuevoEstado);
     }
-    setDragId(null);
   }
 
   function closeStatusAction() {
@@ -230,30 +221,6 @@ function CandidatesBoardInner() {
   function closeDetail() {
     setDetailApp(null);
     setNotesDraft('');
-  }
-
-  async function toggleSaveCandidate(candidateId) {
-    if (!org) return;
-    setSavingCandidateId(candidateId);
-    if (savedCandidateIds.has(candidateId)) {
-      await supabase.from('saved_candidates').delete().eq('organization_id', org.id).eq('candidate_id', candidateId);
-      setSavedCandidateIds((prev) => {
-        const n = new Set(prev);
-        n.delete(candidateId);
-        return n;
-      });
-      toast('Candidato eliminado de guardados');
-    } else {
-      const { data: authData } = await supabase.auth.getUser();
-      const { error } = await supabase
-        .from('saved_candidates')
-        .insert({ organization_id: org.id, candidate_id: candidateId, saved_by: authData.user?.id });
-      if (!error) {
-        setSavedCandidateIds((prev) => new Set(prev).add(candidateId));
-        toast('Candidato guardado ✓');
-      }
-    }
-    setSavingCandidateId(null);
   }
 
   async function saveNotes() {
@@ -342,7 +309,10 @@ function CandidatesBoardInner() {
     return true;
   }
 
-  const filtered = applications.filter(passesFilters);
+  // Dos listas: una con todos los filtros menos la etapa —para contar
+  // cuántos hay en cada pastilla— y otra con la etapa ya aplicada.
+  const sinEtapa = applications.filter(passesFilters);
+  const filtered = etapa ? sinEtapa.filter((a) => a.status === etapa) : sinEtapa;
 
   function sortedForColumn(list) {
     if (!jobFilter) return list;
@@ -362,12 +332,28 @@ function CandidatesBoardInner() {
     );
   }
 
+  const totalFiltrado = filtered.length;
+  const lista = sortedForColumn(filtered).slice(0, verTodos ? totalFiltrado : POR_PAGINA);
+
+  const chip = (activo) => ({
+    padding: '6px 12px',
+    borderRadius: 7,
+    fontSize: 12.5,
+    cursor: 'pointer',
+    border: 'none',
+    background: activo ? '#f0eefe' : 'transparent',
+    color: activo ? '#6d5aef' : '#8b8780',
+    whiteSpace: 'nowrap',
+  });
+
   return (
-    <div className="sec">
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 10, marginBottom: 12 }}>
+    <div>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 10, marginBottom: 14 }}>
         <div>
           <h2 style={{ fontSize: 19, fontWeight: 700 }}>Candidatos</h2>
-          <p style={{ fontSize: 13, color: '#888' }}>Arrastra las tarjetas entre columnas, o haz clic en una para ver el detalle</p>
+          <p style={{ fontSize: 13, color: '#888' }}>
+            {totalFiltrado} {totalFiltrado === 1 ? 'candidatura' : 'candidaturas'}
+          </p>
         </div>
         <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
           <input
@@ -385,111 +371,123 @@ function CandidatesBoardInner() {
               </option>
             ))}
           </select>
-          {jobFilter && (
-            <select className="fsel" value={scoreFilter} onChange={(e) => setScoreFilter(e.target.value)}>
-              {SCORE_FILTERS.map(([k, l]) => (
-                <option key={k} value={k}>
-                  {l}
-                </option>
-              ))}
-            </select>
-          )}
           <button className="btn-ai" disabled={ranking || !jobFilter} onClick={rankCandidates} title={!jobFilter ? 'Elige una oferta concreta primero' : ''}>
             <i className="ti ti-bolt"></i> {ranking ? 'Ordenando...' : 'Ordenar con IA'}
           </button>
         </div>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 12, overflowX: 'auto' }}>
-        {COLUMNS.map(([key, label]) => {
-          const items = sortedForColumn(filtered.filter((a) => a.status === key));
-          const visibleCount = visibleCounts[key] || PAGE_SIZE;
-          const visibleItems = items.slice(0, visibleCount);
-          const remaining = items.length - visibleItems.length;
-          return (
-            <div
-              key={key}
-              onDragOver={(e) => e.preventDefault()}
-              onDrop={() => onDrop(key)}
-              style={{ background: '#f4f4f0', borderRadius: 10, padding: 10, minHeight: 300 }}
-            >
-              <div style={{ fontSize: 12.5, fontWeight: 600, color: '#555', marginBottom: 10, display: 'flex', justifyContent: 'space-between' }}>
-                {label}
-                <span style={{ color: '#aaa' }}>{items.length}</span>
-              </div>
-              {visibleItems.map((a) => (
-                <div
-                  key={a.id}
-                  draggable
-                  onDragStart={() => setDragId(a.id)}
-                  onClick={() => openDetail(a)}
-                  style={{
-                    background: '#fff',
-                    border: '1px solid #e0dfd8',
-                    borderRadius: 10,
-                    padding: 10,
-                    marginBottom: 8,
-                    cursor: 'pointer',
-                  }}
-                >
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 6 }}>
-                    <div style={{ fontSize: 12.5, fontWeight: 600 }}>
-                      {a.users?.first_name} {a.users?.last_name}
-                    </div>
-                    {a.ai_score != null && (
-                      <span
-                        className="badge"
-                        style={{
-                          background: a.ai_score >= 70 ? '#e8f4f0' : a.ai_score >= 40 ? '#fff8e1' : '#fdecea',
-                          color: a.ai_score >= 70 ? '#1d6f5c' : a.ai_score >= 40 ? '#b8860b' : '#b3261e',
-                          fontSize: 10.5,
-                        }}
-                        title={a.ai_rationale || ''}
-                      >
-                        {a.ai_score}/100
-                      </span>
-                    )}
-                  </div>
-                  <div style={{ fontSize: 11, color: '#888', marginBottom: 4 }}>{a.users?.professional_title}</div>
-                  {!jobFilter && <div style={{ fontSize: 10.5, color: '#1d6f5c', marginBottom: 4 }}>{a.jobs?.title}</div>}
-                  <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', fontSize: 10.5, color: '#999' }}>
-                    {a.users?.phone && <span>{a.users.phone}</span>}
-                    {a.notes && (
-                      <span style={{ color: '#1d6f5c' }}>
-                        <i className="ti ti-note" style={{ fontSize: 11 }}></i> Con notas
-                      </span>
-                    )}
-                    {a.ai_summary && (
-                      <span style={{ color: '#6d5aef' }}>
-                        <i className="ti ti-bolt" style={{ fontSize: 11 }}></i> Resumen IA
-                      </span>
-                    )}
-                  </div>
-                </div>
-              ))}
-              {items.length === 0 && <div style={{ fontSize: 11, color: '#bbb', textAlign: 'center', padding: 20 }}>Sin candidatos</div>}
-              {remaining > 0 && (
-                <button
-                  type="button"
-                  onClick={() => setVisibleCounts((prev) => ({ ...prev, [key]: visibleCount + PAGE_SIZE }))}
-                  style={{
-                    width: '100%',
-                    padding: '8px',
-                    border: '.5px dashed #cfcec6',
-                    borderRadius: 8,
-                    background: '#fff',
-                    color: '#666',
-                    fontSize: 11.5,
-                    fontWeight: 600,
-                  }}
-                >
-                  Ver {Math.min(remaining, PAGE_SIZE)} más ({remaining} restantes)
-                </button>
-              )}
-            </div>
-          );
-        })}
+      {/* Pastillas, como en Seguimiento y en el resto de la plataforma.
+          Antes la etapa se elegía desde un desplegable, que esconde
+          cuántas candidaturas hay en cada una. */}
+      <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', marginBottom: 12 }}>
+        <button type="button" onClick={() => setEtapa('')} style={chip(etapa === '')}>
+          Todas {sinEtapa.length}
+        </button>
+        {COLUMNS.map(([key, label]) => (
+          <button key={key} type="button" onClick={() => setEtapa(key)} style={chip(etapa === key)}>
+            {label} {sinEtapa.filter((a) => a.status === key).length}
+          </button>
+        ))}
       </div>
+
+      {/* Una sola vista, en lista. El tablero de cinco columnas obligaba
+          a desplazarse en horizontal y no cabía en un teléfono; la etapa
+          se cambia desde el desplegable de cada fila. */}
+      <div className="card" style={{ padding: '4px 18px' }}>
+        {lista.length === 0 && (
+          <div style={{ fontSize: 12.5, color: '#999', padding: '22px 0', textAlign: 'center' }}>
+            Ninguna candidatura con estos filtros.
+          </div>
+        )}
+
+        {lista.map((a, i) => (
+          <div
+            key={a.id}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 12,
+              padding: '13px 0',
+              borderTop: i === 0 ? 'none' : '.5px solid #e0dfd8',
+            }}
+          >
+            <button
+              onClick={() => openDetail(a)}
+              style={{ display: 'flex', alignItems: 'center', gap: 12, flex: 1, minWidth: 0, background: 'none', border: 'none', textAlign: 'left', padding: 0 }}
+            >
+              <span
+                style={{
+                  width: 34,
+                  height: 34,
+                  borderRadius: '50%',
+                  background: '#e8f4f0',
+                  color: '#1d6f5c',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontSize: 12.5,
+                  fontWeight: 600,
+                  flexShrink: 0,
+                  overflow: 'hidden',
+                }}
+              >
+                {a.users?.avatar_url ? (
+                  <img src={a.users.avatar_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                ) : (
+                  (a.users?.first_name || '?').charAt(0).toUpperCase()
+                )}
+              </span>
+              <span style={{ flex: 1, minWidth: 0 }}>
+                <span style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
+                  <span style={{ fontSize: 13.5, fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    {a.users?.first_name} {a.users?.last_name}
+                  </span>
+                  {a.ai_score != null && (
+                    <span
+                      className="badge"
+                      style={{
+                        background: a.ai_score >= 70 ? '#e8f4f0' : a.ai_score >= 40 ? '#fff8e1' : '#fdecea',
+                        color: a.ai_score >= 70 ? '#1d6f5c' : a.ai_score >= 40 ? '#b8860b' : '#b3261e',
+                        fontSize: 10.5,
+                        flexShrink: 0,
+                      }}
+                      title={a.ai_rationale || ''}
+                    >
+                      {a.ai_score}/100
+                    </span>
+                  )}
+                </span>
+                <span style={{ display: 'block', fontSize: 11.5, color: '#888', marginTop: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  {[a.jobs?.title, a.users?.professional_title].filter(Boolean).join(' · ')}
+                </span>
+              </span>
+            </button>
+
+            <select
+              className="fsel"
+              value={a.status}
+              onChange={(e) => cambiarEtapa(a.id, e.target.value)}
+              style={{ width: 'auto', flexShrink: 0, fontSize: 12 }}
+            >
+              {COLUMNS.map(([key, label]) => (
+                <option key={key} value={key}>
+                  {label}
+                </option>
+              ))}
+            </select>
+          </div>
+        ))}
+      </div>
+
+      {!verTodos && totalFiltrado > POR_PAGINA && (
+        <button
+          onClick={() => setVerTodos(true)}
+          style={{ background: 'none', border: 'none', color: '#6d5aef', fontSize: 12.5, padding: '12px 0 0' }}
+        >
+          Ver todas ({totalFiltrado}) →
+        </button>
+      )}
 
       {detailApp && (
         <div className="modal-ov on" onClick={(e) => e.target === e.currentTarget && closeDetail()}>
@@ -506,23 +504,25 @@ function CandidatesBoardInner() {
             <div style={{ fontSize: 13, color: '#666', marginBottom: 4 }}>{detailApp.users?.professional_title}</div>
             <div style={{ fontSize: 12, color: '#1d6f5c', marginBottom: 14 }}>{detailApp.jobs?.title}</div>
 
-            <div style={{ display: 'flex', gap: 8, marginBottom: 14, flexWrap: 'wrap' }}>
-              <a href={`/candidates/${detailApp.candidate_id}`} target="_blank" rel="noreferrer" className="btn-o" style={{ textDecoration: 'none' }}>
-                <i className="ti ti-user"></i> Ver perfil completo
-              </a>
-              <button
-                className={savedCandidateIds.has(detailApp.candidate_id) ? 'btn-o' : 'btn-p'}
-                disabled={savingCandidateId === detailApp.candidate_id}
-                onClick={() => toggleSaveCandidate(detailApp.candidate_id)}
+            {/* Cambiar de etapa es lo que de verdad se hace desde aquí.
+                Antes había que cerrar el modal y arrastrar la tarjeta. */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 9, marginBottom: 16 }}>
+              <span style={{ fontSize: 12, color: '#888' }}>Etapa</span>
+              <select
+                className="fsel"
+                value={detailApp.status}
+                onChange={(e) => cambiarEtapa(detailApp.id, e.target.value)}
+                style={{ width: 'auto', fontSize: 12.5 }}
               >
-                <i className={`ti ${savedCandidateIds.has(detailApp.candidate_id) ? 'ti-bookmark-filled' : 'ti-bookmark'}`}></i>{' '}
-                {savingCandidateId === detailApp.candidate_id
-                  ? 'Guardando...'
-                  : savedCandidateIds.has(detailApp.candidate_id)
-                  ? 'Guardado'
-                  : 'Guardar candidato'}
-              </button>
+                {COLUMNS.map(([key, label]) => (
+                  <option key={key} value={key}>
+                    {label}
+                  </option>
+                ))}
+              </select>
             </div>
+
+
 
             <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap', fontSize: 12.5, color: '#666', marginBottom: 14 }}>
               {detailApp.contact_email && (
