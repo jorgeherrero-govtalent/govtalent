@@ -18,6 +18,7 @@ export default function AppLayout({ children }) {
   const [user, setUser] = useState(null);
   const [authChecked, setAuthChecked] = useState(false);
   const [misOrgs, setMisOrgs] = useState([]);
+  const [tieneOfertas, setTieneOfertas] = useState(false);
   const [novedades, setNovedades] = useState(0);
   const [needsOnboarding, setNeedsOnboarding] = useState(false);
 
@@ -44,10 +45,21 @@ export default function AppLayout({ children }) {
       // aparecería la primera de quien pertenezca a varias.
       const { data: membresias } = await supabase
         .from('organization_members')
-        .select('organization_id, organizations(slug, name, logo_url)')
+        .select('organization_id, organizations(id, slug, name, logo_url, plan, plan_status, trial_ends_at, is_founding_member)')
         .eq('user_id', data.user.id);
       if (active) {
-        setMisOrgs((membresias || []).map((m) => m.organizations).filter(Boolean));
+        const orgs = (membresias || []).map((m) => m.organizations).filter(Boolean);
+        setMisOrgs(orgs);
+
+        // Si ya has publicado, el menú no te invita a publicar tu primera
+        // oferta: sonaría a que nadie mira lo que haces.
+        if (orgs.length) {
+          const { count } = await supabase
+            .from('jobs')
+            .select('id', { count: 'exact', head: true })
+            .in('organization_id', orgs.map((o) => o.id));
+          if (active) setTieneOfertas((count || 0) > 0);
+        }
       }
 
       // El punto de la barra: cuántas novedades hay sin ver. Solo cuenta,
@@ -186,6 +198,7 @@ export default function AppLayout({ children }) {
             user={user}
             organizaciones={misOrgs}
             enOrganizacion={pathname.includes('/organizations/admin') ? misOrgs[0]?.slug : null}
+            tieneOfertas={tieneOfertas}
             onSignOut={signOut}
           />
         </div>
