@@ -20,7 +20,8 @@ export default function ComisionesPage() {
     Promise.all([
       supabase.from('deputies').select('id', { count: 'exact', head: true }).eq('active', true),
       supabase.from('parliamentary_groups').select('id', { count: 'exact', head: true }).eq('active', true),
-      supabase.from('es_committees').select('id', { count: 'exact', head: true }),
+      // Sin los de gobierno: el titular debe decir lo mismo que muestra la lista.
+      supabase.from('es_committees').select('id', { count: 'exact', head: true }).neq('kind', 'gobierno'),
     ]).then(([d, g, c]) =>
       setCifras({ diputados: d.count ?? null, grupos: g.count ?? null, comisiones: c.count ?? null })
     );
@@ -36,7 +37,7 @@ export default function ComisionesPage() {
         </p>
       </div>
 
-      <div style={{ display: 'flex', gap: 16, borderBottom: '.5px solid #e0dfd8', marginBottom: 14 }}>
+      <div style={{ display: 'flex', gap: 16, borderBottom: '.5px solid #e0dfd8', marginBottom: 14, flexWrap: 'wrap' }}>
         <Link href="/institutions/deputies" style={{ fontSize: 13, color: '#999', paddingBottom: 8, textDecoration: 'none' }}>
           Diputados
         </Link>
@@ -54,6 +55,9 @@ export default function ComisionesPage() {
         >
           Comisiones
         </span>
+        <Link href="/institutions/organos-gobierno" style={{ fontSize: 13, color: '#999', paddingBottom: 8, textDecoration: 'none' }}>
+          Órganos de gobierno
+        </Link>
       </div>
 
       <ComisionesTab />
