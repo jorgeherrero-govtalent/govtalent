@@ -139,6 +139,7 @@ export default function InstitutionsHomePage() {
       { count: euCommitteesCount },
       { count: commissionersCount },
       { count: ecPeopleCount },
+      { count: governanceCount },
     ] = await Promise.all([
       supabase.from('deputies').select('id', { count: 'exact', head: true }).eq('active', true),
       supabase.from('parliamentary_groups').select('id', { count: 'exact', head: true }).eq('active', true),
@@ -162,6 +163,7 @@ export default function InstitutionsHomePage() {
         .is('term_end', null),
       supabase.from('ec_commissioners').select('id', { count: 'exact', head: true }),
       supabase.from('ec_people').select('id', { count: 'exact', head: true }).eq('active', true),
+      supabase.from('es_committees').select('id', { count: 'exact', head: true }).eq('kind', 'gobierno'),
     ]);
     setCounts({
       deputies: deputiesCount || 0,
@@ -173,6 +175,7 @@ export default function InstitutionsHomePage() {
       euCommittees: euCommitteesCount || 0,
       commissioners: commissionersCount || 0,
       ecPeople: ecPeopleCount || 0,
+      governance: governanceCount || 0,
     });
   }
 
@@ -228,7 +231,7 @@ export default function InstitutionsHomePage() {
         <div style={GRID}>
           <ModuleCard
             href="/institutions/ministries"
-            icon="building-bank"
+            icon="building-community"
             title="Ministerios"
             description="Estructura del Gobierno y titulares de cada ministerio."
             cta="Explorar ministerios"
@@ -237,24 +240,23 @@ export default function InstitutionsHomePage() {
               { n: counts?.govPeople ?? null, label: 'cargos' },
             ]}
           />
+          {/* Una sola tarjeta para el Congreso, con sus cuatro vistas
+              dentro. Diputados y Grupos tenían tarjeta propia y eso
+              enseñaba una jerarquía falsa: parecían módulos hermanos
+              cuando son dos de las cuatro pestañas de la misma sección,
+              junto a Comisiones y Órganos de gobierno. */}
           <ModuleCard
             href="/institutions/deputies"
-            icon="users-group"
-            title="Diputados"
-            description="Consulta los diputados del Congreso, sus cargos y comisiones."
-            cta="Explorar diputados"
+            icon="building-bank"
+            title="Congreso de los Diputados"
+            description="Quién ocupa cada escaño, cada comisión y cada órgano."
+            cta="Explorar Congreso"
             cifras={[
               { n: counts?.deputies ?? null, label: 'diputados' },
               { n: counts?.committees ?? null, label: 'comisiones' },
+              { n: counts?.groups ?? null, label: 'grupos' },
+              { n: counts?.governance ?? null, label: 'órganos' },
             ]}
-          />
-          <ModuleCard
-            href="/institutions/groups"
-            icon="flag"
-            title="Grupos parlamentarios"
-            description="Explora los grupos, sus portavoces y composición actual."
-            cta="Explorar grupos"
-            cifras={[{ n: counts?.groups ?? null, label: 'grupos' }]}
           />
         </div>
         <Proximamente items={['Senado', 'Organismos y entidades']} />
