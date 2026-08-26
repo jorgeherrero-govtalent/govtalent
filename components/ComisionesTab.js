@@ -1,9 +1,10 @@
- 'use client';
+'use client';
 
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
 import { colorSigla, nombreSigla } from '@/lib/grupos';
+import MultiSelectFilter from '@/components/MultiSelectFilter';
 
 /**
  * Comisiones del Congreso.
@@ -71,8 +72,8 @@ export default function ComisionesTab() {
 
   const [items, setItems] = useState(null);
   const [search, setSearch] = useState('');
-  const [grupoFilter, setGrupoFilter] = useState(null);
-  const [tipoFilter, setTipoFilter] = useState(null);
+  const [grupoFilter, setGrupoFilter] = useState(new Set());
+  const [tipoFilter, setTipoFilter] = useState(new Set());
 
   useEffect(() => {
     supabase
@@ -85,9 +86,16 @@ export default function ComisionesTab() {
   // Los grupos salen de las propias comisiones, así el filtro nunca
   // ofrece opciones sin resultados.
   const grupos = useMemo(() => {
-    const set = new Set();
-    for (const c of items || []) for (const g of c.grupos || []) if (!g.startsWith('SGP')) set.add(g);
-    return [...set].sort();
+    const cuenta = new Map();
+    for (const c of items || []) {
+      if (c.kind === 'gobierno') continue;
+      for (const g of c.grupos || []) if (!g.startsWith('SGP')) cuenta.set(g, (cuenta.get(g) || 0) + 1);
+    }
+    // Con el recuento al lado se ve de un vistazo qué grupos están en
+    // todas las comisiones y cuáles solo en unas pocas.
+    return [...cuenta.entries()]
+      .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
+      .map(([g, n]) => ({ value: g, label: `${nombreSigla(g)} (${n})` }));
   }, [items]);
 
   // Ordenados por número de comisiones: las legislativas primero, que son
@@ -95,10 +103,12 @@ export default function ComisionesTab() {
   const tipos = useMemo(() => {
     const cuenta = new Map();
     for (const c of items || []) {
-      if (!c.tipo_label) continue;
+      if (!c.tipo_label || c.kind === 'gobierno') continue;
       cuenta.set(c.tipo_label, (cuenta.get(c.tipo_label) || 0) + 1);
     }
-    return [...cuenta.entries()].sort((a, b) => b[1] - a[1]).map(([t]) => t);
+    return [...cuenta.entries()]
+      .sort((a, b) => b[1] - a[1])
+      .map(([t, n]) => ({ value: t, label: `${t} (${n})` }));
   }, [items]);
 
   const filtered = useMemo(() => {
@@ -109,21 +119,12 @@ export default function ComisionesTab() {
       const q = normalize(search);
       l = l.filter((c) => normalize(c.name).includes(q) || normalize(c.presidente || '').includes(q));
     }
-    if (grupoFilter) l = l.filter((c) => (c.grupos || []).includes(grupoFilter));
-    if (tipoFilter) l = l.filter((c) => c.tipo_label === tipoFilter);
+    // Varios grupos o varios tipos suman resultados: se busca "las
+    // comisiones donde está ERC o Junts", no la intersección de ambos.
+    if (grupoFilter.size > 0) l = l.filter((c) => (c.grupos || []).some((g) => grupoFilter.has(g)));
+    if (tipoFilter.size > 0) l = l.filter((c) => tipoFilter.has(c.tipo_label));
     return l;
   }, [items, search, grupoFilter, tipoFilter]);
-
-  const chip = (activo) => ({
-    background: activo ? '#e8f4f0' : '#fff',
-    border: `.5px solid ${activo ? '#1d6f5c' : '#e0dfd8'}`,
-    color: activo ? '#1d6f5c' : '#555',
-    borderRadius: 22,
-    padding: '8px 14px',
-    fontSize: 12.5,
-    cursor: 'pointer',
-    whiteSpace: 'nowrap',
-  });
 
   return (
     <>
@@ -150,39 +151,14 @@ export default function ComisionesTab() {
           />
         </div>
 
-        <select
-          value={grupoFilter || ''}
-          onChange={(e) => setGrupoFilter(e.target.value || null)}
-          aria-label="Filtrar por grupo"
-          style={{ ...chip(!!grupoFilter), appearance: 'none', paddingRight: 30 }}
-        >
-          <option value="">Grupo</option>
-          {grupos.map((g) => (
-            <option key={g} value={g}>
-              {nombreSigla(g)}
-            </option>
-          ))}
-        </select>
+        <MultiSelectFilter label="Grupo" values={grupos} selected={grupoFilter} onApply={setGrupoFilter} />
+        <MultiSelectFilter label="Tipo" values={tipos} selected={tipoFilter} onApply={setTipoFilter} />
 
-        <select
-          value={tipoFilter || ''}
-          onChange={(e) => setTipoFilter(e.target.value || null)}
-          aria-label="Filtrar por tipo"
-          style={{ ...chip(!!tipoFilter), appearance: 'none', paddingRight: 30 }}
-        >
-          <option value="">Tipo</option>
-          {tipos.map((t) => (
-            <option key={t} value={t}>
-              {t}
-            </option>
-          ))}
-        </select>
-
-        {(grupoFilter || tipoFilter || search) && (
+        {(grupoFilter.size > 0 || tipoFilter.size > 0 || search) && (
           <span
             onClick={() => {
-              setGrupoFilter(null);
-              setTipoFilter(null);
+              setGrupoFilter(new Set());
+              setTipoFilter(new Set());
               setSearch('');
             }}
             style={{ fontSize: 11.5, color: '#999', textDecoration: 'underline', cursor: 'pointer' }}
@@ -191,6 +167,22 @@ export default function ComisionesTab() {
           </span>
         )}
       </div>
+
+      {(grupoFilter.size > 0 || tipoFilter.size > 0) && (
+        <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap', marginBottom: 12 }}>
+          {[...grupoFilter].map((v) => (
+            <span key={`g${v}`} style={{ fontSize: 11, background: '#f0efe9', color: '#666', padding: '3px 10px', borderRadius: 14 }}>
+              {nombreSigla(v)}
+            </span>
+          ))}
+          {[...tipoFilter].map((v) => (
+            <span key={`t${v}`} style={{ fontSize: 11, background: '#f0efe9', color: '#666', padding: '3px 10px', borderRadius: 14 }}>
+              {v}
+            </span>
+          ))}
+          <span style={{ fontSize: 11, color: '#888' }}>{filtered.length} comisiones</span>
+        </div>
+      )}
 
       {items === null ? (
         <div className="spinner"></div>
