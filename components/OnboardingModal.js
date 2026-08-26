@@ -20,8 +20,12 @@ import {
  *    organización también es un profesional del sector, y obligarle a
  *    elegir le hacía escoger una mitad de sí mismo. Además chocaba con
  *    la navegación: ahí la organización es un contexto que añades, no un
- *    tipo de usuario. Quien viene solo a contratar lo dice en la primera
- *    pregunta y sale directo a crear su página.
+ *    tipo de usuario.
+ *
+ *    Tampoco hay atajo aquí para quien viene a contratar: el menú ya
+ *    ofrece "Anuncia un empleo gratis" nada más entrar, y resolver lo
+ *    mismo dos veces solo añade una opción que no responde a la pregunta
+ *    de esa pantalla.
  *
  * 2. Los temas van a topics/user_topics y generan el perfil de sector.
  *    Antes se guardaban en user_work_areas y user_interest_areas, que no
@@ -50,7 +54,6 @@ export default function OnboardingModal({ userId, onComplete }) {
   const [paso, setPaso] = useState(1);
   const [guardando, setGuardando] = useState(false);
   const [error, setError] = useState('');
-  const [redirigiendo, setRedirigiendo] = useState(false);
 
   const [temas, setTemas] = useState([]);
   const [verTodos, setVerTodos] = useState(false);
@@ -373,30 +376,6 @@ export default function OnboardingModal({ userId, onComplete }) {
                     );
                   })}
 
-                  {/* La quinta opción sustituye a la pantalla de dos
-                      caminos: se pregunta una vez y la respuesta decide
-                      el camino, en lugar de pedir que alguien declare qué
-                      clase de persona es antes de ver el producto. */}
-                  <button
-                    type="button"
-                    disabled={redirigiendo}
-                    onClick={() => {
-                      setRedirigiendo(true);
-                      window.location.href = '/organizations/new';
-                    }}
-                    style={{
-                      textAlign: 'left',
-                      padding: '11px 14px',
-                      borderRadius: 9,
-                      fontSize: 13,
-                      cursor: 'pointer',
-                      background: '#fff',
-                      border: `.5px dashed #c4c0b8`,
-                      color: '#555',
-                    }}
-                  >
-                    {redirigiendo ? 'Un momento…' : 'Vengo a contratar para mi organización'}
-                  </button>
                 </div>
               </div>
 
