@@ -28,12 +28,11 @@ function iniciales(n) {
   return `${(nom || '')[0] || ''}${(ap || '')[0] || ''}`.toUpperCase();
 }
 
-const TIPOS = {
-  permanente: 'Permanente',
-  mixta: 'Mixta con el Senado',
-  investigacion: 'De investigación',
-  seguimiento: 'De seguimiento',
-};
+// La etiqueta viene de la vista, que sabe si una permanente es
+// legislativa. Aquí solo se sabía el kind, y "Permanente" juntaba las 23
+// que tramitan leyes con Reglamento, Peticiones o Estatuto, que no. Para
+// alguien de asuntos públicos son cosas distintas: en unas hay enmiendas
+// y plazos, en otras no hay nada que influir.
 
 function Avatar({ nombre, url, size = 30, borde }) {
   const [falla, setFalla] = useState(false);
@@ -91,7 +90,16 @@ export default function ComisionesTab() {
     return [...set].sort();
   }, [items]);
 
-  const tipos = useMemo(() => [...new Set((items || []).map((c) => c.kind).filter(Boolean))], [items]);
+  // Ordenados por número de comisiones: las legislativas primero, que son
+  // las que se buscan.
+  const tipos = useMemo(() => {
+    const cuenta = new Map();
+    for (const c of items || []) {
+      if (!c.tipo_label) continue;
+      cuenta.set(c.tipo_label, (cuenta.get(c.tipo_label) || 0) + 1);
+    }
+    return [...cuenta.entries()].sort((a, b) => b[1] - a[1]).map(([t]) => t);
+  }, [items]);
 
   const filtered = useMemo(() => {
     let l = items || [];
@@ -100,7 +108,7 @@ export default function ComisionesTab() {
       l = l.filter((c) => normalize(c.name).includes(q) || normalize(c.presidente || '').includes(q));
     }
     if (grupoFilter) l = l.filter((c) => (c.grupos || []).includes(grupoFilter));
-    if (tipoFilter) l = l.filter((c) => c.kind === tipoFilter);
+    if (tipoFilter) l = l.filter((c) => c.tipo_label === tipoFilter);
     return l;
   }, [items, search, grupoFilter, tipoFilter]);
 
@@ -163,7 +171,7 @@ export default function ComisionesTab() {
           <option value="">Tipo</option>
           {tipos.map((t) => (
             <option key={t} value={t}>
-              {TIPOS[t] || t}
+              {t}
             </option>
           ))}
         </select>
@@ -210,7 +218,7 @@ export default function ComisionesTab() {
                 <div style={{ marginBottom: 13 }}>
                   <div style={{ fontSize: 14, fontWeight: 600, lineHeight: 1.35 }}>{c.name}</div>
                   <div style={{ fontSize: 11, color: '#999', marginTop: 3 }}>
-                    {c.n_members} miembros · {TIPOS[c.kind] || c.kind}
+                    {c.n_members} miembros · {c.tipo_label || c.kind}
                     {c.n_senadores > 0 && ` · ${c.n_senadores} del Senado`}
                   </div>
                 </div>
