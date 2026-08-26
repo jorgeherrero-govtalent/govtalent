@@ -200,7 +200,11 @@ export default function BoeDetailPage() {
               const cuerpo = (
                 <div style={{ fontSize: 12.5, lineHeight: 1.5 }}>
                   {r.palabra && <span style={{ color: '#a8a49c' }}>{r.palabra.toLowerCase()} </span>}
-                  <span style={{ color: '#1a1a18' }}>{r.referencia_titulo || r.texto || r.referencia_id}</span>
+                  {/* texto primero: el BOE da ahí la frase exacta —"la
+                      disposición final 7 del Real Decreto 611/2026"— y el
+                      título completo solo cuando no hay texto. Al revés se
+                      perdía la parte que dice QUÉ se modifica. */}
+                  <span style={{ color: '#1a1a18' }}>{r.texto || r.referencia_titulo || r.referencia_id}</span>
                 </div>
               );
               return r.tenemos_ficha && r.referencia_slug ? (
