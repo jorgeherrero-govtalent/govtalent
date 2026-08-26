@@ -1,15 +1,23 @@
 // =====================================================================
-// CORREO — resumen semanal de seguimiento
+// CORREO — resumen semanal
 // app/api/alerts/weekly/route.js
 //
-// Se ejecuta los lunes por la mañana. Manda a cada usuario lo que se ha
-// movido en lo que sigue: plazos que se acercan y cambios detectados.
+// Se ejecuta los lunes por la mañana y va A TODOS los usuarios, sigan
+// algo o no. Antes solo salía si tenías seguimientos y además se habían
+// movido; con eso, quien está en Free —que no puede seguir ni tener
+// alertas— no recibía nunca nada.
 //
-// SOLO LO SUYO, no un boletín general. Si mandas lo mismo a todo el
-// mundo es una circular; si mandas lo que sigue cada uno, es una alerta.
+// QUÉ LLEVA, EN ESTE ORDEN:
+//   1. Plazos de lo que sigues (solo si sigues algo)
+//   2. Novedades de lo que sigues
+//   3. Lo publicado en el BOE esta semana, de tus temas
 //
-// NO SE MANDA SI NO HAY NADA. Un correo semanal que dice "esta semana no
-// ha pasado nada" es exactamente lo que hace que la gente se dé de baja.
+// El tercer bloque es la base y nunca está vacío: el BOE publica a
+// diario. Los dos primeros son el extra de quien tiene seguimientos.
+//
+// SIGUE SIN MANDARSE SI NO HAY ABSOLUTAMENTE NADA —fin de semana largo,
+// agosto cerrado—, porque un correo que dice "no ha pasado nada" es lo
+// que hace que la gente se dé de baja. Pero eso ahora es raro.
 //
 // alert_deliveries evita mandar dos veces el mismo evento: si el proceso
 // se reintenta, nadie recibe repetido.
@@ -94,9 +102,17 @@ export async function GET(request) {
     }
 
     informe.usuarios_con_seguimiento = porUsuario.size;
-    if (porUsuario.size === 0) {
-      return NextResponse.json({ ...informe, nota: 'Nadie sigue nada todavía.', ms_total: Date.now() - t0 });
-    }
+
+    // El destinatario ya no es "quien sigue algo" sino todo el mundo: el
+    // bloque del BOE se envía sigas o no, que es lo que hace que un
+    // usuario Free reciba algo.
+    let qu = supabase
+      .from('users')
+      .select('id, email, first_name')
+      .not('email', 'is', null);
+    if (soloUsuario) qu = qu.eq('id', soloUsuario);
+    const { data: todosLosUsuarios, error: errU } = await qu;
+    if (errU) throw new Error(`No se pudieron leer los usuarios: ${errU.message}`);
 
     // Los eventos de la ventana, de todo lo seguido
     const refs = [...new Set((seguimientos || []).map((f) => f.ref_id))];
@@ -107,6 +123,28 @@ export async function GET(request) {
       .in('ref_id', refs.slice(0, 1000))
       .order('occurred_at', { ascending: false });
     if (errE) throw new Error(`No se pudieron leer los eventos: ${errE.message}`);
+
+    // Lo publicado en el BOE durante la ventana. Se pide una vez para
+    // todos y luego se filtra por los temas de cada uno.
+    const { data: boeSemana } = await supabase
+      .from('boe_directory')
+      .select('id, slug, titulo, departamento, rango, sector, sectores, fecha_publicacion')
+      .gte('fecha_publicacion', desde.slice(0, 10))
+      .order('fecha_publicacion', { ascending: false })
+      .limit(200);
+
+    // Los temas de cada usuario, con sus palabras clave: es lo que
+    // decide qué parte del BOE le toca.
+    const { data: temasUsuario } = await supabase
+      .from('user_topics')
+      .select('user_id, topics(id, label, keywords)');
+
+    const temasDe = new Map();
+    for (const t of temasUsuario || []) {
+      if (!t.topics) continue;
+      if (!temasDe.has(t.user_id)) temasDe.set(t.user_id, []);
+      temasDe.get(t.user_id).push(t.topics);
+    }
 
     // Lo ya enviado, para no repetir
     const { data: enviados } = await supabase
@@ -119,40 +157,30 @@ export async function GET(request) {
     const { data: prefs } = await supabase.from('alert_preferences').select('user_id, frequency, email');
     const prefDe = new Map((prefs || []).map((p) => [p.user_id, p]));
 
-    // Los correos. Se piden en bloque para no consultar uno a uno.
-    const { data: usuarios } = await supabase
-      .from('users')
-      .select('id, email, first_name')
-      .in('id', [...porUsuario.keys()]);
-    const datosDe = new Map((usuarios || []).map((u) => [u.id, u]));
 
     const resultados = [];
     let enviadosOk = 0;
     let sinNada = 0;
     const entregas = [];
 
-    for (const [userId, sigue] of porUsuario) {
+    for (const u of todosLosUsuarios || []) {
       if (Date.now() - t0 > PRESUPUESTO_MS) {
         informe.cortado_por_tiempo = true;
         break;
       }
 
+      const userId = u.id;
+      const sigue = porUsuario.get(userId) || [];
+
       const pref = prefDe.get(userId);
       if (pref && (pref.email === false || pref.frequency === 'ninguno')) continue;
-
-      const u = datosDe.get(userId);
-      if (!u?.email) continue;
+      if (!u.email) continue;
 
       // Los eventos de lo que sigue esta persona, sin los ya enviados
       const claves = new Set(sigue.map((f) => `${f.kind}|${f.ref_id}`));
       const suyos = (eventos || []).filter(
         (e) => claves.has(`${e.kind}|${e.ref_id}`) && !yaEnviado.has(`${userId}|${e.id}`)
       );
-
-      if (suyos.length === 0) {
-        sinNada += 1;
-        continue;
-      }
 
       // Los plazos se separan de las novedades: son lo más urgente y van
       // primero, con su contador de días.
@@ -176,10 +204,39 @@ export async function GET(request) {
       }
       plazos.sort((a, b) => a.dias - b.dias);
 
+      // El BOE de la semana, filtrado por los temas de esta persona. Si
+      // no tiene temas se manda lo de secciones I y II, que es lo que
+      // afecta a cualquiera del sector.
+      const misTemas = temasDe.get(userId) || [];
+      const palabras = misTemas.flatMap((t) => (t.keywords || []).map((k) => k.toLowerCase()));
+
+      const publicado = (boeSemana || [])
+        .filter((d) => {
+          if (palabras.length === 0) return true;
+          const titulo = String(d.titulo || '').toLowerCase();
+          // Palabra completa, no trozo: sin esto "gas" pescaría "gastos".
+          return palabras.some((p) => new RegExp(`\\b${p.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`).test(titulo));
+        })
+        .slice(0, 6)
+        .map((d) => ({
+          title: d.titulo,
+          detail: [d.rango, d.departamento].filter(Boolean).join(' · '),
+          ruta: `/boe/${d.slug}`,
+          sector: d.sector || null,
+        }));
+
+      // Solo se salta a quien no tiene absolutamente nada: ni plazos, ni
+      // novedades, ni BOE. Con el BOE publicando a diario, eso es raro.
+      if (plazos.length === 0 && novedades.length === 0 && publicado.length === 0) {
+        sinNada += 1;
+        continue;
+      }
+
       const { subject, html } = weeklyDigestEmail({
         firstName: u.first_name || '',
         novedades: novedades.slice(0, 8),
         plazos: plazos.slice(0, 6),
+        publicado,
         totalSeguidos: sigue.length,
         unsubscribeUrl: `${SITE_URL}/seguimiento?ajustes=1`,
       });
@@ -190,6 +247,7 @@ export async function GET(request) {
         subject,
         plazos: plazos.length,
         novedades: novedades.length,
+        publicado: publicado.length,
       });
 
       if (!dry) {
@@ -204,8 +262,10 @@ export async function GET(request) {
     }
 
     informe.eventos_en_ventana = (eventos || []).length;
+    informe.usuarios_totales = (todosLosUsuarios || []).length;
+    informe.boe_en_ventana = (boeSemana || []).length;
     informe.destinatarios = resultados.length;
-    informe.sin_novedades = sinNada;
+    informe.sin_nada = sinNada;
 
     if (dry) {
       informe.muestra = resultados.slice(0, 5);
