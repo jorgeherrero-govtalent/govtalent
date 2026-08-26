@@ -47,6 +47,12 @@ export default function BoeDetailPage() {
 
   const [item, setItem] = useState(undefined);
   const [referencias, setReferencias] = useState([]);
+
+  // "anterior" es lo que esta norma modifica; "posterior" es lo que la
+  // modifica a ella después. Mezclarlas bajo "sobre qué normas actúa"
+  // decía lo contrario de lo que pasa.
+  const actuaSobre = referencias.filter((r) => r.direccion !== 'posterior');
+  const laModifican = referencias.filter((r) => r.direccion === 'posterior');
   const [delSector, setDelSector] = useState([]);
   const [delMinisterio, setDelMinisterio] = useState([]);
 
@@ -193,10 +199,10 @@ export default function BoeDetailPage() {
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: 12, marginBottom: 12 }}>
-        {referencias.length > 0 && (
+        {(actuaSobre.length > 0 || laModifican.length > 0) && (
           <div style={{ ...CARD, padding: 18 }}>
-            <div style={LABEL}>SOBRE QUÉ NORMAS ACTÚA</div>
-            {referencias.slice(0, 5).map((r, i) => {
+            {actuaSobre.length > 0 && <div style={LABEL}>SOBRE QUÉ NORMAS ACTÚA</div>}
+            {actuaSobre.slice(0, 5).map((r, i) => {
               const cuerpo = (
                 <div style={{ fontSize: 12.5, lineHeight: 1.5 }}>
                   {r.palabra && <span style={{ color: '#a8a49c' }}>{r.palabra.toLowerCase()} </span>}
@@ -205,6 +211,15 @@ export default function BoeDetailPage() {
                       título completo solo cuando no hay texto. Al revés se
                       perdía la parte que dice QUÉ se modifica. */}
                   <span style={{ color: '#1a1a18' }}>{r.texto || r.referencia_titulo || r.referencia_id}</span>
+                  {/* De qué va la norma modificada y de quién depende: sin
+                      esto hay que abrir el enlace para saber que el Real
+                      Decreto 611/2026 es de descarbonización. */}
+                  {r.texto && r.referencia_titulo && (
+                    <div style={{ fontSize: 11.5, color: '#a8a49c', marginTop: 3, lineHeight: 1.45 }}>
+                      {r.referencia_titulo}
+                      {r.referencia_departamento ? ` · ${r.referencia_departamento}` : ''}
+                    </div>
+                  )}
                 </div>
               );
               return r.tenemos_ficha && r.referencia_slug ? (
@@ -221,8 +236,43 @@ export default function BoeDetailPage() {
                 </div>
               );
             })}
-            {referencias.length > 5 && (
-              <div style={{ fontSize: 11, color: '#a8a49c', paddingTop: 9 }}>Y {referencias.length - 5} más.</div>
+            {actuaSobre.length > 5 && (
+              <div style={{ fontSize: 11, color: '#a8a49c', paddingTop: 9 }}>Y {actuaSobre.length - 5} más.</div>
+            )}
+
+            {/* Lo que la modifica a ella, en su propio apartado. Saber que
+                una norma ya no está como se publicó es tan importante como
+                saber a qué afecta. */}
+            {laModifican.length > 0 && (
+              <div
+                style={
+                  actuaSobre.length > 0
+                    ? { borderTop: '.5px solid #e0dfd8', marginTop: 14, paddingTop: 14 }
+                    : {}
+                }
+              >
+                <div style={LABEL}>MODIFICADA DESPUÉS POR</div>
+                {laModifican.slice(0, 4).map((r, i) => {
+                  const linea = (
+                    <div style={{ fontSize: 12.5, lineHeight: 1.5 }}>
+                      <span style={{ color: '#1a1a18' }}>{r.referencia_titulo || r.texto || r.referencia_id}</span>
+                    </div>
+                  );
+                  return r.tenemos_ficha && r.referencia_slug ? (
+                    <Link
+                      key={`post-${r.referencia_id}-${i}`}
+                      href={`/boe/${r.referencia_slug}`}
+                      style={{ display: 'block', padding: '7px 0', textDecoration: 'none' }}
+                    >
+                      {linea}
+                    </Link>
+                  ) : (
+                    <div key={`post-${r.referencia_id}-${i}`} style={{ padding: '7px 0' }}>
+                      {linea}
+                    </div>
+                  );
+                })}
+              </div>
             )}
           </div>
         )}
