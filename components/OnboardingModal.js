@@ -20,12 +20,8 @@ import {
  *    organización también es un profesional del sector, y obligarle a
  *    elegir le hacía escoger una mitad de sí mismo. Además chocaba con
  *    la navegación: ahí la organización es un contexto que añades, no un
- *    tipo de usuario.
- *
- *    Tampoco hay atajo aquí para quien viene a contratar: el menú ya
- *    ofrece "Anuncia un empleo gratis" nada más entrar, y resolver lo
- *    mismo dos veces solo añade una opción que no responde a la pregunta
- *    de esa pantalla.
+ *    tipo de usuario. El acceso al lado de organización vive en el menú
+ *    de la esquina, que ya lo ofrece nada más entrar.
  *
  * 2. Los temas van a topics/user_topics y generan el perfil de sector.
  *    Antes se guardaban en user_work_areas y user_interest_areas, que no
@@ -70,7 +66,6 @@ export default function OnboardingModal({ userId, onComplete }) {
     org_type: '',
     role_type: '',
     level_type: '',
-    looking_for_job: false,
   });
 
   useEffect(() => {
@@ -139,7 +134,6 @@ export default function OnboardingModal({ userId, onComplete }) {
         last_name: form.last_name.trim(),
         professional_title: form.professional_title.trim() || null,
         location: form.location.trim() || null,
-        looking_for_job: form.looking_for_job,
         onboarding_completed: true,
       })
       .eq('id', userId);
@@ -467,7 +461,7 @@ export default function OnboardingModal({ userId, onComplete }) {
                 disabled={guardando}
                 style={botonPrincipal}
               >
-                {conDetalle ? 'Continuar' : guardando ? 'Guardando…' : 'Entrar en GovTalent'}
+                {conDetalle ? 'Continuar' : guardando ? 'Guardando…' : 'Empezar'}
               </button>
             </>
           )}
@@ -475,68 +469,17 @@ export default function OnboardingModal({ userId, onComplete }) {
           {/* ---------------- Paso 3: dónde estás ---------------- */}
           {paso === 3 && (
             <>
-              <h2 style={{ fontSize: 20, fontWeight: 600, marginBottom: 4 }}>Para terminar, dónde estás</h2>
+              <h2 style={{ fontSize: 20, fontWeight: 600, marginBottom: 4 }}>Tu contexto profesional</h2>
               <p style={{ fontSize: 13, color: '#888', marginBottom: 20 }}>
-                Nos sirve para comparar tu perfil con el del sector.
+                Con estos datos ajustamos el contenido que te mostramos.
               </p>
 
               <Grupo titulo="Tipo de organización" opciones={ORG_TYPES} valor={form.org_type} campo="org_type" />
               <Grupo titulo="Tu función" opciones={ROLE_TYPES} valor={form.role_type} campo="role_type" />
-              <Grupo titulo="Tu nivel" opciones={LEVEL_TYPES} valor={form.level_type} campo="level_type" />
-
-              <div
-                style={{
-                  borderTop: `.5px solid ${BORDE}`,
-                  paddingTop: 16,
-                  display: 'flex',
-                  gap: 11,
-                  alignItems: 'flex-start',
-                }}
-              >
-                <button
-                  type="button"
-                  role="switch"
-                  aria-checked={form.looking_for_job}
-                  onClick={() => setForm((f) => ({ ...f, looking_for_job: !f.looking_for_job }))}
-                  style={{
-                    width: 34,
-                    height: 20,
-                    borderRadius: 20,
-                    border: 'none',
-                    flexShrink: 0,
-                    marginTop: 1,
-                    position: 'relative',
-                    cursor: 'pointer',
-                    background: form.looking_for_job ? VERDE : '#d5d3c9',
-                    transition: 'background .15s ease',
-                  }}
-                >
-                  <span
-                    style={{
-                      position: 'absolute',
-                      top: 2,
-                      left: form.looking_for_job ? 16 : 2,
-                      width: 16,
-                      height: 16,
-                      borderRadius: '50%',
-                      background: '#fff',
-                      transition: 'left .15s ease',
-                    }}
-                  ></span>
-                </button>
-                <div>
-                  <div style={{ fontSize: 12.5 }}>Estoy abierto a oportunidades profesionales</div>
-                  {/* Sin esta línea, "abierto a oportunidades" suena a que
-                      tu jefe puede enterarse, que es lo que frena a los
-                      perfiles sénior. */}
-                  <div style={{ fontSize: 11.5, color: '#888', marginTop: 2 }}>
-                    Solo lo ven las organizaciones cuando te postulas. Nadie más.
-                  </div>
-                </div>
-              </div>
+              <Grupo titulo="Rol" opciones={LEVEL_TYPES} valor={form.level_type} campo="level_type" />
 
               <button type="button" onClick={terminar} disabled={guardando} style={botonPrincipal}>
-                {guardando ? 'Guardando…' : 'Entrar en GovTalent'}
+                {guardando ? 'Guardando…' : 'Empezar'}
               </button>
             </>
           )}
