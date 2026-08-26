@@ -227,6 +227,35 @@ export default function InstitutionsHomePage() {
           donde el usuario va— por debajo del pliegue. */}
 
       <div style={{ marginBottom: 24 }}>
+        <SectionTitle flag={<FlagEU />}>Unión Europea</SectionTitle>
+        <div style={GRID}>
+          <ModuleCard
+            href="/institutions/eu-parliament"
+            icon="building-arch"
+            title="Parlamento Europeo"
+            description="Eurodiputados, comisiones, grupos políticos y órganos de gobierno."
+            cta="Explorar Parlamento Europeo"
+            cifras={[
+              { n: counts?.meps ?? null, label: 'eurodiputados' },
+              { n: counts?.euCommittees ?? null, label: 'comisiones' },
+            ]}
+          />
+          <ModuleCard
+            href="/institutions/eu-commission"
+            icon="briefcase"
+            title="Comisión Europea"
+            description="Comisarios, gabinetes, direcciones generales y jefes de unidad."
+            cta="Explorar Comisión Europea"
+            cifras={[
+              { n: counts?.commissioners ?? null, label: 'comisarios' },
+              { n: counts?.ecPeople ?? null, label: 'decisores' },
+            ]}
+          />
+        </div>
+        <Proximamente items={['Consejo Europeo']} />
+      </div>
+
+      <div>
         <SectionTitle flag={<FlagES />}>España</SectionTitle>
         <div style={GRID}>
           <ModuleCard
@@ -260,35 +289,6 @@ export default function InstitutionsHomePage() {
           />
         </div>
         <Proximamente items={['Senado', 'Organismos y entidades']} />
-      </div>
-
-      <div>
-        <SectionTitle flag={<FlagEU />}>Unión Europea</SectionTitle>
-        <div style={GRID}>
-          <ModuleCard
-            href="/institutions/eu-parliament"
-            icon="building-arch"
-            title="Parlamento Europeo"
-            description="Eurodiputados, comisiones, grupos políticos y órganos de gobierno."
-            cta="Explorar Parlamento Europeo"
-            cifras={[
-              { n: counts?.meps ?? null, label: 'eurodiputados' },
-              { n: counts?.euCommittees ?? null, label: 'comisiones' },
-            ]}
-          />
-          <ModuleCard
-            href="/institutions/eu-commission"
-            icon="briefcase"
-            title="Comisión Europea"
-            description="Comisarios, gabinetes, direcciones generales y jefes de unidad."
-            cta="Explorar Comisión Europea"
-            cifras={[
-              { n: counts?.commissioners ?? null, label: 'comisarios' },
-              { n: counts?.ecPeople ?? null, label: 'decisores' },
-            ]}
-          />
-        </div>
-        <Proximamente items={['Consejo Europeo']} />
       </div>
     </div>
   );
