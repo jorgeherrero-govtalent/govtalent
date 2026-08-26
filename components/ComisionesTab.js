@@ -216,11 +216,42 @@ export default function ComisionesTab() {
                 }}
               >
                 <div style={{ marginBottom: 13 }}>
+                  {/* El tipo sube a distintivo: legislativa o no es la
+                      primera pregunta, no una coletilla del recuento. */}
+                  {c.tipo_label && (
+                    <div
+                      style={{
+                        display: 'inline-block',
+                        fontSize: 10.5,
+                        borderRadius: 20,
+                        padding: '2px 9px',
+                        marginBottom: 8,
+                        background: c.legislativa ? '#f0eefe' : '#f0f0eb',
+                        color: c.legislativa ? '#3c3489' : '#7a736b',
+                      }}
+                    >
+                      {c.tipo_label}
+                    </div>
+                  )}
                   <div style={{ fontSize: 14, fontWeight: 600, lineHeight: 1.35 }}>{c.name}</div>
-                  <div style={{ fontSize: 11, color: '#999', marginTop: 3 }}>
-                    {c.n_members} miembros · {c.tipo_label || c.kind}
-                    {c.n_senadores > 0 && ` · ${c.n_senadores} del Senado`}
-                  </div>
+
+                  {/* El reparto por grupos: dice dónde están los votos, que
+                      es lo que se viene a mirar. Sin los del Senado, que en
+                      una mixta desvirtúan el peso de lo que se vota aquí. */}
+                  {Array.isArray(c.reparto) && c.reparto.length > 0 && (
+                    <div style={{ display: 'flex', height: 5, borderRadius: 3, overflow: 'hidden', marginTop: 11 }}>
+                      {c.reparto.map((g) => (
+                        <span
+                          key={g.sigla}
+                          title={`${nombreSigla(g.sigla)} · ${g.n}`}
+                          style={{
+                            background: colorSigla(g.sigla),
+                            width: `${(g.n / c.reparto.reduce((t, x) => t + x.n, 0)) * 100}%`,
+                          }}
+                        ></span>
+                      ))}
+                    </div>
+                  )}
                 </div>
 
                 {c.presidente && (
