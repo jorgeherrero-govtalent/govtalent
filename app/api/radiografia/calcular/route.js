@@ -34,9 +34,11 @@ const ORG_TYPE_MAS_COMUN = 'empresa_privada';
 // Tabla 14 del informe: nivel de puesto más común, por tipo de organización.
 // Solo se rellenan los tipos donde tenemos el dato real confirmado; el resto
 // se deja fuera del cálculo del criterio 5 (no se adivina).
+// Actualizada a las seis categorías literales del estudio (pregunta Q8):
+// 'consultor' pasó a 'consultor_senior' y 'directivo' a 'director'.
 const NIVEL_MAS_COMUN_POR_ORG = {
-  consultora: 'consultor',
-  empresa_privada: 'directivo',
+  consultora: 'consultor_senior',
+  empresa_privada: 'director',
 };
 
 // Palabras clave por rol — extraídas del listado real de ~150 cargos del
@@ -151,7 +153,7 @@ export async function GET() {
       id: 'nivel_puesto',
       peso: 15,
       cumplido: profile.level_type === nivelEsperado,
-      label: 'Tu nivel de puesto coincide con el más habitual en tu tipo de organización',
+      label: 'Tu perfil coincide con el más habitual en tu tipo de organización',
       detalle: null,
     });
   }
