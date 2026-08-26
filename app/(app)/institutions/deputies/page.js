@@ -47,14 +47,17 @@ function DeputiesDirectoryInner() {
         .then(({ data }) => data && setSavedIds(new Set(data.map((r) => r.deputy_id))));
     }
 
-    const [{ data: deputiesData }, { data: groupsData }, { data: rolesData }, { data: comisionesData }] = await Promise.all([
+    const [{ data: deputiesData }, { data: groupsData }, { data: comisionesData }] = await Promise.all([
       supabase
         .from('deputies')
         .select('id, full_name, first_name, last_name, slug, constituency, photo_url, parliamentary_group_id')
         .eq('active', true)
         .order('last_name', { ascending: true }),
       supabase.from('parliamentary_groups').select('id, name, short_name').eq('active', true).order('member_count', { ascending: false }),
-      supabase.from('deputy_roles').select('deputy_id, role, parliamentary_body_id, parliamentary_bodies(name)').eq('active', true),
+      // deputy_roles cuelga de parliamentary_bodies, que nunca se llegó a
+      // cargar: las dos columnas que alimentaba —cargo y comisiones—
+      // salían vacías en las 350 filas. Ahora se derivan de las
+      // comisiones reales, que sí tienen datos.
       // Las comisiones vienen de es_committee_members, no de
       // parliamentary_bodies: esa tabla se diseñó para esto pero nunca
       // se llegó a cargar.
@@ -69,12 +72,28 @@ function DeputiesDirectoryInner() {
     setDeputies(deputiesData || []);
     setGroups(groupsData || []);
 
-    // Un diputado puede tener varios cargos — nos quedamos con uno para la
-    // columna "Cargo principal" y listamos las comisiones aparte.
+    // El cargo de más peso que tiene en alguna comisión. Presidir pesa
+    // más que una portavocía, y esta más que una vocalía: es el orden en
+    // que alguien de asuntos públicos busca a un diputado.
+    const PESO = [
+      [/^presidenc?i|^president/i, 1, 'Preside'],
+      [/^vicepresiden/i, 2, 'Vicepreside'],
+      [/^secretari/i, 3, 'Secretario/a de'],
+      [/^portavoc/i, 4, 'Portavoz en'],
+    ];
+
     const byDeputy = {};
-    for (const r of rolesData || []) {
-      if (!byDeputy[r.deputy_id]) byDeputy[r.deputy_id] = { mainRole: r.role, bodies: [] };
-      if (r.parliamentary_bodies?.name) byDeputy[r.deputy_id].bodies.push(r.parliamentary_bodies.name);
+    for (const c of comisionesData || []) {
+      if (!byDeputy[c.deputy_id]) byDeputy[c.deputy_id] = { mainRole: null, peso: 99, bodies: [] };
+      const reg = byDeputy[c.deputy_id];
+      reg.bodies.push(c.committee_name);
+
+      const hit = PESO.find(([re]) => re.test((c.cargo_norm || '').trim()));
+      if (hit && hit[1] < reg.peso) {
+        reg.peso = hit[1];
+        // "Preside Sanidad" en vez de "Presidenta": dice qué hace y dónde.
+        reg.mainRole = `${hit[2]} ${c.committee_name.replace(/^Comisión (Mixta )?(de |del |para )?/i, '')}`;
+      }
     }
     setRolesByDeputy(byDeputy);
 
@@ -410,7 +429,16 @@ function DeputiesDirectoryInner() {
                 <div style={{ background: '#f0f0eb' }}></div>
                 <div style={{ fontSize: 12, color: '#666', textAlign: 'center' }}>{role?.mainRole || '—'}</div>
                 <div style={{ background: '#f0f0eb' }}></div>
-                <div style={{ fontSize: 11.5, color: '#888', textAlign: 'center' }}>{role?.bodies.join(', ') || '—'}</div>
+                {/* Dos y el resto contadas: un diputado puede estar en
+                    ocho comisiones y la fila se haría ilegible. */}
+                <div style={{ fontSize: 11.5, color: '#888', textAlign: 'center' }}>
+                  {role?.bodies?.length
+                    ? role.bodies
+                        .slice(0, 2)
+                        .map((b) => b.replace(/^Comisión (Mixta )?(de |del |para )?/i, ''))
+                        .join(', ') + (role.bodies.length > 2 ? ` +${role.bodies.length - 2}` : '')
+                    : '—'}
+                </div>
                 <div style={{ background: '#f0f0eb' }}></div>
                 <i className="ti ti-chevron-right" style={{ color: '#ccc', fontSize: 14 }}></i>
               </Link>
