@@ -6,109 +6,243 @@ import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
 import MultiSelectFilter from '@/components/MultiSelectFilter';
 
-const PAGE_SIZE = 10;
+// Color por grupo. Con 9 grupos la sigla sola no basta para reconocerlos
+// de un vistazo; el cuadrito de color sí. Mismo criterio que en el
+// Parlamento Europeo.
+const GROUP_COLORS = {
+  PP: '#378ADD',
+  PSOE: '#E24B4A',
+  VOX: '#639922',
+  SUMAR: '#D4537E',
+  ERC: '#BA7517',
+  Junts: '#1D9E75',
+  'EH Bildu': '#D85A30',
+  PNV: '#7F77DD',
+  Mixto: '#888780',
+};
 
-function initials(fullName) {
-  const [last, first] = fullName.split(',').map((s) => s.trim());
-  return `${(first || '')[0] || ''}${(last || '')[0] || ''}`.toUpperCase();
+// El nombre oficial del grupo ("Grupo Parlamentario Popular en el
+// Congreso") no cabe en una celda. La sigla se deriva del nombre y no de
+// short_name para garantizar que siempre casa con GROUP_COLORS.
+const GROUP_MATCHERS = [
+  [/socialista/i, 'PSOE'],
+  [/popular/i, 'PP'],
+  [/vox/i, 'VOX'],
+  [/sumar/i, 'SUMAR'],
+  [/republicano|esquerra/i, 'ERC'],
+  [/junts/i, 'Junts'],
+  [/bildu/i, 'EH Bildu'],
+  [/vasco|eaj|pnv/i, 'PNV'],
+  [/mixto/i, 'Mixto'],
+];
+
+const PAGE_SIZES = [20, 50, 100, 200];
+
+function normalize(t) {
+  return (t || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
 }
+
+function groupCode(g) {
+  if (!g) return null;
+  const hit = GROUP_MATCHERS.find(([re]) => re.test(g.name || ''));
+  return hit ? hit[1] : g.short_name || (g.name || '').replace(/^Grupo Parlamentario\s*/i, '') || null;
+}
+
+// "Abades Martínez, Cristina" -> "Cristina Abades Martínez"
+function fullNameDisplay(officialName) {
+  const [last, first] = (officialName || '').split(',').map((s) => s.trim());
+  return first ? `${first} ${last}` : officialName || '';
+}
+
+// El prefijo del nombre oficial de la comisión se repite en las 40 filas
+// de la columna y no aporta nada. La versión anterior de esta expresión
+// solo contemplaba "de|del|para" y dejaba fragmentos rotos: "Comisión
+// sobre Seguridad Vial" salía como "sobre Seguridad Vial" y "Comisión
+// para el Estudio de los Problemas de las Adicciones" como "el Estudio
+// de los Problemas...". Se contemplan también "sobre" y el artículo que
+// puede seguir a la preposición.
+function cleanCommittee(name) {
+  return (name || '')
+    .replace(/^Comisi[oó]n\s+(Mixta\s+)?(?:(?:de|del|para|sobre)\s+(?:el|la|los|las)\s+|(?:de|del|para|sobre)\s+)?/i, '')
+    .trim();
+}
+
+// El cargo de más peso que alguien puede tener en una comisión. Presidir
+// pesa más que una portavocía, y esta más que una vocalía: es el orden en
+// que alguien de asuntos públicos busca a un diputado. Los vocales no
+// llevan etiqueta —son la mayoría de los 350 y repetir "Vocal" en casi
+// todas las filas taparía a los que sí tienen un cargo relevante.
+const PESO = [
+  [/^presidenc?i|^president/i, 1, 'Presidencia'],
+  [/^vicepresiden/i, 2, 'Vicepresidencia'],
+  [/^secretari/i, 3, 'Secretaría'],
+  [/^portavoc/i, 4, 'Portavocía'],
+];
+
+function pesoDe(cargo) {
+  const hit = PESO.find(([re]) => re.test((cargo || '').trim()));
+  return hit ? { peso: hit[1], label: hit[2] } : { peso: 99, label: null };
+}
+
+// Foto con reserva de espacio y respaldo a iniciales: sin width/height
+// fijos las filas bailan mientras cargan, y alguna URL acabará dando 404
+// antes o después.
+function Photo({ url, name, size = 36, radius = 8 }) {
+  const [failed, setFailed] = useState(false);
+  const initials = normalize(name)
+    .split(' ')
+    .filter(Boolean)
+    .map((p) => p[0])
+    .slice(0, 2)
+    .join('')
+    .toUpperCase();
+
+  const base = {
+    width: size,
+    height: size,
+    borderRadius: radius,
+    flexShrink: 0,
+    objectFit: 'cover',
+    background: '#ece9e2',
+  };
+
+  if (!url || failed) {
+    return (
+      <div
+        style={{
+          ...base,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          color: '#8d8b83',
+          fontSize: Math.round(size * 0.32),
+          fontWeight: 600,
+        }}
+        aria-hidden="true"
+      >
+        {initials}
+      </div>
+    );
+  }
+  return <img src={url} alt="" width={size} height={size} style={base} onError={() => setFailed(true)} />;
+}
+
+function GroupTag({ code }) {
+  if (!code) return <span style={{ fontSize: 11.5, color: '#aaa' }}>—</span>;
+  return (
+    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 7 }}>
+      <span
+        style={{
+          width: 9,
+          height: 9,
+          borderRadius: 2,
+          background: GROUP_COLORS[code] || '#888780',
+          flexShrink: 0,
+        }}
+      />
+      <span style={{ fontSize: 11.5, color: '#555' }}>{code}</span>
+    </span>
+  );
+}
+
+// Máximo 2 comisiones por fila: con 4 o 5 la tabla se descuadra. Las que
+// llevan cargo van primero y en tono fuerte.
+function Committees({ list }) {
+  if (!list || list.length === 0) return <span style={{ fontSize: 11.5, color: '#ccc' }}>—</span>;
+  const shown = list.slice(0, 2);
+  const rest = list.length - shown.length;
+  return (
+    <div style={{ fontSize: 11.5, lineHeight: 1.5 }}>
+      {shown.map((c, i) => (
+        <div key={i} style={{ color: c.label ? '#555' : '#999' }}>
+          {c.nombre}
+          {c.label ? <span style={{ color: '#aaa' }}> · {c.label}</span> : ''}
+        </div>
+      ))}
+      {rest > 0 && <div style={{ color: '#aaa' }}>+{rest} más</div>}
+    </div>
+  );
+}
+
+const GRID = '1.7fr .9fr 1.5fr 28px';
 
 function DeputiesDirectoryInner() {
   const supabase = createClient();
   const searchParams = useSearchParams();
 
   const [deputies, setDeputies] = useState(null);
-  const [comisionesPorDiputado, setComisionesPorDiputado] = useState({});
-  const [comisionFilter, setComisionFilter] = useState(new Set());
   const [groups, setGroups] = useState([]);
-  const [rolesByDeputy, setRolesByDeputy] = useState({});
-  const [userId, setUserId] = useState(null);
-  const [savedIds, setSavedIds] = useState(new Set());
+  const [comisionesPorDiputado, setComisionesPorDiputado] = useState({});
 
   const [search, setSearch] = useState(searchParams.get('q') || '');
   const [groupFilter, setGroupFilter] = useState(new Set());
   const [constituencyFilter, setConstituencyFilter] = useState(new Set());
-  const [view, setView] = useState('grid');
-  const [page, setPage] = useState(0);
+  const [comisionFilter, setComisionFilter] = useState(new Set());
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(20);
 
   useEffect(() => {
     load();
+    const saved = parseInt(window.localStorage.getItem('gt_page_size') || '20', 10);
+    if (PAGE_SIZES.includes(saved)) setPageSize(saved);
   }, []);
 
-  async function load() {
-    const { data: authData } = await supabase.auth.getUser();
-    const uid = authData.user?.id;
-    if (uid) {
-      setUserId(uid);
-      supabase
-        .from('saved_deputies')
-        .select('deputy_id')
-        .eq('user_id', uid)
-        .then(({ data }) => data && setSavedIds(new Set(data.map((r) => r.deputy_id))));
-    }
+  function changePageSize(n) {
+    setPageSize(n);
+    setPage(1); // sin esto, estar en la página 15 con 20 filas y saltar a 200 deja la tabla vacía
+    try {
+      window.localStorage.setItem('gt_page_size', String(n));
+    } catch {}
+  }
 
+  async function load() {
     const [{ data: deputiesData }, { data: groupsData }, { data: comisionesData }] = await Promise.all([
       supabase
         .from('deputies')
         .select('id, full_name, first_name, last_name, slug, constituency, photo_url, parliamentary_group_id')
         .eq('active', true)
         .order('last_name', { ascending: true }),
-      supabase.from('parliamentary_groups').select('id, name, short_name').eq('active', true).order('member_count', { ascending: false }),
-      // deputy_roles cuelga de parliamentary_bodies, que nunca se llegó a
-      // cargar: las dos columnas que alimentaba —cargo y comisiones—
-      // salían vacías en las 350 filas. Ahora se derivan de las
-      // comisiones reales, que sí tienen datos.
-      // Las comisiones vienen de es_committee_members, no de
-      // parliamentary_bodies: esa tabla se diseñó para esto pero nunca
-      // se llegó a cargar.
-      //
-      // En bloques de mil: Supabase devuelve como máximo esa cantidad por
-      // consulta, y aquí hay más de dos mil filas. Sin paginar, la lista
-      // llegaba cortada por la mitad y a los diputados de las comisiones
-      // que quedaban fuera les salía la columna vacía.
+      supabase
+        .from('parliamentary_groups')
+        .select('id, name, short_name')
+        .eq('active', true)
+        .order('member_count', { ascending: false }),
+      // Las comisiones vienen de es_committee_people, no de
+      // parliamentary_bodies: esa tabla se diseñó para esto pero nunca se
+      // llegó a cargar.
       traerTodas(),
     ]);
 
     setDeputies(deputiesData || []);
     setGroups(groupsData || []);
 
-    // El cargo de más peso que tiene en alguna comisión. Presidir pesa
-    // más que una portavocía, y esta más que una vocalía: es el orden en
-    // que alguien de asuntos públicos busca a un diputado.
-    const PESO = [
-      [/^presidenc?i|^president/i, 1, 'Preside'],
-      [/^vicepresiden/i, 2, 'Vicepreside'],
-      [/^secretari/i, 3, 'Secretario/a de'],
-      [/^portavoc/i, 4, 'Portavoz en'],
-    ];
-
-    const byDeputy = {};
-    for (const c of comisionesData || []) {
-      if (!byDeputy[c.deputy_id]) byDeputy[c.deputy_id] = { mainRole: null, peso: 99, bodies: [] };
-      const reg = byDeputy[c.deputy_id];
-      reg.bodies.push(c.committee_name);
-
-      const hit = PESO.find(([re]) => re.test((c.cargo_norm || '').trim()));
-      if (hit && hit[1] < reg.peso) {
-        reg.peso = hit[1];
-        // "Preside Sanidad" en vez de "Presidenta": dice qué hace y dónde.
-        reg.mainRole = `${hit[2]} ${c.committee_name.replace(/^Comisión (Mixta )?(de |del |para )?/i, '')}`;
-      }
-    }
-    setRolesByDeputy(byDeputy);
-
-    // Un diputado suele estar en varias comisiones: se guarda la lista
-    // para poder filtrar y mostrarla en su tarjeta.
+    // Una sola estructura por diputado: la lista de comisiones ya
+    // limpia, deduplicada y ordenada por peso del cargo. Antes había dos
+    // (rolesByDeputy y comisionesPorDiputado) y la tarjeta pintaba el
+    // cargo de una y un elemento arbitrario de la otra, repitiendo la
+    // misma comisión dos veces.
     const porDiputado = {};
     for (const c of comisionesData || []) {
-      if (!porDiputado[c.deputy_id]) porDiputado[c.deputy_id] = [];
-      porDiputado[c.deputy_id].push({ nombre: c.committee_name, cargo: c.cargo_norm });
+      const nombre = cleanCommittee(c.committee_name);
+      if (!nombre) continue;
+      if (!porDiputado[c.deputy_id]) porDiputado[c.deputy_id] = new Map();
+      const mapa = porDiputado[c.deputy_id];
+      const { peso, label } = pesoDe(c.cargo_norm);
+      const previo = mapa.get(nombre);
+      // Alguien puede aparecer dos veces en la misma comisión; se queda
+      // el cargo de más peso.
+      if (!previo || peso < previo.peso) mapa.set(nombre, { nombre, peso, label });
     }
-    setComisionesPorDiputado(porDiputado);
+
+    const listas = {};
+    for (const [id, mapa] of Object.entries(porDiputado)) {
+      listas[id] = [...mapa.values()].sort((a, b) => a.peso - b.peso || a.nombre.localeCompare(b.nombre));
+    }
+    setComisionesPorDiputado(listas);
   }
 
-  // Supabase corta en 1.000 filas por consulta. Se piden por bloques
-  // hasta que uno vuelve incompleto.
+  // Supabase corta en 1.000 filas por consulta y aquí hay más de dos mil.
+  // Se piden por bloques hasta que uno vuelve incompleto.
   async function traerTodas() {
     const TAM = 1000;
     const todas = [];
@@ -126,66 +260,24 @@ function DeputiesDirectoryInner() {
   }
 
   const groupById = useMemo(() => Object.fromEntries(groups.map((g) => [g.id, g])), [groups]);
+  const codeById = useMemo(
+    () => Object.fromEntries(groups.map((g) => [g.id, groupCode(g)])),
+    [groups]
+  );
+
+  const groupOptions = useMemo(
+    () => groups.map((g) => ({ value: g.id, label: groupCode(g) || g.name })),
+    [groups]
+  );
 
   const constituencyOptions = useMemo(() => {
     if (!deputies) return [];
-    const unique = [...new Set(deputies.map((d) => d.constituency).filter(Boolean))].sort((a, b) => a.localeCompare(b));
-    return unique.map((c) => ({ value: c, label: c }));
+    const unique = [...new Set(deputies.map((d) => d.constituency).filter(Boolean))];
+    return unique.sort((a, b) => a.localeCompare(b)).map((c) => ({ value: c, label: c }));
   }, [deputies]);
 
-  const filtered = useMemo(() => {
-    if (!deputies) return [];
-    let list = deputies;
-    if (search) {
-      const q = search.toLowerCase();
-      list = list.filter(
-        (d) =>
-          d.full_name.toLowerCase().includes(q) ||
-          d.constituency?.toLowerCase().includes(q) ||
-          groupById[d.parliamentary_group_id]?.name.toLowerCase().includes(q)
-      );
-    }
-    if (groupFilter.size > 0) list = list.filter((d) => groupFilter.has(d.parliamentary_group_id));
-    if (constituencyFilter.size > 0) list = list.filter((d) => constituencyFilter.has(d.constituency));
-    if (comisionFilter.size > 0) {
-      list = list.filter((d) =>
-        (comisionesPorDiputado[d.id] || []).some((c) => comisionFilter.has(c.nombre))
-      );
-    }
-    return list;
-  }, [deputies, search, groupFilter, constituencyFilter, comisionFilter, comisionesPorDiputado, groupById]);
-
-  useEffect(() => {
-    setPage(0);
-  }, [search, groupFilter, constituencyFilter]);
-
-  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
-  const paginated = filtered.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
-
-  async function toggleSave(deputyId) {
-    if (!userId) return;
-    if (savedIds.has(deputyId)) {
-      await supabase.from('saved_deputies').delete().eq('user_id', userId).eq('deputy_id', deputyId);
-      setSavedIds((prev) => {
-        const n = new Set(prev);
-        n.delete(deputyId);
-        return n;
-      });
-    } else {
-      await supabase.from('saved_deputies').insert({ user_id: userId, deputy_id: deputyId });
-      setSavedIds((prev) => new Set(prev).add(deputyId));
-    }
-  }
-
-  function clearFilters() {
-    setSearch('');
-    setGroupFilter(new Set());
-    setConstituencyFilter(new Set());
-    setComisionFilter(new Set());
-  }
-
-  // Solo las comisiones que tienen miembros entre los diputados
-  // mostrados, para no ofrecer opciones sin resultados.
+  // Solo las comisiones que tienen miembros entre los diputados cargados,
+  // para no ofrecer opciones sin resultados.
   const comisionOptions = useMemo(() => {
     const cuenta = new Map();
     for (const lista of Object.values(comisionesPorDiputado)) {
@@ -196,7 +288,52 @@ function DeputiesDirectoryInner() {
       .map(([nombre, n]) => ({ value: nombre, label: `${nombre} (${n})` }));
   }, [comisionesPorDiputado]);
 
-  const activeFiltersCount = groupFilter.size + constituencyFilter.size + comisionFilter.size;
+  const filtered = useMemo(() => {
+    if (!deputies) return [];
+    let list = deputies;
+    if (search) {
+      const q = normalize(search);
+      list = list.filter(
+        (d) =>
+          normalize(d.full_name).includes(q) ||
+          normalize(d.constituency).includes(q) ||
+          normalize(groupById[d.parliamentary_group_id]?.name).includes(q) ||
+          normalize(codeById[d.parliamentary_group_id]).includes(q)
+      );
+    }
+    if (groupFilter.size > 0) list = list.filter((d) => groupFilter.has(d.parliamentary_group_id));
+    if (constituencyFilter.size > 0) list = list.filter((d) => constituencyFilter.has(d.constituency));
+    if (comisionFilter.size > 0) {
+      list = list.filter((d) => (comisionesPorDiputado[d.id] || []).some((c) => comisionFilter.has(c.nombre)));
+    }
+    return list;
+  }, [deputies, search, groupFilter, constituencyFilter, comisionFilter, comisionesPorDiputado, groupById, codeById]);
+
+  useEffect(() => {
+    setPage(1);
+  }, [search, groupFilter, constituencyFilter, comisionFilter]);
+
+  const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
+  const current = Math.min(page, totalPages);
+  const slice = filtered.slice((current - 1) * pageSize, current * pageSize);
+  const from = filtered.length === 0 ? 0 : (current - 1) * pageSize + 1;
+  const to = Math.min(current * pageSize, filtered.length);
+
+  const activeCount = groupFilter.size + constituencyFilter.size + comisionFilter.size;
+
+  function clearFilters() {
+    setSearch('');
+    setGroupFilter(new Set());
+    setConstituencyFilter(new Set());
+    setComisionFilter(new Set());
+  }
+
+  const pageNumbers = useMemo(() => {
+    if (totalPages <= 5) return Array.from({ length: totalPages }, (_, i) => i + 1);
+    if (current <= 3) return [1, 2, 3, '…', totalPages];
+    if (current >= totalPages - 2) return [1, '…', totalPages - 2, totalPages - 1, totalPages];
+    return [1, '…', current, '…', totalPages];
+  }, [current, totalPages]);
 
   return (
     <div className="sec" style={{ maxWidth: 1080 }}>
@@ -214,14 +351,12 @@ function DeputiesDirectoryInner() {
         <Link href="/institutions/groups" style={{ fontSize: 13, color: '#999', paddingBottom: 8, textDecoration: 'none' }}>
           Grupos parlamentarios
         </Link>
-        {/* Tercera vista del mismo Congreso: por persona, por partido y
-            por órgano. */}
         <Link href="/institutions/comisiones" style={{ fontSize: 13, color: '#999', paddingBottom: 8, textDecoration: 'none' }}>
           Comisiones
         </Link>
       </div>
 
-      <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 12, flexWrap: 'wrap' }}>
+      <div style={{ display: 'flex', gap: 8, marginBottom: 12, flexWrap: 'wrap' }}>
         <div
           style={{
             display: 'flex',
@@ -231,59 +366,50 @@ function DeputiesDirectoryInner() {
             border: '.5px solid #e0dfd8',
             borderRadius: 20,
             padding: '7px 14px',
-            flex: '1 1 240px',
+            flex: '1 1 180px',
           }}
         >
           <i className="ti ti-search" style={{ color: '#999', fontSize: 14 }}></i>
           <input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Buscar por nombre, grupo o circunscripción..."
+            placeholder="Buscar por nombre..."
+            aria-label="Buscar diputado por nombre"
             style={{ border: 'none', outline: 'none', background: 'transparent', fontSize: 12.5, width: '100%' }}
           />
         </div>
-        <MultiSelectFilter
-          label="Grupo parlamentario"
-          values={groups.map((g) => ({ value: g.id, label: g.name }))}
-          selected={groupFilter}
-          onApply={setGroupFilter}
-        />
+        <MultiSelectFilter label="Grupo" values={groupOptions} selected={groupFilter} onApply={setGroupFilter} />
         <MultiSelectFilter
           label="Circunscripción"
           values={constituencyOptions}
           selected={constituencyFilter}
           onApply={setConstituencyFilter}
         />
-        <MultiSelectFilter
-          label="Comisión"
-          values={comisionOptions}
-          selected={comisionFilter}
-          onApply={setComisionFilter}
-        />
-        {activeFiltersCount > 0 && (
-          <span onClick={clearFilters} style={{ fontSize: 11.5, color: '#999', textDecoration: 'underline', cursor: 'pointer' }}>
+        <MultiSelectFilter label="Comisión" values={comisionOptions} selected={comisionFilter} onApply={setComisionFilter} />
+      </div>
+
+      {activeCount > 0 && (
+        <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap', marginBottom: 12 }}>
+          {[...groupFilter].map((v) => (
+            <span key={`g${v}`} style={{ fontSize: 11, background: '#f0efe9', color: '#666', padding: '3px 10px', borderRadius: 14 }}>
+              {codeById[v] || groupById[v]?.name || v}
+            </span>
+          ))}
+          {[...constituencyFilter].map((v) => (
+            <span key={`c${v}`} style={{ fontSize: 11, background: '#f0efe9', color: '#666', padding: '3px 10px', borderRadius: 14 }}>
+              {v}
+            </span>
+          ))}
+          {[...comisionFilter].map((v) => (
+            <span key={`k${v}`} style={{ fontSize: 11, background: '#f0efe9', color: '#666', padding: '3px 10px', borderRadius: 14 }}>
+              {v}
+            </span>
+          ))}
+          <span onClick={clearFilters} style={{ fontSize: 11, color: '#999', textDecoration: 'underline', cursor: 'pointer' }}>
             Limpiar filtros
           </span>
-        )}
-        {/* El botón de "Filtros avanzados PRO" prometía filtrar por cargo,
-            portavocía, Mesa y antigüedad. Ninguno de esos filtros existe:
-            era una promesa de algo no construido en un sitio donde ya hay
-            tres filtros que sí funcionan. */}
-        <div style={{ display: 'flex', background: '#fff', border: '.5px solid #e0dfd8', borderRadius: 8, overflow: 'hidden' }}>
-          <button
-            onClick={() => setView('grid')}
-            style={{ padding: '7px 10px', background: view === 'grid' ? '#f0f8f5' : 'transparent', color: view === 'grid' ? '#1d6f5c' : '#999', border: 'none' }}
-          >
-            <i className="ti ti-layout-grid"></i>
-          </button>
-          <button
-            onClick={() => setView('list')}
-            style={{ padding: '7px 10px', background: view === 'list' ? '#f0f8f5' : 'transparent', color: view === 'list' ? '#1d6f5c' : '#999', border: 'none' }}
-          >
-            <i className="ti ti-list"></i>
-          </button>
         </div>
-      </div>
+      )}
 
       {deputies === null ? (
         <div className="spinner"></div>
@@ -299,68 +425,13 @@ function DeputiesDirectoryInner() {
             </div>
           </div>
         </div>
-      ) : view === 'grid' ? (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: 12 }}>
-          {paginated.map((d) => {
-            const group = groupById[d.parliamentary_group_id];
-            const role = rolesByDeputy[d.id];
-            return (
-              <Link
-                key={d.id}
-                href={`/institutions/deputies/${d.slug}`}
-                className="card"
-                style={{ padding: 14, textDecoration: 'none', color: 'inherit', position: 'relative', display: 'block' }}
-              >
-                <i
-                  className={`ti ${savedIds.has(d.id) ? 'ti-bookmark-filled' : 'ti-bookmark'}`}
-                  onClick={(e) => {
-                    e.preventDefault();
-                    toggleSave(d.id);
-                  }}
-                  style={{ position: 'absolute', top: 12, right: 12, color: savedIds.has(d.id) ? '#1d6f5c' : '#ccc', fontSize: 14 }}
-                ></i>
-                <div
-                  style={{
-                    width: 44,
-                    height: 44,
-                    borderRadius: '50%',
-                    background: '#e8f4f0',
-                    color: '#1d6f5c',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    fontSize: 13,
-                    fontWeight: 700,
-                    marginBottom: 8,
-                    overflow: 'hidden',
-                  }}
-                >
-                  {d.photo_url ? (
-                    <img src={d.photo_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                  ) : (
-                    initials(d.full_name)
-                  )}
-                </div>
-                <div style={{ fontSize: 13, fontWeight: 700 }}>{fullNameDisplay(d.full_name)}</div>
-                <div style={{ fontSize: 11.5, color: '#888', marginTop: 2 }}>{group?.name || '—'}</div>
-                <div style={{ fontSize: 11, color: '#999', marginTop: 1 }}>{d.constituency}</div>
-                {role?.mainRole && (
-                  <div style={{ fontSize: 10.5, color: '#1d6f5c', fontWeight: 600, marginTop: 6 }}>
-                    {role.mainRole}
-                    {role.bodies[0] ? ` · ${role.bodies[0]}` : ''}
-                  </div>
-                )}
-              </Link>
-            );
-          })}
-        </div>
       ) : (
-        <div className="card" style={{ padding: 0 }}>
+        <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
           <div
             style={{
               display: 'grid',
-              gridTemplateColumns: '2fr .5px 1fr .5px 1.1fr .5px 1.3fr .5px 1.5fr .5px 24px',
-              padding: '10px 16px',
+              gridTemplateColumns: GRID,
+              padding: '10px 14px',
               borderBottom: '.5px solid #f0f0eb',
               fontSize: 10.5,
               fontWeight: 700,
@@ -369,113 +440,118 @@ function DeputiesDirectoryInner() {
             }}
           >
             <div>Diputado</div>
-            <div></div>
-            <div style={{ textAlign: 'center' }}>Grupo</div>
-            <div></div>
-            <div style={{ textAlign: 'center' }}>Circunscripción</div>
-            <div></div>
-            <div style={{ textAlign: 'center' }}>Cargo principal</div>
-            <div></div>
-            <div style={{ textAlign: 'center' }}>Comisiones</div>
-            <div></div>
+            <div>Grupo</div>
+            <div>Comisiones</div>
             <div></div>
           </div>
-          {paginated.map((d) => {
-            const group = groupById[d.parliamentary_group_id];
-            const role = rolesByDeputy[d.id];
-            return (
-              <Link
-                key={d.id}
-                href={`/institutions/deputies/${d.slug}`}
-                style={{
-                  display: 'grid',
-                  gridTemplateColumns: '2fr .5px 1fr .5px 1.1fr .5px 1.3fr .5px 1.5fr .5px 24px',
-                  padding: '11px 16px',
-                  borderBottom: '.5px solid #f0f0eb',
-                  alignItems: 'center',
-                  textDecoration: 'none',
-                  color: 'inherit',
-                }}
-              >
-                <div style={{ display: 'flex', alignItems: 'center', gap: 9 }}>
-                  <div
+
+          {slice.map((d) => (
+            <Link
+              key={d.id}
+              href={`/institutions/deputies/${d.slug}`}
+              style={{
+                display: 'grid',
+                gridTemplateColumns: GRID,
+                padding: '10px 14px',
+                borderBottom: '.5px solid #f0f0eb',
+                alignItems: 'center',
+                textDecoration: 'none',
+                color: 'inherit',
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
+                <Photo url={d.photo_url} name={fullNameDisplay(d.full_name)} />
+                <div style={{ minWidth: 0 }}>
+                  <div style={{ fontSize: 12.5, fontWeight: 600 }}>{fullNameDisplay(d.full_name)}</div>
+                  <div style={{ fontSize: 11, color: '#999' }}>{d.constituency || '—'}</div>
+                </div>
+              </div>
+              <div>
+                <GroupTag code={codeById[d.parliamentary_group_id]} />
+              </div>
+              <Committees list={comisionesPorDiputado[d.id]} />
+              <i className="ti ti-chevron-right" style={{ color: '#ccc', fontSize: 14 }}></i>
+            </Link>
+          ))}
+
+          <div
+            style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              padding: '11px 14px',
+              background: '#fcfbf8',
+              flexWrap: 'wrap',
+              gap: 10,
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: 9 }}>
+              <span style={{ fontSize: 11.5, color: '#888' }}>Filas</span>
+              <div style={{ display: 'flex', gap: 2, background: '#fff', border: '.5px solid #e0dfd8', borderRadius: 7, padding: 2 }}>
+                {PAGE_SIZES.map((n) => (
+                  <span
+                    key={n}
+                    onClick={() => changePageSize(n)}
                     style={{
-                      width: 26,
-                      height: 26,
-                      borderRadius: '50%',
-                      background: '#e8f4f0',
-                      color: '#1d6f5c',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      fontSize: 10,
-                      fontWeight: 700,
-                      flexShrink: 0,
-                      overflow: 'hidden',
+                      fontSize: 11,
+                      padding: '3px 8px',
+                      borderRadius: 5,
+                      cursor: 'pointer',
+                      background: pageSize === n ? '#1d6f5c' : 'transparent',
+                      color: pageSize === n ? '#fff' : '#666',
                     }}
                   >
-                    {d.photo_url ? (
-                      <img src={d.photo_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                    ) : (
-                      initials(d.full_name)
-                    )}
-                  </div>
-                  <span style={{ fontWeight: 600, fontSize: 12.5 }}>{fullNameDisplay(d.full_name)}</span>
-                </div>
-                <div style={{ background: '#f0f0eb' }}></div>
-                <div style={{ fontSize: 12, color: '#666', textAlign: 'center' }}>{group?.short_name || group?.name || '—'}</div>
-                <div style={{ background: '#f0f0eb' }}></div>
-                <div style={{ fontSize: 12, color: '#666', textAlign: 'center' }}>{d.constituency}</div>
-                <div style={{ background: '#f0f0eb' }}></div>
-                <div style={{ fontSize: 12, color: '#666', textAlign: 'center' }}>{role?.mainRole || '—'}</div>
-                <div style={{ background: '#f0f0eb' }}></div>
-                {/* Dos y el resto contadas: un diputado puede estar en
-                    ocho comisiones y la fila se haría ilegible. */}
-                <div style={{ fontSize: 11.5, color: '#888', textAlign: 'center' }}>
-                  {role?.bodies?.length
-                    ? role.bodies
-                        .slice(0, 2)
-                        .map((b) => b.replace(/^Comisión (Mixta )?(de |del |para )?/i, ''))
-                        .join(', ') + (role.bodies.length > 2 ? ` +${role.bodies.length - 2}` : '')
-                    : '—'}
-                </div>
-                <div style={{ background: '#f0f0eb' }}></div>
-                <i className="ti ti-chevron-right" style={{ color: '#ccc', fontSize: 14 }}></i>
-              </Link>
-            );
-          })}
-        </div>
-      )}
+                    {n}
+                  </span>
+                ))}
+              </div>
+              <span style={{ fontSize: 11.5, color: '#888' }}>
+                {from}–{to} de {filtered.length}
+              </span>
+            </div>
 
-      {filtered.length > 0 && (
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 14 }}>
-          <span style={{ fontSize: 11.5, color: '#999' }}>
-            Mostrando {page * PAGE_SIZE + 1}-{Math.min((page + 1) * PAGE_SIZE, filtered.length)} de {filtered.length}
-          </span>
-          <div style={{ display: 'flex', gap: 4 }}>
-            <button className="btn-o" disabled={page === 0} onClick={() => setPage((p) => p - 1)} style={{ fontSize: 12, padding: '5px 10px' }}>
-              Anterior
-            </button>
-            <button
-              className="btn-o"
-              disabled={page >= totalPages - 1}
-              onClick={() => setPage((p) => p + 1)}
-              style={{ fontSize: 12, padding: '5px 10px' }}
-            >
-              Siguiente
-            </button>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+              <span
+                onClick={() => setPage(Math.max(1, current - 1))}
+                style={{ border: '.5px solid #e0dfd8', borderRadius: 6, padding: '4px 8px', cursor: 'pointer', color: current === 1 ? '#ccc' : '#555' }}
+              >
+                <i className="ti ti-chevron-left" style={{ fontSize: 13 }}></i>
+              </span>
+              {pageNumbers.map((n, i) =>
+                n === '…' ? (
+                  <span key={`e${i}`} style={{ fontSize: 11.5, color: '#aaa', padding: '0 3px' }}>
+                    …
+                  </span>
+                ) : (
+                  <span
+                    key={n}
+                    onClick={() => setPage(n)}
+                    style={{
+                      borderRadius: 6,
+                      padding: '4px 10px',
+                      fontSize: 11.5,
+                      cursor: 'pointer',
+                      background: n === current ? '#1d6f5c' : 'transparent',
+                      color: n === current ? '#fff' : '#555',
+                      border: n === current ? 'none' : '.5px solid #e0dfd8',
+                    }}
+                  >
+                    {n}
+                  </span>
+                )
+              )}
+              <span
+                onClick={() => setPage(Math.min(totalPages, current + 1))}
+                style={{ border: '.5px solid #e0dfd8', borderRadius: 6, padding: '4px 8px', cursor: 'pointer', color: current === totalPages ? '#ccc' : '#555' }}
+              >
+                <i className="ti ti-chevron-right" style={{ fontSize: 13 }}></i>
+              </span>
+            </div>
           </div>
         </div>
       )}
-
     </div>
   );
-}
-
-// "Abades Martínez, Cristina" -> "Cristina Abades Martínez", más natural para leer en tarjetas y listado
-function fullNameDisplay(officialName) {
-  const [last, first] = officialName.split(',').map((s) => s.trim());
-  return first ? `${first} ${last}` : officialName;
 }
 
 export default function DeputiesDirectoryPage() {
