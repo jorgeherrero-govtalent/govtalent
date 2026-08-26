@@ -240,8 +240,15 @@ export async function GET(request) {
   if (sp.get('fecha')) {
     fechas.push(sp.get('fecha'));
   } else {
-    const n = Math.min(parseInt(sp.get('dias') || '1', 10), 30);
-    for (let i = 1; i <= n; i++) {
+    // Desde hoy hacia atrás, no desde ayer. El bucle empezaba en i=1
+    // porque el cron corría a la 1:00 y el BOE de hoy aún no existía;
+    // ahora corre a las 7:00 UTC, cuando ya está publicado.
+    //
+    // Los días ya cargados se saltan más abajo, así que incluir hoy no
+    // repite trabajo: si hoy es festivo o fin de semana, simplemente no
+    // devuelve nada.
+    const n = Math.min(parseInt(sp.get('dias') || '2', 10), 30);
+    for (let i = 0; i < n; i++) {
       const d = new Date();
       d.setDate(d.getDate() - i);
       fechas.push(fechaCompacta(d));
