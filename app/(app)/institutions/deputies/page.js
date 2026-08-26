@@ -344,7 +344,7 @@ function DeputiesDirectoryInner() {
         </p>
       </div>
 
-      <div style={{ display: 'flex', gap: 16, borderBottom: '.5px solid #e0dfd8', marginBottom: 14 }}>
+      <div style={{ display: 'flex', gap: 16, borderBottom: '.5px solid #e0dfd8', marginBottom: 14, flexWrap: 'wrap' }}>
         <span style={{ fontSize: 13, fontWeight: 600, color: '#1d6f5c', borderBottom: '2px solid #1d6f5c', paddingBottom: 8 }}>
           Diputados
         </span>
@@ -353,6 +353,9 @@ function DeputiesDirectoryInner() {
         </Link>
         <Link href="/institutions/comisiones" style={{ fontSize: 13, color: '#999', paddingBottom: 8, textDecoration: 'none' }}>
           Comisiones
+        </Link>
+        <Link href="/institutions/organos-gobierno" style={{ fontSize: 13, color: '#999', paddingBottom: 8, textDecoration: 'none' }}>
+          Órganos de gobierno
         </Link>
       </div>
 
