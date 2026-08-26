@@ -272,12 +272,10 @@ export default function Home() {
             </span>
             <div style={{ flex: 1, minWidth: 180 }}>
               <div style={{ fontSize: 13.5, fontWeight: 600, letterSpacing: '-.1px' }}>
-                {desdeTemas ? 'Afina lo que ves' : '¿Qué te afecta a ti?'}
+                ¿Y a tu organización qué le afecta?
               </div>
               <div style={{ fontSize: 12, color: '#8b8780', marginTop: 3, lineHeight: 1.5 }}>
-                {desdeTemas
-                  ? 'Abajo ves lo que encaja con tus temas. Cuéntanos a qué se dedica tu organización y afinamos qué te afecta de verdad.'
-                  : 'Dinos a qué se dedica tu organización y revisamos cuál de los asuntos abiertos te importa.'}
+                Analizamos los proyectos normativos abiertos y te decimos qué te toca, con el motivo.
               </div>
             </div>
             <Link
