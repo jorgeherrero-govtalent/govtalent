@@ -77,19 +77,47 @@ function urlPagina(suborgano, legislatura = 'XV') {
  * Se prueban varias formas porque el marcado puede variar entre
  * comisiones permanentes, mixtas y de investigación.
  */
+// Lo que de verdad es una comisión. Cualquier otra cosa que devuelva el
+// HTML —"Selector de idioma", "Enlaces", un título de menú— se descarta:
+// es preferible un hueco visible a una fila con basura.
+//
+// Y las que fallan al leerse colapsan todas en el mismo slug y se pisan
+// unas a otras, así que un nombre malo no ensucia una fila: borra varias.
+const EMPIEZA_COMISION = /^(Comisión|Comision|Junta|Diputación|Diputacion|Mesa|Pleno)\b/i;
+
 function nombreDelHtml(html) {
+  // Se limpia el HTML del título antes de leerlo: los nombres largos
+  // —"Comisión Mixta para la Coordinación y Seguimiento de la Estrategia
+  // Española para alcanzar los Objetivos de Desarrollo Sostenible (ODS)",
+  // 118 caracteres— se parten en varias líneas y el portal mete etiquetas
+  // dentro. El patrón anterior exigía que el nombre acabara antes del
+  // primer '<' y por eso fallaba justo en las comisiones de nombre largo.
+  const sinEtiquetas = (t) =>
+    String(t || '')
+      .replace(/<[^>]+>/g, ' ')
+      .replace(/&nbsp;/g, ' ')
+      .replace(/&amp;/g, '&')
+      .replace(/\s+/g, ' ')
+      .trim();
+
   const patrones = [
-    /Composición\s+Actual\s+de\s+la\s+([^<\n]{5,120}?)\s*</i,
-    /<h2[^>]*>\s*(?:Composición[^<]*?de\s+la\s+)?([^<]{5,120}?)\s*<\/h2>/i,
-    /<title>\s*([^<|]{5,120}?)\s*[|<]/i,
+    // El encabezado de la página, ya sin etiquetas dentro
+    /Composición\s+Actual\s+de\s+la\s+([\s\S]{5,200}?)(?:<\/h1>|<\/h2>|<\/div>)/i,
+    /<h1[^>]*>([\s\S]{5,200}?)<\/h1>/i,
+    /<h2[^>]*>([\s\S]{5,200}?)<\/h2>/i,
+    /<title>\s*([^<|]{5,200}?)\s*[|<]/i,
   ];
+
   for (const re of patrones) {
     const m = html.match(re);
-    if (m && m[1]) {
-      const n = m[1].replace(/\s+/g, ' ').trim();
-      // El título genérico de la sección no sirve como nombre.
-      if (n && !/^composición en la legislatura$/i.test(n)) return n;
-    }
+    if (!m || !m[1]) continue;
+    let n = sinEtiquetas(m[1]);
+    // El encabezado a veces conserva el "Composición Actual de la"
+    n = n.replace(/^Composición\s+Actual\s+de\s+la\s+/i, '').trim();
+    if (!n) continue;
+    if (/^composición en la legislatura$/i.test(n)) continue;
+    // Solo se acepta si parece el nombre de un órgano
+    if (EMPIEZA_COMISION.test(n)) return n;
   }
   return null;
 }
