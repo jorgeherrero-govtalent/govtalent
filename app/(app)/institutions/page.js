@@ -233,7 +233,7 @@ export default function InstitutionsHomePage() {
             href="/institutions/ministries"
             icon="building-community"
             title="Ministerios"
-            description="Estructura del Gobierno y titulares de cada ministerio."
+            description="Ministros, secretarios de Estado, directores y subdirectores generales."
             cta="Explorar ministerios"
             cifras={[
               { n: counts?.ministries ?? null, label: 'ministerios' },
@@ -249,7 +249,7 @@ export default function InstitutionsHomePage() {
             href="/institutions/deputies"
             icon="building-bank"
             title="Congreso de los Diputados"
-            description="Quién ocupa cada escaño, cada comisión y cada órgano."
+            description="Diputados, comisiones, grupos parlamentarios y órganos de gobierno."
             cta="Explorar Congreso"
             cifras={[
               { n: counts?.deputies ?? null, label: 'diputados' },
@@ -269,7 +269,7 @@ export default function InstitutionsHomePage() {
             href="/institutions/eu-parliament"
             icon="building-arch"
             title="Parlamento Europeo"
-            description="Eurodiputados, sus grupos políticos y sus comisiones."
+            description="Eurodiputados, comisiones, grupos políticos y órganos de gobierno."
             cta="Explorar Parlamento Europeo"
             cifras={[
               { n: counts?.meps ?? null, label: 'eurodiputados' },
@@ -280,7 +280,7 @@ export default function InstitutionsHomePage() {
             href="/institutions/eu-commission"
             icon="briefcase"
             title="Comisión Europea"
-            description="Comisarios, gabinetes y jefes de unidad, con su contacto."
+            description="Comisarios, gabinetes, direcciones generales y jefes de unidad."
             cta="Explorar Comisión Europea"
             cifras={[
               { n: counts?.commissioners ?? null, label: 'comisarios' },
