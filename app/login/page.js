@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { createClient } from '@/lib/supabase/client';
 
 export default function LoginPage() {
@@ -8,7 +8,10 @@ export default function LoginPage() {
   const redirectTo = initialParams?.get('redirect') || '/radar';
   const initialView = initialParams?.get('view') === 'signup' ? 'signup' : 'login';
 
-  const [view, setView] = useState(initialView); // login | signup | reset | sent
+  const [view, setView] = useState(initialView); // login | signup | reset | sent | confirm
+  const [reenviando, setReenviando] = useState(false);
+  const [reenviado, setReenviado] = useState(false);
+  const [espera, setEspera] = useState(0);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPw, setShowPw] = useState(false);
@@ -34,6 +37,8 @@ export default function LoginPage() {
       setLoading(false);
       if (error) return setError(traducirError(error.message));
       if (!data.session) {
+        setReenviado(false);
+        setEspera(0);
         setView('confirm');
         return;
       }
@@ -44,6 +49,28 @@ export default function LoginPage() {
     setLoading(false);
     if (error) return setError(traducirError(error.message));
     window.location.href = redirectTo;
+  }
+
+  useEffect(() => {
+    if (espera <= 0) return;
+    const t = setTimeout(() => setEspera((n) => n - 1), 1000);
+    return () => clearTimeout(t);
+  }, [espera]);
+
+  // signUp deja la cuenta sin verificar, así que resend vale tal cual: no
+  // hay sesión que tocar ni nada que confirmar por otro lado.
+  async function reenviar() {
+    if (espera > 0 || reenviando) return;
+    setReenviando(true);
+    setError('');
+    const { error } = await supabase.auth.resend({ type: 'signup', email });
+    setReenviando(false);
+    if (error) {
+      setError(traducirError(error.message));
+      return;
+    }
+    setReenviado(true);
+    setEspera(45);
   }
 
   async function handleReset(e) {
@@ -86,29 +113,69 @@ export default function LoginPage() {
             >
               <i className="ti ti-mail-check" style={{ fontSize: 26, color: '#1d6f5c' }}></i>
             </div>
-            <h1 style={{ fontSize: 19, fontWeight: 700, marginBottom: 6 }}>Confirma tu cuenta</h1>
-            <p style={{ fontSize: 13, color: '#888', marginBottom: 12 }}>
-              Te hemos enviado un enlace de confirmación a:
+            {/* Aquí solo pasan dos cosas: que el correo no llegue o que
+                te hayas equivocado al escribirlo. Antes esta pantalla no
+                resolvía ninguna de las dos — solo ofrecía "Volver", que
+                además no decía a dónde. */}
+            <h1 style={{ fontSize: 19, fontWeight: 700, marginBottom: 6 }}>Revisa tu correo</h1>
+            <p style={{ fontSize: 13, color: '#555', marginBottom: 3 }}>Te hemos enviado un enlace a</p>
+            {/* Texto y no una caja con forma de campo: la de antes
+                invitaba a corregir el correo ahí mismo, y no dejaba. */}
+            <div style={{ fontSize: 13.5, fontWeight: 500, marginBottom: 18 }}>{email}</div>
+
+            <p style={{ fontSize: 12, color: '#888', lineHeight: 1.6, marginBottom: 20 }}>
+              Ábrelo desde este mismo dispositivo y entrarás directo. Si no aparece en unos minutos,
+              mira en spam.
             </p>
-            <div
-              style={{
-                background: '#f0f8f5',
-                border: '1px solid #c0e4d8',
-                borderRadius: 8,
-                padding: 10,
-                color: '#1d6f5c',
-                fontWeight: 500,
-                marginBottom: 18,
-              }}
-            >
-              {email}
+
+            {reenviado && (
+              <div
+                style={{
+                  background: '#e8f4f0',
+                  borderRadius: 9,
+                  padding: '10px 13px',
+                  fontSize: 12.5,
+                  color: '#1d6f5c',
+                  marginBottom: 20,
+                }}
+              >
+                Enviado otra vez ✓
+              </div>
+            )}
+
+            <div style={{ borderTop: '1px solid #e0dfd8', paddingTop: 16, display: 'flex', flexDirection: 'column', gap: 10 }}>
+              {/* Cuenta atrás porque cada reenvío invalida el enlace
+                  anterior: sin ella, quien lo pulsa cinco veces acaba
+                  usando uno caducado. */}
+              <button
+                onClick={reenviar}
+                disabled={espera > 0 || reenviando}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  fontSize: 12.5,
+                  color: espera > 0 ? '#a8a49c' : '#6d5aef',
+                  cursor: espera > 0 ? 'default' : 'pointer',
+                  padding: 0,
+                }}
+              >
+                {reenviando
+                  ? 'Enviando…'
+                  : espera > 0
+                    ? `Volver a enviarlo en ${espera} s`
+                    : 'Volver a enviarlo'}
+              </button>
+
+              <button
+                onClick={() => {
+                  setReenviado(false);
+                  setView('signup');
+                }}
+                style={{ background: 'none', border: 'none', fontSize: 12.5, color: '#888', padding: 0, cursor: 'pointer' }}
+              >
+                Me he equivocado de correo
+              </button>
             </div>
-            <p style={{ fontSize: 12, color: '#aaa', marginBottom: 18 }}>
-              Revisa también tu carpeta de spam si no lo ves en unos minutos.
-            </p>
-            <button className="mbtn" onClick={() => setView('login')}>
-              Volver
-            </button>
           </div>
         ) : view === 'sent' ? (
           <div className="ob-card" style={{ maxWidth: 420, textAlign: 'center' }}>
