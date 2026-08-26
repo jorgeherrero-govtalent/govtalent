@@ -389,7 +389,7 @@ export default function OnboardingModal({ userId, onComplete }) {
             <>
               <h2 style={{ fontSize: 20, fontWeight: 600, marginBottom: 4 }}>¿Sobre qué temas trabajas?</h2>
               <p style={{ fontSize: 13, color: '#888', marginBottom: 18 }}>
-                Elige hasta {MAX_TEMAS}. Los usamos para avisarte de los proyectos normativos que te afectan.
+                Elige hasta {MAX_TEMAS}. Lo usamos para mostrarte los proyectos normativos que te afectan.
               </p>
 
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 7, marginBottom: 16 }}>
