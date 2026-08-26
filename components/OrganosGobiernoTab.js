@@ -3,6 +3,8 @@
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
+import { nombreSigla } from '@/lib/grupos';
+import MultiSelectFilter from '@/components/MultiSelectFilter';
 
 /**
  * Órganos de gobierno del Congreso: Mesa, Junta de Portavoces y
@@ -41,21 +43,27 @@ function cargoCorto(cargo) {
   );
 }
 
-// Siglas confirmadas en los datos cargados. Cualquier otra se muestra
-// tal cual llega antes que inventarse una traducción.
-const SIGLAS = {
-  GS: 'PSOE',
-  GP: 'PP',
-  GVOX: 'VOX',
-  GSUMAR: 'SUMAR',
-  GR: 'ERC',
-  GJ: 'Junts',
-  'GEH Bildu': 'EH Bildu',
-  GV: 'PNV',
-  GMx: 'Mixto',
+// Las siglas se resuelven con lib/grupos, que es el modulo canonico:
+// duplicar el mapa aqui ya me hizo escribir GJ y GV cuando los valores
+// reales son GJxCAT y GV (EAJ-PNV).
+const sigla = (g) => nombreSigla(g) || '—';
+
+// Familia de cargo derivada del peso, no del texto: "Vicepresidente
+// Primero" y "Vicepresidenta Cuarta" son el mismo filtro.
+const FAMILIAS = {
+  1: 'Presidencia',
+  2: 'Vicepresidencia',
+  3: 'Secretaría',
+  4: 'Portavocía',
+  5: 'Portavocía adjunta',
+  6: 'Vocalía',
 };
 
-const sigla = (g) => SIGLAS[g] || g || '—';
+const familia = (orden) => FAMILIAS[orden] || 'Otros';
+
+function normalizar(t) {
+  return (t || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+}
 
 function iniciales(n) {
   const [ap, nom] = (n || '').split(',').map((s) => s.trim());
@@ -158,6 +166,9 @@ export default function OrganosGobiernoTab() {
   const [organos, setOrganos] = useState(null);
   const [miembros, setMiembros] = useState({});
   const [abiertos, setAbiertos] = useState(new Set());
+  const [search, setSearch] = useState('');
+  const [grupoFilter, setGrupoFilter] = useState(new Set());
+  const [cargoFilter, setCargoFilter] = useState(new Set());
 
   useEffect(() => {
     cargar();
@@ -222,10 +233,56 @@ export default function OrganosGobiernoTab() {
     });
   }
 
+  const grupoOptions = useMemo(() => {
+    const cuenta = new Map();
+    for (const l of Object.values(miembros)) for (const m of l) if (m.grupo) cuenta.set(m.grupo, (cuenta.get(m.grupo) || 0) + 1);
+    return [...cuenta.entries()]
+      .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
+      .map(([g, n]) => ({ value: g, label: `${nombreSigla(g)} (${n})` }));
+  }, [miembros]);
+
+  const cargoOptions = useMemo(() => {
+    const cuenta = new Map();
+    for (const l of Object.values(miembros)) {
+      for (const m of l) {
+        const f = familia(m.orden_cargo);
+        cuenta.set(f, (cuenta.get(f) || 0) + 1);
+      }
+    }
+    return [...cuenta.entries()]
+      .sort((a, b) => b[1] - a[1])
+      .map(([f, n]) => ({ value: f, label: `${f} (${n})` }));
+  }, [miembros]);
+
+  const filtrando = grupoFilter.size > 0 || cargoFilter.size > 0 || !!search;
+
+  // Se filtra dentro de cada organo y los que se quedan sin nadie se
+  // ocultan: un bloque vacio prometeria una composicion que el filtro ya
+  // ha descartado.
+  const visibles = useMemo(() => {
+    const q = normalizar(search);
+    const out = {};
+    for (const [id, lista] of Object.entries(miembros)) {
+      out[id] = lista.filter((m) => {
+        if (grupoFilter.size > 0 && !grupoFilter.has(m.grupo)) return false;
+        if (cargoFilter.size > 0 && !cargoFilter.has(familia(m.orden_cargo))) return false;
+        if (q && !normalizar(m.nombre).includes(q)) return false;
+        return true;
+      });
+    }
+    return out;
+  }, [miembros, grupoFilter, cargoFilter, search]);
+
   const total = useMemo(
-    () => Object.values(miembros).reduce((s, l) => s + l.length, 0),
-    [miembros]
+    () => Object.values(visibles).reduce((s, l) => s + l.length, 0),
+    [visibles]
   );
+
+  function limpiar() {
+    setSearch('');
+    setGrupoFilter(new Set());
+    setCargoFilter(new Set());
+  }
 
   if (organos === null) return <div className="spinner"></div>;
 
@@ -242,13 +299,74 @@ export default function OrganosGobiernoTab() {
 
   return (
     <>
+      <div style={{ display: 'flex', gap: 8, marginBottom: 12, flexWrap: 'wrap' }}>
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 8,
+            background: '#fff',
+            border: '.5px solid #e0dfd8',
+            borderRadius: 20,
+            padding: '7px 14px',
+            flex: '1 1 180px',
+          }}
+        >
+          <i className="ti ti-search" style={{ color: '#999', fontSize: 14 }}></i>
+          <input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Buscar por nombre..."
+            aria-label="Buscar miembro de un órgano de gobierno"
+            style={{ border: 'none', outline: 'none', background: 'transparent', fontSize: 12.5, width: '100%' }}
+          />
+        </div>
+        <MultiSelectFilter label="Grupo" values={grupoOptions} selected={grupoFilter} onApply={setGrupoFilter} />
+        <MultiSelectFilter label="Cargo" values={cargoOptions} selected={cargoFilter} onApply={setCargoFilter} />
+      </div>
+
+      {(grupoFilter.size > 0 || cargoFilter.size > 0) && (
+        <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap', marginBottom: 12 }}>
+          {[...grupoFilter].map((v) => (
+            <span key={`g${v}`} style={{ fontSize: 11, background: '#f0efe9', color: '#666', padding: '3px 10px', borderRadius: 14 }}>
+              {nombreSigla(v)}
+            </span>
+          ))}
+          {[...cargoFilter].map((v) => (
+            <span key={`c${v}`} style={{ fontSize: 11, background: '#f0efe9', color: '#666', padding: '3px 10px', borderRadius: 14 }}>
+              {v}
+            </span>
+          ))}
+          <span onClick={limpiar} style={{ fontSize: 11, color: '#999', textDecoration: 'underline', cursor: 'pointer' }}>
+            Limpiar filtros
+          </span>
+        </div>
+      )}
+
       <p style={{ fontSize: 11.5, color: '#888', margin: '0 0 12px' }}>
-        {organos.length} órganos · {total} cargos · XV Legislatura
+        {filtrando ? `${total} cargos con estos filtros` : `${organos.length} órganos · ${total} cargos · XV Legislatura`}
       </p>
 
+      {filtrando && total === 0 && (
+        <div className="card">
+          <div className="empty-state">
+            <i className="ti ti-user-off"></i>
+            Nadie coincide con estos filtros.
+            <div style={{ marginTop: 10 }}>
+              <button className="btn-o" onClick={limpiar}>
+                Limpiar filtros
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {organos.map((o) => {
-        const abierto = abiertos.has(o.id);
-        const lista = miembros[o.id] || [];
+        const lista = visibles[o.id] || [];
+        // Filtrando, los bloques con resultados se abren solos: dejarlos
+        // plegados hara creer que el filtro no ha encontrado nada.
+        const abierto = filtrando ? lista.length > 0 : abiertos.has(o.id);
+        if (filtrando && lista.length === 0) return null;
         return (
           <div key={o.id} className="card" style={{ padding: '16px 18px', marginBottom: 10 }}>
             <div
@@ -265,7 +383,7 @@ export default function OrganosGobiernoTab() {
                     letterSpacing: '.3px',
                   }}
                 >
-                  {o.name} · {o.n_members}
+                  {o.name} · {filtrando ? lista.length : o.n_members}
                 </div>
                 {o.fecha_constitucion && !abierto && (
                   <div style={{ fontSize: 11.5, color: '#888', marginTop: 4 }}>
