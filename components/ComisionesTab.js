@@ -1,4 +1,4 @@
-'use client';
+ 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
@@ -102,7 +102,9 @@ export default function ComisionesTab() {
   }, [items]);
 
   const filtered = useMemo(() => {
-    let l = items || [];
+    // Mesa, Junta de Portavoces y Diputación Permanente tienen pestaña
+    // propia: no se comparan con una comisión legislativa.
+    let l = (items || []).filter((c) => c.kind !== 'gobierno');
     if (search) {
       const q = normalize(search);
       l = l.filter((c) => normalize(c.name).includes(q) || normalize(c.presidente || '').includes(q));
