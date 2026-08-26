@@ -70,6 +70,7 @@ export default function Home() {
   const [busqueda, setBusqueda] = useState('');
   const [tab, setTab] = useState('sector');
   const [sector, setSector] = useState([]);
+  const [desdeTemas, setDesdeTemas] = useState(false);
   const [seguidos, setSeguidos] = useState([]);
   const [cargado, setCargado] = useState(false);
 
@@ -152,7 +153,21 @@ export default function Home() {
         expedientes: x.count ?? null,
         boe: b.count ?? null,
       });
-      setSector(sec || []);
+      // Si aún no ha lanzado el análisis con IA, la pestaña se llena con
+      // los asuntos que coinciden con sus temas del onboarding. Así no
+      // está vacía el primer día, que es justo cuando peor sienta.
+      if ((sec || []).length > 0) {
+        setSector(sec);
+      } else {
+        const { data: porTema } = await supabase
+          .from('asuntos_de_mis_temas')
+          .select('*')
+          .order('relevancia', { ascending: false })
+          .order('plazo', { ascending: true, nullsFirst: false })
+          .limit(20);
+        setSector(porTema || []);
+        setDesdeTemas((porTema || []).length > 0);
+      }
       setSeguidos(sig || []);
       // La pestaña que se abre depende de lo que tenga cada uno: sin
       // análisis, los plazos generales son lo único que puede ver.
@@ -222,9 +237,11 @@ export default function Home() {
         />
       </div>
 
-      {/* Sin análisis de sector, la Home lo pide como acción principal:
-          esa pestaña saldría vacía y la primera impresión sería peor. */}
-      {cargado && sector.length === 0 && (
+      {/* Sin análisis de sector, la Home lo pide como acción principal.
+          También cuando la pestaña se ha llenado con los temas del
+          onboarding: eso es una aproximación por palabras, y el análisis
+          sigue siendo lo que de verdad dice qué te afecta. */}
+      {cargado && (sector.length === 0 || desdeTemas) && (
         <div style={{ ...CARD, padding: 20, marginBottom: 14 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap' }}>
             <span
@@ -243,9 +260,13 @@ export default function Home() {
               <i className="ti ti-sparkles" style={{ fontSize: 16 }}></i>
             </span>
             <div style={{ flex: 1, minWidth: 180 }}>
-              <div style={{ fontSize: 13.5, fontWeight: 600, letterSpacing: '-.1px' }}>¿Qué te afecta a ti?</div>
+              <div style={{ fontSize: 13.5, fontWeight: 600, letterSpacing: '-.1px' }}>
+                {desdeTemas ? 'Afina lo que ves' : '¿Qué te afecta a ti?'}
+              </div>
               <div style={{ fontSize: 12, color: '#8b8780', marginTop: 3, lineHeight: 1.5 }}>
-                Dinos a qué se dedica tu organización y revisamos cuál de los asuntos abiertos te importa.
+                {desdeTemas
+                  ? 'Abajo ves lo que encaja con tus temas. Cuéntanos a qué se dedica tu organización y afinamos qué te afecta de verdad.'
+                  : 'Dinos a qué se dedica tu organización y revisamos cuál de los asuntos abiertos te importa.'}
               </div>
             </div>
             <Link
