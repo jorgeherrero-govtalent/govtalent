@@ -35,12 +35,26 @@ const HEADERS = {
   Referer: 'https://www.congreso.es/es/organos/composicion-en-la-legislatura',
 };
 
-// El rango cubre las comisiones conocidas con margen por arriba y por
-// abajo. Los huecos se descartan solos al no devolver miembros.
+// Las comisiones NO son un solo bloque correlativo, como se creyó al
+// escribir esto. Hay dos tramos:
+//
+//   300-330  las primeras permanentes, mixtas y de seguimiento
+//   358-379  el resto de legislativas —Educación, Trabajo, Industria,
+//            Agricultura, Transición Ecológica, Economía…— más las de
+//            investigación
+//
+// Con el rango 295-350 faltaban nueve comisiones legislativas, entre
+// ellas la de Economía, Comercio y Transformación Digital, que es la que
+// tramita la ley de gobernanza de la IA.
+//
+// Se deja margen por arriba para que una comisión nueva aparezca sola.
 const DESDE = 295;
-const HASTA = 350;
-const PARALELO = 4;
-const PAUSA_MS = 250;
+const HASTA = 390;
+// Con 96 suborganos —antes 56— el tirón se acercaba al límite de 60s de
+// la función: el rango de 56 tardaba 14s y el de 71 llegó a 14,5s. Se
+// sube el paralelismo y se acorta la pausa para dejar margen.
+const PARALELO = 6;
+const PAUSA_MS = 150;
 
 function admin() {
   return createClient(process.env.NEXT_PUBLIC_SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY, {
