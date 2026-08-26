@@ -71,6 +71,7 @@ export default function Home() {
   const [tab, setTab] = useState('sector');
   const [sector, setSector] = useState([]);
   const [desdeTemas, setDesdeTemas] = useState(false);
+  const [boeHoy, setBoeHoy] = useState([]);
   const [seguidos, setSeguidos] = useState([]);
   const [cargado, setCargado] = useState(false);
 
@@ -85,7 +86,7 @@ export default function Home() {
       .catch(() => setResumen({}));
 
     (async () => {
-      const [{ data: es }, { data: eu }, { data: nov }, l, p, x, b, { data: sec }, { data: sig }] = await Promise.all([
+      const [{ data: es }, { data: eu }, { data: nov }, l, p, x, b, { data: hoyBoe }, { data: sec }, { data: sig }] = await Promise.all([
         // Los plazos españoles: leyes con enmiendas abiertas
         supabase
           .from('es_initiatives_directory')
@@ -117,6 +118,14 @@ export default function Home() {
           .from('boe_documents')
           .select('id', { count: 'exact', head: true })
           .gte('fecha_publicacion', new Date(Date.now() - 7 * 86400000).toISOString().slice(0, 10)),
+        // Lo de hoy, para su propia pestaña. Es lo único de la plataforma
+        // que cambia a diario, y hasta ahora solo salía como una cifra.
+        supabase
+          .from('boe_directory')
+          .select('id, slug, titulo, departamento, rango, seccion_nombre, fecha_publicacion')
+          .eq('fecha_publicacion', new Date().toISOString().slice(0, 10))
+          .order('id')
+          .limit(20),
         supabase
           .from('sector_matches')
           .select('*')
@@ -156,6 +165,8 @@ export default function Home() {
       // Si aún no ha lanzado el análisis con IA, la pestaña se llena con
       // los asuntos que coinciden con sus temas del onboarding. Así no
       // está vacía el primer día, que es justo cuando peor sienta.
+      setBoeHoy(hoyBoe || []);
+
       if ((sec || []).length > 0) {
         setSector(sec);
       } else {
@@ -297,6 +308,9 @@ export default function Home() {
             { id: 'sector', label: 'De tu sector', n: sector.length },
             { id: 'plazos', label: 'Todos los plazos', n: null },
             { id: 'seguimiento', label: 'Lo que sigues', n: seguidos.length },
+            // Solo si hay algo: en fin de semana y festivos no hay BOE, y
+            // una pestaña vacía se lee como que algo falla.
+            ...(boeHoy.length ? [{ id: 'boe', label: 'Publicado hoy en el BOE', n: boeHoy.length }] : []),
           ].map((t) => (
             <button
               key={t.id}
@@ -391,6 +405,43 @@ export default function Home() {
               </Link>
             </>
           ))}
+
+        {tab === 'boe' && (
+          <>
+            {boeHoy.slice(0, 4).map((d) => (
+              <Link
+                key={d.id}
+                href={`/boe/${d.slug}`}
+                style={{
+                  display: 'block',
+                  padding: '12px 0',
+                  borderTop: '.5px solid #f2f0ec',
+                  textDecoration: 'none',
+                  color: 'inherit',
+                }}
+              >
+                <div style={{ fontSize: 13, lineHeight: 1.45, letterSpacing: '-.1px' }}>{d.titulo}</div>
+                <div style={{ fontSize: 11, color: '#a8a49c', marginTop: 4 }}>
+                  {[d.rango, d.departamento].filter(Boolean).join(' · ')}
+                </div>
+              </Link>
+            ))}
+            {boeHoy.length > 4 && (
+              <Link
+                href="/boe"
+                style={{
+                  display: 'inline-block',
+                  fontSize: 12.5,
+                  color: '#6d5aef',
+                  textDecoration: 'none',
+                  paddingTop: 12,
+                }}
+              >
+                Ver los {boeHoy.length} de hoy →
+              </Link>
+            )}
+          </>
+        )}
 
         {tab === 'plazos' && (
           <>
