@@ -122,7 +122,6 @@ export default function InstitutionsHomePage() {
   const supabase = createClient();
   const router = useRouter();
   const [counts, setCounts] = useState(null);
-  const [legislature, setLegislature] = useState(null);
   const [search, setSearch] = useState('');
 
   useEffect(() => {
@@ -140,12 +139,14 @@ export default function InstitutionsHomePage() {
       { count: euCommitteesCount },
       { count: commissionersCount },
       { count: ecPeopleCount },
-      { data: leg },
     ] = await Promise.all([
       supabase.from('deputies').select('id', { count: 'exact', head: true }).eq('active', true),
       supabase.from('parliamentary_groups').select('id', { count: 'exact', head: true }).eq('active', true),
       supabase.from('eu_meps').select('id', { count: 'exact', head: true }).eq('active', true),
-      supabase.from('es_committees').select('id', { count: 'exact', head: true }),
+      // Mesa, Junta de Portavoces y Diputación Permanente tienen pestaña
+      // propia y no se cuentan como comisiones: si no, el titular dice 44
+      // donde la lista enseña 41.
+      supabase.from('es_committees').select('id', { count: 'exact', head: true }).neq('kind', 'gobierno'),
       // No hay tabla de ministerios: el ministerio es un campo de texto en
       // government_members y government_officials, así que los distintos
       // se cuentan en la vista gobierno_resumen. Y los cargos son la suma
@@ -161,7 +162,6 @@ export default function InstitutionsHomePage() {
         .is('term_end', null),
       supabase.from('ec_commissioners').select('id', { count: 'exact', head: true }),
       supabase.from('ec_people').select('id', { count: 'exact', head: true }).eq('active', true),
-      supabase.from('legislatures').select('name').eq('active', true).limit(1).maybeSingle(),
     ]);
     setCounts({
       deputies: deputiesCount || 0,
@@ -174,7 +174,6 @@ export default function InstitutionsHomePage() {
       commissioners: commissionersCount || 0,
       ecPeople: ecPeopleCount || 0,
     });
-    setLegislature(leg);
   }
 
   function handleSearch(e) {
@@ -186,11 +185,13 @@ export default function InstitutionsHomePage() {
     <div className="sec">
       <div style={{ marginBottom: 16 }}>
         <h1 style={{ fontSize: 19, fontWeight: 700, margin: 0 }}>Directorio institucional</h1>
+        {/* La legislatura sale de aquí: la XV solo aplica al Congreso, no a
+            los ministerios ni al Parlamento Europeo, que va por su 10ª.
+            Su sitio es la tarjeta del Congreso, donde ya está.
+            Tampoco se promete el contacto: el email de los diputados llega
+            en la fase 2 del sync y hoy no está cargado. */}
         <p style={{ fontSize: 12.5, color: '#888', margin: '3px 0 0' }}>
-          Quién decide en España y en la Unión Europea, con su cargo y su contacto.
-          {/* La legislatura se cargaba para la banda de cifras; al quitarla
-              se queda aquí, que es donde de verdad sitúa al usuario. */}
-          {legislature?.name && ` · ${legislature.name}`}
+          Localiza a quien decide sobre tu sector, antes de que decida.
         </p>
       </div>
 
