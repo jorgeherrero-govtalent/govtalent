@@ -128,8 +128,12 @@ export async function GET(request) {
     // todos y luego se filtra por los temas de cada uno.
     const { data: boeSemana } = await supabase
       .from('boe_directory')
-      .select('id, slug, titulo, departamento, rango, sector, sectores, fecha_publicacion')
+      .select('id, slug, titulo, departamento, rango, sector, sectores, seccion, fecha_publicacion')
       .gte('fecha_publicacion', desde.slice(0, 10))
+      // Solo I y III: disposiciones generales y otras disposiciones. La
+      // II son nombramientos y ceses, que ocupan sitio en un resumen
+      // semanal sin afectar a casi nadie.
+      .in('seccion', ['1', '3'])
       .order('fecha_publicacion', { ascending: false })
       .limit(200);
 
