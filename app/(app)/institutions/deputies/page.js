@@ -5,7 +5,6 @@ import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
 import MultiSelectFilter from '@/components/MultiSelectFilter';
-import UpgradeModal from '@/components/UpgradeModal';
 
 const PAGE_SIZE = 10;
 
@@ -31,7 +30,6 @@ function DeputiesDirectoryInner() {
   const [constituencyFilter, setConstituencyFilter] = useState(new Set());
   const [view, setView] = useState('grid');
   const [page, setPage] = useState(0);
-  const [upgradeModal, setUpgradeModal] = useState(false);
 
   useEffect(() => {
     load();
@@ -60,7 +58,12 @@ function DeputiesDirectoryInner() {
       // Las comisiones vienen de es_committee_members, no de
       // parliamentary_bodies: esa tabla se diseñó para esto pero nunca
       // se llegó a cargar.
-      supabase.from('es_committee_people').select('deputy_id, committee_name, cargo_norm').not('deputy_id', 'is', null),
+      //
+      // En bloques de mil: Supabase devuelve como máximo esa cantidad por
+      // consulta, y aquí hay más de dos mil filas. Sin paginar, la lista
+      // llegaba cortada por la mitad y a los diputados de las comisiones
+      // que quedaban fuera les salía la columna vacía.
+      traerTodas(),
     ]);
 
     setDeputies(deputiesData || []);
@@ -83,6 +86,24 @@ function DeputiesDirectoryInner() {
       porDiputado[c.deputy_id].push({ nombre: c.committee_name, cargo: c.cargo_norm });
     }
     setComisionesPorDiputado(porDiputado);
+  }
+
+  // Supabase corta en 1.000 filas por consulta. Se piden por bloques
+  // hasta que uno vuelve incompleto.
+  async function traerTodas() {
+    const TAM = 1000;
+    const todas = [];
+    for (let desde = 0; ; desde += TAM) {
+      const { data, error } = await supabase
+        .from('es_committee_people')
+        .select('deputy_id, committee_name, cargo_norm')
+        .not('deputy_id', 'is', null)
+        .range(desde, desde + TAM - 1);
+      if (error || !data?.length) break;
+      todas.push(...data);
+      if (data.length < TAM) break;
+    }
+    return { data: todas };
   }
 
   const groupById = useMemo(() => Object.fromEntries(groups.map((g) => [g.id, g])), [groups]);
@@ -225,31 +246,10 @@ function DeputiesDirectoryInner() {
             Limpiar filtros
           </span>
         )}
-        <button
-          onClick={() =>
-            setUpgradeModal({
-              title: 'Filtros avanzados',
-              message:
-                'Filtra por cargo, comisiones múltiples, portavocía, Mesa del Congreso, antigüedad y más. Disponible en el plan Pro.',
-            })
-          }
-          style={{
-            background: '#eeecfd',
-            border: '.5px solid #6d5aef',
-            borderRadius: 20,
-            padding: '7px 14px',
-            fontSize: 12,
-            color: '#5a4fd6',
-            fontWeight: 600,
-            display: 'flex',
-            alignItems: 'center',
-            gap: 5,
-            cursor: 'pointer',
-          }}
-        >
-          <i className="ti ti-adjustments" style={{ fontSize: 13 }}></i> Filtros avanzados
-          <span style={{ background: '#6d5aef', color: '#fff', fontSize: 9, padding: '1px 5px', borderRadius: 6 }}>PRO</span>
-        </button>
+        {/* El botón de "Filtros avanzados PRO" prometía filtrar por cargo,
+            portavocía, Mesa y antigüedad. Ninguno de esos filtros existe:
+            era una promesa de algo no construido en un sitio donde ya hay
+            tres filtros que sí funcionan. */}
         <div style={{ display: 'flex', background: '#fff', border: '.5px solid #e0dfd8', borderRadius: 8, overflow: 'hidden' }}>
           <button
             onClick={() => setView('grid')}
@@ -440,7 +440,6 @@ function DeputiesDirectoryInner() {
         </div>
       )}
 
-      {upgradeModal && <UpgradeModal title={upgradeModal.title} message={upgradeModal.message} onClose={() => setUpgradeModal(false)} />}
     </div>
   );
 }
