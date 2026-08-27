@@ -200,28 +200,48 @@ export default function ActaActividad({ actividad, asunto, onCerrar }) {
 <style>
   body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;
        color:#1a1a18;max-width:720px;margin:40px auto;padding:0 32px;line-height:1.55}
-  h1{font-size:17px;margin:0 0 4px}
-  .sub{font-size:12px;color:#777;margin-bottom:26px}
-  h2{font-size:11px;text-transform:uppercase;letter-spacing:.5px;color:#888;
-     margin:26px 0 8px;font-weight:600}
-  table{width:100%;border-collapse:collapse;font-size:13px}
-  th{text-align:left;font-weight:400;color:#777;width:200px;padding:5px 0;vertical-align:top}
-  td{padding:5px 0;vertical-align:top}
-  p{font-size:13px;margin:0}
-  .pie{margin-top:34px;padding-top:14px;border-top:.5px solid #ddd;font-size:11px;color:#888}
-  @media print{body{margin:0;padding:0 12mm}}
+  .cab{display:flex;align-items:flex-end;justify-content:space-between;gap:20px;
+       padding-bottom:14px;border-bottom:2px solid #1d6f5c;margin-bottom:22px}
+  h1{font-size:18px;font-weight:500;margin:0}
+  .sub{font-size:12.5px;color:#77746e;margin-top:3px}
+  .marca{font-size:11.5px;color:#1d6f5c;font-weight:500;white-space:nowrap}
+  .marca b{background:#1d6f5c;color:#fff;padding:1.5px 5px;border-radius:3px;font-weight:500}
+  /* El único bloque en morado: es el que identifica al sujeto obligado y
+     tiene que separarse del resto. Un solo uso, para que el color
+     signifique algo y no compita con el verde del documento. */
+  .grupo{background:#f4f2fe;border-left:2px solid #6d5aef;padding:14px 17px;margin-bottom:22px}
+  .grupo h2{color:#3c3489;margin-top:0}
+  h2{font-size:10px;text-transform:uppercase;letter-spacing:.5px;color:#1d6f5c;
+     margin:22px 0 9px;font-weight:500}
+  table{width:100%;border-collapse:collapse;font-size:12.5px}
+  th{text-align:left;font-weight:400;color:#77746e;width:190px;padding:3.5px 0;vertical-align:top}
+  td{padding:3.5px 0;vertical-align:top}
+  p{font-size:12.5px;margin:0;line-height:1.6}
+  .vacio{color:#a8a49c}
+  .pie{margin-top:26px;padding-top:15px;border-top:.5px solid #e8e6e0;font-size:10.5px;
+       color:#a8a49c;line-height:1.55}
+  /* Los fondos se imprimen: sin esto el bloque morado sale en blanco. */
+  @media print{body{margin:0;padding:0 12mm}
+    *{-webkit-print-color-adjust:exact;print-color-adjust:exact}}
 </style></head><body>
-<h1>${escapar(TITULO[actividad.tipo] || 'Registro de actividad')}</h1>
-<div class="sub">${escapar(fechaLarga(actividad.fecha))}</div>
+<div class="cab">
+  <div>
+    <h1>${escapar(TITULO[actividad.tipo] || 'Registro de actividad')}</h1>
+    <div class="sub">${escapar(fechaLarga(actividad.fecha))}</div>
+  </div>
+  <span class="marca">gov<b>talent</b></span>
+</div>
 
+<div class="grupo">
 <h2>Grupo de interés</h2>
 <table>
   ${fila('Denominación', denominacion)}
   ${grupo?.tax_id ? fila('CIF', grupo.tax_id) : ''}
   ${grupo?.registered_address ? fila('Domicilio social', grupo.registered_address) : ''}
-  ${fila('Nº de inscripción', grupo?.cbtg_registry_number || 'Sin indicar')}
+  ${grupo?.cbtg_registry_number ? fila('Nº de inscripción', grupo.cbtg_registry_number) : '<tr><th>Nº de inscripción</th><td class="vacio">Sin indicar</td></tr>'}
   ${porCuentaDe ? fila('Actúa por cuenta de', porCuentaDe) : ''}
 </table>
+</div>
 
 <h2>Actividad</h2>
 <table>
@@ -261,13 +281,15 @@ Su contenido es responsabilidad de ${escapar(denominacion)}. La presentación an
   const etiqueta = { fontSize: 10.5, color: '#999', width: 150, flexShrink: 0 };
   const valor = { fontSize: 12.5, color: '#1a1a18', flex: 1, minWidth: 0 };
   const linea = { display: 'flex', gap: 12, padding: '5px 0' };
+  // Mismos colores que el documento imprimible: verde para el acta,
+  // morado solo en el bloque del grupo de interés.
   const seccion = {
     fontSize: 10,
     textTransform: 'uppercase',
-    letterSpacing: '.4px',
-    color: '#aaa',
-    fontWeight: 700,
-    margin: '18px 0 6px',
+    letterSpacing: '.5px',
+    color: '#1d6f5c',
+    fontWeight: 600,
+    margin: '20px 0 7px',
   };
 
   return (
@@ -310,16 +332,38 @@ Su contenido es responsabilidad de ${escapar(denominacion)}. La presentación an
           <i className="ti ti-x" style={{ fontSize: 13, color: '#777' }}></i>
         </button>
 
-        <div style={{ fontSize: 14, fontWeight: 700 }}>
-          {TITULO[actividad.tipo] || 'Registro de actividad'}
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'flex-end',
+            justifyContent: 'space-between',
+            gap: 16,
+            paddingBottom: 12,
+            borderBottom: '2px solid #1d6f5c',
+          }}
+        >
+          <div>
+            <div style={{ fontSize: 15, fontWeight: 700 }}>
+              {TITULO[actividad.tipo] || 'Registro de actividad'}
+            </div>
+            <div style={{ fontSize: 11.5, color: '#77746e', marginTop: 2 }}>{fechaLarga(actividad.fecha)}</div>
+          </div>
         </div>
-        <div style={{ fontSize: 11.5, color: '#888', marginTop: 2 }}>{fechaLarga(actividad.fecha)}</div>
 
         {cargando ? (
           <div className="spinner"></div>
         ) : (
           <>
-            <div style={seccion}>Grupo de interés</div>
+            <div
+              style={{
+                background: '#f4f2fe',
+                borderLeft: '2px solid #6d5aef',
+                borderRadius: 0,
+                padding: '12px 15px',
+                margin: '16px 0 4px',
+              }}
+            >
+              <div style={{ ...seccion, color: '#3c3489', margin: '0 0 7px' }}>Grupo de interés</div>
             <div style={linea}>
               <span style={etiqueta}>Denominación</span>
               <span style={valor}>{denominacion}</span>
@@ -348,6 +392,7 @@ Su contenido es responsabilidad de ${escapar(denominacion)}. La presentación an
                 <span style={valor}>{porCuentaDe}</span>
               </div>
             )}
+            </div>
 
             <div style={seccion}>Actividad</div>
             <div style={linea}>
