@@ -121,7 +121,7 @@ export default function ActividadProyecto({ projectId, userId }) {
     const [{ data: acts, error }, { data: acs }, { data: its }, { data: proy }, { data: cls }] = await Promise.all([
       supabase
         .from('activities')
-        .select('id, tipo, estado, fecha, modalidad, lugar, asunto, cliente_nombre, client_id, item_id, closed_at')
+        .select('id, tipo, estado, fecha, modalidad, lugar, asunto, cliente_nombre, client_id, organization_id, item_id, closed_at')
         .eq('project_id', projectId)
         .order('fecha', { ascending: false })
         .order('created_at', { ascending: false }),
