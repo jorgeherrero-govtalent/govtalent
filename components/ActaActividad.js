@@ -200,12 +200,9 @@ export default function ActaActividad({ actividad, asunto, onCerrar }) {
 <style>
   body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;
        color:#1a1a18;max-width:720px;margin:40px auto;padding:0 32px;line-height:1.55}
-  .cab{display:flex;align-items:flex-end;justify-content:space-between;gap:20px;
-       padding-bottom:14px;border-bottom:2px solid #1d6f5c;margin-bottom:22px}
+  .cab{padding-bottom:14px;border-bottom:2px solid #1d6f5c;margin-bottom:22px}
   h1{font-size:18px;font-weight:500;margin:0}
   .sub{font-size:12.5px;color:#77746e;margin-top:3px}
-  .marca{font-size:11.5px;color:#1d6f5c;font-weight:500;white-space:nowrap}
-  .marca b{background:#1d6f5c;color:#fff;padding:1.5px 5px;border-radius:3px;font-weight:500}
   /* El único bloque en morado: es el que identifica al sujeto obligado y
      tiene que separarse del resto. Un solo uso, para que el color
      signifique algo y no compita con el verde del documento. */
@@ -225,11 +222,8 @@ export default function ActaActividad({ actividad, asunto, onCerrar }) {
     *{-webkit-print-color-adjust:exact;print-color-adjust:exact}}
 </style></head><body>
 <div class="cab">
-  <div>
-    <h1>${escapar(TITULO[actividad.tipo] || 'Registro de actividad')}</h1>
-    <div class="sub">${escapar(fechaLarga(actividad.fecha))}</div>
-  </div>
-  <span class="marca">gov<b>talent</b></span>
+  <h1>${escapar(TITULO[actividad.tipo] || 'Registro de actividad')}</h1>
+  <div class="sub">${escapar(fechaLarga(actividad.fecha))}</div>
 </div>
 
 <div class="grupo">
