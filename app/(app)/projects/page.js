@@ -396,8 +396,7 @@ function Proyectos() {
               {/* El mismo texto con proyectos y sin ellos: el contador no
                   explicaba de qué va el módulo, y las tarjetas ya están
                   ahí para contarse. */}
-              Organiza y gestiona tus proyectos, con sus actores, agenda y plazos. Y registra tu actividad
-              institucional en cumplimiento de la nueva regulación de grupos de interés.
+              Organiza, planifica y da seguimiento a tus proyectos.
             </div>
           </div>
           {!creando && (
