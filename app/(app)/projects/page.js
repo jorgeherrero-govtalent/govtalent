@@ -2,6 +2,7 @@
 
 import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
+import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
 import { toast } from '@/lib/toast';
 import UpgradeModal from '@/components/UpgradeModal';
@@ -115,6 +116,11 @@ function Proyectos() {
   // Para el estado vacío: lo último que el usuario ha seguido. Tres,
   // no más: es una sugerencia para arrancar, no un directorio.
   const [seguidos, setSeguidos] = useState([]);
+  // Dos condiciones para que desaparezca: que ya haya alguna actividad
+  // registrada, o que se cierre a mano. Lo segundo hace falta porque
+  // quien no vaya a usar el registro nunca cumpliría la primera, y el
+  // aviso se quedaría para siempre.
+  const [avisoRegistro, setAvisoRegistro] = useState(false);
 
   const esPro = tieneProyectos(user);
 
@@ -192,6 +198,17 @@ function Proyectos() {
 
     setDatos(acc);
     setProyectos(data || []);
+
+    // head: solo interesa si existe alguna, no cuáles.
+    const { count: registradas } = await supabase
+      .from('activities')
+      .select('id', { count: 'exact', head: true })
+      .limit(1);
+    let cerrado = false;
+    try {
+      cerrado = window.localStorage.getItem('gt_aviso_registro') === 'off';
+    } catch {}
+    setAvisoRegistro(!cerrado && (registradas ?? 0) === 0);
 
     // Solo hace falta si no hay ningún proyecto: es lo que se ofrece
     // en la pantalla vacía.
@@ -332,6 +349,13 @@ function Proyectos() {
     abrir(data.id);
   }
 
+  function cerrarAviso() {
+    setAvisoRegistro(false);
+    try {
+      window.localStorage.setItem('gt_aviso_registro', 'off');
+    } catch {}
+  }
+
   async function renombrar(id, texto) {
     const t = texto.trim();
     setRenombrando(null);
@@ -405,6 +429,55 @@ function Proyectos() {
             </button>
           )}
         </div>
+
+        {/* A ancho completo y encima del buscador: dentro de la fila de
+            filtros estrecharía el campo de búsqueda, y ahí el texto no
+            cabría sin apretujarse. */}
+        {avisoRegistro && proyectos.length > 0 && (
+          <div
+            style={{
+              ...CARD,
+              padding: '13px 16px',
+              marginBottom: 14,
+              display: 'flex',
+              alignItems: 'center',
+              gap: 12,
+            }}
+          >
+            <div
+              style={{
+                width: 30,
+                height: 30,
+                borderRadius: 8,
+                background: '#f0eefe',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                flexShrink: 0,
+              }}
+            >
+              <i className="ti ti-file-check" style={{ fontSize: 15, color: MORADO }}></i>
+            </div>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontSize: 12.5, fontWeight: 600 }}>Registra tu actividad institucional</div>
+              <div style={{ fontSize: 11.5, color: '#888', marginTop: 2, lineHeight: 1.5 }}>
+                Cada reunión, entrega o comunicación con la Administración queda registrada con su acta, en
+                cumplimiento de la nueva regulación de grupos de interés.
+              </div>
+            </div>
+            <Link
+              href="/organizations/admin/registro"
+              style={{ fontSize: 11.5, color: MORADO, flexShrink: 0, whiteSpace: 'nowrap', textDecoration: 'none' }}
+            >
+              Cómo funciona
+            </Link>
+            <i
+              className="ti ti-x"
+              onClick={cerrarAviso}
+              style={{ fontSize: 15, color: '#b8b4ac', flexShrink: 0, cursor: 'pointer' }}
+            ></i>
+          </div>
+        )}
 
         {proyectos.length > 0 && (
           <div style={{ display: 'flex', gap: 8, marginBottom: 14, flexWrap: 'wrap' }}>
