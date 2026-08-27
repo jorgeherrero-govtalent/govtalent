@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { toast } from '@/lib/toast';
 import { getEffectiveTier } from '@/lib/plan';
+import SelectorFecha from '@/components/SelectorFecha';
 
 /**
  * Configuración de la organización.
@@ -23,12 +24,28 @@ import { getEffectiveTier } from '@/lib/plan';
 
 const BORDE = '#e0dfd8';
 
+// Los tipos del artículo 2.1: personas físicas y jurídicas y agrupaciones
+// sin personalidad jurídica, incluidas plataformas, foros y redes.
+const TIPOS_ORG = [
+  { v: 'empresa', label: 'Empresa' },
+  { v: 'consultora', label: 'Consultora de asuntos públicos' },
+  { v: 'patronal', label: 'Patronal o asociación empresarial' },
+  { v: 'asociacion', label: 'Asociación o federación' },
+  { v: 'fundacion', label: 'Fundación o think tank' },
+  { v: 'despacho', label: 'Despacho profesional' },
+  { v: 'sindicato', label: 'Sindicato' },
+  { v: 'otra', label: 'Otra' },
+];
+
 export default function ConfiguracionOrganizacion() {
   const supabase = createClient();
   const [org, setOrg] = useState(null);
   const [cargando, setCargando] = useState(true);
   const [confirmar, setConfirmar] = useState(false);
   const [guardando, setGuardando] = useState(false);
+  const [esAdmin, setEsAdmin] = useState(false);
+  const [datos, setDatos] = useState(null);
+  const [guardandoDatos, setGuardandoDatos] = useState(false);
 
   useEffect(() => {
     cargar();
@@ -39,11 +56,28 @@ export default function ConfiguracionOrganizacion() {
     if (!auth?.user) return setCargando(false);
     const { data } = await supabase
       .from('organization_members')
-      .select('organizations(id, name, slug, plan, plan_status, trial_ends_at, is_public)')
+      .select(
+        'role, organizations(id, name, slug, plan, plan_status, trial_ends_at, is_public, legal_name, tax_id, org_type, registered_address, cbtg_registry_number, cbtg_registered_at, transparency_pledge, transparency_pledge_at)'
+      )
       .eq('user_id', auth.user.id)
       .limit(1)
       .maybeSingle();
-    setOrg(data?.organizations || null);
+
+    const o = data?.organizations || null;
+    setOrg(o);
+    // Solo la administración edita los datos legales: salen en un
+    // documento con valor probatorio, no son una preferencia.
+    setEsAdmin(data?.role === 'admin');
+    if (o) {
+      setDatos({
+        legal_name: o.legal_name || '',
+        tax_id: o.tax_id || '',
+        org_type: o.org_type || '',
+        registered_address: o.registered_address || '',
+        cbtg_registry_number: o.cbtg_registry_number || '',
+        cbtg_registered_at: o.cbtg_registered_at || null,
+      });
+    }
     setCargando(false);
   }
 
@@ -61,6 +95,38 @@ export default function ConfiguracionOrganizacion() {
     toast(publica ? 'Tu página vuelve a estar visible' : 'Tu página ya no es visible');
   }
 
+  async function guardarDatos() {
+    setGuardandoDatos(true);
+    const { error } = await supabase
+      .from('organizations')
+      .update({
+        legal_name: datos.legal_name.trim() || null,
+        tax_id: datos.tax_id.trim() || null,
+        org_type: datos.org_type || null,
+        registered_address: datos.registered_address.trim() || null,
+        cbtg_registry_number: datos.cbtg_registry_number.trim() || null,
+        cbtg_registered_at: datos.cbtg_registered_at || null,
+      })
+      .eq('id', org.id);
+    setGuardandoDatos(false);
+    if (error) return toast('No se han podido guardar los datos');
+    setOrg({ ...org, ...datos });
+    toast('Datos guardados');
+  }
+
+  async function firmarCompromiso() {
+    const siguiente = !org.transparency_pledge;
+    const { error } = await supabase
+      .from('organizations')
+      .update({
+        transparency_pledge: siguiente,
+        transparency_pledge_at: siguiente ? new Date().toISOString() : null,
+      })
+      .eq('id', org.id);
+    if (error) return toast('No se ha podido guardar');
+    setOrg({ ...org, transparency_pledge: siguiente });
+  }
+
   if (cargando) return <div className="spinner"></div>;
   if (!org) {
     return (
@@ -73,13 +139,186 @@ export default function ConfiguracionOrganizacion() {
 
   const esTeams = getEffectiveTier(org) === 'pro';
   const visible = org.is_public !== false;
+  const inscrita = !!(datos?.cbtg_registry_number || '').trim();
+  const cambiado =
+    datos &&
+    (datos.legal_name !== (org.legal_name || '') ||
+      datos.tax_id !== (org.tax_id || '') ||
+      datos.org_type !== (org.org_type || '') ||
+      datos.registered_address !== (org.registered_address || '') ||
+      datos.cbtg_registry_number !== (org.cbtg_registry_number || '') ||
+      datos.cbtg_registered_at !== (org.cbtg_registered_at || null));
+
+  const campo = (k, etiqueta, placeholder) => (
+    <div className="field" style={{ flex: 1, marginBottom: 0 }}>
+      <label>{etiqueta}</label>
+      <input
+        value={datos[k]}
+        onChange={(e) => setDatos({ ...datos, [k]: e.target.value })}
+        placeholder={placeholder}
+        disabled={!esAdmin}
+      />
+    </div>
+  );
 
   return (
     <div style={{ maxWidth: 620 }}>
       <h2 style={{ fontSize: 19, fontWeight: 700, marginBottom: 4 }}>Configuración</h2>
       <p style={{ fontSize: 13, color: '#888', marginBottom: 20 }}>
-        Quién puede gestionar esta página y si aparece en GovTalent.
+        Los datos de tu organización, quién puede gestionarla y si aparece en GovTalent.
       </p>
+
+      {/* Los datos legales van primero: son los que hacen falta para que
+          un acta identifique a la organización, y sin ellos el resto de
+          la configuración importa poco. */}
+      {datos && (
+        <>
+          <div
+            className="card"
+            style={{ padding: '15px 20px', marginBottom: 12, display: 'flex', alignItems: 'center', gap: 13 }}
+          >
+            <div
+              style={{
+                width: 34,
+                height: 34,
+                borderRadius: '50%',
+                background: '#f5f4f1',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                flexShrink: 0,
+              }}
+            >
+              <i
+                className={`ti ti-${inscrita ? 'shield-check' : 'alert-circle'}`}
+                style={{ fontSize: 17, color: inscrita ? '#1d6f5c' : '#8b8780' }}
+              ></i>
+            </div>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              {/* "No has indicado" y no "Sin inscribir": GovTalent no
+                  puede comprobarlo —el registro no está operativo— y
+                  afirmar lo segundo sería dar por verificado algo que
+                  solo es una declaración. */}
+              <div style={{ fontSize: 13, fontWeight: 600 }}>
+                {inscrita
+                  ? 'Inscripción en el Registro de grupos de interés declarada'
+                  : 'No has indicado número de inscripción'}
+              </div>
+              <div style={{ fontSize: 11.5, color: '#888', marginTop: 2, lineHeight: 1.5 }}>
+                Desde el 27 de agosto de 2026, la inscripción en el registro del Consejo de Transparencia es
+                obligatoria para mantener contactos de influencia con la Administración General del Estado.
+              </div>
+            </div>
+          </div>
+
+          <div className="card" style={{ padding: 20, marginBottom: 12 }}>
+            <div style={{ fontSize: 11, color: '#a8a49c', letterSpacing: '.4px', marginBottom: 4 }}>
+              DATOS DE LA ORGANIZACIÓN
+            </div>
+            <p style={{ fontSize: 12, color: '#999', marginBottom: 14, lineHeight: 1.55 }}>
+              {esAdmin
+                ? 'Identifican a tu organización en las actas de actividad institucional.'
+                : 'Solo la administración de la cuenta puede modificar estos datos.'}
+            </p>
+
+            <div className="field">
+              <label>Denominación legal</label>
+              <input
+                value={datos.legal_name}
+                onChange={(e) => setDatos({ ...datos, legal_name: e.target.value })}
+                placeholder={org.name ? `Ej: ${org.name}, S.L.` : 'Razón social completa'}
+                disabled={!esAdmin}
+              />
+              <p style={{ fontSize: 11, color: '#999', marginTop: 4 }}>
+                La razón social, que puede no coincidir con el nombre comercial que muestras en tu página.
+              </p>
+            </div>
+
+            <div style={{ display: 'flex', gap: 10, marginBottom: 14 }}>
+              {campo('tax_id', 'CIF / NIF', 'Ej: B12345678')}
+              <div className="field" style={{ flex: 1, marginBottom: 0 }}>
+                <label>Tipo de organización</label>
+                <select
+                  value={datos.org_type || ''}
+                  onChange={(e) => setDatos({ ...datos, org_type: e.target.value })}
+                  disabled={!esAdmin}
+                >
+                  <option value="">Sin especificar</option>
+                  {TIPOS_ORG.map((t) => (
+                    <option key={t.v} value={t.v}>
+                      {t.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            <div className="field">
+              <label>Domicilio o sede social</label>
+              <input
+                value={datos.registered_address}
+                onChange={(e) => setDatos({ ...datos, registered_address: e.target.value })}
+                placeholder="Calle, número, código postal y ciudad"
+                disabled={!esAdmin}
+              />
+            </div>
+
+            <div style={{ display: 'flex', gap: 10, marginBottom: 14 }}>
+              {campo('cbtg_registry_number', 'Nº de inscripción en el Registro', 'Aún sin asignar')}
+              <div className="field" style={{ flex: 1, marginBottom: 0 }}>
+                <label>Fecha de inscripción</label>
+                <SelectorFecha
+                  value={datos.cbtg_registered_at}
+                  onChange={(v) => setDatos({ ...datos, cbtg_registered_at: v })}
+                  placeholder="Sin indicar"
+                  desdeAno={2026}
+                  hastaAno={new Date().getFullYear() + 1}
+                />
+              </div>
+            </div>
+
+            {esAdmin && cambiado && (
+              <button className="btn-ai" disabled={guardandoDatos} onClick={guardarDatos}>
+                {guardandoDatos ? 'Guardando…' : 'Guardar cambios'}
+              </button>
+            )}
+          </div>
+
+          {/* El compromiso de aceptación del artículo 6.1.g. Se firma una
+              vez, así que su sitio es este y no una pantalla que se
+              consulta a diario. */}
+          <div
+            className="card"
+            style={{ padding: '15px 20px', marginBottom: 20, display: 'flex', alignItems: 'center', gap: 13 }}
+          >
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontSize: 13, fontWeight: 600 }}>Compromiso con las normas de conducta</div>
+              <div style={{ fontSize: 11.5, color: '#888', marginTop: 2, lineHeight: 1.5 }}>
+                {org.transparency_pledge
+                  ? 'Tu organización ha asumido los principios de conducta del título II del RDL 21/2026.'
+                  : 'Transparencia en la identificación, veracidad de la información y no ofrecer obsequios ni favores.'}
+              </div>
+            </div>
+            {esAdmin && (
+              <button
+                onClick={firmarCompromiso}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  padding: 0,
+                  color: '#999',
+                  fontSize: 11.5,
+                  cursor: 'pointer',
+                  flexShrink: 0,
+                  fontFamily: 'inherit',
+                }}
+              >
+                {org.transparency_pledge ? 'Retirar' : 'Asumir compromiso'}
+              </button>
+            )}
+          </div>
+        </>
+      )}
 
       {/* Filas separadas por línea, como en Seguimiento: dos tarjetas
           apiladas para dos ajustes daban más peso al contenedor que al
