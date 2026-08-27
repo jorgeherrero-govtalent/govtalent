@@ -256,10 +256,22 @@ export async function GET(request) {
   }
 
   try {
-    // Los días ya cargados, para no repetirlos
+    // Los días ya cargados, para no repetirlos. Solo cuentan los 'ok'.
+    //
+    // Antes entraba cualquier fila y eso quemaba días enteros: si el cron
+    // corría antes de que el BOE publicara el sumario, el 404 escribía un
+    // registro 'vacio' (más abajo), y al día siguiente esa fecha ya
+    // figuraba aquí y se saltaba como "ya cargado". Nunca se reintentaba.
+    // El día quedaba marcado como sin boletín sin haberlo tenido nunca
+    // delante.
+    //
+    // Filtrando por 'ok', un día vacío se vuelve a pedir en la siguiente
+    // pasada. El coste es una petición de más por domingo, que sí está
+    // legítimamente vacío.
     const { data: yaCargados } = await supabase
       .from('boe_sync_log')
       .select('fecha')
+      .eq('estado', 'ok')
       .in('fecha', fechas.map(aFecha).filter(Boolean));
     const hechos = new Set((yaCargados || []).map((r) => r.fecha));
 
