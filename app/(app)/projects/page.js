@@ -7,6 +7,7 @@ import { toast } from '@/lib/toast';
 import UpgradeModal from '@/components/UpgradeModal';
 import MapaActores from '@/components/MapaActores';
 import ActividadProyecto from '@/components/ActividadProyecto';
+import AgendaProyecto from '@/components/AgendaProyecto';
 import NotasProyecto from '@/components/NotasProyecto';
 import AsuntosProyecto from '@/components/AsuntosProyecto';
 import BriefingProyecto from '@/components/BriefingProyecto';
@@ -861,10 +862,9 @@ function Proyectos() {
         { id: 'resumen', label: 'Resumen', cuenta: d.asuntos },
         { id: 'mapa', label: 'Mapa de actores', cuenta: d.actores },
         { id: 'briefing', label: 'Briefing', cuenta: d.briefings },
-        // Agenda y registro fusionados: son la misma pregunta en dos
-        // tiempos —qué falta por hacer y qué se hizo— y separarlos obligaba
-        // a decidir en qué bloque mirar.
-        { id: 'actividad', label: 'Actividad', cuenta: d.acciones },
+        // Una sola entrada para las dos tarjetas: están en la misma fila,
+        // así que dos anclas llevarían al mismo sitio.
+        { id: 'actividad', label: 'Agenda y registro', cuenta: d.acciones },
         // Una sola entrada: las dos secciones están en la misma fila,
         // así que dos anclas llevarían al mismo sitio.
         { id: 'documentos', label: 'Documentos y notas' },
@@ -874,7 +874,7 @@ function Proyectos() {
         { id: 'norma', label: 'La norma' },
         { id: 'mapa', label: 'Mapa de actores' },
         { id: 'briefing', label: 'Briefing' },
-        { id: 'actividad', label: 'Actividad' },
+        { id: 'actividad', label: 'Agenda y registro' },
         { id: 'documentos', label: 'Documentos' },
       ];
 
@@ -1055,14 +1055,35 @@ function Proyectos() {
                 <BriefingProyecto projectId={abierto.id} userId={user.id} />
               </section>
 
-              {/* En tarjeta, como el mapa: son las dos secciones que se
-                  usan a diario y conviene que se distingan del resto. */}
+              {/* Agenda y registro, una al lado de la otra pero separadas:
+                  la agenda es el método de cada uno y es opcional; el
+                  registro es la obligación del RDL 21/2026. Juntarlas en
+                  pestañas obligaba a decidir en cuál mirar. */}
               <section
                 id="actividad"
-                style={{ scrollMarginTop: 72, marginBottom: 30, ...CARD, padding: '18px 20px' }}
+                style={{
+                  scrollMarginTop: 72,
+                  marginBottom: 30,
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
+                  gap: 12,
+                }}
               >
-                <div style={{ ...ETIQUETA, marginBottom: 12 }}>ACTIVIDAD</div>
-                <ActividadProyecto projectId={abierto.id} userId={user.id} />
+                <div style={{ ...CARD, padding: '16px 18px' }}>
+                  <div style={{ ...ETIQUETA, marginBottom: 4 }}>AGENDA</div>
+                  <p style={{ fontSize: 11.5, color: '#888', margin: '0 0 12px', lineHeight: 1.5 }}>
+                    Anota lo que hay que hacer y cuándo.
+                  </p>
+                  <AgendaProyecto projectId={abierto.id} />
+                </div>
+
+                <div style={{ ...CARD, padding: '16px 18px' }}>
+                  <div style={{ ...ETIQUETA, marginBottom: 4 }}>REGISTRO</div>
+                  <p style={{ fontSize: 11.5, color: '#888', margin: '0 0 12px', lineHeight: 1.5 }}>
+                    Registra tus actividades en conformidad con la ley.
+                  </p>
+                  <ActividadProyecto projectId={abierto.id} userId={user.id} />
+                </div>
               </section>
 
               {/* Documentos y notas, una al lado de la otra: ninguna
