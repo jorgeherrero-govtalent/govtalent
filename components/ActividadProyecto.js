@@ -113,12 +113,14 @@ export default function ActividadProyecto({ projectId, userId }) {
   const [clientes, setClientes] = useState([]);
   const [orgId, setOrgId] = useState(null);
   const [clienteProyecto, setClienteProyecto] = useState(null);
+  const [yo, setYo] = useState(null);
   const [cargando, setCargando] = useState(true);
   const [abierto, setAbierto] = useState(null);
   const [acta, setActa] = useState(null);
 
   const cargar = useCallback(async () => {
-    const [{ data: acts, error }, { data: acs }, { data: its }, { data: proy }, { data: cls }] = await Promise.all([
+    const [{ data: acts, error }, { data: acs }, { data: its }, { data: proy }, { data: cls }, { data: perfil }] =
+      await Promise.all([
       supabase
         .from('activities')
         .select('id, tipo, estado, fecha, modalidad, lugar, asunto, cliente_nombre, client_id, organization_id, item_id, closed_at')
@@ -133,6 +135,9 @@ export default function ActividadProyecto({ projectId, userId }) {
       // Los clientes de la cuenta. Solo los activos: los archivados
       // siguen en las actas cerradas pero no se ofrecen para nuevas.
       supabase.from('clients').select('id, nombre, tax_id').eq('activo', true).order('nombre'),
+      // Nombre real del usuario: en el acta, "Yo" no identifica a nadie,
+      // y el artículo 6.2 pide identificar a los participantes.
+      supabase.from('users').select('first_name, last_name').eq('id', userId).maybeSingle(),
     ]);
 
     if (error) toast('No se ha podido cargar la actividad');
@@ -143,6 +148,9 @@ export default function ActividadProyecto({ projectId, userId }) {
     setClientes(cls || []);
     setOrgId(proy?.organization_id || null);
     setClienteProyecto(proy?.client_id || null);
+    setYo(
+      [perfil?.first_name, perfil?.last_name].filter(Boolean).join(' ').trim() || null
+    );
 
     if (lista.length > 0) {
       const { data: parts } = await supabase
@@ -347,6 +355,7 @@ export default function ActividadProyecto({ projectId, userId }) {
           asuntos={asuntos}
           clientes={clientes}
           clienteProyecto={clienteProyecto}
+          yo={yo}
           inicial={abierto === 'nueva' ? null : abierto}
           participantesIniciales={abierto === 'nueva' ? [] : participantes[abierto.id] || []}
           onCerrar={() => setAbierto(null)}
@@ -368,6 +377,7 @@ function FormularioActividad({
   asuntos,
   clientes,
   clienteProyecto,
+  yo,
   inicial,
   participantesIniciales,
   onCerrar,
@@ -391,7 +401,7 @@ function FormularioActividad({
 
   const [parts, setParts] = useState(() =>
     esNueva
-      ? [{ nombre: 'Yo', es_propio: true, kind: 'usuario', ref_id: userId, user_id: userId }]
+      ? [{ nombre: yo || 'Sin nombre', es_propio: true, kind: 'usuario', ref_id: userId, user_id: userId }]
       : participantesIniciales.map((p) => ({ ...p }))
   );
   const [nuevoNombre, setNuevoNombre] = useState('');
@@ -661,7 +671,7 @@ function FormularioActividad({
                   alignItems: 'center',
                 }}
               >
-                {p.nombre}
+                {p.user_id === userId ? 'Yo' : p.nombre}
                 <i
                   className="ti ti-x"
                   onClick={() => setParts((prev) => prev.filter((_, j) => j !== i))}
