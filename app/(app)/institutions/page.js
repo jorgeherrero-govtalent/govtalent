@@ -51,10 +51,10 @@ function FlagEU() {
   );
 }
 
-function SectionTitle({ flag, children }) {
+function SectionTitle({ flag, icon, children }) {
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 9, marginBottom: 10 }}>
-      {flag}
+      {flag || (icon && <i className={`ti ti-${icon}`} style={{ color: '#aaa', fontSize: 15, width: 20, textAlign: 'center' }}></i>)}
       <span
         style={{
           fontSize: 11,
@@ -289,6 +289,30 @@ export default function InstitutionsHomePage() {
           />
         </div>
         <Proximamente items={['Senado', 'Organismos y entidades']} />
+      </div>
+
+      {/* Tercera sección, sin bandera. Las dos de arriba agrupan por
+          jurisdicción —instituciones del Estado, instituciones de la UE—
+          y ahí es donde entrarán Senado y Organismos y entidades. Una
+          patronal o una consultora no son una institución más: no
+          deciden, tratan de influir en quien decide. Meterlas bajo la
+          bandera diría lo contrario. El contraste de tener cabecera sin
+          bandera ya comunica que es otra categoría.
+
+          Sin cifras hasta tener claro de qué tabla salen: un contador
+          inventado en portada es peor que ninguno. ModuleCard omite la
+          banda entera si no se le pasa la prop. */}
+      <div style={{ marginTop: 24 }}>
+        <SectionTitle icon="users">El sector</SectionTitle>
+        <div style={GRID}>
+          <ModuleCard
+            href="/organizations"
+            icon="building-store"
+            title="Organizaciones"
+            description="Patronales, consultoras y empresas que trabajan con la Administración."
+            cta="Explorar organizaciones"
+          />
+        </div>
       </div>
     </div>
   );
