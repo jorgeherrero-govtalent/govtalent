@@ -5,7 +5,6 @@ import { createClient } from '@/lib/supabase/client';
 import { toast } from '@/lib/toast';
 import SelectorFecha from '@/components/SelectorFecha';
 import Desplegable from '@/components/Desplegable';
-import AgendaProyecto from '@/components/AgendaProyecto';
 import ActaActividad from '@/components/ActaActividad';
 
 /**
@@ -33,9 +32,9 @@ const MESES = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'o
 // agenda del proyecto, que es opcional y sigue el método de cada uno.
 // Esto es cumplimiento, y ampliarlo solo añade carga administrativa.
 const TIPOS = [
-  { v: 'reunion', label: 'Reunión', icono: 'users' },
-  { v: 'documento', label: 'Entrega de documentación', icono: 'file-text' },
-  { v: 'email', label: 'Comunicación escrita', icono: 'mail' },
+  { v: 'reunion', label: 'Reunión' },
+  { v: 'documento', label: 'Entrega de documentación' },
+  { v: 'email', label: 'Comunicación escrita' },
 ];
 
 // Solo aplica a las reuniones: el artículo 6.2 pide el lugar, y en una
@@ -86,7 +85,6 @@ function ayerISO() {
 }
 
 const etiquetaTipo = (v) => TIPOS.find((t) => t.v === v)?.label || v;
-const iconoTipo = (v) => TIPOS.find((t) => t.v === v)?.icono || 'point';
 
 /**
  * Qué le falta a una actividad para poder cerrarse. En lenguaje llano y
@@ -105,7 +103,6 @@ export function faltantes(a, participantes) {
 export default function ActividadProyecto({ projectId, userId }) {
   const supabase = createClient();
 
-  const [pestana, setPestana] = useState('registrado');
   const [actividades, setActividades] = useState([]);
   const [participantes, setParticipantes] = useState({});
   const [actores, setActores] = useState([]);
@@ -184,36 +181,19 @@ export default function ActividadProyecto({ projectId, userId }) {
     cargar();
   }
 
-  const pestanaEstilo = (activa) => ({
-    fontSize: 11.5,
-    padding: '4px 12px',
-    borderRadius: 14,
-    cursor: 'pointer',
-    background: activa ? '#efedff' : '#f5f4f1',
-    color: activa ? MORADO : '#777',
-    fontWeight: activa ? 600 : 400,
-  });
-
   return (
     <>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14, flexWrap: 'wrap' }}>
-        <span style={pestanaEstilo(pestana === 'registrado')} onClick={() => setPestana('registrado')}>
-          Registrado {actividades.length > 0 ? actividades.length : ''}
-        </span>
-        <span style={pestanaEstilo(pestana === 'pendiente')} onClick={() => setPestana('pendiente')}>
-          Pendiente
-        </span>
-        <div style={{ flex: 1 }} />
-        {pestana === 'registrado' && (
-          <button className="btn-ai" onClick={() => setAbierto('nueva')}>
-            + Registrar
-          </button>
-        )}
+      {/* Sin pestañas: la agenda vuelve a su tarjeta. Son dos cosas con
+          lógicas distintas —la agenda es el método de cada uno y es
+          opcional; el registro es la obligación del RDL 21/2026— y
+          juntarlas obligaba a elegir en cuál mirar. */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', marginBottom: 12 }}>
+        <button className="btn-ai" onClick={() => setAbierto('nueva')}>
+          + Registrar
+        </button>
       </div>
 
-      {pestana === 'pendiente' ? (
-        <AgendaProyecto projectId={projectId} />
-      ) : cargando ? (
+      {cargando ? (
         <div className="spinner"></div>
       ) : actividades.length === 0 ? (
         <div style={{ fontSize: 12, color: '#999', padding: '6px 0' }}>
@@ -236,20 +216,12 @@ export default function ActividadProyecto({ projectId, userId }) {
                 borderBottom: i === actividades.length - 1 ? 'none' : '.5px solid #f0f0eb',
               }}
             >
-              <div
-                style={{
-                  width: 28,
-                  height: 28,
-                  borderRadius: '50%',
-                  background: '#f5f4f1',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  flexShrink: 0,
-                }}
-              >
-                <i className={`ti ti-${iconoTipo(a.tipo)}`} style={{ fontSize: 13, color: '#888' }}></i>
-              </div>
+              {/* Verde con marca cuando ya tiene acta, gris con puntos
+                  cuando falta. Se lee sin leer. */}
+              <i
+                className={`ti ti-${a.estado === 'cerrada' ? 'file-check' : 'file-dots'}`}
+                style={{ fontSize: 16, color: a.estado === 'cerrada' ? '#1d6f5c' : '#b8b4ac', flexShrink: 0 }}
+              ></i>
 
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ fontSize: 12.5, fontWeight: 600 }}>
