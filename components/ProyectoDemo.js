@@ -46,6 +46,20 @@ const DEMO = {
     { dia: '03', mes: 'mar', titulo: 'Reunión con la ponencia', pie: 'Pendiente de confirmar' },
     { dia: '14', mes: 'mar', titulo: 'Cierre de enmiendas', pie: 'Del calendario de la norma', oficial: true },
   ],
+  // El registro que exige el RDL 21/2026: una ya cerrada con su acta y
+  // otra a medias, que es como se ve en cuanto se empieza a usar.
+  registro: [
+    {
+      titulo: 'Reunión · Secretaría de Estado de Digitalización',
+      pie: '26 feb · Ley de gobernanza de la IA',
+      cerrada: true,
+    },
+    {
+      titulo: 'Entrega de documentación · Ponencia',
+      pie: '03 mar · falta qué se trató',
+      cerrada: false,
+    },
+  ],
   documentos: [
     { nombre: 'posicion-interna-v3.pdf', cuando: 'hace 3 d' },
     { nombre: 'enmiendas-propuestas.docx', cuando: 'ayer' },
@@ -279,6 +293,63 @@ export default function ProyectoDemo() {
               <span style={{ fontSize: 12, color: '#a8a49c' }}>Añade una nota o menciona con @</span>
             </div>
           </div>
+        </div>
+
+        {/* El registro va antes que la agenda y con distintivo: es lo
+            único de la demo que responde a una obligación legal, y lo que
+            distingue a GovTalent de una herramienta de proyectos. */}
+        <div id="registro" style={{ ...CARD, padding: '15px 18px', scrollMarginTop: 72 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 7 }}>
+              <span style={ETIQUETA}>REGISTRO</span>
+              <span
+                style={{
+                  fontSize: 9.5,
+                  fontWeight: 600,
+                  letterSpacing: '.3px',
+                  padding: '2px 7px',
+                  borderRadius: 10,
+                  background: '#f0eefe',
+                  color: MORADO,
+                }}
+              >
+                NUEVO
+              </span>
+            </span>
+            <span style={{ fontSize: 11.5, color: MORADO }}>+ Registrar</span>
+          </div>
+          <p style={{ fontSize: 11.5, color: '#888', margin: '0 0 12px', lineHeight: 1.5 }}>
+            Cada reunión, entrega o comunicación con la Administración, con su acta. En cumplimiento de la
+            nueva regulación de grupos de interés.
+          </p>
+          {DEMO.registro.map((r, i) => (
+            <div
+              key={r.titulo}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 10,
+                padding: i === 0 ? '0 0 10px' : '10px 0',
+                borderBottom: i < DEMO.registro.length - 1 ? `.5px solid ${BORDE}` : 'none',
+              }}
+            >
+              <i
+                className={`ti ti-${r.cerrada ? 'file-check' : 'file-dots'}`}
+                style={{ fontSize: 16, color: r.cerrada ? '#1d6f5c' : '#b8b4ac', flexShrink: 0 }}
+              ></i>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div
+                  style={{ fontSize: 12.5, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
+                >
+                  {r.titulo}
+                </div>
+                <div style={{ fontSize: 10.5, color: '#888', marginTop: 2 }}>{r.pie}</div>
+              </div>
+              <span style={{ fontSize: 11, color: '#a8a49c', flexShrink: 0, whiteSpace: 'nowrap' }}>
+                {r.cerrada ? 'Ver acta' : 'Completar'}
+              </span>
+            </div>
+          ))}
         </div>
 
         <div id="agenda" style={{ ...CARD, padding: '15px 18px', scrollMarginTop: 72 }}>
