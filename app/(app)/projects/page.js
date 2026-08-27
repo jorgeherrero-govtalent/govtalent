@@ -393,9 +393,11 @@ function Proyectos() {
           <div>
             <h1 style={{ fontSize: 22, fontWeight: 600, margin: 0 }}>Proyectos</h1>
             <div style={{ fontSize: 12.5, color: '#888', marginTop: 3 }}>
-              {conPlazo
-                ? `${proyectos.length} ${proyectos.length === 1 ? 'proyecto activo' : 'proyectos activos'}`
-                : 'Monitoriza, planifica y gestiona desde el mismo lugar.'}
+              {/* El mismo texto con proyectos y sin ellos: el contador no
+                  explicaba de qué va el módulo, y las tarjetas ya están
+                  ahí para contarse. */}
+              Organiza y gestiona tus proyectos, con sus actores, agenda y plazos. Y registra tu actividad
+              institucional en cumplimiento de la nueva regulación de grupos de interés.
             </div>
           </div>
           {!creando && (
