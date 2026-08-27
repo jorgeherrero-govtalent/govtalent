@@ -6,12 +6,11 @@ import { createClient } from '@/lib/supabase/client';
 import { toast } from '@/lib/toast';
 import UpgradeModal from '@/components/UpgradeModal';
 import MapaActores from '@/components/MapaActores';
-import AgendaProyecto from '@/components/AgendaProyecto';
+import ActividadProyecto from '@/components/ActividadProyecto';
 import NotasProyecto from '@/components/NotasProyecto';
 import AsuntosProyecto from '@/components/AsuntosProyecto';
 import BriefingProyecto from '@/components/BriefingProyecto';
 import DocumentosProyecto from '@/components/DocumentosProyecto';
-import ActividadProyecto from '@/components/ActividadProyecto';
 import AnclasProyecto from '@/components/AnclasProyecto';
 import CambiarProyecto from '@/components/CambiarProyecto';
 import ActorAvatar from '@/components/ActorAvatar';
@@ -862,7 +861,10 @@ function Proyectos() {
         { id: 'resumen', label: 'Resumen', cuenta: d.asuntos },
         { id: 'mapa', label: 'Mapa de actores', cuenta: d.actores },
         { id: 'briefing', label: 'Briefing', cuenta: d.briefings },
-        { id: 'agenda', label: 'Agenda', cuenta: d.acciones },
+        // Agenda y registro fusionados: son la misma pregunta en dos
+        // tiempos —qué falta por hacer y qué se hizo— y separarlos obligaba
+        // a decidir en qué bloque mirar.
+        { id: 'actividad', label: 'Actividad', cuenta: d.acciones },
         // Una sola entrada: las dos secciones están en la misma fila,
         // así que dos anclas llevarían al mismo sitio.
         { id: 'documentos', label: 'Documentos y notas' },
@@ -872,7 +874,7 @@ function Proyectos() {
         { id: 'norma', label: 'La norma' },
         { id: 'mapa', label: 'Mapa de actores' },
         { id: 'briefing', label: 'Briefing' },
-        { id: 'agenda', label: 'Agenda' },
+        { id: 'actividad', label: 'Actividad' },
         { id: 'documentos', label: 'Documentos' },
       ];
 
@@ -1056,11 +1058,11 @@ function Proyectos() {
               {/* En tarjeta, como el mapa: son las dos secciones que se
                   usan a diario y conviene que se distingan del resto. */}
               <section
-                id="agenda"
+                id="actividad"
                 style={{ scrollMarginTop: 72, marginBottom: 30, ...CARD, padding: '18px 20px' }}
               >
-                <div style={{ ...ETIQUETA, marginBottom: 12 }}>AGENDA</div>
-                <AgendaProyecto projectId={abierto.id} />
+                <div style={{ ...ETIQUETA, marginBottom: 12 }}>ACTIVIDAD</div>
+                <ActividadProyecto projectId={abierto.id} userId={user.id} />
               </section>
 
               {/* Documentos y notas, una al lado de la otra: ninguna
@@ -1076,14 +1078,6 @@ function Proyectos() {
                   gap: 12,
                 }}
               >
-                {/* La actividad va antes que documentos y notas: es el
-                    registro de lo ocurrido y lo que alimenta el acta y
-                    la bandeja de cumplimiento. Lo demás es apoyo. */}
-                <div style={{ ...CARD, padding: '16px 18px' }}>
-                  <div style={{ ...ETIQUETA, marginBottom: 12 }}>ACTIVIDAD INSTITUCIONAL</div>
-                  <ActividadProyecto projectId={abierto.id} userId={user.id} />
-                </div>
-
                 <div style={{ ...CARD, padding: '16px 18px' }}>
                   <div style={{ ...ETIQUETA, marginBottom: 12 }}>DOCUMENTOS</div>
                   <DocumentosProyecto projectId={abierto.id} userId={user.id} />
