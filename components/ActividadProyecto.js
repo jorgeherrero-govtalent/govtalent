@@ -343,6 +343,10 @@ function FormularioActividad({
     setGuardando(true);
     const fila = {
       project_id: projectId,
+      // Explícito y no por DEFAULT auth.uid(): el valor por defecto no
+      // llega a tiempo para el WITH CHECK de la política y la inserción
+      // se rechaza sin error visible.
+      created_by: userId,
       organization_id: orgId,
       tipo,
       fecha,
