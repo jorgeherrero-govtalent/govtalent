@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { toast } from '@/lib/toast';
 import SelectorFecha from '@/components/SelectorFecha';
@@ -24,32 +24,48 @@ const MORADO = '#6d5aef';
 const BORDE = '#e0dfd8';
 const MESES = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
 
+// Los tres que enumera la norma, y ninguno más. El artículo 11.b habla
+// de documentos entregados, comunicaciones escritas y aportaciones en
+// trámites; el 6.2, de reuniones. Una llamada sin entrega de nada no
+// aparece en ningún sitio.
+//
+// El registro no es el diario de trabajo del equipo: para eso está la
+// agenda del proyecto, que es opcional y sigue el método de cada uno.
+// Esto es cumplimiento, y ampliarlo solo añade carga administrativa.
 const TIPOS = [
   { v: 'reunion', label: 'Reunión', icono: 'users' },
-  { v: 'llamada', label: 'Llamada', icono: 'phone' },
-  { v: 'email', label: 'Email', icono: 'mail' },
-  { v: 'mensajeria', label: 'Mensajería', icono: 'message' },
-  { v: 'documento', label: 'Documento', icono: 'file-text' },
-  { v: 'evento', label: 'Evento', icono: 'calendar-event' },
+  { v: 'documento', label: 'Entrega de documentación', icono: 'file-text' },
+  { v: 'email', label: 'Comunicación escrita', icono: 'mail' },
 ];
 
+// Solo aplica a las reuniones: el artículo 6.2 pide el lugar, y en una
+// entrega o un correo ese dato no significa nada.
 const MODALIDADES = [
   { v: 'presencial', label: 'Presencial' },
   { v: 'videoconferencia', label: 'Videoconferencia' },
-  { v: 'telefonica', label: 'Telefónica' },
-  { v: 'escrita', label: 'Escrita' },
 ];
 
-// Una llamada no es presencial y un email es escrito. Ahorra un toque en
-// el caso normal y se puede cambiar.
-const MODALIDAD_POR_TIPO = {
-  reunion: 'presencial',
-  llamada: 'telefonica',
-  email: 'escrita',
-  mensajeria: 'escrita',
-  documento: 'escrita',
-  evento: 'presencial',
-};
+const MAX_BYTES = 20 * 1024 * 1024;
+
+// Los mismos que acepta el bucket, igual que en DocumentosProyecto. Aquí
+// la comprobación es comodidad; la que se cumple de verdad está en el
+// bucket.
+const TIPOS_OK = new Set([
+  'application/pdf',
+  'application/msword',
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  'application/vnd.oasis.opendocument.text',
+  'application/vnd.ms-excel',
+  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  'application/vnd.oasis.opendocument.spreadsheet',
+  'text/csv',
+  'application/vnd.ms-powerpoint',
+  'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+  'text/plain',
+  'image/png',
+  'image/jpeg',
+  'image/webp',
+]);
 
 function fechaCorta(iso) {
   if (!iso) return '';
@@ -80,8 +96,9 @@ export function faltantes(a, participantes) {
   const falta = [];
   if (!participantes || participantes.length === 0) falta.push('con quién fue');
   if (!a.asunto || !a.asunto.trim()) falta.push('qué se trató');
-  if (a.es_influencia === null || a.es_influencia === undefined) falta.push('si es actividad de influencia');
-  if (a.modalidad === 'presencial' && !(a.lugar || '').trim()) falta.push('el lugar');
+  // El lugar solo en reuniones presenciales, que es donde lo pide el
+  // artículo 6.2.
+  if (a.tipo === 'reunion' && a.modalidad === 'presencial' && !(a.lugar || '').trim()) falta.push('el lugar');
   return falta;
 }
 
@@ -104,7 +121,7 @@ export default function ActividadProyecto({ projectId, userId }) {
     const [{ data: acts, error }, { data: acs }, { data: its }, { data: proy }, { data: cls }] = await Promise.all([
       supabase
         .from('activities')
-        .select('id, tipo, estado, fecha, modalidad, lugar, asunto, es_influencia, cliente_nombre, client_id, item_id, closed_at')
+        .select('id, tipo, estado, fecha, modalidad, lugar, asunto, cliente_nombre, client_id, item_id, closed_at')
         .eq('project_id', projectId)
         .order('fecha', { ascending: false })
         .order('created_at', { ascending: false }),
@@ -261,11 +278,6 @@ export default function ActividadProyecto({ projectId, userId }) {
                       · {asunto.etiqueta}
                     </span>
                   )}
-                  {a.es_influencia && (
-                    <span style={{ fontSize: 10, padding: '2px 7px', borderRadius: 10, background: '#f0efe9', color: '#666' }}>
-                      Influencia
-                    </span>
-                  )}
                 </div>
               </div>
 
@@ -366,15 +378,12 @@ function FormularioActividad({
 
   const [tipo, setTipo] = useState(inicial?.tipo || 'reunion');
   const [fecha, setFecha] = useState(inicial?.fecha || hoyISO());
-  const [modalidad, setModalidad] = useState(inicial?.modalidad || MODALIDAD_POR_TIPO.reunion);
+  const [modalidad, setModalidad] = useState(inicial?.modalidad || 'presencial');
   const [lugar, setLugar] = useState(inicial?.lugar || '');
   const [asunto, setAsunto] = useState(inicial?.asunto || '');
   // Un solo asunto anclado por defecto se preselecciona: en la mayoría de
   // proyectos solo hay uno y elegirlo a mano sería un toque de más.
   const [itemId, setItemId] = useState(inicial?.item_id || (asuntos.length === 1 ? asuntos[0].id : ''));
-  const [influencia, setInfluencia] = useState(
-    inicial?.es_influencia === null || inicial?.es_influencia === undefined ? null : inicial.es_influencia
-  );
   // El proyecto se hace para un cliente, así que la actividad lo hereda
   // y no hay que elegirlo en cada registro.
   const [clienteId, setClienteId] = useState(inicial?.client_id || clienteProyecto || '');
@@ -386,10 +395,84 @@ function FormularioActividad({
       : participantesIniciales.map((p) => ({ ...p }))
   );
   const [nuevoNombre, setNuevoNombre] = useState('');
+  const [docs, setDocs] = useState([]);
+  const [subiendo, setSubiendo] = useState(false);
+  const inputArchivo = useRef(null);
+
+  // Los documentos ya subidos de una actividad que se está completando.
+  useEffect(() => {
+    if (!inicial?.id) return;
+    supabase
+      .from('project_files')
+      .select('id, nombre, bytes')
+      .eq('activity_id', inicial.id)
+      .then(({ data }) => setDocs(data || []));
+  }, [inicial?.id, supabase]);
+
+  // Se sube al mismo bucket privado que los documentos del proyecto,
+  // bajo la carpeta del proyecto: las políticas del bucket comprueban
+  // que esa primera carpeta sea un proyecto del usuario.
+  async function subir(lista) {
+    if (!lista || lista.length === 0) return;
+    setSubiendo(true);
+    for (const f of lista) {
+      if (f.size > MAX_BYTES) {
+        toast(`«${f.name}» pasa de 20 MB`);
+        continue;
+      }
+      if (!TIPOS_OK.has(f.type)) {
+        toast(`«${f.name}» no es un tipo admitido`);
+        continue;
+      }
+      const limpio = f.name.replace(/[^a-zA-Z0-9._-]/g, '_').slice(-80);
+      const ruta = `${projectId}/${crypto.randomUUID()}-${limpio}`;
+
+      const { error: eSubida } = await supabase.storage
+        .from('project-files')
+        .upload(ruta, f, { contentType: f.type || undefined, upsert: false });
+      if (eSubida) {
+        toast(`No se ha podido subir «${f.name}»`);
+        continue;
+      }
+
+      // activity_id se rellena al guardar: la actividad puede no existir
+      // todavía cuando se adjunta. Mientras tanto el documento ya queda
+      // en el proyecto, que es donde debe estar de todas formas.
+      const { data, error } = await supabase
+        .from('project_files')
+        .insert({
+          project_id: projectId,
+          uploader_id: userId,
+          nombre: f.name,
+          storage_path: ruta,
+          mime: f.type || null,
+          bytes: f.size,
+          activity_id: inicial?.id || null,
+        })
+        .select('id, nombre, bytes')
+        .single();
+
+      if (error) {
+        // Si la fila falla, el archivo se queda huérfano en el bucket.
+        await supabase.storage.from('project-files').remove([ruta]);
+        toast(`No se ha podido guardar «${f.name}»`);
+        continue;
+      }
+      setDocs((prev) => [...prev, data]);
+    }
+    setSubiendo(false);
+    if (inputArchivo.current) inputArchivo.current.value = '';
+  }
 
   function cambiarTipo(v) {
     setTipo(v);
-    if (esNueva) setModalidad(MODALIDAD_POR_TIPO[v] || null);
+    // Fuera de las reuniones el lugar no aplica, así que se limpia.
+    if (v !== 'reunion') {
+      setModalidad(null);
+      setLugar('');
+    } else if (!modalidad) {
+      setModalidad('presencial');
+    }
   }
 
   function anadirActor(a) {
@@ -405,7 +488,7 @@ function FormularioActividad({
   }
 
   const disponibles = actores.filter((a) => !parts.some((p) => p.kind === 'project_actor' && p.ref_id === a.id));
-  const falta = faltantes({ asunto, es_influencia: influencia, modalidad, lugar }, parts);
+  const falta = faltantes({ tipo, asunto, modalidad, lugar }, parts);
 
   async function guardar() {
     setGuardando(true);
@@ -421,7 +504,6 @@ function FormularioActividad({
       modalidad: modalidad || null,
       lugar: lugar.trim() || null,
       asunto: asunto.trim() || null,
-      es_influencia: influencia,
       client_id: clienteId || null,
       // Se guarda también el nombre: es la instantánea del momento del
       // registro. Si el cliente se renombra, el acta ya cerrada debe
@@ -462,6 +544,13 @@ function FormularioActividad({
         }))
       );
       if (error) toast('La actividad se ha guardado, pero no los participantes');
+    }
+
+    // Los adjuntos subidos antes de que existiera la actividad se
+    // enganchan ahora.
+    const sueltos = docs.filter((d) => d.id).map((d) => d.id);
+    if (sueltos.length > 0) {
+      await supabase.from('project_files').update({ activity_id: id }).in('id', sueltos);
     }
 
     setGuardando(false);
@@ -635,7 +724,7 @@ function FormularioActividad({
           />
         </div>
 
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 9, marginBottom: 10 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: tipo === 'reunion' ? '1fr 1fr' : '1fr', gap: 9, marginBottom: 10 }}>
           <div>
             <div style={etiqueta}>Cuándo</div>
             <SelectorFecha
@@ -647,20 +736,25 @@ function FormularioActividad({
               ]}
             />
           </div>
-          <div>
-            <div style={etiqueta}>Cómo</div>
-            <Desplegable
-              value={modalidad || ''}
-              onChange={setModalidad}
-              vacio="Sin especificar"
-              opciones={MODALIDADES.map((m) => ({ v: m.v, label: m.label }))}
-            />
-          </div>
+          {/* El artículo 6.2 pide el lugar de las reuniones. En una
+              entrega de documentación o un correo ese dato no significa
+              nada, así que el campo no aparece. */}
+          {tipo === 'reunion' && (
+            <div>
+              <div style={etiqueta}>Cómo</div>
+              <Desplegable
+                value={modalidad || ''}
+                onChange={setModalidad}
+                vacio="Sin especificar"
+                opciones={MODALIDADES.map((m) => ({ v: m.v, label: m.label }))}
+              />
+            </div>
+          )}
         </div>
 
         {/* El lugar solo aparece si hay sitio físico. En videoconferencia
             el campo sobra y solo añade fricción. */}
-        {modalidad === 'presencial' && (
+        {tipo === 'reunion' && modalidad === 'presencial' && (
           <div style={{ marginBottom: 10 }}>
             <div style={etiqueta}>Dónde</div>
             <input
@@ -686,30 +780,52 @@ function FormularioActividad({
           </div>
         )}
 
+
+        {/* Adjuntar no es obligatorio: el documento pudo enviarse desde
+            el correo corporativo o entregarse en papel, y exigirlo haría
+            que la gente se saltara el registro entero. Pero se recomienda
+            expresamente, porque el artículo 11.b obliga a entregar los
+            documentos en quince días hábiles. */}
         <div style={{ marginBottom: 14 }}>
-          <div style={{ ...etiqueta, marginBottom: 5 }}>¿Es actividad de influencia?</div>
-          <div style={{ display: 'flex', gap: 6 }}>
-            {[
-              { v: true, label: 'Sí' },
-              { v: false, label: 'No' },
-            ].map((o) => (
-              <span
-                key={String(o.v)}
-                onClick={() => setInfluencia(influencia === o.v ? null : o.v)}
-                style={{
-                  fontSize: 11.5,
-                  padding: '5px 16px',
-                  borderRadius: 14,
-                  cursor: 'pointer',
-                  background: influencia === o.v ? '#efedff' : '#f5f4f1',
-                  color: influencia === o.v ? MORADO : '#777',
-                  fontWeight: influencia === o.v ? 600 : 400,
-                }}
-              >
-                {o.label}
-              </span>
-            ))}
-          </div>
+          <div style={etiqueta}>Documentos entregados</div>
+          {docs.length > 0 && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 4, marginBottom: 7 }}>
+              {docs.map((d) => (
+                <div key={d.id} style={{ display: 'flex', alignItems: 'center', gap: 7, fontSize: 11.5, color: '#555' }}>
+                  <i className="ti ti-file" style={{ fontSize: 13, color: '#aaa' }}></i>
+                  <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{d.nombre}</span>
+                </div>
+              ))}
+            </div>
+          )}
+          <input
+            ref={inputArchivo}
+            type="file"
+            multiple
+            style={{ display: 'none' }}
+            onChange={(e) => subir(Array.from(e.target.files || []))}
+          />
+          <button
+            onClick={() => inputArchivo.current?.click()}
+            disabled={subiendo}
+            style={{
+              background: 'none',
+              border: 'none',
+              padding: 0,
+              color: '#999',
+              fontSize: 11.5,
+              cursor: 'pointer',
+              fontFamily: 'inherit',
+            }}
+          >
+            <i className="ti ti-paperclip" style={{ fontSize: 13, verticalAlign: -2, marginRight: 4 }}></i>
+            {subiendo ? 'Subiendo…' : docs.length > 0 ? 'Adjuntar otro' : 'Adjuntar documento'}
+          </button>
+          {docs.length === 0 && (
+            <p style={{ fontSize: 10.5, color: '#aaa', marginTop: 5, lineHeight: 1.5 }}>
+              Recomendado. Los documentos entregados deben aportarse en un plazo de quince días hábiles.
+            </p>
+          )}
         </div>
 
         <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
