@@ -28,10 +28,13 @@ const BORDE = '#e0dfd8';
 
 // Nombradas por lo que se hace, no por lo que contienen: "Ofertas" no
 // dice si sirve para verlas o para publicarlas.
+// Etiquetas cortas: con seis pestañas, "Gestionar candidatos" y "Editar
+// página" se comían el ancho en pantallas medianas.
 const PESTANAS = [
-  { href: '/organizations/admin/company', label: 'Editar página' },
+  { href: '/organizations/admin/company', label: 'Página' },
   { href: '/organizations/admin/jobs', label: 'Ofertas' },
-  { href: '/organizations/admin/candidates', label: 'Gestionar candidatos' },
+  { href: '/organizations/admin/candidates', label: 'Candidatos' },
+  { href: '/organizations/admin/registro', label: 'Registro' },
   { href: '/organizations/admin/plan', label: 'Plan' },
   { href: '/organizations/admin/settings', label: 'Configuración' },
 ];
