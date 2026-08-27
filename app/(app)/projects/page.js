@@ -957,7 +957,10 @@ function Proyectos() {
         { id: 'norma', label: 'La norma' },
         { id: 'mapa', label: 'Mapa de actores' },
         { id: 'briefing', label: 'Briefing' },
-        { id: 'actividad', label: 'Agenda y registro' },
+        // En la demo son dos bloques con anclas propias, a diferencia de
+        // un proyecto real donde comparten fila.
+        { id: 'registro', label: 'Registro' },
+        { id: 'agenda', label: 'Agenda' },
         { id: 'documentos', label: 'Documentos' },
       ];
 
