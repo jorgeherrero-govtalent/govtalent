@@ -6,6 +6,7 @@ import { toast } from '@/lib/toast';
 import SelectorFecha from '@/components/SelectorFecha';
 import Desplegable from '@/components/Desplegable';
 import AgendaProyecto from '@/components/AgendaProyecto';
+import ActaActividad from '@/components/ActaActividad';
 
 /**
  * Actividad del proyecto: lo pendiente y lo ocurrido, en el mismo sitio.
@@ -92,15 +93,18 @@ export default function ActividadProyecto({ projectId, userId }) {
   const [participantes, setParticipantes] = useState({});
   const [actores, setActores] = useState([]);
   const [asuntos, setAsuntos] = useState([]);
+  const [clientes, setClientes] = useState([]);
   const [orgId, setOrgId] = useState(null);
+  const [clienteProyecto, setClienteProyecto] = useState(null);
   const [cargando, setCargando] = useState(true);
   const [abierto, setAbierto] = useState(null);
+  const [acta, setActa] = useState(null);
 
   const cargar = useCallback(async () => {
-    const [{ data: acts, error }, { data: acs }, { data: its }, { data: proy }] = await Promise.all([
+    const [{ data: acts, error }, { data: acs }, { data: its }, { data: proy }, { data: cls }] = await Promise.all([
       supabase
         .from('activities')
-        .select('id, tipo, estado, fecha, modalidad, lugar, asunto, es_influencia, cliente_nombre, item_id, closed_at')
+        .select('id, tipo, estado, fecha, modalidad, lugar, asunto, es_influencia, cliente_nombre, client_id, item_id, closed_at')
         .eq('project_id', projectId)
         .order('fecha', { ascending: false })
         .order('created_at', { ascending: false }),
@@ -108,7 +112,10 @@ export default function ActividadProyecto({ projectId, userId }) {
       // Los asuntos anclados al proyecto: son las normas sobre las que
       // se intenta influir, y el artículo 6.1.e pide precisarlas.
       supabase.from('project_items').select('id, etiqueta, kind, ref_id').eq('project_id', projectId),
-      supabase.from('projects').select('organization_id').eq('id', projectId).single(),
+      supabase.from('projects').select('organization_id, client_id').eq('id', projectId).single(),
+      // Los clientes de la cuenta. Solo los activos: los archivados
+      // siguen en las actas cerradas pero no se ofrecen para nuevas.
+      supabase.from('clients').select('id, nombre, tax_id').eq('activo', true).order('nombre'),
     ]);
 
     if (error) toast('No se ha podido cargar la actividad');
@@ -116,7 +123,9 @@ export default function ActividadProyecto({ projectId, userId }) {
     setActividades(lista);
     setActores(acs || []);
     setAsuntos(its || []);
+    setClientes(cls || []);
     setOrgId(proy?.organization_id || null);
+    setClienteProyecto(proy?.client_id || null);
 
     if (lista.length > 0) {
       const { data: parts } = await supabase
@@ -260,46 +269,61 @@ export default function ActividadProyecto({ projectId, userId }) {
                 </div>
               </div>
 
-              {/* Una acción y no la lista de lo que falta: enumerarla
-                  ocupaba tres líneas, desequilibraba la fila hacia la
-                  derecha y señalaba el fallo en vez de la salida. El
-                  detalle se ve al abrir el formulario, que es donde se
-                  rellena, y en el title al pasar el ratón. */}
+              {/* Mismo patrón que el "Adjuntar" del briefing: botón sin
+                  fondo, sin borde y sin padding, con icono delante. Una
+                  caja en cada fila pesa más que la propia actividad.
+
+                  El detalle de lo que falta va en el title, no en la
+                  fila: enumerarlo ocupaba tres líneas y señalaba el
+                  fallo en vez de la salida. */}
               <div style={{ flexShrink: 0 }}>
                 {a.estado === 'cerrada' ? (
-                  <span style={{ fontSize: 10.5, color: '#aaa' }}>Registrada</span>
-                ) : (
-                  // Enlace y no botón: una caja en cada fila de la lista
-                  // pesa más que la propia actividad. En gris, del mismo
-                  // tono que los metadatos, para que no compita con el
-                  // "+ Registrar" de la cabecera. Se subraya al pasar el
-                  // ratón, que es lo que lo delata como pulsable.
-                  <span
-                    onClick={() => (falta.length === 0 ? cerrar(a) : setAbierto(a))}
-                    title={falta.length > 0 ? `Falta ${falta.join(', ')}` : 'Darla por registrada'}
-                    onMouseEnter={(e) => {
-                      e.currentTarget.style.color = '#555';
-                      e.currentTarget.style.textDecoration = 'underline';
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.color = '#999';
-                      e.currentTarget.style.textDecoration = 'none';
-                    }}
+                  <button
+                    onClick={() => setActa({ a, asunto })}
                     style={{
-                      fontSize: 11.5,
+                      background: 'none',
+                      border: 'none',
+                      padding: 0,
                       color: '#999',
+                      fontSize: 11.5,
                       cursor: 'pointer',
                       whiteSpace: 'nowrap',
-                      transition: 'color .12s',
+                      fontFamily: 'inherit',
                     }}
                   >
+                    <i className="ti ti-file-text" style={{ fontSize: 13, verticalAlign: -2, marginRight: 4 }}></i>
+                    Ver acta
+                  </button>
+                ) : (
+                  <button
+                    onClick={() => (falta.length === 0 ? cerrar(a) : setAbierto(a))}
+                    title={falta.length > 0 ? `Falta ${falta.join(', ')}` : 'Darla por registrada'}
+                    style={{
+                      background: 'none',
+                      border: 'none',
+                      padding: 0,
+                      color: '#999',
+                      fontSize: 11.5,
+                      cursor: 'pointer',
+                      whiteSpace: 'nowrap',
+                      fontFamily: 'inherit',
+                    }}
+                  >
+                    <i
+                      className={`ti ti-${falta.length === 0 ? 'check' : 'pencil'}`}
+                      style={{ fontSize: 13, verticalAlign: -2, marginRight: 4 }}
+                    ></i>
                     {falta.length === 0 ? 'Registrar' : 'Completar'}
-                  </span>
+                  </button>
                 )}
               </div>
             </div>
           );
         })
+      )}
+
+      {acta && (
+        <ActaActividad actividad={acta.a} asunto={acta.asunto} onCerrar={() => setActa(null)} />
       )}
 
       {abierto && (
@@ -309,6 +333,8 @@ export default function ActividadProyecto({ projectId, userId }) {
           orgId={orgId}
           actores={actores}
           asuntos={asuntos}
+          clientes={clientes}
+          clienteProyecto={clienteProyecto}
           inicial={abierto === 'nueva' ? null : abierto}
           participantesIniciales={abierto === 'nueva' ? [] : participantes[abierto.id] || []}
           onCerrar={() => setAbierto(null)}
@@ -328,6 +354,8 @@ function FormularioActividad({
   orgId,
   actores,
   asuntos,
+  clientes,
+  clienteProyecto,
   inicial,
   participantesIniciales,
   onCerrar,
@@ -347,7 +375,9 @@ function FormularioActividad({
   const [influencia, setInfluencia] = useState(
     inicial?.es_influencia === null || inicial?.es_influencia === undefined ? null : inicial.es_influencia
   );
-  const [cliente, setCliente] = useState(inicial?.cliente_nombre || '');
+  // El proyecto se hace para un cliente, así que la actividad lo hereda
+  // y no hay que elegirlo en cada registro.
+  const [clienteId, setClienteId] = useState(inicial?.client_id || clienteProyecto || '');
   const [guardando, setGuardando] = useState(false);
 
   const [parts, setParts] = useState(() =>
@@ -392,7 +422,11 @@ function FormularioActividad({
       lugar: lugar.trim() || null,
       asunto: asunto.trim() || null,
       es_influencia: influencia,
-      cliente_nombre: cliente.trim() || null,
+      client_id: clienteId || null,
+      // Se guarda también el nombre: es la instantánea del momento del
+      // registro. Si el cliente se renombra, el acta ya cerrada debe
+      // seguir diciendo lo que decía.
+      cliente_nombre: clientes.find((c) => c.id === clienteId)?.nombre || null,
       item_id: itemId || null,
     };
 
@@ -638,15 +672,19 @@ function FormularioActividad({
           </div>
         )}
 
-        <div style={{ marginBottom: 10 }}>
-          <div style={etiqueta}>Por cuenta de (opcional)</div>
-          <input
-            value={cliente}
-            onChange={(e) => setCliente(e.target.value)}
-            placeholder="Cliente para el que se actúa"
-            style={campo}
-          />
-        </div>
+        {/* Solo si la cuenta tiene clientes cargados: para una empresa
+            que actúa por cuenta propia el campo sobra. */}
+        {clientes.length > 0 && (
+          <div style={{ marginBottom: 10 }}>
+            <div style={etiqueta}>Por cuenta de</div>
+            <Desplegable
+              value={clienteId}
+              onChange={(v) => setClienteId(v || '')}
+              vacio="Por cuenta propia"
+              opciones={clientes.map((c) => ({ v: c.id, label: c.nombre }))}
+            />
+          </div>
+        )}
 
         <div style={{ marginBottom: 14 }}>
           <div style={{ ...etiqueta, marginBottom: 5 }}>¿Es actividad de influencia?</div>
