@@ -272,12 +272,19 @@ export default function ActividadProyecto({ projectId, userId }) {
                 {a.estado === 'cerrada' ? (
                   <span style={{ fontSize: 10.5, color: '#aaa' }}>Registrada</span>
                 ) : falta.length === 0 ? (
-                  <button className="btn-ai" onClick={() => cerrar(a)} style={{ whiteSpace: 'nowrap' }}>
+                  // btn-ai-o y no btn-ai: dos botones morados macizos en el
+                  // mismo bloque —uno para crear y otro para cerrar— se
+                  // disputan la atención.
+                  <button className="btn-ai-o" onClick={() => cerrar(a)} style={{ whiteSpace: 'nowrap' }}>
                     Registrar
                   </button>
                 ) : (
+                  // btn-g es el más discreto del sistema: transparente con
+                  // borde gris fino. btn-o es blanco con borde verde de
+                  // marca y se rellena al pasar el ratón, que era demasiado
+                  // peso para una fila de lista.
                   <button
-                    className="btn-o"
+                    className="btn-g"
                     onClick={() => setAbierto(a)}
                     title={`Falta ${falta.join(', ')}`}
                     style={{ whiteSpace: 'nowrap' }}
