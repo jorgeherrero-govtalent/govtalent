@@ -270,7 +270,15 @@ export default function ActividadProyecto({ projectId, userId }) {
               ></i>
 
               <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontSize: 12.5, fontWeight: 600 }}>
+                <div
+                  style={{
+                    fontSize: 12.5,
+                    fontWeight: 600,
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                    whiteSpace: 'nowrap',
+                  }}
+                >
                   {etiquetaTipo(a.tipo)}
                   {contraparte.length > 0 && ` · ${contraparte.map((p) => p.nombre).join(', ')}`}
                 </div>
@@ -314,7 +322,7 @@ export default function ActividadProyecto({ projectId, userId }) {
                   El detalle de lo que falta va en el title, no en la
                   fila: enumerarlo ocupaba tres líneas y señalaba el
                   fallo en vez de la salida. */}
-              <div style={{ flexShrink: 0 }}>
+              <div style={{ flexShrink: 0, display: 'flex', alignItems: 'center' }}>
                 {a.estado === 'anulada' ? (
                   <span style={{ fontSize: 10.5, color: '#aaa' }} title={a.anulada_motivo || ''}>
                     Anulada
@@ -351,7 +359,7 @@ export default function ActividadProyecto({ projectId, userId }) {
                           style={{
                             position: 'absolute',
                             right: 0,
-                            top: 22,
+                            top: 24,
                             background: '#fff',
                             border: `.5px solid ${BORDE}`,
                             borderRadius: 9,
@@ -372,7 +380,7 @@ export default function ActividadProyecto({ projectId, userId }) {
                               setMenu(null);
                               setAnulando(a);
                             }}
-                            style={{ fontSize: 12, padding: '7px 10px', borderRadius: 6, cursor: 'pointer', color: '#a33' }}
+                            style={{ fontSize: 12, padding: '7px 10px', borderRadius: 6, cursor: 'pointer', color: '#3d3a35' }}
                           >
                             Anular…
                           </div>
@@ -417,7 +425,7 @@ export default function ActividadProyecto({ projectId, userId }) {
                           style={{
                             position: 'absolute',
                             right: 0,
-                            top: 22,
+                            top: 24,
                             background: '#fff',
                             border: `.5px solid ${BORDE}`,
                             borderRadius: 9,
@@ -429,7 +437,7 @@ export default function ActividadProyecto({ projectId, userId }) {
                         >
                           <div
                             onClick={() => borrar(a)}
-                            style={{ fontSize: 12, padding: '7px 10px', borderRadius: 6, cursor: 'pointer', color: '#a33' }}
+                            style={{ fontSize: 12, padding: '7px 10px', borderRadius: 6, cursor: 'pointer', color: '#3d3a35' }}
                           >
                             Borrar
                           </div>
@@ -500,7 +508,7 @@ export default function ActividadProyecto({ projectId, userId }) {
                 style={{
                   background: 'none',
                   border: 'none',
-                  color: motivo.trim() ? '#a33' : '#ccc',
+                  color: motivo.trim() ? '#777' : '#ccc',
                   fontSize: 12.5,
                   padding: '9px 4px',
                   cursor: motivo.trim() ? 'pointer' : 'default',
