@@ -197,6 +197,7 @@ export default function ActividadProyecto({ projectId, userId }) {
               style={{
                 display: 'flex',
                 gap: 11,
+                alignItems: 'center',
                 padding: '11px 0',
                 borderBottom: i === actividades.length - 1 ? 'none' : '.5px solid #f0f0eb',
               }}
@@ -221,10 +222,36 @@ export default function ActividadProyecto({ projectId, userId }) {
                   {etiquetaTipo(a.tipo)}
                   {contraparte.length > 0 && ` · ${contraparte.map((p) => p.nombre).join(', ')}`}
                 </div>
-                {a.asunto && <div style={{ fontSize: 11.5, color: '#888', marginTop: 2 }}>{a.asunto}</div>}
+                {a.asunto && (
+                  <div
+                    style={{
+                      fontSize: 11.5,
+                      color: '#888',
+                      marginTop: 2,
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
+                      whiteSpace: 'nowrap',
+                    }}
+                  >
+                    {a.asunto}
+                  </div>
+                )}
                 <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginTop: 5, flexWrap: 'wrap' }}>
                   <span style={{ fontSize: 10.5, color: '#aaa' }}>{fechaCorta(a.fecha)}</span>
-                  {asunto && <span style={{ fontSize: 10.5, color: '#aaa' }}>· {asunto.etiqueta}</span>}
+                  {asunto && (
+                    <span
+                      style={{
+                        fontSize: 10.5,
+                        color: '#aaa',
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                        whiteSpace: 'nowrap',
+                        minWidth: 0,
+                      }}
+                    >
+                      · {asunto.etiqueta}
+                    </span>
+                  )}
                   {a.es_influencia && (
                     <span style={{ fontSize: 10, padding: '2px 7px', borderRadius: 10, background: '#f0efe9', color: '#666' }}>
                       Influencia
@@ -233,31 +260,30 @@ export default function ActividadProyecto({ projectId, userId }) {
                 </div>
               </div>
 
-              <div style={{ flexShrink: 0, textAlign: 'right' }}>
+              {/* Un botón y no la lista de lo que falta: enumerarla ocupaba
+                  tres líneas, desequilibraba la fila hacia la derecha y
+                  señalaba el fallo en vez de la acción. El detalle se ve
+                  al abrir el formulario, que es donde se rellena, y en el
+                  title al pasar el ratón.
+
+                  Borde y sin relleno para no competir con el "+ Registrar"
+                  morado que está justo encima. */}
+              <div style={{ flexShrink: 0 }}>
                 {a.estado === 'cerrada' ? (
                   <span style={{ fontSize: 10.5, color: '#aaa' }}>Registrada</span>
                 ) : falta.length === 0 ? (
-                  <>
-                    <div
-                      onClick={() => cerrar(a)}
-                      style={{ fontSize: 11, color: MORADO, cursor: 'pointer', fontWeight: 600 }}
-                    >
-                      Registrar
-                    </div>
-                    <div
-                      onClick={() => setAbierto(a)}
-                      style={{ fontSize: 10.5, color: '#aaa', cursor: 'pointer', marginTop: 2 }}
-                    >
-                      Editar
-                    </div>
-                  </>
+                  <button className="btn-ai" onClick={() => cerrar(a)} style={{ whiteSpace: 'nowrap' }}>
+                    Registrar
+                  </button>
                 ) : (
-                  <div
+                  <button
+                    className="btn-o"
                     onClick={() => setAbierto(a)}
-                    style={{ fontSize: 10.5, color: '#B8791F', cursor: 'pointer', maxWidth: 150 }}
+                    title={`Falta ${falta.join(', ')}`}
+                    style={{ whiteSpace: 'nowrap' }}
                   >
-                    Falta {falta.join(', ')}
-                  </div>
+                    Completar
+                  </button>
                 )}
               </div>
             </div>
