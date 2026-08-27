@@ -157,7 +157,7 @@ function Proyectos() {
 
     const ids = (data || []).map((p) => p.id);
     const acc = {};
-    for (const id of ids) acc[id] = { actores: 0, asuntos: 0, sinContactar: 0, novedades: 0, caras: [] };
+    for (const id of ids) acc[id] = { actores: 0, asuntos: 0, sinContactar: 0, novedades: 0, caras: [], todas: [] };
 
     // Consultas agregadas, no una por proyecto: con veinte proyectos
     // serían ochenta llamadas.
@@ -166,7 +166,9 @@ function Proyectos() {
         supabase.from('project_items').select('project_id').in('project_id', ids),
         supabase
           .from('project_actors')
-          .select('project_id, relacion, nombre, kind, ref_id')
+          // imagen faltaba: sin ella ActorAvatar cae siempre a la
+          // silueta, aunque el directorio tenga la foto guardada.
+          .select('project_id, relacion, nombre, kind, ref_id, imagen, es_propio')
           .in('project_id', ids)
           .order('created_at'),
         supabase.from('project_events').select('project_id, estado').in('project_id', ids),
@@ -176,7 +178,14 @@ function Proyectos() {
         const d = acc[a.project_id];
         d.actores += 1;
         if (a.relacion === 'sin_contactar') d.sinContactar += 1;
-        if (d.caras.length < 3) d.caras.push(a);
+        d.todas.push(a);
+      }
+      // Los que tienen foto primero: tres siluetas iguales no dicen de
+      // qué va el proyecto, que es justo para lo que están las caras.
+      for (const id of ids) {
+        const d = acc[id];
+        d.caras = [...d.todas].sort((a, b) => (b.imagen ? 1 : 0) - (a.imagen ? 1 : 0)).slice(0, 3);
+        delete d.todas;
       }
       for (const e of eventos || []) if (e.estado === 'nuevo') acc[e.project_id].novedades += 1;
     }
