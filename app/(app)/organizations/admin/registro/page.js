@@ -50,6 +50,7 @@ export default function RegistroActividadPage() {
   const [asuntos, setAsuntos] = useState({});
   const [pestana, setPestana] = useState('pendientes');
   const [soloMias, setSoloMias] = useState(false);
+  const [orden, setOrden] = useState('recientes');
   const [acta, setActa] = useState(null);
 
   const cargar = useCallback(async () => {
@@ -130,12 +131,17 @@ export default function RegistroActividadPage() {
   // cerrarse. Anuladas aparte: no cuentan pero constan.
   const { pendientes, conActa, anuladas } = useMemo(() => {
     const base = soloMias ? actividades.filter((a) => a.created_by === userId) : actividades;
+    // Se ordena aquí y no en la consulta: cambiar el orden no debería
+    // costar otra petición.
+    const ordenada = [...base].sort((a, b) =>
+      orden === 'antiguas' ? (a.fecha || '').localeCompare(b.fecha || '') : (b.fecha || '').localeCompare(a.fecha || '')
+    );
     return {
-      pendientes: base.filter((a) => a.estado === 'borrador'),
-      conActa: base.filter((a) => a.estado === 'cerrada'),
-      anuladas: base.filter((a) => a.estado === 'anulada'),
+      pendientes: ordenada.filter((a) => a.estado === 'borrador'),
+      conActa: ordenada.filter((a) => a.estado === 'cerrada'),
+      anuladas: ordenada.filter((a) => a.estado === 'anulada'),
     };
-  }, [actividades, soloMias, userId]);
+  }, [actividades, soloMias, userId, orden]);
 
   const visibles = pestana === 'pendientes' ? pendientes : pestana === 'acta' ? conActa : anuladas;
 
@@ -192,6 +198,16 @@ export default function RegistroActividadPage() {
             {soloMias ? 'Todo el equipo' : 'Solo las mías'}
           </span>
         )}
+        <span
+          onClick={() => setOrden((v) => (v === 'recientes' ? 'antiguas' : 'recientes'))}
+          style={{ fontSize: 11.5, color: '#999', cursor: 'pointer', whiteSpace: 'nowrap' }}
+        >
+          <i
+            className={`ti ti-arrow-${orden === 'recientes' ? 'down' : 'up'}`}
+            style={{ fontSize: 12, verticalAlign: -2, marginRight: 3 }}
+          ></i>
+          {orden === 'recientes' ? 'Más recientes' : 'Más antiguas'}
+        </span>
       </div>
 
       {visibles.length === 0 ? (
