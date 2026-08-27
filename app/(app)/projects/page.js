@@ -283,7 +283,7 @@ function Proyectos() {
     }
     const { data, error } = await supabase
       .from('projects')
-      .insert({ user_id: user.id, name: t })
+      .insert({ user_id: user.id, created_by: user.id, name: t })
       .select('id, name, description, objetivo, orden, updated_at')
       .single();
     if (error) {
@@ -302,7 +302,7 @@ function Proyectos() {
   async function crearDesde(f) {
     const { data, error } = await supabase
       .from('projects')
-      .insert({ user_id: user.id, name: f.label || 'Proyecto sin título' })
+      .insert({ user_id: user.id, created_by: user.id, name: f.label || 'Proyecto sin título' })
       .select('id, name, description, objetivo, orden, updated_at')
       .single();
     if (error) {
