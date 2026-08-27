@@ -1,6 +1,5 @@
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/server';
-import { hasInterestGroupBadge } from '@/lib/interestGroupBadge';
 import { SECTOR_LABELS } from '@/lib/orgTaxonomy';
 import { normalizeUrl } from '@/lib/normalizeUrl';
 import OrganizationFollowButton from '@/components/OrganizationFollowButton';
@@ -164,13 +163,6 @@ export default async function OrganizationPublicPage({ params }) {
             {org.verified && (
               <HoverTooltip label="Página verificada por la organización">
                 <i className="ti ti-circle-check-filled" style={{ color: '#2563eb', fontSize: 17 }}></i>
-              </HoverTooltip>
-            )}
-            {hasInterestGroupBadge(org) && (
-              <HoverTooltip
-                label={`Grupo de interés registrado${org.interest_group_registry_number ? ` · ${org.interest_group_registry_number}` : ''}`}
-              >
-                <i className="ti ti-shield-check" style={{ color: '#6d5aef', fontSize: 17 }}></i>
               </HoverTooltip>
             )}
           </div>
