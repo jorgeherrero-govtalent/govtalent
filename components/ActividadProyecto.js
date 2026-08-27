@@ -114,13 +114,16 @@ export default function ActividadProyecto({ projectId, userId }) {
   const [cargando, setCargando] = useState(true);
   const [abierto, setAbierto] = useState(null);
   const [acta, setActa] = useState(null);
+  const [anulando, setAnulando] = useState(null);
+  const [motivo, setMotivo] = useState('');
+  const [menu, setMenu] = useState(null);
 
   const cargar = useCallback(async () => {
     const [{ data: acts, error }, { data: acs }, { data: its }, { data: proy }, { data: cls }, { data: perfil }] =
       await Promise.all([
       supabase
         .from('activities')
-        .select('id, tipo, estado, fecha, modalidad, lugar, asunto, cliente_nombre, client_id, organization_id, item_id, closed_at')
+        .select('id, tipo, estado, fecha, modalidad, lugar, asunto, cliente_nombre, client_id, organization_id, item_id, closed_at, anulada_motivo, created_by')
         .eq('project_id', projectId)
         .order('fecha', { ascending: false })
         .order('created_at', { ascending: false }),
@@ -170,6 +173,49 @@ export default function ActividadProyecto({ projectId, userId }) {
   }, [cargar]);
 
   const borradores = useMemo(() => actividades.filter((a) => a.estado === 'borrador'), [actividades]);
+
+  // Reabrir en vez de editar directamente: la actividad vuelve a
+  // borrador, se corrige y se vuelve a registrar. El trigger deja la
+  // marca de la reapertura, así que corregir no es reescribir.
+  // Borrar solo mientras es borrador, que es donde caen los errores de
+  // dedo: la reunión registrada dos veces o el proyecto equivocado. Una
+  // vez registrada se anula, no se borra.
+  async function borrar(a) {
+    const { error } = await supabase.from('activities').delete().eq('id', a.id);
+    if (error) return toast('No se ha podido borrar');
+    setMenu(null);
+    cargar();
+  }
+
+  async function reabrir(a) {
+    const { error } = await supabase
+      .from('activities')
+      .update({ estado: 'borrador', closed_at: null, closed_by: null })
+      .eq('id', a.id);
+    if (error) return toast('No se ha podido reabrir');
+    setMenu(null);
+    cargar();
+    setAbierto({ ...a, estado: 'borrador' });
+  }
+
+  async function anular() {
+    const m = motivo.trim();
+    if (!m) return;
+    const { error } = await supabase
+      .from('activities')
+      .update({
+        estado: 'anulada',
+        anulada_motivo: m,
+        anulada_at: new Date().toISOString(),
+        anulada_by: userId,
+      })
+      .eq('id', anulando.id);
+    if (error) return toast('No se ha podido anular');
+    setAnulando(null);
+    setMotivo('');
+    toast('Actividad anulada');
+    cargar();
+  }
 
   async function cerrar(a) {
     const { error } = await supabase
@@ -269,7 +315,12 @@ export default function ActividadProyecto({ projectId, userId }) {
                   fila: enumerarlo ocupaba tres líneas y señalaba el
                   fallo en vez de la salida. */}
               <div style={{ flexShrink: 0 }}>
-                {a.estado === 'cerrada' ? (
+                {a.estado === 'anulada' ? (
+                  <span style={{ fontSize: 10.5, color: '#aaa' }} title={a.anulada_motivo || ''}>
+                    Anulada
+                  </span>
+                ) : a.estado === 'cerrada' ? (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                   <button
                     onClick={() => setActa({ a, asunto })}
                     style={{
@@ -286,7 +337,52 @@ export default function ActividadProyecto({ projectId, userId }) {
                     <i className="ti ti-file-text" style={{ fontSize: 13, verticalAlign: -2, marginRight: 4 }}></i>
                     Ver acta
                   </button>
+                  {a.created_by === userId && (
+                    <span style={{ position: 'relative' }}>
+                      <button
+                        onClick={() => setMenu(menu === a.id ? null : a.id)}
+                        aria-label="Más opciones"
+                        style={{ background: 'none', border: 'none', padding: 0, color: '#bbb', cursor: 'pointer' }}
+                      >
+                        <i className="ti ti-dots" style={{ fontSize: 15 }}></i>
+                      </button>
+                      {menu === a.id && (
+                        <div
+                          style={{
+                            position: 'absolute',
+                            right: 0,
+                            top: 22,
+                            background: '#fff',
+                            border: `.5px solid ${BORDE}`,
+                            borderRadius: 9,
+                            boxShadow: '0 8px 24px rgba(0,0,0,.10)',
+                            padding: 5,
+                            zIndex: 50,
+                            minWidth: 150,
+                          }}
+                        >
+                          <div
+                            onClick={() => reabrir(a)}
+                            style={{ fontSize: 12, padding: '7px 10px', borderRadius: 6, cursor: 'pointer', color: '#3d3a35' }}
+                          >
+                            Reabrir y corregir
+                          </div>
+                          <div
+                            onClick={() => {
+                              setMenu(null);
+                              setAnulando(a);
+                            }}
+                            style={{ fontSize: 12, padding: '7px 10px', borderRadius: 6, cursor: 'pointer', color: '#a33' }}
+                          >
+                            Anular…
+                          </div>
+                        </div>
+                      )}
+                    </span>
+                  )}
+                  </div>
                 ) : (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                   <button
                     onClick={() => (falta.length === 0 ? cerrar(a) : setAbierto(a))}
                     title={falta.length > 0 ? `Falta ${falta.join(', ')}` : 'Darla por registrada'}
@@ -307,6 +403,41 @@ export default function ActividadProyecto({ projectId, userId }) {
                     ></i>
                     {falta.length === 0 ? 'Registrar' : 'Completar'}
                   </button>
+                  {a.created_by === userId && (
+                    <span style={{ position: 'relative' }}>
+                      <button
+                        onClick={() => setMenu(menu === a.id ? null : a.id)}
+                        aria-label="Más opciones"
+                        style={{ background: 'none', border: 'none', padding: 0, color: '#bbb', cursor: 'pointer' }}
+                      >
+                        <i className="ti ti-dots" style={{ fontSize: 15 }}></i>
+                      </button>
+                      {menu === a.id && (
+                        <div
+                          style={{
+                            position: 'absolute',
+                            right: 0,
+                            top: 22,
+                            background: '#fff',
+                            border: `.5px solid ${BORDE}`,
+                            borderRadius: 9,
+                            boxShadow: '0 8px 24px rgba(0,0,0,.10)',
+                            padding: 5,
+                            zIndex: 50,
+                            minWidth: 130,
+                          }}
+                        >
+                          <div
+                            onClick={() => borrar(a)}
+                            style={{ fontSize: 12, padding: '7px 10px', borderRadius: 6, cursor: 'pointer', color: '#a33' }}
+                          >
+                            Borrar
+                          </div>
+                        </div>
+                      )}
+                    </span>
+                  )}
+                  </div>
                 )}
               </div>
             </div>
@@ -316,6 +447,71 @@ export default function ActividadProyecto({ projectId, userId }) {
 
       {acta && (
         <ActaActividad actividad={acta.a} asunto={acta.asunto} onCerrar={() => setActa(null)} />
+      )}
+
+      {/* Anular pide motivo: un registro que existe porque la ley obliga
+          a llevarlo no debería desaparecer sin explicación. Queda en la
+          auditoría. */}
+      {anulando && (
+        <div
+          onClick={() => setAnulando(null)}
+          style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(0,0,0,.35)',
+            zIndex: 200,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: 16,
+          }}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{ background: '#fff', borderRadius: 12, width: '100%', maxWidth: 420, padding: 20 }}
+          >
+            <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 6 }}>Anular esta actividad</div>
+            <p style={{ fontSize: 12.5, color: '#666', lineHeight: 1.6, marginBottom: 14 }}>
+              Dejará de contar como actividad registrada, pero seguirá constando que existió y que se anuló.
+              No se borra.
+            </p>
+            <div style={{ fontSize: 10.5, color: '#999', marginBottom: 4 }}>Motivo</div>
+            <input
+              value={motivo}
+              onChange={(e) => setMotivo(e.target.value)}
+              placeholder="Registrada por duplicado, error en los datos…"
+              style={{
+                fontSize: 12.5,
+                padding: '8px 10px',
+                border: `.5px solid ${BORDE}`,
+                borderRadius: 7,
+                width: '100%',
+                outline: 'none',
+                marginBottom: 14,
+              }}
+            />
+            <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+              <button className="btn-ai" onClick={() => setAnulando(null)}>
+                Mantener
+              </button>
+              <button
+                onClick={anular}
+                disabled={!motivo.trim()}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  color: motivo.trim() ? '#a33' : '#ccc',
+                  fontSize: 12.5,
+                  padding: '9px 4px',
+                  cursor: motivo.trim() ? 'pointer' : 'default',
+                  fontFamily: 'inherit',
+                }}
+              >
+                Anular
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       {abierto && (
