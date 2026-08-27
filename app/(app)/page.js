@@ -579,9 +579,9 @@ export default function Home() {
               flexWrap: 'wrap',
             }}
           >
-            <span style={{ fontSize: 10.5, color: '#b8b4ac', lineHeight: 1.5 }}>
-              El Congreso reanuda en septiembre.
-            </span>
+            {/* El enlace se alinea a la derecha por sí solo: era el texto
+                de la izquierda el que lo empujaba con space-between. */}
+            <div style={{ flex: 1 }} />
             <Link href="/regulatorio" style={{ fontSize: 12, color: '#6d5aef', textDecoration: 'none', whiteSpace: 'nowrap' }}>
               Ver normativa →
             </Link>
