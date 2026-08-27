@@ -650,9 +650,21 @@ export default function AsuntosProyecto({ projectId, userId, abrirBuscador, onCe
 // el buscador de Regulatorio, con el mismo par kind + ref_id.
 // =====================================================================
 
+// Los tipos que devuelve regulatorio_search, con nombre corto para las
+// pastillas. 'propio' no está: no se busca, se crea.
+const TIPOS_BUSCADOR = [
+  { v: 'ley', label: 'Leyes' },
+  { v: 'actividad', label: 'Actividad parlamentaria' },
+  { v: 'boe', label: 'BOE' },
+  { v: 'expediente', label: 'Expedientes UE' },
+  { v: 'procedimiento', label: 'Procedimientos PE' },
+];
+
 function BuscadorAsuntos({ projectId, yaEn, onClose, onAdded }) {
   const supabase = createClient();
   const [q, setQ] = useState('');
+  const [tipos, setTipos] = useState(new Set());
+  const [conPlazo, setConPlazo] = useState(false);
   const [resultados, setResultados] = useState([]);
   const [buscando, setBuscando] = useState(false);
   const [guardando, setGuardando] = useState(false);
@@ -667,17 +679,25 @@ function BuscadorAsuntos({ projectId, yaEn, onClose, onAdded }) {
         return;
       }
       setBuscando(true);
-      const { data } = await supabase
+      // Los filtros van en la consulta y no sobre el resultado: con
+      // .limit() aplicado antes, filtrar después dejaría fuera lo que no
+      // entró en los primeros treinta.
+      let consulta = supabase
         .from('regulatorio_search')
         .select('kind, ref_id, titulo, contexto, fuente, plazo, fecha')
-        .ilike('titulo', `%${texto}%`)
-        .order('fecha', { ascending: false })
-        .limit(15);
+        .ilike('titulo', `%${texto}%`);
+
+      if (tipos.size > 0) consulta = consulta.in('kind', [...tipos]);
+      // Con plazo abierto: los que aún admiten aportación, que son los
+      // que de verdad se anclan a un proyecto.
+      if (conPlazo) consulta = consulta.gte('plazo', new Date().toISOString());
+
+      const { data } = await consulta.order('fecha', { ascending: false }).limit(30);
       setResultados((data || []).filter((r) => !puestos.has(`${r.kind}|${r.ref_id}`)));
       setBuscando(false);
     }, 280);
     return () => clearTimeout(t);
-  }, [q, supabase]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [q, tipos, conPlazo, supabase]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Un asunto que no está en el directorio: una consulta autonómica, un
   // trámite de otro país, algo que aún no hemos incorporado. Lleva kind
@@ -734,6 +754,52 @@ function BuscadorAsuntos({ projectId, yaEn, onClose, onAdded }) {
           />
         </div>
 
+        {/* Sin filtros, buscar "movilidad" mezcla leyes del Congreso,
+            expedientes europeos y disposiciones del BOE, y encontrar el
+            asunto concreto se vuelve cuestión de suerte. */}
+        <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap', marginBottom: 12 }}>
+          {TIPOS_BUSCADOR.map((t) => {
+            const on = tipos.has(t.v);
+            return (
+              <span
+                key={t.v}
+                onClick={() =>
+                  setTipos((prev) => {
+                    const n = new Set(prev);
+                    n.has(t.v) ? n.delete(t.v) : n.add(t.v);
+                    return n;
+                  })
+                }
+                style={{
+                  fontSize: 11,
+                  padding: '4px 10px',
+                  borderRadius: 13,
+                  cursor: 'pointer',
+                  background: on ? '#f0eefe' : '#f5f4f1',
+                  color: on ? MORADO : '#777',
+                  fontWeight: on ? 600 : 400,
+                }}
+              >
+                {t.label}
+              </span>
+            );
+          })}
+          <span
+            onClick={() => setConPlazo((v) => !v)}
+            style={{
+              fontSize: 11,
+              padding: '4px 10px',
+              borderRadius: 13,
+              cursor: 'pointer',
+              background: conPlazo ? '#f0eefe' : '#f5f4f1',
+              color: conPlazo ? MORADO : '#777',
+              fontWeight: conPlazo ? 600 : 400,
+            }}
+          >
+            Con plazo abierto
+          </span>
+        </div>
+
         {q.trim().length > 0 && q.trim().length < 3 && (
           <div style={{ fontSize: 12, color: '#999', padding: '6px 0' }}>
             Escribe al menos tres letras para buscar.
@@ -744,7 +810,7 @@ function BuscadorAsuntos({ projectId, yaEn, onClose, onAdded }) {
 
         {!buscando && q.trim().length >= 3 && resultados.length === 0 && (
           <div style={{ fontSize: 12.5, color: '#999', padding: '8px 0' }}>
-            Nada con ese título. Prueba con menos palabras.
+            Nada con ese título{tipos.size > 0 || conPlazo ? ' y esos filtros' : ''}. Prueba con menos palabras.
           </div>
         )}
 
