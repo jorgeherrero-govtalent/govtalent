@@ -3,18 +3,19 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { toast } from '@/lib/toast';
+import SelectorFecha from '@/components/SelectorFecha';
+import AgendaProyecto from '@/components/AgendaProyecto';
 
 /**
- * La actividad institucional del proyecto.
+ * Actividad del proyecto: lo pendiente y lo ocurrido, en el mismo sitio.
  *
- * Distinta de las notas y de la agenda: una nota es un comentario y una
- * tarea mira hacia adelante. Una actividad es el registro de lo que ya
- * ocurrió, y una vez cerrada no se toca.
+ * Antes eran dos bloques. La agenda mira hacia adelante —"hay que llamar
+ * a X"— y el registro hacia atrás —"se llamó a X el día 12"—, pero son la
+ * misma pregunta en dos tiempos y separarlas obligaba a decidir en qué
+ * bloque mirar.
  *
- * El formulario nace plegado —tipo, con quién y asunto— y el resto se
- * despliega. Guardar como borrador con esos tres campos es deliberado:
- * quien sale de una reunión no rellena nueve campos, y un registro
- * incompleto vale más que ninguno. Lo que falta se reclama después.
+ * La agenda se reutiliza tal cual dentro de la pestaña Pendiente: sus
+ * acciones siguen viviendo en project_actions y no se ha tocado nada.
  */
 
 const MORADO = '#6d5aef';
@@ -37,8 +38,8 @@ const MODALIDADES = [
   { v: 'escrita', label: 'Escrita' },
 ];
 
-// Por defecto según el tipo: una llamada no es presencial y un email es
-// escrito. Ahorra un toque en el caso habitual y se puede cambiar.
+// Una llamada no es presencial y un email es escrito. Ahorra un toque en
+// el caso normal y se puede cambiar.
 const MODALIDAD_POR_TIPO = {
   reunion: 'presencial',
   llamada: 'telefonica',
@@ -55,44 +56,57 @@ function fechaCorta(iso) {
   return `${d.getDate()} ${MESES[d.getMonth()]}`;
 }
 
+function hoyISO() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+function ayerISO() {
+  const d = new Date();
+  d.setDate(d.getDate() - 1);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
 const etiquetaTipo = (v) => TIPOS.find((t) => t.v === v)?.label || v;
 const iconoTipo = (v) => TIPOS.find((t) => t.v === v)?.icono || 'point';
 
 /**
- * Qué le falta a una actividad para poder cerrarse. Devuelve textos en
- * lenguaje llano y no nombres de campo: es la misma lista que verá el
- * usuario en la bandeja, y "documentos: null" no le dice nada.
+ * Qué le falta a una actividad para poder cerrarse. En lenguaje llano y
+ * no con nombres de campo: es lo que verá el usuario.
  */
 export function faltantes(a, participantes) {
   const falta = [];
-  if (!participantes || participantes.length === 0) falta.push('Con quién fue');
-  if (!a.asunto || !a.asunto.trim()) falta.push('Asunto tratado');
-  if (a.es_influencia === null || a.es_influencia === undefined) falta.push('Si es actividad de influencia');
-  if (a.modalidad === 'presencial' && !(a.lugar || '').trim()) falta.push('Lugar');
+  if (!participantes || participantes.length === 0) falta.push('con quién fue');
+  if (!a.asunto || !a.asunto.trim()) falta.push('qué se trató');
+  if (a.es_influencia === null || a.es_influencia === undefined) falta.push('si es actividad de influencia');
+  if (a.modalidad === 'presencial' && !(a.lugar || '').trim()) falta.push('el lugar');
   return falta;
 }
 
 export default function ActividadProyecto({ projectId, userId }) {
   const supabase = createClient();
 
+  const [pestana, setPestana] = useState('registrado');
   const [actividades, setActividades] = useState([]);
   const [participantes, setParticipantes] = useState({});
   const [actores, setActores] = useState([]);
+  const [asuntos, setAsuntos] = useState([]);
   const [orgId, setOrgId] = useState(null);
   const [cargando, setCargando] = useState(true);
-  const [abierto, setAbierto] = useState(null); // actividad en edición, o 'nueva'
+  const [abierto, setAbierto] = useState(null);
 
   const cargar = useCallback(async () => {
-    const [{ data: acts, error }, { data: acs }, { data: proy }] = await Promise.all([
+    const [{ data: acts, error }, { data: acs }, { data: its }, { data: proy }] = await Promise.all([
       supabase
         .from('activities')
-        .select('id, tipo, estado, fecha, modalidad, lugar, asunto, es_influencia, cliente_nombre, created_by, closed_at')
+        .select('id, tipo, estado, fecha, modalidad, lugar, asunto, es_influencia, cliente_nombre, item_id, closed_at')
         .eq('project_id', projectId)
         .order('fecha', { ascending: false })
         .order('created_at', { ascending: false }),
-      // Los actores ya mapeados del proyecto son el catálogo natural de
-      // contrapartes: quien trabaja este asunto ya los tiene puestos.
       supabase.from('project_actors').select('id, nombre, kind, ref_id, es_propio').eq('project_id', projectId),
+      // Los asuntos anclados al proyecto: son las normas sobre las que
+      // se intenta influir, y el artículo 6.1.e pide precisarlas.
+      supabase.from('project_items').select('id, etiqueta, kind, ref_id').eq('project_id', projectId),
       supabase.from('projects').select('organization_id').eq('id', projectId).single(),
     ]);
 
@@ -100,6 +114,7 @@ export default function ActividadProyecto({ projectId, userId }) {
     const lista = acts || [];
     setActividades(lista);
     setActores(acs || []);
+    setAsuntos(its || []);
     setOrgId(proy?.organization_id || null);
 
     if (lista.length > 0) {
@@ -109,8 +124,7 @@ export default function ActividadProyecto({ projectId, userId }) {
         .in('activity_id', lista.map((a) => a.id));
       const porActividad = {};
       for (const p of parts || []) {
-        if (!porActividad[p.activity_id]) porActividad[p.activity_id] = [];
-        porActividad[p.activity_id].push(p);
+        (porActividad[p.activity_id] ||= []).push(p);
       }
       setParticipantes(porActividad);
     } else {
@@ -123,99 +137,132 @@ export default function ActividadProyecto({ projectId, userId }) {
     cargar();
   }, [cargar]);
 
-  const abiertas = useMemo(() => actividades.filter((a) => a.estado === 'borrador'), [actividades]);
+  const borradores = useMemo(() => actividades.filter((a) => a.estado === 'borrador'), [actividades]);
 
-  if (cargando) return <div className="spinner"></div>;
+  async function cerrar(a) {
+    const { error } = await supabase
+      .from('activities')
+      .update({ estado: 'cerrada', closed_at: new Date().toISOString(), closed_by: userId })
+      .eq('id', a.id);
+    if (error) return toast('No se ha podido cerrar la actividad');
+    toast('Actividad registrada');
+    cargar();
+  }
+
+  const pestanaEstilo = (activa) => ({
+    fontSize: 11.5,
+    padding: '4px 12px',
+    borderRadius: 14,
+    cursor: 'pointer',
+    background: activa ? '#efedff' : '#f5f4f1',
+    color: activa ? MORADO : '#777',
+    fontWeight: activa ? 600 : 400,
+  });
 
   return (
     <>
-      <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 10 }}>
-        <span style={{ fontSize: 11, color: '#888', letterSpacing: '.3px' }}>
-          {actividades.length === 0
-            ? 'Sin actividad registrada'
-            : `${actividades.length} ${actividades.length === 1 ? 'actividad' : 'actividades'}${
-                abiertas.length > 0 ? ` · ${abiertas.length} sin completar` : ''
-              }`}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14, flexWrap: 'wrap' }}>
+        <span style={pestanaEstilo(pestana === 'registrado')} onClick={() => setPestana('registrado')}>
+          Registrado {actividades.length > 0 ? actividades.length : ''}
         </span>
+        <span style={pestanaEstilo(pestana === 'pendiente')} onClick={() => setPestana('pendiente')}>
+          Pendiente
+        </span>
+        <div style={{ flex: 1 }} />
+        {pestana === 'registrado' && (
+          <button className="btn-ai" onClick={() => setAbierto('nueva')}>
+            + Registrar
+          </button>
+        )}
       </div>
 
-      <div
-        onClick={() => setAbierto('nueva')}
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: 8,
-          padding: '10px 12px',
-          border: `.5px dashed ${BORDE}`,
-          borderRadius: 9,
-          cursor: 'pointer',
-          marginBottom: 14,
-        }}
-      >
-        <i className="ti ti-plus" style={{ fontSize: 14, color: MORADO }}></i>
-        <span style={{ fontSize: 12.5, color: '#777' }}>Registrar reunión, llamada, email…</span>
-      </div>
-
-      {actividades.map((a, i) => {
-        const parts = participantes[a.id] || [];
-        const falta = faltantes(a, parts);
-        const contraparte = parts.filter((p) => !p.es_propio);
-        return (
-          <div
-            key={a.id}
-            onClick={() => a.estado === 'borrador' && setAbierto(a)}
-            style={{
-              display: 'flex',
-              gap: 11,
-              padding: '11px 0',
-              borderBottom: i === actividades.length - 1 ? 'none' : `.5px solid #f0f0eb`,
-              cursor: a.estado === 'borrador' ? 'pointer' : 'default',
-            }}
-          >
+      {pestana === 'pendiente' ? (
+        <AgendaProyecto projectId={projectId} />
+      ) : cargando ? (
+        <div className="spinner"></div>
+      ) : actividades.length === 0 ? (
+        <div style={{ fontSize: 12, color: '#999', padding: '6px 0' }}>
+          Nada registrado todavía. Cada reunión, llamada o correo con una institución se anota aquí.
+        </div>
+      ) : (
+        actividades.map((a, i) => {
+          const parts = participantes[a.id] || [];
+          const falta = faltantes(a, parts);
+          const contraparte = parts.filter((p) => !p.es_propio);
+          const asunto = asuntos.find((x) => x.id === a.item_id);
+          return (
             <div
+              key={a.id}
               style={{
-                width: 28,
-                height: 28,
-                borderRadius: '50%',
-                background: '#f5f4f1',
                 display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                flexShrink: 0,
+                gap: 11,
+                padding: '11px 0',
+                borderBottom: i === actividades.length - 1 ? 'none' : '.5px solid #f0f0eb',
               }}
             >
-              <i className={`ti ti-${iconoTipo(a.tipo)}`} style={{ fontSize: 13, color: '#888' }}></i>
-            </div>
-
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ fontSize: 12.5, fontWeight: 600 }}>
-                {etiquetaTipo(a.tipo)}
-                {contraparte.length > 0 && ` · ${contraparte.map((p) => p.nombre).join(', ')}`}
+              <div
+                style={{
+                  width: 28,
+                  height: 28,
+                  borderRadius: '50%',
+                  background: '#f5f4f1',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  flexShrink: 0,
+                }}
+              >
+                <i className={`ti ti-${iconoTipo(a.tipo)}`} style={{ fontSize: 13, color: '#888' }}></i>
               </div>
-              {a.asunto && (
-                <div style={{ fontSize: 11.5, color: '#888', marginTop: 2 }}>{a.asunto}</div>
-              )}
-              <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginTop: 5, flexWrap: 'wrap' }}>
-                <span style={{ fontSize: 10.5, color: '#aaa' }}>{fechaCorta(a.fecha)}</span>
-                {a.es_influencia && (
-                  <span style={{ fontSize: 10, padding: '2px 7px', borderRadius: 10, background: '#f0efe9', color: '#666' }}>
-                    Influencia
-                  </span>
-                )}
-                {a.estado === 'borrador' && (
-                  <span style={{ fontSize: 10.5, color: '#B8791F' }}>
-                    {falta.length > 0 ? `Falta: ${falta.join(', ').toLowerCase()}` : 'Listo para cerrar'}
-                  </span>
+
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontSize: 12.5, fontWeight: 600 }}>
+                  {etiquetaTipo(a.tipo)}
+                  {contraparte.length > 0 && ` · ${contraparte.map((p) => p.nombre).join(', ')}`}
+                </div>
+                {a.asunto && <div style={{ fontSize: 11.5, color: '#888', marginTop: 2 }}>{a.asunto}</div>}
+                <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginTop: 5, flexWrap: 'wrap' }}>
+                  <span style={{ fontSize: 10.5, color: '#aaa' }}>{fechaCorta(a.fecha)}</span>
+                  {asunto && <span style={{ fontSize: 10.5, color: '#aaa' }}>· {asunto.etiqueta}</span>}
+                  {a.es_influencia && (
+                    <span style={{ fontSize: 10, padding: '2px 7px', borderRadius: 10, background: '#f0efe9', color: '#666' }}>
+                      Influencia
+                    </span>
+                  )}
+                </div>
+              </div>
+
+              <div style={{ flexShrink: 0, textAlign: 'right' }}>
+                {a.estado === 'cerrada' ? (
+                  <span style={{ fontSize: 10.5, color: '#aaa' }}>Registrada</span>
+                ) : falta.length === 0 ? (
+                  <>
+                    <div
+                      onClick={() => cerrar(a)}
+                      style={{ fontSize: 11, color: MORADO, cursor: 'pointer', fontWeight: 600 }}
+                    >
+                      Registrar
+                    </div>
+                    <div
+                      onClick={() => setAbierto(a)}
+                      style={{ fontSize: 10.5, color: '#aaa', cursor: 'pointer', marginTop: 2 }}
+                    >
+                      Editar
+                    </div>
+                  </>
+                ) : (
+                  <div
+                    onClick={() => setAbierto(a)}
+                    style={{ fontSize: 10.5, color: '#B8791F', cursor: 'pointer', maxWidth: 150 }}
+                  >
+                    Falta {falta.join(', ')}
+                  </div>
                 )}
               </div>
             </div>
-
-            {a.estado === 'cerrada' && (
-              <span style={{ fontSize: 10.5, color: '#aaa', flexShrink: 0 }}>Cerrada</span>
-            )}
-          </div>
-        );
-      })}
+          );
+        })
+      )}
 
       {abierto && (
         <FormularioActividad
@@ -223,6 +270,7 @@ export default function ActividadProyecto({ projectId, userId }) {
           userId={userId}
           orgId={orgId}
           actores={actores}
+          asuntos={asuntos}
           inicial={abierto === 'nueva' ? null : abierto}
           participantesIniciales={abierto === 'nueva' ? [] : participantes[abierto.id] || []}
           onCerrar={() => setAbierto(null)}
@@ -241,6 +289,7 @@ function FormularioActividad({
   userId,
   orgId,
   actores,
+  asuntos,
   inicial,
   participantesIniciales,
   onCerrar,
@@ -250,20 +299,19 @@ function FormularioActividad({
   const esNueva = !inicial;
 
   const [tipo, setTipo] = useState(inicial?.tipo || 'reunion');
-  const [fecha, setFecha] = useState(inicial?.fecha || new Date().toISOString().slice(0, 10));
+  const [fecha, setFecha] = useState(inicial?.fecha || hoyISO());
   const [modalidad, setModalidad] = useState(inicial?.modalidad || MODALIDAD_POR_TIPO.reunion);
   const [lugar, setLugar] = useState(inicial?.lugar || '');
   const [asunto, setAsunto] = useState(inicial?.asunto || '');
+  // Un solo asunto anclado por defecto se preselecciona: en la mayoría de
+  // proyectos solo hay uno y elegirlo a mano sería un toque de más.
+  const [itemId, setItemId] = useState(inicial?.item_id || (asuntos.length === 1 ? asuntos[0].id : ''));
   const [influencia, setInfluencia] = useState(
     inicial?.es_influencia === null || inicial?.es_influencia === undefined ? null : inicial.es_influencia
   );
   const [cliente, setCliente] = useState(inicial?.cliente_nombre || '');
-  const [detalles, setDetalles] = useState(!esNueva);
   const [guardando, setGuardando] = useState(false);
 
-  // Quien registra estuvo, salvo excepción: sale marcado y se puede
-  // quitar. Registrar y participar no son lo mismo —alguien puede meter
-  // una reunión a la que no fue— y meterlo en el acta la falsearía.
   const [parts, setParts] = useState(() =>
     esNueva
       ? [{ nombre: 'Yo', es_propio: true, kind: 'usuario', ref_id: userId, user_id: userId }]
@@ -273,15 +321,12 @@ function FormularioActividad({
 
   function cambiarTipo(v) {
     setTipo(v);
-    if (!inicial) setModalidad(MODALIDAD_POR_TIPO[v] || null);
+    if (esNueva) setModalidad(MODALIDAD_POR_TIPO[v] || null);
   }
 
   function anadirActor(a) {
     if (parts.some((p) => p.kind === 'project_actor' && p.ref_id === a.id)) return;
-    setParts((prev) => [
-      ...prev,
-      { nombre: a.nombre, es_propio: !!a.es_propio, kind: 'project_actor', ref_id: a.id },
-    ]);
+    setParts((prev) => [...prev, { nombre: a.nombre, es_propio: !!a.es_propio, kind: 'project_actor', ref_id: a.id }]);
   }
 
   function anadirLibre() {
@@ -291,18 +336,11 @@ function FormularioActividad({
     setNuevoNombre('');
   }
 
-  const disponibles = actores.filter(
-    (a) => !parts.some((p) => p.kind === 'project_actor' && p.ref_id === a.id)
-  );
+  const disponibles = actores.filter((a) => !parts.some((p) => p.kind === 'project_actor' && p.ref_id === a.id));
+  const falta = faltantes({ asunto, es_influencia: influencia, modalidad, lugar }, parts);
 
-  const borradorActual = { asunto, es_influencia: influencia, modalidad, lugar };
-  const falta = faltantes(borradorActual, parts);
-  const puedeCerrar = falta.length === 0;
-
-  async function guardar(cerrar) {
-    if (cerrar && !puedeCerrar) return;
+  async function guardar() {
     setGuardando(true);
-
     const fila = {
       project_id: projectId,
       organization_id: orgId,
@@ -313,40 +351,31 @@ function FormularioActividad({
       asunto: asunto.trim() || null,
       es_influencia: influencia,
       cliente_nombre: cliente.trim() || null,
+      item_id: itemId || null,
     };
-    if (cerrar) {
-      fila.estado = 'cerrada';
-      fila.closed_at = new Date().toISOString();
-      fila.closed_by = userId;
-    }
 
-    let actividadId = inicial?.id;
-
+    let id = inicial?.id;
     if (esNueva) {
       const { data, error } = await supabase.from('activities').insert(fila).select('id').single();
       if (error) {
         setGuardando(false);
-        toast('No se ha podido guardar la actividad');
-        return;
+        return toast('No se ha podido guardar la actividad');
       }
-      actividadId = data.id;
+      id = data.id;
     } else {
-      const { error } = await supabase.from('activities').update(fila).eq('id', actividadId);
+      const { error } = await supabase.from('activities').update(fila).eq('id', id);
       if (error) {
         setGuardando(false);
-        toast('No se ha podido guardar la actividad');
-        return;
+        return toast('No se ha podido guardar la actividad');
       }
-      // Se reemplazan por completo: son pocos y así no hay que llevar
-      // la cuenta de cuáles se quitaron.
-      await supabase.from('activity_participants').delete().eq('activity_id', actividadId);
+      await supabase.from('activity_participants').delete().eq('activity_id', id);
     }
 
     if (parts.length > 0) {
       const { error } = await supabase.from('activity_participants').insert(
         parts.map((p) => ({
-          activity_id: actividadId,
-          // El nombre se copia, no se referencia: el acta debe reflejar
+          activity_id: id,
+          // El nombre se copia y no se referencia: el acta debe reflejar
           // el cargo que esa persona ocupaba el día de la reunión.
           nombre: p.nombre,
           cargo: p.cargo || null,
@@ -360,7 +389,7 @@ function FormularioActividad({
     }
 
     setGuardando(false);
-    toast(cerrar ? 'Actividad cerrada' : 'Borrador guardado');
+    toast('Guardado');
     onGuardado();
   }
 
@@ -373,6 +402,7 @@ function FormularioActividad({
     outline: 'none',
     background: '#fff',
   };
+  const etiqueta = { fontSize: 10.5, color: '#999', marginBottom: 4 };
 
   return (
     <div
@@ -391,14 +421,7 @@ function FormularioActividad({
     >
       <div
         onClick={(e) => e.stopPropagation()}
-        style={{
-          background: '#fff',
-          borderRadius: 12,
-          width: '100%',
-          maxWidth: 520,
-          padding: 20,
-          position: 'relative',
-        }}
+        style={{ background: '#fff', borderRadius: 12, width: '100%', maxWidth: 520, padding: 20, position: 'relative' }}
       >
         <button
           onClick={onCerrar}
@@ -422,7 +445,7 @@ function FormularioActividad({
         </button>
 
         <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 14 }}>
-          {esNueva ? 'Registrar actividad' : 'Completar actividad'}
+          {esNueva ? 'Registrar actividad' : 'Editar actividad'}
         </div>
 
         <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap', marginBottom: 12 }}>
@@ -446,7 +469,7 @@ function FormularioActividad({
         </div>
 
         <div style={{ marginBottom: 10 }}>
-          <div style={{ fontSize: 10.5, color: '#999', marginBottom: 4 }}>Con quién</div>
+          <div style={etiqueta}>Con quién</div>
           <div
             style={{
               display: 'flex',
@@ -511,119 +534,117 @@ function FormularioActividad({
           )}
         </div>
 
+        {/* Sobre qué norma se intenta influir. Sale de los asuntos ya
+            anclados al proyecto, así que no hay que escribirlo. */}
+        {asuntos.length > 0 && (
+          <div style={{ marginBottom: 10 }}>
+            <div style={etiqueta}>Sobre qué asunto</div>
+            <select value={itemId} onChange={(e) => setItemId(e.target.value)} style={campo}>
+              <option value="">Sin asunto concreto</option>
+              {asuntos.map((a) => (
+                <option key={a.id} value={a.id}>
+                  {a.etiqueta}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
+
         <div style={{ marginBottom: 10 }}>
-          <div style={{ fontSize: 10.5, color: '#999', marginBottom: 4 }}>Asunto tratado</div>
+          <div style={etiqueta}>Qué se trató</div>
           <textarea
             value={asunto}
             onChange={(e) => setAsunto(e.target.value)}
             rows={2}
-            placeholder="Sobre qué se habló…"
+            placeholder="Sobre qué se habló, qué se propuso…"
             style={{ ...campo, resize: 'vertical', fontFamily: 'inherit' }}
           />
         </div>
 
-        {!detalles ? (
-          <div
-            onClick={() => setDetalles(true)}
-            style={{ fontSize: 11.5, color: MORADO, cursor: 'pointer', marginBottom: 14 }}
-          >
-            Añadir fecha, lugar y clasificación ↓
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 9, marginBottom: 10 }}>
+          <div>
+            <div style={etiqueta}>Cuándo</div>
+            <SelectorFecha
+              value={fecha}
+              onChange={setFecha}
+              atajos={[
+                { label: 'Hoy', iso: hoyISO() },
+                { label: 'Ayer', iso: ayerISO() },
+              ]}
+            />
           </div>
-        ) : (
-          <>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 9, marginBottom: 10 }}>
-              <div>
-                <div style={{ fontSize: 10.5, color: '#999', marginBottom: 4 }}>Fecha</div>
-                <input type="date" value={fecha} onChange={(e) => setFecha(e.target.value)} style={campo} />
-              </div>
-              <div>
-                <div style={{ fontSize: 10.5, color: '#999', marginBottom: 4 }}>Modalidad</div>
-                <select value={modalidad || ''} onChange={(e) => setModalidad(e.target.value || null)} style={campo}>
-                  <option value="">Sin especificar</option>
-                  {MODALIDADES.map((m) => (
-                    <option key={m.v} value={m.v}>
-                      {m.label}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            </div>
-
-            {/* El lugar solo se pide cuando hay sitio físico. En
-                videoconferencia el campo sobra y solo añade fricción. */}
-            {modalidad === 'presencial' && (
-              <div style={{ marginBottom: 10 }}>
-                <div style={{ fontSize: 10.5, color: '#999', marginBottom: 4 }}>Lugar</div>
-                <input
-                  value={lugar}
-                  onChange={(e) => setLugar(e.target.value)}
-                  placeholder="Sede, dirección o ciudad"
-                  style={campo}
-                />
-              </div>
-            )}
-
-            <div style={{ marginBottom: 10 }}>
-              <div style={{ fontSize: 10.5, color: '#999', marginBottom: 4 }}>Por cuenta de (opcional)</div>
-              <input
-                value={cliente}
-                onChange={(e) => setCliente(e.target.value)}
-                placeholder="Cliente para el que se actúa"
-                style={campo}
-              />
-            </div>
-
-            <div style={{ marginBottom: 14 }}>
-              <div style={{ fontSize: 10.5, color: '#999', marginBottom: 5 }}>¿Es actividad de influencia?</div>
-              <div style={{ display: 'flex', gap: 6 }}>
-                {[
-                  { v: true, label: 'Sí' },
-                  { v: false, label: 'No' },
-                ].map((o) => (
-                  <span
-                    key={String(o.v)}
-                    onClick={() => setInfluencia(influencia === o.v ? null : o.v)}
-                    style={{
-                      fontSize: 11.5,
-                      padding: '5px 16px',
-                      borderRadius: 14,
-                      cursor: 'pointer',
-                      background: influencia === o.v ? '#efedff' : '#f5f4f1',
-                      color: influencia === o.v ? MORADO : '#777',
-                      fontWeight: influencia === o.v ? 600 : 400,
-                    }}
-                  >
-                    {o.label}
-                  </span>
-                ))}
-              </div>
-            </div>
-          </>
-        )}
-
-        {falta.length > 0 && (
-          <div style={{ fontSize: 11, color: '#B8791F', marginBottom: 10 }}>
-            Para cerrarla falta: {falta.join(', ').toLowerCase()}.
+          <div>
+            <div style={etiqueta}>Cómo</div>
+            <select value={modalidad || ''} onChange={(e) => setModalidad(e.target.value || null)} style={campo}>
+              <option value="">Sin especificar</option>
+              {MODALIDADES.map((m) => (
+                <option key={m.v} value={m.v}>
+                  {m.label}
+                </option>
+              ))}
+            </select>
           </div>
-        )}
-
-        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-          <button
-            className="btn-ai"
-            disabled={guardando || (!asunto.trim() && parts.length === 0)}
-            onClick={() => guardar(false)}
-          >
-            {guardando ? 'Guardando…' : 'Guardar borrador'}
-          </button>
-          <button className="btn-o" disabled={guardando || !puedeCerrar} onClick={() => guardar(true)}>
-            Guardar y cerrar
-          </button>
         </div>
 
-        {/* Cerrar es irreversible: la actividad deja de poder editarse.
-            Conviene decirlo antes y no después. */}
-        <div style={{ fontSize: 10.5, color: '#aaa', marginTop: 9, lineHeight: 1.5 }}>
-          Una actividad cerrada queda registrada y ya no puede modificarse.
+        {/* El lugar solo aparece si hay sitio físico. En videoconferencia
+            el campo sobra y solo añade fricción. */}
+        {modalidad === 'presencial' && (
+          <div style={{ marginBottom: 10 }}>
+            <div style={etiqueta}>Dónde</div>
+            <input
+              value={lugar}
+              onChange={(e) => setLugar(e.target.value)}
+              placeholder="Sede, dirección o ciudad"
+              style={campo}
+            />
+          </div>
+        )}
+
+        <div style={{ marginBottom: 10 }}>
+          <div style={etiqueta}>Por cuenta de (opcional)</div>
+          <input
+            value={cliente}
+            onChange={(e) => setCliente(e.target.value)}
+            placeholder="Cliente para el que se actúa"
+            style={campo}
+          />
+        </div>
+
+        <div style={{ marginBottom: 14 }}>
+          <div style={{ ...etiqueta, marginBottom: 5 }}>¿Es actividad de influencia?</div>
+          <div style={{ display: 'flex', gap: 6 }}>
+            {[
+              { v: true, label: 'Sí' },
+              { v: false, label: 'No' },
+            ].map((o) => (
+              <span
+                key={String(o.v)}
+                onClick={() => setInfluencia(influencia === o.v ? null : o.v)}
+                style={{
+                  fontSize: 11.5,
+                  padding: '5px 16px',
+                  borderRadius: 14,
+                  cursor: 'pointer',
+                  background: influencia === o.v ? '#efedff' : '#f5f4f1',
+                  color: influencia === o.v ? MORADO : '#777',
+                  fontWeight: influencia === o.v ? 600 : 400,
+                }}
+              >
+                {o.label}
+              </span>
+            ))}
+          </div>
+        </div>
+
+        <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+          <button className="btn-ai" disabled={guardando} onClick={guardar}>
+            {guardando ? 'Guardando…' : 'Guardar'}
+          </button>
+          {falta.length > 0 && (
+            <span style={{ fontSize: 10.5, color: '#999' }}>
+              Se guarda igual. Para darla por registrada falta {falta.join(', ')}.
+            </span>
+          )}
         </div>
       </div>
     </div>
