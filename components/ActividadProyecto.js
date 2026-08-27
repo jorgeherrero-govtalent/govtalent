@@ -260,37 +260,41 @@ export default function ActividadProyecto({ projectId, userId }) {
                 </div>
               </div>
 
-              {/* Un botón y no la lista de lo que falta: enumerarla ocupaba
-                  tres líneas, desequilibraba la fila hacia la derecha y
-                  señalaba el fallo en vez de la acción. El detalle se ve
-                  al abrir el formulario, que es donde se rellena, y en el
-                  title al pasar el ratón.
-
-                  Borde y sin relleno para no competir con el "+ Registrar"
-                  morado que está justo encima. */}
+              {/* Una acción y no la lista de lo que falta: enumerarla
+                  ocupaba tres líneas, desequilibraba la fila hacia la
+                  derecha y señalaba el fallo en vez de la salida. El
+                  detalle se ve al abrir el formulario, que es donde se
+                  rellena, y en el title al pasar el ratón. */}
               <div style={{ flexShrink: 0 }}>
                 {a.estado === 'cerrada' ? (
                   <span style={{ fontSize: 10.5, color: '#aaa' }}>Registrada</span>
-                ) : falta.length === 0 ? (
-                  // btn-ai-o y no btn-ai: dos botones morados macizos en el
-                  // mismo bloque —uno para crear y otro para cerrar— se
-                  // disputan la atención.
-                  <button className="btn-ai-o" onClick={() => cerrar(a)} style={{ whiteSpace: 'nowrap' }}>
-                    Registrar
-                  </button>
                 ) : (
-                  // btn-g es el más discreto del sistema: transparente con
-                  // borde gris fino. btn-o es blanco con borde verde de
-                  // marca y se rellena al pasar el ratón, que era demasiado
-                  // peso para una fila de lista.
-                  <button
-                    className="btn-g"
-                    onClick={() => setAbierto(a)}
-                    title={`Falta ${falta.join(', ')}`}
-                    style={{ whiteSpace: 'nowrap' }}
+                  // Enlace y no botón: una caja en cada fila de la lista
+                  // pesa más que la propia actividad. En gris, del mismo
+                  // tono que los metadatos, para que no compita con el
+                  // "+ Registrar" de la cabecera. Se subraya al pasar el
+                  // ratón, que es lo que lo delata como pulsable.
+                  <span
+                    onClick={() => (falta.length === 0 ? cerrar(a) : setAbierto(a))}
+                    title={falta.length > 0 ? `Falta ${falta.join(', ')}` : 'Darla por registrada'}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.color = '#555';
+                      e.currentTarget.style.textDecoration = 'underline';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.color = '#999';
+                      e.currentTarget.style.textDecoration = 'none';
+                    }}
+                    style={{
+                      fontSize: 11.5,
+                      color: '#999',
+                      cursor: 'pointer',
+                      whiteSpace: 'nowrap',
+                      transition: 'color .12s',
+                    }}
                   >
-                    Completar
-                  </button>
+                    {falta.length === 0 ? 'Registrar' : 'Completar'}
+                  </span>
                 )}
               </div>
             </div>
