@@ -57,7 +57,7 @@ export default function ConfiguracionOrganizacion() {
     const { data } = await supabase
       .from('organization_members')
       .select(
-        'role, organizations(id, name, slug, plan, plan_status, trial_ends_at, is_public, legal_name, tax_id, org_type, registered_address, cbtg_registry_number, cbtg_registered_at, transparency_pledge, transparency_pledge_at)'
+        'role, organizations(id, name, slug, plan, plan_status, trial_ends_at, is_public, legal_name, tax_id, org_type, registered_address, cbtg_registry_number, cbtg_registered_at)'
       )
       .eq('user_id', auth.user.id)
       .limit(1)
@@ -112,19 +112,6 @@ export default function ConfiguracionOrganizacion() {
     if (error) return toast('No se han podido guardar los datos');
     setOrg({ ...org, ...datos });
     toast('Datos guardados');
-  }
-
-  async function firmarCompromiso() {
-    const siguiente = !org.transparency_pledge;
-    const { error } = await supabase
-      .from('organizations')
-      .update({
-        transparency_pledge: siguiente,
-        transparency_pledge_at: siguiente ? new Date().toISOString() : null,
-      })
-      .eq('id', org.id);
-    if (error) return toast('No se ha podido guardar');
-    setOrg({ ...org, transparency_pledge: siguiente });
   }
 
   if (cargando) return <div className="spinner"></div>;
@@ -284,39 +271,6 @@ export default function ConfiguracionOrganizacion() {
             )}
           </div>
 
-          {/* El compromiso de aceptación del artículo 6.1.g. Se firma una
-              vez, así que su sitio es este y no una pantalla que se
-              consulta a diario. */}
-          <div
-            className="card"
-            style={{ padding: '15px 20px', marginBottom: 20, display: 'flex', alignItems: 'center', gap: 13 }}
-          >
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ fontSize: 13, fontWeight: 600 }}>Compromiso con las normas de conducta</div>
-              <div style={{ fontSize: 11.5, color: '#888', marginTop: 2, lineHeight: 1.5 }}>
-                {org.transparency_pledge
-                  ? 'Tu organización ha asumido los principios de conducta del título II del RDL 21/2026.'
-                  : 'Transparencia en la identificación, veracidad de la información y no ofrecer obsequios ni favores.'}
-              </div>
-            </div>
-            {esAdmin && (
-              <button
-                onClick={firmarCompromiso}
-                style={{
-                  background: 'none',
-                  border: 'none',
-                  padding: 0,
-                  color: '#999',
-                  fontSize: 11.5,
-                  cursor: 'pointer',
-                  flexShrink: 0,
-                  fontFamily: 'inherit',
-                }}
-              >
-                {org.transparency_pledge ? 'Retirar' : 'Asumir compromiso'}
-              </button>
-            )}
-          </div>
         </>
       )}
 
