@@ -3,8 +3,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { toast } from '@/lib/toast';
-import SelectorFecha from '@/components/SelectorFecha';
-import { hasInterestGroupBadge } from '@/lib/interestGroupBadge';
 import { useDragPosition, parsePosition } from '@/lib/useDragPosition';
 import { SECTORS } from '@/lib/orgTaxonomy';
 import { normalizeUrl } from '@/lib/normalizeUrl';
@@ -16,7 +14,6 @@ const SECCION = { fontSize: 11, color: '#a8a49c', letterSpacing: '.4px', margin:
 const SECCIONES = [
   { id: 'identidad', label: 'Identidad' },
   { id: 'contacto', label: 'Contacto' },
-  { id: 'transparencia', label: 'Transparencia' },
   { id: 'descripcion', label: 'Descripción' },
 ];
 
@@ -28,7 +25,6 @@ export default function CompanyPagePage() {
   const [uploadingOrgCover, setUploadingOrgCover] = useState(false);
   const [saving, setSaving] = useState(false);
   const [hayCambios, setHayCambios] = useState(false);
-  const [fechaRegistro, setFechaRegistro] = useState(null);
   const [activa, setActiva] = useState('identidad');
   const saltando = useRef(false);
 
@@ -104,7 +100,6 @@ export default function CompanyPagePage() {
 
     if (!membership) return setLoading(false);
     setOrg(membership.organizations);
-    setFechaRegistro(membership.organizations.interest_group_registered_at || null);
     setLoading(false);
   }
 
@@ -162,11 +157,6 @@ export default function CompanyPagePage() {
     e.preventDefault();
     const f = new FormData(e.target);
 
-    const interestGroupRegistered = f.get('interest_group_registered') === 'on';
-    const interestGroupRegistryNumber = f.get('interest_group_registry_number') || '';
-    // Ya no es un campo del formulario: SelectorFecha guarda en estado,
-    // así que el valor se toma de ahí.
-    const interestGroupRegisteredAt = fechaRegistro || '';
     if (interestGroupRegistered && (!interestGroupRegistryNumber.trim() || !interestGroupRegisteredAt)) {
       toast('Si marcáis que estáis inscritos como grupo de interés, indica también el número de inscripción y la fecha');
       return;
@@ -183,9 +173,6 @@ export default function CompanyPagePage() {
       founded_year: f.get('founded_year') ? Number(f.get('founded_year')) : null,
       bio: f.get('bio') || null,
       notification_email: f.get('notification_email') || null,
-      interest_group_registered: interestGroupRegistered,
-      interest_group_registry_number: interestGroupRegistryNumber || null,
-      interest_group_registered_at: interestGroupRegisteredAt || null,
     };
     const { error } = await supabase.from('organizations').update(updates).eq('id', org.id);
     setSaving(false);
@@ -375,14 +362,6 @@ export default function CompanyPagePage() {
                 <span className="tt-bubble">Página verificada por la organización</span>
               </span>
             )}
-            {hasInterestGroupBadge(org) && (
-              <span className="tt">
-                <i className="ti ti-shield-check" style={{ color: '#6d5aef', fontSize: 15.5 }}></i>
-                <span className="tt-bubble">
-                  Grupo de interés registrado{org.interest_group_registry_number ? ` · ${org.interest_group_registry_number}` : ''}
-                </span>
-              </span>
-            )}
           </div>
           {/* Ni descripción ni sector: los dos salían aquí sin poder
               editarse y repitiendo lo que hay abajo en su sección. */}
@@ -466,59 +445,6 @@ export default function CompanyPagePage() {
                 A esta dirección llegarán los avisos de nuevas candidaturas — puede ser distinta del email con el
                 que gestionas esta página. Si lo dejas vacío, avisaremos a las cuentas con acceso de administrador.
               </p>
-            </div>
-
-            </section>
-
-            <section id="transparencia" style={{ scrollMarginTop: 90 }}>
-            <div style={SECCION}>TRANSPARENCIA</div>
-            <div
-              style={{
-                background: '#f8faf9',
-                border: '1px solid #d3e8df',
-                borderRadius: 10,
-                padding: 14,
-                marginBottom: 16,
-              }}
-            >
-              <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
-                <i className="ti ti-shield-check" style={{ color: '#1d6f5c', fontSize: 15 }}></i>
-                <span style={{ fontSize: 13, fontWeight: 600 }}>Registro de Grupos de Interés</span>
-              </div>
-              <p style={{ fontSize: 11.5, color: '#888', marginBottom: 10 }}>
-                Si tu organización realiza actividad de influencia ante altos cargos o personal público, la Ley de
-                Transparencia e Integridad de los Grupos de Interés obliga a inscribirse en el registro estatal
-                correspondiente. Si ya lo has hecho, indícalo aquí para mostrarlo en tu página pública.
-              </p>
-              <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, marginBottom: 10, cursor: 'pointer' }}>
-                <input type="checkbox" name="interest_group_registered" defaultChecked={org.interest_group_registered} />
-                Estamos inscritos como grupo de interés
-              </label>
-              <div className="two">
-                <div className="field">
-                  <label>Nº de inscripción</label>
-                  <input name="interest_group_registry_number" defaultValue={org.interest_group_registry_number || ''} placeholder="Ej: RGI-2026-00123" />
-                </div>
-                <div className="field">
-                  <label>Fecha de inscripción</label>
-                  {/* El mismo calendario que la fecha de nacimiento en Mi
-                      cuenta. El nativo cambia de aspecto en cada navegador
-                      y no se puede vestir. */}
-                  <SelectorFecha
-                    value={fechaRegistro}
-                    onChange={(v) => {
-                      setFechaRegistro(v);
-                      setHayCambios(true);
-                    }}
-                    placeholder="Sin indicar"
-                    desdeAno={2020}
-                    hastaAno={new Date().getFullYear()}
-                  />
-                </div>
-              </div>
-              <a href="/organizations/admin/influence-log" style={{ fontSize: 12, color: '#1d6f5c', display: 'inline-block', marginTop: 8 }}>
-                Ir a registro de actividad y transparencia →
-              </a>
             </div>
 
             </section>
