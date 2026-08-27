@@ -11,6 +11,7 @@ import NotasProyecto from '@/components/NotasProyecto';
 import AsuntosProyecto from '@/components/AsuntosProyecto';
 import BriefingProyecto from '@/components/BriefingProyecto';
 import DocumentosProyecto from '@/components/DocumentosProyecto';
+import ActividadProyecto from '@/components/ActividadProyecto';
 import AnclasProyecto from '@/components/AnclasProyecto';
 import CambiarProyecto from '@/components/CambiarProyecto';
 import ActorAvatar from '@/components/ActorAvatar';
@@ -1075,6 +1076,14 @@ function Proyectos() {
                   gap: 12,
                 }}
               >
+                {/* La actividad va antes que documentos y notas: es el
+                    registro de lo ocurrido y lo que alimenta el acta y
+                    la bandeja de cumplimiento. Lo demás es apoyo. */}
+                <div style={{ ...CARD, padding: '16px 18px' }}>
+                  <div style={{ ...ETIQUETA, marginBottom: 12 }}>ACTIVIDAD INSTITUCIONAL</div>
+                  <ActividadProyecto projectId={abierto.id} userId={user.id} />
+                </div>
+
                 <div style={{ ...CARD, padding: '16px 18px' }}>
                   <div style={{ ...ETIQUETA, marginBottom: 12 }}>DOCUMENTOS</div>
                   <DocumentosProyecto projectId={abierto.id} userId={user.id} />
