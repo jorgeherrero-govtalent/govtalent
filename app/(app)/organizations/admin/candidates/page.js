@@ -77,12 +77,13 @@ function CandidatesBoardInner() {
   const [estadoNotas, setEstadoNotas] = useState('');
   const [summaryLoading, setSummaryLoading] = useState(false);
 
-  // Modal que aparece al mover un candidato a "Oferta" o "Rechazada"
+  // Modal que aparece al mover un candidato a "Rechazada", para recoger
+  // el motivo. Mover a oferta o entrevista no interrumpe: arrastrar ya
+  // expresa la intención y un modal detrás de cada movimiento hace el
+  // tablero incómodo de usar.
   const [statusAction, setStatusAction] = useState(null); // { appId, targetStatus, step }
   const [rejectionReason, setRejectionReason] = useState('');
   const [rejectionDetails, setRejectionDetails] = useState('');
-  const [draftMessage, setDraftMessage] = useState('');
-  const [generatingMessage, setGeneratingMessage] = useState(false);
   const [savingStatusAction, setSavingStatusAction] = useState(false);
 
   const REJECTION_REASONS = [
@@ -191,9 +192,6 @@ function CandidatesBoardInner() {
     if (!dragId) return;
     if (newStatus === 'rechazada') {
       setStatusAction({ appId: dragId, targetStatus: 'rechazada', step: 'reason' });
-    } else if (newStatus === 'oferta' || newStatus === 'entrevista') {
-      updateStatus(dragId, newStatus);
-      setStatusAction({ appId: dragId, targetStatus: newStatus, step: 'message' });
     } else {
       updateStatus(dragId, newStatus);
     }
@@ -204,7 +202,6 @@ function CandidatesBoardInner() {
     setStatusAction(null);
     setRejectionReason('');
     setRejectionDetails('');
-    setDraftMessage('');
   }
 
   async function confirmRejectionReason() {
@@ -218,30 +215,7 @@ function CandidatesBoardInner() {
       rejection_details: rejectionDetails || null,
     });
     setSavingStatusAction(false);
-    setStatusAction((prev) => ({ ...prev, step: 'message' }));
-  }
-
-  async function generateStatusMessage() {
-    if (!statusAction) return;
-    setGeneratingMessage(true);
-    try {
-      const res = await fetch('/api/ai/candidate-message', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ applicationId: statusAction.appId, messageType: statusAction.targetStatus }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Error desconocido');
-      setDraftMessage(data.message);
-    } catch (err) {
-      toast('No se pudo generar el mensaje: ' + err.message);
-    }
-    setGeneratingMessage(false);
-  }
-
-  function copyDraftMessage() {
-    navigator.clipboard?.writeText(draftMessage);
-    toast('Mensaje copiado ✓');
+    closeStatusAction();
   }
 
   function openDetail(app) {
@@ -620,13 +594,7 @@ function CandidatesBoardInner() {
         <div className="modal-ov on" onClick={(e) => e.target === e.currentTarget && closeStatusAction()}>
           <div className="modal-box" style={{ maxWidth: 560 }}>
             <div className="modal-head">
-              <h2>
-                {statusAction.targetStatus === 'rechazada'
-                  ? 'Motivo del rechazo'
-                  : statusAction.targetStatus === 'entrevista'
-                  ? 'Invitar a entrevista'
-                  : 'Comunicar oferta'}
-              </h2>
+              <h2>Motivo del rechazo</h2>
               <div className="modal-x" onClick={closeStatusAction}>
                 <i className="ti ti-x"></i>
               </div>
@@ -672,62 +640,12 @@ function CandidatesBoardInner() {
                     Cancelar
                   </button>
                   <button className="m-next" disabled={savingStatusAction} onClick={confirmRejectionReason}>
-                    {savingStatusAction ? 'Guardando...' : 'Continuar'}
+                    {savingStatusAction ? 'Guardando...' : 'Guardar'}
                   </button>
                 </div>
               </div>
             )}
 
-            {statusAction.step === 'message' && (
-              <div>
-                <p style={{ fontSize: 12.5, color: '#888', marginBottom: 12 }}>
-                  Genera un borrador de mensaje para comunicárselo al candidato. Puedes editarlo antes de copiarlo.
-                </p>
-                {!draftMessage ? (
-                  <button className="btn-ai" style={{ width: '100%', marginBottom: 6 }} disabled={generatingMessage} onClick={generateStatusMessage}>
-                    <i className="ti ti-bolt"></i> {generatingMessage ? 'Generando...' : 'Generar mensaje con IA'}
-                  </button>
-                ) : (
-                  <>
-                    <textarea
-                      value={draftMessage}
-                      onChange={(e) => setDraftMessage(e.target.value)}
-                      style={{
-                        width: '100%',
-                        minHeight: 160,
-                        padding: '10px 12px',
-                        border: '1px solid #e0dfd8',
-                        borderRadius: 9,
-                        fontSize: 13,
-                        fontFamily: 'inherit',
-                        outline: 'none',
-                        resize: 'vertical',
-                        marginBottom: 10,
-                      }}
-                    ></textarea>
-                    <button
-                      type="button"
-                      className="btn-ai-o"
-                      style={{ width: '100%', fontSize: 12, marginBottom: 6 }}
-                      disabled={generatingMessage}
-                      onClick={generateStatusMessage}
-                    >
-                      <i className="ti ti-bolt"></i> Regenerar
-                    </button>
-                  </>
-                )}
-                <div className="m-foot">
-                  <button className="m-back" onClick={closeStatusAction}>
-                    Cerrar
-                  </button>
-                  {draftMessage && (
-                    <button className="m-next" onClick={copyDraftMessage}>
-                      <i className="ti ti-copy"></i> Copiar mensaje
-                    </button>
-                  )}
-                </div>
-              </div>
-            )}
           </div>
         </div>
       )}
