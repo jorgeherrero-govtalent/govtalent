@@ -217,12 +217,18 @@ export default function ConfiguracionOrganizacion() {
                 disabled={!esAdmin}
               />
               <p style={{ fontSize: 11, color: '#999', marginTop: 4 }}>
-                La razón social, que puede no coincidir con el nombre comercial que muestras en tu página.
+                La razón social, que puede no coincidir con el nombre comercial que muestras en tu página. Si
+                ejerces por cuenta propia, tu nombre y apellidos.
               </p>
             </div>
 
             <div style={{ display: 'flex', gap: 10, marginBottom: 14 }}>
-              {campo('tax_id', 'CIF / NIF', 'Ej: B12345678')}
+              {/* El sujeto obligado es el grupo de interés, no la persona
+                  que acude a la reunión. Cuando el grupo es una persona
+                  jurídica, el identificador es su CIF; cuando alguien
+                  ejerce por cuenta propia, su NIF cumple la misma función.
+                  El campo sirve para los dos casos. */}
+              {campo('tax_id', 'CIF, o NIF si ejerces como persona física', 'Ej: B12345678')}
               <div className="field" style={{ flex: 1, marginBottom: 0 }}>
                 <label>Tipo de organización</label>
                 <select
