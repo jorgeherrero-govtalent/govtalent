@@ -83,10 +83,12 @@ export default function ActaActividad({ actividad, asunto, onCerrar }) {
   const [parts, setParts] = useState([]);
   const [docs, setDocs] = useState([]);
   const [rastro, setRastro] = useState([]);
+  const [grupo, setGrupo] = useState(null);
+  const [cliente, setCliente] = useState(null);
   const [cargando, setCargando] = useState(true);
 
   const cargar = useCallback(async () => {
-    const [{ data: p }, { data: f }, { data: r }] = await Promise.all([
+    const [{ data: p }, { data: f }, { data: r }, { data: g }, { data: c }] = await Promise.all([
       supabase
         .from('activity_participants')
         .select('nombre, cargo, es_propio')
@@ -97,10 +99,27 @@ export default function ActaActividad({ actividad, asunto, onCerrar }) {
         .select('accion, created_at')
         .eq('activity_id', actividad.id)
         .order('created_at', { ascending: true }),
+      // El sujeto obligado es el grupo de interés, no las personas que
+      // asistieron. El artículo 6.1.a pide identificarlo con su
+      // denominación y domicilio; sin esto el acta no dice de quién es.
+      actividad.organization_id
+        ? supabase
+            .from('organizations')
+            .select('name, legal_name, tax_id, registered_address, cbtg_registry_number')
+            .eq('id', actividad.organization_id)
+            .maybeSingle()
+        : Promise.resolve({ data: null }),
+      // El artículo 7.2 exige precisar la identidad del tercero cuando
+      // se actúa por cuenta ajena.
+      actividad.client_id
+        ? supabase.from('clients').select('nombre, tax_id').eq('id', actividad.client_id).maybeSingle()
+        : Promise.resolve({ data: null }),
     ]);
     setParts(p || []);
     setDocs(f || []);
     setRastro(r || []);
+    setGrupo(g || null);
+    setCliente(c || null);
     setCargando(false);
   }, [supabase, actividad.id]);
 
@@ -111,7 +130,16 @@ export default function ActaActividad({ actividad, asunto, onCerrar }) {
   const nuestros = parts.filter((p) => p.es_propio);
   const contraparte = parts.filter((p) => !p.es_propio);
 
-  const nombreDe = (p) => (p.cargo ? `${p.nombre} (${p.cargo})` : p.nombre);
+  const nombreDe = (p) => (p.cargo ? `${p.nombre}, ${p.cargo}` : p.nombre);
+
+  // legal_name antes que name: el nombre comercial no identifica a una
+  // persona jurídica en un documento con valor probatorio.
+  const denominacion = grupo?.legal_name || grupo?.name || '—';
+  const porCuentaDe = cliente
+    ? cliente.tax_id
+      ? `${cliente.nombre} · ${cliente.tax_id}`
+      : cliente.nombre
+    : actividad.cliente_nombre || null;
 
   // Solo las reuniones tienen lugar: en una entrega o un correo el dato
   // no aplica y la fila desaparece del acta.
@@ -126,14 +154,21 @@ export default function ActaActividad({ actividad, asunto, onCerrar }) {
     const l = [];
     l.push((TITULO[actividad.tipo] || 'Registro de actividad').toUpperCase());
     l.push('');
+    l.push('GRUPO DE INTERÉS');
+    l.push(`Denominación: ${denominacion}`);
+    if (grupo?.tax_id) l.push(`CIF: ${grupo.tax_id}`);
+    if (grupo?.registered_address) l.push(`Domicilio social: ${grupo.registered_address}`);
+    l.push(`Nº de inscripción: ${grupo?.cbtg_registry_number || 'Sin indicar'}`);
+    if (porCuentaDe) l.push(`Actúa por cuenta de: ${porCuentaDe}`);
+    l.push('');
+    l.push('ACTIVIDAD');
     l.push(`Fecha: ${fechaLarga(actividad.fecha)}`);
     if (lugarTexto) l.push(`Lugar: ${lugarTexto}`);
-    if (asunto) l.push(`Asunto: ${asunto.etiqueta}`);
-    if (actividad.cliente_nombre) l.push(`Por cuenta de: ${actividad.cliente_nombre}`);
+    if (asunto) l.push(`Norma sobre la que se influye: ${asunto.etiqueta}`);
     l.push('');
     l.push('PARTICIPANTES');
-    l.push(`Por parte de la organización: ${nuestros.map(nombreDe).join(', ') || '—'}`);
-    l.push(`Otros participantes: ${contraparte.map(nombreDe).join(', ') || '—'}`);
+    l.push(`Por el grupo de interés: ${nuestros.map(nombreDe).join(', ') || '—'}`);
+    l.push(`Por la Administración: ${contraparte.map(nombreDe).join(', ') || '—'}`);
     l.push('');
     l.push('TEMAS ABORDADOS');
     l.push(actividad.asunto || '—');
@@ -170,7 +205,7 @@ export default function ActaActividad({ actividad, asunto, onCerrar }) {
   h2{font-size:11px;text-transform:uppercase;letter-spacing:.5px;color:#888;
      margin:26px 0 8px;font-weight:600}
   table{width:100%;border-collapse:collapse;font-size:13px}
-  th{text-align:left;font-weight:400;color:#777;width:180px;padding:5px 0;vertical-align:top}
+  th{text-align:left;font-weight:400;color:#777;width:200px;padding:5px 0;vertical-align:top}
   td{padding:5px 0;vertical-align:top}
   p{font-size:13px;margin:0}
   .pie{margin-top:34px;padding-top:14px;border-top:.5px solid #ddd;font-size:11px;color:#888}
@@ -179,18 +214,26 @@ export default function ActaActividad({ actividad, asunto, onCerrar }) {
 <h1>${escapar(TITULO[actividad.tipo] || 'Registro de actividad')}</h1>
 <div class="sub">${escapar(fechaLarga(actividad.fecha))}</div>
 
-<h2>Datos de la actividad</h2>
+<h2>Grupo de interés</h2>
+<table>
+  ${fila('Denominación', denominacion)}
+  ${grupo?.tax_id ? fila('CIF', grupo.tax_id) : ''}
+  ${grupo?.registered_address ? fila('Domicilio social', grupo.registered_address) : ''}
+  ${fila('Nº de inscripción', grupo?.cbtg_registry_number || 'Sin indicar')}
+  ${porCuentaDe ? fila('Actúa por cuenta de', porCuentaDe) : ''}
+</table>
+
+<h2>Actividad</h2>
 <table>
   ${fila('Fecha', fechaLarga(actividad.fecha))}
   ${lugarTexto ? fila('Lugar', lugarTexto) : ''}
-  ${asunto ? fila('Asunto', asunto.etiqueta) : ''}
-  ${actividad.cliente_nombre ? fila('Por cuenta de', actividad.cliente_nombre) : ''}
+  ${asunto ? fila('Norma sobre la que se influye', asunto.etiqueta) : ''}
 </table>
 
 <h2>Participantes</h2>
 <table>
-  ${fila('Por la organización', nuestros.map(nombreDe).join(', ') || '—')}
-  ${fila('Otros participantes', contraparte.map(nombreDe).join(', ') || '—')}
+  ${fila('Por el grupo de interés', nuestros.map(nombreDe).join(', ') || '—')}
+  ${fila('Por la Administración', contraparte.map(nombreDe).join(', ') || '—')}
 </table>
 
 <h2>Temas abordados</h2>
@@ -207,7 +250,7 @@ export default function ActaActividad({ actividad, asunto, onCerrar }) {
 </table>
 
 <div class="pie">Acta de trazabilidad gestionada por GovTalent. Documento generado el ${escapar(marcaTemporal(new Date().toISOString()))}.
-La presentación ante el Consejo de Transparencia y Buen Gobierno corresponde a la organización.</div>
+Su contenido es responsabilidad de ${escapar(denominacion)}. La presentación ante el Consejo de Transparencia y Buen Gobierno corresponde a la organización.</div>
 </body></html>`);
     w.document.close();
     w.focus();
@@ -276,7 +319,41 @@ La presentación ante el Consejo de Transparencia y Buen Gobierno corresponde a 
           <div className="spinner"></div>
         ) : (
           <>
-            <div style={seccion}>Datos de la actividad</div>
+            <div style={seccion}>Grupo de interés</div>
+            <div style={linea}>
+              <span style={etiqueta}>Denominación</span>
+              <span style={valor}>{denominacion}</span>
+            </div>
+            {grupo?.tax_id && (
+              <div style={linea}>
+                <span style={etiqueta}>CIF</span>
+                <span style={valor}>{grupo.tax_id}</span>
+              </div>
+            )}
+            {grupo?.registered_address && (
+              <div style={linea}>
+                <span style={etiqueta}>Domicilio social</span>
+                <span style={valor}>{grupo.registered_address}</span>
+              </div>
+            )}
+            <div style={linea}>
+              <span style={etiqueta}>Nº de inscripción</span>
+              <span style={{ ...valor, color: grupo?.cbtg_registry_number ? '#1a1a18' : '#aaa' }}>
+                {grupo?.cbtg_registry_number || 'Sin indicar'}
+              </span>
+            </div>
+            {porCuentaDe && (
+              <div style={linea}>
+                <span style={etiqueta}>Actúa por cuenta de</span>
+                <span style={valor}>{porCuentaDe}</span>
+              </div>
+            )}
+
+            <div style={seccion}>Actividad</div>
+            <div style={linea}>
+              <span style={etiqueta}>Fecha</span>
+              <span style={valor}>{fechaLarga(actividad.fecha)}</span>
+            </div>
             {lugarTexto && (
               <div style={linea}>
                 <span style={etiqueta}>Lugar</span>
@@ -285,24 +362,18 @@ La presentación ante el Consejo de Transparencia y Buen Gobierno corresponde a 
             )}
             {asunto && (
               <div style={linea}>
-                <span style={etiqueta}>Asunto</span>
+                <span style={etiqueta}>Norma sobre la que se influye</span>
                 <span style={valor}>{asunto.etiqueta}</span>
-              </div>
-            )}
-            {actividad.cliente_nombre && (
-              <div style={linea}>
-                <span style={etiqueta}>Por cuenta de</span>
-                <span style={valor}>{actividad.cliente_nombre}</span>
               </div>
             )}
 
             <div style={seccion}>Participantes</div>
             <div style={linea}>
-              <span style={etiqueta}>Por la organización</span>
+              <span style={etiqueta}>Por el grupo de interés</span>
               <span style={valor}>{nuestros.map(nombreDe).join(', ') || '—'}</span>
             </div>
             <div style={linea}>
-              <span style={etiqueta}>Otros participantes</span>
+              <span style={etiqueta}>Por la Administración</span>
               <span style={valor}>{contraparte.map(nombreDe).join(', ') || '—'}</span>
             </div>
 
