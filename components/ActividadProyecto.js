@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { toast } from '@/lib/toast';
 import SelectorFecha from '@/components/SelectorFecha';
+import Desplegable from '@/components/Desplegable';
 import AgendaProyecto from '@/components/AgendaProyecto';
 
 /**
@@ -543,14 +544,12 @@ function FormularioActividad({
         {asuntos.length > 0 && (
           <div style={{ marginBottom: 10 }}>
             <div style={etiqueta}>Sobre qué asunto</div>
-            <select value={itemId} onChange={(e) => setItemId(e.target.value)} style={campo}>
-              <option value="">Sin asunto concreto</option>
-              {asuntos.map((a) => (
-                <option key={a.id} value={a.id}>
-                  {a.etiqueta}
-                </option>
-              ))}
-            </select>
+            <Desplegable
+              value={itemId}
+              onChange={(v) => setItemId(v || '')}
+              vacio="Sin asunto concreto"
+              opciones={asuntos.map((a) => ({ v: a.id, label: a.etiqueta }))}
+            />
           </div>
         )}
 
@@ -579,14 +578,12 @@ function FormularioActividad({
           </div>
           <div>
             <div style={etiqueta}>Cómo</div>
-            <select value={modalidad || ''} onChange={(e) => setModalidad(e.target.value || null)} style={campo}>
-              <option value="">Sin especificar</option>
-              {MODALIDADES.map((m) => (
-                <option key={m.v} value={m.v}>
-                  {m.label}
-                </option>
-              ))}
-            </select>
+            <Desplegable
+              value={modalidad || ''}
+              onChange={setModalidad}
+              vacio="Sin especificar"
+              opciones={MODALIDADES.map((m) => ({ v: m.v, label: m.label }))}
+            />
           </div>
         </div>
 
