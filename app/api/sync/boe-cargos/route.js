@@ -117,6 +117,50 @@ function clave(texto) {
     .trim();
 }
 
+/**
+ * La materia del cargo: lo que queda al quitarle el rango.
+ *
+ *   "Director General de Financiación Internacional" → "financiacion internacional"
+ *   "Presidenta de la Comisión Nacional…"            → "comision nacional…"
+ *
+ * Es lo que se puede comparar con el nombre de una unidad, porque DIR3
+ * nombra unidades y el BOE nombra puestos.
+ */
+const RE_RANGO =
+  /^(director general|directora general|director|directora|presidente|presidenta|vicepresidente|vicepresidenta|secretario general|secretaria general|secretario de estado|secretaria de estado|subsecretario|subsecretaria|consejero|consejera|subdirector general|subdirectora general|interventor general|interventora general|delegado|delegada)\s*(del?\s+|de la\s+|de los\s+|de las\s+)?(organismo aut[oó]nomo\s+)?/i;
+
+function materiaDe(cargo, organismo) {
+  return clave((organismo || cargo || '').replace(RE_RANGO, ''));
+}
+
+/**
+ * Similitud de trigramas, la misma idea que pg_trgm pero en memoria: se
+ * comparan los conjuntos de secuencias de tres letras.
+ *
+ * Se hace aquí y no en la base para no lanzar una consulta por cada
+ * nombramiento: con 2.131 unidades en un Map, comparar es inmediato.
+ */
+function trigramas(t) {
+  const p = `  ${t} `;
+  const s = new Set();
+  for (let i = 0; i < p.length - 2; i++) s.add(p.slice(i, i + 3));
+  return s;
+}
+
+function similitud(a, b) {
+  if (!a || !b) return 0;
+  const ta = trigramas(a);
+  const tb = trigramas(b);
+  let comunes = 0;
+  for (const t of ta) if (tb.has(t)) comunes += 1;
+  return comunes / (ta.size + tb.size - comunes);
+}
+
+// Por debajo de esto no se propone nada: en las pruebas, 0.26 era ruido
+// —"Tesoro y Política Financiera" contra "Segipsa Financiero"— y a
+// partir de 0.55 los aciertos eran limpios.
+const UMBRAL_AUTO = 0.55;
+
 export async function GET(req) {
   const t0 = Date.now();
   const { searchParams } = new URL(req.url);
@@ -146,28 +190,28 @@ export async function GET(req) {
 
   if (eDocs) return NextResponse.json({ error: eDocs.message }, { status: 500 });
 
-  // 2. El directorio, para el cruce. Se indexa por organismo y por
-  //    cargo compuesto, que son las dos formas en que puede casar.
-  const { data: oficiales } = await supabase
-    .from('government_officials')
-    .select('id, ministry_name, unit_name, role, full_name')
-    .eq('active', true);
+  // 2. Las unidades de la AGE y las equivalencias ya resueltas.
+  //
+  //    El cruce se hace en tres intentos, de más fiable a menos:
+  //      a) cargo_unit_map, decidido a mano y por tanto seguro
+  //      b) coincidencia exacta de claves normalizadas
+  //      c) similitud por trigramas, que resuelve las diferencias de
+  //         redacción entre DIR3 y el BOE
+  //
+  //    Lo que no pasa ninguno queda pendiente de revisar, y al revisarlo
+  //    se convierte en una entrada de cargo_unit_map: cada caso raro se
+  //    decide una sola vez.
+  const [{ data: unidades }, { data: mapa }] = await Promise.all([
+    supabase.from('age_units').select('dir3_code, nombre, categoria, raiz_nombre').eq('activo', true),
+    supabase.from('cargo_unit_map').select('clave_cargo, dir3_code, ignorar'),
+  ]);
 
-  const porOrganismo = new Map();
-  const porCargo = new Map();
-  for (const o of oficiales || []) {
-    if (o.unit_name && o.unit_name !== o.ministry_name) {
-      const k = clave(o.unit_name);
-      if (k && !porOrganismo.has(k)) porOrganismo.set(k, o);
-    }
-    // El cargo completo, para las unidades del ministerio: 'Director
-    // General de Financiación Internacional'.
-    const compuesto =
-      o.unit_name && o.unit_name !== o.ministry_name
-        ? `${o.role} de ${o.unit_name.replace(/^(Dirección General|Subdirección General|Secretaría General|Secretaría de Estado|Subsecretaría)\s*(de\s+|del\s+)?/i, '')}`
-        : o.role;
-    const kc = clave(compuesto);
-    if (kc && !porCargo.has(kc)) porCargo.set(kc, o);
+  const equivalencias = new Map((mapa || []).map((m) => [m.clave_cargo, m]));
+
+  const porUnidad = new Map();
+  for (const u of unidades || []) {
+    const k = clave(u.nombre);
+    if (k && !porUnidad.has(k)) porUnidad.set(k, u);
   }
 
   // 3. Extraer y cruzar
@@ -185,12 +229,57 @@ export async function GET(req) {
 
     const esExterior = RE_EXTERIOR.test(e.cargo);
     const organismo = organismoDe(e.cargo);
+    const materia = materiaDe(e.cargo, organismo);
 
-    // Primero por organismo, que es el cruce fiable: el INAP casa así y
-    // no por título. Si el cargo no menciona organismo, por cargo.
-    let match = null;
-    if (organismo) match = porOrganismo.get(clave(organismo)) || null;
-    if (!match) match = porCargo.get(clave(e.cargo)) || null;
+    let dir3 = null;
+    let via = null;
+    let parecido = null;
+
+    // a) Equivalencia decidida a mano. Manda sobre todo lo demás: es la
+    //    que resuelve casos como el FROB, que DIR3 llama "Autoridad
+    //    Administrativa Indpendiente Frob" y ninguna similitud alcanza.
+    const eq = equivalencias.get(materia);
+    if (eq) {
+      if (eq.ignorar) {
+        dir3 = null;
+        via = 'ignorado';
+      } else {
+        dir3 = eq.dir3_code;
+        via = 'mapa';
+      }
+    }
+
+    // b) Coincidencia exacta de claves.
+    if (!dir3 && via !== 'ignorado') {
+      const u = porUnidad.get(materia);
+      if (u) {
+        dir3 = u.dir3_code;
+        via = 'exacto';
+      }
+    }
+
+    // c) Similitud. Solo se acepta sola por encima del umbral; lo que
+    //    queda por debajo se guarda como sugerencia para revisar, no se
+    //    da por bueno.
+    let sugerencia = null;
+    if (!dir3 && via !== 'ignorado' && materia) {
+      let mejor = null;
+      let mejorSim = 0;
+      for (const [k, u] of porUnidad) {
+        const sim = similitud(materia, k);
+        if (sim > mejorSim) {
+          mejorSim = sim;
+          mejor = u;
+        }
+      }
+      if (mejor && mejorSim >= UMBRAL_AUTO) {
+        dir3 = mejor.dir3_code;
+        via = 'similitud';
+        parecido = Number(mejorSim.toFixed(2));
+      } else if (mejor && mejorSim >= 0.35) {
+        sugerencia = `${mejor.nombre} (${mejor.dir3_code}, ${mejorSim.toFixed(2)})`;
+      }
+    }
 
     filas.push({
       boe_id: d.id,
@@ -202,8 +291,17 @@ export async function GET(req) {
       cargo: e.cargo,
       organismo,
       es_exterior: esExterior,
-      official_id: match?.id || null,
-      estado: esExterior ? 'descartado' : match ? 'casado' : 'sin_equivalencia',
+      dir3_code: dir3,
+      estado: esExterior
+        ? 'descartado'
+        : via === 'ignorado'
+        ? 'descartado'
+        : dir3
+        ? 'casado'
+        : 'sin_equivalencia',
+      nota: [via, parecido ? `sim ${parecido}` : null, sugerencia ? `sugerencia: ${sugerencia}` : null]
+        .filter(Boolean)
+        .join(' · ') || null,
     });
   }
 
@@ -222,6 +320,12 @@ export async function GET(req) {
     return acc;
   }, {});
 
+  // Los que no casaron, con su sugerencia si la hay: es la lista de lo
+  // que hay que revisar para añadir a cargo_unit_map.
+  const revisar = filas
+    .filter((f) => f.estado === 'sin_equivalencia')
+    .map((f) => ({ cargo: f.cargo, departamento: f.departamento, nota: f.nota }));
+
   return NextResponse.json({
     rango: { desde, hasta },
     documentos_leidos: docs?.length || 0,
@@ -229,6 +333,7 @@ export async function GET(req) {
     extraidos: filas.length,
     guardados: guardadas,
     por_estado: resumen,
+    revisar,
     ms: Date.now() - t0,
   });
 }
