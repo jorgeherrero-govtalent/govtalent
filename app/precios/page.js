@@ -233,7 +233,9 @@ export default async function PricingPage({ searchParams }) {
             Precios
           </h1>
           <p style={{ fontSize: 14.5, color: '#666', maxWidth: 560, margin: '0 auto', lineHeight: 1.6 }}>
-            Todo lo que necesitas para crecer en el sector de los asuntos públicos. En un único lugar.
+            Todo lo que necesitas para crecer en el sector de los asuntos públicos.
+            <br />
+            En un único lugar.
           </p>
         </div>
 
