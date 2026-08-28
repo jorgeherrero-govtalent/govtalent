@@ -13,8 +13,8 @@ export const maxDuration = 60;
  * directorio y un cruce mal hecho los estropearía sin vuelta atrás.
  *
  * Uso:
- *   /api/sync/boe-cargos?key=...                    los últimos 30 días
- *   /api/sync/boe-cargos?key=...&desde=2023-11-01&hasta=2023-11-30
+ *   /api/sync/boe-cargos?key=<DEBUG_KEY>
+ *   /api/sync/boe-cargos?key=<DEBUG_KEY>&desde=2023-11-01&hasta=2023-11-30
  *
  * Para el backfill desde el inicio de la legislatura, por tandas de un
  * mes: Vercel corta a los 60 segundos y tres años no caben de una vez.
@@ -121,7 +121,11 @@ export async function GET(req) {
   const t0 = Date.now();
   const { searchParams } = new URL(req.url);
 
-  if (searchParams.get('key') !== process.env.SYNC_KEY) {
+  // Mismo patrón que el sync del BOE: DEBUG_KEY para lanzarlo a mano,
+  // CRON_SECRET para cuando entre en vercel.json.
+  const esCron = req.headers.get('authorization') === `Bearer ${process.env.CRON_SECRET}`;
+  const esManual = !!process.env.DEBUG_KEY && searchParams.get('key') === process.env.DEBUG_KEY;
+  if (!esCron && !esManual) {
     return NextResponse.json({ error: 'no autorizado' }, { status: 401 });
   }
 
