@@ -1,19 +1,27 @@
 import Link from 'next/link';
 
-export default function PublicHeader({ loggedIn = false, loggedInHref = '/organizations/admin', maxWidth = 760 }) {
+/**
+ * La cabecera de las páginas públicas.
+ *
+ * El enlace de la derecha es solo volver atrás: en una página que se
+ * abre en pestaña nueva —precios, por ejemplo— "Ir a mi organización"
+ * llevaba a un sitio distinto del que se venía, y dejaba la pestaña
+ * anterior abierta detrás.
+ */
+export default function PublicHeader({ maxWidth = 760, volverHref = '/' }) {
   return (
     <div className="pub-header">
       <div className="pub-header-inner" style={{ maxWidth }}>
+        {/* Sin eslogan bajo el logo: en páginas que ya tienen su propio
+            titular, repetía el mensaje dos veces en la misma pantalla. */}
         <div className="pub-header-brand">
           <Link href="/jobs" className="pub-header-logo">
             gov<span>talent</span>
           </Link>
-          <div className="pub-header-tagline">
-            La plataforma all-in-one del ecosistema profesional de los asuntos públicos
-          </div>
         </div>
-        <Link href={loggedIn ? loggedInHref : '/login'} className="pub-header-link">
-          {loggedIn ? 'Ir a mi organización' : 'Iniciar sesión'}
+        <Link href={volverHref} className="pub-header-link">
+          <i className="ti ti-arrow-left" style={{ fontSize: 13, verticalAlign: -1, marginRight: 5 }}></i>
+          Volver
         </Link>
       </div>
     </div>
