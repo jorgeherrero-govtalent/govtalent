@@ -277,7 +277,11 @@ export default function InstitutionsHomePage() {
 
       <div>
         <SectionTitle flag={<FlagES />}>España</SectionTitle>
-        <div style={GRID}>
+        {/* Dos columnas fijas y no auto-fit: con tres tarjetas y el
+            mínimo de 220px, en pantallas anchas se ponían las tres en
+            fila y quedaban demasiado estrechas para cuatro cifras. Así
+            la tercera cae debajo y ocupa su mitad. */}
+        <div style={{ ...GRID, gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))' }}>
           <ModuleCard
             href="/institutions/ministries"
             icon="building-community"
@@ -308,16 +312,15 @@ export default function InstitutionsHomePage() {
               { n: counts?.governance ?? null, label: 'órganos' },
             ]}
           />
-        </div>
+          {/* Los organismos, en tarjeta propia dentro de la misma
+              retícula: no son parte de un ministerio sino entes con
+              personalidad jurídica propia, y varios —CNMC, AEPD— son
+              autoridades independientes. Meterlos dentro de
+              "Ministerios" habría sido cómodo y falso.
 
-        {/* Los organismos, en tarjeta propia y a ancho completo: no son
-            parte de un ministerio sino entes con personalidad jurídica
-            propia, y varios —CNMC, AEPD— son autoridades independientes.
-            Meterlos dentro de "Ministerios" habría sido cómodo y falso.
-
-            Van debajo y no al lado porque son la tercera pieza del
-            Ejecutivo, no un módulo hermano del Congreso. */}
-        <div style={{ marginTop: 12 }}>
+              Va dentro del GRID y no en un div aparte: fuera de la
+              retícula quedaba con el fondo de tarjeta pero sin su
+              maquetación, y se descuadraba. */}
           <ModuleCard
             href="/institutions/organismos"
             icon="scale"
@@ -327,7 +330,7 @@ export default function InstitutionsHomePage() {
             cifras={[
               { n: counts?.organismos ?? null, label: 'organismos' },
               { n: counts?.agencias ?? null, label: 'agencias' },
-              { n: counts?.entidades ?? null, label: 'entidades públicas' },
+              { n: counts?.entidades ?? null, label: 'entidades' },
             ]}
           />
         </div>
