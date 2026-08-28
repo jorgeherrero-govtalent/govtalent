@@ -316,14 +316,23 @@ export async function GET(req) {
     });
   }
 
-  // 4. Guardar. onConflict por boe_id: reejecutar no duplica.
+  // 4. Guardar. onConflict por boe_id: reejecutar no duplica y sí
+  //    actualiza, que es lo que permite corregir una equivalencia y
+  //    relanzar.
+  //
+  //    Se cuenta lo que devuelve la escritura, no el tamaño del grupo:
+  //    sumar a ciegas hacía que el resumen dijera "guardados: 32" cuando
+  //    solo se habían escrito 29.
   let guardadas = 0;
+  const fallos = [];
   for (let i = 0; i < filas.length; i += 200) {
     const grupo = filas.slice(i, i + 200);
-    const { error } = await supabase
+    const { data, error } = await supabase
       .from('boe_appointments')
-      .upsert(grupo, { onConflict: 'boe_id' });
-    if (!error) guardadas += grupo.length;
+      .upsert(grupo, { onConflict: 'boe_id', ignoreDuplicates: false })
+      .select('id');
+    if (error) fallos.push(error.message);
+    else guardadas += data?.length || 0;
   }
 
   const resumen = filas.reduce((acc, f) => {
@@ -343,6 +352,7 @@ export async function GET(req) {
     sin_patron: sinPatron,
     extraidos: filas.length,
     guardados: guardadas,
+    fallos: fallos.length > 0 ? fallos : undefined,
     por_estado: resumen,
     revisar,
     ms: Date.now() - t0,
