@@ -140,6 +140,10 @@ export default function InstitutionsHomePage() {
       { count: commissionersCount },
       { count: ecPeopleCount },
       { count: governanceCount },
+      { count: organismosCount },
+      { count: agenciasCount },
+      { count: entidadesCount },
+      { count: dgCount },
     ] = await Promise.all([
       supabase.from('deputies').select('id', { count: 'exact', head: true }).eq('active', true),
       supabase.from('parliamentary_groups').select('id', { count: 'exact', head: true }).eq('active', true),
@@ -164,6 +168,18 @@ export default function InstitutionsHomePage() {
       supabase.from('ec_commissioners').select('id', { count: 'exact', head: true }),
       supabase.from('ec_people').select('id', { count: 'exact', head: true }).eq('active', true),
       supabase.from('es_committees').select('id', { count: 'exact', head: true }).eq('kind', 'gobierno'),
+      // Los organismos van en tarjeta propia: la CNMC y la AEPD no son
+      // parte de un ministerio sino autoridades independientes, y para
+      // asuntos públicos esa distinción importa —a un regulador se le
+      // trata distinto que a una dirección general.
+      supabase.from('age_units').select('dir3_code', { count: 'exact', head: true })
+        .eq('activo', true).eq('categoria', 'organismo_autonomo'),
+      supabase.from('age_units').select('dir3_code', { count: 'exact', head: true })
+        .eq('activo', true).eq('categoria', 'agencia_estatal'),
+      supabase.from('age_units').select('dir3_code', { count: 'exact', head: true })
+        .eq('activo', true).eq('categoria', 'entidad_derecho_publico'),
+      supabase.from('age_units').select('dir3_code', { count: 'exact', head: true })
+        .eq('activo', true).eq('categoria', 'direccion_general'),
     ]);
     setCounts({
       deputies: deputiesCount || 0,
@@ -176,6 +192,10 @@ export default function InstitutionsHomePage() {
       commissioners: commissionersCount || 0,
       ecPeople: ecPeopleCount || 0,
       governance: governanceCount || 0,
+      organismos: organismosCount || 0,
+      agencias: agenciasCount || 0,
+      entidades: entidadesCount || 0,
+      direcciones: dgCount || 0,
     });
   }
 
@@ -262,11 +282,12 @@ export default function InstitutionsHomePage() {
             href="/institutions/ministries"
             icon="building-community"
             title="Ministerios"
-            description="Ministros, secretarios de Estado, directores y subdirectores generales."
+            description="Ministros, secretarios de Estado, direcciones generales y gabinetes."
             cta="Explorar ministerios"
             cifras={[
               { n: counts?.ministries ?? null, label: 'ministerios' },
               { n: counts?.govPeople ?? null, label: 'cargos' },
+              { n: counts?.direcciones ?? null, label: 'direcciones' },
             ]}
           />
           {/* Una sola tarjeta para el Congreso, con sus cuatro vistas
@@ -288,12 +309,35 @@ export default function InstitutionsHomePage() {
             ]}
           />
         </div>
-        <Proximamente items={['Senado', 'Organismos y entidades']} />
+
+        {/* Los organismos, en tarjeta propia y a ancho completo: no son
+            parte de un ministerio sino entes con personalidad jurídica
+            propia, y varios —CNMC, AEPD— son autoridades independientes.
+            Meterlos dentro de "Ministerios" habría sido cómodo y falso.
+
+            Van debajo y no al lado porque son la tercera pieza del
+            Ejecutivo, no un módulo hermano del Congreso. */}
+        <div style={{ marginTop: 12 }}>
+          <ModuleCard
+            href="/institutions/organismos"
+            icon="scale"
+            title="Organismos y reguladores"
+            description="CNMC, AEPD, agencias estatales y organismos autónomos que regulan tu sector."
+            cta="Explorar organismos"
+            cifras={[
+              { n: counts?.organismos ?? null, label: 'organismos' },
+              { n: counts?.agencias ?? null, label: 'agencias' },
+              { n: counts?.entidades ?? null, label: 'entidades públicas' },
+            ]}
+          />
+        </div>
+
+        <Proximamente items={['Senado']} />
       </div>
 
       {/* Tercera sección, sin bandera. Las dos de arriba agrupan por
           jurisdicción —instituciones del Estado, instituciones de la UE—
-          y ahí es donde entrarán Senado y Organismos y entidades. Una
+          y ahí es donde entrará el Senado. Una
           patronal o una consultora no son una institución más: no
           deciden, tratan de influir en quien decide. Meterlas bajo la
           bandera diría lo contrario. El contraste de tener cabecera sin
