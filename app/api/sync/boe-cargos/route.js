@@ -126,6 +126,12 @@ function clave(texto) {
  * Es lo que se puede comparar con el nombre de una unidad, porque DIR3
  * nombra unidades y el BOE nombra puestos.
  */
+// Las abreviaturas con las que DIR3 nombra sus unidades. Conviven las
+// dos formas: "D.G. de Armamento" y "Dirección General de Estrategia e
+// Innovación".
+const RE_PREFIJO_DIR3 =
+  /^(d\.g\.|direcci[oó]n general|s\. de e\.|secretar[ií]a de estado|s\.gral\.|secretar[ií]a general|s\.g\.|subdirecci[oó]n general|subsecretar[ií]a|gabinete)\s*(del?\s+|de la\s+|)/i;
+
 const RE_RANGO =
   /^(director general|directora general|director|directora|presidente|presidenta|vicepresidente|vicepresidenta|secretario general|secretaria general|secretario de estado|secretaria de estado|subsecretario|subsecretaria|consejero|consejera|subdirector general|subdirectora general|interventor general|interventora general|delegado|delegada)\s*(del?\s+|de la\s+|de los\s+|de las\s+)?(organismo aut[oó]nomo\s+)?/i;
 
@@ -210,7 +216,12 @@ export async function GET(req) {
 
   const porUnidad = new Map();
   for (const u of unidades || []) {
-    const k = clave(u.nombre);
+    // Se quita el prefijo también aquí: DIR3 escribe "D.G. de Política
+    // Interior" y el BOE "Director General de Política Interior". Sin
+    // esto, las claves son "d g politica interior" y "politica
+    // interior", y no casa ninguna dirección general —que son
+    // precisamente el grueso de los nombramientos.
+    const k = clave(u.nombre.replace(RE_PREFIJO_DIR3, ''));
     if (k && !porUnidad.has(k)) porUnidad.set(k, u);
   }
 
