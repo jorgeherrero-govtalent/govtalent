@@ -251,12 +251,12 @@ export default async function PricingPage({ searchParams }) {
         {paraOrgs ? (
           <>
             <BannerFundadores
-              titulo="Founding Organizations — 215 €/año el primer año"
+              titulo="Founding Member — 215 €/año el primer año"
               detalle="Teams al 50 %, onboarding personalizado y participación en la evolución del producto. Después se renueva a 429 €/año."
               ocupadas={orgsFundadoras}
               plazas={PLAZAS_TEAMS}
               icono="building"
-              asunto="Quiero ser Founding Organization en GovTalent"
+              asunto="Quiero ser Founding Member en GovTalent — organización"
             />
 
             <div className="pricing-grid-3" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: 14 }}>
@@ -314,12 +314,12 @@ export default async function PricingPage({ searchParams }) {
         ) : (
           <>
             <BannerFundadores
-              titulo="Precio Fundadores — 33 €/año el primer año"
+              titulo="Founding Member — 33 €/año el primer año"
               detalle="Sé de los primeros profesionales en usar GovTalent Pro. Después se renueva a 67 €/año."
               ocupadas={prosFundadores}
               plazas={PLAZAS_PRO}
               icono="user"
-              asunto="Quiero el Precio Fundadores de GovTalent Pro"
+              asunto="Quiero ser Founding Member en GovTalent — Pro"
             />
 
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 14, maxWidth: 700, margin: '0 auto' }}>
