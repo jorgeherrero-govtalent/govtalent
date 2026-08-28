@@ -235,7 +235,7 @@ export default async function PricingPage({ searchParams }) {
             Precios
           </h1>
           <p style={{ fontSize: 14.5, color: '#666', maxWidth: 560, margin: '0 auto', lineHeight: 1.6 }}>
-            La plataforma profesional de los asuntos públicos. Empieza gratis y crece cuando lo necesites.
+            La plataforma all-in-one del ecosistema profesional de los asuntos públicos.
           </p>
         </div>
 
@@ -264,7 +264,7 @@ export default async function PricingPage({ searchParams }) {
                 nombre="Free"
                 precio="0 €"
                 periodo="/ siempre"
-                resumen="Empieza a contratar sin compromiso."
+                resumen="Atrae talento especializado sin compromiso."
                 etiqueta="1 usuario"
                 cta="Empezar gratis"
                 href="/signup"
@@ -273,14 +273,13 @@ export default async function PricingPage({ searchParams }) {
                 <Check>1 oferta activa</Check>
                 <Check>Hasta 15 candidaturas por oferta</Check>
                 <Check>ATS de candidatos integrado</Check>
-                <Check>Analítica básica</Check>
               </Plan>
 
               <Plan
                 nombre="Recruiter"
                 precio="129 €"
                 periodo="/ año"
-                resumen="Publica, identifica y gestiona el mejor talento especializado del sector."
+                resumen="Atrae y gestiona el mejor talento especializado del sector."
                 etiqueta="1 usuario · todo lo de Free, y además"
                 cta="Elegir Recruiter"
                 href="/signup"
@@ -289,25 +288,26 @@ export default async function PricingPage({ searchParams }) {
                 <Check>Descripción de ofertas con IA</Check>
                 <Check>Matching y scoring de candidatos</Check>
                 <Check>Resumen de candidatos con IA</Check>
-                <Check>Analítica completa</Check>
               </Plan>
 
               <Plan
                 nombre="Teams"
                 precio="399 €"
                 periodo="/ año"
-                resumen="Gestiona tus asuntos públicos en equipo."
+                resumen="Todo lo que necesita tu equipo para crecer en el sector."
                 etiqueta="Hasta 4 usuarios · todo Recruiter, y además"
                 destacado
                 distintivo="MÁS COMPLETO"
                 cta="Elegir Teams"
                 href="/signup"
               >
-                <Check>GovTalent Pro para todo el equipo</Check>
-                <Check>Directorio completo y gestión de stakeholders</Check>
-                <Check>Seguimiento y alertas regulatorias</Check>
-                <Check>Proyectos y notas compartidas</Check>
-                <Check>Registro de actividad institucional</Check>
+                <Check>Licencia de GovTalent Pro para todo el equipo</Check>
+                <Check>Proyectos compartidos y colaborativos</Check>
+                <Check>Seguimiento normativo y alertas regulatorias</Check>
+                <Check>Agenda y notas compartidas</Check>
+                <Check>Registro de actividad y automatización de actas</Check>
+                <Check>Dashboard de organización</Check>
+                <Check>Roles diferenciados</Check>
               </Plan>
             </div>
           </>
@@ -327,22 +327,22 @@ export default async function PricingPage({ searchParams }) {
                 nombre="Free"
                 precio="0 €"
                 periodo="/ siempre"
-                resumen="Descubre el ecosistema y empieza a usar la plataforma."
+                resumen="Descubre la plataforma sin compromiso."
                 etiqueta="Incluye"
                 cta="Empezar gratis"
                 href="/signup"
               >
                 <Check>Ofertas de empleo y candidaturas</Check>
                 <Check>Perfil profesional y recomendaciones</Check>
-                <Check>Directorio institucional</Check>
-                <Check>Consulta regulatoria de España y la UE</Check>
+                <Check>Directorio institucional en España y Bruselas</Check>
+                <Check>Consulta de proyectos normativos en España y la UE</Check>
               </Plan>
 
               <Plan
                 nombre="Pro"
                 precio="59 €"
                 periodo="/ año"
-                resumen="Monitoriza regulación y actores, y organiza tus asuntos públicos en un único espacio."
+                resumen="Monitoriza regulación y actores, y gestiona tus proyectos en un único espacio."
                 etiqueta="Todo lo de Free, y además"
                 destacado
                 distintivo="RECOMENDADO"
@@ -350,10 +350,14 @@ export default async function PricingPage({ searchParams }) {
                 href="/signup"
               >
                 <Check>Búsqueda avanzada e información ampliada</Check>
-                <Check>Seguimiento de actores y de asuntos regulatorios</Check>
+                <Check>Seguimiento normativo y gemelos legislativos</Check>
                 <Check>Alertas e histórico completo</Check>
-                <Check>Proyectos personales con actores y agenda</Check>
-                <Check>Registro de actividad institucional</Check>
+                <Check>Creación y gestión de proyectos</Check>
+                <Check>Visualización de stakeholders</Check>
+                <Check>Organización de agenda con fechas y tareas</Check>
+                {/* El acta se compone sola a partir del registro: nadie la
+                    redacta. Lo manual es la captura, no el documento. */}
+                <Check>Registro de actividad y automatización de actas</Check>
               </Plan>
             </div>
           </>
