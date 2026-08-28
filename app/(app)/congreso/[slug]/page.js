@@ -11,6 +11,14 @@ import { groupColor, grupoCorto, colorSigla, nombreSigla } from '@/lib/grupos';
 
 const MESES = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
 
+// enlaces_bocg llega como texto y puede traer varias URL separadas por
+// saltos o comas. Se coge la primera, que es la publicación del texto.
+function primerEnlace(texto) {
+  if (!texto) return null;
+  const m = String(texto).match(/https?:\/\/[^\s,;"']+/);
+  return m ? m[0] : null;
+}
+
 function fechaCorta(iso) {
   if (!iso) return null;
   const d = new Date(iso);
@@ -220,6 +228,14 @@ export default function CongresoDetailPage() {
               <span style={{ fontSize: 11.5, color: '#666' }}>{item.kind_label}</span>
               <span style={{ color: '#ddd' }}>·</span>
               <span style={{ fontSize: 11.5, color: '#666' }}>Congreso de los Diputados</span>
+              {item.fecha_presentacion && (
+                <>
+                  <span style={{ color: '#ddd' }}>·</span>
+                  <span style={{ fontSize: 11.5, color: '#666' }}>
+                    Presentada el {fechaCorta(item.fecha_presentacion)}
+                  </span>
+                </>
+              )}
               {item.tipo_tramitacion === 'Urgente' && (
                 <span style={{ fontSize: 10, background: '#EEEDFE', color: '#3C3489', padding: '2px 8px', borderRadius: 10 }}>
                   Tramitación urgente
@@ -265,14 +281,23 @@ export default function CongresoDetailPage() {
               {item.fase && <span style={{ fontSize: 10.5, color: '#aaa', fontWeight: 400 }}> · {item.fase}</span>}
             </div>
           </div>
-          <div>
-            <div style={{ fontSize: 10, color: '#999', marginBottom: 3 }}>Expediente</div>
-            <div style={{ fontSize: 13, fontWeight: 600 }}>{item.num_expediente}</div>
-          </div>
-          <div>
-            <div style={{ fontSize: 10, color: '#999', marginBottom: 3 }}>Presentada</div>
-            <div style={{ fontSize: 13, fontWeight: 600 }}>{fechaCorta(item.fecha_presentacion) || '—'}</div>
-          </div>
+          {/* El expediente sale de aquí: es la referencia técnica y
+              ocupaba el mismo peso que el estado. La fecha sube al
+              subtítulo, que es contexto y no un dato que se consulte.
+
+              En su sitio, quién presenta la iniciativa: distingue un
+              proyecto del Gobierno de una proposición de un grupo, que
+              es lo primero que se mira. El dato ya estaba guardado y no
+              se mostraba.
+
+              "Tramitación" no entra: en la mayoría dice "Normal" y no
+              informa de nada. Cuando es urgente ya se avisa arriba. */}
+          {item.autor && (
+            <div style={{ minWidth: 0 }}>
+              <div style={{ fontSize: 10, color: '#999', marginBottom: 3 }}>Quién la presenta</div>
+              <div style={{ fontSize: 13, fontWeight: 600, lineHeight: 1.3 }}>{item.autor}</div>
+            </div>
+          )}
         </div>
 
         {/* El motivo del bloqueo se explica, no se deja como etiqueta
@@ -306,15 +331,34 @@ export default function CongresoDetailPage() {
               marginTop: 14,
               paddingTop: 13,
               borderTop: '.5px solid #f0f0eb',
+              // En móvil el enlace del BOCG baja de línea en vez de
+              // apretar el texto del plazo.
+              flexWrap: 'wrap',
             }}
           >
             <i className="ti ti-calendar" style={{ fontSize: 15, color: '#6d5aef', flexShrink: 0 }}></i>
-            <div style={{ fontSize: 11.5, color: '#555' }}>
+            <div style={{ fontSize: 11.5, color: '#555', flex: 1, minWidth: 0 }}>
               Plazo de enmiendas abierto hasta el {fechaCorta(item.plazo_enmiendas)}
               {item.n_prorrogas > 0 && (
-                <span style={{ color: '#999' }}> · prorrogado {item.n_prorrogas} veces</span>
+                <span style={{ color: '#999' }}>
+                  {' '}
+                  · prorrogado {item.n_prorrogas} {item.n_prorrogas === 1 ? 'vez' : 'veces'}
+                </span>
               )}
             </div>
+            {/* Si hay plazo abierto, lo siguiente que se quiere ver es qué
+                se ha presentado. El BOCG es donde se publican. */}
+            {primerEnlace(item.enlaces_bocg) && (
+              <a
+                href={primerEnlace(item.enlaces_bocg)}
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{ fontSize: 11.5, color: '#6d5aef', textDecoration: 'none', flexShrink: 0, whiteSpace: 'nowrap' }}
+              >
+                <i className="ti ti-external-link" style={{ fontSize: 12, verticalAlign: -2, marginRight: 4 }}></i>
+                Ver en el BOCG
+              </a>
+            )}
           </div>
         )}
       </div>
@@ -395,6 +439,35 @@ export default function CongresoDetailPage() {
                 </div>
               </div>
             ))}
+
+            {/* La siguiente fase, y solo esa. Cuando se cierra el plazo de
+                enmiendas se designa ponencia: eso es seguro. Lo que venga
+                después depende de si hay competencia legislativa plena, si
+                va por urgencia o si pasa al Senado, y dibujar un camino
+                que no conocemos sería inventarlo.
+
+                Sirve además para explicar por qué el bloque de ponentes
+                está vacío. */}
+            {!item.is_closed && !item.is_blocked && item.plazo_enmiendas && (
+              <div style={{ position: 'relative', marginTop: 15 }}>
+                <div
+                  style={{
+                    position: 'absolute',
+                    left: -20,
+                    top: 3,
+                    width: 9,
+                    height: 9,
+                    borderRadius: '50%',
+                    background: '#fff',
+                    border: '1.5px solid #d5d3c9',
+                  }}
+                ></div>
+                <div style={{ fontSize: 12.5, color: '#a8a49c' }}>Ponencia</div>
+                <div style={{ fontSize: 10.5, color: '#c2beb6', marginTop: 2, lineHeight: 1.5 }}>
+                  Los ponentes se designarán al cerrarse el plazo de enmiendas
+                </div>
+              </div>
+            )}
           </div>
         </div>
       )}
