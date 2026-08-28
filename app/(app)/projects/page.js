@@ -957,10 +957,7 @@ function Proyectos() {
         { id: 'norma', label: 'La norma' },
         { id: 'mapa', label: 'Mapa de actores' },
         { id: 'briefing', label: 'Briefing' },
-        // En la demo son dos bloques con anclas propias, a diferencia de
-        // un proyecto real donde comparten fila.
-        { id: 'registro', label: 'Registro' },
-        { id: 'agenda', label: 'Agenda' },
+        { id: 'actividad', label: 'Agenda y registro' },
         { id: 'documentos', label: 'Documentos' },
       ];
 
@@ -1042,8 +1039,13 @@ function Proyectos() {
               <div style={{ fontSize: 11.5, color: '#555', marginTop: 2, lineHeight: 1.5 }}>
                 Responsables por actor, menciones, registro de contactos y agenda compartida.
               </div>
+              {/* En pestaña nueva, como el resto de enlaces a precios: quien
+                  está trabajando en un proyecto no debería perderlo por
+                  consultar un plan. */}
               <a
-                href="/precios"
+                href="/precios?para=organizaciones"
+                target="_blank"
+                rel="noopener noreferrer"
                 style={{ fontSize: 11.5, color: MORADO, display: 'inline-block', marginTop: 6 }}
               >
                 Ver Teams →
