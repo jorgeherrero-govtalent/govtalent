@@ -19,6 +19,53 @@ function roleType(role) {
   return 'Otros';
 }
 
+// Rango de cada cargo, para ordenar la lista por jerarquía en vez de por
+// el orden en que llegan de la base. Antes un director de comunicación
+// aparecía antes que el subsecretario.
+const ORDEN_CARGO = [
+  [/^(vice)?presidente|^(vice)?presidenta|ministr[oa]/i, 0],
+  [/secretari[oa] de estado/i, 1],
+  [/subsecretari[oa]/i, 2],
+  [/secretari[oa] general/i, 3],
+  [/director[a]? general/i, 4],
+  [/director[a]? del gabinete/i, 5],
+  [/director[a]? de comunicaci/i, 6],
+  [/subdirector/i, 7],
+];
+
+function rangoCargo(role) {
+  for (const [re, n] of ORDEN_CARGO) if (re.test(role || '')) return n;
+  return 8;
+}
+
+/**
+ * El cargo exacto de una persona.
+ *
+ * Muchos cargos son genéricos en el campo role —"Director", "Presidente",
+ * "Secretario General"— y solo se entienden con su unidad: Javier Pantoja
+ * no es "Director" sino "Director de Parques Nacionales".
+ *
+ * La unidad sale de age_units cuando el cruce con DIR3 la encontró, y de
+ * unit_name cuando no.
+ */
+const ROL_GENERICO = /^(director[a]?|presidente|presidenta|gerente|secretari[oa] general|subsecretari[oa]|secretari[oa] de estado|interventor[a]? general|delegad[oa] del gobierno|jefe|jefa)$/i;
+
+function cargoExacto(o) {
+  const role = (o.role || '').trim();
+  const unidad = o.age_units?.nombre || o.unit_name || '';
+  if (!unidad || unidad === o.ministry_name) return role;
+  if (!ROL_GENERICO.test(role)) return role;
+
+  // Se quita el prefijo del órgano para no repetirlo: "Director" +
+  // "Dirección General de Tráfico" da "Director General de Tráfico", no
+  // "Director de Dirección General de Tráfico".
+  const limpio = unidad
+    .replace(/^(Dirección General|D\.G\.|Subdirección General|S\.G\.|Secretaría General|S\.Gral\.|Secretaría de Estado|S\. de E\.|Subsecretaría|Organismo Autónomo)\s*(de\s+|del\s+|de la\s+|)/i, '')
+    .replace(/,?\s*O\.\s?A\.\s*$/i, '')
+    .trim();
+  return `${role} de ${limpio}`;
+}
+
 function initials(fullName) {
   const parts = fullName.trim().split(' ');
   return `${parts[0]?.[0] || ''}${parts[parts.length - 1]?.[0] || ''}`.toUpperCase();
@@ -81,7 +128,7 @@ function teamFor(member, officials, vicepresidenteOrdinal) {
 
   const memberKey = normalizePerson(member.full_name);
 
-  return officials.filter((o) => {
+  const equipo = officials.filter((o) => {
     const key = normalizeMinistry(o.ministry_name);
     if (!sections.some((s) => ministryMatches(s, key))) return false;
 
@@ -92,6 +139,25 @@ function teamFor(member, officials, vicepresidenteOrdinal) {
     if (TOP_ROLE.test(normalizePerson(o.role))) return false;
 
     return true;
+  });
+
+  // Sin repetidos: quien dirige el gabinete de una vicepresidencia figura
+  // dos veces en la Agenda, una por la vicepresidencia y otra por el
+  // ministerio. Las dos secciones coinciden aquí y salía duplicado.
+  const vistos = new Set();
+  const unicos = equipo.filter((o) => {
+    const k = `${normalizePerson(o.full_name)}|${normalizePerson(o.role)}`;
+    if (vistos.has(k)) return false;
+    vistos.add(k);
+    return true;
+  });
+
+  // Por jerarquía y, a igualdad, por apellido. Antes salían en el orden
+  // en que llegaban de la base: un director de comunicación aparecía
+  // antes que el subsecretario.
+  return unicos.sort((a, b) => {
+    const d = rangoCargo(a.role) - rangoCargo(b.role);
+    return d !== 0 ? d : (a.full_name || '').localeCompare(b.full_name || '');
   });
 }
 
@@ -161,7 +227,7 @@ function GroupRow({ member, officials, vicepresidenteOrdinal }) {
               href={`/institutions/ministries/persona/${o.slug}`}
               style={{ fontSize: 12, color: '#555', textDecoration: 'none' }}
             >
-              {nameDisplay(o.full_name)} <span style={{ color: '#999' }}>— {o.role}</span>
+              {nameDisplay(o.full_name)} <span style={{ color: '#999' }}>— {cargoExacto(o)}</span>
             </Link>
           ))}
         </div>
@@ -385,7 +451,10 @@ export default function MinistriesDirectoryPage() {
         .select('full_name, slug, role, rank, photo_url, ministry_name')
         .eq('active', true)
         .order('order_index', { ascending: true }),
-      supabase.from('government_officials').select('full_name, slug, role, ministry_name, unit_name').eq('active', true),
+      supabase
+        .from('government_officials')
+        .select('full_name, slug, role, ministry_name, unit_name, dir3_code, age_units(nombre, categoria, nivel)')
+        .eq('active', true),
     ]).then(([membersRes, officialsRes]) => {
       setMembers(membersRes.data || []);
       setOfficials(officialsRes.data || []);
