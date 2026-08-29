@@ -172,12 +172,15 @@ export default function InstitutionsHomePage() {
       // parte de un ministerio sino autoridades independientes, y para
       // asuntos públicos esa distinción importa —a un regulador se le
       // trata distinto que a una dirección general.
+      // Solo los relevantes: la cifra tiene que cuadrar con lo que se ve
+      // al entrar. Anunciar 241 organismos y encontrar 57 sería peor que
+      // no dar el número.
       supabase.from('age_units').select('dir3_code', { count: 'exact', head: true })
-        .eq('activo', true).eq('categoria', 'organismo_autonomo'),
+        .eq('activo', true).eq('relevante', true).eq('categoria', 'organismo_autonomo'),
       supabase.from('age_units').select('dir3_code', { count: 'exact', head: true })
-        .eq('activo', true).eq('categoria', 'agencia_estatal'),
+        .eq('activo', true).eq('relevante', true).eq('categoria', 'agencia_estatal'),
       supabase.from('age_units').select('dir3_code', { count: 'exact', head: true })
-        .eq('activo', true).eq('categoria', 'entidad_derecho_publico'),
+        .eq('activo', true).eq('relevante', true).eq('categoria', 'entidad_derecho_publico'),
       supabase.from('age_units').select('dir3_code', { count: 'exact', head: true })
         .eq('activo', true).eq('categoria', 'direccion_general'),
     ]);
