@@ -342,9 +342,17 @@ export async function GET(req) {
 
   // Los que no casaron, con su sugerencia si la hay: es la lista de lo
   // que hay que revisar para añadir a cargo_unit_map.
+  // Se devuelve también la clave normalizada: sin ella, añadir una
+  // equivalencia a mano es adivinar qué cadena espera el sync, y
+  // acertarla de memoria no funciona.
   const revisar = filas
     .filter((f) => f.estado === 'sin_equivalencia')
-    .map((f) => ({ cargo: f.cargo, departamento: f.departamento, nota: f.nota }));
+    .map((f) => ({
+      cargo: f.cargo,
+      departamento: f.departamento,
+      clave: materiaDe(f.cargo, f.organismo),
+      nota: f.nota,
+    }));
 
   return NextResponse.json({
     rango: { desde, hasta },
