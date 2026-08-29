@@ -21,6 +21,7 @@ import MultiSelectFilter from '@/components/MultiSelectFilter';
  */
 
 const MORADO = '#6d5aef';
+const PAGE_SIZES = [20, 50, 100, 200];
 const BORDE = '#e0dfd8';
 
 const CATEGORIAS = [
@@ -67,6 +68,11 @@ function peso(u) {
 // Sin el punto final ni el ", O.A." que DIR3 arrastra en algunos
 // nombres: "Instituto Nacional de Administración Pública, O.A." se lee
 // mejor sin la coletilla.
+function iniciales(n) {
+  const p = (n || '').replace(',', '').trim().split(/\s+/);
+  return `${p[0]?.[0] || ''}${p[1]?.[0] || ''}`.toUpperCase();
+}
+
 function limpiar(nombre) {
   return (nombre || '').replace(/,?\s*O\.\s?A\.\s*$/i, '').trim();
 }
@@ -80,6 +86,23 @@ export default function OrganismosPage() {
   const [q, setQ] = useState('');
   const [cats, setCats] = useState(new Set());
   const [mins, setMins] = useState(new Set());
+  const [vista, setVista] = useState('lista');
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(20);
+
+  // Mismo tamaño de página que el resto de directorios.
+  useEffect(() => {
+    const saved = parseInt(window.localStorage.getItem('gt_page_size') || '20', 10);
+    if (PAGE_SIZES.includes(saved)) setPageSize(saved);
+  }, []);
+
+  function changePageSize(n) {
+    setPageSize(n);
+    setPage(1);
+    try {
+      window.localStorage.setItem('gt_page_size', String(n));
+    } catch {}
+  }
 
   const cargar = useCallback(async () => {
     const [{ data: u }, { data: p }] = await Promise.all([
@@ -146,6 +169,25 @@ export default function OrganismosPage() {
     });
   }, [unidades, q, cats, mins]);
 
+  // Al filtrar, volver a la primera página: si no, filtrar estando en la
+  // 6 deja la lista vacía sin explicación.
+  useEffect(() => {
+    setPage(1);
+  }, [q, cats, mins, vista]);
+
+  const totalPages = Math.max(1, Math.ceil(filtradas.length / pageSize));
+  const current = Math.min(page, totalPages);
+  const slice = filtradas.slice((current - 1) * pageSize, current * pageSize);
+  const from = filtradas.length === 0 ? 0 : (current - 1) * pageSize + 1;
+  const to = Math.min(current * pageSize, filtradas.length);
+
+  const pageNumbers = useMemo(() => {
+    if (totalPages <= 5) return Array.from({ length: totalPages }, (_, i) => i + 1);
+    if (current <= 3) return [1, 2, 3, '…', totalPages];
+    if (current >= totalPages - 2) return [1, '…', totalPages - 2, totalPages - 1, totalPages];
+    return [1, '…', current, '…', totalPages];
+  }, [current, totalPages]);
+
   return (
     <div className="sec">
       <div style={{ marginBottom: 6 }}>
@@ -199,6 +241,42 @@ export default function OrganismosPage() {
           selected={mins}
           onApply={(s) => setMins(new Set(s))}
         />
+
+        {/* Dos vistas: la lista para buscar algo concreto, las tarjetas
+            para hacerse una idea del conjunto. Mismo patrón que en
+            Comisiones del Congreso. */}
+        <div
+          style={{
+            display: 'flex',
+            gap: 2,
+            background: '#fff',
+            border: `.5px solid ${BORDE}`,
+            borderRadius: 8,
+            padding: 2,
+          }}
+        >
+          {[
+            { v: 'lista', icono: 'list' },
+            { v: 'tarjetas', icono: 'layout-grid' },
+          ].map((o) => (
+            <span
+              key={o.v}
+              onClick={() => setVista(o.v)}
+              aria-label={o.v === 'lista' ? 'Ver como lista' : 'Ver como tarjetas'}
+              style={{
+                padding: '5px 9px',
+                borderRadius: 6,
+                cursor: 'pointer',
+                background: vista === o.v ? '#f0eefe' : 'transparent',
+                color: vista === o.v ? MORADO : '#999',
+                display: 'flex',
+                alignItems: 'center',
+              }}
+            >
+              <i className={`ti ti-${o.icono}`} style={{ fontSize: 15 }}></i>
+            </span>
+          ))}
+        </div>
       </div>
 
       {(cats.size > 0 || mins.size > 0) && (
@@ -253,9 +331,105 @@ export default function OrganismosPage() {
                 Nada con esos criterios.
               </div>
             </div>
+          ) : vista === 'tarjetas' ? (
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(290px, 1fr))', gap: 12 }}>
+              {filtradas.map((u) => {
+                const t = titulares[u.dir3_code];
+                const esRegulador = RE_REGULADOR.test(u.nombre || '');
+                return (
+                  <Link
+                    key={u.dir3_code}
+                    href={`/institutions/organismos/${u.dir3_code}`}
+                    style={{
+                      background: '#fff',
+                      borderRadius: 12,
+                      padding: 17,
+                      textDecoration: 'none',
+                      color: 'inherit',
+                      display: 'block',
+                    }}
+                  >
+                    <div style={{ marginBottom: 13 }}>
+                      <div
+                        style={{
+                          display: 'inline-block',
+                          fontSize: 10.5,
+                          borderRadius: 20,
+                          padding: '2px 9px',
+                          marginBottom: 8,
+                          background: esRegulador ? '#f0eefe' : '#f0f0eb',
+                          color: esRegulador ? '#3c3489' : '#7a736b',
+                        }}
+                      >
+                        {esRegulador ? 'Regulador' : ETIQUETA_CATEGORIA[u.categoria] || u.categoria}
+                      </div>
+                      <div style={{ fontSize: 14, fontWeight: 600, lineHeight: 1.35 }}>{limpiar(u.nombre)}</div>
+                      <div style={{ fontSize: 11, color: '#a8a49c', marginTop: 5, lineHeight: 1.45 }}>
+                        {u.raiz_nombre}
+                      </div>
+                    </div>
+
+                    {t ? (
+                      <div
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: 9,
+                          paddingTop: 11,
+                          borderTop: '.5px solid #f0f0eb',
+                        }}
+                      >
+                        <div
+                          style={{
+                            width: 28,
+                            height: 28,
+                            borderRadius: '50%',
+                            background: '#f5f4f1',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            flexShrink: 0,
+                            fontSize: 10.5,
+                            color: '#888',
+                            fontWeight: 600,
+                          }}
+                        >
+                          {iniciales(t.full_name)}
+                        </div>
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div
+                            style={{
+                              fontSize: 12,
+                              fontWeight: 600,
+                              overflow: 'hidden',
+                              textOverflow: 'ellipsis',
+                              whiteSpace: 'nowrap',
+                            }}
+                          >
+                            {t.full_name}
+                          </div>
+                          <div style={{ fontSize: 10, color: '#999' }}>{t.role}</div>
+                        </div>
+                      </div>
+                    ) : (
+                      <div
+                        style={{
+                          paddingTop: 11,
+                          borderTop: '.5px solid #f0f0eb',
+                          fontSize: 10.5,
+                          color: '#c2beb6',
+                        }}
+                      >
+                        Titular pendiente de publicarse
+                      </div>
+                    )}
+                  </Link>
+                );
+              })}
+            </div>
           ) : (
             <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
-              {filtradas.map((u, i) => {
+              {slice.map((u, i) => {
                 const t = titulares[u.dir3_code];
                 const esRegulador = RE_REGULADOR.test(u.nombre || '');
                 return (
@@ -269,7 +443,7 @@ export default function OrganismosPage() {
                       padding: '12px 16px',
                       textDecoration: 'none',
                       color: 'inherit',
-                      borderBottom: i === filtradas.length - 1 ? 'none' : '.5px solid #f0f0eb',
+                      borderBottom: i === slice.length - 1 ? 'none' : '.5px solid #f0f0eb',
                     }}
                   >
                     <div
@@ -348,6 +522,79 @@ export default function OrganismosPage() {
                   </Link>
                 );
               })}
+            
+              <div
+                style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  padding: '11px 14px',
+                  background: '#fcfbf8',
+                  flexWrap: 'wrap',
+                  gap: 10,
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: 9 }}>
+                  <span style={{ fontSize: 11.5, color: '#888' }}>Filas</span>
+                  <div style={{ display: 'flex', gap: 2, background: '#fff', border: `.5px solid ${BORDE}`, borderRadius: 7, padding: 2 }}>
+                    {PAGE_SIZES.map((n) => (
+                      <span
+                        key={n}
+                        onClick={() => changePageSize(n)}
+                        style={{
+                          fontSize: 11,
+                          padding: '3px 8px',
+                          borderRadius: 5,
+                          cursor: 'pointer',
+                          background: pageSize === n ? '#1d6f5c' : 'transparent',
+                          color: pageSize === n ? '#fff' : '#666',
+                        }}
+                      >
+                        {n}
+                      </span>
+                    ))}
+                  </div>
+                  <span style={{ fontSize: 11.5, color: '#888' }}>
+                    {from}–{to} de {filtradas.length}
+                  </span>
+                </div>
+
+                <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                  <span
+                    onClick={() => setPage(Math.max(1, current - 1))}
+                    style={{ border: `.5px solid ${BORDE}`, borderRadius: 6, padding: '4px 8px', cursor: 'pointer', color: current === 1 ? '#ccc' : '#555' }}
+                  >
+                    <i className="ti ti-chevron-left" style={{ fontSize: 13 }}></i>
+                  </span>
+                  {pageNumbers.map((n, k) =>
+                    n === '…' ? (
+                      <span key={`e${k}`} style={{ fontSize: 11.5, color: '#aaa', padding: '0 3px' }}>…</span>
+                    ) : (
+                      <span
+                        key={n}
+                        onClick={() => setPage(n)}
+                        style={{
+                          borderRadius: 6,
+                          padding: '4px 10px',
+                          fontSize: 11.5,
+                          cursor: 'pointer',
+                          background: n === current ? '#1d6f5c' : 'transparent',
+                          color: n === current ? '#fff' : '#555',
+                          border: n === current ? 'none' : `.5px solid ${BORDE}`,
+                        }}
+                      >
+                        {n}
+                      </span>
+                    )
+                  )}
+                  <span
+                    onClick={() => setPage(Math.min(totalPages, current + 1))}
+                    style={{ border: `.5px solid ${BORDE}`, borderRadius: 6, padding: '4px 8px', cursor: 'pointer', color: current === totalPages ? '#ccc' : '#555' }}
+                  >
+                    <i className="ti ti-chevron-right" style={{ fontSize: 13 }}></i>
+                  </span>
+                </div>
+              </div>
             </div>
           )}
 
