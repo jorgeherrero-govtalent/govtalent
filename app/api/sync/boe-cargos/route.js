@@ -335,6 +335,20 @@ export async function GET(req) {
     else guardadas += data?.length || 0;
   }
 
+  // El volcado al directorio, ya que estamos: sin esto los nombramientos
+  // se quedaban en la tabla de revisión y había que ejecutar un SQL a
+  // mano para que la ficha de la CNMC dejara de decir "todavía no
+  // tenemos el titular".
+  //
+  // Va en una función de Postgres y no aquí porque el orden importa
+  // —ceses antes que altas— y la comparación de nombres entre el BOE y
+  // el directorio es la misma lógica: duplicarla en JavaScript sería
+  // mantenerla en dos sitios.
+  let volcado = null;
+  const { data: vol, error: eVol } = await supabase.rpc('volcar_titulares_boe');
+  if (eVol) volcado = { error: eVol.message };
+  else volcado = Array.isArray(vol) ? vol[0] : vol;
+
   const resumen = filas.reduce((acc, f) => {
     acc[f.estado] = (acc[f.estado] || 0) + 1;
     return acc;
@@ -367,6 +381,7 @@ export async function GET(req) {
     guardados: guardadas,
     fallos: fallos.length > 0 ? fallos : undefined,
     por_estado: resumen,
+    volcado,
     revisar,
     ms: Date.now() - t0,
   });
