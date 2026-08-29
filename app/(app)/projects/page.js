@@ -11,6 +11,7 @@ import ActividadProyecto from '@/components/ActividadProyecto';
 import AgendaProyecto from '@/components/AgendaProyecto';
 import NotasProyecto from '@/components/NotasProyecto';
 import AsuntosProyecto from '@/components/AsuntosProyecto';
+import Desplegable from '@/components/Desplegable';
 import BriefingProyecto from '@/components/BriefingProyecto';
 import DocumentosProyecto from '@/components/DocumentosProyecto';
 import AnclasProyecto from '@/components/AnclasProyecto';
@@ -116,6 +117,7 @@ function Proyectos() {
   // Para el estado vacío: lo último que el usuario ha seguido. Tres,
   // no más: es una sugerencia para arrancar, no un directorio.
   const [seguidos, setSeguidos] = useState([]);
+  const [clientes, setClientes] = useState([]);
   // Dos condiciones para que desaparezca: que ya haya alguna actividad
   // registrada, o que se cierre a mano. Lo segundo hace falta porque
   // quien no vaya a usar el registro nunca cumpliría la primera, y el
@@ -150,7 +152,7 @@ function Proyectos() {
 
     const { data, error } = await supabase
       .from('projects')
-      .select('id, name, description, objetivo, orden, updated_at')
+      .select('id, name, description, objetivo, orden, updated_at, client_id')
       .eq('user_id', auth.user.id)
       .eq('archived', false)
       .order('updated_at', { ascending: false });
@@ -222,6 +224,15 @@ function Proyectos() {
         .limit(3);
       setSeguidos(fs || []);
     }
+
+    // Los clientes de la organización. Solo los activos: los archivados
+    // siguen en los proyectos antiguos pero no se ofrecen para nuevos.
+    const { data: cls } = await supabase
+      .from('clients')
+      .select('id, nombre')
+      .eq('activo', true)
+      .order('nombre');
+    setClientes(cls || []);
 
     setCargando(false);
   }, [supabase]);
@@ -311,7 +322,7 @@ function Proyectos() {
     const { data, error } = await supabase
       .from('projects')
       .insert({ user_id: user.id, created_by: user.id, name: t })
-      .select('id, name, description, objetivo, orden, updated_at')
+      .select('id, name, description, objetivo, orden, updated_at, client_id')
       .single();
     if (error) {
       toast('No se ha podido crear el proyecto');
@@ -330,7 +341,7 @@ function Proyectos() {
     const { data, error } = await supabase
       .from('projects')
       .insert({ user_id: user.id, created_by: user.id, name: f.label || 'Proyecto sin título' })
-      .select('id, name, description, objetivo, orden, updated_at')
+      .select('id, name, description, objetivo, orden, updated_at, client_id')
       .single();
     if (error) {
       toast('No se ha podido crear el proyecto');
@@ -378,6 +389,16 @@ function Proyectos() {
     if (abiertoId === id) router.replace('/projects', { scroll: false });
     const { error } = await supabase.from('projects').delete().eq('id', id);
     if (error) toast('No se ha podido eliminar');
+  }
+
+  // Por cuenta de quién se trabaja el proyecto. La actividad lo hereda,
+  // así que se elige una vez aquí y no en cada registro.
+  async function guardarCliente(id) {
+    const valor = id || null;
+    setAbierto((prev) => (prev ? { ...prev, client_id: valor } : prev));
+    setProyectos((prev) => prev.map((p) => (p.id === abierto.id ? { ...p, client_id: valor } : p)));
+    const { error } = await supabase.from('projects').update({ client_id: valor }).eq('id', abierto.id);
+    if (error) toast('No se ha podido guardar el cliente');
   }
 
   async function guardarObjetivo(texto) {
@@ -766,6 +787,15 @@ function Proyectos() {
                         {p.objetivo || p.description}
                       </div>
                     )}
+                    {/* El cliente en la tarjeta: en una consultora con
+                        veinte proyectos, saber de quién es cada uno sin
+                        entrar es lo primero que se mira. */}
+                    {p.client_id && (
+                      <div style={{ fontSize: 10.5, color: '#a8a49c', marginTop: 4 }}>
+                        <i className="ti ti-briefcase" style={{ fontSize: 11, verticalAlign: -1, marginRight: 4 }}></i>
+                        {clientes.find((c) => c.id === p.client_id)?.nombre || 'Cliente'}
+                      </div>
+                    )}
                   </div>
 
                   <button
@@ -1108,6 +1138,25 @@ function Proyectos() {
                         resize: 'vertical',
                       }}
                     />
+
+                    {/* Por cuenta de quién se trabaja. Solo aparece si la
+                        cuenta tiene clientes cargados: para una empresa
+                        que actúa por cuenta propia el campo sobra.
+
+                        Va bajo el objetivo y no en la actividad porque el
+                        cliente es del proyecto: se elige una vez y cada
+                        registro lo hereda. */}
+                    {clientes.length > 0 && (
+                      <div style={{ marginTop: 14 }}>
+                        <div style={{ ...ETIQUETA, marginBottom: 7 }}>POR CUENTA DE</div>
+                        <Desplegable
+                          value={abierto.client_id || ''}
+                          onChange={(v) => guardarCliente(v || null)}
+                          vacio="Por cuenta propia"
+                          opciones={clientes.map((c) => ({ v: c.id, label: c.nombre }))}
+                        />
+                      </div>
+                    )}
                   </div>
 
                   <div style={{ minWidth: 0 }}>
