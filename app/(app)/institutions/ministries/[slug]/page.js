@@ -173,10 +173,10 @@ export default function GovernmentMemberProfilePage() {
         if (raiz?.dir3_code) {
           const { data: docs } = await supabase
             .from('boe_documents')
-            .select('id, slug, titulo, fecha_publicacion, rango')
+            .select('id, slug, titulo, fecha_publicacion, rango, departamento')
             .eq('dir3_code', raiz.dir3_code)
             .order('fecha_publicacion', { ascending: false })
-            .limit(8);
+            .limit(4);
           if (!cancelled) setBoe(docs || []);
         }
       }
@@ -264,7 +264,7 @@ export default function GovernmentMemberProfilePage() {
   const tabs = [
     { id: 'trayectoria', label: 'Trayectoria' },
     { id: 'equipo', label: `Equipo${team.length ? ` (${team.length})` : ''}` },
-    ...(boe.length > 0 ? [{ id: 'boe', label: `BOE (${boe.length})` }] : []),
+    ...(boe.length > 0 ? [{ id: 'boe', label: 'BOE' }] : []),
     { id: 'contacto', label: 'Contacto' },
   ];
 
@@ -444,14 +444,14 @@ export default function GovernmentMemberProfilePage() {
       {tab === 'boe' && (
         <div className="card" style={{ padding: 18 }}>
           <div style={CARD_LABEL}>ÚLTIMO EN EL BOE</div>
-          {boe.map((d, i) => (
+          {boe.slice(0, 3).map((d, i) => (
             <Link
               key={d.id}
               href={`/boe/${d.slug || d.id}`}
               style={{
                 display: 'block',
                 padding: i === 0 ? '0 0 10px' : '10px 0',
-                borderBottom: i === boe.length - 1 ? 'none' : '.5px solid #f0f0eb',
+                borderBottom: i === Math.min(boe.length, 3) - 1 ? 'none' : '.5px solid #f0f0eb',
                 textDecoration: 'none',
                 color: 'inherit',
               }}
@@ -462,6 +462,17 @@ export default function GovernmentMemberProfilePage() {
               </div>
             </Link>
           ))}
+
+          {/* Se piden cuatro y se enseñan tres: así se sabe si hay más sin
+              una consulta de recuento aparte. */}
+          {boe.length > 3 && boe[0]?.departamento && (
+            <Link
+              href={`/boe?organismo=${encodeURIComponent(boe[0].departamento)}`}
+              style={{ display: 'inline-block', marginTop: 11, fontSize: 11.5, color: '#6d5aef', textDecoration: 'none' }}
+            >
+              Ver todo lo publicado →
+            </Link>
+          )}
         </div>
       )}
 
