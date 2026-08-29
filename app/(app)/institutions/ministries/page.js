@@ -569,6 +569,98 @@ function BuscarTab({ members, officials }) {
   );
 }
 
+/**
+ * Los ministerios como cuadrícula.
+ *
+ * El organigrama es bueno para ver la estructura del Gobierno, pero
+ * malo para ir a un ministerio concreto: hay que desplegar y buscar. Las
+ * tarjetas dan el acceso directo, con el titular y el tamaño de su
+ * equipo.
+ */
+function MinisteriosTab({ members, officials }) {
+  const ministerios = useMemo(() => {
+    return members
+      .filter((m) => m.ministry_name && m.rank !== 'presidente')
+      .map((m) => {
+        const key = normalizeMinistry(m.ministry_name);
+        const equipo = officials.filter(
+          (o) =>
+            ministryMatches(key, normalizeMinistry(o.ministry_name)) &&
+            normalizePerson(nameDisplay(o.full_name)) !== normalizePerson(m.full_name)
+        );
+        return { ...m, equipo: equipo.length };
+      })
+      .sort((a, b) => (a.ministry_name || '').localeCompare(b.ministry_name || ''));
+  }, [members, officials]);
+
+  return (
+    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(215px, 1fr))', gap: 12 }}>
+      {ministerios.map((m) => (
+        <Link
+          key={m.slug}
+          href={`/institutions/ministries/${m.slug}`}
+          style={{
+            background: '#fff',
+            borderRadius: 12,
+            padding: 17,
+            textDecoration: 'none',
+            color: 'inherit',
+            display: 'block',
+          }}
+        >
+          <div style={{ fontSize: 13.5, fontWeight: 600, lineHeight: 1.35, marginBottom: 13, minHeight: 36 }}>
+            {m.ministry_name}
+          </div>
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: 9, paddingTop: 11, borderTop: '.5px solid #f0f0eb' }}>
+            {m.photo_url ? (
+              <img
+                src={m.photo_url}
+                alt=""
+                style={{ width: 30, height: 30, borderRadius: '50%', objectFit: 'cover', flexShrink: 0 }}
+              />
+            ) : (
+              <div
+                style={{
+                  width: 30,
+                  height: 30,
+                  borderRadius: '50%',
+                  background: '#f5f4f1',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  flexShrink: 0,
+                  fontSize: 10.5,
+                  color: '#888',
+                  fontWeight: 600,
+                }}
+              >
+                {initials(m.full_name)}
+              </div>
+            )}
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div
+                style={{
+                  fontSize: 12,
+                  fontWeight: 600,
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                  whiteSpace: 'nowrap',
+                }}
+              >
+                {m.full_name}
+              </div>
+              <div style={{ fontSize: 10, color: '#999' }}>
+                {m.equipo > 0 ? `${m.equipo} en el equipo` : 'Sin equipo registrado'}
+              </div>
+            </div>
+          </div>
+        </Link>
+      ))}
+    </div>
+  );
+}
+
 export default function MinistriesDirectoryPage() {
   const supabase = createClient();
   const [members, setMembers] = useState(null);
@@ -616,6 +708,19 @@ export default function MinistriesDirectoryPage() {
           Organigrama
         </span>
         <span
+          onClick={() => setTab('ministerios')}
+          style={{
+            fontSize: 13,
+            fontWeight: tab === 'ministerios' ? 600 : 400,
+            color: tab === 'ministerios' ? '#1d6f5c' : '#999',
+            borderBottom: tab === 'ministerios' ? '2px solid #1d6f5c' : '2px solid transparent',
+            paddingBottom: 8,
+            cursor: 'pointer',
+          }}
+        >
+          Ministerios
+        </span>
+        <span
           onClick={() => setTab('buscar')}
           style={{
             fontSize: 13,
@@ -634,6 +739,8 @@ export default function MinistriesDirectoryPage() {
         <div className="spinner"></div>
       ) : tab === 'organigrama' ? (
         <OrganigramaTab members={members} officials={officials} />
+      ) : tab === 'ministerios' ? (
+        <MinisteriosTab members={members} officials={officials} />
       ) : (
         <BuscarTab members={members} officials={officials} />
       )}
