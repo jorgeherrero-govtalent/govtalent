@@ -86,7 +86,7 @@ export default function OrganismosPage() {
   const [q, setQ] = useState('');
   const [cats, setCats] = useState(new Set());
   const [mins, setMins] = useState(new Set());
-  const [vista, setVista] = useState('lista');
+  const [vista, setVista] = useState('tarjetas');
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
 
@@ -331,103 +331,7 @@ export default function OrganismosPage() {
                 Nada con esos criterios.
               </div>
             </div>
-          ) : vista === 'tarjetas' ? (
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(290px, 1fr))', gap: 12 }}>
-              {filtradas.map((u) => {
-                const t = titulares[u.dir3_code];
-                const esRegulador = RE_REGULADOR.test(u.nombre || '');
-                return (
-                  <Link
-                    key={u.dir3_code}
-                    href={`/institutions/organismos/${u.dir3_code}`}
-                    style={{
-                      background: '#fff',
-                      borderRadius: 12,
-                      padding: 17,
-                      textDecoration: 'none',
-                      color: 'inherit',
-                      display: 'block',
-                    }}
-                  >
-                    <div style={{ marginBottom: 13 }}>
-                      <div
-                        style={{
-                          display: 'inline-block',
-                          fontSize: 10.5,
-                          borderRadius: 20,
-                          padding: '2px 9px',
-                          marginBottom: 8,
-                          background: esRegulador ? '#f0eefe' : '#f0f0eb',
-                          color: esRegulador ? '#3c3489' : '#7a736b',
-                        }}
-                      >
-                        {esRegulador ? 'Regulador' : ETIQUETA_CATEGORIA[u.categoria] || u.categoria}
-                      </div>
-                      <div style={{ fontSize: 14, fontWeight: 600, lineHeight: 1.35 }}>{limpiar(u.nombre)}</div>
-                      <div style={{ fontSize: 11, color: '#a8a49c', marginTop: 5, lineHeight: 1.45 }}>
-                        {u.raiz_nombre}
-                      </div>
-                    </div>
-
-                    {t ? (
-                      <div
-                        style={{
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: 9,
-                          paddingTop: 11,
-                          borderTop: '.5px solid #f0f0eb',
-                        }}
-                      >
-                        <div
-                          style={{
-                            width: 28,
-                            height: 28,
-                            borderRadius: '50%',
-                            background: '#f5f4f1',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            flexShrink: 0,
-                            fontSize: 10.5,
-                            color: '#888',
-                            fontWeight: 600,
-                          }}
-                        >
-                          {iniciales(t.full_name)}
-                        </div>
-                        <div style={{ flex: 1, minWidth: 0 }}>
-                          <div
-                            style={{
-                              fontSize: 12,
-                              fontWeight: 600,
-                              overflow: 'hidden',
-                              textOverflow: 'ellipsis',
-                              whiteSpace: 'nowrap',
-                            }}
-                          >
-                            {t.full_name}
-                          </div>
-                          <div style={{ fontSize: 10, color: '#999' }}>{t.role}</div>
-                        </div>
-                      </div>
-                    ) : (
-                      <div
-                        style={{
-                          paddingTop: 11,
-                          borderTop: '.5px solid #f0f0eb',
-                          fontSize: 10.5,
-                          color: '#c2beb6',
-                        }}
-                      >
-                        Titular pendiente de publicarse
-                      </div>
-                    )}
-                  </Link>
-                );
-              })}
-            </div>
-          ) : (
+          ) : vista === 'lista' ? (
             <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
               {slice.map((u, i) => {
                 const t = titulares[u.dir3_code];
@@ -595,6 +499,112 @@ export default function OrganismosPage() {
                   </span>
                 </div>
               </div>
+            </div>
+          ) : (
+            /* auto-fill con 215px de mínimo: cuatro por fila en pantallas
+               anchas. Con los 290px de Comisiones salían tres y sobraba
+               aire a los lados, porque aquí las tarjetas llevan menos
+               contenido. */
+            <div
+              style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fill, minmax(215px, 1fr))',
+                gap: 12,
+              }}
+            >
+              {filtradas.map((u) => {
+                const t = titulares[u.dir3_code];
+                const esRegulador = RE_REGULADOR.test(u.nombre || '');
+                return (
+                  <Link
+                    key={u.dir3_code}
+                    href={`/institutions/organismos/${u.dir3_code}`}
+                    style={{
+                      background: '#fff',
+                      borderRadius: 12,
+                      padding: 17,
+                      textDecoration: 'none',
+                      color: 'inherit',
+                      display: 'block',
+                    }}
+                  >
+                    <div style={{ marginBottom: 13 }}>
+                      <div
+                        style={{
+                          display: 'inline-block',
+                          fontSize: 10.5,
+                          borderRadius: 20,
+                          padding: '2px 9px',
+                          marginBottom: 8,
+                          background: esRegulador ? '#f0eefe' : '#f0f0eb',
+                          color: esRegulador ? '#3c3489' : '#7a736b',
+                        }}
+                      >
+                        {esRegulador ? 'Regulador' : ETIQUETA_CATEGORIA[u.categoria] || u.categoria}
+                      </div>
+                      <div style={{ fontSize: 14, fontWeight: 600, lineHeight: 1.35 }}>{limpiar(u.nombre)}</div>
+                      <div style={{ fontSize: 11, color: '#a8a49c', marginTop: 5, lineHeight: 1.45 }}>
+                        {u.raiz_nombre}
+                      </div>
+                    </div>
+
+                    {t ? (
+                      <div
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: 9,
+                          paddingTop: 11,
+                          borderTop: '.5px solid #f0f0eb',
+                        }}
+                      >
+                        <div
+                          style={{
+                            width: 28,
+                            height: 28,
+                            borderRadius: '50%',
+                            background: '#f5f4f1',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            flexShrink: 0,
+                            fontSize: 10.5,
+                            color: '#888',
+                            fontWeight: 600,
+                          }}
+                        >
+                          {iniciales(t.full_name)}
+                        </div>
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div
+                            style={{
+                              fontSize: 12,
+                              fontWeight: 600,
+                              overflow: 'hidden',
+                              textOverflow: 'ellipsis',
+                              whiteSpace: 'nowrap',
+                            }}
+                          >
+                            {t.full_name}
+                          </div>
+                          <div style={{ fontSize: 10, color: '#999' }}>{t.role}</div>
+                        </div>
+                      </div>
+                    ) : (
+                      <div
+                        style={{
+                          paddingTop: 11,
+                          borderTop: '.5px solid #f0f0eb',
+                          fontSize: 10.5,
+                          color: '#c2beb6',
+                        }}
+                      >
+                        Titular pendiente de publicarse
+                      </div>
+                    )}
+                  </Link>
+                );
+              })}
             </div>
           )}
 
