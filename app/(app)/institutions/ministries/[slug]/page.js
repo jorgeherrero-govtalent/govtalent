@@ -61,6 +61,41 @@ const CARD_LABEL = {
   marginBottom: 14,
 };
 
+// Rango de cada cargo, para ordenar el equipo por jerarquía. Duplicado
+// del listado a propósito: son dos rutas independientes y compartirlo
+// obligaría a un módulo nuevo para veinte líneas.
+const ORDEN_CARGO = [
+  [/^(vice)?presidente|^(vice)?presidenta|ministr[oa]/i, 0],
+  [/secretari[oa] de estado/i, 1],
+  [/subsecretari[oa]/i, 2],
+  [/secretari[oa] general/i, 3],
+  [/director[a]? general/i, 4],
+  [/director[a]? del gabinete/i, 5],
+  [/director[a]? de comunicaci/i, 6],
+  [/subdirector/i, 7],
+];
+
+function rangoCargo(role) {
+  for (const [re, n] of ORDEN_CARGO) if (re.test(role || '')) return n;
+  return 8;
+}
+
+// Los roles genéricos solo se entienden con su unidad: "Director" no
+// dice nada, "Director de Parques Nacionales" sí.
+const ROL_GENERICO = /^(director[a]?|director[a]? general|subdirector[a]? general|presidente|presidenta|vicepresidente|vicepresidenta|gerente|secretari[oa]|secretari[oa] general|subsecretari[oa]|secretari[oa] de estado|interventor[a]? general|delegad[oa] del gobierno|jefe|jefa)$/i;
+
+function cargoExacto(o) {
+  const role = (o.role || '').trim();
+  const unidad = o.age_units?.nombre || o.unit_name || '';
+  if (!unidad || unidad === o.ministry_name) return role;
+  if (!ROL_GENERICO.test(role)) return role;
+  const limpio = unidad
+    .replace(/^(Dirección General|D\.G\.|Subdirección General|S\.G\.|Secretaría General|S\.Gral\.|Secretaría de Estado|S\. de E\.|Subsecretaría|Organismo Autónomo)\s*(de\s+|del\s+|de la\s+|)/i, '')
+    .replace(/,?\s*O\.\s?A\.\s*$/i, '')
+    .trim();
+  return `${role} de ${limpio}`;
+}
+
 export default function GovernmentMemberProfilePage() {
   const { slug } = useParams();
   const supabase = createClient();
@@ -93,7 +128,10 @@ export default function GovernmentMemberProfilePage() {
       setMember(data);
 
       const [{ data: offs }, { data: vps }] = await Promise.all([
-        supabase.from('government_officials').select('full_name, slug, role, ministry_name, unit_name').eq('active', true),
+        supabase
+          .from('government_officials')
+          .select('full_name, slug, role, ministry_name, unit_name, dir3_code, age_units(nombre)')
+          .eq('active', true),
         // Solo hace falta para los vicepresidentes: su equipo vive en dos
         // secciones distintas de la fuente y hay que saber su ordinal.
         data.rank === 'vicepresidente'
@@ -129,13 +167,32 @@ export default function GovernmentMemberProfilePage() {
 
     const memberKey = normalizePerson(member.full_name);
 
-    return officials.filter((o) => {
+    const equipo = officials.filter((o) => {
       const key = normalizeMinistry(o.ministry_name);
       if (!sections.some((s) => ministryMatches(s, key))) return false;
       // La Agenda incluye al propio titular en el listado de su ministerio.
       if (normalizePerson(nameDisplay(o.full_name)) === memberKey) return false;
       if (TOP_ROLE.test(normalizePerson(o.role))) return false;
       return true;
+    });
+
+    // Sin repetidos: quien dirige el gabinete de una vicepresidencia
+    // figura dos veces en la Agenda, una por la vicepresidencia y otra
+    // por el ministerio, y aquí las dos secciones coinciden.
+    const vistos = new Set();
+    const unicos = equipo.filter((o) => {
+      const k = `${normalizePerson(o.full_name)}|${normalizePerson(o.role)}`;
+      if (vistos.has(k)) return false;
+      vistos.add(k);
+      return true;
+    });
+
+    // Y por jerarquía: antes salían en el orden en que llegaban de la
+    // base, así que un director de comunicación aparecía antes que el
+    // subsecretario.
+    return unicos.sort((a, b) => {
+      const d = rangoCargo(a.role) - rangoCargo(b.role);
+      return d !== 0 ? d : (a.full_name || '').localeCompare(b.full_name || '');
     });
   }, [member, officials, vicepresidents]);
 
@@ -337,7 +394,7 @@ export default function GovernmentMemberProfilePage() {
                   </div>
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ fontSize: 12.5, fontWeight: 600 }}>{nameDisplay(o.full_name)}</div>
-                    <div style={{ fontSize: 11, color: '#999' }}>{o.role}</div>
+                    <div style={{ fontSize: 11, color: '#999' }}>{cargoExacto(o)}</div>
                   </div>
                   <i className="ti ti-chevron-right" style={{ color: '#ccc', fontSize: 14 }}></i>
                 </Link>
