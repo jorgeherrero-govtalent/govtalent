@@ -75,6 +75,15 @@ const ORDEN_CARGO = [
   [/subdirector/i, 7],
 ];
 
+const MESES = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
+
+function fechaCorta(iso) {
+  if (!iso) return '';
+  const d = new Date(`${iso}T00:00:00`);
+  if (Number.isNaN(d.getTime())) return iso;
+  return `${d.getDate()} ${MESES[d.getMonth()]} ${d.getFullYear()}`;
+}
+
 function rangoCargo(role) {
   for (const [re, n] of ORDEN_CARGO) if (re.test(role || '')) return n;
   return 8;
@@ -102,6 +111,7 @@ export default function GovernmentMemberProfilePage() {
 
   const [member, setMember] = useState(null);
   const [officials, setOfficials] = useState([]);
+  const [boe, setBoe] = useState([]);
   const [vicepresidents, setVicepresidents] = useState([]);
   const [notFound, setNotFound] = useState(false);
   const [tab, setTab] = useState('trayectoria');
@@ -147,6 +157,29 @@ export default function GovernmentMemberProfilePage() {
       if (cancelled) return;
       setOfficials(offs || []);
       setVicepresidents(vps || []);
+
+      // Lo que publica el ministerio en el BOE. government_members no
+      // guarda el código DIR3, así que se busca su unidad raíz por
+      // nombre: es exacto porque el ministerio es una de las 26 raíces.
+      if (data.ministry_name) {
+        const { data: raiz } = await supabase
+          .from('age_units')
+          .select('dir3_code')
+          .eq('nivel', 1)
+          .ilike('nombre', `%${data.ministry_name.replace(/^Ministerio (de |del |para )?(la |el )?/i, '')}%`)
+          .limit(1)
+          .maybeSingle();
+
+        if (raiz?.dir3_code) {
+          const { data: docs } = await supabase
+            .from('boe_documents')
+            .select('id, slug, titulo, fecha_publicacion, rango')
+            .eq('dir3_code', raiz.dir3_code)
+            .order('fecha_publicacion', { ascending: false })
+            .limit(8);
+          if (!cancelled) setBoe(docs || []);
+        }
+      }
     })();
 
     return () => {
@@ -231,6 +264,7 @@ export default function GovernmentMemberProfilePage() {
   const tabs = [
     { id: 'trayectoria', label: 'Trayectoria' },
     { id: 'equipo', label: `Equipo${team.length ? ` (${team.length})` : ''}` },
+    ...(boe.length > 0 ? [{ id: 'boe', label: `BOE (${boe.length})` }] : []),
     { id: 'contacto', label: 'Contacto' },
   ];
 
@@ -404,6 +438,30 @@ export default function GovernmentMemberProfilePage() {
           <div style={{ fontSize: 11, color: '#aaa', marginTop: 14, paddingTop: 11, borderTop: '.5px solid #f0f0eb' }}>
             Fuente: Agenda de la Comunicación 2025 · La Moncloa
           </div>
+        </div>
+      )}
+
+      {tab === 'boe' && (
+        <div className="card" style={{ padding: 18 }}>
+          <div style={CARD_LABEL}>ÚLTIMO EN EL BOE</div>
+          {boe.map((d, i) => (
+            <Link
+              key={d.id}
+              href={`/boe/${d.slug || d.id}`}
+              style={{
+                display: 'block',
+                padding: i === 0 ? '0 0 10px' : '10px 0',
+                borderBottom: i === boe.length - 1 ? 'none' : '.5px solid #f0f0eb',
+                textDecoration: 'none',
+                color: 'inherit',
+              }}
+            >
+              <div style={{ fontSize: 12.5, lineHeight: 1.5 }}>{d.titulo}</div>
+              <div style={{ fontSize: 10.5, color: '#a8a49c', marginTop: 3 }}>
+                {[d.rango, fechaCorta(d.fecha_publicacion)].filter(Boolean).join(' · ')}
+              </div>
+            </Link>
+          ))}
         </div>
       )}
 
