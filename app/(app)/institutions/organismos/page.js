@@ -77,6 +77,91 @@ function limpiar(nombre) {
   return (nombre || '').replace(/,?\s*O\.\s?A\.\s*$/i, '').trim();
 }
 
+/**
+ * La paginación, compartida por las dos vistas.
+ *
+ * Estaba escrita dentro de la tarjeta de la lista, y al añadirla también
+ * a la cuadrícula habría quedado duplicada: el mismo bloque de setenta
+ * líneas en dos sitios que hay que mantener a la vez.
+ */
+function Paginacion({ pageSize, changePageSize, from, to, total, current, totalPages, setPage, pageNumbers, dentro }) {
+  if (total === 0) return null;
+  return (
+    <div
+      style={{
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        padding: dentro ? '11px 14px' : '13px 2px 0',
+        background: dentro ? '#fcfbf8' : 'transparent',
+        flexWrap: 'wrap',
+        gap: 10,
+      }}
+    >
+      <div style={{ display: 'flex', alignItems: 'center', gap: 9 }}>
+        <span style={{ fontSize: 11.5, color: '#888' }}>Filas</span>
+        <div style={{ display: 'flex', gap: 2, background: '#fff', border: `.5px solid ${BORDE}`, borderRadius: 7, padding: 2 }}>
+          {PAGE_SIZES.map((n) => (
+            <span
+              key={n}
+              onClick={() => changePageSize(n)}
+              style={{
+                fontSize: 11,
+                padding: '3px 8px',
+                borderRadius: 5,
+                cursor: 'pointer',
+                background: pageSize === n ? '#1d6f5c' : 'transparent',
+                color: pageSize === n ? '#fff' : '#666',
+              }}
+            >
+              {n}
+            </span>
+          ))}
+        </div>
+        <span style={{ fontSize: 11.5, color: '#888' }}>
+          {from}–{to} de {total}
+        </span>
+      </div>
+
+      <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+        <span
+          onClick={() => setPage(Math.max(1, current - 1))}
+          style={{ border: `.5px solid ${BORDE}`, borderRadius: 6, padding: '4px 8px', cursor: 'pointer', color: current === 1 ? '#ccc' : '#555' }}
+        >
+          <i className="ti ti-chevron-left" style={{ fontSize: 13 }}></i>
+        </span>
+        {pageNumbers.map((n, k) =>
+          n === '…' ? (
+            <span key={`e${k}`} style={{ fontSize: 11.5, color: '#aaa', padding: '0 3px' }}>…</span>
+          ) : (
+            <span
+              key={n}
+              onClick={() => setPage(n)}
+              style={{
+                borderRadius: 6,
+                padding: '4px 10px',
+                fontSize: 11.5,
+                cursor: 'pointer',
+                background: n === current ? '#1d6f5c' : 'transparent',
+                color: n === current ? '#fff' : '#555',
+                border: n === current ? 'none' : `.5px solid ${BORDE}`,
+              }}
+            >
+              {n}
+            </span>
+          )
+        )}
+        <span
+          onClick={() => setPage(Math.min(totalPages, current + 1))}
+          style={{ border: `.5px solid ${BORDE}`, borderRadius: 6, padding: '4px 8px', cursor: 'pointer', color: current === totalPages ? '#ccc' : '#555' }}
+        >
+          <i className="ti ti-chevron-right" style={{ fontSize: 13 }}></i>
+        </span>
+      </div>
+    </div>
+  );
+}
+
 export default function OrganismosPage() {
   const supabase = createClient();
 
@@ -427,84 +512,25 @@ export default function OrganismosPage() {
                 );
               })}
             
-              <div
-                style={{
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'center',
-                  padding: '11px 14px',
-                  background: '#fcfbf8',
-                  flexWrap: 'wrap',
-                  gap: 10,
-                }}
-              >
-                <div style={{ display: 'flex', alignItems: 'center', gap: 9 }}>
-                  <span style={{ fontSize: 11.5, color: '#888' }}>Filas</span>
-                  <div style={{ display: 'flex', gap: 2, background: '#fff', border: `.5px solid ${BORDE}`, borderRadius: 7, padding: 2 }}>
-                    {PAGE_SIZES.map((n) => (
-                      <span
-                        key={n}
-                        onClick={() => changePageSize(n)}
-                        style={{
-                          fontSize: 11,
-                          padding: '3px 8px',
-                          borderRadius: 5,
-                          cursor: 'pointer',
-                          background: pageSize === n ? '#1d6f5c' : 'transparent',
-                          color: pageSize === n ? '#fff' : '#666',
-                        }}
-                      >
-                        {n}
-                      </span>
-                    ))}
-                  </div>
-                  <span style={{ fontSize: 11.5, color: '#888' }}>
-                    {from}–{to} de {filtradas.length}
-                  </span>
-                </div>
-
-                <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-                  <span
-                    onClick={() => setPage(Math.max(1, current - 1))}
-                    style={{ border: `.5px solid ${BORDE}`, borderRadius: 6, padding: '4px 8px', cursor: 'pointer', color: current === 1 ? '#ccc' : '#555' }}
-                  >
-                    <i className="ti ti-chevron-left" style={{ fontSize: 13 }}></i>
-                  </span>
-                  {pageNumbers.map((n, k) =>
-                    n === '…' ? (
-                      <span key={`e${k}`} style={{ fontSize: 11.5, color: '#aaa', padding: '0 3px' }}>…</span>
-                    ) : (
-                      <span
-                        key={n}
-                        onClick={() => setPage(n)}
-                        style={{
-                          borderRadius: 6,
-                          padding: '4px 10px',
-                          fontSize: 11.5,
-                          cursor: 'pointer',
-                          background: n === current ? '#1d6f5c' : 'transparent',
-                          color: n === current ? '#fff' : '#555',
-                          border: n === current ? 'none' : `.5px solid ${BORDE}`,
-                        }}
-                      >
-                        {n}
-                      </span>
-                    )
-                  )}
-                  <span
-                    onClick={() => setPage(Math.min(totalPages, current + 1))}
-                    style={{ border: `.5px solid ${BORDE}`, borderRadius: 6, padding: '4px 8px', cursor: 'pointer', color: current === totalPages ? '#ccc' : '#555' }}
-                  >
-                    <i className="ti ti-chevron-right" style={{ fontSize: 13 }}></i>
-                  </span>
-                </div>
-              </div>
+              <Paginacion
+                  pageSize={pageSize}
+                  changePageSize={changePageSize}
+                  from={from}
+                  to={to}
+                  total={filtradas.length}
+                  current={current}
+                  totalPages={totalPages}
+                  setPage={setPage}
+                  pageNumbers={pageNumbers}
+                  dentro
+                />
             </div>
           ) : (
-            /* auto-fill con 215px de mínimo: cuatro por fila en pantallas
-               anchas. Con los 290px de Comisiones salían tres y sobraba
-               aire a los lados, porque aquí las tarjetas llevan menos
-               contenido. */
+            <>
+            {/* auto-fill con 215px de mínimo: cuatro por fila en pantallas
+                anchas. Con los 290px de Comisiones salían tres y sobraba
+                aire a los lados, porque aquí las tarjetas llevan menos
+                contenido. */}
             <div
               style={{
                 display: 'grid',
@@ -512,7 +538,7 @@ export default function OrganismosPage() {
                 gap: 12,
               }}
             >
-              {filtradas.map((u) => {
+              {slice.map((u) => {
                 const t = titulares[u.dir3_code];
                 const esRegulador = RE_REGULADOR.test(u.nombre || '');
                 return (
@@ -605,7 +631,19 @@ export default function OrganismosPage() {
                   </Link>
                 );
               })}
-            </div>
+              </div>
+              <Paginacion
+                  pageSize={pageSize}
+                  changePageSize={changePageSize}
+                  from={from}
+                  to={to}
+                  total={filtradas.length}
+                  current={current}
+                  totalPages={totalPages}
+                  setPage={setPage}
+                  pageNumbers={pageNumbers}
+              />
+            </>
           )}
 
           <p style={{ fontSize: 10.5, color: '#a8a49c', marginTop: 14, lineHeight: 1.6 }}>
