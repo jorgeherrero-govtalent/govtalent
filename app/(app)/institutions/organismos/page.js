@@ -31,6 +31,10 @@ const CATEGORIAS = [
   { v: 'entidad_gestora', label: 'Entidades gestoras' },
   { v: 'consorcio', label: 'Consorcios' },
   { v: 'fundacion', label: 'Fundaciones públicas' },
+  // RTVE, ENRESA e INCIBE son sociedades mercantiles estatales y reciben
+  // lobby de verdad en sus sectores: sin esta entrada saldrían con la
+  // categoría en crudo.
+  { v: 'sociedad_mercantil', label: 'Sociedades estatales' },
 ];
 
 const ETIQUETA_CATEGORIA = Object.fromEntries(CATEGORIAS.map((c) => [c.v, c.label]));
@@ -195,7 +199,11 @@ export default function OrganismosPage() {
         .from('age_units')
         .select('dir3_code, nombre, categoria, raiz_nombre, cif')
         .eq('activo', true)
-        .in('categoria', CATEGORIAS.map((c) => c.v)),
+        // Solo los marcados como relevantes: filtrar por categoría de
+        // DIR3 mezclaba el Museo del Prado con la CNMV —ambos son
+        // "entidad de derecho público"— y colaba las direcciones
+        // internas de cada organismo como si fueran organismos hermanos.
+        .eq('relevante', true),
       // El titular, cuando lo hay: no todos los organismos lo tienen
       // cargado todavía.
       supabase
