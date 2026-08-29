@@ -19,61 +19,6 @@ function nameDisplay(officialName) {
   return first ? `${first} ${last}` : officialName;
 }
 
-function CircleButton({ icon, label, onClick, href, active, disabled, title, external }) {
-  const [hover, setHover] = useState(false);
-  const on = active || (hover && !disabled);
-
-  const style = {
-    width: 34,
-    height: 34,
-    borderRadius: '50%',
-    border: `.5px solid ${on ? '#1d6f5c' : '#e0dfd8'}`,
-    background: on ? '#e8f4f0' : '#fff',
-    color: disabled ? '#ccc' : on ? '#1d6f5c' : '#888',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    cursor: disabled ? 'not-allowed' : 'pointer',
-    transition: 'all .15s ease',
-    padding: 0,
-    flexShrink: 0,
-  };
-
-  const inner = <i className={`ti ti-${icon}`} style={{ fontSize: 16 }} aria-hidden="true"></i>;
-
-  if (href && !disabled) {
-    return (
-      <a
-        href={href}
-        target={external ? '_blank' : undefined}
-        rel={external ? 'noreferrer' : undefined}
-        aria-label={label}
-        title={title || label}
-        style={{ ...style, textDecoration: 'none' }}
-        onMouseEnter={() => setHover(true)}
-        onMouseLeave={() => setHover(false)}
-      >
-        {inner}
-      </a>
-    );
-  }
-
-  return (
-    <button
-      type="button"
-      aria-label={label}
-      title={title || label}
-      aria-disabled={disabled ? 'true' : undefined}
-      onClick={disabled ? undefined : onClick}
-      onMouseEnter={() => setHover(true)}
-      onMouseLeave={() => setHover(false)}
-      style={style}
-    >
-      {inner}
-    </button>
-  );
-}
-
 const CARD_LABEL = {
   fontSize: 10.5,
   fontWeight: 700,
@@ -221,10 +166,11 @@ export default function GovernmentOfficialProfilePage() {
             </div>
           </div>
 
+          {/* Sin el botón de correo: escribía a la unidad, no a la
+              persona, y junto a "Seguir" daba a entender que se contacta
+              con el cargo. El correo sigue en la pestaña Contacto, que es
+              donde se entiende de quién es. */}
           <div style={{ display: 'flex', gap: 6, flexShrink: 0, alignItems: 'center' }}>
-            {official.unit_email && (
-              <CircleButton icon="mail" label="Escribir a la unidad" href={`mailto:${official.unit_email}`} />
-            )}
             <FollowButton kind="cargo" refId={official.slug} label={official.full_name} />
           </div>
         </div>
