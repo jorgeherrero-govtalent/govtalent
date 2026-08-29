@@ -34,6 +34,36 @@ const CATEGORIAS = [
 
 const ETIQUETA_CATEGORIA = Object.fromEntries(CATEGORIAS.map((c) => [c.v, c.label]));
 
+/**
+ * Los reguladores primero.
+ *
+ * De los 415 organismos, en asuntos públicos importan un puñado: los que
+ * dictan normas o resuelven expedientes que afectan a un sector. La CNMC,
+ * la AEPD o la CNMV pesan mucho más que el Consejo Escolar del Estado,
+ * pero alfabéticamente quedaban dispersos entre museos y mutualidades.
+ *
+ * Se identifican por el nombre y no por una lista cerrada: DIR3 no
+ * distingue reguladores del resto, y mantener a mano una lista de treinta
+ * envejece mal.
+ */
+const RE_REGULADOR = /^(comisi[oó]n nacional|agencia espa[ñn]ola de protecci[oó]n de datos|autoridad|consejo de seguridad nuclear|banco de espa[ñn]a|comisi[oó]n del mercado)/i;
+
+// Y después las agencias y organismos con capacidad normativa o de
+// supervisión, antes que los de gestión y los culturales.
+const PESO_CATEGORIA = {
+  entidad_derecho_publico: 1,
+  agencia_estatal: 2,
+  organismo_autonomo: 3,
+  entidad_gestora: 4,
+  consorcio: 5,
+  fundacion: 6,
+};
+
+function peso(u) {
+  if (RE_REGULADOR.test(u.nombre || '')) return 0;
+  return PESO_CATEGORIA[u.categoria] ?? 9;
+}
+
 // Sin el punto final ni el ", O.A." que DIR3 arrastra en algunos
 // nombres: "Instituto Nacional de Administración Pública, O.A." se lee
 // mejor sin la coletilla.
@@ -57,8 +87,7 @@ export default function OrganismosPage() {
         .from('age_units')
         .select('dir3_code, nombre, categoria, raiz_nombre, cif')
         .eq('activo', true)
-        .in('categoria', CATEGORIAS.map((c) => c.v))
-        .order('nombre'),
+        .in('categoria', CATEGORIAS.map((c) => c.v)),
       // El titular, cuando lo hay: no todos los organismos lo tienen
       // cargado todavía.
       supabase
@@ -68,7 +97,14 @@ export default function OrganismosPage() {
         .not('dir3_code', 'is', null),
     ]);
 
-    setUnidades(u || []);
+    // El orden se hace aquí y no en la consulta: depende del nombre y de
+    // la categoría a la vez, y Postgres no lo resolvería sin un CASE.
+    setUnidades(
+      [...(u || [])].sort((a, b) => {
+        const d = peso(a) - peso(b);
+        return d !== 0 ? d : (a.nombre || '').localeCompare(b.nombre || '');
+      })
+    );
     const porUnidad = {};
     for (const x of p || []) {
       if (!porUnidad[x.dir3_code]) porUnidad[x.dir3_code] = x;
@@ -221,14 +257,18 @@ export default function OrganismosPage() {
             <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
               {filtradas.map((u, i) => {
                 const t = titulares[u.dir3_code];
+                const esRegulador = RE_REGULADOR.test(u.nombre || '');
                 return (
-                  <div
+                  <Link
                     key={u.dir3_code}
+                    href={`/institutions/organismos/${u.dir3_code}`}
                     style={{
                       display: 'flex',
                       alignItems: 'center',
                       gap: 12,
                       padding: '12px 16px',
+                      textDecoration: 'none',
+                      color: 'inherit',
                       borderBottom: i === filtradas.length - 1 ? 'none' : '.5px solid #f0f0eb',
                     }}
                   >
@@ -244,11 +284,33 @@ export default function OrganismosPage() {
                         flexShrink: 0,
                       }}
                     >
-                      <i className="ti ti-scale" style={{ fontSize: 14, color: '#888' }}></i>
+                      <i
+                        className="ti ti-scale"
+                        style={{ fontSize: 14, color: esRegulador ? '#6d5aef' : '#888' }}
+                      ></i>
                     </div>
 
                     <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ fontSize: 12.5, fontWeight: 600 }}>{limpiar(u.nombre)}</div>
+                      <div style={{ fontSize: 12.5, fontWeight: 600 }}>
+                        {limpiar(u.nombre)}
+                        {esRegulador && (
+                          <span
+                            style={{
+                              fontSize: 9.5,
+                              fontWeight: 600,
+                              letterSpacing: '.3px',
+                              padding: '2px 7px',
+                              borderRadius: 10,
+                              background: '#f0eefe',
+                              color: MORADO,
+                              marginLeft: 7,
+                              verticalAlign: 1,
+                            }}
+                          >
+                            REGULADOR
+                          </span>
+                        )}
+                      </div>
                       <div
                         style={{
                           fontSize: 11,
@@ -282,7 +344,8 @@ export default function OrganismosPage() {
                         <div style={{ fontSize: 10.5, color: '#a8a49c' }}>{t.role}</div>
                       </div>
                     )}
-                  </div>
+                    <i className="ti ti-chevron-right" style={{ color: '#ccc', fontSize: 14, flexShrink: 0 }}></i>
+                  </Link>
                 );
               })}
             </div>
