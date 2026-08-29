@@ -59,6 +59,7 @@ function Boe() {
   const [sectores, setSectores] = useState([]);
   const [search, setSearch] = useState('');
   const [sectorFilter, setSectorFilter] = useState(new Set());
+  const [orgFilter, setOrgFilter] = useState(new Set());
   const [orden, setOrden] = useState('reciente');
   const [seccion, setSeccion] = useState('');
   const [page, setPage] = useState(1);
@@ -92,6 +93,8 @@ function Boe() {
       const q = normalize(search);
       l = l.filter((i) => normalize(i.titulo).includes(q) || normalize(i.departamento || '').includes(q));
     }
+    if (orgFilter.size > 0) l = l.filter((i) => orgFilter.has(i.departamento));
+
     // El orden se aplica sobre una copia: sort muta el array original y
     // eso rompería el memo de la lista sin filtrar.
     return [...l].sort((a, b) =>
@@ -99,15 +102,28 @@ function Boe() {
         ? String(b.fecha_publicacion).localeCompare(String(a.fecha_publicacion))
         : String(a.fecha_publicacion).localeCompare(String(b.fecha_publicacion))
     );
-  }, [items, search, sectorFilter, seccion, orden]);
+  }, [items, search, sectorFilter, orgFilter, seccion, orden]);
 
   useEffect(() => {
     setPage(1);
-  }, [search, sectorFilter, seccion, orden]);
+  }, [search, sectorFilter, orgFilter, seccion, orden]);
 
   const totalPages = Math.max(1, Math.ceil(filtrados.length / pageSize));
   const current = Math.min(page, totalPages);
   const slice = filtrados.slice((current - 1) * pageSize, current * pageSize);
+
+  // Quién publica, con el recuento. Sale del propio listado y no de una
+  // lista fija: así solo aparecen los que tienen algo publicado, y el
+  // número dice de antemano cuánto vas a encontrar.
+  const orgOptions = useMemo(() => {
+    const n = new Map();
+    for (const i of items) {
+      if (i.departamento) n.set(i.departamento, (n.get(i.departamento) || 0) + 1);
+    }
+    return [...n.entries()]
+      .sort((a, b) => b[1] - a[1])
+      .map(([nombre, total]) => ({ value: nombre, label: `${nombre} (${total})` }));
+  }, [items]);
 
   const sectorOptions = useMemo(
     () => sectores.map((s) => ({ value: s.sector, label: `${s.sector} (${s.n_documentos})` })),
@@ -199,6 +215,17 @@ function Boe() {
           />
         )}
 
+        {/* Quién publica. El sector dice de qué va; esto, quién decide,
+            que es la otra mitad de la pregunta. */}
+        {orgOptions.length > 0 && (
+          <MultiSelectFilter
+            label="Organismo"
+            values={orgOptions}
+            selected={orgFilter}
+            onApply={setOrgFilter}
+          />
+        )}
+
         <button
           type="button"
           onClick={() => setOrden((o) => (o === 'reciente' ? 'antiguo' : 'reciente'))}
@@ -220,10 +247,11 @@ function Boe() {
           {orden === 'reciente' ? 'Más recientes' : 'Más antiguas'}
         </button>
 
-        {(sectorFilter.size > 0 || search) && (
+        {(sectorFilter.size > 0 || orgFilter.size > 0 || search) && (
           <span
             onClick={() => {
               setSectorFilter(new Set());
+              setOrgFilter(new Set());
               setSearch('');
             }}
             style={{ fontSize: 11.5, color: '#a8a49c', textDecoration: 'underline', cursor: 'pointer', alignSelf: 'center' }}
