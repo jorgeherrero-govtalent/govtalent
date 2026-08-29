@@ -132,8 +132,11 @@ function Boe() {
   // lista fija: así solo aparecen los que tienen algo publicado, y el
   // número dice de antemano cuánto vas a encontrar.
   const orgOptions = useMemo(() => {
+    // (items || []): items empieza en null y el build lo prerenderiza
+    // antes de que llegue la consulta. Recorrer null revienta con
+    // "e is not iterable" y tumba la compilación entera.
     const n = new Map();
-    for (const i of items) {
+    for (const i of items || []) {
       if (i.departamento) n.set(i.departamento, (n.get(i.departamento) || 0) + 1);
     }
     return [...n.entries()]
