@@ -7,6 +7,8 @@ import MultiSelectFilter from '@/components/MultiSelectFilter';
 
 // Deriva un "tipo de cargo" a partir del texto libre del cargo, para poder
 // filtrar sin depender de una lista cerrada mantenida a mano.
+const PAGE_SIZES = [20, 50, 100, 200];
+
 function roleType(role) {
   const r = role.toLowerCase();
   if (r.startsWith('presidente') || r.startsWith('presidenta') || r.includes('ministro') || r.includes('ministra')) return 'Ministro/a';
@@ -278,6 +280,23 @@ function BuscarTab({ members, officials }) {
   const [search, setSearch] = useState('');
   const [ministryFilter, setMinistryFilter] = useState(new Set());
   const [typeFilter, setTypeFilter] = useState(new Set());
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(20);
+
+  // El tamaño de página se comparte con el resto de directorios: quien
+  // lo pone en 100 en eurodiputados lo encuentra igual aquí.
+  useEffect(() => {
+    const saved = parseInt(window.localStorage.getItem('gt_page_size') || '20', 10);
+    if (PAGE_SIZES.includes(saved)) setPageSize(saved);
+  }, []);
+
+  function changePageSize(n) {
+    setPageSize(n);
+    setPage(1); // sin esto, estar en la página 12 con 20 filas y saltar a 200 deja la tabla vacía
+    try {
+      window.localStorage.setItem('gt_page_size', String(n));
+    } catch {}
+  }
 
   // Unimos ministros + resto del equipo en una sola lista para poder buscar
   // a cualquiera, sin importar su nivel.
@@ -341,6 +360,25 @@ function BuscarTab({ members, officials }) {
       return r !== 0 ? r : (a.full_name_display || '').localeCompare(b.full_name_display || '');
     });
   }, [allPeople, search, ministryFilter, typeFilter]);
+
+  // Al filtrar o buscar, volver a la primera página: si no, filtrar
+  // estando en la 8 deja la tabla vacía sin explicación.
+  useEffect(() => {
+    setPage(1);
+  }, [search, ministryFilter, typeFilter]);
+
+  const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
+  const current = Math.min(page, totalPages);
+  const slice = filtered.slice((current - 1) * pageSize, current * pageSize);
+  const from = filtered.length === 0 ? 0 : (current - 1) * pageSize + 1;
+  const to = Math.min(current * pageSize, filtered.length);
+
+  const pageNumbers = useMemo(() => {
+    if (totalPages <= 5) return Array.from({ length: totalPages }, (_, i) => i + 1);
+    if (current <= 3) return [1, 2, 3, '…', totalPages];
+    if (current >= totalPages - 2) return [1, '…', totalPages - 2, totalPages - 1, totalPages];
+    return [1, '…', current, '…', totalPages];
+  }, [current, totalPages]);
 
   const activeCount = ministryFilter.size + typeFilter.size;
 
@@ -424,7 +462,7 @@ function BuscarTab({ members, officials }) {
             <div></div>
             <div></div>
           </div>
-          {filtered.map((p) => (
+          {slice.map((p) => (
             <Link
               key={p.slug}
               href={p.isMember ? `/institutions/ministries/${p.slug}` : `/institutions/ministries/persona/${p.slug}`}
@@ -450,6 +488,81 @@ function BuscarTab({ members, officials }) {
               <i className="ti ti-chevron-right" style={{ color: '#ccc', fontSize: 14 }}></i>
             </Link>
           ))}
+
+          {/* Mismo patrón que en eurodiputados: con 239 personas y sin
+              paginar, la lista era una tirada interminable. */}
+          <div
+            style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              padding: '11px 14px',
+              background: '#fcfbf8',
+              flexWrap: 'wrap',
+              gap: 10,
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: 9 }}>
+              <span style={{ fontSize: 11.5, color: '#888' }}>Filas</span>
+              <div style={{ display: 'flex', gap: 2, background: '#fff', border: '.5px solid #e0dfd8', borderRadius: 7, padding: 2 }}>
+                {PAGE_SIZES.map((n) => (
+                  <span
+                    key={n}
+                    onClick={() => changePageSize(n)}
+                    style={{
+                      fontSize: 11,
+                      padding: '3px 8px',
+                      borderRadius: 5,
+                      cursor: 'pointer',
+                      background: pageSize === n ? '#1d6f5c' : 'transparent',
+                      color: pageSize === n ? '#fff' : '#666',
+                    }}
+                  >
+                    {n}
+                  </span>
+                ))}
+              </div>
+              <span style={{ fontSize: 11.5, color: '#888' }}>
+                {from}–{to} de {filtered.length}
+              </span>
+            </div>
+
+            <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+              <span
+                onClick={() => setPage(Math.max(1, current - 1))}
+                style={{ border: '.5px solid #e0dfd8', borderRadius: 6, padding: '4px 8px', cursor: 'pointer', color: current === 1 ? '#ccc' : '#555' }}
+              >
+                <i className="ti ti-chevron-left" style={{ fontSize: 13 }}></i>
+              </span>
+              {pageNumbers.map((n, i) =>
+                n === '…' ? (
+                  <span key={`e${i}`} style={{ fontSize: 11.5, color: '#aaa', padding: '0 3px' }}>…</span>
+                ) : (
+                  <span
+                    key={n}
+                    onClick={() => setPage(n)}
+                    style={{
+                      borderRadius: 6,
+                      padding: '4px 10px',
+                      fontSize: 11.5,
+                      cursor: 'pointer',
+                      background: n === current ? '#1d6f5c' : 'transparent',
+                      color: n === current ? '#fff' : '#555',
+                      border: n === current ? 'none' : '.5px solid #e0dfd8',
+                    }}
+                  >
+                    {n}
+                  </span>
+                )
+              )}
+              <span
+                onClick={() => setPage(Math.min(totalPages, current + 1))}
+                style={{ border: '.5px solid #e0dfd8', borderRadius: 6, padding: '4px 8px', cursor: 'pointer', color: current === totalPages ? '#ccc' : '#555' }}
+              >
+                <i className="ti ti-chevron-right" style={{ fontSize: 13 }}></i>
+              </span>
+            </div>
+          </div>
         </div>
       )}
     </>
