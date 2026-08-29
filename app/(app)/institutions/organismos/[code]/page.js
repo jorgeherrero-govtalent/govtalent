@@ -118,10 +118,10 @@ export default function OrganismoPage() {
       // ficha en algo que se consulta y no solo en un dato de estructura.
       supabase
         .from('boe_documents')
-        .select('id, slug, titulo, fecha_publicacion, rango')
+        .select('id, slug, titulo, fecha_publicacion, rango, departamento')
         .eq('dir3_code', code)
         .order('fecha_publicacion', { ascending: false })
-        .limit(8),
+        .limit(4),
     ]);
 
     setSuperior(sup || null);
@@ -279,14 +279,14 @@ export default function OrganismoPage() {
       {boe.length > 0 && (
         <div className="card" style={{ padding: 20, marginBottom: 12 }}>
           <Etiqueta>PUBLICADO EN EL BOE</Etiqueta>
-          {boe.map((d, i) => (
+          {boe.slice(0, 3).map((d, i) => (
             <Link
               key={d.id}
               href={`/boe/${d.slug || d.id}`}
               style={{
                 display: 'block',
                 padding: i === 0 ? '0 0 10px' : '10px 0',
-                borderBottom: i === boe.length - 1 ? 'none' : '.5px solid #f0f0eb',
+                borderBottom: i === Math.min(boe.length, 3) - 1 ? 'none' : '.5px solid #f0f0eb',
                 textDecoration: 'none',
                 color: 'inherit',
               }}
@@ -297,6 +297,28 @@ export default function OrganismoPage() {
               </div>
             </Link>
           ))}
+
+          {/* Se piden cuatro y se enseñan tres: así se sabe si hay más
+              sin una consulta de recuento aparte.
+
+              El enlace usa el departamento tal y como lo escribe el BOE y
+              no el nombre de DIR3: son casi iguales pero no idénticos
+              —"Comision" sin tilde en DIR3— y el listado filtra por el
+              texto del BOE. */}
+          {boe.length > 3 && boe[0]?.departamento && (
+            <Link
+              href={`/boe?organismo=${encodeURIComponent(boe[0].departamento)}`}
+              style={{
+                display: 'inline-block',
+                marginTop: 11,
+                fontSize: 11.5,
+                color: MORADO,
+                textDecoration: 'none',
+              }}
+            >
+              Ver todo lo publicado →
+            </Link>
+          )}
         </div>
       )}
 
