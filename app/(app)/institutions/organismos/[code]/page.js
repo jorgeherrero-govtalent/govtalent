@@ -41,6 +41,15 @@ const ETIQUETA_CATEGORIA = {
 
 const RE_REGULADOR = /^(comisi[oó]n nacional|agencia espa[ñn]ola de protecci[oó]n de datos|autoridad|consejo de seguridad nuclear|banco de espa[ñn]a|comisi[oó]n del mercado)/i;
 
+const MESES = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
+
+function fechaCorta(iso) {
+  if (!iso) return '';
+  const d = new Date(`${iso}T00:00:00`);
+  if (Number.isNaN(d.getTime())) return iso;
+  return `${d.getDate()} ${MESES[d.getMonth()]} ${d.getFullYear()}`;
+}
+
 function limpiar(nombre) {
   return (nombre || '').replace(/,?\s*O\.\s?A\.\s*$/i, '').trim();
 }
@@ -68,6 +77,7 @@ export default function OrganismoPage() {
   const [superior, setSuperior] = useState(null);
   const [hijas, setHijas] = useState([]);
   const [personas, setPersonas] = useState([]);
+  const [boe, setBoe] = useState([]);
   const [cargando, setCargando] = useState(true);
 
   const cargar = useCallback(async () => {
@@ -85,7 +95,7 @@ export default function OrganismoPage() {
     }
     setUnidad(u);
 
-    const [{ data: sup }, { data: hijos }, { data: p }] = await Promise.all([
+    const [{ data: sup }, { data: hijos }, { data: p }, { data: docs }] = await Promise.all([
       u.superior_code
         ? supabase
             .from('age_units')
@@ -104,11 +114,20 @@ export default function OrganismoPage() {
         .select('full_name, slug, role')
         .eq('dir3_code', code)
         .eq('active', true),
+      // Lo último que ha publicado en el BOE. Es lo que convierte la
+      // ficha en algo que se consulta y no solo en un dato de estructura.
+      supabase
+        .from('boe_documents')
+        .select('id, slug, titulo, fecha_publicacion, rango')
+        .eq('dir3_code', code)
+        .order('fecha_publicacion', { ascending: false })
+        .limit(8),
     ]);
 
     setSuperior(sup || null);
     setHijas(hijos || []);
     setPersonas(p || []);
+    setBoe(docs || []);
     setCargando(false);
   }, [supabase, code]);
 
@@ -254,6 +273,32 @@ export default function OrganismoPage() {
           ))
         )}
       </div>
+
+      {/* Lo que publica. Solo si hay algo: un bloque vacío en la ficha de
+          un organismo que no legisla haría pensar que falta un dato. */}
+      {boe.length > 0 && (
+        <div className="card" style={{ padding: 20, marginBottom: 12 }}>
+          <Etiqueta>PUBLICADO EN EL BOE</Etiqueta>
+          {boe.map((d, i) => (
+            <Link
+              key={d.id}
+              href={`/boe/${d.slug || d.id}`}
+              style={{
+                display: 'block',
+                padding: i === 0 ? '0 0 10px' : '10px 0',
+                borderBottom: i === boe.length - 1 ? 'none' : '.5px solid #f0f0eb',
+                textDecoration: 'none',
+                color: 'inherit',
+              }}
+            >
+              <div style={{ fontSize: 12.5, lineHeight: 1.5 }}>{d.titulo}</div>
+              <div style={{ fontSize: 10.5, color: '#a8a49c', marginTop: 3 }}>
+                {[d.rango, fechaCorta(d.fecha_publicacion)].filter(Boolean).join(' · ')}
+              </div>
+            </Link>
+          ))}
+        </div>
+      )}
 
       {hijas.length > 0 && (
         <div className="card" style={{ padding: 20 }}>
