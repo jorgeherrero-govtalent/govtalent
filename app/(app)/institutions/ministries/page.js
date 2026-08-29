@@ -48,7 +48,11 @@ function rangoCargo(role) {
  * La unidad sale de age_units cuando el cruce con DIR3 la encontró, y de
  * unit_name cuando no.
  */
-const ROL_GENERICO = /^(director[a]?|presidente|presidenta|gerente|secretari[oa] general|subsecretari[oa]|secretari[oa] de estado|interventor[a]? general|delegad[oa] del gobierno|jefe|jefa)$/i;
+// "Director General" también entra: sin él, Miguel Ángel Sanz salía como
+// "Director General" a secas en vez de "Director General del Instituto de
+// Turismo de España". La lista anterior solo cubría los roles de una
+// palabra y se dejaba fuera justo los más frecuentes.
+const ROL_GENERICO = /^(director[a]?|director[a]? general|subdirector[a]? general|presidente|presidenta|vicepresidente|vicepresidenta|gerente|secretari[oa]|secretari[oa] general|subsecretari[oa]|secretari[oa] de estado|interventor[a]? general|delegad[oa] del gobierno|jefe|jefa|abogad[oa] general del estado|fiscal general del estado)$/i;
 
 function cargoExacto(o) {
   const role = (o.role || '').trim();
@@ -293,9 +297,13 @@ function BuscarTab({ members, officials }) {
       .filter((o) => !memberKeys.has(normalizePerson(nameDisplay(o.full_name))))
       .map((o) => ({
         full_name_display: nameDisplay(o.full_name),
-        role: o.role,
+        // El mismo cargo compuesto que en las tarjetas: "Director" a
+        // secas no dice nada, y esta lista lo mostraba tal cual.
+        role: cargoExacto(o),
         ministry_name: o.ministry_name,
-        unit_name: o.unit_name !== o.ministry_name ? o.unit_name : null,
+        unit_name: (o.age_units?.nombre || o.unit_name) !== o.ministry_name
+          ? (o.age_units?.nombre || o.unit_name)
+          : null,
         slug: o.slug,
         isMember: false,
       }));
@@ -321,7 +329,17 @@ function BuscarTab({ members, officials }) {
     }
     if (ministryFilter.size > 0) list = list.filter((p) => ministryFilter.has(p.ministry_name));
     if (typeFilter.size > 0) list = list.filter((p) => typeFilter.has(roleType(p.role)));
-    return list;
+
+    // Por ministerio y, dentro de cada uno, por jerarquía: ministro,
+    // secretarios de Estado, subsecretario, secretarías generales,
+    // direcciones generales. Antes salían en el orden en que llegaban de
+    // la base, que era arbitrario.
+    return [...list].sort((a, b) => {
+      const m = (a.ministry_name || '').localeCompare(b.ministry_name || '');
+      if (m !== 0) return m;
+      const r = rangoCargo(a.role) - rangoCargo(b.role);
+      return r !== 0 ? r : (a.full_name_display || '').localeCompare(b.full_name_display || '');
+    });
   }, [allPeople, search, ministryFilter, typeFilter]);
 
   const activeCount = ministryFilter.size + typeFilter.size;
