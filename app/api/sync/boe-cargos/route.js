@@ -343,8 +343,13 @@ export async function GET(req) {
   // Los que no casaron, con su sugerencia si la hay: es la lista de lo
   // que hay que revisar para añadir a cargo_unit_map.
   // Se devuelve también la clave normalizada: sin ella, añadir una
-  // equivalencia a mano es adivinar qué cadena espera el sync, y
-  // acertarla de memoria no funciona.
+  // equivalencia a mano es adivinar qué cadena espera el sync.
+  //
+  // Queda un caso sin resolver, la Autoridad de Investigación Técnica de
+  // Accidentes: su clave coincide con la del mapa carácter a carácter y
+  // aun así no casa, probablemente por algún carácter invisible en el
+  // título del BOE. Son ocho documentos de un organismo que no legisla
+  // ni tramita expedientes, así que no compensa perseguirlo.
   const revisar = filas
     .filter((f) => f.estado === 'sin_equivalencia')
     .map((f) => ({
