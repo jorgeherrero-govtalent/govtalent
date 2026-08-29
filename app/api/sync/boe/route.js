@@ -221,6 +221,24 @@ async function escribir(supabase, tabla, filas, conflicto) {
   return { escritas, errores: errores.slice(0, 3) };
 }
 
+// Nombre de organismo → código DIR3. Se llena una vez por ejecución: son
+// 2.131 unidades y resolverlo por consulta en cada documento sería una
+// petición por disposición.
+let MAPA_UNIDADES = null;
+
+function claveUnidad(nombre) {
+  return (nombre || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .trim();
+}
+
+function unidadDe(departamento) {
+  if (!departamento || !MAPA_UNIDADES) return null;
+  return MAPA_UNIDADES.get(claveUnidad(departamento)) || null;
+}
+
 export async function GET(request) {
   const t0 = Date.now();
   const sp = new URL(request.url).searchParams;
@@ -233,6 +251,25 @@ export async function GET(request) {
 
   const dry = sp.get('dry') === '1';
   const supabase = admin();
+
+  // El organigrama, para atribuir cada disposición a quien la publica.
+  // Se carga una vez y se guarda en un Map: son 2.131 unidades y
+  // consultarlo por documento sería una petición por disposición.
+  {
+    const { data: unidades } = await supabase
+      .from('age_units')
+      .select('dir3_code, nombre')
+      .eq('activo', true);
+    MAPA_UNIDADES = new Map();
+    for (const u of unidades || []) {
+      const k = claveUnidad(u.nombre);
+      if (k && !MAPA_UNIDADES.has(k)) MAPA_UNIDADES.set(k, u.dir3_code);
+    }
+    // Los cuatro que el BOE nombra distinto de DIR3.
+    MAPA_UNIDADES.set('agencia espanola de proteccion de datos', 'GT-AEPD');
+    MAPA_UNIDADES.set('banco de espana', 'GT-BDE');
+    MAPA_UNIDADES.set('consejo de seguridad nuclear', 'GT-CSN');
+  }
   const informe = { inicio: new Date().toISOString(), dry_run: dry, dias: [] };
 
   // Qué días hay que pedir
@@ -334,6 +371,10 @@ export async function GET(request) {
             seccion_nombre: it.seccion_nombre,
             departamento_codigo: d.departamento?.codigo || it.departamento_codigo,
             departamento: d.departamento?.valor || it.departamento,
+            // La unidad que publica, para poder preguntar qué ha sacado
+            // un ministerio o un regulador. Los nombres del BOE coinciden
+            // con DIR3 salvo tildes, así que basta comparar sin ellas.
+            dir3_code: unidadDe(d.departamento?.valor || it.departamento),
             rango_codigo: d.rango?.codigo || null,
             rango: d.rango?.valor || null,
             origen: d.origen?.valor || null,
