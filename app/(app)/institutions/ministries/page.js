@@ -577,6 +577,25 @@ function BuscarTab({ members, officials }) {
  * tarjetas dan el acceso directo, con el titular y el tamaño de su
  * equipo.
  */
+// Las iniciales de las palabras con carga: "Ministerio de Asuntos
+// Exteriores, Unión Europea y Cooperación" → "AEUEC". Hace de sigla en el
+// cuadrado, como el código de las direcciones generales europeas.
+const VACIAS = new Set(['ministerio', 'de', 'del', 'la', 'el', 'los', 'las', 'y', 'e', 'para', 'a']);
+
+function siglasMinisterio(nombre) {
+  const palabras = (nombre || '')
+    .replace(/[,.]/g, ' ')
+    .split(/\s+/)
+    .filter((w) => w && !VACIAS.has(w.toLowerCase()));
+
+  const sigla = palabras.map((w) => w[0]).join('').toUpperCase();
+  // Con una sola palabra la sigla queda en una letra —"S" para Sanidad,
+  // "I" para Interior— y el cuadrado se ve vacío. En ese caso, las tres
+  // primeras letras.
+  if (sigla.length < 2 && palabras[0]) return palabras[0].slice(0, 3).toUpperCase();
+  return sigla.slice(0, 5);
+}
+
 function MinisteriosTab({ members, officials }) {
   const ministerios = useMemo(() => {
     return members
@@ -594,65 +613,46 @@ function MinisteriosTab({ members, officials }) {
   }, [members, officials]);
 
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(215px, 1fr))', gap: 12 }}>
+    /* Mismo formato que las direcciones generales de la Comisión Europea:
+       siglas en un cuadrado, nombre y equipo al lado, y el titular debajo
+       separado por una línea. */
+    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(210px, 1fr))', gap: 10 }}>
       {ministerios.map((m) => (
         <Link
           key={m.slug}
           href={`/institutions/ministries/${m.slug}`}
-          style={{
-            background: '#fff',
-            borderRadius: 12,
-            padding: 17,
-            textDecoration: 'none',
-            color: 'inherit',
-            display: 'block',
-          }}
+          className="card"
+          style={{ padding: 14, textDecoration: 'none', color: 'inherit', display: 'block' }}
         >
-          <div style={{ fontSize: 13.5, fontWeight: 600, lineHeight: 1.35, marginBottom: 13, minHeight: 36 }}>
-            {m.ministry_name}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 9, marginBottom: 9 }}>
+            <div
+              style={{
+                width: 36,
+                height: 36,
+                borderRadius: 9,
+                background: '#EEEDFE',
+                color: '#3C3489',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontSize: 10,
+                fontWeight: 700,
+                flexShrink: 0,
+              }}
+            >
+              {siglasMinisterio(m.ministry_name)}
+            </div>
+            <div style={{ minWidth: 0 }}>
+              <div style={{ fontSize: 12.5, fontWeight: 600, lineHeight: 1.3 }}>{m.ministry_name}</div>
+              <div style={{ fontSize: 10.5, color: '#999', marginTop: 1 }}>
+                {m.equipo} {m.equipo === 1 ? 'persona' : 'personas'}
+              </div>
+            </div>
           </div>
-
-          <div style={{ display: 'flex', alignItems: 'center', gap: 9, paddingTop: 11, borderTop: '.5px solid #f0f0eb' }}>
-            {m.photo_url ? (
-              <img
-                src={m.photo_url}
-                alt=""
-                style={{ width: 30, height: 30, borderRadius: '50%', objectFit: 'cover', flexShrink: 0 }}
-              />
-            ) : (
-              <div
-                style={{
-                  width: 30,
-                  height: 30,
-                  borderRadius: '50%',
-                  background: '#f5f4f1',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  flexShrink: 0,
-                  fontSize: 10.5,
-                  color: '#888',
-                  fontWeight: 600,
-                }}
-              >
-                {initials(m.full_name)}
-              </div>
-            )}
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <div
-                style={{
-                  fontSize: 12,
-                  fontWeight: 600,
-                  overflow: 'hidden',
-                  textOverflow: 'ellipsis',
-                  whiteSpace: 'nowrap',
-                }}
-              >
-                {m.full_name}
-              </div>
-              <div style={{ fontSize: 10, color: '#999' }}>
-                {m.equipo > 0 ? `${m.equipo} en el equipo` : 'Sin equipo registrado'}
-              </div>
+          <div style={{ fontSize: 11, color: '#666', lineHeight: 1.5, borderTop: '.5px solid #f0f0eb', paddingTop: 9 }}>
+            <div>
+              <i className="ti ti-user-star" style={{ fontSize: 12, verticalAlign: -1, color: '#aaa' }}></i>{' '}
+              {m.full_name}
             </div>
           </div>
         </Link>
