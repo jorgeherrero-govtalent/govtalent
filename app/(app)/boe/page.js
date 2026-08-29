@@ -1,7 +1,6 @@
 'use client';
 
 import { Suspense, useEffect, useMemo, useState } from 'react';
-import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
 import MultiSelectFilter from '@/components/MultiSelectFilter';
@@ -61,15 +60,22 @@ function Boe() {
   const [search, setSearch] = useState('');
   const [sectorFilter, setSectorFilter] = useState(new Set());
   const [orgFilter, setOrgFilter] = useState(new Set());
-  const searchParams = useSearchParams();
 
   // ?organismo=… deja llegar aquí ya filtrado desde la ficha de un
-  // ministerio o un organismo. Solo al abrir: después manda el filtro,
-  // para que quitarlo a mano no vuelva a aplicarse.
+  // ministerio o un organismo.
+  //
+  // Se lee de window y no con useSearchParams: ese hook obliga a que
+  // Next pueda prerenderizar la página, y el build fallaba con
+  // prerender-error aunque el componente estuviera dentro del Suspense.
+  // Dentro de un efecto solo corre en el navegador, así que no hay nada
+  // que prerenderizar.
+  //
+  // Solo al abrir: después manda el filtro, para que quitarlo a mano no
+  // vuelva a aplicarse.
   useEffect(() => {
-    const o = searchParams?.get('organismo');
+    const o = new URLSearchParams(window.location.search).get('organismo');
     if (o) setOrgFilter(new Set([o]));
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }, []);
   const [orden, setOrden] = useState('reciente');
   const [seccion, setSeccion] = useState('');
   const [page, setPage] = useState(1);
