@@ -2,9 +2,9 @@
 
 import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
-import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
 import { toast } from '@/lib/toast';
+import BackLink from '@/components/BackLink';
 
 export default function CandidateProfileViewPage() {
   const { id } = useParams();
@@ -106,9 +106,7 @@ export default function CandidateProfileViewPage() {
   return (
     <div className="sec">
       <div style={{ maxWidth: 900, margin: '0 auto 10px' }}>
-        <Link href="/organizations/admin/candidates" style={{ fontSize: 12.5, color: '#1d6f5c', textDecoration: 'none' }}>
-          <i className="ti ti-arrow-left"></i> Volver al tablero de candidatos
-        </Link>
+        <BackLink fallbackHref="/organizations/admin/candidates" fallbackLabel="Volver al tablero de candidatos" />
       </div>
 
       <div className="card" style={{ maxWidth: 900, margin: '0 auto 13px' }}>
