@@ -1263,12 +1263,6 @@ function Proyectos() {
         <AnclasProyecto secciones={secciones} />
       </div>
 
-      {!esPro && (
-        <p style={{ fontSize: 12, color: '#999', textAlign: 'center', marginTop: 14 }}>
-          Ejemplos de cómo se ve un proyecto en Pro.
-        </p>
-      )}
-
       {modalUpsell && <UpgradeModal {...upsellProyectos()} onClose={() => setModalUpsell(false)} />}
     </div>
   );
