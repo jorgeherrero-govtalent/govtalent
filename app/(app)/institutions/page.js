@@ -1,7 +1,6 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
 
@@ -120,9 +119,7 @@ const GRID = { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(22
 
 export default function InstitutionsHomePage() {
   const supabase = createClient();
-  const router = useRouter();
   const [counts, setCounts] = useState(null);
-  const [search, setSearch] = useState('');
 
   useEffect(() => {
     load();
@@ -202,11 +199,6 @@ export default function InstitutionsHomePage() {
     });
   }
 
-  function handleSearch(e) {
-    e.preventDefault();
-    if (search.trim()) router.push(`/institutions/deputies?q=${encodeURIComponent(search.trim())}`);
-  }
-
   return (
     <div className="sec">
       <div style={{ marginBottom: 16 }}>
@@ -220,30 +212,6 @@ export default function InstitutionsHomePage() {
           Localiza a quien decide sobre tu sector, antes de que decida.
         </p>
       </div>
-
-      <form
-        onSubmit={handleSearch}
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: 8,
-          background: '#fff',
-          border: '.5px solid #e0dfd8',
-          borderRadius: 20,
-          padding: '9px 16px',
-          marginBottom: 20,
-          maxWidth: 420,
-        }}
-      >
-        <i className="ti ti-search" style={{ color: '#999', fontSize: 15 }}></i>
-        <input
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          placeholder="Buscar diputado o grupo..."
-          aria-label="Buscar en el directorio institucional"
-          style={{ border: 'none', outline: 'none', flex: 1, fontSize: 12.5, background: 'transparent' }}
-        />
-      </form>
 
       {/* La banda de cifras se retiró: ocupaba media pantalla para decir
           lo que cada tarjeta ya cuenta, y empujaba los módulos —que es a
