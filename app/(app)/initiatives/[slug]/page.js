@@ -185,7 +185,7 @@ function Avatar({ texto, url, morado }) {
  * correo a la derecha) porque eso es justo lo que se está vendiendo:
  * que existe y qué aspecto tiene.
  */
-function PanelBloqueado({ titulo, descripcion, filas }) {
+function PanelBloqueado({ titulo, descripcion, filas, dominio }) {
   return (
     <div style={{ position: 'relative', minHeight: 190 }}>
       <div style={{ filter: 'blur(4px)', opacity: 0.55, pointerEvents: 'none', userSelect: 'none' }} aria-hidden="true">
@@ -220,7 +220,7 @@ function PanelBloqueado({ titulo, descripcion, filas }) {
               <span style={{ display: 'block', fontSize: 12.5 }}>{f.nombre}</span>
               <span style={{ display: 'block', fontSize: 10.5, color: '#a8a49c' }}>{f.cargo}</span>
             </span>
-            <span style={{ fontSize: 11, color: '#a8a49c', flexShrink: 0 }}>nombre.apellido@ec.europa.eu</span>
+            <span style={{ fontSize: 11, color: '#a8a49c', flexShrink: 0 }}>nombre.apellido@{dominio}</span>
           </div>
         ))}
       </div>
@@ -264,6 +264,10 @@ function PanelBloqueado({ titulo, descripcion, filas }) {
 
 // Atrezo. Cargos genéricos, nunca personas reales: si alguien quita el
 // desenfoque tiene que encontrar esto y no un nombre de verdad.
+//
+// Cada panel lleva su dominio de correo: la Comisión es ec.europa.eu y
+// el Parlamento europarl.europa.eu. Con el mismo en los dos, el atrezo
+// del Parlamento estaría enseñando direcciones de la Comisión.
 const FILAS_ACTORES = [
   { iniciales: 'DG', nombre: 'Nombre del director general', cargo: 'Director-General' },
   { iniciales: 'DA', nombre: 'Nombre del director adjunto', cargo: 'Deputy Director-General' },
@@ -795,6 +799,7 @@ export default function InitiativeDetailPage() {
             titulo="Los actores de este expediente"
             descripcion="Quién responde políticamente, quién tramita el expediente y quién se ha pronunciado. Con nombres, cargos y direcciones de unidad a un solo clic."
             filas={FILAS_ACTORES}
+            dominio="ec.europa.eu"
           />
         </div>
       )}
@@ -932,8 +937,12 @@ export default function InitiativeDetailPage() {
         <div style={CARD}>
           <PanelBloqueado
             titulo={`Los ${resumenMeps.total} eurodiputados que lo tramitan`}
-            descripcion="Quién responde políticamente, quién tramita el expediente y quién se ha pronunciado. Con nombres, cargos y direcciones de unidad a un solo clic."
+            descripcion={
+              `Quién es ponente, en qué comisiones se debate y cuáles de los ${resumenMeps.total} son españoles. ` +
+              'Con grupo político, país y comisión a un solo clic.'
+            }
             filas={FILAS_PARLAMENTO}
+            dominio="europarl.europa.eu"
           />
         </div>
       )}
