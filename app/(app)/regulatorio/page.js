@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 
 /**
@@ -121,8 +120,6 @@ function Proximamente({ items }) {
 
 export default function RegulatorioPage() {
   const supabase = createClient();
-  const router = useRouter();
-  const [busqueda, setBusqueda] = useState('');
   const [sector, setSector] = useState(null);
   const [cifras, setCifras] = useState({
     expedientes: null,
@@ -207,40 +204,9 @@ export default function RegulatorioPage() {
     <div className="sec" style={{ maxWidth: 1080 }}>
       <div style={{ marginBottom: 18 }}>
         <h1 style={{ fontSize: 18, fontWeight: 700, margin: 0 }}>Regulatorio</h1>
-        <p style={{ fontSize: 12.5, color: '#888', margin: '4px 0 14px' }}>
+        <p style={{ fontSize: 12.5, color: '#888', margin: '4px 0 0' }}>
           Qué se mueve en España y en la Unión Europea, con sus plazos y actores.
         </p>
-
-        {/* El buscador, como en el resto de directorios. Lleva a la
-            sección correspondiente según lo que se busque. */}
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 9,
-            background: '#fff',
-            border: '.5px solid #e0dfd8',
-            borderRadius: 22,
-            padding: '10px 16px',
-          }}
-        >
-          <i className="ti ti-search" style={{ color: '#a8a49c', fontSize: 15 }}></i>
-          <input
-            value={busqueda}
-            onChange={(e) => setBusqueda(e.target.value)}
-            onKeyDown={(e) => {
-              // Al buscador transversal, no a /congreso: quien escribe
-              // "envases" quiere ver también el expediente europeo, que
-              // es el que tiene plazo abierto.
-              if (e.key === 'Enter' && busqueda.trim().length >= 3) {
-                router.push(`/regulatorio/buscar?q=${encodeURIComponent(busqueda.trim())}`);
-              }
-            }}
-            placeholder="Buscar una norma, un expediente o un procedimiento..."
-            aria-label="Buscar en Regulatorio"
-            style={{ border: 'none', outline: 'none', background: 'transparent', fontSize: 13, width: '100%' }}
-          />
-        </div>
       </div>
 
       {/* Una franja y no una tarjeta más: el análisis cruza las cuatro
