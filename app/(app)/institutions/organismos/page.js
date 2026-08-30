@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
 import MultiSelectFilter from '@/components/MultiSelectFilter';
+import BackLink from '@/components/BackLink';
 
 /**
  * Organismos y reguladores de la Administración General del Estado.
@@ -284,13 +285,7 @@ export default function OrganismosPage() {
   return (
     <div className="sec">
       <div style={{ marginBottom: 6 }}>
-        <Link
-          href="/institutions"
-          style={{ fontSize: 11.5, color: '#999', textDecoration: 'none' }}
-        >
-          <i className="ti ti-arrow-left" style={{ fontSize: 12, verticalAlign: -1, marginRight: 4 }}></i>
-          Directorio institucional
-        </Link>
+        <BackLink fallbackHref="/institutions" fallbackLabel="Directorio institucional" />
       </div>
 
       <h1 style={{ fontSize: 19, fontWeight: 700, margin: 0 }}>Organismos y reguladores</h1>
