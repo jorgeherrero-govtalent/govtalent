@@ -1,9 +1,9 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
 import ComisionesTab from '@/components/ComisionesTab';
+import PestanasCongreso from '@/components/PestanasCongreso';
 
 /**
  * Comisiones del Congreso.
@@ -37,28 +37,7 @@ export default function ComisionesPage() {
         </p>
       </div>
 
-      <div style={{ display: 'flex', gap: 16, borderBottom: '.5px solid #e0dfd8', marginBottom: 14, flexWrap: 'wrap' }}>
-        <Link href="/institutions/deputies" style={{ fontSize: 13, color: '#999', paddingBottom: 8, textDecoration: 'none' }}>
-          Diputados
-        </Link>
-        <Link href="/institutions/groups" style={{ fontSize: 13, color: '#999', paddingBottom: 8, textDecoration: 'none' }}>
-          Grupos parlamentarios
-        </Link>
-        <span
-          style={{
-            fontSize: 13,
-            fontWeight: 600,
-            color: '#1d6f5c',
-            borderBottom: '2px solid #1d6f5c',
-            paddingBottom: 8,
-          }}
-        >
-          Comisiones
-        </span>
-        <Link href="/institutions/organos-gobierno" style={{ fontSize: 13, color: '#999', paddingBottom: 8, textDecoration: 'none' }}>
-          Órganos de gobierno
-        </Link>
-      </div>
+      <PestanasCongreso />
 
       <ComisionesTab />
     </div>
