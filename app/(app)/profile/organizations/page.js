@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
+import BackLink from '@/components/BackLink';
 
 const TYPE_LABELS = {
   empresa: 'Empresa',
@@ -116,9 +117,7 @@ export default function FollowedOrganizationsPage() {
   return (
     <div className="sec" style={{ maxWidth: 900 }}>
       <div style={{ marginBottom: 10 }}>
-        <Link href="/profile" style={{ fontSize: 12.5, color: '#1d6f5c', textDecoration: 'none' }}>
-          <i className="ti ti-arrow-left"></i> Volver a mi perfil
-        </Link>
+        <BackLink fallbackHref="/profile" fallbackLabel="Volver a mi perfil" />
       </div>
 
       <div className="card">
