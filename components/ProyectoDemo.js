@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import ActorAvatar, { esOrganizacion } from '@/components/ActorAvatar';
 
 /**
@@ -438,13 +439,34 @@ export default function ProyectoDemo() {
         </div>
       </div>
 
-      <div style={{ textAlign: 'center' }}>
-        <span className="btn-ai" style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-          <i className="ti ti-bolt"></i> Ver planes
-        </span>
-        <div style={{ fontSize: 11.5, color: '#888', marginTop: 9 }}>
-          Así se ve un proyecto en Pro. Incluye seguimiento, alertas y el directorio completo.
+      {/* El cierre de la demo. Era un <span> con pinta de botón: el
+          único sitio de toda la página desde el que se puede comprar no
+          llevaba a ninguna parte.
+
+          La frase va antes del botón y no debajo: es la que da la razón
+          para pulsarlo, y detrás llegaba tarde. */}
+      <div
+        style={{
+          ...CARD,
+          padding: '20px 18px',
+          marginBottom: 4,
+          textAlign: 'center',
+          background: '#fbfbf9',
+        }}
+      >
+        <div style={{ fontSize: 13, color: '#555', marginBottom: 3, fontWeight: 500 }}>
+          Así se ve un proyecto en Pro.
         </div>
+        <div style={{ fontSize: 11.5, color: '#888', marginBottom: 13, lineHeight: 1.5 }}>
+          Con seguimiento, alertas, el registro de actividades de influencia y el directorio completo.
+        </div>
+        <Link
+          href="/precios"
+          className="btn-ai"
+          style={{ display: 'inline-flex', alignItems: 'center', gap: 6, textDecoration: 'none' }}
+        >
+          <i className="ti ti-bolt"></i> Ver planes
+        </Link>
       </div>
     </div>
   );
