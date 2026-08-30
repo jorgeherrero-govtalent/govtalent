@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
 import { toast } from '@/lib/toast';
 import HoverTooltip from '@/components/HoverTooltip';
+import BackLink from '@/components/BackLink';
 
 // Solo estos 4 estados representan un proceso todavía en curso — son los
 // que se muestran con el stepper. "Rechazada" y "retirada" viven aparte, en
@@ -137,9 +138,7 @@ export default function MyJobsPage() {
   return (
     <div className="sec" style={{ maxWidth: 900 }}>
       <div style={{ marginBottom: 10 }}>
-        <Link href="/profile" style={{ fontSize: 12.5, color: '#1d6f5c', textDecoration: 'none' }}>
-          <i className="ti ti-arrow-left"></i> Volver a mi perfil
-        </Link>
+        <BackLink fallbackHref="/profile" fallbackLabel="Volver a mi perfil" />
       </div>
 
       <div className="card">
