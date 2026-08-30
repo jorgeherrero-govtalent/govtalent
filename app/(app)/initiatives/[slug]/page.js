@@ -936,11 +936,8 @@ export default function InitiativeDetailPage() {
       {tab === 'parlamento' && esPro === false && resumenMeps && (
         <div style={CARD}>
           <PanelBloqueado
-            titulo={`Los ${resumenMeps.total} eurodiputados que lo tramitan`}
-            descripcion={
-              `Quién es ponente, en qué comisiones se debate y cuáles de los ${resumenMeps.total} son españoles. ` +
-              'Con grupo político, país y comisión a un solo clic.'
-            }
+            titulo="Los eurodiputados que lo tramitarán"
+            descripcion="Ponentes, comisiones y quiénes son españoles. Con grupo político, país, comisión y dirección a un solo clic."
             filas={FILAS_PARLAMENTO}
             dominio="europarl.europa.eu"
           />
