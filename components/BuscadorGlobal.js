@@ -1,357 +1,284 @@
 'use client';
 
-import { useCallback, useEffect, useRef, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { Suspense, useCallback, useEffect, useMemo, useState } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
+import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
 
 /**
- * El buscador de la barra superior.
+ * Los resultados completos del buscador de la barra.
  *
- * Consulta el RPC buscar_global, que va contra la vista search_index:
- * normativa, personas de España y de la UE, organismos, comisiones,
- * grupos, organizaciones y ofertas. Proyectos queda fuera.
+ * El desplegable enseña ocho para reconocer algo deprisa. Aquí caben
+ * cien y se pueden filtrar por tipo, que es lo que se necesita cuando
+ * lo que se busca no salió arriba.
  *
- * LOS RESULTADOS VIENEN YA AGRUPADOS Y ORDENADOS DEL SERVIDOR. No se
- * reordena nada aquí: la función devuelve como mucho treinta filas y
- * ordenarlas otra vez en el cliente solo serviría para deshacer el
- * criterio de cercanía —lo que empieza por el término va primero— sobre
- * un conjunto ya recortado.
- *
- * SE ESPERA A QUE PARE DE ESCRIBIR: 220ms sin teclear antes de
- * consultar. Sin eso, escribir «competencia» son once consultas de las
- * que solo importa la última.
- *
- * EN MÓVIL SE PLIEGA A LUPA: a 720px la barra ya esconde los módulos
- * (los cubre BarraMovil), y una caja de texto de 240px ahí dentro
- * dejaría sin sitio al logo. Pulsando la lupa se despliega ocupando la
- * barra entera, que es lo que hacen las apps que caben en un pulgar.
+ * AQUÍ SÍ SE AGRUPA, al revés que en el desplegable. Allí las cabeceras
+ * ocupaban la mitad del panel; en una página entera son justo lo que
+ * permite saltar a la parte que interesa.
  */
 
-const VERDE = '#1d6f5c';
+const MORADO = '#6d5aef';
 
-export default function BuscadorGlobal() {
-  const router = useRouter();
-  const supabase = createClient();
-  const [q, setQ] = useState('');
-  const [resultados, setResultados] = useState([]);
-  const [cargando, setCargando] = useState(false);
-  const [abierto, setAbierto] = useState(false);
-  const [abiertoMovil, setAbiertoMovil] = useState(false);
-  const inputRef = useRef(null);
-  const cajaRef = useRef(null);
-  const ultimaRef = useRef('');
+const ETIQUETA_TIPO = {
+  diputado: 'Diputado',
+  'miembro-gobierno': 'Gobierno',
+  'alto-cargo': 'Alto cargo',
+  eurodiputado: 'Eurodiputado',
+  comisario: 'Comisario',
+  'persona-comision-ue': 'Comisión Europea',
+  organismo: 'Organismo',
+  'direccion-general-ue': 'Dirección general',
+  comision: 'Comisión',
+  'comision-ue': 'Comisión del PE',
+  'grupo-parlamentario': 'Grupo parlamentario',
+  organizacion: 'Organización',
+  oferta: 'Oferta',
+};
 
-  // Barra inclinada para enfocar, como en GitHub o Linear. Se ignora si
-  // ya estás escribiendo en otro sitio: si no, la barra de un formulario
-  // te saltaría al buscador a media frase.
-  useEffect(() => {
-    function onKey(e) {
-      if (e.key !== '/' || e.metaKey || e.ctrlKey || e.altKey) return;
-      const t = e.target;
-      const escribiendo =
-        t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable);
-      if (escribiendo) return;
-      e.preventDefault();
-      setAbiertoMovil(true);
-      inputRef.current?.focus();
-    }
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, []);
+const ICONO_TIPO = {
+  diputado: 'ti-user',
+  'miembro-gobierno': 'ti-user',
+  'alto-cargo': 'ti-user',
+  eurodiputado: 'ti-user',
+  comisario: 'ti-user',
+  'persona-comision-ue': 'ti-user',
+  organismo: 'ti-building-bank',
+  'direccion-general-ue': 'ti-building-bank',
+  comision: 'ti-users-group',
+  'comision-ue': 'ti-users-group',
+  'grupo-parlamentario': 'ti-users-group',
+  organizacion: 'ti-building-store',
+  oferta: 'ti-briefcase',
+};
 
-  // Cierre al pulsar fuera. Sobre el contenedor entero y no solo sobre
-  // la lista: si no, pulsar en la propia caja para corregir una letra
-  // cerraría los resultados que estás mirando.
-  useEffect(() => {
-    function fuera(e) {
-      if (cajaRef.current && !cajaRef.current.contains(e.target)) setAbierto(false);
-    }
-    document.addEventListener('mousedown', fuera);
-    return () => document.removeEventListener('mousedown', fuera);
-  }, []);
+const ES_PERSONA = new Set([
+  'diputado',
+  'miembro-gobierno',
+  'alto-cargo',
+  'eurodiputado',
+  'comisario',
+  'persona-comision-ue',
+]);
 
-  const consultar = useCallback(
-    async (termino) => {
-      const t = termino.trim();
-      if (t.length < 2) {
-        setResultados([]);
-        setCargando(false);
-        return;
-      }
-      setCargando(true);
-      const { data, error } = await supabase.rpc('buscar_global', { q: t, limite: 24 });
-      // La petición que vuelve puede no ser la última que se lanzó.
-      // Sin esta comprobación, una consulta lenta de hace tres letras
-      // pisa los resultados de la actual.
-      if (ultimaRef.current !== t) return;
-      setResultados(error ? [] : data || []);
-      setCargando(false);
-    },
-    [supabase]
+function iniciales(nombre) {
+  const ws = (nombre || '').trim().split(/\s+/).filter(Boolean);
+  if (ws.length === 0) return '?';
+  return (ws[0][0] + (ws[1]?.[0] || '')).toUpperCase();
+}
+
+function Avatar({ fila, tam = 36 }) {
+  const persona = ES_PERSONA.has(fila.kind);
+  const base = {
+    width: tam,
+    height: tam,
+    borderRadius: persona ? '50%' : 8,
+    flexShrink: 0,
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    overflow: 'hidden',
+    background: '#f0eefe',
+    color: MORADO,
+  };
+
+  if (fila.imagen) {
+    return (
+      <span style={base}>
+        <img src={fila.imagen} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+      </span>
+    );
+  }
+  if (persona) {
+    return <span style={{ ...base, fontSize: 12, fontWeight: 600 }}>{iniciales(fila.titulo)}</span>;
+  }
+  return (
+    <span style={base}>
+      <i className={`ti ${ICONO_TIPO[fila.kind] || 'ti-file-text'}`} style={{ fontSize: 17 }} aria-hidden="true"></i>
+    </span>
   );
+}
+
+function Resultados() {
+  const supabase = createClient();
+  const router = useRouter();
+  const sp = useSearchParams();
+  const termino = sp?.get('q') || '';
+
+  const [q, setQ] = useState(termino);
+  const [filas, setFilas] = useState(null);
+  const [grupo, setGrupo] = useState('');
 
   useEffect(() => {
-    ultimaRef.current = q.trim();
-    if (q.trim().length < 2) {
-      setResultados([]);
+    setQ(termino);
+  }, [termino]);
+
+  const cargar = useCallback(async () => {
+    if (!termino || termino.trim().length < 2) {
+      setFilas([]);
       return;
     }
-    const id = setTimeout(() => consultar(q), 220);
-    return () => clearTimeout(id);
-  }, [q, consultar]);
+    setFilas(null);
+    const { data, error } = await supabase.rpc('buscar_global', { q: termino.trim(), limite: 100 });
+    setFilas(error ? [] : data || []);
+  }, [supabase, termino]);
 
-  function irA(ruta) {
-    setAbierto(false);
-    setAbiertoMovil(false);
-    inputRef.current?.blur();
-    router.push(ruta);
-  }
+  useEffect(() => {
+    cargar();
+  }, [cargar]);
+
+  // Los grupos que han devuelto algo, con su recuento. No se ofrece un
+  // filtro para un grupo vacío: solo serviría para vaciar la pantalla.
+  const grupos = useMemo(() => {
+    const c = new Map();
+    for (const f of filas || []) c.set(f.grupo, (c.get(f.grupo) || 0) + 1);
+    return [...c.entries()];
+  }, [filas]);
+
+  const visibles = useMemo(
+    () => (filas || []).filter((f) => !grupo || f.grupo === grupo),
+    [filas, grupo]
+  );
+
+  // Se conserva el orden que trae el servidor y solo se parte por grupo.
+  const secciones = useMemo(() => {
+    const out = [];
+    const idx = new Map();
+    for (const f of visibles) {
+      if (!idx.has(f.grupo)) {
+        idx.set(f.grupo, out.length);
+        out.push({ nombre: f.grupo, filas: [] });
+      }
+      out[idx.get(f.grupo)].filas.push(f);
+    }
+    return out;
+  }, [visibles]);
 
   function buscar(e) {
     e?.preventDefault();
-    const t = q.trim();
-    if (t.length < 2) return;
-    // Con el teclado, Enter lleva a lo primero de la lista. Es lo que
-    // hace quien escribe «cnmc» y pulsa Enter sin mirar.
-    if (resultados[0]) return irA(resultados[0].ruta);
+    if (q.trim().length >= 2) router.push(`/buscar?q=${encodeURIComponent(q.trim())}`);
   }
 
-  // Se agrupa en el orden en que llegan: el servidor ya los mandó
-  // ordenados por grupo, así que un Map conserva ese orden.
-  const grupos = [];
-  const indice = new Map();
-  for (const r of resultados) {
-    if (!indice.has(r.grupo)) {
-      indice.set(r.grupo, grupos.length);
-      grupos.push({ nombre: r.grupo, filas: [] });
-    }
-    grupos[indice.get(r.grupo)].filas.push(r);
-  }
-
-  const ICONO = {
-    Normativa: 'ti-file-text',
-    Personas: 'ti-user',
-    Organismos: 'ti-building-bank',
-    'Comisiones y grupos': 'ti-users-group',
-    Organizaciones: 'ti-building-store',
-    Ofertas: 'ti-briefcase',
-  };
+  const chip = (activo) => ({
+    padding: '6px 12px',
+    borderRadius: 7,
+    fontSize: 12.5,
+    cursor: 'pointer',
+    border: 'none',
+    fontFamily: 'inherit',
+    background: activo ? '#f0eefe' : 'transparent',
+    color: activo ? MORADO : '#8b8780',
+    whiteSpace: 'nowrap',
+  });
 
   return (
-    <>
-      <style>{`
-        .gt-buscador {
-          display: flex;
-          align-items: center;
-          gap: 7px;
-          background: #faf9f6;
-          border: .5px solid #e0dfd8;
-          border-radius: 20px;
-          padding: 7px 13px;
-          width: 240px;
-          flex-shrink: 0;
-        }
-        .gt-buscador:focus-within {
-          background: #fff;
-          border-color: #c9c7bd;
-        }
-        .gt-buscador input {
-          border: none;
-          outline: none;
-          background: transparent;
-          font-family: inherit;
-          font-size: 12.5px;
-          width: 100%;
-          color: #1a1a18;
-        }
-        .gt-buscador-lupa { display: none; }
-
-        /* El contenedor es el que ancla el panel. La caja de texto no
-           puede serlo: es un flex de la barra y position:relative sobre
-           ella dejaba el panel pegado al icono de la lupa. */
-        .gt-buscador-caja { position: relative; display: flex; flex-shrink: 0; margin-right: 8px; }
-
-        .gt-buscador-panel {
-          position: absolute;
-          top: calc(100% + 6px);
-          left: 0;
-          width: 340px;
-          max-height: 420px;
-          overflow-y: auto;
-          background: #fff;
-          border: .5px solid #e0dfd8;
-          border-radius: 10px;
-          box-shadow: 0 10px 30px rgba(0,0,0,.13);
-          padding: 4px 0 6px;
-          z-index: 300;
-        }
-        .gt-buscador-fila {
-          display: flex;
-          align-items: center;
-          gap: 9px;
-          width: 100%;
-          text-align: left;
-          padding: 6px 14px;
-          border: none;
-          background: none;
-          cursor: pointer;
-          font-family: inherit;
-        }
-        .gt-buscador-fila:hover { background: #f6f5fe; }
-        .gt-buscador-titulo {
-          display: block;
-          font-size: 12.5px;
-          color: #1a1a18;
-          overflow: hidden;
-          text-overflow: ellipsis;
-          white-space: nowrap;
-        }
-        .gt-buscador-ctx {
-          display: block;
-          font-size: 10.5px;
-          color: #8b8780;
-          margin-top: 1px;
-          overflow: hidden;
-          text-overflow: ellipsis;
-          white-space: nowrap;
-        }
-
-        @media (max-width: 900px) {
-          .gt-buscador { width: 170px; }
-          .gt-buscador-panel { width: 300px; }
-        }
-        @media (max-width: 720px) {
-          /* Plegado: solo la lupa hasta que se pulsa. */
-          .gt-buscador-caja { display: none; }
-          .gt-buscador-lupa {
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            width: 34px;
-            height: 34px;
-            border: none;
-            background: none;
-            color: #767670;
-            cursor: pointer;
-            flex-shrink: 0;
-          }
-          .gt-buscador-caja.abierto {
-            display: flex;
-            flex: 1;
-            margin: 0 6px;
-          }
-          .gt-buscador-caja.abierto .gt-buscador { width: 100%; }
-          .gt-buscador-caja.abierto .gt-buscador-panel { width: 100%; }
-          .gt-buscador-caja.abierto + .gt-buscador-lupa { display: none; }
-        }
-      `}</style>
-
-      <div ref={cajaRef} className={`gt-buscador-caja${abiertoMovil ? ' abierto' : ''}`}>
+    <div className="sec" style={{ maxWidth: 900 }}>
       <form
         onSubmit={buscar}
-        className={`gt-buscador${abiertoMovil ? ' abierto' : ''}`}
-        role="search"
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: 9,
+          background: '#fff',
+          border: '.5px solid #e0dfd8',
+          borderRadius: 22,
+          padding: '10px 16px',
+          marginBottom: 16,
+        }}
       >
-        <i className="ti ti-search" style={{ fontSize: 14, color: '#a8a49c' }} aria-hidden="true"></i>
+        <i className="ti ti-search" style={{ color: '#a8a49c', fontSize: 15 }} aria-hidden="true"></i>
         <input
-          ref={inputRef}
           value={q}
-          onChange={(e) => {
-            setQ(e.target.value);
-            setAbierto(true);
-          }}
-          onFocus={() => setAbierto(true)}
-          onKeyDown={(e) => {
-            if (e.key === 'Escape') {
-              setAbierto(false);
-              inputRef.current?.blur();
-            }
-          }}
-          placeholder="Buscar"
-          aria-label="Buscar en GovTalent"
-          enterKeyHint="search"
+          onChange={(e) => setQ(e.target.value)}
+          placeholder="Buscar en todo GovTalent"
+          aria-label="Buscar"
+          style={{ border: 'none', outline: 'none', background: 'transparent', fontSize: 13, width: '100%' }}
         />
-        {q && (
-          <button
-            type="button"
-            onClick={() => {
-              setQ('');
-              inputRef.current?.focus();
-            }}
-            aria-label="Borrar la búsqueda"
-            style={{
-              border: 'none',
-              background: 'none',
-              padding: 0,
-              cursor: 'pointer',
-              color: '#a8a49c',
-              display: 'inline-flex',
-              flexShrink: 0,
-            }}
-          >
-            <i className="ti ti-x" style={{ fontSize: 13 }}></i>
-          </button>
-        )}
       </form>
 
-      {abierto && q.trim().length >= 2 && (
-        <div className="gt-buscador-panel" role="listbox">
-          {cargando && resultados.length === 0 ? (
-            <div style={{ padding: '14px 14px', fontSize: 12, color: '#a8a49c' }}>Buscando…</div>
-          ) : resultados.length === 0 ? (
-            <div style={{ padding: '14px 14px', fontSize: 12, color: '#a8a49c' }}>
-              Nada para «{q.trim()}».
-            </div>
-          ) : (
-            grupos.map((g) => (
-              <div key={g.nombre}>
-                <div
-                  style={{
-                    fontSize: 10.5,
-                    color: '#a8a49c',
-                    letterSpacing: '.3px',
-                    padding: '9px 14px 5px',
-                  }}
-                >
-                  {g.nombre.toUpperCase()}
-                </div>
-                {g.filas.map((r) => (
-                  <button
-                    key={`${r.kind}-${r.ref_id}`}
-                    type="button"
-                    role="option"
-                    onClick={() => irA(r.ruta)}
-                    className="gt-buscador-fila"
+      {filas === null ? (
+        <div className="spinner"></div>
+      ) : filas.length === 0 ? (
+        <div className="card">
+          <div className="empty-state">
+            <i className="ti ti-search-off"></i>
+            {termino.trim().length < 2
+              ? 'Escribe al menos dos letras.'
+              : `Nada para «${termino}».`}
+          </div>
+        </div>
+      ) : (
+        <>
+          <div style={{ display: 'flex', gap: 2, marginBottom: 16, flexWrap: 'wrap' }}>
+            <button type="button" onClick={() => setGrupo('')} style={chip(!grupo)}>
+              Todo ({filas.length})
+            </button>
+            {grupos.map(([nombre, n]) => (
+              <button key={nombre} type="button" onClick={() => setGrupo(nombre)} style={chip(grupo === nombre)}>
+                {nombre} ({n})
+              </button>
+            ))}
+          </div>
+
+          {secciones.map((s) => (
+            <div key={s.nombre} style={{ marginBottom: 18 }}>
+              <div style={{ fontSize: 10.5, color: '#a8a49c', letterSpacing: '.3px', marginBottom: 7 }}>
+                {s.nombre.toUpperCase()}
+              </div>
+              <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
+                {s.filas.map((f, i) => (
+                  <Link
+                    key={`${f.kind}-${f.ref_id}`}
+                    href={f.ruta}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 12,
+                      padding: '11px 15px',
+                      textDecoration: 'none',
+                      color: 'inherit',
+                      borderTop: i === 0 ? 'none' : '.5px solid #f0f0eb',
+                    }}
                   >
-                    <i
-                      className={`ti ${ICONO[g.nombre] || 'ti-point'}`}
-                      style={{ fontSize: 15, color: '#6d5aef', flexShrink: 0 }}
-                      aria-hidden="true"
-                    ></i>
-                    <span style={{ minWidth: 0 }}>
-                      <span className="gt-buscador-titulo">{r.titulo}</span>
-                      {r.contexto && <span className="gt-buscador-ctx">{r.contexto}</span>}
-                    </span>
-                  </button>
+                    <Avatar fila={f} />
+                    <div style={{ minWidth: 0, flex: 1 }}>
+                      <div style={{ fontSize: 13, fontWeight: 500, lineHeight: 1.35 }}>{f.titulo}</div>
+                      <div
+                        style={{
+                          fontSize: 11.5,
+                          color: '#8b8780',
+                          marginTop: 2,
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
+                          whiteSpace: 'nowrap',
+                        }}
+                      >
+                        {[ETIQUETA_TIPO[f.kind] || f.grupo, f.contexto].filter(Boolean).join(' · ')}
+                      </div>
+                    </div>
+                    <i className="ti ti-chevron-right" style={{ fontSize: 15, color: '#c9c7bd', flexShrink: 0 }}></i>
+                  </Link>
                 ))}
               </div>
-            ))
-          )}
-        </div>
-      )}
-      </div>
+            </div>
+          ))}
 
-      <button
-        type="button"
-        className="gt-buscador-lupa"
-        onClick={() => {
-          setAbiertoMovil(true);
-          setTimeout(() => inputRef.current?.focus(), 0);
-        }}
-        aria-label="Buscar"
-      >
-        <i className="ti ti-search" style={{ fontSize: 19 }}></i>
-      </button>
-    </>
+          {/* El tope de cien es del RPC. Se dice en vez de dejar creer
+              que eso es todo lo que hay. */}
+          {filas.length >= 100 && (
+            <p style={{ fontSize: 11.5, color: '#a8a49c', textAlign: 'center', margin: 0 }}>
+              Se muestran los cien primeros. Afina la búsqueda para ver menos y mejores.
+            </p>
+          )}
+        </>
+      )}
+    </div>
+  );
+}
+
+export default function BuscarPage() {
+  return (
+    <Suspense fallback={<div className="spinner"></div>}>
+      <Resultados />
+    </Suspense>
   );
 }
