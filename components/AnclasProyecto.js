@@ -132,10 +132,30 @@ export default function AnclasProyecto({ secciones }) {
                 }}
               >
                 <span style={{ flex: 1, minWidth: 0 }}>{s.label}</span>
-                {/* El contador se calla cuando no hay nada: un cero en
-                    cada línea es ruido, no información. */}
-                {s.cuenta > 0 && (
-                  <span style={{ fontSize: 10.5, color: on ? MORADO : '#a8a49c', flexShrink: 0 }}>{s.cuenta}</span>
+                {/* El distintivo manda sobre el contador: una sección
+                    recién estrenada no lleva número todavía, y si
+                    llevase los dos la línea se rompería. */}
+                {s.distintivo ? (
+                  <span
+                    style={{
+                      fontSize: 9,
+                      fontWeight: 600,
+                      letterSpacing: '.3px',
+                      padding: '1px 6px',
+                      borderRadius: 10,
+                      background: on ? '#fff' : '#f0eefe',
+                      color: MORADO,
+                      flexShrink: 0,
+                    }}
+                  >
+                    {s.distintivo}
+                  </span>
+                ) : (
+                  /* El contador se calla cuando no hay nada: un cero en
+                     cada línea es ruido, no información. */
+                  s.cuenta > 0 && (
+                    <span style={{ fontSize: 10.5, color: on ? MORADO : '#a8a49c', flexShrink: 0 }}>{s.cuenta}</span>
+                  )
                 )}
               </button>
             );
