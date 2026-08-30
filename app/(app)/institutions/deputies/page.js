@@ -5,6 +5,7 @@ import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
 import MultiSelectFilter from '@/components/MultiSelectFilter';
+import PestanasCongreso from '@/components/PestanasCongreso';
 
 // Color por grupo. Con 9 grupos la sigla sola no basta para reconocerlos
 // de un vistazo; el cuadrito de color sí. Mismo criterio que en el
@@ -344,20 +345,7 @@ function DeputiesDirectoryInner() {
         </p>
       </div>
 
-      <div style={{ display: 'flex', gap: 16, borderBottom: '.5px solid #e0dfd8', marginBottom: 14, flexWrap: 'wrap' }}>
-        <span style={{ fontSize: 13, fontWeight: 600, color: '#1d6f5c', borderBottom: '2px solid #1d6f5c', paddingBottom: 8 }}>
-          Diputados
-        </span>
-        <Link href="/institutions/groups" style={{ fontSize: 13, color: '#999', paddingBottom: 8, textDecoration: 'none' }}>
-          Grupos parlamentarios
-        </Link>
-        <Link href="/institutions/comisiones" style={{ fontSize: 13, color: '#999', paddingBottom: 8, textDecoration: 'none' }}>
-          Comisiones
-        </Link>
-        <Link href="/institutions/organos-gobierno" style={{ fontSize: 13, color: '#999', paddingBottom: 8, textDecoration: 'none' }}>
-          Órganos de gobierno
-        </Link>
-      </div>
+      <PestanasCongreso />
 
       <div style={{ display: 'flex', gap: 8, marginBottom: 12, flexWrap: 'wrap' }}>
         <div
