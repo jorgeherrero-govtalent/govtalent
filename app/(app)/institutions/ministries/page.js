@@ -167,9 +167,96 @@ function teamFor(member, officials, vicepresidenteOrdinal) {
   });
 }
 
-function GroupRow({ member, officials, vicepresidenteOrdinal }) {
+/**
+ * La caja de búsqueda de las barras de filtro.
+ *
+ * Estaba escrita a mano dentro de Buscar. Al aparecer también en
+ * Organigrama y en Ministerios eran tres copias del mismo bloque de
+ * estilos, así que se saca aquí: el ancho es lo único que cambia entre
+ * las tres.
+ */
+function Buscador({ value, onChange, placeholder, ancho = '1 1 220px' }) {
+  return (
+    <div
+      style={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: 8,
+        background: '#fff',
+        border: '.5px solid #e0dfd8',
+        borderRadius: 20,
+        padding: '7px 14px',
+        flex: ancho,
+      }}
+    >
+      <i className="ti ti-search" style={{ color: '#999', fontSize: 14 }}></i>
+      <input
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder={placeholder}
+        style={{ border: 'none', outline: 'none', background: 'transparent', fontSize: 12.5, width: '100%' }}
+      />
+    </div>
+  );
+}
+
+// Las etiquetas de los filtros aplicados, con su enlace para limpiarlos.
+// Mismo bloque que ya usaba Buscar.
+function ChipsFiltros({ grupos, onLimpiar }) {
+  const todos = grupos.flat();
+  if (todos.length === 0) return null;
+  return (
+    <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap', marginBottom: 12 }}>
+      {todos.map((v) => (
+        <span key={v} style={{ fontSize: 11, background: '#f0efe9', color: '#666', padding: '3px 10px', borderRadius: 14 }}>
+          {v}
+        </span>
+      ))}
+      <span onClick={onLimpiar} style={{ fontSize: 11, color: '#999', textDecoration: 'underline', cursor: 'pointer' }}>
+        Limpiar filtros
+      </span>
+    </div>
+  );
+}
+
+// Coincidencia de texto sobre nombre y cargo a la vez: se busca "Escrivá"
+// igual que "secretaría de estado", y quien busca no distingue entre las
+// dos cosas.
+function coincideTexto(nombre, cargo, q) {
+  if (!q) return true;
+  return `${nombre || ''} ${cargo || ''}`
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .includes(q);
+}
+
+function normalizarConsulta(q) {
+  return (q || '')
+    .trim()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase();
+}
+
+/**
+ * Una fila del organigrama: el titular arriba y su equipo desplegable.
+ *
+ * El equipo llega ya filtrado desde OrganigramaTab en vez de calcularse
+ * aquí. Tiene que ser así porque la pestaña necesita saber cuántos
+ * quedan tras el filtro para decidir si la fila se muestra siquiera, y
+ * si el cálculo viviera dentro no habría forma de preguntárselo.
+ */
+function GroupRow({ member, team, vicepresidenteOrdinal, abrirPorFiltro }) {
   const [open, setOpen] = useState(false);
-  const team = teamFor(member, officials, vicepresidenteOrdinal);
+
+  // Con un filtro puesto las filas se abren solas: si no, el resultado
+  // de la búsqueda queda escondido detrás de un "Ver equipo" y parece
+  // que no ha encontrado nada. Se abre, no se bloquea: el usuario puede
+  // cerrarla igual.
+  useEffect(() => {
+    if (abrirPorFiltro) setOpen(true);
+  }, [abrirPorFiltro]);
 
   return (
     <div className="card" style={{ padding: 0, marginBottom: 8, overflow: 'hidden' }}>
@@ -243,34 +330,141 @@ function GroupRow({ member, officials, vicepresidenteOrdinal }) {
 }
 
 function OrganigramaTab({ members, officials }) {
-  const presidente = members.filter((m) => m.rank === 'presidente');
-  const vicepresidencias = members.filter((m) => m.rank === 'vicepresidente');
-  const ministros = members.filter((m) => m.rank === 'ministro');
+  const [search, setSearch] = useState('');
+  const [tipoFilter, setTipoFilter] = useState(new Set());
+  const [ministerioFilter, setMinisterioFilter] = useState(new Set());
+
   const ordinalWords = ['primera', 'segunda', 'tercera'];
+
+  // El organigrama en forma de lista plana, con la sección y el ordinal
+  // de vicepresidencia ya resueltos. teamFor los necesita, y calcularlos
+  // en el render obligaba a recorrer members tres veces.
+  const bloques = useMemo(() => {
+    const out = [];
+    for (const m of members.filter((x) => x.rank === 'presidente')) {
+      out.push({ m, seccion: 'presidencia', ordinal: null });
+    }
+    members
+      .filter((x) => x.rank === 'vicepresidente')
+      .forEach((m, i) => out.push({ m, seccion: 'presidencia', ordinal: ordinalWords[i] }));
+    for (const m of members.filter((x) => x.rank === 'ministro')) {
+      out.push({ m, seccion: 'ministerios', ordinal: null });
+    }
+    return out;
+  }, [members]);
+
+  const etiquetaBloque = (b) => b.m.ministry_name || b.m.role;
+
+  const ministerioOptions = useMemo(
+    () => [...new Set(bloques.map(etiquetaBloque).filter(Boolean))].sort((a, b) => a.localeCompare(b)),
+    [bloques]
+  );
+
+  // Los tipos que salen de verdad en el organigrama, no la lista teórica:
+  // ofrecer "Subdirector/a" cuando no hay ninguno da un filtro que solo
+  // sirve para vaciar la pantalla.
+  const tipoOptions = useMemo(() => {
+    const vistos = new Set();
+    for (const b of bloques) {
+      vistos.add(roleType(b.m.role || ''));
+      for (const o of teamFor(b.m, officials, b.ordinal)) vistos.add(roleType(o.role || ''));
+    }
+    return [...vistos].sort((a, b) => a.localeCompare(b));
+  }, [bloques, officials]);
+
+  const q = normalizarConsulta(search);
+  const hayFiltro = q !== '' || tipoFilter.size > 0 || ministerioFilter.size > 0;
+
+  const visibles = useMemo(() => {
+    return bloques
+      .map((b) => {
+        if (ministerioFilter.size > 0 && !ministerioFilter.has(etiquetaBloque(b))) return null;
+
+        const equipo = teamFor(b.m, officials, b.ordinal).filter(
+          (o) =>
+            (tipoFilter.size === 0 || tipoFilter.has(roleType(o.role || ''))) &&
+            coincideTexto(nameDisplay(o.full_name), cargoExacto(o), q)
+        );
+
+        // El titular cuenta como coincidencia propia: filtrando por
+        // "Ministro/a" el equipo queda vacío —teamFor excluye al titular
+        // justamente para no duplicarlo— y sin esto desaparecerían los
+        // veinticuatro ministerios de golpe.
+        const titularCoincide =
+          (tipoFilter.size === 0 || tipoFilter.has(roleType(b.m.role || ''))) &&
+          coincideTexto(b.m.full_name, b.m.role, q);
+
+        if (hayFiltro && equipo.length === 0 && !titularCoincide) return null;
+        return { ...b, equipo };
+      })
+      .filter(Boolean);
+  }, [bloques, officials, q, tipoFilter, ministerioFilter, hayFiltro]);
+
+  const presidencia = visibles.filter((b) => b.seccion === 'presidencia');
+  const ministerios = visibles.filter((b) => b.seccion === 'ministerios');
+
+  function limpiar() {
+    setSearch('');
+    setTipoFilter(new Set());
+    setMinisterioFilter(new Set());
+  }
 
   return (
     <>
-      {(presidente.length > 0 || vicepresidencias.length > 0) && (
-        <div style={{ marginBottom: 20 }}>
-          <div style={{ fontSize: 11.5, fontWeight: 700, color: '#999', textTransform: 'uppercase', marginBottom: 8 }}>
-            Presidencia y Vicepresidencias
-          </div>
-          {presidente.map((m) => (
-            <GroupRow key={m.slug} member={m} officials={officials} />
-          ))}
-          {vicepresidencias.map((m, i) => (
-            <GroupRow key={m.slug} member={m} officials={officials} vicepresidenteOrdinal={ordinalWords[i]} />
-          ))}
-        </div>
-      )}
+      <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 12, flexWrap: 'wrap' }}>
+        <Buscador
+          value={search}
+          onChange={setSearch}
+          placeholder="Buscar persona o cargo en el organigrama..."
+        />
+        <MultiSelectFilter
+          label="Ministerio"
+          values={ministerioOptions}
+          selected={ministerioFilter}
+          onApply={setMinisterioFilter}
+        />
+        <MultiSelectFilter label="Tipo de cargo" values={tipoOptions} selected={tipoFilter} onApply={setTipoFilter} />
+      </div>
 
-      {ministros.length > 0 && (
-        <div>
-          <div style={{ fontSize: 11.5, fontWeight: 700, color: '#999', textTransform: 'uppercase', marginBottom: 8 }}>Ministerios</div>
-          {ministros.map((m) => (
-            <GroupRow key={m.slug} member={m} officials={officials} />
-          ))}
+      <ChipsFiltros grupos={[[...ministerioFilter], [...tipoFilter]]} onLimpiar={limpiar} />
+
+      {visibles.length === 0 ? (
+        <div className="card">
+          <div className="empty-state">
+            <i className="ti ti-user-off"></i>
+            No hay nadie con estos filtros.
+          </div>
         </div>
+      ) : (
+        <>
+          {presidencia.length > 0 && (
+            <div style={{ marginBottom: 20 }}>
+              <div style={{ fontSize: 11.5, fontWeight: 700, color: '#999', textTransform: 'uppercase', marginBottom: 8 }}>
+                Presidencia y Vicepresidencias
+              </div>
+              {presidencia.map((b) => (
+                <GroupRow
+                  key={b.m.slug}
+                  member={b.m}
+                  team={b.equipo}
+                  vicepresidenteOrdinal={b.ordinal}
+                  abrirPorFiltro={hayFiltro}
+                />
+              ))}
+            </div>
+          )}
+
+          {ministerios.length > 0 && (
+            <div>
+              <div style={{ fontSize: 11.5, fontWeight: 700, color: '#999', textTransform: 'uppercase', marginBottom: 8 }}>
+                Ministerios
+              </div>
+              {ministerios.map((b) => (
+                <GroupRow key={b.m.slug} member={b.m} team={b.equipo} abrirPorFiltro={hayFiltro} />
+              ))}
+            </div>
+          )}
+        </>
       )}
     </>
   );
@@ -380,7 +574,6 @@ function BuscarTab({ members, officials }) {
     return [1, '…', current, '…', totalPages];
   }, [current, totalPages]);
 
-  const activeCount = ministryFilter.size + typeFilter.size;
 
   function clearFilters() {
     setSearch('');
@@ -391,47 +584,12 @@ function BuscarTab({ members, officials }) {
   return (
     <>
       <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 12, flexWrap: 'wrap' }}>
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 8,
-            background: '#fff',
-            border: '.5px solid #e0dfd8',
-            borderRadius: 20,
-            padding: '7px 14px',
-            flex: '1 1 220px',
-          }}
-        >
-          <i className="ti ti-search" style={{ color: '#999', fontSize: 14 }}></i>
-          <input
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Buscar por nombre o cargo..."
-            style={{ border: 'none', outline: 'none', background: 'transparent', fontSize: 12.5, width: '100%' }}
-          />
-        </div>
+        <Buscador value={search} onChange={setSearch} placeholder="Buscar por nombre o cargo..." />
         <MultiSelectFilter label="Ministerio" values={ministryOptions} selected={ministryFilter} onApply={setMinistryFilter} />
         <MultiSelectFilter label="Tipo de cargo" values={typeOptions} selected={typeFilter} onApply={setTypeFilter} />
       </div>
 
-      {activeCount > 0 && (
-        <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap', marginBottom: 12 }}>
-          {[...ministryFilter].map((v) => (
-            <span key={v} style={{ fontSize: 11, background: '#f0efe9', color: '#666', padding: '3px 10px', borderRadius: 14 }}>
-              {v}
-            </span>
-          ))}
-          {[...typeFilter].map((v) => (
-            <span key={v} style={{ fontSize: 11, background: '#f0efe9', color: '#666', padding: '3px 10px', borderRadius: 14 }}>
-              {v}
-            </span>
-          ))}
-          <span onClick={clearFilters} style={{ fontSize: 11, color: '#999', textDecoration: 'underline', cursor: 'pointer' }}>
-            Limpiar filtros
-          </span>
-        </div>
-      )}
+      <ChipsFiltros grupos={[[...ministryFilter], [...typeFilter]]} onLimpiar={clearFilters} />
 
       {filtered.length === 0 ? (
         <div className="card">
@@ -597,7 +755,10 @@ function siglasMinisterio(nombre) {
 }
 
 function MinisteriosTab({ members, officials }) {
-  const ministerios = useMemo(() => {
+  const [search, setSearch] = useState('');
+  const [orden, setOrden] = useState('alfabetico');
+
+  const todos = useMemo(() => {
     return members
       .filter((m) => m.ministry_name && m.rank !== 'presidente')
       .map((m) => {
@@ -608,11 +769,68 @@ function MinisteriosTab({ members, officials }) {
             normalizePerson(nameDisplay(o.full_name)) !== normalizePerson(m.full_name)
         );
         return { ...m, equipo: equipo.length };
-      })
-      .sort((a, b) => (a.ministry_name || '').localeCompare(b.ministry_name || ''));
+      });
   }, [members, officials]);
 
+  // Se busca por cartera y por titular a la vez: quien se acuerda del
+  // nombre del ministro pero no del nombre exacto de la cartera —que son
+  // largos y cambian cada legislatura— también encuentra la tarjeta.
+  const ministerios = useMemo(() => {
+    const q = normalizarConsulta(search);
+    const lista = todos.filter((m) => coincideTexto(m.ministry_name, m.full_name, q));
+    return [...lista].sort((a, b) =>
+      orden === 'equipo'
+        ? b.equipo - a.equipo || (a.ministry_name || '').localeCompare(b.ministry_name || '')
+        : (a.ministry_name || '').localeCompare(b.ministry_name || '')
+    );
+  }, [todos, search, orden]);
+
+  const ORDENES = [
+    { id: 'alfabetico', label: 'A–Z' },
+    { id: 'equipo', label: 'Equipo más grande' },
+  ];
+
   return (
+    <>
+      <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 12, flexWrap: 'wrap' }}>
+        <Buscador value={search} onChange={setSearch} placeholder="Buscar ministerio o titular..." />
+        {/* Pastillas y no un desplegable: son dos opciones y con un
+            desplegable el criterio activo queda escondido. */}
+        <div style={{ display: 'flex', gap: 6 }}>
+          {ORDENES.map((o) => {
+            const on = orden === o.id;
+            return (
+              <button
+                key={o.id}
+                onClick={() => setOrden(o.id)}
+                style={{
+                  fontSize: 12,
+                  fontFamily: 'inherit',
+                  padding: '7px 13px',
+                  borderRadius: 20,
+                  cursor: 'pointer',
+                  border: `.5px solid ${on ? '#1d6f5c' : '#e0dfd8'}`,
+                  background: on ? '#e8f4f0' : '#fff',
+                  color: on ? '#1d6f5c' : '#666',
+                  fontWeight: on ? 600 : 400,
+                  whiteSpace: 'nowrap',
+                }}
+              >
+                {o.label}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      {ministerios.length === 0 ? (
+        <div className="card">
+          <div className="empty-state">
+            <i className="ti ti-building-off"></i>
+            No hay ministerios con estos filtros.
+          </div>
+        </div>
+      ) : (
     /* Mismo formato que las direcciones generales de la Comisión Europea:
        siglas en un cuadrado, nombre y equipo al lado, y el titular debajo
        separado por una línea. */
@@ -657,7 +875,9 @@ function MinisteriosTab({ members, officials }) {
           </div>
         </Link>
       ))}
-    </div>
+        </div>
+      )}
+    </>
   );
 }
 
