@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
 import { groupColor } from '@/lib/grupos';
+import PestanasCongreso from '@/components/PestanasCongreso';
 
 export default function GroupsDirectoryPage() {
   const supabase = createClient();
@@ -41,20 +42,7 @@ export default function GroupsDirectoryPage() {
         </p>
       </div>
 
-      <div style={{ display: 'flex', gap: 16, borderBottom: '.5px solid #e0dfd8', marginBottom: 14, flexWrap: 'wrap' }}>
-        <Link href="/institutions/deputies" style={{ fontSize: 13, color: '#999', paddingBottom: 8, textDecoration: 'none' }}>
-          Diputados
-        </Link>
-        <span style={{ fontSize: 13, fontWeight: 600, color: '#1d6f5c', borderBottom: '2px solid #1d6f5c', paddingBottom: 8 }}>
-          Grupos parlamentarios
-        </span>
-        <Link href="/institutions/comisiones" style={{ fontSize: 13, color: '#999', paddingBottom: 8, textDecoration: 'none' }}>
-          Comisiones
-        </Link>
-        <Link href="/institutions/organos-gobierno" style={{ fontSize: 13, color: '#999', paddingBottom: 8, textDecoration: 'none' }}>
-          Órganos de gobierno
-        </Link>
-      </div>
+      <PestanasCongreso />
 
       <div
         style={{
