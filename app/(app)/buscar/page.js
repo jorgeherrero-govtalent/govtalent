@@ -1,37 +1,24 @@
 'use client';
 
-import { useCallback, useEffect, useRef, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { Suspense, useCallback, useEffect, useMemo, useState } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
+import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
 
 /**
- * El buscador de la barra superior.
+ * Los resultados completos del buscador de la barra.
  *
- * Consulta el RPC buscar_global, que va contra la vista search_index:
- * normativa, personas de España y de la UE, organismos, comisiones,
- * grupos, organizaciones y ofertas. Proyectos queda fuera.
+ * El desplegable enseña ocho para reconocer algo deprisa. Aquí caben
+ * cien y se pueden filtrar por tipo, que es lo que se necesita cuando
+ * lo que se busca no salió arriba.
  *
- * LISTA PLANA, NO AGRUPADA. Antes llevaba cabeceras por grupo. Ocupaban
- * una línea cada una, y con ocho resultados repartidos en cuatro grupos
- * la mitad del panel eran títulos. El tipo se dice dentro de la propia
- * fila, junto al contexto: el resultado se identifica solo, sin que
- * haga falta una cabecera encima.
- *
- * UNA LÍNEA POR FILA. Los títulos del BOE son larguísimos y a dos
- * líneas cada resultado ocupaba lo que ocupan tres. Se recorta con
- * puntos suspensivos: en un desplegable se reconoce algo que ya se está
- * buscando, no se lee.
- *
- * SE ESPERA A QUE PARE DE ESCRIBIR: 220ms sin teclear antes de
- * consultar. Sin eso, escribir «competencia» son once consultas de las
- * que solo importa la última.
+ * AQUÍ SÍ SE AGRUPA, al revés que en el desplegable. Allí las cabeceras
+ * ocupaban la mitad del panel; en una página entera son justo lo que
+ * permite saltar a la parte que interesa.
  */
 
 const MORADO = '#6d5aef';
 
-// El tipo que se enseña en cada fila. Las claves que no estén aquí
-// —las de regulatorio_search, que son muchas y cambian— caen al nombre
-// del grupo, que para ellas es "Normativa".
 const ETIQUETA_TIPO = {
   diputado: 'Diputado',
   'miembro-gobierno': 'Gobierno',
@@ -48,8 +35,6 @@ const ETIQUETA_TIPO = {
   oferta: 'Oferta',
 };
 
-// El icono del hueco cuando no hay foto. No todas las fuentes la
-// tienen: los altos cargos, los organismos y la normativa van sin ella.
 const ICONO_TIPO = {
   diputado: 'ti-user',
   'miembro-gobierno': 'ti-user',
@@ -81,20 +66,12 @@ function iniciales(nombre) {
   return (ws[0][0] + (ws[1]?.[0] || '')).toUpperCase();
 }
 
-/**
- * El hueco de la izquierda de cada fila.
- *
- * Tres casos, y el orden importa: si hay foto se pone; si no la hay
- * pero es una persona, sus iniciales, que dicen más que un monigote
- * genérico repetido diez veces; y si no es una persona, el icono de su
- * tipo, porque las iniciales de un organismo no significan nada.
- */
-function Avatar({ fila }) {
+function Avatar({ fila, tam = 36 }) {
   const persona = ES_PERSONA.has(fila.kind);
   const base = {
-    width: 32,
-    height: 32,
-    borderRadius: persona ? '50%' : 7,
+    width: tam,
+    height: tam,
+    borderRadius: persona ? '50%' : 8,
     flexShrink: 0,
     display: 'flex',
     alignItems: 'center',
@@ -111,333 +88,197 @@ function Avatar({ fila }) {
       </span>
     );
   }
-
   if (persona) {
-    return <span style={{ ...base, fontSize: 11, fontWeight: 600 }}>{iniciales(fila.titulo)}</span>;
+    return <span style={{ ...base, fontSize: 12, fontWeight: 600 }}>{iniciales(fila.titulo)}</span>;
   }
-
   return (
     <span style={base}>
-      <i
-        className={`ti ${ICONO_TIPO[fila.kind] || 'ti-file-text'}`}
-        style={{ fontSize: 16 }}
-        aria-hidden="true"
-      ></i>
+      <i className={`ti ${ICONO_TIPO[fila.kind] || 'ti-file-text'}`} style={{ fontSize: 17 }} aria-hidden="true"></i>
     </span>
   );
 }
 
-export default function BuscadorGlobal() {
-  const router = useRouter();
+function Resultados() {
   const supabase = createClient();
-  const [q, setQ] = useState('');
-  const [resultados, setResultados] = useState([]);
-  const [cargando, setCargando] = useState(false);
-  const [abierto, setAbierto] = useState(false);
-  const [abiertoMovil, setAbiertoMovil] = useState(false);
-  const [marcada, setMarcada] = useState(-1);
-  const inputRef = useRef(null);
-  const cajaRef = useRef(null);
-  const ultimaRef = useRef('');
+  const router = useRouter();
+  const sp = useSearchParams();
+  const termino = sp?.get('q') || '';
 
-  // Barra inclinada para enfocar, como en GitHub o Linear. Se ignora si
-  // ya estás escribiendo en otro sitio: si no, la barra de un formulario
-  // te saltaría al buscador a media frase.
-  useEffect(() => {
-    function onKey(e) {
-      if (e.key !== '/' || e.metaKey || e.ctrlKey || e.altKey) return;
-      const t = e.target;
-      if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable)) return;
-      e.preventDefault();
-      setAbiertoMovil(true);
-      inputRef.current?.focus();
-    }
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, []);
-
-  // Cierre al pulsar fuera. Sobre el contenedor entero y no solo sobre
-  // la lista: si no, pulsar en la propia caja para corregir una letra
-  // cerraría los resultados que estás mirando.
-  useEffect(() => {
-    function fuera(e) {
-      if (cajaRef.current && !cajaRef.current.contains(e.target)) setAbierto(false);
-    }
-    document.addEventListener('mousedown', fuera);
-    return () => document.removeEventListener('mousedown', fuera);
-  }, []);
-
-  const consultar = useCallback(
-    async (termino) => {
-      const t = termino.trim();
-      if (t.length < 2) {
-        setResultados([]);
-        setCargando(false);
-        return;
-      }
-      setCargando(true);
-      const { data, error } = await supabase.rpc('buscar_global', { q: t, limite: 8 });
-      // La petición que vuelve puede no ser la última que se lanzó. Sin
-      // esta comprobación, una consulta lenta de hace tres letras pisa
-      // los resultados de la actual.
-      if (ultimaRef.current !== t) return;
-      setResultados(error ? [] : data || []);
-      setCargando(false);
-    },
-    [supabase]
-  );
+  const [q, setQ] = useState(termino);
+  const [filas, setFilas] = useState(null);
+  const [grupo, setGrupo] = useState('');
 
   useEffect(() => {
-    ultimaRef.current = q.trim();
-    setMarcada(-1);
-    if (q.trim().length < 2) {
-      setResultados([]);
+    setQ(termino);
+  }, [termino]);
+
+  const cargar = useCallback(async () => {
+    if (!termino || termino.trim().length < 2) {
+      setFilas([]);
       return;
     }
-    const id = setTimeout(() => consultar(q), 220);
-    return () => clearTimeout(id);
-  }, [q, consultar]);
+    setFilas(null);
+    const { data, error } = await supabase.rpc('buscar_global', { q: termino.trim(), limite: 100 });
+    setFilas(error ? [] : data || []);
+  }, [supabase, termino]);
 
-  function irA(ruta) {
-    setAbierto(false);
-    setAbiertoMovil(false);
-    inputRef.current?.blur();
-    router.push(ruta);
-  }
+  useEffect(() => {
+    cargar();
+  }, [cargar]);
 
-  function verTodos() {
-    const t = q.trim();
-    if (t.length < 2) return;
-    setAbierto(false);
-    setAbiertoMovil(false);
-    inputRef.current?.blur();
-    router.push(`/buscar?q=${encodeURIComponent(t)}`);
-  }
+  // Los grupos que han devuelto algo, con su recuento. No se ofrece un
+  // filtro para un grupo vacío: solo serviría para vaciar la pantalla.
+  const grupos = useMemo(() => {
+    const c = new Map();
+    for (const f of filas || []) c.set(f.grupo, (c.get(f.grupo) || 0) + 1);
+    return [...c.entries()];
+  }, [filas]);
+
+  const visibles = useMemo(
+    () => (filas || []).filter((f) => !grupo || f.grupo === grupo),
+    [filas, grupo]
+  );
+
+  // Se conserva el orden que trae el servidor y solo se parte por grupo.
+  const secciones = useMemo(() => {
+    const out = [];
+    const idx = new Map();
+    for (const f of visibles) {
+      if (!idx.has(f.grupo)) {
+        idx.set(f.grupo, out.length);
+        out.push({ nombre: f.grupo, filas: [] });
+      }
+      out[idx.get(f.grupo)].filas.push(f);
+    }
+    return out;
+  }, [visibles]);
 
   function buscar(e) {
     e?.preventDefault();
-    if (q.trim().length < 2) return;
-    // Con una fila marcada por teclado, Enter va a ella. Sin marcar,
-    // Enter lleva a la página de resultados y no al primero: quien
-    // escribe y pulsa Enter sin mirar quiere ver la lista, no saltar a
-    // una ficha que no ha elegido.
-    if (marcada >= 0 && resultados[marcada]) return irA(resultados[marcada].ruta);
-    verTodos();
+    if (q.trim().length >= 2) router.push(`/buscar?q=${encodeURIComponent(q.trim())}`);
   }
 
-  function teclas(e) {
-    if (e.key === 'Escape') {
-      setAbierto(false);
-      inputRef.current?.blur();
-      return;
-    }
-    if (!abierto || resultados.length === 0) return;
-    if (e.key === 'ArrowDown') {
-      e.preventDefault();
-      setMarcada((i) => (i + 1) % resultados.length);
-    } else if (e.key === 'ArrowUp') {
-      e.preventDefault();
-      setMarcada((i) => (i <= 0 ? resultados.length - 1 : i - 1));
-    }
-  }
+  const chip = (activo) => ({
+    padding: '6px 12px',
+    borderRadius: 7,
+    fontSize: 12.5,
+    cursor: 'pointer',
+    border: 'none',
+    fontFamily: 'inherit',
+    background: activo ? '#f0eefe' : 'transparent',
+    color: activo ? MORADO : '#8b8780',
+    whiteSpace: 'nowrap',
+  });
 
   return (
-    <>
-      <style>{`
-        .gt-buscador-caja { position: relative; display: flex; flex-shrink: 0; margin-right: 8px; }
-        .gt-buscador {
-          display: flex;
-          align-items: center;
-          gap: 7px;
-          background: #faf9f6;
-          border: .5px solid #e0dfd8;
-          border-radius: 20px;
-          padding: 7px 13px;
-          width: 300px;
-          flex-shrink: 0;
-        }
-        .gt-buscador:focus-within { background: #fff; border-color: #c9c7bd; }
-        .gt-buscador input {
-          border: none; outline: none; background: transparent;
-          font-family: inherit; font-size: 12.5px; width: 100%; color: #1a1a18;
-        }
-        .gt-buscador-lupa { display: none; }
-
-        /* Más ancho que la caja, como en LinkedIn: los títulos del BOE
-           no caben en 300px y recortados a la mitad no se reconocen. */
-        .gt-buscador-panel {
-          position: absolute;
-          top: calc(100% + 6px);
-          left: 0;
-          width: 460px;
-          max-height: 440px;
-          overflow-y: auto;
-          background: #fff;
-          border: .5px solid #e0dfd8;
-          border-radius: 10px;
-          box-shadow: 0 10px 30px rgba(0,0,0,.13);
-          padding: 5px 0;
-          z-index: 300;
-        }
-        .gt-buscador-fila {
-          display: flex;
-          align-items: center;
-          gap: 10px;
-          width: 100%;
-          text-align: left;
-          padding: 7px 13px;
-          border: none;
-          background: none;
-          cursor: pointer;
-          font-family: inherit;
-        }
-        .gt-buscador-fila:hover, .gt-buscador-fila.marcada { background: #f6f5fe; }
-        .gt-buscador-linea {
-          min-width: 0;
-          flex: 1;
-          display: flex;
-          align-items: baseline;
-          gap: 6px;
-          overflow: hidden;
-          white-space: nowrap;
-        }
-        .gt-buscador-titulo {
-          font-size: 12.5px;
-          color: #1a1a18;
-          font-weight: 500;
-          overflow: hidden;
-          text-overflow: ellipsis;
-          flex-shrink: 1;
-          min-width: 0;
-        }
-        .gt-buscador-ctx {
-          font-size: 11.5px;
-          color: #8b8780;
-          overflow: hidden;
-          text-overflow: ellipsis;
-          flex-shrink: 2;
-          min-width: 0;
-        }
-        .gt-buscador-pie {
-          display: block;
-          width: 100%;
-          text-align: center;
-          padding: 9px 13px 4px;
-          margin-top: 4px;
-          border-top: .5px solid #f0f0eb;
-          border-left: none; border-right: none; border-bottom: none;
-          background: none;
-          cursor: pointer;
-          font-family: inherit;
-          font-size: 12.5px;
-          font-weight: 600;
-          color: #6d5aef;
-        }
-
-        @media (max-width: 1080px) {
-          .gt-buscador { width: 200px; }
-          .gt-buscador-panel { width: 380px; }
-        }
-        @media (max-width: 720px) {
-          .gt-buscador-caja { display: none; }
-          .gt-buscador-lupa {
-            display: inline-flex; align-items: center; justify-content: center;
-            width: 34px; height: 34px; border: none; background: none;
-            color: #767670; cursor: pointer; flex-shrink: 0;
-          }
-          .gt-buscador-caja.abierto { display: flex; flex: 1; margin: 0 6px; }
-          .gt-buscador-caja.abierto .gt-buscador { width: 100%; }
-          .gt-buscador-caja.abierto .gt-buscador-panel { width: 100%; }
-          .gt-buscador-caja.abierto + .gt-buscador-lupa { display: none; }
-        }
-      `}</style>
-
-      <div ref={cajaRef} className={`gt-buscador-caja${abiertoMovil ? ' abierto' : ''}`}>
-        <form onSubmit={buscar} className="gt-buscador" role="search">
-          <i className="ti ti-search" style={{ fontSize: 14, color: '#a8a49c' }} aria-hidden="true"></i>
-          <input
-            ref={inputRef}
-            value={q}
-            onChange={(e) => {
-              setQ(e.target.value);
-              setAbierto(true);
-            }}
-            onFocus={() => setAbierto(true)}
-            onKeyDown={teclas}
-            placeholder="Buscar"
-            aria-label="Buscar en GovTalent"
-            enterKeyHint="search"
-          />
-          {q && (
-            <button
-              type="button"
-              onClick={() => {
-                setQ('');
-                inputRef.current?.focus();
-              }}
-              aria-label="Borrar la búsqueda"
-              style={{
-                border: 'none',
-                background: 'none',
-                padding: 0,
-                cursor: 'pointer',
-                color: '#a8a49c',
-                display: 'inline-flex',
-                flexShrink: 0,
-              }}
-            >
-              <i className="ti ti-x" style={{ fontSize: 13 }}></i>
-            </button>
-          )}
-        </form>
-
-        {abierto && q.trim().length >= 2 && (
-          <div className="gt-buscador-panel" role="listbox">
-            {cargando && resultados.length === 0 ? (
-              <div style={{ padding: 13, fontSize: 12, color: '#a8a49c' }}>Buscando…</div>
-            ) : resultados.length === 0 ? (
-              <div style={{ padding: 13, fontSize: 12, color: '#a8a49c' }}>Nada para «{q.trim()}».</div>
-            ) : (
-              <>
-                {resultados.map((r, i) => (
-                  <button
-                    key={`${r.kind}-${r.ref_id}`}
-                    type="button"
-                    role="option"
-                    aria-selected={i === marcada}
-                    onMouseEnter={() => setMarcada(i)}
-                    onClick={() => irA(r.ruta)}
-                    className={`gt-buscador-fila${i === marcada ? ' marcada' : ''}`}
-                  >
-                    <Avatar fila={r} />
-                    <span className="gt-buscador-linea">
-                      <span className="gt-buscador-titulo">{r.titulo}</span>
-                      <span className="gt-buscador-ctx">
-                        · {[ETIQUETA_TIPO[r.kind] || r.grupo, r.contexto].filter(Boolean).join(' · ')}
-                      </span>
-                    </span>
-                  </button>
-                ))}
-                <button type="button" className="gt-buscador-pie" onClick={verTodos}>
-                  Ver todos los resultados
-                </button>
-              </>
-            )}
-          </div>
-        )}
-      </div>
-
-      <button
-        type="button"
-        className="gt-buscador-lupa"
-        onClick={() => {
-          setAbiertoMovil(true);
-          setTimeout(() => inputRef.current?.focus(), 0);
+    <div className="sec" style={{ maxWidth: 900 }}>
+      <form
+        onSubmit={buscar}
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: 9,
+          background: '#fff',
+          border: '.5px solid #e0dfd8',
+          borderRadius: 22,
+          padding: '10px 16px',
+          marginBottom: 16,
         }}
-        aria-label="Buscar"
       >
-        <i className="ti ti-search" style={{ fontSize: 19 }}></i>
-      </button>
-    </>
+        <i className="ti ti-search" style={{ color: '#a8a49c', fontSize: 15 }} aria-hidden="true"></i>
+        <input
+          value={q}
+          onChange={(e) => setQ(e.target.value)}
+          placeholder="Buscar en todo GovTalent"
+          aria-label="Buscar"
+          style={{ border: 'none', outline: 'none', background: 'transparent', fontSize: 13, width: '100%' }}
+        />
+      </form>
+
+      {filas === null ? (
+        <div className="spinner"></div>
+      ) : filas.length === 0 ? (
+        <div className="card">
+          <div className="empty-state">
+            <i className="ti ti-search-off"></i>
+            {termino.trim().length < 2
+              ? 'Escribe al menos dos letras.'
+              : `Nada para «${termino}».`}
+          </div>
+        </div>
+      ) : (
+        <>
+          <div style={{ display: 'flex', gap: 2, marginBottom: 16, flexWrap: 'wrap' }}>
+            <button type="button" onClick={() => setGrupo('')} style={chip(!grupo)}>
+              Todo ({filas.length})
+            </button>
+            {grupos.map(([nombre, n]) => (
+              <button key={nombre} type="button" onClick={() => setGrupo(nombre)} style={chip(grupo === nombre)}>
+                {nombre} ({n})
+              </button>
+            ))}
+          </div>
+
+          {secciones.map((s) => (
+            <div key={s.nombre} style={{ marginBottom: 18 }}>
+              <div style={{ fontSize: 10.5, color: '#a8a49c', letterSpacing: '.3px', marginBottom: 7 }}>
+                {s.nombre.toUpperCase()}
+              </div>
+              <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
+                {s.filas.map((f, i) => (
+                  <Link
+                    key={`${f.kind}-${f.ref_id}`}
+                    href={f.ruta}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 12,
+                      padding: '11px 15px',
+                      textDecoration: 'none',
+                      color: 'inherit',
+                      borderTop: i === 0 ? 'none' : '.5px solid #f0f0eb',
+                    }}
+                  >
+                    <Avatar fila={f} />
+                    <div style={{ minWidth: 0, flex: 1 }}>
+                      <div style={{ fontSize: 13, fontWeight: 500, lineHeight: 1.35 }}>{f.titulo}</div>
+                      <div
+                        style={{
+                          fontSize: 11.5,
+                          color: '#8b8780',
+                          marginTop: 2,
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
+                          whiteSpace: 'nowrap',
+                        }}
+                      >
+                        {[ETIQUETA_TIPO[f.kind] || f.grupo, f.contexto].filter(Boolean).join(' · ')}
+                      </div>
+                    </div>
+                    <i className="ti ti-chevron-right" style={{ fontSize: 15, color: '#c9c7bd', flexShrink: 0 }}></i>
+                  </Link>
+                ))}
+              </div>
+            </div>
+          ))}
+
+          {/* El tope de cien es del RPC. Se dice en vez de dejar creer
+              que eso es todo lo que hay. */}
+          {filas.length >= 100 && (
+            <p style={{ fontSize: 11.5, color: '#a8a49c', textAlign: 'center', margin: 0 }}>
+              Se muestran los cien primeros. Afina la búsqueda para ver menos y mejores.
+            </p>
+          )}
+        </>
+      )}
+    </div>
+  );
+}
+
+export default function BuscarPage() {
+  return (
+    <Suspense fallback={<div className="spinner"></div>}>
+      <Resultados />
+    </Suspense>
   );
 }
