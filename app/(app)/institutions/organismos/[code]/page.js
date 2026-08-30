@@ -5,6 +5,7 @@ import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
 import FollowButton from '@/components/FollowButton';
+import BackLink from '@/components/BackLink';
 
 /**
  * Ficha de un organismo de la Administración General del Estado.
@@ -85,7 +86,7 @@ export default function OrganismoPage() {
 
     const { data: u } = await supabase
       .from('age_units')
-      .select('dir3_code, nombre, categoria, nivel, superior_code, raiz_code, raiz_nombre, cif, fecha_alta')
+      .select('dir3_code, nombre, categoria, nivel, superior_code, raiz_code, raiz_nombre, fecha_alta')
       .eq('dir3_code', code)
       .maybeSingle();
 
@@ -155,10 +156,7 @@ export default function OrganismoPage() {
   return (
     <div className="sec" style={{ maxWidth: 820 }}>
       <div style={{ marginBottom: 8 }}>
-        <Link href="/institutions/organismos" style={{ fontSize: 11.5, color: '#999', textDecoration: 'none' }}>
-          <i className="ti ti-arrow-left" style={{ fontSize: 12, verticalAlign: -1, marginRight: 4 }}></i>
-          Organismos y reguladores
-        </Link>
+        <BackLink fallbackHref="/institutions/organismos" fallbackLabel="Organismos y reguladores" />
       </div>
 
       <div className="card" style={{ padding: 20, marginBottom: 12 }}>
@@ -194,25 +192,17 @@ export default function OrganismoPage() {
           </div>
         </div>
 
-        {(superior || unidad.cif) && (
+        {superior && (
           <div style={{ marginTop: 16, paddingTop: 14, borderTop: '.5px solid #f0f0eb', display: 'flex', gap: 30, flexWrap: 'wrap' }}>
-            {superior && (
-              <div>
-                <div style={{ fontSize: 10.5, color: '#a8a49c', marginBottom: 3 }}>Depende de</div>
-                <Link
-                  href={`/institutions/organismos/${superior.dir3_code}`}
-                  style={{ fontSize: 12.5, color: MORADO, textDecoration: 'none' }}
-                >
-                  {limpiar(superior.nombre)}
-                </Link>
-              </div>
-            )}
-            {unidad.cif && (
-              <div>
-                <div style={{ fontSize: 10.5, color: '#a8a49c', marginBottom: 3 }}>CIF</div>
-                <div style={{ fontSize: 12.5 }}>{unidad.cif}</div>
-              </div>
-            )}
+            <div>
+              <div style={{ fontSize: 10.5, color: '#a8a49c', marginBottom: 3 }}>Depende de</div>
+              <Link
+                href={`/institutions/organismos/${superior.dir3_code}`}
+                style={{ fontSize: 12.5, color: MORADO, textDecoration: 'none' }}
+              >
+                {limpiar(superior.nombre)}
+              </Link>
+            </div>
           </div>
         )}
       </div>
