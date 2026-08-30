@@ -301,18 +301,23 @@ export default function InstitutionsHomePage() {
               dentro. Diputados y Grupos tenían tarjeta propia y eso
               enseñaba una jerarquía falsa: parecían módulos hermanos
               cuando son dos de las cuatro pestañas de la misma sección,
-              junto a Comisiones y Órganos de gobierno. */}
+              junto a Comisiones y Órganos de gobierno.
+
+              Entra por Comisiones, que es la primera pestaña: si el
+              enlace apuntase a Diputados, la sección abriría por su
+              segunda pestaña y la primera parecería un sitio al que hay
+              que retroceder. */}
           <ModuleCard
-            href="/institutions/deputies"
+            href="/institutions/comisiones"
             icon="building-bank"
             title="Congreso de los Diputados"
-            description="Diputados, comisiones, grupos parlamentarios y órganos de gobierno."
+            description="Comisiones, diputados, órganos de gobierno y grupos parlamentarios."
             cta="Explorar Congreso"
             cifras={[
-              { n: counts?.deputies ?? null, label: 'diputados' },
               { n: counts?.committees ?? null, label: 'comisiones' },
-              { n: counts?.groups ?? null, label: 'grupos' },
+              { n: counts?.deputies ?? null, label: 'diputados' },
               { n: counts?.governance ?? null, label: 'órganos' },
+              { n: counts?.groups ?? null, label: 'grupos' },
             ]}
           />
           {/* Los organismos, en tarjeta propia dentro de la misma
