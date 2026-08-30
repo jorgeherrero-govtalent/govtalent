@@ -1,7 +1,6 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
 
@@ -60,14 +59,12 @@ function interes(v) {
 
 export default function Home() {
   const supabase = createClient();
-  const router = useRouter();
 
   const [resumen, setResumen] = useState(null);
   const [plazos, setPlazos] = useState([]);
   const [novedades, setNovedades] = useState([]);
   const [cifras, setCifras] = useState({ leyes: null, procedimientos: null, expedientes: null, boe: null });
   const [nombre, setNombre] = useState('');
-  const [busqueda, setBusqueda] = useState('');
   const [tab, setTab] = useState('sector');
   const [sector, setSector] = useState([]);
   const [desdeTemas, setDesdeTemas] = useState(false);
@@ -218,34 +215,6 @@ export default function Home() {
           Hola{nombre ? `, ${nombre}` : ''}
         </h1>
         <p style={{ fontSize: 12.5, color: '#8b8780', margin: '5px 0 0', lineHeight: 1.55 }}>{titular}</p>
-      </div>
-
-      {/* Busca en las cinco fuentes a la vez, no solo en el Congreso. */}
-      <div
-        onKeyDown={(e) => {
-          if (e.key === 'Enter' && busqueda.trim().length >= 3) {
-            router.push(`/regulatorio/buscar?q=${encodeURIComponent(busqueda.trim())}`);
-          }
-        }}
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: 9,
-          background: '#fff',
-          border: '.5px solid #e0dfd8',
-          borderRadius: 24,
-          padding: '11px 18px',
-          marginBottom: 16,
-        }}
-      >
-        <i className="ti ti-search" style={{ color: '#a8a49c', fontSize: 15 }}></i>
-        <input
-          value={busqueda}
-          onChange={(e) => setBusqueda(e.target.value)}
-          placeholder="Buscar normativa, diputado, institución, oportunidad…"
-          aria-label="Buscar"
-          style={{ border: 'none', outline: 'none', background: 'transparent', fontSize: 13, width: '100%' }}
-        />
       </div>
 
       {/* Sin análisis de sector, la Home lo pide como acción principal.
