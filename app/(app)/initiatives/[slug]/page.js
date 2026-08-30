@@ -172,6 +172,112 @@ function Avatar({ texto, url, morado }) {
   );
 }
 
+/**
+ * La pestaña que se ve sin plan.
+ *
+ * Debajo del cartel hay una lista inventada, no la real difuminada. La
+ * diferencia importa: un blur de CSS no oculta nada —el texto sigue en
+ * el DOM y se lee desde el inspector— y aquí lo que habría debajo son
+ * nombres y correos de funcionarios. Así que no se piden siquiera; lo
+ * borroso es atrezo.
+ *
+ * Se enseña la forma real de la pestaña (cargo, avatar, columna de
+ * correo a la derecha) porque eso es justo lo que se está vendiendo:
+ * que existe y qué aspecto tiene.
+ */
+function PanelBloqueado({ titulo, descripcion, filas }) {
+  return (
+    <div style={{ position: 'relative', minHeight: 190 }}>
+      <div style={{ filter: 'blur(4px)', opacity: 0.55, pointerEvents: 'none', userSelect: 'none' }} aria-hidden="true">
+        {filas.map((f, i) => (
+          <div
+            key={i}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 10,
+              padding: '8px 0',
+              borderBottom: i < filas.length - 1 ? '.5px solid #f0f0eb' : 'none',
+            }}
+          >
+            <span
+              style={{
+                width: 30,
+                height: 30,
+                borderRadius: '50%',
+                background: '#f0eefe',
+                color: '#6d5aef',
+                fontSize: 10.5,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                flexShrink: 0,
+              }}
+            >
+              {f.iniciales}
+            </span>
+            <span style={{ flex: 1, minWidth: 0 }}>
+              <span style={{ display: 'block', fontSize: 12.5 }}>{f.nombre}</span>
+              <span style={{ display: 'block', fontSize: 10.5, color: '#a8a49c' }}>{f.cargo}</span>
+            </span>
+            <span style={{ fontSize: 11, color: '#a8a49c', flexShrink: 0 }}>nombre.apellido@ec.europa.eu</span>
+          </div>
+        ))}
+      </div>
+
+      <div
+        style={{
+          position: 'absolute',
+          inset: 0,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          padding: 12,
+        }}
+      >
+        <div
+          style={{
+            background: '#fff',
+            border: '.5px solid #e0dfd8',
+            borderRadius: 12,
+            boxShadow: '0 6px 22px rgba(0,0,0,.08)',
+            padding: '16px 20px',
+            textAlign: 'center',
+            maxWidth: 380,
+          }}
+        >
+          <div style={{ fontSize: 13.5, fontWeight: 600, marginBottom: 5 }}>{titulo}</div>
+          <p style={{ fontSize: 12, color: '#666', lineHeight: 1.55, margin: '0 0 13px' }}>{descripcion}</p>
+          <Link
+            href="/precios"
+            target="_blank"
+            className="btn-ai"
+            style={{ textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 6 }}
+          >
+            <i className="ti ti-bolt"></i> Ver con Pro
+          </Link>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// Atrezo. Cargos genéricos, nunca personas reales: si alguien quita el
+// desenfoque tiene que encontrar esto y no un nombre de verdad.
+const FILAS_ACTORES = [
+  { iniciales: 'DG', nombre: 'Nombre del director general', cargo: 'Director-General' },
+  { iniciales: 'DA', nombre: 'Nombre del director adjunto', cargo: 'Deputy Director-General' },
+  { iniciales: 'JU', nombre: 'Nombre del jefe de unidad', cargo: 'Head of Unit' },
+  { iniciales: 'AS', nombre: 'Nombre del asistente', cargo: 'Assistant to the Director-General' },
+];
+
+const FILAS_PARLAMENTO = [
+  { iniciales: 'PO', nombre: 'Nombre del ponente', cargo: 'Ponente · Comisión competente' },
+  { iniciales: 'PA', nombre: 'Nombre del ponente alternativo', cargo: 'Ponente alternativo' },
+  { iniciales: 'ED', nombre: 'Nombre del eurodiputado', cargo: 'Miembro titular · España' },
+  { iniciales: 'ES', nombre: 'Nombre del eurodiputado', cargo: 'Miembro suplente · España' },
+];
+
 export default function InitiativeDetailPage() {
   const supabase = createClient();
   const { slug } = useParams();
@@ -184,6 +290,10 @@ export default function InitiativeDetailPage() {
   const [filtroMeps, setFiltroMeps] = useState(null);
   const [cargandoMeps, setCargandoMeps] = useState(false);
   const [userId, setUserId] = useState(null);
+  const [esPro, setEsPro] = useState(null);
+  // Los recuentos que se enseñan aunque no haya plan: la pestaña sigue
+  // diciendo cuántos actores hay, solo que no quiénes son.
+  const [nActoresBloqueado, setNActoresBloqueado] = useState(0);
   const [tab, setTab] = useState('resumen');
   const [verSecundarios, setVerSecundarios] = useState(false);
   const [comisario, setComisario] = useState(null);
@@ -193,9 +303,34 @@ export default function InitiativeDetailPage() {
     let cancelled = false;
 
     (async () => {
+      // El plan primero, porque decide qué se pide después. Sin esto
+      // habría que traerlo todo y esconder la mitad, y esconder no es
+      // proteger: lo que baja al navegador se lee desde el inspector
+      // aunque esté difuminado por CSS.
+      const { data: auth } = await supabase.auth.getUser();
+      if (cancelled) return;
+      const uid = auth?.user?.id || null;
+      setUserId(uid);
+
+      let pro = false;
+      if (uid) {
+        const { data: perfil } = await supabase.from('users').select('plan').eq('id', uid).single();
+        pro = perfil?.plan === 'pro';
+      }
+      if (cancelled) return;
+      setEsPro(pro);
+
+      // Las columnas por nombre y no select('*'): author_email solo se
+      // pide con plan. Es un correo de contacto del expediente y no
+      // tiene por qué viajar hasta quien no puede verlo.
+      const COLUMNAS_BASE =
+        'id, slug, reference, title, title_es, title_en, summary_es, summary_en, ' +
+        'act_type, topics, dg_code, source_url, attachments, feedback_end, ' +
+        'dias_restantes, is_open, is_major, is_evaluation, n_contribuciones, author_name';
+
       const { data } = await supabase
         .from('eu_initiatives_directory')
-        .select('*')
+        .select(pro ? `${COLUMNAS_BASE}, author_email` : COLUMNAS_BASE)
         .eq('slug', slug)
         .limit(1)
         .maybeSingle();
@@ -207,41 +342,60 @@ export default function InitiativeDetailPage() {
       }
       setItem(data);
 
-      const [{ data: st }, { data: act }, { data: res }, { data: auth }, { data: com }] = await Promise.all([
+      const [{ data: st }, actoresRes, { data: res }, comisarioRes] = await Promise.all([
         // Las fases completas, no solo la actual: eu_initiative_stages
         // guardaba una sola entrada por expediente.
         supabase.from('eu_initiative_recorrido').select('*').eq('initiative_id', data.id).order('orden'),
-        supabase
-          .from('eu_initiative_actors')
-          .select('*')
-          .eq('initiative_id', data.id)
-          .order('orden_relevancia')
-          .order('orden_cargo')
-          .order('full_name'),
+        // Sin plan se pide el recuento y no las filas. head:true no trae
+        // ninguna, así que la pestaña puede decir "Actores (10)" sin que
+        // los diez nombres bajen al navegador.
+        pro
+          ? supabase
+              .from('eu_initiative_actors')
+              .select('*')
+              .eq('initiative_id', data.id)
+              .order('orden_relevancia')
+              .order('orden_cargo')
+              .order('full_name')
+          : supabase
+              .from('eu_initiative_actors')
+              .select('id', { count: 'exact', head: true })
+              .eq('initiative_id', data.id),
+        // El resumen del Parlamento son cifras agregadas, sin nombres:
+        // se pide siempre, porque es lo que da el contador de la pestaña.
         supabase
           .from('eu_initiative_meps_resumen')
           .select('*')
           .eq('initiative_id', data.id)
           .limit(1)
           .maybeSingle(),
-        supabase.auth.getUser(),
         // El nivel político de la dirección general. Un funcionario
         // tramita; quien decide políticamente es el comisario, y eso
         // faltaba en la ficha.
         data.dg_code
-          ? supabase.from('ec_dg_political').select('*').eq('dg_code', data.dg_code).limit(1).maybeSingle()
-          : Promise.resolve({ data: null }),
+          ? pro
+            ? supabase.from('ec_dg_political').select('*').eq('dg_code', data.dg_code).limit(1).maybeSingle()
+            : supabase
+                .from('ec_dg_political')
+                .select('dg_code', { count: 'exact', head: true })
+                .eq('dg_code', data.dg_code)
+          : Promise.resolve({ data: null, count: 0 }),
       ]);
 
       if (cancelled) return;
       setStages(st || []);
-      setActors(act || []);
       setResumenMeps(res || null);
-      setComisario(com || null);
 
-      // FollowButton comprueba por su cuenta si se sigue; guardar ha
-      // desaparecido.
-      setUserId(auth?.user?.id || null);
+      if (pro) {
+        setActors(actoresRes.data || []);
+        setComisario(comisarioRes.data || null);
+      } else {
+        setActors([]);
+        setComisario(null);
+        setNActoresBloqueado(
+          (actoresRes.count || 0) + (comisarioRes.count || 0) + (data.author_name ? 1 : 0)
+        );
+      }
     })();
 
     return () => {
@@ -282,7 +436,11 @@ export default function InitiativeDetailPage() {
   const pestanas = useMemo(() => {
     const resumen = !!(item?.summary_es || item?.summary_en);
     // El comisario cuenta como actor: es quien responde políticamente.
-    const nActores = (actors || []).length + (item?.author_name ? 1 : 0) + (comisario ? 1 : 0);
+    // Sin plan las filas no se han pedido, así que el número sale del
+    // recuento. La pestaña dice lo mismo en los dos casos.
+    const nActores = esPro
+      ? (actors || []).length + (item?.author_name ? 1 : 0) + (comisario ? 1 : 0)
+      : nActoresBloqueado;
     return [
       { id: 'resumen', label: 'Resumen', n: null, activa: resumen },
       { id: 'recorrido', label: 'Recorrido', n: recorrido.length || null, activa: recorrido.length > 0 },
@@ -295,7 +453,7 @@ export default function InitiativeDetailPage() {
       },
       { id: 'docs', label: 'Documentos', n: documentos.length || null, activa: documentos.length > 0 },
     ];
-  }, [item, actors, recorrido, comisario]);
+  }, [item, actors, recorrido, comisario, esPro, nActoresBloqueado]);
 
   // Si la pestaña activa se queda sin contenido, se salta a la primera que
   // tenga algo. Sin esto, un expediente sin resumen abriría en blanco.
@@ -308,6 +466,11 @@ export default function InitiativeDetailPage() {
   }, [pestanas, tab]);
 
   async function cargarMeps(modo) {
+    // Cerrojo de seguridad. Hoy no puede llegarse aquí sin plan —los
+    // botones que la llaman viven dentro del panel de Parlamento, que
+    // sin plan no se pinta— pero la lista trae nombres de personas y no
+    // conviene que eso dependa de dónde esté un botón.
+    if (!esPro) return;
     if (filtroMeps === modo) {
       setFiltroMeps(null);
       setMeps(null);
@@ -626,7 +789,17 @@ export default function InitiativeDetailPage() {
         </div>
       )}
 
-      {tab === 'actores' && (
+      {tab === 'actores' && esPro === false && (
+        <div style={CARD}>
+          <PanelBloqueado
+            titulo="Los actores de este expediente"
+            descripcion="Quién responde políticamente, quién tramita el expediente y quién se ha pronunciado. Con nombres, cargos y direcciones de unidad a un solo clic."
+            filas={FILAS_ACTORES}
+          />
+        </div>
+      )}
+
+      {tab === 'actores' && esPro && (
         <div style={CARD}>
           {/* El comisario va primero: es el nivel político, y quien
               responde del expediente ante el Parlamento. */}
@@ -755,7 +928,17 @@ export default function InitiativeDetailPage() {
         </div>
       )}
 
-      {tab === 'parlamento' && resumenMeps && (
+      {tab === 'parlamento' && esPro === false && resumenMeps && (
+        <div style={CARD}>
+          <PanelBloqueado
+            titulo={`Los ${resumenMeps.total} eurodiputados que lo tramitan`}
+            descripcion="Quién responde políticamente, quién tramita el expediente y quién se ha pronunciado. Con nombres, cargos y direcciones de unidad a un solo clic."
+            filas={FILAS_PARLAMENTO}
+          />
+        </div>
+      )}
+
+      {tab === 'parlamento' && esPro && resumenMeps && (
         <div style={CARD}>
           <div style={{ fontSize: 12, color: '#555', lineHeight: 1.6, marginBottom: 12 }}>
             {resumenMeps.total} eurodiputados en las comisiones que tramitarán este expediente
