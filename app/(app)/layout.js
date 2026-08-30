@@ -10,6 +10,7 @@ import PublicHeader from '@/components/PublicHeader';
 import Footer from '@/components/Footer';
 import MenuUsuario from '@/components/MenuUsuario';
 import BarraMovil from '@/components/BarraMovil';
+import BuscadorGlobal from '@/components/BuscadorGlobal';
 
 export default function AppLayout({ children }) {
   const supabase = createClient();
@@ -100,13 +101,26 @@ export default function AppLayout({ children }) {
         <style>{`
           @media (max-width: 720px) {
             .nav-inner { padding: 0 14px; gap: 2px; overflow: visible; }
+            /* Los módulos los cubre BarraMovil abajo. El buscador no:
+               es lo único de la barra que no está duplicado ahí. */
             .nav-inner .ni-modulo { display: none; }
+            .nav-inner .nav-sp { flex: 0; }
           }
         `}</style>
         <div className="nav-inner">
           <Link href="/" className="nav-logo">
             gov<span>talent</span>
           </Link>
+
+          {/* Pegado al logo, como en LinkedIn: es lo primero que se
+              busca con la vista y no compite con la navegación, que se
+              va al otro extremo. */}
+          <BuscadorGlobal />
+
+          {/* Con el buscador a la izquierda, los módulos se empujan a la
+              derecha. Antes iban seguidos del logo y el hueco quedaba al
+              final. */}
+          <div className="nav-sp"></div>
           {/* El orden dice de qué va el producto: primero lo que se
               mueve, luego quién decide, después lo tuyo, y el empleo al
               final. Organizaciones pasa a vivir dentro de Instituciones.
@@ -151,19 +165,17 @@ export default function AppLayout({ children }) {
             <i className="ti ti-briefcase"></i>Empleos
           </Link>
 
-          <div className="nav-sp"></div>
-
           {/* Todo lo que ha pasado, tenga proyecto o no. Con el número y
               no un punto: saber que hay tres es distinto de saber que hay
               algo. */}
           <Link
             href="/seguimiento"
-            className={`ni ${pathname.startsWith('/seguimiento') ? 'on' : ''}`}
+            className={`ni ni-icono ${pathname.startsWith('/seguimiento') ? 'on' : ''}`}
             aria-label={novedades > 0 ? `Avisos, ${novedades} sin leer` : 'Avisos'}
             title="Avisos"
           >
             <span style={{ position: 'relative', display: 'inline-flex' }}>
-              <i className="ti ti-bell" style={{ fontSize: 19 }}></i>
+              <i className="ti ti-bell"></i>
               {novedades > 0 && (
                 <span
                   style={{
