@@ -4,6 +4,7 @@ import { Suspense, useEffect, useMemo, useState } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
+import { cifraPlazo } from '@/lib/plazos';
 
 /**
  * Buscador transversal de Regulatorio.
@@ -210,8 +211,19 @@ function Buscar() {
                     <div style={{ width: 46, flexShrink: 0, textAlign: 'center', paddingTop: 2 }}>
                       {dias !== null && dias >= 0 ? (
                         <>
-                          <div style={{ fontSize: 17, fontWeight: 500, color: '#1d6f5c', lineHeight: 1 }}>{dias}</div>
-                          <div style={{ fontSize: 10, color: '#b8b4ac' }}>{dias === 1 ? 'día' : 'días'}</div>
+                          {(() => {
+                    const pl = cifraPlazo(dias);
+                    return (
+                      <>
+                        <div style={{ fontSize: pl.tam, fontWeight: 500, color: '#1d6f5c', lineHeight: 1.15 }}>
+                          {pl.cifra}
+                        </div>
+                        {pl.unidad && (
+                          <div style={{ fontSize: 10, color: '#b8b4ac' }}>{pl.unidad}</div>
+                        )}
+                      </>
+                    );
+                  })()}
                         </>
                       ) : (
                         <div style={{ fontSize: 10.5, color: '#b8b4ac' }}>{fechaCorta(i.fecha)?.slice(0, 6)}</div>
