@@ -762,6 +762,13 @@ function BuscarTab({ members, officials }) {
           </div>
         </div>
       )}
+      {upsell && (
+        <UpgradeModal
+          title="Filtrar por tipo de cargo"
+          message="Separa a los secretarios de Estado de los directores generales y del resto del organigrama. Disponible en el plan Pro."
+          onClose={() => setUpsell(false)}
+        />
+      )}
     </>
   );
 }
@@ -915,13 +922,6 @@ function MinisteriosTab({ members, officials }) {
         </Link>
       ))}
         </div>
-      )}
-      {upsell && (
-        <UpgradeModal
-          title="Filtrar por tipo de cargo"
-          message="Separa a los secretarios de Estado de los directores generales y del resto del organigrama. Disponible en el plan Pro."
-          onClose={() => setUpsell(false)}
-        />
       )}
     </>
   );
