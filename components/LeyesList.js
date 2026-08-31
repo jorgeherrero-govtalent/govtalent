@@ -509,8 +509,8 @@ export default function LeyesList() {
 
       {upsell && (
         <UpgradeModal
-          title="Filtrar por situación"
-          message="Separa lo que sigue vivo de lo aprobado, caducado o retirado, sin recorrer la lista entera. Disponible en el plan Pro."
+          title="Filtrar por comisión"
+          message="Quédate con la actividad de las comisiones que te tocan. Disponible en el plan Pro."
           onClose={() => setUpsell(false)}
         />
       )}
