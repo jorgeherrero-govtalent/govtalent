@@ -6,6 +6,8 @@ import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
 import BackLink from '@/components/BackLink';
 import FollowButton from '@/components/FollowButton';
+import UpgradeModal from '@/components/UpgradeModal';
+import usePlanPro from '@/lib/usePlanPro';
 
 const GROUP_COLORS = {
   PPE: '#378ADD',
@@ -223,6 +225,8 @@ export default function MepDetailPage() {
   const params = useParams();
   const slug = params?.slug;
 
+  const esPro = usePlanPro();
+  const [upsell, setUpsell] = useState(false);
   const [mep, setMep] = useState(undefined); // undefined = cargando, null = no existe
   const [memberships, setMemberships] = useState([]);
   const [tab, setTab] = useState('actividad');
@@ -471,7 +475,7 @@ export default function MepDetailPage() {
               </div>
             )}
 
-            {mep.email && (
+            {mep.email && esPro !== null && (
               <div
                 style={{
                   display: 'flex',
@@ -483,12 +487,41 @@ export default function MepDetailPage() {
                 }}
               >
                 <i className="ti ti-mail" style={{ fontSize: 14, color: '#6d5aef' }}></i>
-                <a
-                  href={`mailto:${mep.email}`}
-                  style={{ fontSize: 11.5, color: '#555', wordBreak: 'break-all', textDecoration: 'none' }}
-                >
-                  {mep.email}
-                </a>
+                {esPro ? (
+                  <a
+                    href={`mailto:${mep.email}`}
+                    style={{ fontSize: 11.5, color: '#555', wordBreak: 'break-all', textDecoration: 'none' }}
+                  >
+                    {mep.email}
+                  </a>
+                ) : (
+                  /* Lo borroso es una dirección inventada, no la suya con
+                     un filtro encima: un blur de CSS no oculta nada y el
+                     texto real se leería desde el inspector. */
+                  <button
+                    type="button"
+                    onClick={() => setUpsell(true)}
+                    style={{
+                      border: 'none',
+                      background: 'none',
+                      padding: 0,
+                      cursor: 'pointer',
+                      fontFamily: 'inherit',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: 7,
+                    }}
+                    aria-label="Ver el correo con el plan Pro"
+                  >
+                    <span
+                      style={{ fontSize: 11.5, color: '#555', filter: 'blur(3.5px)', userSelect: 'none' }}
+                      aria-hidden="true"
+                    >
+                      nombre.apellido@europarl.europa.eu
+                    </span>
+                    <i className="ti ti-lock" style={{ fontSize: 12, color: '#6d5aef', flexShrink: 0 }}></i>
+                  </button>
+                )}
               </div>
             )}
 
@@ -546,6 +579,14 @@ export default function MepDetailPage() {
             </div>
           </div>
         </>
+      )}
+
+      {upsell && (
+        <UpgradeModal
+          title="El correo de contacto"
+          message="Escribe directamente a los eurodiputados que tramitan lo tuyo, sin buscarlos uno a uno. Disponible en el plan Pro."
+          onClose={() => setUpsell(false)}
+        />
       )}
     </div>
   );
