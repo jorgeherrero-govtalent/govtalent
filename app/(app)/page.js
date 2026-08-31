@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
+import { cifraPlazo, frasePlazo } from '@/lib/plazos';
 
 /**
  * Home.
@@ -192,7 +193,7 @@ export default function Home() {
       const min = Math.min(...conPlazo.map((m) => diasHasta(m.plazo)));
       return `${conPlazo.length} ${
         conPlazo.length === 1 ? 'asunto de tu sector tiene' : 'asuntos de tu sector tienen'
-      } plazo abierto. El más urgente cierra en ${min} ${min === 1 ? 'día' : 'días'}.`;
+      } plazo abierto. El más urgente cierra ${frasePlazo(min)}.`;
     }
     if (novedades.length > 0) {
       return `${novedades.length} ${
@@ -200,7 +201,11 @@ export default function Home() {
       } en lo que sigues desde tu última visita.`;
     }
     if (plazos.length > 0) {
-      return `${plazos[0].dias} ${plazos[0].dias === 1 ? 'día' : 'días'} para el plazo más próximo.`;
+      // "0 días para el plazo más próximo" obliga a traducir una resta.
+      // El idioma ya tiene la palabra.
+      return plazos[0].dias === 0
+        ? 'El plazo más próximo vence hoy.'
+        : `El plazo más próximo vence ${frasePlazo(plazos[0].dias)}.`;
     }
     return 'Tu espacio de trabajo en asuntos públicos.';
   }, [cargado, sector, novedades, plazos]);
@@ -330,8 +335,19 @@ export default function Home() {
                     <div style={{ width: 44, flexShrink: 0, textAlign: 'center' }}>
                       {dias !== null && dias >= 0 ? (
                         <>
-                          <div style={{ fontSize: 19, fontWeight: 600, color: '#1d6f5c', lineHeight: 1 }}>{dias}</div>
-                          <div style={{ fontSize: 10, color: '#b8b4ac' }}>{dias === 1 ? 'día' : 'días'}</div>
+                          {(() => {
+                            const pl = cifraPlazo(dias);
+                            return (
+                              <>
+                                <div style={{ fontSize: pl.tam, fontWeight: 600, color: '#1d6f5c', lineHeight: 1.15 }}>
+                                  {pl.cifra}
+                                </div>
+                                {pl.unidad && (
+                                  <div style={{ fontSize: 10, color: '#b8b4ac' }}>{pl.unidad}</div>
+                                )}
+                              </>
+                            );
+                          })()}
                         </>
                       ) : (
                         <div style={{ fontSize: 11, color: '#b8b4ac', paddingTop: 4 }}>{m.fuente?.slice(0, 8)}</div>
@@ -427,8 +443,17 @@ export default function Home() {
                 }}
               >
                 <div style={{ width: 44, flexShrink: 0, textAlign: 'center' }}>
-                  <div style={{ fontSize: 19, fontWeight: 600, color: '#6d5aef', lineHeight: 1 }}>{p.dias}</div>
-                  <div style={{ fontSize: 10, color: '#b8b4ac' }}>{p.dias === 1 ? 'día' : 'días'}</div>
+                  {(() => {
+                    const pl = cifraPlazo(p.dias);
+                    return (
+                      <>
+                        <div style={{ fontSize: pl.tam, fontWeight: 600, color: '#6d5aef', lineHeight: 1.15 }}>
+                          {pl.cifra}
+                        </div>
+                        {pl.unidad && <div style={{ fontSize: 10, color: '#b8b4ac' }}>{pl.unidad}</div>}
+                      </>
+                    );
+                  })()}
                 </div>
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ fontSize: 13, lineHeight: 1.45, letterSpacing: '-.1px' }}>{p.title}</div>
