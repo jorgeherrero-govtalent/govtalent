@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
 import { toast } from '@/lib/toast';
 import BackLink from '@/components/BackLink';
+import PanelBloqueado, { FILAS_CONGRESO } from '@/components/PanelBloqueado';
 import FollowButton from '@/components/FollowButton';
 import { groupColor, grupoCorto, colorSigla, nombreSigla } from '@/lib/grupos';
 
@@ -86,6 +87,10 @@ export default function CongresoDetailPage() {
   const [etapas, setEtapas] = useState([]);
   const [personas, setPersonas] = useState([]);
   const [comision, setComision] = useState(null);
+  const [esPro, setEsPro] = useState(null);
+  // El recuento que sigue enseñándose sin plan: la pestaña dice cuántos
+  // actores hay, no quiénes son.
+  const [nPersonasBloqueadas, setNPersonasBloqueadas] = useState(0);
   const [userId, setUserId] = useState(null);
   const [tab, setTab] = useState('recorrido');
   const [verTodo, setVerTodo] = useState(false);
@@ -109,32 +114,66 @@ export default function CongresoDetailPage() {
       }
       setItem(data);
 
-      const [{ data: et }, { data: pe }, { data: co }, { data: auth }] = await Promise.all([
+      // FollowButton comprueba por su cuenta si se sigue; aquí el
+      // usuario hace falta antes, para saber el plan.
+      const { data: auth } = await supabase.auth.getUser();
+      if (cancelled) return;
+      const uid = auth?.user?.id || null;
+      setUserId(uid);
+
+      // El plan decide qué se pide. Traerlo todo y esconderlo con un
+      // desenfoque no protege nada: lo que baja al navegador se lee
+      // desde el inspector.
+      let pro = false;
+      if (uid) {
+        const { data: perfil } = await supabase.from('users').select('plan').eq('id', uid).single();
+        pro = perfil?.plan === 'pro';
+      }
+      if (cancelled) return;
+      setEsPro(pro);
+
+      const [{ data: et }, personasRes, comisionRes] = await Promise.all([
+        // El recorrido son fases y fechas, sin personas: se pide siempre.
         supabase
           .from('es_initiative_timeline')
           .select('*')
           .eq('num_expediente', data.num_expediente)
           .order('ord'),
-        supabase.from('es_initiative_actors').select('*').eq('num_expediente', data.num_expediente),
+        // Sin plan, el recuento y no las filas: la pestaña puede decir
+        // "Actores (6)" sin que los seis nombres salgan del servidor.
+        pro
+          ? supabase.from('es_initiative_actors').select('*').eq('num_expediente', data.num_expediente)
+          : supabase
+              .from('es_initiative_actors')
+              .select('num_expediente', { count: 'exact', head: true })
+              .eq('num_expediente', data.num_expediente),
         // La comisión competente con sus portavoces: quienes negocian
-        // este texto por cada grupo.
-        supabase
-          .from('es_initiative_committee')
-          .select('*')
-          .eq('num_expediente', data.num_expediente)
-          .limit(1)
-          .maybeSingle(),
-        supabase.auth.getUser(),
+        // este texto por cada grupo. Sin plan basta saber si la hay,
+        // porque de eso depende que la pestaña esté activa.
+        pro
+          ? supabase
+              .from('es_initiative_committee')
+              .select('*')
+              .eq('num_expediente', data.num_expediente)
+              .limit(1)
+              .maybeSingle()
+          : supabase
+              .from('es_initiative_committee')
+              .select('num_expediente', { count: 'exact', head: true })
+              .eq('num_expediente', data.num_expediente),
       ]);
 
       if (cancelled) return;
       setEtapas(et || []);
-      setPersonas(pe || []);
-      setComision(co || null);
 
-      // Ya no se consulta si está guardado: FollowButton comprueba por
-      // su cuenta si se sigue, y guardar ha desaparecido.
-      setUserId(auth?.user?.id || null);
+      if (pro) {
+        setPersonas(personasRes.data || []);
+        setComision(comisionRes.data || null);
+      } else {
+        setPersonas([]);
+        setComision(null);
+        setNPersonasBloqueadas((personasRes.count || 0) + (comisionRes.count || 0));
+      }
     })();
 
     return () => {
@@ -158,18 +197,23 @@ export default function CongresoDetailPage() {
     return [...partir(item.enlaces_bocg, 'Boletín Oficial'), ...partir(item.enlaces_ds, 'Diario de Sesiones')];
   }, [item]);
 
+  const nActores = esPro ? personas.length + (comision ? 1 : 0) : nPersonasBloqueadas;
+
   const pestanas = useMemo(
     () => [
       { id: 'recorrido', label: `Recorrido${etapas.length ? ` (${etapas.length})` : ''}`, activa: etapas.length > 0 },
+      // Sin plan las filas no se piden, así que el número sale del
+      // recuento. La pestaña sigue activa: se entra y se ve el panel,
+      // que es justo lo que se quiere enseñar.
       {
         id: 'actores',
-        label: `Actores${personas.length ? ` (${personas.length})` : ''}`,
-        activa: personas.length > 0 || (item?.grupos || []).length > 0 || !!comision,
+        label: `Actores${nActores ? ` (${nActores})` : ''}`,
+        activa: nActores > 0 || (item?.grupos || []).length > 0,
       },
       { id: 'plazos', label: 'Plazos', activa: !!item?.texto_plazos },
       { id: 'docs', label: `Documentos${documentos.length ? ` (${documentos.length})` : ''}`, activa: documentos.length > 0 },
     ],
-    [etapas, personas, item, documentos, comision]
+    [etapas, item, documentos, nActores]
   );
 
   useEffect(() => {
@@ -472,7 +516,17 @@ export default function CongresoDetailPage() {
         </div>
       )}
 
-      {tab === 'actores' && (
+      {tab === 'actores' && esPro === false && (
+        <div style={CARD}>
+          <PanelBloqueado
+            titulo="Quién decide y quién presenta esta ley"
+            descripcion="La comisión competente, sus portavoces por grupo, los ponentes designados y los grupos autores. Con nombre, grupo y ficha de cada uno a un solo clic."
+            filas={FILAS_CONGRESO}
+          />
+        </div>
+      )}
+
+      {tab === 'actores' && esPro && (
         <div style={CARD}>
           {/* La comisión competente va primero: es quien decide el texto.
               Vive en Instituciones como órgano, pero aquí aparece como
