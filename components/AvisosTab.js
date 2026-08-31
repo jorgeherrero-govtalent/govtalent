@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
 import { toast } from '@/lib/toast';
+import Interruptor from '@/components/Interruptor';
 
 /**
  * Ajustes de avisos y gestión de alertas.
@@ -26,45 +27,6 @@ const FUENTES = [
   { id: 'comision', label: 'Comisión Europea' },
   { id: 'parlamento', label: 'Parlamento Europeo' },
 ];
-
-function Interruptor({ activo, onChange, size = 'grande' }) {
-  const w = size === 'grande' ? 38 : 34;
-  const h = size === 'grande' ? 22 : 20;
-  const bola = h - 4;
-  return (
-    <button
-      type="button"
-      role="switch"
-      aria-checked={activo}
-      onClick={onChange}
-      style={{
-        width: w,
-        height: h,
-        borderRadius: h / 2,
-        background: activo ? '#6d5aef' : '#e0dfd8',
-        border: 'none',
-        padding: 0,
-        cursor: 'pointer',
-        flexShrink: 0,
-        position: 'relative',
-        transition: 'background .18s ease',
-      }}
-    >
-      <span
-        style={{
-          position: 'absolute',
-          top: 2,
-          left: activo ? w - bola - 2 : 2,
-          width: bola,
-          height: bola,
-          borderRadius: '50%',
-          background: '#fff',
-          transition: 'left .18s ease',
-        }}
-      ></span>
-    </button>
-  );
-}
 
 function haceCuanto(iso) {
   if (!iso) return null;
