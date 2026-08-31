@@ -6,6 +6,8 @@ import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
 import BackLink from '@/components/BackLink';
 import FollowButton from '@/components/FollowButton';
+import PanelBloqueado, { FILAS_DIRECCION_DG } from '@/components/PanelBloqueado';
+import UpgradeModal from '@/components/UpgradeModal';
 
 /**
  * Ficha de una dirección general de la Comisión Europea.
@@ -70,7 +72,11 @@ export default function DgDetailPage() {
   const { code } = useParams();
 
   const [dg, setDg] = useState(undefined);
+  const [esPro, setEsPro] = useState(null);
+  const [upsell, setUpsell] = useState(false);
   const [personas, setPersonas] = useState([]);
+  // Cuántas hay aunque no se pidan sus nombres.
+  const [nPersonas, setNPersonas] = useState(0);
   const [expedientes, setExpedientes] = useState([]);
   const [verTodas, setVerTodas] = useState(false);
 
@@ -93,13 +99,32 @@ export default function DgDetailPage() {
       }
       setDg(data);
 
-      const [{ data: pe }, { data: ex }] = await Promise.all([
-        supabase
-          .from('ec_dg_people')
-          .select('*')
-          .eq('body_code', data.code)
-          .order('orden_cargo')
-          .order('full_name'),
+      // El plan decide qué se pide, así que se resuelve antes que el
+      // resto de consultas.
+      const { data: auth } = await supabase.auth.getUser();
+      let pro = false;
+      if (auth?.user?.id) {
+        const { data: perfil } = await supabase.from('users').select('plan').eq('id', auth.user.id).single();
+        pro = perfil?.plan === 'pro';
+      }
+      if (cancelled) return;
+      setEsPro(pro);
+
+      const [personasRes, { data: ex }] = await Promise.all([
+        // Sin plan, el recuento y no las filas: son nombres y correos de
+        // funcionarios, y difuminarlos con CSS los dejaría legibles
+        // desde el inspector.
+        pro
+          ? supabase
+              .from('ec_dg_people')
+              .select('*')
+              .eq('body_code', data.code)
+              .order('orden_cargo')
+              .order('full_name')
+          : supabase
+              .from('ec_dg_people')
+              .select('body_code', { count: 'exact', head: true })
+              .eq('body_code', data.code),
         // Los que tienen plazo abierto primero: con 332 expedientes en
         // ENV, mostrarlos por fecha escondería lo accionable.
         supabase
@@ -112,7 +137,12 @@ export default function DgDetailPage() {
       ]);
 
       if (cancelled) return;
-      setPersonas(pe || []);
+      if (pro) {
+        setPersonas(personasRes.data || []);
+      } else {
+        setPersonas([]);
+        setNPersonas(personasRes.count || 0);
+      }
       setExpedientes(ex || []);
     })();
 
@@ -251,7 +281,22 @@ export default function DgDetailPage() {
         </div>
       )}
 
-      {personas.length > 0 && (
+      {/* Sin plan la tarjeta se mantiene con su título y su forma, y
+          las filas son atrezo difuminado. */}
+      {esPro === false && nPersonas > 0 && (
+        <div style={{ ...CARD, padding: 20, marginBottom: 12 }}>
+          <div style={{ ...LABEL, marginBottom: 14 }}>QUIÉN LA DIRIGE</div>
+          <PanelBloqueado
+            titulo="Quién dirige esta dirección general"
+            descripcion="El director general, sus adjuntos y los directores de área. Con cargo, unidad y correo a un solo clic."
+            filas={FILAS_DIRECCION_DG}
+            dominio="ec.europa.eu"
+            onUpsell={() => setUpsell(true)}
+          />
+        </div>
+      )}
+
+      {esPro && personas.length > 0 && (
         <div style={{ ...CARD, padding: 20, marginBottom: 12 }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 14, gap: 10, flexWrap: 'wrap' }}>
             <div style={{ ...LABEL, marginBottom: 0 }}>QUIÉN LA DIRIGE</div>
@@ -348,6 +393,14 @@ export default function DgDetailPage() {
         <i className="ti ti-shield-check" style={{ fontSize: 13 }}></i>
         Datos del directorio oficial de la Comisión Europea.
       </div>
+
+      {upsell && (
+        <UpgradeModal
+          title="Quién dirige esta dirección general"
+          message="El director general, sus adjuntos y los directores de área, con su cargo, su unidad y su correo. Disponible en el plan Pro."
+          onClose={() => setUpsell(false)}
+        />
+      )}
     </div>
   );
 }
