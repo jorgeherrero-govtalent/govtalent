@@ -359,8 +359,15 @@ function OrganigramaTab({ members, officials }) {
 
   const etiquetaBloque = (b) => b.m.ministry_name || b.m.role;
 
+  // MultiSelectFilter espera objetos { value, label } y hace
+  // v.label.toLowerCase() al abrir el desplegable. Con cadenas sueltas,
+  // `label` es undefined y la página entera revienta al pulsar. Es el
+  // mismo formato que ya usaban los filtros de Organismos y de Leyes.
   const ministerioOptions = useMemo(
-    () => [...new Set(bloques.map(etiquetaBloque).filter(Boolean))].sort((a, b) => a.localeCompare(b)),
+    () =>
+      [...new Set(bloques.map(etiquetaBloque).filter(Boolean))]
+        .sort((a, b) => a.localeCompare(b))
+        .map((v) => ({ value: v, label: v })),
     [bloques]
   );
 
@@ -373,7 +380,7 @@ function OrganigramaTab({ members, officials }) {
       vistos.add(roleType(b.m.role || ''));
       for (const o of teamFor(b.m, officials, b.ordinal)) vistos.add(roleType(o.role || ''));
     }
-    return [...vistos].sort((a, b) => a.localeCompare(b));
+    return [...vistos].sort((a, b) => a.localeCompare(b)).map((v) => ({ value: v, label: v }));
   }, [bloques, officials]);
 
   const q = normalizarConsulta(search);
