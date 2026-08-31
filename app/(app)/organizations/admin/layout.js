@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { createClient } from '@/lib/supabase/client';
-import { getEffectiveTier, planLabel, sidebarTrialLabel } from '@/lib/plan';
+import { getEffectiveTier, planLabel } from '@/lib/plan';
 
 /**
  * Talento: todo lo que es contratar, en un solo sitio.
@@ -56,7 +56,7 @@ export default function OrganizationAdminLayout({ children }) {
 
     const { data: membresia } = await supabase
       .from('organization_members')
-      .select('organization_id, organizations(id, name, slug, logo_url, plan, plan_status, trial_ends_at, is_founding_member)')
+      .select('organization_id, organizations(id, name, slug, logo_url, plan, is_founding_member)')
       .eq('user_id', uid)
       .limit(1)
       .maybeSingle();
@@ -92,7 +92,6 @@ export default function OrganizationAdminLayout({ children }) {
     });
   }
 
-  const trial = org ? sidebarTrialLabel(org) : null;
   const dePago = org ? getEffectiveTier(org) !== 'free' : false;
 
   return (
@@ -177,25 +176,6 @@ export default function OrganizationAdminLayout({ children }) {
               ) : null}
             </div>
           </div>
-
-          {/* El aviso de la prueba estaba en la lateral, junto a Plan.
-              Sin lateral vive aquí, que es donde se ve siempre. */}
-          {trial && (
-            <Link
-              href="/organizations/admin/plan"
-              style={{
-                fontSize: 11.5,
-                background: '#f0eefe',
-                color: '#3c3489',
-                borderRadius: 20,
-                padding: '4px 11px',
-                textDecoration: 'none',
-                flexShrink: 0,
-              }}
-            >
-              {trial}
-            </Link>
-          )}
 
           {org?.slug && (
             <Link
