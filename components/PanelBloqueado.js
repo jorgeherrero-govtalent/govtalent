@@ -159,6 +159,15 @@ export const FILAS_EURODIPUTADOS = [
   { iniciales: 'ES', nombre: 'Nombre del eurodiputado', cargo: 'Miembro suplente · España' },
 ];
 
+// El Congreso no enseña correos en esta pestaña, así que este atrezo se
+// usa sin `dominio` y la columna de la derecha no aparece.
+export const FILAS_CONGRESO = [
+  { iniciales: 'CO', nombre: 'Comisión competente', cargo: 'Quién decide el texto' },
+  { iniciales: 'PV', nombre: 'Nombre del portavoz', cargo: 'Portavoz en la comisión' },
+  { iniciales: 'PO', nombre: 'Nombre del ponente', cargo: 'Ponente designado' },
+  { iniciales: 'GP', nombre: 'Grupo parlamentario autor', cargo: 'Quién la presenta' },
+];
+
 export const FILAS_COMISIONES_PE = [
   { iniciales: '····', nombre: 'Comisión competente para el fondo', cargo: 'Decide el texto' },
   { iniciales: '····', nombre: 'Comisión para opinión', cargo: 'Emite opinión' },
