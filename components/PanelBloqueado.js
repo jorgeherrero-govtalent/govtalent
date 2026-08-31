@@ -195,6 +195,22 @@ export const FILAS_EURODIPUTADOS = [
 
 // El Congreso no enseña correos en esta pestaña, así que este atrezo se
 // usa sin `dominio` y la columna de la derecha no aparece.
+// Los diputados con los que se comparte ponencia. No lleva `dominio`:
+// en el Congreso no hay correos y prometerlos sería mentir.
+export const FILAS_COLEGAS = [
+  { iniciales: 'D1', nombre: 'Nombre del diputado', cargo: 'Coincide en 4 ponencias' },
+  { iniciales: 'D2', nombre: 'Nombre del diputado', cargo: 'Coincide en 3 ponencias' },
+  { iniciales: 'D3', nombre: 'Nombre del diputado', cargo: 'Coincide en 2 ponencias' },
+];
+
+// El contacto de la unidad en un ministerio. Correo, teléfono y web son
+// de la unidad, no de la persona: el atrezo lo refleja.
+export const FILAS_CONTACTO_UNIDAD = [
+  { iniciales: '@', nombre: 'buzon.unidad@ministerio.gob.es', cargo: 'Correo de la unidad' },
+  { iniciales: 'T', nombre: '+34 91 000 00 00', cargo: 'Teléfono' },
+  { iniciales: 'W', nombre: 'www.ministerio.gob.es/unidad', cargo: 'Web' },
+];
+
 export const FILAS_CONGRESO = [
   { iniciales: 'CO', nombre: 'Comisión competente', cargo: 'Quién decide el texto' },
   { iniciales: 'PV', nombre: 'Nombre del portavoz', cargo: 'Portavoz en la comisión' },
