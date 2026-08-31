@@ -5,6 +5,8 @@ import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
 import MultiSelectFilter from '@/components/MultiSelectFilter';
+import UpgradeModal from '@/components/UpgradeModal';
+import usePlanPro from '@/lib/usePlanPro';
 import { groupColor, grupoCorto } from '@/lib/grupos';
 
 /**
@@ -44,6 +46,8 @@ function subtipoCorto(label, kind) {
 }
 
 export default function ActividadList({ kind }) {
+  const esPro = usePlanPro();
+  const [upsell, setUpsell] = useState(false);
   const supabase = createClient();
 
   const [items, setItems] = useState(null);
@@ -185,6 +189,8 @@ export default function ActividadList({ kind }) {
           values={situacionOptions}
           selected={situacionFilter}
           onApply={setSituacionFilter}
+          bloqueado={esPro === false}
+          onBloqueado={() => setUpsell(true)}
         />
         <MultiSelectFilter label="Grupo" values={grupoOptions} selected={grupoFilter} onApply={setGrupoFilter} />
       </div>
@@ -382,6 +388,14 @@ export default function ActividadList({ kind }) {
             </div>
           </div>
         </div>
+      )}
+
+      {upsell && (
+        <UpgradeModal
+          title="Filtrar por situación"
+          message="Separa lo que sigue vivo de lo que ya caducó o se retiró, sin recorrer la lista entera. Disponible en el plan Pro."
+          onClose={() => setUpsell(false)}
+        />
       )}
     </>
   );
