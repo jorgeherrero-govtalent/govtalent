@@ -244,7 +244,7 @@ export default function OrganizationPlanPage() {
           }}
         >
           <span style={{ fontSize: 11.5, color: '#a8a49c' }}>
-            Precios sin IVA. El cambio de plan se gestiona desde la página de precios.
+            El cambio de plan se gestiona desde la página de precios.
           </span>
           <Link
             href="/precios?para=organizaciones"
