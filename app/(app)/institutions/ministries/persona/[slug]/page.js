@@ -7,6 +7,9 @@ import { createClient } from '@/lib/supabase/client';
 import { toast } from '@/lib/toast';
 import BackLink from '@/components/BackLink';
 import FollowButton from '@/components/FollowButton';
+import PanelBloqueado, { FILAS_CONTACTO_UNIDAD } from '@/components/PanelBloqueado';
+import UpgradeModal from '@/components/UpgradeModal';
+import usePlanPro from '@/lib/usePlanPro';
 
 function initials(fullName) {
   const parts = (fullName || '').replace(',', '').trim().split(' ');
@@ -29,6 +32,8 @@ const CARD_LABEL = {
 };
 
 export default function GovernmentOfficialProfilePage() {
+  const esPro = usePlanPro();
+  const [upsell, setUpsell] = useState(false);
   const { slug } = useParams();
   const supabase = createClient();
 
@@ -215,11 +220,23 @@ export default function GovernmentOfficialProfilePage() {
             </div>
           )}
 
+          {/* Sin contacto real no hay nada que vender: se dice que no lo
+              tenemos, igual que con plan. Difuminar aquí prometería un
+              teléfono que tampoco aparece pagando. */}
           {!hasContact ? (
             <div className="empty-state">
               <i className="ti ti-address-book-off"></i>
               No tenemos datos de contacto para esta unidad.
             </div>
+          ) : esPro === false ? (
+            <PanelBloqueado
+              titulo="El contacto de la unidad"
+              descripcion="El correo, el teléfono y la web de la unidad que dirige, para escribir al sitio correcto a la primera."
+              filas={FILAS_CONTACTO_UNIDAD}
+              onUpsell={() => setUpsell(true)}
+            />
+          ) : esPro === null ? (
+            <div style={{ minHeight: 90 }}></div>
           ) : (
             <div style={{ fontSize: 12.5, color: '#555', display: 'flex', flexDirection: 'column', gap: 9 }}>
               {official.unit_phone && (
@@ -315,6 +332,14 @@ export default function GovernmentOfficialProfilePage() {
         <i className="ti ti-shield-check" style={{ fontSize: 13 }}></i>
         Datos obtenidos de la Agenda de la Comunicación (lamoncloa.gob.es), edición 2025 — actualización anual.
       </div>
+
+      {upsell && (
+        <UpgradeModal
+          title="El contacto de la unidad"
+          message="El correo, el teléfono y la web de la unidad, para escribir al sitio correcto a la primera. Disponible en el plan Pro."
+          onClose={() => setUpsell(false)}
+        />
+      )}
     </div>
   );
 }
