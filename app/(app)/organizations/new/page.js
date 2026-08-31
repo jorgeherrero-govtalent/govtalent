@@ -3,7 +3,6 @@
 import { useEffect, useState } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { toast } from '@/lib/toast';
-import { buildTrialStart } from '@/lib/plan';
 import { ORG_TYPES, SECTORS } from '@/lib/orgTaxonomy';
 import { normalizeLocation } from '@/lib/normalizeLocation';
 import Interruptor from '@/components/Interruptor';
@@ -90,7 +89,6 @@ export default function NewOrganizationPage() {
         sector: sector || null,
         location: normalizeLocation(location),
         claimed: true,
-        ...buildTrialStart(),
       })
       .select()
       .single();
