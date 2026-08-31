@@ -204,6 +204,23 @@ export const FILAS_CONGRESO = [
 
 // La mesa de una comisión del PE: presidencia y vicepresidencias. Sin
 // `dominio`, porque esa tarjeta no enseña correos, solo grupo y país.
+// El gabinete de un comisario: sí enseña correos, así que va con
+// `dominio="ec.europa.eu"`.
+export const FILAS_GABINETE = [
+  { iniciales: 'JG', nombre: 'Nombre del jefe de gabinete', cargo: 'Head of Cabinet' },
+  { iniciales: 'JA', nombre: 'Nombre del jefe adjunto', cargo: 'Deputy Head of Cabinet' },
+  { iniciales: 'M1', nombre: 'Nombre del miembro del gabinete', cargo: 'Member of Cabinet' },
+  { iniciales: 'M2', nombre: 'Nombre del miembro del gabinete', cargo: 'Member of Cabinet' },
+];
+
+// La cúpula de una dirección general.
+export const FILAS_DIRECCION_DG = [
+  { iniciales: 'DG', nombre: 'Nombre del director general', cargo: 'Director-General' },
+  { iniciales: 'DA', nombre: 'Nombre del director adjunto', cargo: 'Deputy Director-General' },
+  { iniciales: 'AP', nombre: 'Nombre del asesor principal', cargo: 'Principal Adviser' },
+  { iniciales: 'DI', nombre: 'Nombre del director', cargo: 'Director · Dirección' },
+];
+
 export const FILAS_MESA_PE = [
   { iniciales: 'PR', nombre: 'Nombre de quien preside', cargo: 'Presidencia' },
   { iniciales: 'V1', nombre: 'Nombre de la vicepresidencia', cargo: 'Vicepresidencia' },
