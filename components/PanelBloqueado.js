@@ -82,7 +82,23 @@ function FilaOrgano({ fila }) {
   );
 }
 
-export default function PanelBloqueado({ titulo, descripcion, filas, dominio, forma = 'persona' }) {
+/**
+ * `onUpsell` cambia el destino del botón, no el aspecto.
+ *
+ * Sin él, el botón es un enlace a /precios y se abandona la página. Con
+ * él, abre un modal encima y el usuario se queda donde estaba. Lo
+ * segundo va mejor cuando lo bloqueado es una parte de la página y el
+ * resto sigue siendo útil: la mesa de una comisión, por ejemplo, donde
+ * debajo hay procedimientos que sí se ven.
+ */
+export default function PanelBloqueado({
+  titulo,
+  descripcion,
+  filas,
+  dominio,
+  forma = 'persona',
+  onUpsell,
+}) {
   return (
     <div style={{ position: 'relative', minHeight: 190 }}>
       <div
@@ -128,14 +144,32 @@ export default function PanelBloqueado({ titulo, descripcion, filas, dominio, fo
         >
           <div style={{ fontSize: 13.5, fontWeight: 600, marginBottom: 5 }}>{titulo}</div>
           <p style={{ fontSize: 12, color: '#666', lineHeight: 1.55, margin: '0 0 13px' }}>{descripcion}</p>
-          <Link
-            href="/precios"
-            target="_blank"
-            className="btn-ai"
-            style={{ textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 6 }}
-          >
-            <i className="ti ti-bolt"></i> Ver con Pro
-          </Link>
+          {onUpsell ? (
+            <button
+              type="button"
+              onClick={onUpsell}
+              className="btn-ai"
+              style={{
+                border: 'none',
+                cursor: 'pointer',
+                fontFamily: 'inherit',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 6,
+              }}
+            >
+              <i className="ti ti-bolt"></i> Ver con Pro
+            </button>
+          ) : (
+            <Link
+              href="/precios"
+              target="_blank"
+              className="btn-ai"
+              style={{ textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 6 }}
+            >
+              <i className="ti ti-bolt"></i> Ver con Pro
+            </Link>
+          )}
         </div>
       </div>
     </div>
