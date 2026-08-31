@@ -37,6 +37,10 @@ function fechaLarga(iso) {
  * Es un componente y no una página porque vive dentro de las pestañas de
  * Actividad parlamentaria. El Suspense lo pone la página contenedora.
  */
+// La etiqueta de las que aún no tienen comisión asignada. Sale como una
+// opción más del filtro para que esas 123 se puedan encontrar.
+const SIN_COMISION = 'Sin comisión asignada';
+
 export default function LeyesList() {
   const esPro = usePlanPro();
   const [upsell, setUpsell] = useState(false);
@@ -49,7 +53,7 @@ export default function LeyesList() {
   const sp = useSearchParams();
   const [search, setSearch] = useState(sp?.get('q') || '');
   const [estado, setEstado] = useState('progreso'); // progreso | bloqueadas | todas
-  const [situacionFilter, setSituacionFilter] = useState(new Set());
+  const [comisionFilter, setComisionFilter] = useState(new Set());
   const [tipoFilter, setTipoFilter] = useState(new Set());
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
@@ -64,7 +68,7 @@ export default function LeyesList() {
   useEffect(() => {
     const c = searchParams.get('comision');
     if (c) {
-      setSituacionFilter(new Set([c]));
+      setComisionFilter(new Set([c]));
       setEstado('todas');
     }
   }, [searchParams]);
@@ -130,14 +134,25 @@ export default function LeyesList() {
   const enProgreso = vivas.filter((i) => !i.is_blocked).length;
   const bloqueadas = vivas.filter((i) => i.is_blocked).length;
 
-  // El filtro principal es la situación, no la comisión: 255 de 467 no
-  // tienen comisión —están en Pleno o en Gobierno— y un filtro que cubre
-  // menos de la mitad no sirve. La situación cubre el 100%.
-  const situacionOptions = useMemo(() => {
+  // El filtro va por `comision` y no por `situacion`.
+  //
+  // Antes iba por situación con este motivo anotado: que 255 de 467 no
+  // tenían comisión. Ese dato se quedó viejo. Sobre las vivas de hoy son
+  // 123 de 300, y comparando columna con columna `comision` gana en cada
+  // una —Justicia 31 frente a 30, Interior 13 frente a 12— porque
+  // recoge las que ya tienen comisión asignada aunque estén en Pleno.
+  //
+  // `situacion` mezcla dos cosas: nombres de comisión y sitios que no lo
+  // son (Pleno, Gobierno, Senado, Mesa del Congreso). Un filtro que se
+  // llame Comisión y ofrezca "Pleno" entre las opciones miente.
+  //
+  // Las 123 sin comisión no se pierden: caen en su propia opción, igual
+  // que antes hacía '(sin situación)'.
+  const comisionOptions = useMemo(() => {
     const cuenta = new Map();
     for (const i of vivas) {
-      const s = i.situacion || '(sin situación)';
-      cuenta.set(s, (cuenta.get(s) || 0) + 1);
+      const c = i.comision || SIN_COMISION;
+      cuenta.set(c, (cuenta.get(c) || 0) + 1);
     }
     return [...cuenta.entries()]
       .sort((a, b) => b[1] - a[1])
@@ -161,14 +176,14 @@ export default function LeyesList() {
       const q = normalize(search);
       l = l.filter((i) => normalize(i.title).includes(q) || normalize(i.num_expediente).includes(q));
     }
-    if (situacionFilter.size > 0) l = l.filter((i) => situacionFilter.has(i.situacion || '(sin situación)'));
+    if (comisionFilter.size > 0) l = l.filter((i) => comisionFilter.has(i.comision || SIN_COMISION));
     if (tipoFilter.size > 0) l = l.filter((i) => tipoFilter.has(i.kind));
     return l;
-  }, [items, search, estado, situacionFilter, tipoFilter]);
+  }, [items, search, estado, comisionFilter, tipoFilter]);
 
   useEffect(() => {
     setPage(1);
-  }, [search, estado, situacionFilter, tipoFilter]);
+  }, [search, estado, comisionFilter, tipoFilter]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
   const current = Math.min(page, totalPages);
@@ -183,7 +198,7 @@ export default function LeyesList() {
     return [1, '…', current, '…', totalPages];
   }, [current, totalPages]);
 
-  const activeCount = situacionFilter.size + tipoFilter.size;
+  const activeCount = comisionFilter.size + tipoFilter.size;
 
   const chip = (activo) => ({
     background: activo ? '#EEEDFE' : '#fff',
@@ -250,10 +265,10 @@ export default function LeyesList() {
         </div>
 
         <MultiSelectFilter
-          label="Situación"
-          values={situacionOptions}
-          selected={situacionFilter}
-          onApply={setSituacionFilter}
+          label="Comisión"
+          values={comisionOptions}
+          selected={comisionFilter}
+          onApply={setComisionFilter}
           bloqueado={esPro === false}
           onBloqueado={() => setUpsell(true)}
         />
@@ -276,7 +291,7 @@ export default function LeyesList() {
 
       {activeCount > 0 && (
         <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap', marginBottom: 12 }}>
-          {[...situacionFilter, ...tipoFilter].map((v) => (
+          {[...comisionFilter, ...tipoFilter].map((v) => (
             <span key={v} style={{ fontSize: 11, background: '#f0efe9', color: '#666', padding: '3px 10px', borderRadius: 14 }}>
               {v}
             </span>
@@ -284,7 +299,7 @@ export default function LeyesList() {
           <span style={{ fontSize: 11, color: '#888' }}>{filtered.length} resultados</span>
           <span
             onClick={() => {
-              setSituacionFilter(new Set());
+              setComisionFilter(new Set());
               setTipoFilter(new Set());
             }}
             style={{ fontSize: 11, color: '#999', textDecoration: 'underline', cursor: 'pointer' }}
