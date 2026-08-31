@@ -6,6 +6,8 @@ import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
 import BackLink from '@/components/BackLink';
 import FollowButton from '@/components/FollowButton';
+import PanelBloqueado, { FILAS_GABINETE } from '@/components/PanelBloqueado';
+import UpgradeModal from '@/components/UpgradeModal';
 
 /**
  * Ficha de un comisario europeo.
@@ -82,7 +84,11 @@ export default function ComisarioDetailPage() {
   const { slug } = useParams();
 
   const [c, setC] = useState(undefined);
+  const [esPro, setEsPro] = useState(null);
+  const [upsell, setUpsell] = useState(false);
   const [gabinete, setGabinete] = useState([]);
+  // Cuántos hay en el gabinete aunque no se pidan sus nombres.
+  const [nGabinete, setNGabinete] = useState(0);
   const [direcciones, setDirecciones] = useState([]);
   const [expedientes, setExpedientes] = useState([]);
 
@@ -105,18 +111,41 @@ export default function ComisarioDetailPage() {
       }
       setC(data);
 
-      const [{ data: gab }, { data: dgs }] = await Promise.all([
-        supabase
-          .from('ec_commissioner_cabinet')
-          .select('*')
-          .eq('commissioner_slug', data.slug)
-          .order('orden_cargo')
-          .order('full_name'),
+      // El plan decide qué se pide, así que se resuelve antes que el
+      // resto de consultas.
+      const { data: auth } = await supabase.auth.getUser();
+      let pro = false;
+      if (auth?.user?.id) {
+        const { data: perfil } = await supabase.from('users').select('plan').eq('id', auth.user.id).single();
+        pro = perfil?.plan === 'pro';
+      }
+      if (cancelled) return;
+      setEsPro(pro);
+
+      const [gabRes, { data: dgs }] = await Promise.all([
+        // Sin plan, el recuento y no las filas: son nombres y correos, y
+        // difuminarlos con CSS los dejaría legibles desde el inspector.
+        pro
+          ? supabase
+              .from('ec_commissioner_cabinet')
+              .select('*')
+              .eq('commissioner_slug', data.slug)
+              .order('orden_cargo')
+              .order('full_name')
+          : supabase
+              .from('ec_commissioner_cabinet')
+              .select('commissioner_slug', { count: 'exact', head: true })
+              .eq('commissioner_slug', data.slug),
         supabase.from('ec_dg_profile').select('*').eq('comisario_slug', data.slug),
       ]);
 
       if (cancelled) return;
-      setGabinete(gab || []);
+      if (pro) {
+        setGabinete(gabRes.data || []);
+      } else {
+        setGabinete([]);
+        setNGabinete(gabRes.count || 0);
+      }
       setDirecciones(dgs || []);
 
       // Los expedientes de sus direcciones, con los abiertos primero
@@ -219,7 +248,25 @@ export default function ComisarioDetailPage() {
 
       {/* El gabinete es lo diferencial: el interlocutor de primer nivel
           que nadie muestra junto al comisario. */}
-      {gabinete.length > 0 && (
+      {/* Sin plan la tarjeta no desaparece: mantiene su título y su
+          forma, con filas de atrezo difuminadas. */}
+      {esPro === false && nGabinete > 0 && (
+        <div style={{ ...CARD, padding: 20, marginBottom: 12 }}>
+          <div style={{ ...LABEL, marginBottom: 6 }}>SU GABINETE</div>
+          <div style={{ fontSize: 11.5, color: '#8b8780', marginBottom: 14 }}>
+            Quien lleva su agenda y prepara sus decisiones.
+          </div>
+          <PanelBloqueado
+            titulo="Quién forma su gabinete"
+            descripcion="El jefe de gabinete y su equipo, que es el interlocutor de primer nivel del comisario. Con nombre, cargo y correo a un solo clic."
+            filas={FILAS_GABINETE}
+            dominio="ec.europa.eu"
+            onUpsell={() => setUpsell(true)}
+          />
+        </div>
+      )}
+
+      {esPro && gabinete.length > 0 && (
         <div style={{ ...CARD, padding: 20, marginBottom: 12 }}>
           <div style={{ ...LABEL, marginBottom: 6 }}>SU GABINETE</div>
           <div style={{ fontSize: 11.5, color: '#8b8780', marginBottom: 14 }}>
@@ -358,6 +405,14 @@ export default function ComisarioDetailPage() {
           </a>
         )}
       </div>
+
+      {upsell && (
+        <UpgradeModal
+          title="El gabinete del comisario"
+          message="Quién lleva su agenda y prepara sus decisiones, con nombre, cargo y correo. Disponible en el plan Pro."
+          onClose={() => setUpsell(false)}
+        />
+      )}
     </div>
   );
 }
