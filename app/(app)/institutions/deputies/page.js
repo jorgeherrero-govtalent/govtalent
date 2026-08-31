@@ -5,6 +5,8 @@ import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
 import MultiSelectFilter from '@/components/MultiSelectFilter';
+import UpgradeModal from '@/components/UpgradeModal';
+import usePlanPro from '@/lib/usePlanPro';
 import PestanasCongreso from '@/components/PestanasCongreso';
 
 // Color por grupo. Con 9 grupos la sigla sola no basta para reconocerlos
@@ -376,7 +378,18 @@ function DeputiesDirectoryInner() {
           selected={constituencyFilter}
           onApply={setConstituencyFilter}
         />
-        <MultiSelectFilter label="Comisión" values={comisionOptions} selected={comisionFilter} onApply={setComisionFilter} />
+        {/* Solo se capa Comisión. Grupo y Circunscripción se quedan
+            libres: con 350 diputados, capar los tres dejaría la lista
+            sin ninguna forma de reducirla, y eso no es un incentivo,
+            es un muro. */}
+        <MultiSelectFilter
+          label="Comisión"
+          values={comisionOptions}
+          selected={comisionFilter}
+          onApply={setComisionFilter}
+          bloqueado={esPro === false}
+          onBloqueado={() => setUpsell(true)}
+        />
       </div>
 
       {activeCount > 0 && (
@@ -541,11 +554,21 @@ function DeputiesDirectoryInner() {
           </div>
         </div>
       )}
+
+      {upsell && (
+        <UpgradeModal
+          title="Filtrar por comisión"
+          message="Quédate con los diputados de las comisiones que deciden sobre lo tuyo. Disponible en el plan Pro."
+          onClose={() => setUpsell(false)}
+        />
+      )}
     </div>
   );
 }
 
 export default function DeputiesDirectoryPage() {
+  const esPro = usePlanPro();
+  const [upsell, setUpsell] = useState(false);
   return (
     <Suspense fallback={<div className="spinner"></div>}>
       <DeputiesDirectoryInner />
