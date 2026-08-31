@@ -265,7 +265,7 @@ export default function MapaActores({ projectId, abrirBuscador, onCerrarBuscador
         }}
       >
         {/* El estado se dice con texto y peso tipográfico, nunca con
-            color: es la regla que ya seguía el contador del trial. */}
+            color, como el resto de contadores de la aplicación. */}
         <div style={{ fontSize: 12, color: '#888' }}>
           {resumen.total === 0 ? (
             'Todavía no hay actores en el mapa.'
