@@ -605,6 +605,8 @@ export default function ProyectoDemo() {
         </div>
         <Link
           href="/precios"
+          target="_blank"
+          rel="noreferrer"
           className="btn-ai"
           style={{ display: 'inline-flex', alignItems: 'center', gap: 6, textDecoration: 'none' }}
         >
@@ -730,6 +732,8 @@ export default function ProyectoDemo() {
             <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginTop: 20, flexWrap: 'wrap' }}>
               <Link
                 href="/precios"
+                target="_blank"
+                rel="noreferrer"
                 className="btn-ai"
                 style={{ textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 6 }}
               >
