@@ -168,6 +168,15 @@ export const FILAS_CONGRESO = [
   { iniciales: 'GP', nombre: 'Grupo parlamentario autor', cargo: 'Quién la presenta' },
 ];
 
+// La mesa de una comisión del PE: presidencia y vicepresidencias. Sin
+// `dominio`, porque esa tarjeta no enseña correos, solo grupo y país.
+export const FILAS_MESA_PE = [
+  { iniciales: 'PR', nombre: 'Nombre de quien preside', cargo: 'Presidencia' },
+  { iniciales: 'V1', nombre: 'Nombre de la vicepresidencia', cargo: 'Vicepresidencia' },
+  { iniciales: 'V2', nombre: 'Nombre de la vicepresidencia', cargo: 'Vicepresidencia' },
+  { iniciales: 'V3', nombre: 'Nombre de la vicepresidencia', cargo: 'Vicepresidencia' },
+];
+
 export const FILAS_COMISIONES_PE = [
   { iniciales: '····', nombre: 'Comisión competente para el fondo', cargo: 'Decide el texto' },
   { iniciales: '····', nombre: 'Comisión para opinión', cargo: 'Emite opinión' },
