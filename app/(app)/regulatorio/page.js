@@ -128,9 +128,7 @@ export default function RegulatorioPage() {
     tramitacion: null,
     esTotal: null,
     esVivas: null,
-    esPnl: null,
-    esComparecencias: null,
-    actividadViva: null,
+    actividadTotal: null,
     boeSemana: null,
     boeMes: null,
   });
@@ -150,14 +148,16 @@ export default function RegulatorioPage() {
         .from('es_initiatives')
         .select('num_expediente', { count: 'exact', head: true })
         .eq('is_closed', false),
-      // Las PNL y comparecencias viven en es_activity: la fuente da
-      // menos campos para ellas y no comparten estructura con las leyes.
-      supabase.from('es_activity').select('num_expediente', { count: 'exact', head: true }).eq('kind', 'pnl'),
-      supabase
-        .from('es_activity')
-        .select('num_expediente', { count: 'exact', head: true })
-        .eq('kind', 'comparecencia'),
-      supabase.from('es_activity').select('num_expediente', { count: 'exact', head: true }).eq('is_closed', false),
+      // Las PNL, comparecencias y decretos viven en es_activity: la
+      // fuente da menos campos para ellas y no comparten estructura con
+      // las leyes.
+      //
+      // SE CUENTA LA TABLA ENTERA, SIN FILTRAR POR TIPO. Antes el total
+      // sumaba solo 'pnl' y 'comparecencia' mientras que el de en
+      // trámite contaba todos los tipos no cerrados, así que los 50
+      // decretos desaparecían del total —7969 en vez de 8019— y
+      // cualquier tipo nuevo se perdería igual sin que nadie lo notara.
+      supabase.from('es_activity').select('num_expediente', { count: 'exact', head: true }),
       supabase
         .from('boe_documents')
         .select('id', { count: 'exact', head: true })
@@ -166,7 +166,7 @@ export default function RegulatorioPage() {
         .from('boe_documents')
         .select('id', { count: 'exact', head: true })
         .gte('fecha_publicacion', new Date(Date.now() - 30 * 86400000).toISOString().slice(0, 10)),
-    ]).then(([exp, ven, proc, tram, esT, esV, pnl, comp, act, boeH, boeM]) => {
+    ]).then(([exp, ven, proc, tram, esT, esV, actTotal, boeH, boeM]) => {
       setCifras({
         expedientes: exp.count ?? null,
         ventanas: ven.count ?? null,
@@ -174,9 +174,7 @@ export default function RegulatorioPage() {
         tramitacion: tram.count ?? null,
         esTotal: esT.count ?? null,
         esVivas: esV.count ?? null,
-        esPnl: pnl.count ?? null,
-        esComparecencias: comp.count ?? null,
-        actividadViva: act.count ?? null,
+        actividadTotal: actTotal.count ?? null,
         boeSemana: boeH.count ?? null,
         boeMes: boeM.count ?? null,
       });
@@ -191,8 +189,19 @@ export default function RegulatorioPage() {
 
   // España: lo vivo son las leyes en trámite más la actividad abierta.
   // La cabecera decía 300 —solo leyes— cuando en realidad son 4.530.
-  const esEnTramite = suma(cifras.esVivas, cifras.actividadViva);
-  const esRegistradas = suma(cifras.esTotal, cifras.esPnl, cifras.esComparecencias);
+  // Solo las leyes vivas, no toda es_activity sin cerrar.
+  //
+  // POR QUÉ. En el Congreso `is_closed = false` no quiere decir que algo
+  // se esté tramitando, sino que no consta resultado: una PNL de 2023
+  // que nunca llegó al orden del día sigue abierta para siempre. Sumarlas
+  // daba 4542 y hacía parecer que el Congreso mueve veinte veces más que
+  // el Parlamento Europeo, cuando es al revés.
+  //
+  // Las otras tres tarjetas destacan lo accionable —ventanas de consulta
+  // con plazo, procedimientos en marcha— y esta hace ahora lo mismo. Las
+  // PNL y las comparecencias siguen contando en el total.
+  const esEnTramite = cifras.esVivas;
+  const esRegistradas = suma(cifras.esTotal, cifras.actividadTotal);
 
   const Bloque = ({ children }) => (
     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 10 }}>
@@ -337,7 +346,7 @@ export default function RegulatorioPage() {
           descripcion="Leyes, proposiciones no de ley y comparecencias, con sus actores y plazos."
           cta="Explorar actividad"
           cifras={[
-            { n: esEnTramite, label: 'en tramitación', destacada: true },
+            { n: esEnTramite, label: 'leyes en tramitación', destacada: true },
             { n: esRegistradas, label: 'registradas' },
           ]}
         />
@@ -351,8 +360,12 @@ export default function RegulatorioPage() {
           cifras={[
             // Semanal y no diario: en fin de semana o festivo el BOE no
             // publica, y la tarjeta saldría con un cero.
-            { n: cifras.boeSemana, label: 'esta semana', destacada: true },
-            { n: cifras.boeMes, label: 'último mes' },
+            // "Últimos 7 días" y no "esta semana": la consulta cuenta
+            // hacia atrás desde hoy, no desde el lunes. Un lunes por la
+            // mañana la diferencia es enorme —75 frente a 10— y la
+            // etiqueta anterior prometía lo segundo.
+            { n: cifras.boeSemana, label: 'últimos 7 días', destacada: true },
+            { n: cifras.boeMes, label: 'últimos 30 días' },
           ]}
         />
       </Bloque>
