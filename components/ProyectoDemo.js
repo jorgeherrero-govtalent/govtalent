@@ -70,20 +70,52 @@ const DEMO = {
 
 // Los cuadrantes con nombre son lo que convierte la matriz en una
 // herramienta: no describen dónde está cada uno, dicen qué hacer con él.
-// El contenido del acta de ejemplo. Sale de los campos que pide el
-// Registro de Grupos de Interés: quién, cuándo, con quién, sobre qué y
-// qué se pidió.
-const ACTA_EJEMPLO = [
-  { titulo: 'ASUNTO', texto: 'Ley de gobernanza de la inteligencia artificial · Trámite de audiencia pública' },
-  { titulo: 'PARTICIPANTES', texto: 'Secretaría de Estado de Digitalización e IA · Dirección de Asuntos Públicos' },
-  { titulo: 'MODALIDAD', texto: 'Reunión presencial · 45 minutos' },
-  {
-    titulo: 'CONTENIDO',
-    texto:
-      'Se expuso el impacto del umbral de 50 empleados en las empresas del sector y se entregó el informe de costes de cumplimiento.',
-  },
-  { titulo: 'PETICIÓN CONCRETA', texto: 'Elevar el umbral a 250 empleados o escalonar la entrada en vigor.' },
-];
+// El acta de ejemplo, con los mismos campos y el mismo orden que
+// ActaActividad, que es la que se genera de verdad. Se copia su
+// estructura a propósito: si la demo enseña un documento distinto del
+// que sale al pagar, la demo miente.
+//
+// Los campos son los del artículo 6.2 del RDL 21/2026: fecha, lugar,
+// participantes, temas abordados y documentos intercambiados.
+// Mismos valores que ActaActividad, para que el documento se vea igual.
+const ETIQUETA_ACTA = { fontSize: 10.5, color: '#999', width: 150, flexShrink: 0 };
+const VALOR_ACTA = { fontSize: 12.5, color: '#1a1a18', flex: 1, minWidth: 0 };
+const LINEA_ACTA = { display: 'flex', gap: 12, padding: '5px 0' };
+const SECCION_ACTA = {
+  fontSize: 10,
+  textTransform: 'uppercase',
+  letterSpacing: '.5px',
+  color: '#1d6f5c',
+  fontWeight: 600,
+  margin: '20px 0 7px',
+};
+
+const ACTA_DEMO = {
+  titulo: 'Acta de reunión',
+  fecha: '26 de febrero de 2026',
+  grupo: [
+    ['Denominación', 'Tu organización, S.L.'],
+    ['CIF', 'B00000000'],
+    ['Domicilio social', 'Calle de ejemplo 1, Madrid'],
+    ['Nº de inscripción', 'Sin indicar'],
+  ],
+  actividad: [
+    ['Fecha', '26 de febrero de 2026'],
+    ['Lugar', 'Presencial · Sede del Ministerio'],
+    ['Norma sobre la que se influye', 'Ley de gobernanza de la inteligencia artificial'],
+  ],
+  participantes: [
+    ['Por el grupo de interés', 'Dirección de Asuntos Públicos'],
+    ['Por la Administración', 'Secretaría de Estado de Digitalización e IA'],
+  ],
+  temas:
+    'Impacto del umbral de 50 empleados en las empresas del sector. Se solicitó elevarlo a 250 o escalonar la entrada en vigor.',
+  documentos: 'Informe de costes de cumplimiento.pdf',
+  trazabilidad: [
+    ['Creada', '26 feb 2026, 17:42'],
+    ['Acta completada', '27 feb 2026, 09:15'],
+  ],
+};
 
 function cuadranteDe(a) {
   const alta = a.influencia > 50;
@@ -579,21 +611,23 @@ export default function ProyectoDemo() {
           <i className="ti ti-bolt"></i> Ver planes
         </Link>
       </div>
-      {/* El acta de ejemplo. Se abre desde la fila del registro, para
-          que se vea qué sale de verdad al registrar una actividad y no
-          haya que imaginárselo. */}
+      {/* El acta de ejemplo, calcada de ActaActividad: mismo ancho,
+          mismo filete verde bajo el título, mismo bloque morado para el
+          grupo de interés y las mismas secciones. Lo único distinto es
+          que los botones no hacen nada y que lo dice al pie. */}
       {acta && (
         <div
           onClick={() => setActa(null)}
           style={{
             position: 'fixed',
             inset: 0,
-            background: 'rgba(26,26,24,.45)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            padding: 16,
+            background: 'rgba(0,0,0,.35)',
             zIndex: 400,
+            display: 'flex',
+            alignItems: 'flex-start',
+            justifyContent: 'center',
+            padding: '5vh 16px',
+            overflowY: 'auto',
           }}
         >
           <div
@@ -601,16 +635,7 @@ export default function ProyectoDemo() {
             role="dialog"
             aria-modal="true"
             aria-label="Acta de la actividad"
-            style={{
-              position: 'relative',
-              background: '#fff',
-              borderRadius: 12,
-              maxWidth: 520,
-              width: '100%',
-              maxHeight: '85vh',
-              overflowY: 'auto',
-              padding: '22px 24px',
-            }}
+            style={{ background: '#fff', borderRadius: 12, width: '100%', maxWidth: 560, padding: 22, position: 'relative' }}
           >
             <button
               type="button"
@@ -618,66 +643,91 @@ export default function ProyectoDemo() {
               aria-label="Cerrar"
               style={{
                 position: 'absolute',
-                top: 12,
-                right: 12,
+                top: 14,
+                right: 14,
+                width: 26,
+                height: 26,
+                borderRadius: 7,
                 border: 'none',
-                background: 'none',
+                background: '#f5f4f1',
                 cursor: 'pointer',
-                color: '#a8a49c',
-                fontSize: 18,
-                lineHeight: 1,
-                padding: 4,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
               }}
             >
-              <i className="ti ti-x"></i>
+              <i className="ti ti-x" style={{ fontSize: 13, color: '#777' }}></i>
             </button>
 
-            <div style={{ ...ETIQUETA, marginBottom: 10 }}>ACTA DE LA ACTIVIDAD</div>
-            <div style={{ fontSize: 15, fontWeight: 600, lineHeight: 1.35, marginBottom: 3 }}>
-              {acta.titulo}
+            <div style={{ paddingBottom: 12, borderBottom: '2px solid #1d6f5c' }}>
+              <div style={{ fontSize: 15, fontWeight: 700 }}>{ACTA_DEMO.titulo}</div>
+              <div style={{ fontSize: 11.5, color: '#77746e', marginTop: 2 }}>{ACTA_DEMO.fecha}</div>
             </div>
-            <div style={{ fontSize: 11.5, color: '#888', marginBottom: 16 }}>{acta.pie}</div>
 
             {!acta.cerrada && (
               <div
                 style={{
                   background: '#f6f5fe',
-                  borderRadius: 9,
-                  padding: '11px 13px',
+                  borderRadius: 8,
+                  padding: '10px 13px',
                   fontSize: 11.5,
                   color: '#555',
                   lineHeight: 1.5,
-                  marginBottom: 16,
+                  marginTop: 14,
                 }}
               >
-                Falta un campo por rellenar. Así se vería el acta una vez completado.
+                A esta actividad le falta un campo. Así queda el acta una vez completado.
               </div>
             )}
 
-            {ACTA_EJEMPLO.map((bloque) => (
-              <div key={bloque.titulo} style={{ marginBottom: 14 }}>
-                <div style={{ fontSize: 10.5, color: '#a8a49c', letterSpacing: '.3px', marginBottom: 4 }}>
-                  {bloque.titulo}
+            <div
+              style={{
+                background: '#f4f2fe',
+                borderLeft: '2px solid #6d5aef',
+                padding: '12px 15px',
+                margin: '16px 0 4px',
+              }}
+            >
+              <div style={{ ...SECCION_ACTA, color: '#3c3489', margin: '0 0 7px' }}>Grupo de interés</div>
+              {ACTA_DEMO.grupo.map(([k, v]) => (
+                <div key={k} style={LINEA_ACTA}>
+                  <span style={ETIQUETA_ACTA}>{k}</span>
+                  <span style={{ ...VALOR_ACTA, color: v === 'Sin indicar' ? '#aaa' : '#1a1a18' }}>{v}</span>
                 </div>
-                <div style={{ fontSize: 12.5, color: '#333', lineHeight: 1.55 }}>{bloque.texto}</div>
+              ))}
+            </div>
+
+            <div style={SECCION_ACTA}>Actividad</div>
+            {ACTA_DEMO.actividad.map(([k, v]) => (
+              <div key={k} style={LINEA_ACTA}>
+                <span style={ETIQUETA_ACTA}>{k}</span>
+                <span style={VALOR_ACTA}>{v}</span>
               </div>
             ))}
 
-            <div
-              style={{
-                borderTop: `.5px solid ${BORDE}`,
-                paddingTop: 13,
-                marginTop: 4,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                gap: 12,
-                flexWrap: 'wrap',
-              }}
-            >
-              <span style={{ fontSize: 11, color: '#a8a49c' }}>
-                Ejemplo. En Pro se genera con los datos de tu proyecto.
-              </span>
+            <div style={SECCION_ACTA}>Participantes</div>
+            {ACTA_DEMO.participantes.map(([k, v]) => (
+              <div key={k} style={LINEA_ACTA}>
+                <span style={ETIQUETA_ACTA}>{k}</span>
+                <span style={VALOR_ACTA}>{v}</span>
+              </div>
+            ))}
+
+            <div style={SECCION_ACTA}>Temas abordados</div>
+            <div style={{ fontSize: 12.5, lineHeight: 1.55 }}>{ACTA_DEMO.temas}</div>
+
+            <div style={SECCION_ACTA}>Documentos intercambiados</div>
+            <div style={{ fontSize: 12.5 }}>{ACTA_DEMO.documentos}</div>
+
+            <div style={SECCION_ACTA}>Trazabilidad</div>
+            {ACTA_DEMO.trazabilidad.map(([k, v]) => (
+              <div key={k} style={{ ...LINEA_ACTA, padding: '3px 0' }}>
+                <span style={ETIQUETA_ACTA}>{k}</span>
+                <span style={{ ...VALOR_ACTA, fontSize: 12, color: '#666' }}>{v}</span>
+              </div>
+            ))}
+
+            <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginTop: 20, flexWrap: 'wrap' }}>
               <Link
                 href="/precios"
                 className="btn-ai"
@@ -685,10 +735,19 @@ export default function ProyectoDemo() {
               >
                 <i className="ti ti-bolt"></i> Ver planes
               </Link>
+              <span style={{ fontSize: 11.5, color: '#999' }}>
+                En Pro: imprimir, guardar en PDF o copiar el texto.
+              </span>
+            </div>
+
+            <div style={{ fontSize: 10.5, color: '#aaa', marginTop: 10, lineHeight: 1.5 }}>
+              Ejemplo con datos ficticios. GovTalent genera el documento; la presentación ante el Consejo de
+              Transparencia corresponde a la organización.
             </div>
           </div>
         </div>
       )}
+
     </div>
   );
 }
