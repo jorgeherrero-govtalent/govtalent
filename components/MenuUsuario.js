@@ -162,8 +162,13 @@ export default function MenuUsuario({
                   <div style={{ fontSize: 11.5, color: '#555', lineHeight: 1.5, marginBottom: 9 }}>
                     Seguimiento, alertas y proyectos.
                   </div>
+                  {/* En pestaña nueva, igual que los demás enlaces a
+                      precios de la aplicación: se está mirando algo y
+                      consultar los planes no debería costar el sitio. */}
                   <Link
                     href="/precios"
+                    target="_blank"
+                    rel="noreferrer"
                     onClick={() => setAbierto(false)}
                     style={{
                       display: 'inline-block',
@@ -279,8 +284,12 @@ export default function MenuUsuario({
                       ? 'Publica tu primera oferta y recibe candidaturas sin coste.'
                       : 'Crea la página de tu organización y publica sin coste.'}
                   </div>
+                  {/* /organizations es el directorio público de
+                      organizaciones, no el alta: quien pulsaba "Crear mi
+                      página" acababa mirando un listado. El formulario
+                      está en /organizations/new. */}
                   <Link
-                    href={organizaciones.length ? '/organizations/admin/jobs' : '/organizations'}
+                    href={organizaciones.length ? '/organizations/admin/jobs' : '/organizations/new'}
                     onClick={() => setAbierto(false)}
                     style={{ fontSize: 11.5, color: VERDE, textDecoration: 'none' }}
                   >
