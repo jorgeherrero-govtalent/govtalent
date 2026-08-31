@@ -332,7 +332,7 @@ export default function OrganizationsDatabasePage() {
     }
     const { data: membership } = await supabase
       .from('organization_members')
-      .select('organizations(id, plan, plan_status, trial_ends_at, trial_ai_matches_used, is_founding_member)')
+      .select('organizations(id, plan, is_founding_member)')
       .eq('user_id', authData.user.id)
       .limit(1)
       .maybeSingle();
