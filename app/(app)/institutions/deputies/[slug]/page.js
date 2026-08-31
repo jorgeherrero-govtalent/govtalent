@@ -7,6 +7,8 @@ import { createClient } from '@/lib/supabase/client';
 import { toast } from '@/lib/toast';
 import { groupColor } from '@/lib/grupos';
 import BackLink from '@/components/BackLink';
+import PanelBloqueado, { FILAS_COLEGAS } from '@/components/PanelBloqueado';
+import UpgradeModal from '@/components/UpgradeModal';
 import FollowButton from '@/components/FollowButton';
 
 // El Resumen lleva lo que más se consulta —portavocías y últimas
@@ -207,7 +209,11 @@ export default function DeputyProfilePage() {
   const [perfil, setPerfil] = useState(null);
   const [comisiones, setComisiones] = useState([]);
   const [ponencias, setPonencias] = useState([]);
+  const [esPro, setEsPro] = useState(null);
+  const [upsell, setUpsell] = useState(false);
   const [colegas, setColegas] = useState([]);
+  // Cuántos hay aunque no se pidan sus nombres.
+  const [nColegas, setNColegas] = useState(0);
   const [userId, setUserId] = useState(null);
   const [tab, setTab] = useState('resumen');
   const [notFound, setNotFound] = useState(false);
@@ -256,6 +262,11 @@ export default function DeputyProfilePage() {
         .order('fecha_presentacion', { ascending: false }),
       // Solo los cinco con más coincidencias: con ponencias de quince
       // personas todos coinciden con todos y el dato se diluye.
+      //
+      // Sin plan se pide el recuento y no las filas. Es el dato que no
+      // está en congreso.es: quién trabaja con quién sale de cruzar
+      // ponencias, y es lo único de esta ficha que no se puede copiar
+      // de la fuente oficial.
       supabase
         .from('deputy_colleagues')
         .select('*')
@@ -264,12 +275,29 @@ export default function DeputyProfilePage() {
         .limit(5),
     ]);
 
+    // El plan, para decidir si los colegas se enseñan o se difuminan.
+    let pro = false;
+    if (authData?.user?.id) {
+      const { data: perfilPlan } = await supabase
+        .from('users')
+        .select('plan')
+        .eq('id', authData.user.id)
+        .single();
+      pro = perfilPlan?.plan === 'pro';
+    }
+    setEsPro(pro);
+
     setGroup(g);
     setLegislature(leg);
     setPerfil(perfilData);
     setComisiones(comisionesData || []);
     setPonencias(ponenciasData || []);
-    setColegas(colegasData || []);
+    if (pro) {
+      setColegas(colegasData || []);
+    } else {
+      setColegas([]);
+      setNColegas((colegasData || []).length);
+    }
 
     // FollowButton comprueba por su cuenta si se sigue: se ahorra una
     // consulta por visita.
@@ -515,7 +543,22 @@ export default function DeputyProfilePage() {
           {/* Un patrón que sale de los datos: con quién comparte ponencia
               de forma recurrente. Solo aparece si hay coincidencias
               repetidas, para que no sea ruido. */}
-          {colegas.length > 0 && (
+          {esPro === false && nColegas > 0 && (
+            <div className="card" style={{ padding: 18 }}>
+              <div style={LABEL}>Con quién coincide en ponencia</div>
+              <div style={{ fontSize: 11.5, color: '#888', lineHeight: 1.6, marginBottom: 13 }}>
+                Diputados con los que ha compartido ponencia más de una vez.
+              </div>
+              <PanelBloqueado
+                titulo="Con quién trabaja de verdad"
+                descripcion="Los diputados con los que comparte ponencia una y otra vez, y cuántas veces. Es el mapa que no está en congreso.es."
+                filas={FILAS_COLEGAS}
+                onUpsell={() => setUpsell(true)}
+              />
+            </div>
+          )}
+
+          {esPro && colegas.length > 0 && (
             <div className="card" style={{ padding: 18 }}>
               <div style={LABEL}>Con quién coincide en ponencia</div>
               <div style={{ fontSize: 11.5, color: '#888', lineHeight: 1.6, marginBottom: 13 }}>
@@ -654,6 +697,14 @@ export default function DeputyProfilePage() {
         </a>
       </div>
 
+
+      {upsell && (
+        <UpgradeModal
+          title="Con quién coincide en ponencia"
+          message="Los diputados con los que comparte ponencia de forma recurrente, y en cuántas. Disponible en el plan Pro."
+          onClose={() => setUpsell(false)}
+        />
+      )}
     </div>
   );
 }
