@@ -30,7 +30,7 @@ export async function POST(request) {
   // definido, si tiene una página administrada.
   const { data: membership } = await supabase
     .from('organization_members')
-    .select('organizations(ai_tone, ai_context, plan, plan_status, trial_ends_at, trial_ai_matches_used, is_founding_member)')
+    .select('organizations(ai_tone, ai_context, plan, is_founding_member)')
     .eq('user_id', authData.user.id)
     .limit(1)
     .maybeSingle();
