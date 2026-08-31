@@ -57,7 +57,7 @@ export default function ConfiguracionOrganizacion() {
     const { data } = await supabase
       .from('organization_members')
       .select(
-        'role, organizations(id, name, slug, plan, plan_status, trial_ends_at, is_public, legal_name, tax_id, org_type, registered_address, cbtg_registry_number, cbtg_registered_at)'
+        'role, organizations(id, name, slug, plan, is_public, legal_name, tax_id, org_type, registered_address, cbtg_registry_number, cbtg_registered_at)'
       )
       .eq('user_id', auth.user.id)
       .limit(1)
