@@ -84,7 +84,10 @@ export default function OrganizationPlanPage() {
   };
 
   return (
-    <div className="sec" style={{ maxWidth: 860 }}>
+    // Sin maxWidth propio: el panel ya limita a 1080px, y ponerle 860
+    // encima dejaba las tarjetas y las columnas apretadas contra el
+    // borde izquierdo con media pantalla vacía a la derecha.
+    <div className="sec">
       <h1 style={{ fontSize: 20, fontWeight: 700, marginBottom: 4 }}>Plan</h1>
       <p style={{ fontSize: 13, color: '#888', marginBottom: 20 }}>
         Estás en {planLabel(org)}. Puedes cambiar cuando quieras.
@@ -94,7 +97,7 @@ export default function OrganizationPlanPage() {
       <div
         style={{
           display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(210px, 1fr))',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))',
           gap: 10,
           marginBottom: 22,
         }}
@@ -194,14 +197,14 @@ export default function OrganizationPlanPage() {
           }}
         >
           <span>QUÉ INCLUYE CADA PLAN</span>
+          {/* Cada plan con su color y en negrita, no solo el actual:
+              así la columna que se está mirando se distingue de un
+              vistazo al recorrer catorce filas. Free en gris porque es
+              el punto de partida, no una opción que se venda. */}
           {PLANES.map((p) => (
             <span
               key={p.clave}
-              style={{
-                textAlign: 'center',
-                color: p.clave === actual ? COLORES[p.color].texto : '#a8a49c',
-                fontWeight: p.clave === actual ? 700 : 400,
-              }}
+              style={{ textAlign: 'center', color: COLORES[p.color].texto, fontWeight: 700 }}
             >
               {p.nombre.toUpperCase()}
             </span>
@@ -218,14 +221,17 @@ export default function OrganizationPlanPage() {
             {seccion.filas.map((f) => (
               <div key={f.nombre} style={celda}>
                 <span>{f.nombre}</span>
+                {/* La marca toma el color de su columna, así la de Teams
+                    es morada y la de Recruiter verde. Con las tres del
+                    mismo verde, las columnas se confundían al bajar. */}
                 <span style={{ textAlign: 'center' }}>
-                  <Marca valor={f.free} color={VERDE} />
+                  <Marca valor={f.free} color={COLORES.gris.texto} />
                 </span>
                 <span style={{ textAlign: 'center' }}>
-                  <Marca valor={f.plus} color={VERDE} />
+                  <Marca valor={f.plus} color={COLORES.verde.texto} />
                 </span>
                 <span style={{ textAlign: 'center' }}>
-                  <Marca valor={f.pro} color={VERDE} />
+                  <Marca valor={f.pro} color={COLORES.morado.texto} />
                 </span>
               </div>
             ))}
