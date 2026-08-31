@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
 import { toast } from '@/lib/toast';
 import FollowButton from '@/components/FollowButton';
+import { cifraPlazo } from '@/lib/plazos';
 
 /**
  * Análisis por sector.
@@ -329,8 +330,19 @@ export default function SectorPage() {
                     <div style={{ width: 44, flexShrink: 0, textAlign: 'center' }}>
                       {dias !== null && dias >= 0 ? (
                         <>
-                          <div style={{ fontSize: 21, fontWeight: 500, color: '#1d6f5c', lineHeight: 1 }}>{dias}</div>
-                          <div style={{ fontSize: 10.5, color: '#b8b4ac' }}>{dias === 1 ? 'día' : 'días'}</div>
+                          {(() => {
+                    const pl = cifraPlazo(dias);
+                    return (
+                      <>
+                        <div style={{ fontSize: pl.tam, fontWeight: 500, color: '#1d6f5c', lineHeight: 1.15 }}>
+                          {pl.cifra}
+                        </div>
+                        {pl.unidad && (
+                          <div style={{ fontSize: 10.5, color: '#b8b4ac' }}>{pl.unidad}</div>
+                        )}
+                      </>
+                    );
+                  })()}
                         </>
                       ) : (
                         <div style={{ fontSize: 11, color: '#b8b4ac', paddingTop: 5 }}>{fechaCorta(m.created_at)}</div>
