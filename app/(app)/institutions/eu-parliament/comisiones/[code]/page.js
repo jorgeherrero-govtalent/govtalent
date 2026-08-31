@@ -7,6 +7,7 @@ import { createClient } from '@/lib/supabase/client';
 import BackLink from '@/components/BackLink';
 import FollowButton from '@/components/FollowButton';
 import PanelBloqueado, { FILAS_MESA_PE } from '@/components/PanelBloqueado';
+import UpgradeModal from '@/components/UpgradeModal';
 
 /**
  * Ficha de una comisión del Parlamento Europeo.
@@ -91,6 +92,7 @@ export default function EuCommitteeDetailPage() {
   // dentro del efecto, para decidir qué consultas lanzar, y tenerlo en
   // dos sitios daría dos verdades que pueden no coincidir.
   const [esPro, setEsPro] = useState(null);
+  const [upsell, setUpsell] = useState(null);
   const [mesa, setMesa] = useState([]);
   // Cuántos hay en la mesa aunque no se pidan sus nombres.
   const [nMesa, setNMesa] = useState(0);
@@ -261,23 +263,66 @@ export default function EuCommitteeDetailPage() {
               <div style={{ fontSize: 10.5, color: '#a8a49c' }}>en tramitación</div>
             </div>
           )}
-          <div>
-            <div style={{ fontSize: 19, fontWeight: 600 }}>{comision.n_lidera || 0}</div>
-            <div style={{ fontSize: 10.5, color: '#a8a49c' }}>lidera</div>
-          </div>
-          <div>
-            <div style={{ fontSize: 19, fontWeight: 600 }}>{comision.n_opina || 0}</div>
-            <div style={{ fontSize: 10.5, color: '#a8a49c' }}>opina</div>
-          </div>
-          {espanoles > 0 && (
-            <div>
-              <div style={{ fontSize: 19, fontWeight: 600 }}>{espanoles}</div>
-              <div style={{ fontSize: 10.5, color: '#a8a49c' }}>españoles</div>
-            </div>
-          )}
+          {/* "lidera" y "opina" se retiraron de la tira. Eran totales
+              históricos —con los cerrados dentro— y además "en
+              tramitación" es un subconjunto de "lidera", así que los tres
+              seguidos invitaban a sumar números que no se suman. Los dos
+              siguen abajo, en QUÉ DECIDE y EN QUÉ OPINA, donde la frase
+              que los acompaña explica la relación. */}
+          {espanoles > 0 &&
+            (esPro === false ? (
+              /* Botón y no un div con onClick: así se alcanza con el
+                 tabulador y se activa con Enter.
+
+                 El número se queda en negro. El morado de "en
+                 tramitación" ya significa otra cosa —que sigue vivo— y
+                 dos cifras moradas seguidas con dos sentidos distintos
+                 no se distinguen. Lo que avisa aquí es el candado. */
+              <button
+                type="button"
+                onClick={() =>
+                  setUpsell({
+                    title: 'Los españoles de esta comisión',
+                    message: 'Quiénes son, de qué grupo vienen y cómo escribirles. Disponible en el plan Pro.',
+                  })
+                }
+                style={{
+                  border: 'none',
+                  background: 'none',
+                  padding: 0,
+                  cursor: 'pointer',
+                  fontFamily: 'inherit',
+                  textAlign: 'left',
+                }}
+              >
+                <div style={{ fontSize: 19, fontWeight: 600 }}>{espanoles}</div>
+                <div
+                  style={{
+                    fontSize: 10.5,
+                    color: '#a8a49c',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: 4,
+                  }}
+                >
+                  españoles
+                  <i className="ti ti-lock" style={{ fontSize: 10, color: '#6d5aef' }}></i>
+                </div>
+              </button>
+            ) : (
+              <div>
+                <div style={{ fontSize: 19, fontWeight: 600 }}>{espanoles}</div>
+                <div style={{ fontSize: 10.5, color: '#a8a49c' }}>españoles</div>
+              </div>
+            ))}
         </div>
       </div>
 
+      {/* La mesa no desaparece sin plan: se mantiene la tarjeta con su
+          título y su forma, y lo que cambia es que las filas son atrezo
+          difuminado y el botón abre el modal en vez de llevarse al
+          usuario a /precios. Debajo siguen los procedimientos, que sí se
+          ven, y sacarle de la página para volver sería absurdo. */}
       {esPro === false && nMesa > 0 && (
         <div style={{ ...CARD, padding: 20, marginBottom: 12 }}>
           <div style={{ ...LABEL, marginBottom: 14 }}>LA MESA</div>
@@ -285,6 +330,13 @@ export default function EuCommitteeDetailPage() {
             titulo="Quién preside esta comisión"
             descripcion="La presidencia y las vicepresidencias, con su grupo político y su país. Con acceso a su ficha y su contacto a un solo clic."
             filas={FILAS_MESA_PE}
+            onUpsell={() =>
+              setUpsell({
+                title: 'La mesa de la comisión',
+                message:
+                  'Quién preside y quién ocupa las vicepresidencias, con su grupo político y su contacto. Disponible en el plan Pro.',
+              })
+            }
           />
         </div>
       )}
@@ -497,6 +549,10 @@ export default function EuCommitteeDetailPage() {
         <i className="ti ti-shield-check" style={{ fontSize: 13 }}></i>
         Datos abiertos del Parlamento Europeo.
       </div>
+
+      {upsell && (
+        <UpgradeModal title={upsell.title} message={upsell.message} onClose={() => setUpsell(null)} />
+      )}
     </div>
   );
 }
