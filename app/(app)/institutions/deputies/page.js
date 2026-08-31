@@ -170,6 +170,12 @@ function Committees({ list }) {
 const GRID = '1.7fr .9fr 1.5fr 28px';
 
 function DeputiesDirectoryInner() {
+  // Aquí y no en DeputiesDirectoryPage: esa es solo la envoltura del
+  // Suspense y no renderiza ni el filtro ni el modal. Declarados allí,
+  // `esPro` y `setUpsell` no existían donde se usan y la página
+  // reventaba al pintarse.
+  const esPro = usePlanPro();
+  const [upsell, setUpsell] = useState(false);
   const supabase = createClient();
   const searchParams = useSearchParams();
 
@@ -567,8 +573,6 @@ function DeputiesDirectoryInner() {
 }
 
 export default function DeputiesDirectoryPage() {
-  const esPro = usePlanPro();
-  const [upsell, setUpsell] = useState(false);
   return (
     <Suspense fallback={<div className="spinner"></div>}>
       <DeputiesDirectoryInner />
