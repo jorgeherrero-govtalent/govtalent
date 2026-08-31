@@ -4,6 +4,8 @@ import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
 import MultiSelectFilter from '@/components/MultiSelectFilter';
+import UpgradeModal from '@/components/UpgradeModal';
+import usePlanPro from '@/lib/usePlanPro';
 
 const PAGE_SIZES = [20, 50, 100, 200];
 
@@ -49,6 +51,8 @@ function urgencia(dias) {
 }
 
 export default function InitiativesDirectoryPage() {
+  const esPro = usePlanPro();
+  const [upsell, setUpsell] = useState(false);
   const supabase = createClient();
 
   const [items, setItems] = useState(null);
@@ -229,7 +233,14 @@ export default function InitiativesDirectoryPage() {
           Solo ventana abierta {onlyOpen && <i className="ti ti-x" style={{ fontSize: 11 }}></i>}
         </span>
 
-        <MultiSelectFilter label="Materia" values={topicOptions} selected={topicFilter} onApply={setTopicFilter} />
+        <MultiSelectFilter
+          label="Materia"
+          values={topicOptions}
+          selected={topicFilter}
+          onApply={setTopicFilter}
+          bloqueado={esPro === false}
+          onBloqueado={() => setUpsell(true)}
+        />
         <MultiSelectFilter label="Tipo de acto" values={actOptions} selected={actFilter} onApply={setActFilter} />
 
         <span
@@ -452,6 +463,14 @@ export default function InitiativesDirectoryPage() {
           Ver fuente oficial ↗
         </a>
       </div>
+
+      {upsell && (
+        <UpgradeModal
+          title="Filtrar por materia"
+          message="Cruza los expedientes de la Comisión por materia para quedarte solo con los de tu sector. Disponible en el plan Pro."
+          onClose={() => setUpsell(false)}
+        />
+      )}
     </div>
   );
 }
