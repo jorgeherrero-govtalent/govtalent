@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
 import BackLink from '@/components/BackLink';
 import FollowButton from '@/components/FollowButton';
+import PanelBloqueado, { FILAS_MESA_PE } from '@/components/PanelBloqueado';
 
 /**
  * Ficha de una comisión del Parlamento Europeo.
@@ -86,7 +87,13 @@ export default function EuCommitteeDetailPage() {
   const { code } = useParams();
 
   const [comision, setComision] = useState(undefined);
+  // El plan se guarda en estado y no se saca del hook: aquí hace falta
+  // dentro del efecto, para decidir qué consultas lanzar, y tenerlo en
+  // dos sitios daría dos verdades que pueden no coincidir.
+  const [esPro, setEsPro] = useState(null);
   const [mesa, setMesa] = useState([]);
+  // Cuántos hay en la mesa aunque no se pidan sus nombres.
+  const [nMesa, setNMesa] = useState(0);
   const [miembros, setMiembros] = useState([]);
   const [lidera, setLidera] = useState([]);
   const [opina, setOpina] = useState([]);
@@ -112,8 +119,26 @@ export default function EuCommitteeDetailPage() {
       }
       setComision(data);
 
-      const [{ data: ch }, { data: mb }, { data: proc }] = await Promise.all([
-        supabase.from('eu_committee_chairs').select('*').eq('body_code', data.code).order('rank_order'),
+      // El plan decide qué se pide, así que se resuelve antes que el
+      // resto de consultas.
+      const { data: auth } = await supabase.auth.getUser();
+      let pro = false;
+      if (auth?.user?.id) {
+        const { data: perfil } = await supabase.from('users').select('plan').eq('id', auth.user.id).single();
+        pro = perfil?.plan === 'pro';
+      }
+      if (cancelled) return;
+
+      // La mesa solo se pide con plan. Sin él basta el recuento: son
+      // nombres y fotos de personas, y difuminarlos con CSS los dejaría
+      // legibles desde el inspector.
+      const [mesaRes, { data: mb }, { data: proc }] = await Promise.all([
+        pro
+          ? supabase.from('eu_committee_chairs').select('*').eq('body_code', data.code).order('rank_order')
+          : supabase
+              .from('eu_committee_chairs')
+              .select('body_code', { count: 'exact', head: true })
+              .eq('body_code', data.code),
         supabase.from('eu_committee_members').select('*').eq('body_code', data.code),
         supabase
           .from('eu_committee_procedures')
@@ -126,7 +151,12 @@ export default function EuCommitteeDetailPage() {
       ]);
 
       if (cancelled) return;
-      setMesa(ch || []);
+      if (pro) {
+        setMesa(mesaRes.data || []);
+      } else {
+        setMesa([]);
+        setNMesa(mesaRes.count || 0);
+      }
       setMiembros(mb || []);
       setLidera((proc || []).filter((p) => p.es_competente));
       setOpina((proc || []).filter((p) => !p.es_competente));
@@ -248,7 +278,18 @@ export default function EuCommitteeDetailPage() {
         </div>
       </div>
 
-      {mesa.length > 0 && (
+      {esPro === false && nMesa > 0 && (
+        <div style={{ ...CARD, padding: 20, marginBottom: 12 }}>
+          <div style={{ ...LABEL, marginBottom: 14 }}>LA MESA</div>
+          <PanelBloqueado
+            titulo="Quién preside esta comisión"
+            descripcion="La presidencia y las vicepresidencias, con su grupo político y su país. Con acceso a su ficha y su contacto a un solo clic."
+            filas={FILAS_MESA_PE}
+          />
+        </div>
+      )}
+
+      {esPro && mesa.length > 0 && (
         <div style={{ ...CARD, padding: 20, marginBottom: 12 }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 14, gap: 10, flexWrap: 'wrap' }}>
             <div style={{ ...LABEL, marginBottom: 0 }}>LA MESA</div>
