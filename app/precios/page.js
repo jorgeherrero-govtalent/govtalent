@@ -252,7 +252,7 @@ export default async function PricingPage({ searchParams }) {
           <>
             <BannerFundadores
               titulo="Founding Member — 215 €/año el primer año"
-              detalle="Teams al 50 %, onboarding personalizado y participación en la evolución del producto. Después se renueva a 429 €/año."
+              detalle="Todo el potencial de GovTalent al 50 % con Teams. Después se renueva a 429 €/año."
               ocupadas={orgsFundadoras}
               plazas={PLAZAS_TEAMS}
               icono="building"
@@ -294,28 +294,29 @@ export default async function PricingPage({ searchParams }) {
                 nombre="Teams"
                 precio="429 €"
                 periodo="/ año"
-                resumen="Todo lo que necesita tu equipo para crecer en el sector."
+                resumen="Todas las herramientas que necesita tu equipo para crecer en el sector."
                 etiqueta="Hasta 4 usuarios · todo Recruiter, y además"
                 destacado
                 distintivo="MÁS COMPLETO"
                 cta="Elegir Teams"
                 href="/signup"
               >
-                <Check>Licencia de GovTalent Pro para todo el equipo</Check>
+                <Check>Licencia de GovTalent Pro</Check>
                 <Check>Proyectos compartidos y colaborativos</Check>
                 <Check>Seguimiento normativo y alertas regulatorias</Check>
                 <Check>Agenda y notas compartidas</Check>
                 <Check>Registro de actividad y automatización de actas</Check>
                 <Check>Dashboard de organización</Check>
                 <Check>Roles diferenciados</Check>
+                <Check>Onboarding personalizado</Check>
               </Plan>
             </div>
           </>
         ) : (
           <>
             <BannerFundadores
-              titulo="Founding Member — 33 €/año el primer año"
-              detalle="Sé de los primeros profesionales en usar GovTalent Pro. Después se renueva a 67 €/año."
+              titulo="Founding Member — 30 €/año el primer año"
+              detalle="Sé de los primeros profesionales en usar GovTalent Pro. Después se renueva a 59 €/año."
               ocupadas={prosFundadores}
               plazas={PLAZAS_PRO}
               icono="user"
@@ -340,7 +341,7 @@ export default async function PricingPage({ searchParams }) {
 
               <Plan
                 nombre="Pro"
-                precio="67 €"
+                precio="59 €"
                 periodo="/ año"
                 resumen="Monitoriza regulación y actores, y gestiona tus proyectos en un único espacio."
                 etiqueta="Todo lo de Free, y además"
@@ -353,8 +354,8 @@ export default async function PricingPage({ searchParams }) {
                 <Check>Seguimiento normativo y regulatorio</Check>
                 <Check>Alertas e histórico completo</Check>
                 <Check>Creación y gestión de proyectos</Check>
-                <Check>Visualización de stakeholders</Check>
-                <Check>Organización de agenda con fechas y tareas</Check>
+                <Check>Diagrama interactivo para visualizar tus proyectos</Check>
+                <Check>Planificación de agenda con fechas y tareas</Check>
                 {/* El acta se compone sola a partir del registro: nadie la
                     redacta. Lo manual es la captura, no el documento. */}
                 <Check>Registro de actividad y automatización de actas</Check>
