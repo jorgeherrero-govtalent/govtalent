@@ -498,6 +498,8 @@ function OrganigramaTab({ members, officials }) {
 }
 
 function BuscarTab({ members, officials }) {
+  const esPro = usePlanPro();
+  const [upsell, setUpsell] = useState(false);
   const [search, setSearch] = useState('');
   const [ministryFilter, setMinistryFilter] = useState(new Set());
   const [typeFilter, setTypeFilter] = useState(new Set());
@@ -613,7 +615,17 @@ function BuscarTab({ members, officials }) {
       <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 12, flexWrap: 'wrap' }}>
         <Buscador value={search} onChange={setSearch} placeholder="Buscar por nombre o cargo..." />
         <MultiSelectFilter label="Ministerio" values={ministryOptions} selected={ministryFilter} onApply={setMinistryFilter} />
-        <MultiSelectFilter label="Tipo de cargo" values={typeOptions} selected={typeFilter} onApply={setTypeFilter} />
+        {/* Solo Tipo de cargo. Ministerio se queda libre: es el eje por
+            el que la gente se orienta —"enséñame Hacienda"— y sin él la
+            tabla de 278 personas no se puede reducir por ningún sitio. */}
+        <MultiSelectFilter
+          label="Tipo de cargo"
+          values={typeOptions}
+          selected={typeFilter}
+          onApply={setTypeFilter}
+          bloqueado={esPro === false}
+          onBloqueado={() => setUpsell(true)}
+        />
       </div>
 
       <ChipsFiltros grupos={[[...ministryFilter], [...typeFilter]]} onLimpiar={clearFilters} />
@@ -903,6 +915,13 @@ function MinisteriosTab({ members, officials }) {
         </Link>
       ))}
         </div>
+      )}
+      {upsell && (
+        <UpgradeModal
+          title="Filtrar por tipo de cargo"
+          message="Separa a los secretarios de Estado de los directores generales y del resto del organigrama. Disponible en el plan Pro."
+          onClose={() => setUpsell(false)}
+        />
       )}
     </>
   );
