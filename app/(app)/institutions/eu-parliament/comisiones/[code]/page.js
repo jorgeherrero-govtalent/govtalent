@@ -135,13 +135,18 @@ export default function EuCommitteeDetailPage() {
       // nombres y fotos de personas, y difuminarlos con CSS los dejaría
       // legibles desde el inspector.
       const [mesaRes, { data: mb }, { data: proc }] = await Promise.all([
+        // POR body_id Y NO POR body_code. eu_committee_members no tiene
+        // body_code —solo body_id— así que la consulta de miembros
+        // fallaba en silencio y el recuento de españoles salía siempre a
+        // cero. body_id es la única clave que comparten las dos tablas
+        // con eu_committee_profile.
         pro
-          ? supabase.from('eu_committee_chairs').select('*').eq('body_code', data.code).order('rank_order')
+          ? supabase.from('eu_committee_chairs').select('*').eq('body_id', data.id).order('rank_order')
           : supabase
               .from('eu_committee_chairs')
-              .select('body_code', { count: 'exact', head: true })
-              .eq('body_code', data.code),
-        supabase.from('eu_committee_members').select('*').eq('body_code', data.code),
+              .select('body_id', { count: 'exact', head: true })
+              .eq('body_id', data.id),
+        supabase.from('eu_committee_members').select('*').eq('body_id', data.id),
         supabase
           .from('eu_committee_procedures')
           .select('*')
@@ -169,7 +174,13 @@ export default function EuCommitteeDetailPage() {
     };
   }, [code]);
 
-  const espanoles = useMemo(() => miembros.filter((m) => m.country_code === 'ES').length, [miembros]);
+  // Del perfil, que ya lo trae contado. Antes se calculaba recorriendo
+  // `miembros`, y como esa consulta fallaba, la cifra era siempre cero.
+  // Se deja el cálculo como respaldo por si el perfil no lo trae.
+  const espanoles = useMemo(
+    () => comision?.espanoles ?? miembros.filter((m) => m.country_code === 'ES').length,
+    [comision, miembros]
+  );
 
   const miembrosFiltrados = useMemo(() => {
     let l = miembros;
