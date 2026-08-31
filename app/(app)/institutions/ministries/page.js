@@ -4,6 +4,8 @@ import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
 import MultiSelectFilter from '@/components/MultiSelectFilter';
+import UpgradeModal from '@/components/UpgradeModal';
+import usePlanPro from '@/lib/usePlanPro';
 
 // Deriva un "tipo de cargo" a partir del texto libre del cargo, para poder
 // filtrar sin depender de una lista cerrada mantenida a mano.
@@ -330,6 +332,8 @@ function GroupRow({ member, team, vicepresidenteOrdinal, abrirPorFiltro }) {
 }
 
 function OrganigramaTab({ members, officials }) {
+  const esPro = usePlanPro();
+  const [upsell, setUpsell] = useState(null);
   const [search, setSearch] = useState('');
   const [tipoFilter, setTipoFilter] = useState(new Set());
   const [ministerioFilter, setMinisterioFilter] = useState(new Set());
@@ -422,8 +426,28 @@ function OrganigramaTab({ members, officials }) {
           values={ministerioOptions}
           selected={ministerioFilter}
           onApply={setMinisterioFilter}
+          bloqueado={esPro === false}
+          onBloqueado={() =>
+            setUpsell({
+              title: 'Filtrar por ministerio',
+              message: 'Quédate con el organigrama de los ministerios que te tocan. Disponible en el plan Pro.',
+            })
+          }
         />
-        <MultiSelectFilter label="Tipo de cargo" values={tipoOptions} selected={tipoFilter} onApply={setTipoFilter} />
+        <MultiSelectFilter
+          label="Tipo de cargo"
+          values={tipoOptions}
+          selected={tipoFilter}
+          onApply={setTipoFilter}
+          bloqueado={esPro === false}
+          onBloqueado={() =>
+            setUpsell({
+              title: 'Filtrar por tipo de cargo',
+              message:
+                'Separa a los secretarios de Estado de los directores generales y del resto del organigrama. Disponible en el plan Pro.',
+            })
+          }
+        />
       </div>
 
       <ChipsFiltros grupos={[[...ministerioFilter], [...tipoFilter]]} onLimpiar={limpiar} />
@@ -465,6 +489,9 @@ function OrganigramaTab({ members, officials }) {
             </div>
           )}
         </>
+      )}
+      {upsell && (
+        <UpgradeModal title={upsell.title} message={upsell.message} onClose={() => setUpsell(null)} />
       )}
     </>
   );
