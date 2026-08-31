@@ -3,7 +3,6 @@ import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { resend, EMAIL_FROM } from '@/lib/resend';
 import { claimApprovedEmail, claimRejectedEmail } from '@/lib/email/templates';
-import { buildTrialStart } from '@/lib/plan';
 
 async function requireSuperadmin() {
   const supabase = createClient();
@@ -81,10 +80,12 @@ export async function PATCH(request, { params }) {
       const { error: orgErr } = await admin.from('organizations').update({ verified: true }).eq('id', claim.organization_id);
       if (orgErr) return NextResponse.json({ error: 'No se pudo marcar la organización como verificada' }, { status: 500 });
     } else {
-      // Reclamación: da acceso completo, marca reclamada + verificada, y arranca el trial.
+      // Reclamación: marca la organización como reclamada y verificada.
+      // Antes arrancaba además un periodo de prueba; se retiró, así que
+      // la organización queda en el plan que tenga.
       const { error: orgErr } = await admin
         .from('organizations')
-        .update({ claimed: true, verified: true, ...buildTrialStart() })
+        .update({ claimed: true, verified: true })
         .eq('id', claim.organization_id);
       if (orgErr) return NextResponse.json({ error: 'No se pudo marcar la organización como reclamada' }, { status: 500 });
 
