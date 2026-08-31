@@ -7,6 +7,10 @@ import { createClient } from '@/lib/supabase/client';
 import { toast } from '@/lib/toast';
 import BackLink from '@/components/BackLink';
 import FollowButton from '@/components/FollowButton';
+import PanelBloqueado, {
+  FILAS_EURODIPUTADOS,
+  FILAS_COMISIONES_PE,
+} from '@/components/PanelBloqueado';
 import { GRUPO_COLORES, GRUPO_NOMBRES } from '../page';
 
 const colorGrupo = (g) => GRUPO_COLORES[g] || '#b0aea6';
@@ -164,6 +168,10 @@ export default function ProcedureDetailPage() {
   const [events, setEvents] = useState([]);
   const [userId, setUserId] = useState(null);
   const [tab, setTab] = useState('recorrido');
+  const [esPro, setEsPro] = useState(null);
+  // Los recuentos que siguen enseñándose sin plan: la pestaña dice
+  // cuántos hay, no quiénes son.
+  const [nBloqueados, setNBloqueados] = useState({ personas: 0, comisiones: 0 });
   const [verTodos, setVerTodos] = useState(false);
   const [soloEspanoles, setSoloEspanoles] = useState(false);
 
@@ -186,34 +194,70 @@ export default function ProcedureDetailPage() {
       }
       setItem(data);
 
-      const [{ data: pe }, { data: co }, { data: ev }, { data: auth }] = await Promise.all([
-        supabase
-          .from('ep_procedure_people')
-          .select('*')
-          .eq('process_id', data.process_id)
-          .order('orden_rol')
-          .order('full_name'),
-        supabase
-          .from('ep_procedure_committees')
-          .select('*')
-          .eq('process_id', data.process_id)
-          .order('bloque')
-          .order('body_code'),
+      // El plan primero, porque decide qué se pide después. Traerlo todo
+      // y esconder la mitad no protege nada: lo que baja al navegador se
+      // lee desde el inspector aunque esté difuminado por CSS.
+      const { data: auth } = await supabase.auth.getUser();
+      if (cancelled) return;
+      const uid = auth?.user?.id || null;
+      setUserId(uid);
+
+      let pro = false;
+      if (uid) {
+        const { data: perfil } = await supabase.from('users').select('plan').eq('id', uid).single();
+        pro = perfil?.plan === 'pro';
+      }
+      if (cancelled) return;
+      setEsPro(pro);
+
+      const [personasRes, comisionesRes, { data: ev }] = await Promise.all([
+        // Sin plan, el recuento y no las filas. head:true no devuelve
+        // ninguna, así que la pestaña puede decir "Actores (14)" sin que
+        // los catorce nombres salgan del servidor.
+        pro
+          ? supabase
+              .from('ep_procedure_people')
+              .select('*')
+              .eq('process_id', data.process_id)
+              .order('orden_rol')
+              .order('full_name')
+          : supabase
+              .from('ep_procedure_people')
+              .select('process_id', { count: 'exact', head: true })
+              .eq('process_id', data.process_id),
+        pro
+          ? supabase
+              .from('ep_procedure_committees')
+              .select('*')
+              .eq('process_id', data.process_id)
+              .order('bloque')
+              .order('body_code')
+          : supabase
+              .from('ep_procedure_committees')
+              .select('process_id', { count: 'exact', head: true })
+              .eq('process_id', data.process_id),
+        // El recorrido son hitos y fechas, sin personas: se pide siempre.
         supabase
           .from('ep_procedure_timeline')
           .select('*')
           .eq('process_id', data.process_id)
           .order('activity_date', { ascending: false }),
-        supabase.auth.getUser(),
       ]);
 
       if (cancelled) return;
-      setPeople(pe || []);
-      setCommittees(co || []);
       setEvents(ev || []);
 
-      const uid = auth?.user?.id || null;
-      setUserId(uid);
+      if (pro) {
+        setPeople(personasRes.data || []);
+        setCommittees(comisionesRes.data || []);
+      } else {
+        setPeople([]);
+        setCommittees([]);
+        setNBloqueados({
+          personas: personasRes.count || 0,
+          comisiones: comisionesRes.count || 0,
+        });
+      }
       // FollowButton comprueba por su cuenta si se sigue.
     })();
 
@@ -267,15 +311,21 @@ export default function ProcedureDetailPage() {
     return [...mapa.entries()].sort((a, b) => a[0] - b[0]).map(([bloque, v]) => ({ bloque, ...v }));
   }, [committees]);
 
+  const nActores = esPro ? people.length : nBloqueados.personas;
+  const nComisiones = esPro ? committees.length : nBloqueados.comisiones;
+
   const pestanas = useMemo(
     () => [
       { id: 'recorrido', label: `Recorrido${events.length ? ` (${events.length})` : ''}`, activa: events.length > 0 },
-      { id: 'actores', label: `Actores${people.length ? ` (${people.length})` : ''}`, activa: people.length > 0 },
-      { id: 'comisiones', label: `Comisiones${committees.length ? ` (${committees.length})` : ''}`, activa: committees.length > 0 },
+      // Sin plan las filas no se han pedido, así que el número sale del
+      // recuento y la pestaña sigue estando activa: se entra a ella y se
+      // ve el panel, que es justo lo que se quiere enseñar.
+      { id: 'actores', label: `Actores${nActores ? ` (${nActores})` : ''}`, activa: nActores > 0 },
+      { id: 'comisiones', label: `Comisiones${nComisiones ? ` (${nComisiones})` : ''}`, activa: nComisiones > 0 },
       { id: 'resumen', label: 'Resumen', activa: false },
       { id: 'votaciones', label: 'Votaciones', activa: false },
     ],
-    [events, people, committees]
+    [events.length, nActores, nComisiones]
   );
 
   useEffect(() => {
@@ -358,10 +408,6 @@ export default function ProcedureDetailPage() {
             <div style={{ fontSize: 13, fontWeight: 600, color: item.is_closed ? '#0F6E56' : '#3C3489', lineHeight: 1.3 }}>
               {item.is_closed ? 'Concluido' : item.current_stage_label || 'En tramitación'}
             </div>
-          </div>
-          <div>
-            <div style={{ fontSize: 10, color: '#999', marginBottom: 3 }}>Referencia</div>
-            <div style={{ fontSize: 13, fontWeight: 600 }}>{item.label}</div>
           </div>
           <div style={{ minWidth: 0 }}>
             <div style={{ fontSize: 10, color: '#999', marginBottom: 3 }}>Ponente</div>
@@ -473,7 +519,18 @@ export default function ProcedureDetailPage() {
         </div>
       )}
 
-      {tab === 'actores' && (
+      {tab === 'actores' && esPro === false && (
+        <div style={CARD}>
+          <PanelBloqueado
+            titulo="Los eurodiputados que lo tramitan"
+            descripcion="Ponentes, comisiones y quiénes son españoles. Con grupo político, país, comisión y dirección a un solo clic."
+            filas={FILAS_EURODIPUTADOS}
+            dominio="europarl.europa.eu"
+          />
+        </div>
+      )}
+
+      {tab === 'actores' && esPro && (
         <div style={CARD}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4, flexWrap: 'wrap', gap: 8 }}>
             <span style={LABEL}>Reparto por grupo</span>
@@ -569,7 +626,18 @@ export default function ProcedureDetailPage() {
         </div>
       )}
 
-      {tab === 'comisiones' && (
+      {tab === 'comisiones' && esPro === false && (
+        <div style={CARD}>
+          <PanelBloqueado
+            titulo="Las comisiones que deciden el texto"
+            descripcion="Cuál es competente para el fondo y cuáles emiten opinión o revisan. Con su composición y lo que tramitan a un solo clic."
+            filas={FILAS_COMISIONES_PE}
+            forma="organo"
+          />
+        </div>
+      )}
+
+      {tab === 'comisiones' && esPro && (
         <div style={CARD}>
           {bloquesComision.map((b) => (
             <div key={b.bloque} style={{ marginBottom: 16 }}>
