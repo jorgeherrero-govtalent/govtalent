@@ -3,29 +3,46 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
-import { getEffectiveTier, planLabel, getTrialStatus, planCardTrialMessage, aiMatchesRemainingInTrial, trialAiMatchLimit } from '@/lib/plan';
+import { getEffectiveTier, planLabel, PLANES, COMPARATIVA } from '@/lib/plan';
 
-function UnlockSection({ title, features }) {
-  return (
-    <div className="card" style={{ padding: 22, marginBottom: 16 }}>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
-        <div>
-          <h2 style={{ fontSize: 14.5, fontWeight: 700, marginBottom: 10 }}>{title}</h2>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
-            {features.map((f) => (
-              <div key={f} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: '#3a3a36' }}>
-                <i className="ti ti-check" style={{ color: '#1d6f5c', fontSize: 14 }}></i>
-                {f}
-              </div>
-            ))}
-          </div>
-        </div>
-        <Link href="/precios" target="_blank" className="btn-ai-o" style={{ textDecoration: 'none', whiteSpace: 'nowrap' }}>
-          Actualizar
-        </Link>
-      </div>
-    </div>
-  );
+/**
+ * El plan de la organización.
+ *
+ * DOS PIEZAS Y NO UNA. Arriba tres tarjetas con nombre, precio y botón:
+ * sirven para elegir. Debajo la tabla comparativa: sirve para decidir.
+ * Antes las tarjetas repetían las funciones y la tabla no existía, así
+ * que se leía dos veces lo mismo y aun así faltaba la mitad.
+ *
+ * LOS DATOS SALEN DE lib/plan. La página no conoce ni precios ni
+ * funciones; los pide a PLANES y COMPARATIVA. Cuando esta página tenía su
+ * propia lista, se quedó diciendo "Plus" y "Pro" y prometiendo tres
+ * funciones de las siete que anuncia /precios.
+ *
+ * SIN PERIODO DE PRUEBA. Se retiró el trial de la aplicación: aquí ya no
+ * hay contador de días ni usos de IA restantes.
+ */
+
+const VERDE = '#1d6f5c';
+const MORADO = '#6d5aef';
+const GRIS = '#8b8780';
+const BORDE = '#e0dfd8';
+
+// Free en gris, Recruiter en verde y Teams en morado. El gris dice que
+// Free no es una elección que se celebre, es el punto de partida.
+const COLORES = {
+  gris: { fuerte: GRIS, suave: '#f4f4f0', texto: '#5c5952' },
+  verde: { fuerte: VERDE, suave: '#e8f4f0', texto: VERDE },
+  morado: { fuerte: MORADO, suave: '#f0eefe', texto: '#3c3489' },
+};
+
+function Marca({ valor, color }) {
+  if (valor === true) {
+    return <i className="ti ti-check" style={{ fontSize: 14, color: color }}></i>;
+  }
+  if (valor === false) {
+    return <span style={{ color: '#c9c7bd' }}>—</span>;
+  }
+  return <span style={{ color: '#666' }}>{valor}</span>;
 }
 
 export default function OrganizationPlanPage() {
@@ -35,6 +52,7 @@ export default function OrganizationPlanPage() {
 
   useEffect(() => {
     load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   async function load() {
@@ -54,102 +72,196 @@ export default function OrganizationPlanPage() {
   if (loading) return <div className="spinner"></div>;
   if (!org) return null;
 
-  const tier = getEffectiveTier(org);
-  const isTrial = tier === 'trial';
-  const trialStatus = getTrialStatus(org); // no-null durante el trial activo Y también tras expirar
-  const trialMessage = planCardTrialMessage(org);
+  const actual = getEffectiveTier(org);
+
+  const celda = {
+    display: 'grid',
+    gridTemplateColumns: '1.9fr .65fr .65fr .65fr',
+    padding: '8px 16px',
+    fontSize: 11.5,
+    alignItems: 'center',
+    borderBottom: `.5px solid #f2f0ec`,
+  };
 
   return (
-    <div className="sec" style={{ maxWidth: 640 }}>
+    <div className="sec" style={{ maxWidth: 860 }}>
       <h1 style={{ fontSize: 20, fontWeight: 700, marginBottom: 4 }}>Plan</h1>
-      <p style={{ fontSize: 13, color: '#888', marginBottom: 24 }}>Consulta tu plan actual y qué incluye.</p>
+      <p style={{ fontSize: 13, color: '#888', marginBottom: 20 }}>
+        Estás en {planLabel(org)}. Puedes cambiar cuando quieras.
+      </p>
 
-      <div className="card" style={{ padding: 22, marginBottom: 16 }}>
-        <div className="plan-card-head" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
-          <div>
-            <div style={{ fontSize: 11, color: '#999', fontWeight: 700, letterSpacing: '.03em', marginBottom: 6 }}>
-              PLAN ACTUAL
-            </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <span style={{ width: 9, height: 9, borderRadius: '50%', background: '#1d9d63', flexShrink: 0 }}></span>
-              <span style={{ fontSize: 19, fontWeight: 700, color: '#1a1a18' }}>
-                {trialStatus ? 'Trial Pro' : planLabel(org)}
-              </span>
-            </div>
-            {trialMessage && (
-              <div style={{ fontSize: 13, color: '#555', marginTop: 4 }}>{trialMessage}</div>
-            )}
-          </div>
-          <Link
-            href="/precios"
-            target="_blank"
-            className="btn-ai plan-card-cta"
-            style={{ textDecoration: 'none', display: 'inline-flex', alignItems: 'center' }}
-          >
-            {trialStatus ? 'Actualizar a Pro' : 'Actualizar plan'}
-          </Link>
-        </div>
-
-        {trialStatus && (
-          <div style={{ marginTop: 16 }}>
-            <div style={{ display: 'flex', gap: 4, marginBottom: 6 }}>
-              {Array.from({ length: trialStatus.totalDays }).map((_, i) => (
-                <div
-                  key={i}
+      {/* --- Las tres tarjetas --- */}
+      <div
+        style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(210px, 1fr))',
+          gap: 10,
+          marginBottom: 22,
+        }}
+      >
+        {PLANES.map((p) => {
+          const c = COLORES[p.color];
+          const esActual = p.clave === actual;
+          return (
+            <div
+              key={p.clave}
+              style={{
+                background: '#fff',
+                border: esActual || p.distintivo ? `1px solid ${c.fuerte}` : `.5px solid ${BORDE}`,
+                borderRadius: 11,
+                padding: '15px 14px',
+                position: 'relative',
+              }}
+            >
+              {/* El distintivo del plan actual manda sobre el comercial:
+                  saber dónde estás importa más que saber cuál se vende
+                  mejor. */}
+              {(esActual || p.distintivo) && (
+                <span
                   style={{
-                    flex: 1,
-                    height: 6,
-                    borderRadius: 4,
-                    background: i < trialStatus.daysUsed ? '#1d6f5c' : '#f0efe9',
+                    position: 'absolute',
+                    top: -8,
+                    left: 14,
+                    background: c.fuerte,
+                    color: '#fff',
+                    fontSize: 8.5,
+                    fontWeight: 700,
+                    letterSpacing: '.4px',
+                    padding: '2px 8px',
+                    borderRadius: 9,
                   }}
-                ></div>
-              ))}
-            </div>
-            <div style={{ fontSize: 12, color: '#888' }}>
-              Has utilizado {trialStatus.daysUsed} de los {trialStatus.totalDays} días de prueba
-            </div>
-          </div>
-        )}
+                >
+                  {esActual ? 'TU PLAN' : p.distintivo}
+                </span>
+              )}
 
-        {isTrial && (
-          <div style={{ fontSize: 12.5, color: '#666', marginTop: 12 }}>
-            Matching de candidatos con IA: {aiMatchesRemainingInTrial(org)} de {trialAiMatchLimit()} usos disponibles
-          </div>
-        )}
+              <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 3 }}>{p.nombre}</div>
+              <div style={{ fontSize: 21, fontWeight: 700, lineHeight: 1.1 }}>
+                {p.precio}
+                <span style={{ fontSize: 10.5, fontWeight: 400, color: '#a8a49c' }}> {p.periodo}</span>
+              </div>
+              <div style={{ fontSize: 10, color: '#a8a49c', marginBottom: 12 }}>{p.usuarios}</div>
 
-        {org.is_founding_member && (
-          <div style={{ fontSize: 12, color: '#999', marginTop: 10 }}>
-            <i className="ti ti-star" style={{ color: '#6d5aef', marginRight: 4 }}></i>
-            Eres Founding Member — tu precio de 199€/año queda fijado de por vida.
-          </div>
-        )}
+              {esActual ? (
+                <div
+                  style={{
+                    fontSize: 11,
+                    textAlign: 'center',
+                    padding: 6,
+                    borderRadius: 7,
+                    background: '#f7f6f3',
+                    color: '#a8a49c',
+                  }}
+                >
+                  Plan actual
+                </div>
+              ) : (
+                <Link
+                  href="/precios?para=organizaciones"
+                  target="_blank"
+                  rel="noreferrer"
+                  style={{
+                    display: 'block',
+                    fontSize: 11,
+                    textAlign: 'center',
+                    padding: 6,
+                    borderRadius: 7,
+                    textDecoration: 'none',
+                    background: p.color === 'morado' ? c.fuerte : 'transparent',
+                    color: p.color === 'morado' ? '#fff' : c.texto,
+                    border: p.color === 'morado' ? 'none' : `.5px solid ${c.fuerte}`,
+                  }}
+                >
+                  Cambiar a {p.nombre}
+                </Link>
+              )}
+            </div>
+          );
+        })}
       </div>
 
-      {tier === 'free' && (
-        <>
-          <UnlockSection title="Desbloquea con Plus" features={['Ofertas ilimitadas', 'Descripción de oferta con IA']} />
-          <UnlockSection
-            title="Desbloquea contratando Pro:"
-            features={['Matching de candidatos con IA', 'Directorio inteligente de organizaciones', 'Varios usuarios de equipo']}
-          />
-        </>
-      )}
+      {/* --- La comparativa --- */}
+      <div style={{ background: '#fff', border: `.5px solid ${BORDE}`, borderRadius: 11, overflow: 'hidden' }}>
+        <div
+          style={{
+            ...celda,
+            padding: '11px 16px',
+            background: '#faf9f6',
+            fontSize: 9.5,
+            letterSpacing: '.4px',
+            color: '#a8a49c',
+            borderBottom: `.5px solid ${BORDE}`,
+          }}
+        >
+          <span>QUÉ INCLUYE CADA PLAN</span>
+          {PLANES.map((p) => (
+            <span
+              key={p.clave}
+              style={{
+                textAlign: 'center',
+                color: p.clave === actual ? COLORES[p.color].texto : '#a8a49c',
+                fontWeight: p.clave === actual ? 700 : 400,
+              }}
+            >
+              {p.nombre.toUpperCase()}
+            </span>
+          ))}
+        </div>
 
-      {tier === 'plus' && (
-        <UnlockSection
-          title="Desbloquea contratando Pro:"
-          features={['Matching de candidatos con IA', 'Directorio inteligente de organizaciones', 'Varios usuarios de equipo']}
-        />
-      )}
+        {COMPARATIVA.map((seccion) => (
+          <div key={seccion.grupo}>
+            {/* Catorce filas seguidas no se leen: los grupos dan sitios
+                donde parar. */}
+            <div style={{ padding: '12px 16px 5px', fontSize: 9.5, letterSpacing: '.4px', color: '#a8a49c' }}>
+              {seccion.grupo.toUpperCase()}
+            </div>
+            {seccion.filas.map((f) => (
+              <div key={f.nombre} style={celda}>
+                <span>{f.nombre}</span>
+                <span style={{ textAlign: 'center' }}>
+                  <Marca valor={f.free} color={VERDE} />
+                </span>
+                <span style={{ textAlign: 'center' }}>
+                  <Marca valor={f.plus} color={VERDE} />
+                </span>
+                <span style={{ textAlign: 'center' }}>
+                  <Marca valor={f.pro} color={VERDE} />
+                </span>
+              </div>
+            ))}
+          </div>
+        ))}
 
-      {isTrial && (
-        <UnlockSection title="Desbloquea contratando Pro:" features={['Directorio inteligente de organizaciones']} />
-      )}
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: 12,
+            flexWrap: 'wrap',
+            padding: '14px 16px',
+            background: '#faf9f6',
+          }}
+        >
+          <span style={{ fontSize: 11.5, color: '#a8a49c' }}>
+            Precios sin IVA. El cambio de plan se gestiona desde la página de precios.
+          </span>
+          <Link
+            href="/precios?para=organizaciones"
+            target="_blank"
+            rel="noreferrer"
+            className="btn-ai"
+            style={{ textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 6 }}
+          >
+            Ver planes <i className="ti ti-arrow-up-right"></i>
+          </Link>
+        </div>
+      </div>
 
-      {tier === 'pro' && (
-        <div className="card" style={{ padding: 22, textAlign: 'center' }}>
-          <i className="ti ti-circle-check" style={{ fontSize: 22, color: '#1d6f5c', marginBottom: 8 }}></i>
-          <div style={{ fontSize: 13, color: '#666' }}>Tienes acceso a todas las funciones de GovTalent.</div>
+      {org.is_founding_member && (
+        <div style={{ fontSize: 12, color: '#888', marginTop: 12 }}>
+          <i className="ti ti-star" style={{ color: MORADO, marginRight: 4 }}></i>
+          Eres Founding Member: el primer año de Teams al 50 %.
         </div>
       )}
     </div>
