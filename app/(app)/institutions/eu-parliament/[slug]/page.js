@@ -584,7 +584,7 @@ export default function MepDetailPage() {
       {upsell && (
         <UpgradeModal
           title="El correo de contacto"
-          message="Escribe directamente a los eurodiputados que tramitan lo tuyo, sin buscarlos uno a uno. Disponible en el plan Pro."
+          message="Escribe directamente a los eurodiputados que tramitan tu proyecto, sin buscarlos uno a uno. Disponible en el plan Pro."
           onClose={() => setUpsell(false)}
         />
       )}
