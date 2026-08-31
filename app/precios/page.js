@@ -251,7 +251,7 @@ export default async function PricingPage({ searchParams }) {
         {paraOrgs ? (
           <>
             <BannerFundadores
-              titulo="Founding Member — 215 €/año el primer año"
+              titulo="Founding Member — 215 €/año"
               detalle="Todo el potencial de GovTalent al 50 % con Teams. Después se renueva a 429 €/año."
               ocupadas={orgsFundadoras}
               plazas={PLAZAS_TEAMS}
@@ -315,7 +315,7 @@ export default async function PricingPage({ searchParams }) {
         ) : (
           <>
             <BannerFundadores
-              titulo="Founding Member — 30 €/año el primer año"
+              titulo="Founding Member — 30 €/año"
               detalle="Sé de los primeros profesionales en usar GovTalent Pro. Después se renueva a 59 €/año."
               ocupadas={prosFundadores}
               plazas={PLAZAS_PRO}
