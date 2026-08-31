@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { createClient } from '@/lib/supabase/client';
+import { frasePlazo } from '@/lib/plazos';
 
 /**
  * Quién se ha pronunciado sobre un expediente.
@@ -153,7 +154,7 @@ export default function Aportaciones({ initiativeId, diasRestantes }) {
       </div>
       <div style={{ fontSize: 11.5, color: '#8b8780', marginBottom: 16 }}>
         {organizaciones.toLocaleString('es-ES')} organizaciones han aportado a esta consulta
-        {diasRestantes > 0 && `. Quedan ${diasRestantes} ${diasRestantes === 1 ? 'día' : 'días'}`}.
+        {diasRestantes !== null && diasRestantes >= 0 && `. Cierra ${frasePlazo(diasRestantes)}`}.
       </div>
 
       {/* La barra dice de un vistazo si el asunto lo mueven las empresas,
