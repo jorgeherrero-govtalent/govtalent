@@ -4,6 +4,8 @@ import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
 import MultiSelectFilter from '@/components/MultiSelectFilter';
+import UpgradeModal from '@/components/UpgradeModal';
+import usePlanPro from '@/lib/usePlanPro';
 
 const PAGE_SIZES = [20, 50, 100, 200];
 
@@ -79,6 +81,8 @@ function FlagEU() {
 }
 
 export default function ProceduresDirectoryPage() {
+  const esPro = usePlanPro();
+  const [upsell, setUpsell] = useState(null);
   const supabase = createClient();
 
   const [items, setItems] = useState(null);
@@ -236,8 +240,22 @@ export default function ProceduresDirectoryPage() {
           En tramitación {soloVivos && <i className="ti ti-x" style={{ fontSize: 11 }}></i>}
         </span>
 
+        {/* Aquí no hay nada que desplegar: el clic es toda la
+            interacción, así que el upsell tiene que salir en ese clic.
+            Se conserva el aspecto de interruptor y no se pone candado:
+            queremos que lo pulse. */}
         <span
-          onClick={() => setSoloEspanoles((v) => !v)}
+          onClick={() => {
+            if (esPro === false) {
+              setUpsell({
+                title: 'Filtrar por eurodiputados españoles',
+                message:
+                  'Quédate solo con los procedimientos en los que participa algún eurodiputado español. Disponible en el plan Pro.',
+              });
+              return;
+            }
+            setSoloEspanoles((v) => !v);
+          }}
           style={{
             background: soloEspanoles ? '#e8f4f0' : '#fff',
             border: `.5px solid ${soloEspanoles ? '#1d6f5c' : '#e0dfd8'}`,
@@ -257,6 +275,14 @@ export default function ProceduresDirectoryPage() {
           values={comisionOptions}
           selected={comisionFilter}
           onApply={setComisionFilter}
+          bloqueado={esPro === false}
+          onBloqueado={() =>
+            setUpsell({
+              title: 'Filtrar por comisión',
+              message:
+                'Quédate con los procedimientos de las comisiones que te tocan, sin recorrer los 221. Disponible en el plan Pro.',
+            })
+          }
         />
         <MultiSelectFilter label="Año" values={anoOptions} selected={anoFilter} onApply={setAnoFilter} />
       </div>
@@ -461,6 +487,10 @@ export default function ProceduresDirectoryPage() {
         <i className="ti ti-shield-check" style={{ fontSize: 13 }}></i>
         Datos abiertos del Parlamento Europeo. Procedimientos legislativos ordinarios desde 2014.
       </div>
+
+      {upsell && (
+        <UpgradeModal title={upsell.title} message={upsell.message} onClose={() => setUpsell(null)} />
+      )}
     </div>
   );
 }
