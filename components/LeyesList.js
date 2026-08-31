@@ -5,6 +5,8 @@ import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import MultiSelectFilter from '@/components/MultiSelectFilter';
+import UpgradeModal from '@/components/UpgradeModal';
+import usePlanPro from '@/lib/usePlanPro';
 import { groupColor, grupoCorto } from '@/lib/grupos';
 
 const PAGE_SIZES = [20, 50, 100, 200];
@@ -36,6 +38,8 @@ function fechaLarga(iso) {
  * Actividad parlamentaria. El Suspense lo pone la página contenedora.
  */
 export default function LeyesList() {
+  const esPro = usePlanPro();
+  const [upsell, setUpsell] = useState(false);
   const supabase = createClient();
   const searchParams = useSearchParams();
 
@@ -250,6 +254,8 @@ export default function LeyesList() {
           values={situacionOptions}
           selected={situacionFilter}
           onApply={setSituacionFilter}
+          bloqueado={esPro === false}
+          onBloqueado={() => setUpsell(true)}
         />
         <MultiSelectFilter
           label="Tipo"
@@ -500,6 +506,14 @@ export default function LeyesList() {
         «Bloqueada» es una lectura nuestra: más de 20 prórrogas y un año sin actuación, o año y medio sin actuación ni
         plazo vigente.
       </div>
+
+      {upsell && (
+        <UpgradeModal
+          title="Filtrar por situación"
+          message="Separa lo que sigue vivo de lo aprobado, caducado o retirado, sin recorrer la lista entera. Disponible en el plan Pro."
+          onClose={() => setUpsell(false)}
+        />
+      )}
     </>
   );
 }
