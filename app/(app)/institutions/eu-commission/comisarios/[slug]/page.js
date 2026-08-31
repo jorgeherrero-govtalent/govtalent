@@ -8,6 +8,7 @@ import BackLink from '@/components/BackLink';
 import FollowButton from '@/components/FollowButton';
 import PanelBloqueado, { FILAS_GABINETE } from '@/components/PanelBloqueado';
 import UpgradeModal from '@/components/UpgradeModal';
+import { cifraPlazo } from '@/lib/plazos';
 
 /**
  * Ficha de un comisario europeo.
@@ -377,8 +378,19 @@ export default function ComisarioDetailPage() {
                 <div style={{ width: 44, flexShrink: 0, textAlign: 'center' }}>
                   {abierto ? (
                     <>
-                      <div style={{ fontSize: 19, fontWeight: 600, color: '#6d5aef', lineHeight: 1 }}>{dias}</div>
-                      <div style={{ fontSize: 10, color: '#b8b4ac' }}>{dias === 1 ? 'día' : 'días'}</div>
+                      {(() => {
+                    const pl = cifraPlazo(dias);
+                    return (
+                      <>
+                        <div style={{ fontSize: pl.tam, fontWeight: 600, color: '#6d5aef', lineHeight: 1.15 }}>
+                          {pl.cifra}
+                        </div>
+                        {pl.unidad && (
+                          <div style={{ fontSize: 10, color: '#b8b4ac' }}>{pl.unidad}</div>
+                        )}
+                      </>
+                    );
+                  })()}
                     </>
                   ) : (
                     <div style={{ fontSize: 11, color: '#b8b4ac', paddingTop: 4 }}>{fechaCorta(e.feedback_end)}</div>
