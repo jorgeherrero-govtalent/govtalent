@@ -6,7 +6,16 @@ import { createPortal } from 'react-dom';
 // Misma familia visual que FilterableHeader (el filtro del Directorio
 // Inteligente), pero pensado para una barra de filtros suelta en vez de una
 // cabecera de tabla — sin A→Z/Z→A ni buscador, solo la lista de checkboxes.
-export default function MultiSelectFilter({ label, values, selected, onApply }) {
+/**
+ * `bloqueado` no cierra la puerta: la deja abrir entera.
+ *
+ * El desplegable se despliega igual, se ven todas las opciones, se
+ * buscan y se marcan. Lo único que cambia es que Aplicar llama a
+ * `onBloqueado()` en vez de a `onApply()`. Así el usuario llega al
+ * upsell sabiendo exactamente qué se estaba perdiendo, en lugar de
+ * chocar con un candado antes de haber visto nada.
+ */
+export default function MultiSelectFilter({ label, values, selected, onApply, bloqueado, onBloqueado }) {
   const [isOpen, setIsOpen] = useState(false);
   const [draft, setDraft] = useState(selected);
   const [search, setSearch] = useState('');
@@ -181,10 +190,27 @@ export default function MultiSelectFilter({ label, values, selected, onApply }) 
                 <button
                   type="button"
                   onClick={() => {
-                    onApply(draft);
                     setIsOpen(false);
+                    if (bloqueado) {
+                      onBloqueado?.();
+                      return;
+                    }
+                    onApply(draft);
                   }}
-                  style={{ flex: 1, padding: '7px 8px', borderRadius: 7, border: 'none', background: '#1d6f5c', color: '#fff', fontSize: 12.5, fontWeight: 600 }}
+                  style={{
+                    flex: 1,
+                    padding: '7px 8px',
+                    borderRadius: 7,
+                    border: 'none',
+                    // Morado cuando lleva al upsell: en el sistema el
+                    // morado es Pro, y así el botón anticipa adónde va.
+                    background: bloqueado ? '#6d5aef' : '#1d6f5c',
+                    color: '#fff',
+                    fontSize: 12.5,
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                    fontFamily: 'inherit',
+                  }}
                 >
                   Aplicar
                 </button>
