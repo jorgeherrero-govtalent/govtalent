@@ -4,6 +4,8 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
 import MultiSelectFilter from '@/components/MultiSelectFilter';
+import UpgradeModal from '@/components/UpgradeModal';
+import usePlanPro from '@/lib/usePlanPro';
 import BackLink from '@/components/BackLink';
 
 /**
@@ -168,6 +170,8 @@ function Paginacion({ pageSize, changePageSize, from, to, total, current, totalP
 }
 
 export default function OrganismosPage() {
+  const esPro = usePlanPro();
+  const [upsell, setUpsell] = useState(null);
   const supabase = createClient();
 
   const [unidades, setUnidades] = useState([]);
@@ -322,12 +326,27 @@ export default function OrganismosPage() {
           values={categorias}
           selected={cats}
           onApply={(s) => setCats(new Set(s))}
+          bloqueado={esPro === false}
+          onBloqueado={() =>
+            setUpsell({
+              title: 'Filtrar por tipo',
+              message:
+                'Separa a los reguladores y supervisores del resto de organismos de la Administración. Disponible en el plan Pro.',
+            })
+          }
         />
         <MultiSelectFilter
           label="Ministerio"
           values={ministerios}
           selected={mins}
           onApply={(s) => setMins(new Set(s))}
+          bloqueado={esPro === false}
+          onBloqueado={() =>
+            setUpsell({
+              title: 'Filtrar por ministerio',
+              message: 'Quédate con los organismos que dependen de los ministerios que te tocan. Disponible en el plan Pro.',
+            })
+          }
         />
 
         {/* Dos vistas: la lista para buscar algo concreto, las tarjetas
@@ -654,6 +673,10 @@ export default function OrganismosPage() {
             Los titulares se actualizan con los nombramientos publicados en el BOE.
           </p>
         </>
+      )}
+
+      {upsell && (
+        <UpgradeModal title={upsell.title} message={upsell.message} onClose={() => setUpsell(null)} />
       )}
     </div>
   );
