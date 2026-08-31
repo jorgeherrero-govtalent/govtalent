@@ -4,6 +4,8 @@ import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
 import MultiSelectFilter from '@/components/MultiSelectFilter';
+import UpgradeModal from '@/components/UpgradeModal';
+import usePlanPro from '@/lib/usePlanPro';
 import ComisionesEuTab from '@/components/ComisionesEuTab';
 
 // Color por grupo político. Con 9 grupos, la sigla sola no basta para
@@ -119,6 +121,8 @@ function Committees({ list }) {
 /* Pestaña 1 — Eurodiputados                                           */
 /* ------------------------------------------------------------------ */
 function MepsTab({ meps }) {
+  const esPro = usePlanPro();
+  const [upsell, setUpsell] = useState(false);
   const [search, setSearch] = useState('');
   const [countryFilter, setCountryFilter] = useState(new Set());
   const [groupFilter, setGroupFilter] = useState(new Set());
@@ -225,7 +229,14 @@ function MepsTab({ meps }) {
         </div>
         <MultiSelectFilter label="País" values={countryOptions} selected={countryFilter} onApply={setCountryFilter} />
         <MultiSelectFilter label="Grupo" values={groupOptions} selected={groupFilter} onApply={setGroupFilter} />
-        <MultiSelectFilter label="Comisión" values={committeeOptions} selected={committeeFilter} onApply={setCommitteeFilter} />
+        <MultiSelectFilter
+          label="Comisión"
+          values={committeeOptions}
+          selected={committeeFilter}
+          onApply={setCommitteeFilter}
+          bloqueado={esPro === false}
+          onBloqueado={() => setUpsell(true)}
+        />
       </div>
 
       {activeCount > 0 && (
@@ -381,6 +392,13 @@ function MepsTab({ meps }) {
             </div>
           </div>
         </div>
+      )}
+      {upsell && (
+        <UpgradeModal
+          title="Filtrar por comisión"
+          message="Quédate con los eurodiputados de las comisiones que te tocan, sin recorrer los 719. Disponible en el plan Pro."
+          onClose={() => setUpsell(false)}
+        />
       )}
     </>
   );
