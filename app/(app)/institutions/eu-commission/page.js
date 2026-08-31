@@ -4,6 +4,8 @@ import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
 import MultiSelectFilter from '@/components/MultiSelectFilter';
+import UpgradeModal from '@/components/UpgradeModal';
+import usePlanPro from '@/lib/usePlanPro';
 
 const PAGE_SIZES = [20, 50, 100, 200];
 
@@ -329,7 +331,66 @@ function UnidadesTab({ bodies, onSelect }) {
 /* ------------------------------------------------------------------ */
 /* Pestaña — Personas                                                  */
 /* ------------------------------------------------------------------ */
+/**
+ * Una celda de la tabla de personas que puede estar bloqueada.
+ *
+ * Con plan enseña el valor. Sin él, texto de relleno difuminado que se
+ * puede pulsar. El relleno es inventado a propósito: difuminar el valor
+ * real con CSS no lo oculta, solo lo despeina, y aquí hay correos de
+ * funcionarios.
+ *
+ * Mientras `esPro` es null no se pinta nada en el hueco. Son unas
+ * décimas, y evita que a un usuario Pro le parpadee un candado que no
+ * le corresponde.
+ */
+function Celda({ valor, relleno, esPro, onUpsell, atenuado, partirPalabra }) {
+  const base = {
+    fontSize: atenuado ? 11 : 11.5,
+    color: atenuado ? '#999' : '#666',
+    minWidth: 0,
+    wordBreak: partirPalabra ? 'break-all' : 'normal',
+  };
+
+  if (esPro === null) return <div style={base}></div>;
+  if (esPro) return <div style={base}>{valor || '—'}</div>;
+
+  // Sin valor real no hay nada que vender: se deja la raya y no se
+  // promete un dato que tampoco existe con plan.
+  if (!valor) return <div style={base}>—</div>;
+
+  return (
+    <button
+      type="button"
+      onClick={onUpsell}
+      style={{
+        ...base,
+        border: 'none',
+        background: 'none',
+        padding: 0,
+        cursor: 'pointer',
+        fontFamily: 'inherit',
+        textAlign: 'left',
+        filter: 'blur(3.5px)',
+        userSelect: 'none',
+      }}
+      aria-label="Ver este dato con el plan Pro"
+    >
+      {relleno}
+    </button>
+  );
+}
+
 function PersonasTab({ people, bodies, bodyFilter, setBodyFilter }) {
+  const esPro = usePlanPro();
+  const [upsell, setUpsell] = useState(null);
+
+  function abrirUpsellFila() {
+    setUpsell({
+      title: 'Cargo, unidad y correo',
+      message:
+        'Quién hace qué dentro de cada dirección general y cómo escribirle, sin buscar a nadie uno a uno. Disponible en el plan Pro.',
+    });
+  }
   const [search, setSearch] = useState('');
   const [levelFilter, setLevelFilter] = useState(new Set());
   const [page, setPage] = useState(1);
@@ -422,8 +483,32 @@ function PersonasTab({ people, bodies, bodyFilter, setBodyFilter }) {
             style={{ border: 'none', outline: 'none', background: 'transparent', fontSize: 12.5, width: '100%' }}
           />
         </div>
-        <MultiSelectFilter label="Dirección general" values={bodyOptions} selected={bodyFilter} onApply={setBodyFilter} />
-        <MultiSelectFilter label="Nivel" values={levelOptions} selected={levelFilter} onApply={setLevelFilter} />
+        <MultiSelectFilter
+          label="Dirección general"
+          values={bodyOptions}
+          selected={bodyFilter}
+          onApply={setBodyFilter}
+          bloqueado={esPro === false}
+          onBloqueado={() =>
+            setUpsell({
+              title: 'Filtrar por dirección general',
+              message: 'Quédate con las personas de las direcciones que te tocan. Disponible en el plan Pro.',
+            })
+          }
+        />
+        <MultiSelectFilter
+          label="Nivel"
+          values={levelOptions}
+          selected={levelFilter}
+          onApply={setLevelFilter}
+          bloqueado={esPro === false}
+          onBloqueado={() =>
+            setUpsell({
+              title: 'Filtrar por nivel',
+              message: 'Separa a la dirección de los jefes de unidad y del resto del equipo. Disponible en el plan Pro.',
+            })
+          }
+        />
       </div>
 
       {activeCount > 0 && (
@@ -517,15 +602,29 @@ function PersonasTab({ people, bodies, bodyFilter, setBodyFilter }) {
                 </div>
               </div>
 
-              <div style={{ fontSize: 11.5, color: '#666' }}>{p.role || '—'}</div>
+              {/* Cargo, unidad y correo son lo que se compra: el nombre
+                  y la dirección general se quedan a la vista para que la
+                  tabla siga sirviendo de índice.
 
-              <div style={{ fontSize: 11.5, color: '#999', minWidth: 0 }}>
-                {p.unit || p.directorate || '—'}
-              </div>
-
-              <div style={{ fontSize: 11, color: '#999', minWidth: 0, wordBreak: 'break-all' }}>
-                {p.email || '—'}
-              </div>
+                  Lo borroso es texto de relleno, no el dato real tapado:
+                  un blur de CSS deja el original legible en el
+                  inspector. */}
+              <Celda valor={p.role} relleno="Head of Unit" esPro={esPro} onUpsell={abrirUpsellFila} />
+              <Celda
+                valor={p.unit || p.directorate}
+                relleno="Unidad A.1 — Coordinación"
+                esPro={esPro}
+                onUpsell={abrirUpsellFila}
+                atenuado
+              />
+              <Celda
+                valor={p.email}
+                relleno="nombre.apellido@ec.europa.eu"
+                esPro={esPro}
+                onUpsell={abrirUpsellFila}
+                atenuado
+                partirPalabra
+              />
             </div>
           ))}
 
@@ -602,6 +701,9 @@ function PersonasTab({ people, bodies, bodyFilter, setBodyFilter }) {
             </div>
           </div>
         </div>
+      )}
+      {upsell && (
+        <UpgradeModal title={upsell.title} message={upsell.message} onClose={() => setUpsell(null)} />
       )}
     </>
   );
