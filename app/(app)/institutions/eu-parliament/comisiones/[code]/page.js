@@ -130,6 +130,7 @@ export default function EuCommitteeDetailPage() {
         pro = perfil?.plan === 'pro';
       }
       if (cancelled) return;
+      setEsPro(pro);
 
       // La mesa solo se pide con plan. Sin él basta el recuento: son
       // nombres y fotos de personas, y difuminarlos con CSS los dejaría
