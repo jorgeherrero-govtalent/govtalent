@@ -188,7 +188,7 @@ export default function OrganizationPlanPage() {
         <div
           style={{
             ...celda,
-            padding: '11px 16px',
+            padding: '10px 16px',
             background: '#faf9f6',
             fontSize: 9.5,
             letterSpacing: '.4px',
@@ -197,18 +197,34 @@ export default function OrganizationPlanPage() {
           }}
         >
           <span>QUÉ INCLUYE CADA PLAN</span>
-          {/* Cada plan con su color y en negrita, no solo el actual:
-              así la columna que se está mirando se distingue de un
-              vistazo al recorrer catorce filas. Free en gris porque es
-              el punto de partida, no una opción que se venda. */}
-          {PLANES.map((p) => (
-            <span
-              key={p.clave}
-              style={{ textAlign: 'center', color: COLORES[p.color].texto, fontWeight: 700 }}
-            >
-              {p.nombre.toUpperCase()}
-            </span>
-          ))}
+          {/* Pastillas y no texto suelto: al recorrer catorce filas
+              hacia abajo, un bloque de color se sigue con el rabillo del
+              ojo y una palabra en negrita no.
+
+              El fondo es la versión suave del color de cada plan, así
+              que la cabecera tiñe la columna entera sin necesidad de
+              rayas verticales. */}
+          {PLANES.map((p) => {
+            const c = COLORES[p.color];
+            return (
+              <span key={p.clave} style={{ textAlign: 'center' }}>
+                <span
+                  style={{
+                    display: 'inline-block',
+                    background: c.suave,
+                    color: c.texto,
+                    fontSize: 9.5,
+                    fontWeight: 700,
+                    letterSpacing: '.5px',
+                    padding: '3px 10px',
+                    borderRadius: 20,
+                  }}
+                >
+                  {p.nombre.toUpperCase()}
+                </span>
+              </span>
+            );
+          })}
         </div>
 
         {COMPARATIVA.map((seccion) => (
