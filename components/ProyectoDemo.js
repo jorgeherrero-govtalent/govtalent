@@ -1,5 +1,6 @@
 'use client';
 
+import { useRef, useState } from 'react';
 import Link from 'next/link';
 import ActorAvatar, { esOrganizacion } from '@/components/ActorAvatar';
 
@@ -69,6 +70,21 @@ const DEMO = {
 
 // Los cuadrantes con nombre son lo que convierte la matriz en una
 // herramienta: no describen dónde está cada uno, dicen qué hacer con él.
+// El contenido del acta de ejemplo. Sale de los campos que pide el
+// Registro de Grupos de Interés: quién, cuándo, con quién, sobre qué y
+// qué se pidió.
+const ACTA_EJEMPLO = [
+  { titulo: 'ASUNTO', texto: 'Ley de gobernanza de la inteligencia artificial · Trámite de audiencia pública' },
+  { titulo: 'PARTICIPANTES', texto: 'Secretaría de Estado de Digitalización e IA · Dirección de Asuntos Públicos' },
+  { titulo: 'MODALIDAD', texto: 'Reunión presencial · 45 minutos' },
+  {
+    titulo: 'CONTENIDO',
+    texto:
+      'Se expuso el impacto del umbral de 50 empleados en las empresas del sector y se entregó el informe de costes de cumplimiento.',
+  },
+  { titulo: 'PETICIÓN CONCRETA', texto: 'Elevar el umbral a 250 empleados o escalonar la entrada en vigor.' },
+];
+
 function cuadranteDe(a) {
   const alta = a.influencia > 50;
   if (a.posicion >= 40 && a.posicion <= 60) return alta ? 'convencer' : 'vigilar';
@@ -76,11 +92,53 @@ function cuadranteDe(a) {
   return alta ? 'bloquear' : 'vigilar';
 }
 
-function cuenta(clave) {
-  return DEMO.actores.filter((a) => cuadranteDe(a) === clave).length;
+// Recibe la lista en vez de leer DEMO: las posiciones ahora viven en
+// estado y se mueven, así que contar sobre la constante daría siempre
+// las cifras de partida por mucho que el usuario arrastre.
+function cuenta(actores, clave) {
+  return actores.filter((a) => cuadranteDe(a) === clave).length;
 }
 
 export default function ProyectoDemo() {
+  // Las posiciones se copian a estado para poder moverlas. DEMO se queda
+  // como valor de partida y no se toca: si se mutara, al volver a la
+  // página los actores aparecerían donde los dejó la visita anterior.
+  const [actores, setActores] = useState(DEMO.actores);
+  const [acta, setActa] = useState(null);
+  const [movido, setMovido] = useState(false);
+  const lienzoRef = useRef(null);
+  const arrastrandoRef = useRef(null);
+
+  // Arrastre con eventos de puntero: uno solo cubre ratón, dedo y lápiz,
+  // y setPointerCapture hace que el gesto siga funcionando aunque el
+  // cursor se salga del lienzo a media pasada.
+  function alBajar(e, id) {
+    const lienzo = lienzoRef.current;
+    if (!lienzo) return;
+    e.preventDefault();
+    e.currentTarget.setPointerCapture?.(e.pointerId);
+    arrastrandoRef.current = { id, rect: lienzo.getBoundingClientRect() };
+    setMovido(true);
+  }
+
+  function alMover(e) {
+    const arr = arrastrandoRef.current;
+    if (!arr) return;
+    const { rect, id } = arr;
+    // Se limita al lienzo: sin esto una ficha puede quedar a medias
+    // fuera y no hay forma de volver a cogerla.
+    const x = Math.min(100, Math.max(0, ((e.clientX - rect.left) / rect.width) * 100));
+    const y = Math.min(100, Math.max(0, ((e.clientY - rect.top) / rect.height) * 100));
+    setActores((prev) =>
+      prev.map((a) => (a.id === id ? { ...a, posicion: Math.round(x), influencia: Math.round(100 - y) } : a))
+    );
+  }
+
+  function alSoltar(e) {
+    e.currentTarget.releasePointerCapture?.(e.pointerId);
+    arrastrandoRef.current = null;
+  }
+
   return (
     <div>
       {/* --- Cabecera con las acciones a la vista --- */}
@@ -151,10 +209,10 @@ export default function ProyectoDemo() {
           <span style={ETIQUETA}>MAPA DE ACTORES</span>
           <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap' }}>
             <span style={{ fontSize: 11, background: '#f0eefe', color: MORADO, borderRadius: 20, padding: '3px 10px' }}>
-              Todos {DEMO.actores.length}
+              Todos {actores.length}
             </span>
             <span style={{ fontSize: 11, border: `.5px solid ${BORDE}`, color: '#555', borderRadius: 20, padding: '3px 10px' }}>
-              Sin contactar {DEMO.actores.filter((a) => a.relacion === 'sin_contactar').length}
+              Sin contactar {actores.filter((a) => a.relacion === 'sin_contactar').length}
             </span>
           </div>
         </div>
@@ -167,7 +225,21 @@ export default function ProyectoDemo() {
           </div>
 
           <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ position: 'relative', height: 310, background: '#fdfdfb', border: `.5px solid #ece9e2`, borderRadius: 8, overflow: 'hidden' }}>
+            <div
+              ref={lienzoRef}
+              onPointerMove={alMover}
+              onPointerUp={alSoltar}
+              onPointerCancel={alSoltar}
+              style={{
+                position: 'relative',
+                height: 310,
+                background: '#fdfdfb',
+                border: `.5px solid #ece9e2`,
+                borderRadius: 8,
+                overflow: 'hidden',
+                touchAction: 'none',
+              }}
+            >
               {/* Rejilla de BI: cuartiles suaves y ejes marcados */}
               {['25%', '75%'].map((t) => (
                 <div key={t} style={{ position: 'absolute', left: 0, right: 0, top: t, borderTop: '.5px solid #f2f0ec' }}></div>
@@ -180,29 +252,34 @@ export default function ProyectoDemo() {
               <div style={{ position: 'absolute', left: '32%', right: '25%', top: 0, bottom: '50%', background: '#f6f5fe' }}></div>
 
               <div style={{ position: 'absolute', left: 9, top: 7, fontSize: 9.5, color: '#b8b4ac', letterSpacing: '.4px' }}>
-                BLOQUEAR · {cuenta('bloquear')}
+                BLOQUEAR · {cuenta(actores, 'bloquear')}
               </div>
               <div style={{ position: 'absolute', left: '33%', top: 7, fontSize: 9.5, color: MORADO, letterSpacing: '.4px' }}>
-                CONVENCER · {cuenta('convencer')}
+                CONVENCER · {cuenta(actores, 'convencer')}
               </div>
               <div style={{ position: 'absolute', right: 9, top: 7, fontSize: 9.5, color: '#b8b4ac', letterSpacing: '.4px' }}>
-                {cuenta('apoyarse')} · APOYARSE
+                {cuenta(actores, 'apoyarse')} · APOYARSE
               </div>
               <div style={{ position: 'absolute', left: 9, bottom: 7, fontSize: 9.5, color: '#b8b4ac', letterSpacing: '.4px' }}>
-                VIGILAR · {cuenta('vigilar')}
+                VIGILAR · {cuenta(actores, 'vigilar')}
               </div>
               <div style={{ position: 'absolute', right: 9, bottom: 7, fontSize: 9.5, color: '#b8b4ac', letterSpacing: '.4px' }}>
-                {cuenta('informar')} · INFORMAR
+                {cuenta(actores, 'informar')} · INFORMAR
               </div>
 
-              {DEMO.actores.map((a) => {
+              {actores.map((a) => {
                 const iniciada = a.relacion !== 'sin_contactar';
                 const org = esOrganizacion(a);
                 const prioritario = cuadranteDe(a) === 'convencer';
                 return (
                   <div
                     key={a.id}
+                    onPointerDown={(e) => alBajar(e, a.id)}
+                    title="Arrástrame"
                     style={{
+                      cursor: 'grab',
+                      touchAction: 'none',
+                      userSelect: 'none',
                       position: 'absolute',
                       left: `${a.posicion}%`,
                       top: `${100 - a.influencia}%`,
@@ -247,6 +324,25 @@ export default function ProyectoDemo() {
               <span>NEUTRAL</span>
               <span>A FAVOR</span>
             </div>
+
+            {/* La pista desaparece en cuanto se arrastra por primera vez:
+                una vez descubierto el gesto, el aviso es ruido. Sin ella
+                nadie prueba, porque un mapa así no parece tocable. */}
+            {!movido && (
+              <div
+                style={{
+                  fontSize: 11,
+                  color: MORADO,
+                  marginTop: 9,
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 6,
+                }}
+              >
+                <i className="ti ti-hand-move" style={{ fontSize: 13 }}></i>
+                Arrastra a un actor y mira cómo cambian los cuadrantes.
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -320,8 +416,9 @@ export default function ProyectoDemo() {
             <span style={{ fontSize: 11.5, color: MORADO }}>+ Registrar</span>
           </div>
           <p style={{ fontSize: 11.5, color: '#888', margin: '0 0 12px', lineHeight: 1.5 }}>
-            Cada reunión, entrega o comunicación con la Administración, con su acta. En cumplimiento de la
-            nueva regulación de grupos de interés.
+            Cada reunión con la Administración se registra sola desde lo que ya tienes en el proyecto:
+            eliges la fecha, marcas con quién y el acta sale hecha. Lista para el Registro de Grupos de
+            Interés.
           </p>
           {DEMO.registro.map((r, i) => (
             <div
@@ -346,9 +443,23 @@ export default function ProyectoDemo() {
                 </div>
                 <div style={{ fontSize: 10.5, color: '#888', marginTop: 2 }}>{r.pie}</div>
               </div>
-              <span style={{ fontSize: 11, color: '#a8a49c', flexShrink: 0, whiteSpace: 'nowrap' }}>
+              <button
+                type="button"
+                onClick={() => setActa(r)}
+                style={{
+                  fontSize: 11,
+                  color: r.cerrada ? MORADO : '#a8a49c',
+                  flexShrink: 0,
+                  whiteSpace: 'nowrap',
+                  border: 'none',
+                  background: 'none',
+                  padding: 0,
+                  cursor: 'pointer',
+                  fontFamily: 'inherit',
+                }}
+              >
                 {r.cerrada ? 'Ver acta' : 'Completar'}
-              </span>
+              </button>
             </div>
           ))}
         </div>
@@ -468,6 +579,116 @@ export default function ProyectoDemo() {
           <i className="ti ti-bolt"></i> Ver planes
         </Link>
       </div>
+      {/* El acta de ejemplo. Se abre desde la fila del registro, para
+          que se vea qué sale de verdad al registrar una actividad y no
+          haya que imaginárselo. */}
+      {acta && (
+        <div
+          onClick={() => setActa(null)}
+          style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(26,26,24,.45)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: 16,
+            zIndex: 400,
+          }}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            role="dialog"
+            aria-modal="true"
+            aria-label="Acta de la actividad"
+            style={{
+              position: 'relative',
+              background: '#fff',
+              borderRadius: 12,
+              maxWidth: 520,
+              width: '100%',
+              maxHeight: '85vh',
+              overflowY: 'auto',
+              padding: '22px 24px',
+            }}
+          >
+            <button
+              type="button"
+              onClick={() => setActa(null)}
+              aria-label="Cerrar"
+              style={{
+                position: 'absolute',
+                top: 12,
+                right: 12,
+                border: 'none',
+                background: 'none',
+                cursor: 'pointer',
+                color: '#a8a49c',
+                fontSize: 18,
+                lineHeight: 1,
+                padding: 4,
+              }}
+            >
+              <i className="ti ti-x"></i>
+            </button>
+
+            <div style={{ ...ETIQUETA, marginBottom: 10 }}>ACTA DE LA ACTIVIDAD</div>
+            <div style={{ fontSize: 15, fontWeight: 600, lineHeight: 1.35, marginBottom: 3 }}>
+              {acta.titulo}
+            </div>
+            <div style={{ fontSize: 11.5, color: '#888', marginBottom: 16 }}>{acta.pie}</div>
+
+            {!acta.cerrada && (
+              <div
+                style={{
+                  background: '#f6f5fe',
+                  borderRadius: 9,
+                  padding: '11px 13px',
+                  fontSize: 11.5,
+                  color: '#555',
+                  lineHeight: 1.5,
+                  marginBottom: 16,
+                }}
+              >
+                Falta un campo por rellenar. Así se vería el acta una vez completado.
+              </div>
+            )}
+
+            {ACTA_EJEMPLO.map((bloque) => (
+              <div key={bloque.titulo} style={{ marginBottom: 14 }}>
+                <div style={{ fontSize: 10.5, color: '#a8a49c', letterSpacing: '.3px', marginBottom: 4 }}>
+                  {bloque.titulo}
+                </div>
+                <div style={{ fontSize: 12.5, color: '#333', lineHeight: 1.55 }}>{bloque.texto}</div>
+              </div>
+            ))}
+
+            <div
+              style={{
+                borderTop: `.5px solid ${BORDE}`,
+                paddingTop: 13,
+                marginTop: 4,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                gap: 12,
+                flexWrap: 'wrap',
+              }}
+            >
+              <span style={{ fontSize: 11, color: '#a8a49c' }}>
+                Ejemplo. En Pro se genera con los datos de tu proyecto.
+              </span>
+              <Link
+                href="/precios"
+                className="btn-ai"
+                style={{ textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 6 }}
+              >
+                <i className="ti ti-bolt"></i> Ver planes
+              </Link>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -579,6 +800,7 @@ export function ResumenDemo() {
           </div>
         </div>
       </div>
+
     </div>
   );
 }
