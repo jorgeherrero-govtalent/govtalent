@@ -1106,8 +1106,12 @@ function Proyectos() {
         )}
 
         {!esPro && (
+          /* "Crear proyecto" y no "Desbloquear": dice qué se consigue,
+             no qué barrera hay. El modal que abre ya explica que
+             Proyectos es de Pro, así que la barrera se cuenta después
+             de haber enseñado el valor, no antes. */
           <button className="btn-ai" onClick={() => setModalUpsell(true)}>
-            <i className="ti ti-bolt"></i> Desbloquear
+            <i className="ti ti-plus"></i> Crear proyecto
           </button>
         )}
       </div>
