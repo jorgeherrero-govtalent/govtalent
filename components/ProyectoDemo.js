@@ -90,26 +90,33 @@ const SECCION_ACTA = {
   margin: '20px 0 7px',
 };
 
-// La ficha de la norma, con la forma de una de verdad: cabecera,
-// recorrido con fechas, quién la tramita y documentos. Los campos son
-// los que tiene una ficha real del Congreso.
+// La ficha de la norma, con la forma de una de verdad.
+//
+// NO LLEVA "PRESENTADA": decía 12 de febrero, que es exactamente lo que
+// dice la primera entrada del recorrido. Dos veces el mismo dato en la
+// misma ventana, y encima quitándole sitio al ministerio.
+//
+// Y el autor no es "Gobierno". Formalmente lo es —un proyecto de ley lo
+// presenta el Gobierno— pero eso no informa de nada: lo que se quiere
+// saber es qué ministerio lo empuja, que es a quién hay que ir a ver.
 const FICHA_DEMO = {
   referencia: '121/000112',
   tipo: 'Proyecto de ley',
-  presentada: '12 de febrero de 2026',
-  autor: 'Gobierno',
+  estado: 'Enmiendas abiertas',
+  ministerio: 'Transformación Digital y Función Pública',
+  diasPlazo: 13,
   recorrido: [
-    ['12 feb', 'Presentación', 'Publicado en el Boletín Oficial de las Cortes'],
-    ['28 feb', 'Toma en consideración', 'Aprobada por el Pleno · 178 a favor'],
-    ['05 mar', 'Enmiendas', 'Plazo abierto hasta el 14 de marzo'],
+    { fase: 'Presentación', cuando: '12 feb', detalle: 'Publicado en el Boletín Oficial de las Cortes' },
+    { fase: 'Toma en consideración', cuando: '28 feb', detalle: 'Aprobada por el Pleno · 178 a favor' },
+    { fase: 'Enmiendas', cuando: 'hasta el 14 mar', detalle: 'Fase actual · plazo abierto', actual: true },
   ],
   tramitan: [
-    ['Comisión de Economía, Comercio y Transformación Digital', 'Competente para el fondo'],
-    ['Comisión de Derechos Sociales y Consumo', 'Emite opinión'],
+    { sigla: 'ECON', nombre: 'Comisión de Economía, Comercio y Transformación Digital', papel: 'Competente para el fondo', principal: true },
+    { sigla: 'DSyC', nombre: 'Comisión de Derechos Sociales y Consumo', papel: 'Emite opinión' },
   ],
   documentos: [
-    ['Texto del proyecto de ley', 'BOCG · 12 feb'],
-    ['Memoria del análisis de impacto normativo', 'BOCG · 12 feb'],
+    { nombre: 'Texto del proyecto de ley', origen: 'BOCG · 12 feb · PDF' },
+    { nombre: 'Memoria del análisis de impacto normativo', origen: 'BOCG · 12 feb · PDF' },
   ],
 };
 
@@ -706,9 +713,18 @@ export default function ProyectoDemo() {
           <i className="ti ti-bolt"></i> Ver planes
         </Link>
       </div>
-      {/* La ficha de la norma. Mismo marco que el acta —fondo oscuro,
-          tarjeta blanca, X arriba a la derecha— para que la demo tenga
-          un solo lenguaje de ventana. */}
+      {/* La ficha de la norma.
+          Es lo primero que pulsa el usuario en la demo, así que carga
+          con el peso de la primera impresión. Cuatro decisiones:
+
+          · El plazo sale junto al título. Es el dato por el que se abre
+            una ficha; antes estaba en la tercera línea del recorrido.
+          · El recorrido es una línea de tiempo con hilo y puntos, y el
+            punto actual lleva halo. Se localiza sin leer.
+          · Los metadatos van en franja gris para que no compitan con el
+            título, que era lo que pasaba con cuatro etiquetas sueltas.
+          · Los documentos son cajas con borde, porque en la ficha real
+            se pulsan. */}
       {ficha && (
         <div
           onClick={(e) => {
@@ -718,7 +734,7 @@ export default function ProyectoDemo() {
           style={{
             position: 'fixed',
             inset: 0,
-            background: 'rgba(0,0,0,.35)',
+            background: 'rgba(0,0,0,.42)',
             zIndex: 400,
             display: 'flex',
             alignItems: 'flex-start',
@@ -732,7 +748,15 @@ export default function ProyectoDemo() {
             role="dialog"
             aria-modal="true"
             aria-label="Ficha de la norma"
-            style={{ background: '#fff', borderRadius: 12, width: '100%', maxWidth: 560, padding: 22, position: 'relative' }}
+            style={{
+              background: '#fff',
+              borderRadius: 14,
+              width: '100%',
+              maxWidth: 520,
+              overflow: 'hidden',
+              position: 'relative',
+              boxShadow: '0 24px 60px -18px rgba(14,21,18,.35)',
+            }}
           >
             <button
               type="button"
@@ -740,8 +764,8 @@ export default function ProyectoDemo() {
               aria-label="Cerrar"
               style={{
                 position: 'absolute',
-                top: 14,
-                right: 14,
+                top: 16,
+                right: 16,
                 width: 26,
                 height: 26,
                 borderRadius: 7,
@@ -751,70 +775,162 @@ export default function ProyectoDemo() {
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
+                zIndex: 1,
               }}
             >
               <i className="ti ti-x" style={{ fontSize: 13, color: '#777' }}></i>
             </button>
 
-            <div style={{ paddingRight: 34 }}>
-              <div style={{ fontSize: 15, fontWeight: 700, lineHeight: 1.3 }}>{DEMO.norma.titulo}</div>
-              <div style={{ fontSize: 11.5, color: '#77746e', marginTop: 3 }}>{DEMO.norma.organo}</div>
-            </div>
-
-            <div style={{ display: 'flex', gap: 22, flexWrap: 'wrap', margin: '16px 0 4px', paddingTop: 14, borderTop: `.5px solid ${BORDE}` }}>
-              <div>
-                <div style={{ ...ETIQUETA, marginBottom: 3 }}>REFERENCIA</div>
-                <div style={{ fontSize: 12.5 }}>{FICHA_DEMO.referencia}</div>
-              </div>
-              <div>
-                <div style={{ ...ETIQUETA, marginBottom: 3 }}>TIPO</div>
-                <div style={{ fontSize: 12.5 }}>{FICHA_DEMO.tipo}</div>
-              </div>
-              <div>
-                <div style={{ ...ETIQUETA, marginBottom: 3 }}>AUTOR</div>
-                <div style={{ fontSize: 12.5 }}>{FICHA_DEMO.autor}</div>
-              </div>
-              <div>
-                <div style={{ ...ETIQUETA, marginBottom: 3 }}>PRESENTADA</div>
-                <div style={{ fontSize: 12.5 }}>{FICHA_DEMO.presentada}</div>
-              </div>
-            </div>
-
-            <div style={{ ...ETIQUETA, margin: '20px 0 8px' }}>RECORRIDO</div>
-            {FICHA_DEMO.recorrido.map(([cuando, fase, detalle]) => (
-              <div key={fase} style={{ display: 'flex', gap: 13, padding: '7px 0', borderBottom: `.5px solid #f2f0ec` }}>
-                <span style={{ fontSize: 11, color: '#a8a49c', width: 46, flexShrink: 0, paddingTop: 1 }}>{cuando}</span>
-                <span style={{ minWidth: 0 }}>
-                  <span style={{ display: 'block', fontSize: 12.5, fontWeight: 500 }}>{fase}</span>
-                  <span style={{ display: 'block', fontSize: 11.5, color: '#77746e' }}>{detalle}</span>
+            {/* --- Cabecera --- */}
+            <div style={{ padding: '20px 22px 16px', borderBottom: `.5px solid ${BORDE}` }}>
+              <div style={{ display: 'flex', gap: 6, marginBottom: 9, flexWrap: 'wrap' }}>
+                <span style={{ fontSize: 9.5, fontWeight: 700, letterSpacing: '.4px', padding: '3px 8px', borderRadius: 14, background: '#eeedfe', color: '#3c3489' }}>
+                  {FICHA_DEMO.tipo.toUpperCase()}
+                </span>
+                <span style={{ fontSize: 9.5, fontWeight: 700, letterSpacing: '.4px', padding: '3px 8px', borderRadius: 14, background: '#e1f5ee', color: '#0f6e56' }}>
+                  {FICHA_DEMO.estado.toUpperCase()}
                 </span>
               </div>
-            ))}
 
-            <div style={{ ...ETIQUETA, margin: '20px 0 8px' }}>QUIÉN LA TRAMITA</div>
-            {FICHA_DEMO.tramitan.map(([nombre, papel]) => (
-              <div key={nombre} style={{ padding: '7px 0', borderBottom: `.5px solid #f2f0ec` }}>
-                <div style={{ fontSize: 12.5, fontWeight: 500 }}>{nombre}</div>
-                <div style={{ fontSize: 11.5, color: '#77746e' }}>{papel}</div>
+              <div style={{ display: 'flex', gap: 16, alignItems: 'flex-start', paddingRight: 30 }}>
+                <div style={{ minWidth: 0, flex: 1 }}>
+                  <div style={{ fontSize: 16, fontWeight: 700, lineHeight: 1.28, letterSpacing: '-.01em' }}>
+                    {DEMO.norma.titulo}
+                  </div>
+                  <div style={{ fontSize: 11.5, color: '#8b8780', marginTop: 4 }}>{DEMO.norma.organo}</div>
+                </div>
+                <div style={{ textAlign: 'center', flexShrink: 0, background: '#f7f6fe', borderRadius: 10, padding: '9px 13px' }}>
+                  <div style={{ fontSize: 22, fontWeight: 700, color: MORADO, lineHeight: 1 }}>{FICHA_DEMO.diasPlazo}</div>
+                  <div style={{ fontSize: 9, color: '#8b8780', marginTop: 1 }}>días</div>
+                </div>
               </div>
-            ))}
+            </div>
 
-            <div style={{ ...ETIQUETA, margin: '20px 0 8px' }}>DOCUMENTOS</div>
-            {FICHA_DEMO.documentos.map(([nombre, origen]) => (
-              <div key={nombre} style={{ display: 'flex', alignItems: 'center', gap: 9, padding: '7px 0', borderBottom: `.5px solid #f2f0ec` }}>
-                <i className="ti ti-file-text" style={{ fontSize: 14, color: '#a8a49c', flexShrink: 0 }}></i>
-                <span style={{ flex: 1, minWidth: 0 }}>
-                  <span style={{ display: 'block', fontSize: 12.5 }}>{nombre}</span>
-                  <span style={{ display: 'block', fontSize: 11, color: '#a8a49c' }}>{origen}</span>
-                </span>
+            {/* --- Metadatos --- */}
+            <div style={{ display: 'grid', gridTemplateColumns: '.62fr 1fr', background: '#faf9f6', borderBottom: `.5px solid ${BORDE}` }}>
+              <div style={{ padding: '11px 22px' }}>
+                <div style={{ fontSize: 9, color: '#a8a49c', letterSpacing: '.4px', marginBottom: 2 }}>REFERENCIA</div>
+                <div style={{ fontSize: 12 }}>{FICHA_DEMO.referencia}</div>
               </div>
-            ))}
+              <div style={{ padding: '11px 16px', borderLeft: `.5px solid ${BORDE}`, minWidth: 0 }}>
+                <div style={{ fontSize: 9, color: '#a8a49c', letterSpacing: '.4px', marginBottom: 2 }}>MINISTERIO PROPONENTE</div>
+                <div style={{ fontSize: 12, lineHeight: 1.35 }}>{FICHA_DEMO.ministerio}</div>
+              </div>
+            </div>
 
+            {/* --- Recorrido --- */}
+            <div style={{ padding: '18px 22px 4px' }}>
+              <div style={{ ...ETIQUETA, marginBottom: 12 }}>RECORRIDO</div>
+              <div style={{ position: 'relative', paddingLeft: 19 }}>
+                {/* El hilo para en la penúltima fila para no colgar por
+                    debajo del último punto. */}
+                <span style={{ position: 'absolute', left: 4.5, top: 5, bottom: 16, width: 1.5, background: BORDE }}></span>
+
+                {FICHA_DEMO.recorrido.map((f, i) => (
+                  <div
+                    key={f.fase}
+                    style={{ position: 'relative', paddingBottom: i === FICHA_DEMO.recorrido.length - 1 ? 4 : 13 }}
+                  >
+                    <span
+                      style={{
+                        position: 'absolute',
+                        left: -19,
+                        top: 4,
+                        width: 11,
+                        height: 11,
+                        borderRadius: '50%',
+                        background: f.actual ? MORADO : '#fff',
+                        border: `2px solid ${f.actual ? MORADO : '#c9c7bd'}`,
+                        boxShadow: f.actual ? '0 0 0 3px #eeedfe' : 'none',
+                      }}
+                    ></span>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10 }}>
+                      <span style={{ fontSize: 12.5, fontWeight: 600, color: f.actual ? '#3c3489' : undefined }}>
+                        {f.fase}
+                      </span>
+                      <span style={{ fontSize: 10.5, color: f.actual ? MORADO : '#a8a49c', flexShrink: 0, fontWeight: f.actual ? 600 : 400 }}>
+                        {f.cuando}
+                      </span>
+                    </div>
+                    <div style={{ fontSize: 11.5, color: f.actual ? MORADO : '#8b8780', marginTop: 1 }}>{f.detalle}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* --- Quién la tramita --- */}
+            <div style={{ padding: '14px 22px 4px' }}>
+              <div style={{ ...ETIQUETA, marginBottom: 9 }}>QUIÉN LA TRAMITA</div>
+              {FICHA_DEMO.tramitan.map((c, i) => (
+                <div
+                  key={c.sigla}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 10,
+                    padding: '7px 0',
+                    borderBottom: i < FICHA_DEMO.tramitan.length - 1 ? '.5px solid #f4f2ee' : 'none',
+                  }}
+                >
+                  {/* La competente en morado y la de opinión en gris: la
+                      jerarquía entre las dos se ve sin leer el pie. */}
+                  <span
+                    style={{
+                      width: 30,
+                      height: 30,
+                      borderRadius: 8,
+                      background: c.principal ? '#eeedfe' : '#f2f0ec',
+                      color: c.principal ? '#3c3489' : '#77746e',
+                      fontSize: 8.5,
+                      fontWeight: 700,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      flexShrink: 0,
+                    }}
+                  >
+                    {c.sigla}
+                  </span>
+                  <span style={{ minWidth: 0, flex: 1 }}>
+                    <span style={{ display: 'block', fontSize: 12.5, fontWeight: 500, lineHeight: 1.3 }}>{c.nombre}</span>
+                    <span style={{ display: 'block', fontSize: 11, color: '#8b8780' }}>{c.papel}</span>
+                  </span>
+                </div>
+              ))}
+            </div>
+
+            {/* --- Documentos --- */}
+            <div style={{ padding: '14px 22px 18px' }}>
+              <div style={{ ...ETIQUETA, marginBottom: 9 }}>DOCUMENTOS</div>
+              {FICHA_DEMO.documentos.map((d, i) => (
+                <div
+                  key={d.nombre}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 10,
+                    padding: '8px 11px',
+                    border: `.5px solid ${BORDE}`,
+                    borderRadius: 9,
+                    marginBottom: i < FICHA_DEMO.documentos.length - 1 ? 6 : 0,
+                  }}
+                >
+                  <i className="ti ti-file-text" style={{ fontSize: 14, color: '#a8a49c', flexShrink: 0 }}></i>
+                  <span style={{ minWidth: 0, flex: 1 }}>
+                    <span style={{ display: 'block', fontSize: 12.5, fontWeight: 500 }}>{d.nombre}</span>
+                    <span style={{ display: 'block', fontSize: 10.5, color: '#a8a49c' }}>{d.origen}</span>
+                  </span>
+                  <i className="ti ti-download" style={{ fontSize: 13, color: '#c9c7bd', flexShrink: 0 }}></i>
+                </div>
+              ))}
+            </div>
+
+            {/* --- Pie --- */}
             <div
               style={{
+                background: '#faf9f6',
                 borderTop: `.5px solid ${BORDE}`,
-                marginTop: 18,
-                paddingTop: 14,
+                padding: '14px 22px',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'space-between',
@@ -822,8 +938,8 @@ export default function ProyectoDemo() {
                 flexWrap: 'wrap',
               }}
             >
-              <span style={{ fontSize: 11, color: '#a8a49c' }}>
-                Ejemplo. En Pro se abre la ficha real, con su histórico completo.
+              <span style={{ fontSize: 11, color: '#a8a49c', maxWidth: '26ch', lineHeight: 1.45 }}>
+                Ejemplo. En Pro se abre la ficha real con su histórico completo.
               </span>
               <Link
                 href="/precios"
