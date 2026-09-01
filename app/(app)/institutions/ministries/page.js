@@ -11,6 +11,33 @@ import usePlanPro from '@/lib/usePlanPro';
 // filtrar sin depender de una lista cerrada mantenida a mano.
 const PAGE_SIZES = [20, 50, 100, 200];
 
+// La misma proporción que la tabla de personas de la Comisión Europea.
+// El contacto ocupa columna propia: se enseña entero, no como icono.
+const GRID_PERSONAS = '1.7fr 1fr 1.2fr 1.4fr';
+
+// La misma bandera que en la portada del directorio institucional.
+function FlagES() {
+  return (
+    <span
+      role="img"
+      aria-label="Bandera de España"
+      style={{
+        display: 'inline-block',
+        width: 20,
+        height: 14,
+        borderRadius: 3,
+        overflow: 'hidden',
+        flexShrink: 0,
+        border: '.5px solid rgba(0,0,0,.12)',
+      }}
+    >
+      <span style={{ display: 'block', height: 3.5, background: '#AA151B' }} />
+      <span style={{ display: 'block', height: 6, background: '#F1BF00' }} />
+      <span style={{ display: 'block', height: 3.5, background: '#AA151B' }} />
+    </span>
+  );
+}
+
 function roleType(role) {
   const r = role.toLowerCase();
   if (r.startsWith('presidente') || r.startsWith('presidenta') || r.includes('ministro') || r.includes('ministra')) return 'Ministro/a';
@@ -504,9 +531,60 @@ function OrganigramaTab({ members, officials }) {
   );
 }
 
+/**
+ * Una celda de la tabla de personas que puede estar bloqueada.
+ *
+ * Misma pieza que en la Comisión Europea. Con plan enseña el valor; sin
+ * él, texto de relleno difuminado que se puede pulsar.
+ *
+ * El relleno es inventado a propósito: difuminar el valor real con CSS
+ * no lo oculta, solo lo despeina, y aquí hay correos y teléfonos de
+ * unidades de la Administración.
+ *
+ * Mientras esPro es null no se pinta nada en el hueco. Son unas
+ * décimas, y evita que a un usuario Pro le parpadee un candado.
+ */
+function CeldaContacto({ valor, esPro, onUpsell }) {
+  const base = { fontSize: 11.5, color: '#666', minWidth: 0, textAlign: 'center' };
+
+  if (esPro === null) return <div style={base}></div>;
+  if (esPro) return <div style={base}>{valor || '—'}</div>;
+
+  // Sin contacto real no hay nada que vender: se deja la raya y no se
+  // promete un correo que tampoco aparece pagando.
+  if (!valor) return <div style={base}>—</div>;
+
+  return (
+    <button
+      type="button"
+      onClick={(e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        onUpsell();
+      }}
+      style={{
+        ...base,
+        border: 'none',
+        background: 'none',
+        padding: 0,
+        cursor: 'pointer',
+        fontFamily: 'inherit',
+        filter: 'blur(3.5px)',
+        userSelect: 'none',
+        width: '100%',
+      }}
+      aria-label="Ver el contacto con el plan Pro"
+    >
+      buzon.unidad@ministerio.gob.es
+    </button>
+  );
+}
+
 function BuscarTab({ members, officials }) {
   const esPro = usePlanPro();
-  const [upsell, setUpsell] = useState(false);
+  // Objeto y no booleano: esta pestaña tiene dos motivos de venta —el
+  // filtro de tipo de cargo y el contacto— y cada uno dice lo suyo.
+  const [upsell, setUpsell] = useState(null);
   const [search, setSearch] = useState('');
   const [ministryFilter, setMinistryFilter] = useState(new Set());
   const [typeFilter, setTypeFilter] = useState(new Set());
@@ -631,7 +709,13 @@ function BuscarTab({ members, officials }) {
           selected={typeFilter}
           onApply={setTypeFilter}
           bloqueado={esPro === false}
-          onBloqueado={() => setUpsell(true)}
+          onBloqueado={() =>
+            setUpsell({
+              title: 'Filtrar por tipo de cargo',
+              message:
+                'Separa a los secretarios de Estado de los directores generales y del resto del organigrama. Disponible en el plan Pro.',
+            })
+          }
         />
       </div>
 
@@ -645,12 +729,17 @@ function BuscarTab({ members, officials }) {
           </div>
         </div>
       ) : (
-        <div className="card" style={{ padding: 0 }}>
+        <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
+          {/* Cuatro columnas sin filetes intermedios, avatar con
+              iniciales y contacto a la derecha: la misma tabla que la de
+              personas de la Comisión Europea. Antes tenía separadores
+              verticales de medio píxel entre columnas, que no usa
+              ninguna otra tabla de la aplicación. */}
           <div
             style={{
               display: 'grid',
-              gridTemplateColumns: '2fr .5px 1.6fr .5px 1.8fr .5px 24px',
-              padding: '10px 16px',
+              gridTemplateColumns: GRID_PERSONAS,
+              padding: '10px 14px',
               borderBottom: '.5px solid #f0f0eb',
               fontSize: 10.5,
               fontWeight: 700,
@@ -659,37 +748,65 @@ function BuscarTab({ members, officials }) {
             }}
           >
             <div>Persona</div>
-            <div></div>
-            <div style={{ textAlign: 'center' }}>Cargo</div>
-            <div></div>
-            <div style={{ textAlign: 'center' }}>Ministerio / Unidad</div>
-            <div></div>
-            <div></div>
+            <div>Cargo</div>
+            <div>Ministerio</div>
+            <div style={{ textAlign: 'center' }}>Contacto</div>
           </div>
+
           {slice.map((p) => (
             <Link
               key={p.slug}
               href={p.isMember ? `/institutions/ministries/${p.slug}` : `/institutions/ministries/persona/${p.slug}`}
               style={{
                 display: 'grid',
-                gridTemplateColumns: '2fr .5px 1.6fr .5px 1.8fr .5px 24px',
-                padding: '11px 16px',
+                gridTemplateColumns: GRID_PERSONAS,
+                padding: '11px 14px',
                 borderBottom: '.5px solid #f0f0eb',
                 alignItems: 'center',
+                gap: 8,
                 textDecoration: 'none',
                 color: 'inherit',
               }}
             >
-              <span style={{ fontWeight: 600, fontSize: 12.5 }}>{p.full_name_display}</span>
-              <div style={{ background: '#f0f0eb' }}></div>
-              <div style={{ fontSize: 12, color: '#666', textAlign: 'center' }}>{p.role}</div>
-              <div style={{ background: '#f0f0eb' }}></div>
-              <div style={{ fontSize: 11.5, color: '#888', textAlign: 'center' }}>
-                {p.ministry_name}
-                {p.unit_name ? ` · ${p.unit_name}` : ''}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
+                <div
+                  style={{
+                    width: 32,
+                    height: 32,
+                    borderRadius: 8,
+                    background: '#ece9e2',
+                    color: '#8d8b83',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    fontSize: 10,
+                    fontWeight: 700,
+                    flexShrink: 0,
+                  }}
+                  aria-hidden="true"
+                >
+                  {initials(p.full_name_display)}
+                </div>
+                <div style={{ minWidth: 0 }}>
+                  <div style={{ fontSize: 12.5, fontWeight: 600 }}>{p.full_name_display}</div>
+                  {p.unit_name && <div style={{ fontSize: 10.5, color: '#999' }}>{p.unit_name}</div>}
+                </div>
               </div>
-              <div style={{ background: '#f0f0eb' }}></div>
-              <i className="ti ti-chevron-right" style={{ color: '#ccc', fontSize: 14 }}></i>
+
+              <div style={{ fontSize: 12, color: '#666', minWidth: 0 }}>{p.role}</div>
+              <div style={{ fontSize: 11.5, color: '#888', minWidth: 0 }}>{p.ministry_name}</div>
+
+              <CeldaContacto
+                valor={p.unit_email || p.unit_phone}
+                esPro={esPro}
+                onUpsell={() =>
+                  setUpsell({
+                    title: 'El contacto de la unidad',
+                    message:
+                      'El correo y el teléfono de la unidad que dirige cada persona, para escribir al sitio correcto a la primera. Disponible en el plan Pro.',
+                  })
+                }
+              />
             </Link>
           ))}
 
@@ -770,11 +887,7 @@ function BuscarTab({ members, officials }) {
         </div>
       )}
       {upsell && (
-        <UpgradeModal
-          title="Filtrar por tipo de cargo"
-          message="Separa a los secretarios de Estado de los directores generales y del resto del organigrama. Disponible en el plan Pro."
-          onClose={() => setUpsell(false)}
-        />
+        <UpgradeModal title={upsell.title} message={upsell.message} onClose={() => setUpsell(null)} />
       )}
     </>
   );
@@ -949,7 +1062,7 @@ export default function MinistriesDirectoryPage() {
         .order('order_index', { ascending: true }),
       supabase
         .from('government_officials')
-        .select('full_name, slug, role, ministry_name, unit_name, dir3_code, age_units(nombre, categoria, nivel)')
+        .select('full_name, slug, role, ministry_name, unit_name, dir3_code, unit_email, unit_phone, age_units(nombre, categoria, nivel)')
         .eq('active', true),
     ]).then(([membersRes, officialsRes]) => {
       setMembers(membersRes.data || []);
@@ -957,12 +1070,26 @@ export default function MinistriesDirectoryPage() {
     });
   }, []);
 
+  // Ministerios distintos entre los miembros del Gobierno. No hay tabla
+  // de ministerios: el ministerio es un campo de texto, así que se
+  // cuentan los valores únicos.
+  const ministeriosDistintos = useMemo(
+    () => new Set((members || []).map((m) => m.ministry_name).filter(Boolean)).size || '—',
+    [members]
+  );
+
   return (
     <div className="sec" style={{ maxWidth: 1080 }}>
       <div style={{ marginBottom: 14 }}>
-        <h1 style={{ fontSize: 18, fontWeight: 700, margin: 0 }}>Ministerios</h1>
-        <p style={{ fontSize: 12, color: '#888', margin: '3px 0 0' }}>
-          {members ? members.length + officials.length : '—'} personas del Gobierno de España
+        {/* Bandera junto al título y recuentos separados por puntos:
+            exactamente la cabecera de la Comisión Europea. */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 9, marginBottom: 3 }}>
+          <FlagES />
+          <h1 style={{ fontSize: 18, fontWeight: 700, margin: 0 }}>Ministerios</h1>
+        </div>
+        <p style={{ fontSize: 12, color: '#888', margin: 0 }}>
+          {members ? members.length + officials.length : '—'} personas · {members ? members.length : '—'} miembros del
+          Gobierno · {ministeriosDistintos} ministerios
         </p>
       </div>
 
@@ -1004,7 +1131,7 @@ export default function MinistriesDirectoryPage() {
             cursor: 'pointer',
           }}
         >
-          Buscar
+          Personas
         </span>
       </div>
 
