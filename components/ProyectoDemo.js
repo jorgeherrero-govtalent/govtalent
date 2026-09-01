@@ -197,7 +197,19 @@ export default function ProyectoDemo() {
       <div id="norma" style={{ ...CARD, padding: '15px 18px', marginBottom: 10, scrollMarginTop: 72 }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, marginBottom: 13, flexWrap: 'wrap' }}>
           <span style={ETIQUETA}>LA NORMA Y SU TRAMITACIÓN</span>
-          <span style={{ fontSize: 11.5, color: MORADO }}>Ver ficha completa →</span>
+          {/* Enlace de verdad, no un texto morado con pinta de enlace.
+
+              stopPropagation es obligatorio: el contenedor de la demo,
+              en projects/page.js, tiene un onClick que abre el modal de
+              venta. Sin frenarlo aquí, pulsar esto abriría el modal
+              ADEMÁS de navegar. */}
+          <Link
+            href="/congreso"
+            onClick={(e) => e.stopPropagation()}
+            style={{ fontSize: 11.5, color: MORADO, textDecoration: 'none' }}
+          >
+            Ver ficha completa →
+          </Link>
         </div>
         <div style={{ display: 'flex', gap: 6 }}>
           {DEMO.norma.fases.map((f) => (
@@ -307,6 +319,7 @@ export default function ProyectoDemo() {
                   <div
                     key={a.id}
                     onPointerDown={(e) => alBajar(e, a.id)}
+                    onClick={(e) => e.stopPropagation()}
                     title="Arrástrame"
                     style={{
                       cursor: 'grab',
@@ -375,6 +388,44 @@ export default function ProyectoDemo() {
                 Arrastra a un actor y mira cómo cambian los cuadrantes.
               </div>
             )}
+          </div>
+        </div>
+      </div>
+
+      {/* --- Objetivo y notas del equipo ---
+          Estas dos tarjetas vivían en ResumenDemo, que se pinta encima
+          de todo, y empujaban la norma y el mapa por debajo del
+          pliegue. Ahora van después de los dos.
+
+          Se cayeron las cifras que las acompañaban —seis actores, dos
+          asuntos, tres sin contactar— porque se cuentan solas mirando
+          el mapa que está justo encima. En su sitio manda la mención,
+          que dice algo que no se ve en ninguna otra parte: que aquí
+          dentro hay gente trabajando. */}
+      <div
+        id="notas"
+        style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 10, marginBottom: 10, scrollMarginTop: 72 }}
+      >
+<div style={{ ...CARD, padding: '15px 18px', margin: 0 }}>
+          <div style={{ ...ETIQUETA, marginBottom: 7 }}>OBJETIVO</div>
+          <div style={{ fontSize: 13, color: '#555', lineHeight: 1.7 }}>
+            Que la supervisión no imponga auditoría previa a los sistemas de riesgo limitado.
+          </div>
+        </div>
+<div style={{ ...CARD, padding: '13px 16px', borderColor: '#d8d3f5', background: '#fafaff' }}>
+          <div style={{ display: 'flex', gap: 10 }}>
+            <span style={{ width: 26, height: 26, borderRadius: '50%', background: '#eeedfe', color: MORADO, fontSize: 10, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, fontWeight: 600 }}>
+              MR
+            </span>
+            <div style={{ minWidth: 0 }}>
+              <div style={{ fontSize: 12.5, lineHeight: 1.55 }}>
+                <span style={{ fontWeight: 600 }}>María te ha mencionado</span> en una nota sobre la Secretaría de Estado.
+              </div>
+              <div style={{ fontSize: 12, color: '#555', lineHeight: 1.55, marginTop: 4 }}>
+                «Piden datos de impacto antes de fijar posición. <span style={{ color: MORADO }}>@Jorge</span> ¿tenemos el estudio?»
+              </div>
+              <div style={{ fontSize: 10.5, color: '#888', marginTop: 4 }}>hace 4 días</div>
+            </div>
           </div>
         </div>
       </div>
@@ -477,7 +528,12 @@ export default function ProyectoDemo() {
               </div>
               <button
                 type="button"
-                onClick={() => setActa(r)}
+                onClick={(e) => {
+                  // Sin esto se abren dos modales a la vez: el acta y,
+                  // por encima, el de venta del contenedor.
+                  e.stopPropagation();
+                  setActa(r);
+                }}
                 style={{
                   fontSize: 11,
                   color: r.cerrada ? MORADO : '#a8a49c',
@@ -619,7 +675,10 @@ export default function ProyectoDemo() {
           que los botones no hacen nada y que lo dice al pie. */}
       {acta && (
         <div
-          onClick={() => setActa(null)}
+          onClick={(e) => {
+            e.stopPropagation();
+            setActa(null);
+          }}
           style={{
             position: 'fixed',
             inset: 0,
@@ -767,33 +826,9 @@ export function ResumenDemo() {
   return (
     <div id="resumen" style={{ scrollMarginTop: 72, display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 10 }}>
       <div style={{ minWidth: 0 }}>
-        <div style={{ ...CARD, padding: '15px 18px', marginBottom: 10 }}>
-          <div style={{ ...ETIQUETA, marginBottom: 7 }}>OBJETIVO</div>
-          <div style={{ fontSize: 13, color: '#555', lineHeight: 1.7 }}>
-            Que la supervisión no imponga auditoría previa a los sistemas de riesgo limitado.
-          </div>
-        </div>
-
-        {/* La mención es lo que trae a alguien de vuelta al proyecto:
+                {/* La mención es lo que trae a alguien de vuelta al proyecto:
             va arriba y con nombre, no escondida en una pestaña. */}
-        <div style={{ ...CARD, padding: '13px 16px', marginBottom: 10, borderColor: '#d8d3f5', background: '#fafaff' }}>
-          <div style={{ display: 'flex', gap: 10 }}>
-            <span style={{ width: 26, height: 26, borderRadius: '50%', background: '#eeedfe', color: MORADO, fontSize: 10, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, fontWeight: 600 }}>
-              MR
-            </span>
-            <div style={{ minWidth: 0 }}>
-              <div style={{ fontSize: 12.5, lineHeight: 1.55 }}>
-                <span style={{ fontWeight: 600 }}>María te ha mencionado</span> en una nota sobre la Secretaría de Estado.
-              </div>
-              <div style={{ fontSize: 12, color: '#555', lineHeight: 1.55, marginTop: 4 }}>
-                «Piden datos de impacto antes de fijar posición. <span style={{ color: MORADO }}>@Jorge</span> ¿tenemos el estudio?»
-              </div>
-              <div style={{ fontSize: 10.5, color: '#888', marginTop: 4 }}>hace 4 días</div>
-            </div>
-          </div>
-        </div>
-
-        <div style={{ ...CARD, padding: '15px 18px' }}>
+                <div style={{ ...CARD, padding: '15px 18px' }}>
           <div style={{ ...ETIQUETA, marginBottom: 10 }}>ASUNTOS QUE SIGUE</div>
           <div style={{ borderLeft: `2px solid ${MORADO}`, paddingLeft: 12, marginBottom: 11 }}>
             <div style={{ fontSize: 12.5, fontWeight: 500 }}>{DEMO.norma.titulo}</div>
@@ -807,26 +842,7 @@ export function ResumenDemo() {
       </div>
 
       <div style={{ minWidth: 0 }}>
-        <div style={{ ...CARD, padding: '15px 16px', marginBottom: 10 }}>
-          <div style={{ display: 'flex', gap: 20, flexWrap: 'wrap' }}>
-            <div>
-              <div style={{ fontSize: 21, fontWeight: 600, color: MORADO, lineHeight: 1.1 }}>{DEMO.actores.length}</div>
-              <div style={{ fontSize: 11, color: '#888' }}>actores</div>
-            </div>
-            <div>
-              <div style={{ fontSize: 21, fontWeight: 600, color: MORADO, lineHeight: 1.1 }}>2</div>
-              <div style={{ fontSize: 11, color: '#888' }}>asuntos</div>
-            </div>
-            <div>
-              <div style={{ fontSize: 21, fontWeight: 600, color: '#1a1a18', lineHeight: 1.1 }}>
-                {DEMO.actores.filter((a) => a.relacion === 'sin_contactar').length}
-              </div>
-              <div style={{ fontSize: 11, color: '#888' }}>sin contactar</div>
-            </div>
-          </div>
-        </div>
-
-        <div style={{ ...CARD, padding: '15px 18px', marginBottom: 10 }}>
+                <div style={{ ...CARD, padding: '15px 18px', marginBottom: 10 }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
             <span style={ETIQUETA}>AGENDA</span>
             <span style={{ fontSize: 11.5, color: MORADO }}>+ Acción</span>
