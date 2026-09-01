@@ -988,9 +988,9 @@ function Proyectos() {
         // un id equivocado no da error, simplemente deja el ítem muerto.
         // Aquí ponía 'actividad', que en la demo no existe —son dos
         // tarjetas, 'registro' y 'agenda'— y por eso no se podía pinchar.
-        { id: 'resumen', label: 'Resumen' },
         { id: 'norma', label: 'La norma' },
         { id: 'mapa', label: 'Mapa de actores' },
+        { id: 'notas', label: 'Objetivo y notas' },
         { id: 'briefing', label: 'Briefing' },
         // Registro va suelto y con distintivo: es lo único de la demo
         // que responde a una obligación legal, y es lo que queremos que
@@ -1034,7 +1034,12 @@ function Proyectos() {
               onVerTodos={() => router.replace('/projects', { scroll: false })}
             />
           ) : (
-            <div style={{ fontSize: 19, fontWeight: 600, lineHeight: 1.35 }}>{abierto?.name}</div>
+            /* En Free el titular no es el nombre del proyecto de
+               ejemplo —que suena a que el usuario ya tiene uno— sino lo
+               que la pantalla enseña de verdad: cómo se trabaja aquí. */
+            <div style={{ fontSize: 19, fontWeight: 600, lineHeight: 1.35 }}>
+              {esPro ? abierto?.name : 'Tu espacio de trabajo para asuntos públicos'}
+            </div>
           )}
           {/* En Free la cabecera leía los datos reales del usuario —cero
               y cero— mientras el cuerpo enseña los del ejemplo. Quien no
@@ -1114,9 +1119,13 @@ function Proyectos() {
         >
           {!esPro && (
             <>
-              <ResumenDemo />
-              <div style={{ height: 24 }}></div>
+              {/* ProyectoDemo primero: dentro lleva la norma y el mapa,
+                  que es lo que convence. ResumenDemo iba antes y los
+                  empujaba por debajo del pliegue con seis tarjetas de
+                  contexto. */}
               <ProyectoDemo />
+              <div style={{ height: 14 }}></div>
+              <ResumenDemo />
             </>
           )}
 
