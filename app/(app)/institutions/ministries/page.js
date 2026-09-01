@@ -15,6 +15,36 @@ const PAGE_SIZES = [20, 50, 100, 200];
 // El contacto ocupa columna propia: se enseña entero, no como icono.
 const GRID_PERSONAS = '1.7fr 1fr 1.2fr 1.4fr';
 
+const VERDE = '#1d6f5c';
+const MORADO = '#6d5aef';
+
+// La misma foto que en la Comisión Europea: cae a las iniciales si no
+// hay imagen o si falla al cargar.
+function Photo({ url, name, size = 56, radius = 10 }) {
+  const [failed, setFailed] = useState(false);
+  const base = { width: size, height: size, borderRadius: radius, flexShrink: 0, objectFit: 'cover', background: '#ece9e2' };
+
+  if (!url || failed) {
+    return (
+      <div
+        style={{
+          ...base,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          color: '#8d8b83',
+          fontSize: Math.round(size * 0.3),
+          fontWeight: 700,
+        }}
+        aria-hidden="true"
+      >
+        {initials(name)}
+      </div>
+    );
+  }
+  return <img src={url} alt="" width={size} height={size} style={base} onError={() => setFailed(true)} />;
+}
+
 // La misma bandera que en la portada del directorio institucional.
 function FlagES() {
   return (
@@ -276,84 +306,113 @@ function normalizarConsulta(q) {
  * quedan tras el filtro para decidir si la fila se muestra siquiera, y
  * si el cálculo viviera dentro no habría forma de preguntárselo.
  */
-function GroupRow({ member, team, vicepresidenteOrdinal, abrirPorFiltro }) {
+/**
+ * Una tarjeta del organigrama, calcada de las de comisarios.
+ *
+ * Era una fila ancha con el equipo desplegable debajo. Ahora es la
+ * misma tarjeta que en la Comisión Europea: foto de 56, nombre, cargo y
+ * ministerio, y "Ver su ficha" abajo.
+ *
+ * NO ES UN <Link> ENTERO, al contrario que la de comisarios. Aquí hay
+ * dos acciones —ir a la ficha y desplegar el equipo— y meter un botón
+ * dentro de un enlace deja un control que no se puede alcanzar con el
+ * teclado. Así que la tarjeta es un div y cada acción es lo que es.
+ */
+function TarjetaCargo({ member, team, abrirPorFiltro }) {
   const [open, setOpen] = useState(false);
 
-  // Con un filtro puesto las filas se abren solas: si no, el resultado
+  // Con un filtro puesto la tarjeta se abre sola: si no, el resultado
   // de la búsqueda queda escondido detrás de un "Ver equipo" y parece
-  // que no ha encontrado nada. Se abre, no se bloquea: el usuario puede
-  // cerrarla igual.
+  // que no ha encontrado nada.
   useEffect(() => {
     if (abrirPorFiltro) setOpen(true);
   }, [abrirPorFiltro]);
 
   return (
-    <div className="card" style={{ padding: 0, marginBottom: 8, overflow: 'hidden' }}>
-      <div
-        onClick={() => setOpen((v) => !v)}
-        style={{ padding: '14px 16px', display: 'flex', alignItems: 'center', gap: 12, cursor: 'pointer' }}
-      >
-        <div
-          style={{
-            width: 38,
-            height: 38,
-            borderRadius: 10,
-            background: '#e8f4f0',
-            color: '#1d6f5c',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            fontSize: 12,
-            fontWeight: 700,
-            flexShrink: 0,
-            overflow: 'hidden',
-          }}
-        >
-          {member.photo_url ? (
-            <img src={member.photo_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-          ) : (
-            initials(member.full_name)
+    <div className="card" style={{ padding: 14 }}>
+      <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
+        <Photo url={member.photo_url} name={member.full_name} />
+        <div style={{ minWidth: 0, flex: 1 }}>
+          <div style={{ fontSize: 13, fontWeight: 700, lineHeight: 1.3 }}>{nameDisplay(member.full_name)}</div>
+          <div style={{ fontSize: 10.5, color: '#999', marginTop: 2 }}>{member.role}</div>
+          {member.ministry_name && (
+            <div style={{ fontSize: 11.5, color: '#666', marginTop: 6, lineHeight: 1.45 }}>{member.ministry_name}</div>
           )}
         </div>
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontSize: 13, fontWeight: 700 }}>
-            {vicepresidenteOrdinal
-              ? `Vicepresidencia ${vicepresidenteOrdinal[0].toUpperCase()}${vicepresidenteOrdinal.slice(1)} del Gobierno${
-                  member.ministry_name ? ` · Ministerio de ${member.ministry_name}` : ''
-                }`
-              : member.ministry_name
-                ? `Ministerio de ${member.ministry_name}`
-                : member.role}
-          </div>
-          <div style={{ fontSize: 11.5, color: '#888', marginTop: 1 }}>
-            {member.full_name} — {member.role}
-          </div>
-        </div>
+      </div>
+
+      <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginTop: 11, flexWrap: 'wrap' }}>
+        <Link
+          href={`/institutions/ministries/${member.slug}`}
+          style={{ fontSize: 11.5, color: MORADO, textDecoration: 'none' }}
+        >
+          Ver su ficha →
+        </Link>
         {team.length > 0 && (
-          <span style={{ fontSize: 11.5, color: '#1d6f5c', fontWeight: 600, whiteSpace: 'nowrap' }}>
-            {open ? 'Ocultar equipo' : 'Ver equipo'} {open ? '▴' : '▾'}
-          </span>
+          <button
+            type="button"
+            onClick={() => setOpen((v) => !v)}
+            style={{
+              fontSize: 11.5,
+              color: VERDE,
+              fontWeight: 600,
+              border: 'none',
+              background: 'none',
+              padding: 0,
+              cursor: 'pointer',
+              fontFamily: 'inherit',
+            }}
+          >
+            {open ? 'Ocultar equipo' : `Ver equipo (${team.length})`}
+          </button>
         )}
       </div>
+
       {open && team.length > 0 && (
-        <div style={{ padding: '2px 16px 14px 66px', display: 'flex', flexDirection: 'column', gap: 8 }}>
-          <Link
-            href={`/institutions/ministries/${member.slug}`}
-            style={{ fontSize: 12, color: '#333', fontWeight: 600, textDecoration: 'none' }}
-          >
-            {member.full_name} <span style={{ color: '#999', fontWeight: 400 }}>— {member.role}</span>
-          </Link>
+        <div
+          style={{
+            marginTop: 11,
+            paddingTop: 11,
+            borderTop: '.5px solid #f0f0eb',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 7,
+          }}
+        >
           {team.map((o) => (
             <Link
               key={o.slug}
               href={`/institutions/ministries/persona/${o.slug}`}
-              style={{ fontSize: 12, color: '#555', textDecoration: 'none' }}
+              style={{ fontSize: 11.5, color: '#555', textDecoration: 'none', lineHeight: 1.35 }}
             >
               {nameDisplay(o.full_name)} <span style={{ color: '#999' }}>— {cargoExacto(o)}</span>
             </Link>
           ))}
         </div>
       )}
+    </div>
+  );
+}
+
+/**
+ * Un bloque del organigrama: título con filete y rejilla de tarjetas.
+ * Mismas medidas que el Bloque de comisarios.
+ */
+function BloqueCargos({ titulo, lista, hayFiltro }) {
+  if (lista.length === 0) return null;
+  return (
+    <div style={{ marginBottom: 22 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
+        <span style={{ fontSize: 11, fontWeight: 700, color: '#888', textTransform: 'uppercase', letterSpacing: '.3px' }}>
+          {titulo}
+        </span>
+        <div style={{ flex: 1, height: '.5px', background: '#e0dfd8' }}></div>
+      </div>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(230px, 1fr))', gap: 10, alignItems: 'start' }}>
+        {lista.map((b) => (
+          <TarjetaCargo key={b.m.slug} member={b.m} team={b.equipo} abrirPorFiltro={hayFiltro} />
+        ))}
+      </div>
     </div>
   );
 }
@@ -438,7 +497,11 @@ function OrganigramaTab({ members, officials }) {
       .filter(Boolean);
   }, [bloques, officials, q, tipoFilter, ministerioFilter, hayFiltro]);
 
-  const presidencia = visibles.filter((b) => b.seccion === 'presidencia');
+  // Tres bloques y no dos, como en comisarios: la presidencia va sola y
+  // las vicepresidencias aparte. Juntas, el presidente quedaba como una
+  // tarjeta más entre cuatro.
+  const presidenciaSola = visibles.filter((b) => b.m.rank === 'presidente');
+  const vices = visibles.filter((b) => b.m.rank === 'vicepresidente');
   const ministerios = visibles.filter((b) => b.seccion === 'ministerios');
 
   function limpiar() {
@@ -495,33 +558,9 @@ function OrganigramaTab({ members, officials }) {
         </div>
       ) : (
         <>
-          {presidencia.length > 0 && (
-            <div style={{ marginBottom: 20 }}>
-              <div style={{ fontSize: 11.5, fontWeight: 700, color: '#999', textTransform: 'uppercase', marginBottom: 8 }}>
-                Presidencia y Vicepresidencias
-              </div>
-              {presidencia.map((b) => (
-                <GroupRow
-                  key={b.m.slug}
-                  member={b.m}
-                  team={b.equipo}
-                  vicepresidenteOrdinal={b.ordinal}
-                  abrirPorFiltro={hayFiltro}
-                />
-              ))}
-            </div>
-          )}
-
-          {ministerios.length > 0 && (
-            <div>
-              <div style={{ fontSize: 11.5, fontWeight: 700, color: '#999', textTransform: 'uppercase', marginBottom: 8 }}>
-                Ministerios
-              </div>
-              {ministerios.map((b) => (
-                <GroupRow key={b.m.slug} member={b.m} team={b.equipo} abrirPorFiltro={hayFiltro} />
-              ))}
-            </div>
-          )}
+          <BloqueCargos titulo="Presidencia" lista={presidenciaSola} hayFiltro={hayFiltro} />
+          <BloqueCargos titulo="Vicepresidencias" lista={vices} hayFiltro={hayFiltro} />
+          <BloqueCargos titulo="Ministerios" lista={ministerios} hayFiltro={hayFiltro} />
         </>
       )}
       {upsell && (
