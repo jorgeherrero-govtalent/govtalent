@@ -39,19 +39,13 @@ export default function OrganizationsDirectory() {
   const [typeFilter, setTypeFilter] = useState(new Set());
   const [sectorFilter, setSectorFilter] = useState(new Set());
   const [locationFilter, setLocationFilter] = useState(new Set());
-  const [view, setView] = useState('grid');
   const [pageSize, setPageSize] = useState(25);
   const [page, setPage] = useState(0);
   const [upgradeModal, setUpgradeModal] = useState(null);
 
-  useEffect(() => {
-    const saved = localStorage.getItem('gt_dir_view');
-    if (saved === 'grid' || saved === 'list') setView(saved);
-  }, []);
-
-  useEffect(() => {
-    localStorage.setItem('gt_dir_view', view);
-  }, [view]);
+  // Se retiró el conmutador Tarjetas/Listado y con él su estado y lo
+  // que guardaba en localStorage. Había dos vistas del mismo directorio
+  // manteniéndose por duplicado; ahora hay una.
 
   useEffect(() => {
     load();
@@ -92,151 +86,199 @@ export default function OrganizationsDirectory() {
 
   return (
     <div className="sec">
-      <div className="dir-hero">
-        <h1>
-          La mayor base de datos de <em>organizaciones de asuntos públicos y gobierno</em> de España
-        </h1>
-        <p style={{ fontSize: 14, color: '#777', marginBottom: 26 }}>
-          Encuentra cualquier tipo de organización vinculada al sector de los asuntos públicos, la
-          política y el gobierno
+      {/* Cabecera como la del resto de la plataforma.
+          Había una portada centrada con un eslogan a dos tamaños y el
+          buscador metido dentro de una tarjeta. Era la única página con
+          su propio sistema visual —47 reglas dir-*— y por eso se veía
+          de otro producto. */}
+      <div style={{ marginBottom: 14 }}>
+        <h1 style={{ fontSize: 19, fontWeight: 700, margin: 0 }}>Organizaciones</h1>
+        <p style={{ fontSize: 12.5, color: '#888', margin: '3px 0 0' }}>
+          Patronales, consultoras y empresas que trabajan con la Administración.
         </p>
-        <div className="card" style={{ maxWidth: 1080, margin: '0 auto 26px', padding: '18px 20px', textAlign: 'left' }}>
-          <div className="form-g" style={{ marginBottom: 12 }}>
-            <label>Nombre</label>
-            <input
-              placeholder="Nombre de la organización"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-            />
-          </div>
-          <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-            <MultiSelectFilter
-              label="Tipo de organización"
-              values={ORG_TYPES.map(([k, v]) => ({ value: k, label: v }))}
-              selected={typeFilter}
-              onApply={setTypeFilter}
-            />
-            <MultiSelectFilter
-              label="Sector"
-              values={SECTORS.map(([k, v]) => ({ value: k, label: v }))}
-              selected={sectorFilter}
-              onApply={setSectorFilter}
-            />
-            <MultiSelectFilter label="Ubicación" values={locationOptions} selected={locationFilter} onApply={setLocationFilter} />
-          </div>
-
-          {(typeFilter.size > 0 || sectorFilter.size > 0 || locationFilter.size > 0) && (
-            <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap', marginTop: 12 }}>
-              {[...typeFilter].map((v) => (
-                <span key={`t-${v}`} style={chipStyle}>
-                  {TYPE_LABELS[v] || v}
-                  <i className="ti ti-x" style={chipXStyle} onClick={() => removeFromSet(setTypeFilter, v)}></i>
-                </span>
-              ))}
-              {[...sectorFilter].map((v) => (
-                <span key={`s-${v}`} style={chipStyle}>
-                  {SECTOR_LABELS[v] || v}
-                  <i className="ti ti-x" style={chipXStyle} onClick={() => removeFromSet(setSectorFilter, v)}></i>
-                </span>
-              ))}
-              {[...locationFilter].map((v) => (
-                <span key={`l-${v}`} style={chipStyle}>
-                  {v}
-                  <i className="ti ti-x" style={chipXStyle} onClick={() => removeFromSet(setLocationFilter, v)}></i>
-                </span>
-              ))}
-              <span
-                onClick={() => {
-                  setTypeFilter(new Set());
-                  setSectorFilter(new Set());
-                  setLocationFilter(new Set());
-                }}
-                style={{ fontSize: 11.5, color: '#999', cursor: 'pointer', textDecoration: 'underline' }}
-              >
-                Limpiar todos
-              </span>
-            </div>
-          )}
-        </div>
       </div>
+
+      {/* La misma barra que Ministerios, Organismos y el Congreso. */}
+      <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 12, flexWrap: 'wrap' }}>
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 8,
+            background: '#fff',
+            border: '.5px solid #e0dfd8',
+            borderRadius: 20,
+            padding: '7px 14px',
+            flex: '1 1 220px',
+          }}
+        >
+          <i className="ti ti-search" style={{ color: '#999', fontSize: 14 }}></i>
+          <input
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            placeholder="Buscar organización..."
+            aria-label="Buscar organización"
+            style={{ border: 'none', outline: 'none', background: 'transparent', fontSize: 12.5, width: '100%' }}
+          />
+        </div>
+        <MultiSelectFilter
+          label="Tipo"
+          values={ORG_TYPES.map(([k, v]) => ({ value: k, label: v }))}
+          selected={typeFilter}
+          onApply={setTypeFilter}
+        />
+        <MultiSelectFilter
+          label="Sector"
+          values={SECTORS.map(([k, v]) => ({ value: k, label: v }))}
+          selected={sectorFilter}
+          onApply={setSectorFilter}
+        />
+        <MultiSelectFilter
+          label="Ubicación"
+          values={locationOptions}
+          selected={locationFilter}
+          onApply={setLocationFilter}
+        />
+      </div>
+
+      {(typeFilter.size > 0 || sectorFilter.size > 0 || locationFilter.size > 0) && (
+        <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap', marginBottom: 12 }}>
+          {[...typeFilter].map((v) => (
+            <span key={`t-${v}`} style={chipStyle}>
+              {TYPE_LABELS[v] || v}
+              <i className="ti ti-x" style={chipXStyle} onClick={() => removeFromSet(setTypeFilter, v)}></i>
+            </span>
+          ))}
+          {[...sectorFilter].map((v) => (
+            <span key={`s-${v}`} style={chipStyle}>
+              {SECTOR_LABELS[v] || v}
+              <i className="ti ti-x" style={chipXStyle} onClick={() => removeFromSet(setSectorFilter, v)}></i>
+            </span>
+          ))}
+          {[...locationFilter].map((v) => (
+            <span key={`l-${v}`} style={chipStyle}>
+              {v}
+              <i className="ti ti-x" style={chipXStyle} onClick={() => removeFromSet(setLocationFilter, v)}></i>
+            </span>
+          ))}
+          <span
+            onClick={() => {
+              setTypeFilter(new Set());
+              setSectorFilter(new Set());
+              setLocationFilter(new Set());
+            }}
+            style={{ fontSize: 11.5, color: '#999', cursor: 'pointer', textDecoration: 'underline' }}
+          >
+            Limpiar filtros
+          </span>
+        </div>
+      )}
 
       {orgs === null ? (
         <div className="spinner"></div>
       ) : (
         <>
-          <div className="dir-toolbar">
-            <div className="dir-count">
-              <b>{filtered.length.toLocaleString('es-ES')}</b> organización{filtered.length === 1 ? '' : 'es'}
-              <span style={{ color: '#999', fontWeight: 400 }}> · Actualizado semanalmente</span>
-            </div>
-            <div className="dir-chips">
-              <button
-                type="button"
-                className="dir-chip premium"
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              gap: 12,
+              marginBottom: 10,
+              flexWrap: 'wrap',
+            }}
+          >
+            <span style={{ fontSize: 12, color: '#888' }}>
+              <b style={{ color: '#1a1a18' }}>{filtered.length.toLocaleString('es-ES')}</b>{' '}
+              organización{filtered.length === 1 ? '' : 'es'}
+            </span>
+            {/* Los dos botones de Pro se quedan, pero como enlaces
+                discretos: eran dos pastillas grandes compitiendo con los
+                filtros de verdad. */}
+            <span style={{ display: 'flex', gap: 14 }}>
+              <span
                 onClick={() =>
                   setUpgradeModal({
                     title: 'Filtros avanzados',
-                    message: 'Cruza filtros de actividad, tamaño y más para encontrar exactamente lo que buscas. Disponible en el plan Pro.',
+                    message:
+                      'Cruza filtros de actividad, tamaño y más para encontrar exactamente lo que buscas. Disponible en el plan Pro.',
                   })
                 }
+                style={{ fontSize: 11.5, color: '#6d5aef', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 5 }}
               >
-                <i className="ti ti-adjustments"></i> Filtros avanzados <span className="premium-tag">PRO</span>
-              </button>
-              <button
-                type="button"
-                className="dir-chip premium"
+                <i className="ti ti-adjustments" style={{ fontSize: 13 }}></i> Filtros avanzados
+              </span>
+              <span
                 onClick={() =>
                   setUpgradeModal({
                     title: 'Exportar datos',
                     message: 'Descarga el directorio completo en Excel, con filtros aplicados. Disponible en el plan Pro.',
                   })
                 }
+                style={{ fontSize: 11.5, color: '#6d5aef', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 5 }}
               >
-                <i className="ti ti-download"></i> Exportar datos <span className="premium-tag">PRO</span>
-              </button>
-              <div className="view-toggle">
-                <button type="button" className={view === 'grid' ? 'on' : ''} onClick={() => setView('grid')}>
-                  <i className="ti ti-layout-grid"></i> Tarjetas
-                </button>
-                <button type="button" className={view === 'list' ? 'on' : ''} onClick={() => setView('list')}>
-                  <i className="ti ti-list"></i> Listado
-                </button>
-              </div>
-            </div>
+                <i className="ti ti-download" style={{ fontSize: 13 }}></i> Exportar
+              </span>
+            </span>
           </div>
 
           {filtered.length === 0 ? (
-            <div className="card" style={{ maxWidth: 1080, margin: '0 auto' }}>
+            <div className="card">
               <div className="empty-state">
                 <i className="ti ti-building-off"></i>
                 No hay organizaciones con estos filtros.
-                {(name || typeFilter.size > 0 || sectorFilter.size > 0 || locationFilter.size > 0) && (
-                  <div style={{ marginTop: 10 }}>
-                    <button
-                      className="btn-o"
-                      onClick={() => {
-                        setName('');
-                        setTypeFilter(new Set());
-                        setSectorFilter(new Set());
-                        setLocationFilter(new Set());
-                      }}
-                    >
-                      Limpiar filtros
-                    </button>
-                  </div>
-                )}
               </div>
             </div>
-          ) : view === 'grid' ? (
-            <div className="dir-grid">
-              {paginated.map((o) => (
-                <Link href={`/organizations/${o.slug}`} className="dir-card" key={o.id}>
-                  <div className="dir-card-top">
-                    <div className="dir-logo">
-                      {o.logo_url ? <img src={o.logo_url} alt="" /> : <i className="ti ti-building"></i>}
-                    </div>
-                    <div>
-                      <div className="dir-name">
+          ) : (
+            <div style={{ background: '#fff', border: '.5px solid #e0dfd8', borderRadius: 12, overflow: 'hidden' }}>
+              {paginated.map((o, i) => {
+                {/* Tipo, ubicación y tamaño en una sola línea separada
+                    por puntos, que es como escribe el resto de la
+                    aplicación. Los que faltan simplemente no aparecen,
+                    en vez de dejar una raya. */}
+                const contexto = [
+                  TYPE_LABELS[o.org_type] || o.org_type,
+                  o.location,
+                  o.size_range ? `${o.size_range} empleados` : null,
+                ].filter(Boolean);
+
+                return (
+                  <Link
+                    key={o.id}
+                    href={`/organizations/${o.slug}`}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 13,
+                      padding: '13px 15px',
+                      textDecoration: 'none',
+                      color: 'inherit',
+                      borderBottom: i < paginated.length - 1 ? '.5px solid #f0efe9' : 'none',
+                    }}
+                  >
+                    <span
+                      style={{
+                        width: 34,
+                        height: 34,
+                        borderRadius: 9,
+                        background: '#f4f4f0',
+                        color: '#a8a49c',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        flexShrink: 0,
+                        overflow: 'hidden',
+                      }}
+                    >
+                      {o.logo_url ? (
+                        <img src={o.logo_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                      ) : (
+                        <i className="ti ti-building" style={{ fontSize: 16 }}></i>
+                      )}
+                    </span>
+
+                    <span style={{ flex: 1, minWidth: 0 }}>
+                      <span style={{ display: 'block', fontSize: 13, fontWeight: 600 }}>
                         {o.name}{' '}
                         {o.verified && (
                           <HoverTooltip label="Página verificada por la organización">
@@ -245,92 +287,35 @@ export default function OrganizationsDirectory() {
                         )}
                         {hasInterestGroupBadge(o) && (
                           <HoverTooltip
-                            label={`Grupo de interés registrado${o.interest_group_registry_number ? ` · ${o.interest_group_registry_number}` : ''}`}
+                            label={`Grupo de interés registrado${
+                              o.interest_group_registry_number ? ` · ${o.interest_group_registry_number}` : ''
+                            }`}
                           >
                             <i className="ti ti-shield-check" style={{ color: '#6d5aef' }}></i>
                           </HoverTooltip>
                         )}
-                      </div>
-                    </div>
-                  </div>
-                  {o.location && (
-                    <div className="dir-loc">
-                      <i className="ti ti-map-pin"></i> {o.location}
-                    </div>
-                  )}
-                  {!o.verified && (
-                    <div className="badge bgr" style={{ display: 'inline-flex', marginBottom: 8, width: 'fit-content' }}>
-                      <i className="ti ti-clock" style={{ fontSize: 11 }}></i> No verificada
-                    </div>
-                  )}
-                  <div className="dir-tags">
-                    {o.org_type && (
-                      <div className="dir-tag">
-                        <i className="ti ti-briefcase"></i> {TYPE_LABELS[o.org_type] || o.org_type}
-                      </div>
-                    )}
-                  </div>
-                  <span className="dir-btn">Ver página</span>
-                </Link>
-              ))}
-            </div>
-          ) : (
-            <div className="dir-list">
-              <div className="dir-list-head">
-                <span>Organización</span>
-                <span>Tipo de organización</span>
-                <span>Empleados</span>
-                <span>Ubicación</span>
-                <span></span>
-                <span></span>
-              </div>
-              {paginated.map((o) => (
-                <Link href={`/organizations/${o.slug}`} className="dir-row" key={o.id}>
-                  <div className="dir-row-main">
-                    <div className="dir-row-logo">
-                      {o.logo_url ? <img src={o.logo_url} alt="" /> : <i className="ti ti-building"></i>}
-                    </div>
-                    <div style={{ minWidth: 0 }}>
-                      <div className="dir-row-name">
-                        {o.name}
-                        {o.verified && (
-                          <HoverTooltip label="Página verificada por la organización">
-                            <i className="ti ti-circle-check-filled verified-tick"></i>
-                          </HoverTooltip>
-                        )}
-                        {hasInterestGroupBadge(o) && (
-                          <HoverTooltip
-                            label={`Grupo de interés registrado${o.interest_group_registry_number ? ` · ${o.interest_group_registry_number}` : ''}`}
-                          >
-                            <i className="ti ti-shield-check" style={{ color: '#6d5aef' }}></i>
-                          </HoverTooltip>
-                        )}
-                      </div>
-                      {!o.verified && (
-                        <div className="badge bgr" style={{ marginTop: 3 }}>
-                          <i className="ti ti-clock" style={{ fontSize: 10 }}></i> No verificada
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                  <div className="dir-row-meta">{TYPE_LABELS[o.org_type] || o.org_type || '—'}</div>
-                  <div className="dir-row-size">{o.size_range ? `${o.size_range} emp.` : '—'}</div>
-                  <div className="dir-row-loc">{o.location || '—'}</div>
-                  <div className="dir-row-links" onClick={(e) => e.stopPropagation()}>
-                    {o.website_url && (
-                      <a href={o.website_url} target="_blank" rel="noreferrer" title="Sitio web">
-                        <i className="ti ti-world"></i>
-                      </a>
-                    )}
-                    {o.linkedin_url && (
-                      <a href={o.linkedin_url} target="_blank" rel="noreferrer" title="LinkedIn">
-                        <i className="ti ti-brand-linkedin"></i>
-                      </a>
-                    )}
-                  </div>
-                  <i className="ti ti-chevron-right dir-row-arrow"></i>
-                </Link>
-              ))}
+                      </span>
+                      <span
+                        style={{
+                          display: 'block',
+                          fontSize: 11.5,
+                          color: '#888',
+                          marginTop: 2,
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
+                          whiteSpace: 'nowrap',
+                        }}
+                      >
+                        {contexto.join(' · ')}
+                      </span>
+                    </span>
+
+                    <span style={{ fontSize: 11.5, color: '#6d5aef', flexShrink: 0, whiteSpace: 'nowrap' }}>
+                      Ver página →
+                    </span>
+                  </Link>
+                );
+              })}
             </div>
           )}
 
@@ -340,7 +325,6 @@ export default function OrganizationsDirectory() {
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'space-between',
-                maxWidth: 1080,
                 margin: '14px auto 0',
                 padding: '12px 16px',
                 background: '#fff',
