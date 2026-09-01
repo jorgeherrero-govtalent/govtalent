@@ -3,7 +3,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
-import { hasInterestGroupBadge } from '@/lib/interestGroupBadge';
 import { TYPE_LABELS, ORG_TYPES, SECTOR_LABELS, SECTORS } from '@/lib/orgTaxonomy';
 import UpgradeModal from '@/components/UpgradeModal';
 import HoverTooltip from '@/components/HoverTooltip';
@@ -298,15 +297,6 @@ export default function OrganizationsDirectory() {
                         {o.verified && (
                           <HoverTooltip label="Página verificada por la organización">
                             <i className="ti ti-circle-check-filled verified-tick"></i>
-                          </HoverTooltip>
-                        )}
-                        {hasInterestGroupBadge(o) && (
-                          <HoverTooltip
-                            label={`Grupo de interés registrado${
-                              o.interest_group_registry_number ? ` · ${o.interest_group_registry_number}` : ''
-                            }`}
-                          >
-                            <i className="ti ti-shield-check" style={{ color: '#6d5aef' }}></i>
                           </HoverTooltip>
                         )}
                       </span>
