@@ -17,7 +17,7 @@ import DocumentosProyecto from '@/components/DocumentosProyecto';
 import AnclasProyecto from '@/components/AnclasProyecto';
 import CambiarProyecto from '@/components/CambiarProyecto';
 import ActorAvatar from '@/components/ActorAvatar';
-import ProyectoDemo, { ResumenDemo } from '@/components/ProyectoDemo';
+import ProyectoDemo from '@/components/ProyectoDemo';
 import { limiteProyectos, puedeCrearProyecto, tieneProyectos, upsellProyectos } from '@/lib/proyectos';
 
 /**
@@ -1117,17 +1117,12 @@ function Proyectos() {
           style={{ minWidth: 0 }}
           onClick={esPro ? undefined : () => setModalUpsell(true)}
         >
-          {!esPro && (
-            <>
-              {/* ProyectoDemo primero: dentro lleva la norma y el mapa,
-                  que es lo que convence. ResumenDemo iba antes y los
-                  empujaba por debajo del pliegue con seis tarjetas de
-                  contexto. */}
-              <ProyectoDemo />
-              <div style={{ height: 14 }}></div>
-              <ResumenDemo />
-            </>
-          )}
+          {/* Solo ProyectoDemo. ResumenDemo se retiró entera: sus dos
+              tarjetas útiles —objetivo y mención— viven ahora dentro de
+              la demo, después del mapa, y las demás sobraban. La agenda
+              salía dos veces, y al reordenar quedaba por debajo del
+              cierre de "Ver planes", que es donde la demo termina. */}
+          {!esPro && <ProyectoDemo />}
 
           {esPro && (
             <>
