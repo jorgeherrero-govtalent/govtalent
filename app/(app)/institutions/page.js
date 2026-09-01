@@ -173,8 +173,23 @@ export default function InstitutionsHomePage() {
             Su sitio es la tarjeta del Congreso, donde ya está.
             Tampoco se promete el contacto: el email de los diputados llega
             en la fase 2 del sync y hoy no está cargado. */}
+        {/* La cifra recupera lo que se perdió al quitar los números de
+            las tarjetas: que aquí hay datos de verdad. Va escrita a
+            mano y a la baja a propósito.
+
+            De dónde sale: 350 diputados, 719 eurodiputados, 259 altos
+            cargos, 24 miembros del Gobierno, 27 comisarios y 2.096
+            personas de la Comisión son 3.475, más 2.140 unidades de
+            DIR3. Decir "más de 3.000" es cierto con un margen tan
+            amplio que ninguna sincronización lo va a dejar corto: estas
+            cifras solo crecen.
+
+            Si algún día se quiere exacta, la página es un componente de
+            servidor y bastaría una consulta. Pero una cifra viva en un
+            subtítulo obliga a mantenerla, y esta frase no lo merece. */}
         <p style={{ fontSize: 12.5, color: '#888', margin: '3px 0 0' }}>
-          Localiza a quien decide sobre tu sector, antes de que decida.
+          Localiza a quien decide sobre tu sector. Más de 3.000 personas y organismos de España y la
+          Unión Europea.
         </p>
       </div>
 
