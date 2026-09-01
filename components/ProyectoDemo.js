@@ -90,6 +90,29 @@ const SECCION_ACTA = {
   margin: '20px 0 7px',
 };
 
+// La ficha de la norma, con la forma de una de verdad: cabecera,
+// recorrido con fechas, quién la tramita y documentos. Los campos son
+// los que tiene una ficha real del Congreso.
+const FICHA_DEMO = {
+  referencia: '121/000112',
+  tipo: 'Proyecto de ley',
+  presentada: '12 de febrero de 2026',
+  autor: 'Gobierno',
+  recorrido: [
+    ['12 feb', 'Presentación', 'Publicado en el Boletín Oficial de las Cortes'],
+    ['28 feb', 'Toma en consideración', 'Aprobada por el Pleno · 178 a favor'],
+    ['05 mar', 'Enmiendas', 'Plazo abierto hasta el 14 de marzo'],
+  ],
+  tramitan: [
+    ['Comisión de Economía, Comercio y Transformación Digital', 'Competente para el fondo'],
+    ['Comisión de Derechos Sociales y Consumo', 'Emite opinión'],
+  ],
+  documentos: [
+    ['Texto del proyecto de ley', 'BOCG · 12 feb'],
+    ['Memoria del análisis de impacto normativo', 'BOCG · 12 feb'],
+  ],
+};
+
 const ACTA_DEMO = {
   titulo: 'Acta de reunión',
   fecha: '26 de febrero de 2026',
@@ -137,6 +160,7 @@ export default function ProyectoDemo() {
   // página los actores aparecerían donde los dejó la visita anterior.
   const [actores, setActores] = useState(DEMO.actores);
   const [acta, setActa] = useState(null);
+  const [ficha, setFicha] = useState(false);
   const [movido, setMovido] = useState(false);
   const lienzoRef = useRef(null);
   const arrastrandoRef = useRef(null);
@@ -197,19 +221,32 @@ export default function ProyectoDemo() {
       <div id="norma" style={{ ...CARD, padding: '15px 18px', marginBottom: 10, scrollMarginTop: 72 }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, marginBottom: 13, flexWrap: 'wrap' }}>
           <span style={ETIQUETA}>LA NORMA Y SU TRAMITACIÓN</span>
-          {/* Enlace de verdad, no un texto morado con pinta de enlace.
+          {/* Abre un ejemplo, no lleva a Regulatorio. La norma de la
+              demo es inventada y no tiene ficha propia; mandar al
+              usuario a la sección real le sacaría de la demostración
+              para enseñarle otra cosa.
 
               stopPropagation es obligatorio: el contenedor de la demo,
               en projects/page.js, tiene un onClick que abre el modal de
-              venta. Sin frenarlo aquí, pulsar esto abriría el modal
-              ADEMÁS de navegar. */}
-          <Link
-            href="/congreso"
-            onClick={(e) => e.stopPropagation()}
-            style={{ fontSize: 11.5, color: MORADO, textDecoration: 'none' }}
+              venta, y sin frenarlo aquí saldrían los dos a la vez. */}
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              setFicha(true);
+            }}
+            style={{
+              fontSize: 11.5,
+              color: MORADO,
+              border: 'none',
+              background: 'none',
+              padding: 0,
+              cursor: 'pointer',
+              fontFamily: 'inherit',
+            }}
           >
             Ver ficha completa →
-          </Link>
+          </button>
         </div>
         <div style={{ display: 'flex', gap: 6 }}>
           {DEMO.norma.fases.map((f) => (
@@ -669,6 +706,139 @@ export default function ProyectoDemo() {
           <i className="ti ti-bolt"></i> Ver planes
         </Link>
       </div>
+      {/* La ficha de la norma. Mismo marco que el acta —fondo oscuro,
+          tarjeta blanca, X arriba a la derecha— para que la demo tenga
+          un solo lenguaje de ventana. */}
+      {ficha && (
+        <div
+          onClick={(e) => {
+            e.stopPropagation();
+            setFicha(false);
+          }}
+          style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(0,0,0,.35)',
+            zIndex: 400,
+            display: 'flex',
+            alignItems: 'flex-start',
+            justifyContent: 'center',
+            padding: '5vh 16px',
+            overflowY: 'auto',
+          }}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            role="dialog"
+            aria-modal="true"
+            aria-label="Ficha de la norma"
+            style={{ background: '#fff', borderRadius: 12, width: '100%', maxWidth: 560, padding: 22, position: 'relative' }}
+          >
+            <button
+              type="button"
+              onClick={() => setFicha(false)}
+              aria-label="Cerrar"
+              style={{
+                position: 'absolute',
+                top: 14,
+                right: 14,
+                width: 26,
+                height: 26,
+                borderRadius: 7,
+                border: 'none',
+                background: '#f5f4f1',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+            >
+              <i className="ti ti-x" style={{ fontSize: 13, color: '#777' }}></i>
+            </button>
+
+            <div style={{ paddingRight: 34 }}>
+              <div style={{ fontSize: 15, fontWeight: 700, lineHeight: 1.3 }}>{DEMO.norma.titulo}</div>
+              <div style={{ fontSize: 11.5, color: '#77746e', marginTop: 3 }}>{DEMO.norma.organo}</div>
+            </div>
+
+            <div style={{ display: 'flex', gap: 22, flexWrap: 'wrap', margin: '16px 0 4px', paddingTop: 14, borderTop: `.5px solid ${BORDE}` }}>
+              <div>
+                <div style={{ ...ETIQUETA, marginBottom: 3 }}>REFERENCIA</div>
+                <div style={{ fontSize: 12.5 }}>{FICHA_DEMO.referencia}</div>
+              </div>
+              <div>
+                <div style={{ ...ETIQUETA, marginBottom: 3 }}>TIPO</div>
+                <div style={{ fontSize: 12.5 }}>{FICHA_DEMO.tipo}</div>
+              </div>
+              <div>
+                <div style={{ ...ETIQUETA, marginBottom: 3 }}>AUTOR</div>
+                <div style={{ fontSize: 12.5 }}>{FICHA_DEMO.autor}</div>
+              </div>
+              <div>
+                <div style={{ ...ETIQUETA, marginBottom: 3 }}>PRESENTADA</div>
+                <div style={{ fontSize: 12.5 }}>{FICHA_DEMO.presentada}</div>
+              </div>
+            </div>
+
+            <div style={{ ...ETIQUETA, margin: '20px 0 8px' }}>RECORRIDO</div>
+            {FICHA_DEMO.recorrido.map(([cuando, fase, detalle]) => (
+              <div key={fase} style={{ display: 'flex', gap: 13, padding: '7px 0', borderBottom: `.5px solid #f2f0ec` }}>
+                <span style={{ fontSize: 11, color: '#a8a49c', width: 46, flexShrink: 0, paddingTop: 1 }}>{cuando}</span>
+                <span style={{ minWidth: 0 }}>
+                  <span style={{ display: 'block', fontSize: 12.5, fontWeight: 500 }}>{fase}</span>
+                  <span style={{ display: 'block', fontSize: 11.5, color: '#77746e' }}>{detalle}</span>
+                </span>
+              </div>
+            ))}
+
+            <div style={{ ...ETIQUETA, margin: '20px 0 8px' }}>QUIÉN LA TRAMITA</div>
+            {FICHA_DEMO.tramitan.map(([nombre, papel]) => (
+              <div key={nombre} style={{ padding: '7px 0', borderBottom: `.5px solid #f2f0ec` }}>
+                <div style={{ fontSize: 12.5, fontWeight: 500 }}>{nombre}</div>
+                <div style={{ fontSize: 11.5, color: '#77746e' }}>{papel}</div>
+              </div>
+            ))}
+
+            <div style={{ ...ETIQUETA, margin: '20px 0 8px' }}>DOCUMENTOS</div>
+            {FICHA_DEMO.documentos.map(([nombre, origen]) => (
+              <div key={nombre} style={{ display: 'flex', alignItems: 'center', gap: 9, padding: '7px 0', borderBottom: `.5px solid #f2f0ec` }}>
+                <i className="ti ti-file-text" style={{ fontSize: 14, color: '#a8a49c', flexShrink: 0 }}></i>
+                <span style={{ flex: 1, minWidth: 0 }}>
+                  <span style={{ display: 'block', fontSize: 12.5 }}>{nombre}</span>
+                  <span style={{ display: 'block', fontSize: 11, color: '#a8a49c' }}>{origen}</span>
+                </span>
+              </div>
+            ))}
+
+            <div
+              style={{
+                borderTop: `.5px solid ${BORDE}`,
+                marginTop: 18,
+                paddingTop: 14,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                gap: 12,
+                flexWrap: 'wrap',
+              }}
+            >
+              <span style={{ fontSize: 11, color: '#a8a49c' }}>
+                Ejemplo. En Pro se abre la ficha real, con su histórico completo.
+              </span>
+              <Link
+                href="/precios"
+                target="_blank"
+                rel="noreferrer"
+                className="btn-ai"
+                style={{ textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 6 }}
+              >
+                <i className="ti ti-bolt"></i> Ver planes
+              </Link>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* El acta de ejemplo, calcada de ActaActividad: mismo ancho,
           mismo filete verde bajo el título, mismo bloque morado para el
           grupo de interés y las mismas secciones. Lo único distinto es
@@ -810,75 +980,6 @@ export default function ProyectoDemo() {
           </div>
         </div>
       )}
-
-    </div>
-  );
-}
-
-
-/**
- * El Resumen del proyecto de ejemplo.
- *
- * Se separa de ProyectoDemo porque es otra pestaña, pero comparte los
- * mismos datos: si mañana cambia DEMO, cambian las dos.
- */
-export function ResumenDemo() {
-  return (
-    <div id="resumen" style={{ scrollMarginTop: 72, display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 10 }}>
-      <div style={{ minWidth: 0 }}>
-                {/* La mención es lo que trae a alguien de vuelta al proyecto:
-            va arriba y con nombre, no escondida en una pestaña. */}
-                <div style={{ ...CARD, padding: '15px 18px' }}>
-          <div style={{ ...ETIQUETA, marginBottom: 10 }}>ASUNTOS QUE SIGUE</div>
-          <div style={{ borderLeft: `2px solid ${MORADO}`, paddingLeft: 12, marginBottom: 11 }}>
-            <div style={{ fontSize: 12.5, fontWeight: 500 }}>{DEMO.norma.titulo}</div>
-            <div style={{ fontSize: 11, color: '#888', marginTop: 2 }}>Enmiendas · quedan 13 días</div>
-          </div>
-          <div style={{ borderLeft: `2px solid ${BORDE}`, paddingLeft: 12 }}>
-            <div style={{ fontSize: 12.5, fontWeight: 500 }}>Reglamento europeo de IA</div>
-            <div style={{ fontSize: 11, color: '#888', marginTop: 2 }}>Actos de ejecución · sin plazo abierto</div>
-          </div>
-        </div>
-      </div>
-
-      <div style={{ minWidth: 0 }}>
-                <div style={{ ...CARD, padding: '15px 18px', marginBottom: 10 }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-            <span style={ETIQUETA}>AGENDA</span>
-            <span style={{ fontSize: 11.5, color: MORADO }}>+ Acción</span>
-          </div>
-          {DEMO.agenda.map((a, i) => (
-            <div
-              key={a.titulo}
-              style={{
-                display: 'flex',
-                gap: 11,
-                padding: i === 0 ? '0 0 10px' : '10px 0',
-                borderBottom: i < DEMO.agenda.length - 1 ? `.5px solid ${BORDE}` : 'none',
-              }}
-            >
-              <div style={{ textAlign: 'center', flexShrink: 0, width: 32 }}>
-                <div style={{ fontSize: 15, fontWeight: 600, lineHeight: 1.1 }}>{a.dia}</div>
-                <div style={{ fontSize: 10, color: '#888' }}>{a.mes}</div>
-              </div>
-              <div style={{ minWidth: 0 }}>
-                <div style={{ fontSize: 12.5, lineHeight: 1.45, fontWeight: a.oficial ? 600 : 400 }}>{a.titulo}</div>
-                <div style={{ fontSize: 10.5, color: '#888', marginTop: 2 }}>{a.pie}</div>
-              </div>
-            </div>
-          ))}
-        </div>
-
-        <div style={{ ...CARD, padding: '13px 16px', opacity: 0.55 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
-            <i className="ti ti-lock" style={{ fontSize: 14, color: '#8b8780' }}></i>
-            <span style={ETIQUETA}>EQUIPO</span>
-          </div>
-          <div style={{ fontSize: 12.5, color: '#555', lineHeight: 1.55 }}>
-            Invitar a compañeros y repartir los actores llega con Teams.
-          </div>
-        </div>
-      </div>
 
     </div>
   );
