@@ -9,7 +9,7 @@ import UpgradeModal from '@/components/UpgradeModal';
 import HoverTooltip from '@/components/HoverTooltip';
 import MultiSelectFilter from '@/components/MultiSelectFilter';
 
-const PAGE_SIZE_OPTIONS = [10, 25, 50, 100];
+const PAGE_SIZES = [20, 50, 100, 200];
 
 const chipStyle = {
   fontSize: 11.5,
@@ -39,7 +39,7 @@ export default function OrganizationsDirectory() {
   const [typeFilter, setTypeFilter] = useState(new Set());
   const [sectorFilter, setSectorFilter] = useState(new Set());
   const [locationFilter, setLocationFilter] = useState(new Set());
-  const [pageSize, setPageSize] = useState(25);
+  const [pageSize, setPageSize] = useState(20);
   const [page, setPage] = useState(0);
   const [upgradeModal, setUpgradeModal] = useState(null);
 
@@ -83,6 +83,21 @@ export default function OrganizationsDirectory() {
     () => filtered.slice(currentPage * pageSize, currentPage * pageSize + pageSize),
     [filtered, currentPage, pageSize]
   );
+
+  // Mismo cálculo que en Diputados, Organismos y el resto de listados
+  // largos: primera, actual, última y puntos suspensivos.
+  const pageNumbers = useMemo(() => {
+    const actual = currentPage + 1;
+    if (totalPages <= 5) return Array.from({ length: totalPages }, (_, i) => i + 1);
+    if (actual <= 3) return [1, 2, 3, '…', totalPages];
+    if (actual >= totalPages - 2) return [1, '…', totalPages - 2, totalPages - 1, totalPages];
+    return [1, '…', actual, '…', totalPages];
+  }, [currentPage, totalPages]);
+
+  function cambiarFilas(n) {
+    setPageSize(n);
+    setPage(0); // sin esto, estar en la página 15 con 20 filas y saltar a 200 deja la lista vacía
+  }
 
   return (
     <div className="sec">
@@ -310,88 +325,98 @@ export default function OrganizationsDirectory() {
                       </span>
                     </span>
 
-                    <span style={{ fontSize: 11.5, color: '#6d5aef', flexShrink: 0, whiteSpace: 'nowrap' }}>
-                      Ver página →
-                    </span>
+                    {/* Flecha y no "Ver página →", que es lo que hacen
+                        los listados largos de la aplicación. Con nombres
+                        cortos como "&Beyond" el enlace de texto quedaba
+                        a un palmo del contenido y la fila se veía
+                        partida en dos. */}
+                    <i className="ti ti-chevron-right" style={{ color: '#ccc', fontSize: 14, flexShrink: 0 }}></i>
                   </Link>
                 );
               })}
-            </div>
-          )}
 
-          {filtered.length > 0 && (
-            <div
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                margin: '14px auto 0',
-                padding: '12px 16px',
-                background: '#fff',
-                border: '.5px solid #e0dfd8',
-                borderRadius: 12,
-                fontSize: 12.5,
-                color: '#888',
-                flexWrap: 'wrap',
-                gap: 10,
-              }}
-            >
-              <label style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                Mostrar
-                <select
-                  value={pageSize}
-                  onChange={(e) => setPageSize(Number(e.target.value))}
-                  style={{ border: '.5px solid #e0dfd8', borderRadius: 7, padding: '4px 8px', fontSize: 12.5 }}
-                >
-                  {PAGE_SIZE_OPTIONS.map((n) => (
-                    <option key={n} value={n}>
-                      {n}
-                    </option>
-                  ))}
-                </select>
-              </label>
+              {/* Dentro de la caja de la lista y con el mismo aspecto
+                  que en Diputados y Organismos: filas por página a la
+                  izquierda, números a la derecha, sobre #fcfbf8. Antes
+                  era un bloque suelto debajo, con otra maquetación. */}
+              <div
+                style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  padding: '11px 14px',
+                  background: '#fcfbf8',
+                  borderTop: '.5px solid #f0efe9',
+                  flexWrap: 'wrap',
+                  gap: 10,
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: 9 }}>
+                  <span style={{ fontSize: 11.5, color: '#888' }}>Filas</span>
+                  <div style={{ display: 'flex', gap: 2, background: '#fff', border: '.5px solid #e0dfd8', borderRadius: 7, padding: 2 }}>
+                    {PAGE_SIZES.map((n) => (
+                      <span
+                        key={n}
+                        onClick={() => cambiarFilas(n)}
+                        style={{
+                          fontSize: 11,
+                          padding: '3px 8px',
+                          borderRadius: 5,
+                          cursor: 'pointer',
+                          background: pageSize === n ? '#1d6f5c' : 'transparent',
+                          color: pageSize === n ? '#fff' : '#666',
+                        }}
+                      >
+                        {n}
+                      </span>
+                    ))}
+                  </div>
+                  <span style={{ fontSize: 11.5, color: '#888' }}>
+                    {pageStart}–{pageEnd} de {filtered.length.toLocaleString('es-ES')}
+                  </span>
+                </div>
 
-              <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                <span>
-                  Mostrando {pageStart}-{pageEnd} de {filtered.length}
-                </span>
-                <div style={{ display: 'flex', gap: 4 }}>
-                  <button
-                    type="button"
-                    onClick={() => setPage((p) => Math.max(0, p - 1))}
-                    disabled={currentPage === 0}
-                    style={{
-                      width: 28,
-                      height: 28,
-                      borderRadius: 7,
-                      border: '.5px solid #e0dfd8',
-                      background: '#fff',
-                      color: currentPage === 0 ? '#ccc' : '#555',
-                      cursor: currentPage === 0 ? 'default' : 'pointer',
-                    }}
+                <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                  <span
+                    onClick={() => setPage((prev) => Math.max(0, prev - 1))}
+                    style={{ border: '.5px solid #e0dfd8', borderRadius: 6, padding: '4px 8px', cursor: 'pointer', color: currentPage === 0 ? '#ccc' : '#555' }}
                   >
                     <i className="ti ti-chevron-left" style={{ fontSize: 13 }}></i>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setPage((p) => Math.min(totalPages - 1, p + 1))}
-                    disabled={currentPage >= totalPages - 1}
-                    style={{
-                      width: 28,
-                      height: 28,
-                      borderRadius: 7,
-                      border: '.5px solid #e0dfd8',
-                      background: '#fff',
-                      color: currentPage >= totalPages - 1 ? '#ccc' : '#555',
-                      cursor: currentPage >= totalPages - 1 ? 'default' : 'pointer',
-                    }}
+                  </span>
+                  {pageNumbers.map((n, i) =>
+                    n === '…' ? (
+                      <span key={`e${i}`} style={{ fontSize: 11.5, color: '#aaa', padding: '0 3px' }}>
+                        …
+                      </span>
+                    ) : (
+                      <span
+                        key={n}
+                        onClick={() => setPage(n - 1)}
+                        style={{
+                          borderRadius: 6,
+                          padding: '4px 10px',
+                          fontSize: 11.5,
+                          cursor: 'pointer',
+                          background: n === currentPage + 1 ? '#1d6f5c' : 'transparent',
+                          color: n === currentPage + 1 ? '#fff' : '#555',
+                          border: n === currentPage + 1 ? 'none' : '.5px solid #e0dfd8',
+                        }}
+                      >
+                        {n}
+                      </span>
+                    )
+                  )}
+                  <span
+                    onClick={() => setPage((prev) => Math.min(totalPages - 1, prev + 1))}
+                    style={{ border: '.5px solid #e0dfd8', borderRadius: 6, padding: '4px 8px', cursor: 'pointer', color: currentPage >= totalPages - 1 ? '#ccc' : '#555' }}
                   >
                     <i className="ti ti-chevron-right" style={{ fontSize: 13 }}></i>
-                  </button>
+                  </span>
                 </div>
               </div>
             </div>
           )}
+
         </>
       )}
 
