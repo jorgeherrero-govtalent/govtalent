@@ -305,32 +305,31 @@ function normalizarConsulta(q) {
  * aquí. Tiene que ser así porque la pestaña necesita saber cuántos
  * quedan tras el filtro para decidir si la fila se muestra siquiera, y
  * si el cálculo viviera dentro no habría forma de preguntárselo.
- */
-/**
+ *//**
  * Una tarjeta del organigrama, calcada de las de comisarios.
  *
- * Era una fila ancha con el equipo desplegable debajo. Ahora es la
- * misma tarjeta que en la Comisión Europea: foto de 56, nombre, cargo y
- * ministerio, y "Ver su ficha" abajo.
- *
- * NO ES UN <Link> ENTERO, al contrario que la de comisarios. Aquí hay
- * dos acciones —ir a la ficha y desplegar el equipo— y meter un botón
- * dentro de un enlace deja un control que no se puede alcanzar con el
- * teclado. Así que la tarjeta es un div y cada acción es lo que es.
+ * Es un <Link> entero, como allí: una sola acción, un solo destino. El
+ * equipo desplegable que tenía se retiró; el equipo de cada ministerio
+ * está en su ficha y en la pestaña Personas.
  */
-function TarjetaCargo({ member, team, abrirPorFiltro }) {
-  const [open, setOpen] = useState(false);
-
-  // Con un filtro puesto la tarjeta se abre sola: si no, el resultado
-  // de la búsqueda queda escondido detrás de un "Ver equipo" y parece
-  // que no ha encontrado nada.
-  useEffect(() => {
-    if (abrirPorFiltro) setOpen(true);
-  }, [abrirPorFiltro]);
-
+function TarjetaCargo({ member }) {
   return (
-    <div className="card" style={{ padding: 14 }}>
-      <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
+    <Link
+      href={`/institutions/ministries/${member.slug}`}
+      className="card"
+      style={{
+        padding: 14,
+        textDecoration: 'none',
+        color: 'inherit',
+        // Columna con el enlace al fondo: sin esto, las tarjetas de una
+        // misma fila estiran a la más alta pero su "Ver su ficha" queda
+        // a distinta altura en cada una, que es lo que se veía
+        // descuadrado.
+        display: 'flex',
+        flexDirection: 'column',
+      }}
+    >
+      <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start', flex: 1 }}>
         <Photo url={member.photo_url} name={member.full_name} />
         <div style={{ minWidth: 0, flex: 1 }}>
           <div style={{ fontSize: 13, fontWeight: 700, lineHeight: 1.3 }}>{nameDisplay(member.full_name)}</div>
@@ -341,56 +340,8 @@ function TarjetaCargo({ member, team, abrirPorFiltro }) {
         </div>
       </div>
 
-      <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginTop: 11, flexWrap: 'wrap' }}>
-        <Link
-          href={`/institutions/ministries/${member.slug}`}
-          style={{ fontSize: 11.5, color: MORADO, textDecoration: 'none' }}
-        >
-          Ver su ficha →
-        </Link>
-        {team.length > 0 && (
-          <button
-            type="button"
-            onClick={() => setOpen((v) => !v)}
-            style={{
-              fontSize: 11.5,
-              color: VERDE,
-              fontWeight: 600,
-              border: 'none',
-              background: 'none',
-              padding: 0,
-              cursor: 'pointer',
-              fontFamily: 'inherit',
-            }}
-          >
-            {open ? 'Ocultar equipo' : `Ver equipo (${team.length})`}
-          </button>
-        )}
-      </div>
-
-      {open && team.length > 0 && (
-        <div
-          style={{
-            marginTop: 11,
-            paddingTop: 11,
-            borderTop: '.5px solid #f0f0eb',
-            display: 'flex',
-            flexDirection: 'column',
-            gap: 7,
-          }}
-        >
-          {team.map((o) => (
-            <Link
-              key={o.slug}
-              href={`/institutions/ministries/persona/${o.slug}`}
-              style={{ fontSize: 11.5, color: '#555', textDecoration: 'none', lineHeight: 1.35 }}
-            >
-              {nameDisplay(o.full_name)} <span style={{ color: '#999' }}>— {cargoExacto(o)}</span>
-            </Link>
-          ))}
-        </div>
-      )}
-    </div>
+      <div style={{ fontSize: 11.5, color: MORADO, marginTop: 11 }}>Ver su ficha →</div>
+    </Link>
   );
 }
 
@@ -398,7 +349,7 @@ function TarjetaCargo({ member, team, abrirPorFiltro }) {
  * Un bloque del organigrama: título con filete y rejilla de tarjetas.
  * Mismas medidas que el Bloque de comisarios.
  */
-function BloqueCargos({ titulo, lista, hayFiltro }) {
+function BloqueCargos({ titulo, lista }) {
   if (lista.length === 0) return null;
   return (
     <div style={{ marginBottom: 22 }}>
@@ -408,9 +359,9 @@ function BloqueCargos({ titulo, lista, hayFiltro }) {
         </span>
         <div style={{ flex: 1, height: '.5px', background: '#e0dfd8' }}></div>
       </div>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(230px, 1fr))', gap: 10, alignItems: 'start' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(230px, 1fr))', gap: 10 }}>
         {lista.map((b) => (
-          <TarjetaCargo key={b.m.slug} member={b.m} team={b.equipo} abrirPorFiltro={hayFiltro} />
+          <TarjetaCargo key={b.m.slug} member={b.m} />
         ))}
       </div>
     </div>
@@ -558,9 +509,9 @@ function OrganigramaTab({ members, officials }) {
         </div>
       ) : (
         <>
-          <BloqueCargos titulo="Presidencia" lista={presidenciaSola} hayFiltro={hayFiltro} />
-          <BloqueCargos titulo="Vicepresidencias" lista={vices} hayFiltro={hayFiltro} />
-          <BloqueCargos titulo="Ministerios" lista={ministerios} hayFiltro={hayFiltro} />
+          <BloqueCargos titulo="Presidencia" lista={presidenciaSola} />
+          <BloqueCargos titulo="Vicepresidencias" lista={vices} />
+          <BloqueCargos titulo="Ministerios" lista={ministerios} />
         </>
       )}
       {upsell && (
