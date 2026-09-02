@@ -4,6 +4,14 @@ import { createClient } from '@supabase/supabase-js';
 export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
 
+// force-dynamic evita el renderizado estático, pero NO impide que el Data
+// Cache de Next sirva las lecturas de Supabase. Los logs de Vercel lo
+// mostraban explícitamente: "Using cache …/rest/v1/boe_documents". La ruta
+// leía una foto congelada del 29 de agosto, concluía que no había nada
+// nuevo y devolvía 200 sin insertar. Cuatro días en silencio.
+export const revalidate = 0;
+export const fetchCache = 'force-no-store';
+
 /**
  * Extrae los nombramientos y ceses de la sección II-A del BOE ya
  * sincronizada, y los cruza con el directorio de cargos.
@@ -25,7 +33,38 @@ const PRESUPUESTO_MS = 50_000;
 function admin() {
   return createClient(process.env.NEXT_PUBLIC_SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY, {
     auth: { persistSession: false, autoRefreshToken: false },
+    // Cinturón además de las directivas de arriba: el cliente de Supabase
+    // usa fetch por debajo y es ahí donde Next intercepta. Sin esto, basta
+    // con que cambie el comportamiento por defecto de una versión de Next
+    // para que vuelva a cachearse sin avisar.
+    global: {
+      fetch: (url, opciones) => fetch(url, { ...opciones, cache: 'no-store' }),
+    },
   });
+}
+
+/**
+ * Deja constancia de la ejecución en sync_log. Nunca lanza: un fallo al
+ * registrar no puede tumbar el sync.
+ *
+ * El estado 'omitido' es el que importa. Cada salida temprana debe
+ * registrarse con su motivo, porque una ruta que sale por una guarda sin
+ * dejar rastro es exactamente lo que pasó aquí.
+ */
+async function registrar(supabase, fila) {
+  try {
+    if (!supabase) return;
+    await supabase.from('sync_log').insert({
+      ruta: '/api/sync/boe-cargos',
+      estado: fila.estado,
+      n_leidos: fila.n_leidos || 0,
+      n_escritos: fila.n_escritos || 0,
+      duracion_ms: fila.duracion_ms ?? null,
+      detalle: fila.detalle ?? null,
+    });
+  } catch (err) {
+    console.error('[boe-cargos] no se pudo escribir en sync_log:', err);
+  }
 }
 
 // ---------------------------------------------------------------------
@@ -176,6 +215,13 @@ export async function GET(req) {
   const esCron = req.headers.get('authorization') === `Bearer ${process.env.CRON_SECRET}`;
   const esManual = !!process.env.DEBUG_KEY && searchParams.get('key') === process.env.DEBUG_KEY;
   if (!esCron && !esManual) {
+    // Se registra antes de salir: si CRON_SECRET cambia o desaparece, esto
+    // deja rastro en vez de devolver 401 en silencio todos los días.
+    await registrar(admin(), {
+      estado: 'omitido',
+      detalle: 'no autorizado: ni cabecera de cron válida ni DEBUG_KEY',
+      duracion_ms: Date.now() - t0,
+    });
     return NextResponse.json({ error: 'no autorizado' }, { status: 401 });
   }
 
@@ -194,7 +240,14 @@ export async function GET(req) {
     .lte('fecha_publicacion', hasta)
     .order('fecha_publicacion');
 
-  if (eDocs) return NextResponse.json({ error: eDocs.message }, { status: 500 });
+  if (eDocs) {
+    await registrar(supabase, {
+      estado: 'error',
+      detalle: `lectura de boe_documents: ${eDocs.message}`,
+      duracion_ms: Date.now() - t0,
+    });
+    return NextResponse.json({ error: eDocs.message }, { status: 500 });
+  }
 
   // 2. Las unidades de la AGE y las equivalencias ya resueltas.
   //
@@ -373,6 +426,34 @@ export async function GET(req) {
       nota: f.nota,
     }));
 
+  const ms = Date.now() - t0;
+
+  // Ojo con interpretar `guardadas`: el upsert va con onConflict por
+  // boe_id, así que ese número mezcla inserciones y actualizaciones de
+  // filas que ya existían. Por eso max(created_at) se quedó clavado en el
+  // 29 de agosto mientras la ruta decía haber guardado. El indicador que
+  // sirve para saber si entra contenido nuevo es max(fecha).
+  await registrar(supabase, {
+    estado: fallos.length > 0 ? 'error' : filas.length === 0 ? 'vacio' : 'ok',
+    n_leidos: docs?.length || 0,
+    n_escritos: guardadas,
+    duracion_ms: ms,
+    detalle:
+      fallos.length > 0
+        ? fallos.join(' | ').slice(0, 2000)
+        : [
+            `rango ${desde}..${hasta}`,
+            `sin_patron ${sinPatron}`,
+            Object.entries(resumen)
+              .map(([k, v]) => `${k} ${v}`)
+              .join(', '),
+            volcado?.error ? `volcado: ${volcado.error}` : null,
+          ]
+            .filter(Boolean)
+            .join(' · ')
+            .slice(0, 2000),
+  });
+
   return NextResponse.json({
     rango: { desde, hasta },
     documentos_leidos: docs?.length || 0,
@@ -383,6 +464,6 @@ export async function GET(req) {
     por_estado: resumen,
     volcado,
     revisar,
-    ms: Date.now() - t0,
+    ms,
   });
 }
