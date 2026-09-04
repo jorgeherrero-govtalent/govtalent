@@ -89,7 +89,7 @@ function enlacesDe(html, urlBase) {
   while ((m = re.exec(html)) !== null) {
     let href = m[1];
     const texto = m[2].replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
-    if (!texto || texto.length < 15) continue;
+    if (!texto || texto.length < 8) continue;
     try {
       href = new URL(href, urlBase).toString();
     } catch {
@@ -173,9 +173,13 @@ function hoyISO() {
  * por ministerio serían 22 parsers que se rompen con cada rediseño.
  */
 async function extraer(texto, tipo, urlOrigen, enlaces) {
+  // Los enlaces van ANTES del texto: si van detras y la pagina es larga,
+  // el recorte se los lleva por delante.
   const bloqueEnlaces = enlaces?.length
-    ? `\n\nEnlaces de la página (usa el href como url_ficha del trámite al que corresponda):\n` +
-      enlaces.map((e) => `- ${e.texto} => ${e.href}`).join('\n')
+    ? `\n\nENLACES DE LA PÁGINA. Cada trámite del listado tiene su enlace aquí.
+Para CADA trámite que registres, copia en url_ficha el href cuyo texto coincida con su título.
+Es obligatorio: sin url_ficha no se puede consultar el detalle.\n\n` +
+      enlaces.map((e) => `- "${e.texto}" => ${e.href}`).join('\n')
     : '';
 
   const prompt = `Extrae los trámites de participación pública ABIERTOS de esta página del Ministerio y registralos con la herramienta.
@@ -193,9 +197,9 @@ Reglas:
 - Si un campo no aparece, pon null. NO inventes ningún valor.
 - Si no hay trámites abiertos, llama a la herramienta con un array vacio.
 
-Página (${tipo}) — ${urlOrigen}:
+Página (${tipo}) — ${urlOrigen}:${bloqueEnlaces}
 
-${texto.slice(0, 50000)}${bloqueEnlaces}`;
+${texto.slice(0, 15000)}`;
 
   const r = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
@@ -467,8 +471,9 @@ export async function GET(req) {
           // pasada. Sin fecha_fin la consulta no sirve: no hay plazo, ni
           // estado, ni alerta.
           // En modo indice la ficha aporta buzon y documentos aunque el
-          // listado ya traiga la fecha, asi que se encola igualmente.
-          detalle_pendiente: f.modo === 'indice' && !!it.url_ficha && !buzonOk,
+          // listado ya traiga la fecha, asi que se encola siempre que
+          // falte alguno de los dos.
+          detalle_pendiente: f.modo === 'indice' && !!it.url_ficha && (!buzonOk || !it.url_documento),
         };
 
         // Comprobar y escribir, en vez de upsert.
