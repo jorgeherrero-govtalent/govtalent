@@ -105,171 +105,6 @@ function cargoExacto(o) {
   return `${role} de ${limpio}`;
 }
 
-// ---------------------------------------------------------------------
-// Organigrama del departamento
-//
-// La estructura sale del organigrama oficial que publica cada ministerio,
-// no de DIR3: DIR3 solo recoge 144 subdirecciones en toda la AGE y los
-// organigramas ministeriales bajan hasta ese nivel y por debajo.
-// ---------------------------------------------------------------------
-
-// Cada leyenda ministerial usa su vocabulario para lo mismo: Sanidad
-// escribe "organismo_publico" donde el MTDFP escribe "organismo_autonomo".
-const BANDA_ORG = {
-  ministerio: 'gobierno',
-  secretaria_estado: 'secretaria_estado',
-  subsecretaria: 'subsecretaria',
-  secretaria_general: 'secretaria_general',
-  direccion_general: 'direccion_general',
-  subdireccion_general: 'subdireccion_general',
-  division: 'division',
-  gabinete: 'gabinete',
-  organismo_autonomo: 'organismo',
-  organismo_publico: 'organismo',
-  agencia_estatal: 'organismo',
-  entidad_derecho_publico: 'organismo',
-  entidad_gestora: 'organismo',
-  sociedad_mercantil: 'organismo',
-  otro_organismo: 'organismo',
-  fondo: 'organismo',
-  unidad: 'unidad',
-};
-
-const ORDEN_BANDA_ORG = [
-  'gobierno',
-  'secretaria_estado',
-  'subsecretaria',
-  'secretaria_general',
-  'direccion_general',
-  'subdireccion_general',
-  'gabinete',
-  'division',
-  'organismo',
-  'unidad',
-];
-
-function bandaOrg(categoria) {
-  return BANDA_ORG[categoria] || 'unidad';
-}
-
-// El arbol se arma en cliente a partir de superior_id, para no depender de
-// que exista la vista recursiva en la base.
-function construirArbolOrg(unidades) {
-  const porId = new Map(unidades.map((u) => [u.id, { ...u, hijos: [] }]));
-  const raices = [];
-  for (const u of porId.values()) {
-    if (u.superior_id && porId.has(u.superior_id)) porId.get(u.superior_id).hijos.push(u);
-    else raices.push(u);
-  }
-  const ordenar = (n) => {
-    n.hijos.sort((a, b) => {
-      const d = ORDEN_BANDA_ORG.indexOf(bandaOrg(a.categoria)) - ORDEN_BANDA_ORG.indexOf(bandaOrg(b.categoria));
-      return d !== 0 ? d : a.nombre.localeCompare(b.nombre, 'es');
-    });
-    n.hijos.forEach(ordenar);
-  };
-  raices.forEach(ordenar);
-  return raices;
-}
-
-function contarDescendientesOrg(nodo) {
-  return nodo.hijos.reduce((n, h) => n + 1 + contarDescendientesOrg(h), 0);
-}
-
-// Bloque de contencion: un organo superior con sus organos directivos como
-// pastillas. Las subdirecciones se resumen en un contador para que el
-// bloque no crezca con el numero de hijos.
-function BloqueOrg({ nodo }) {
-  const directivos = nodo.hijos.filter((h) =>
-    ['direccion_general', 'secretaria_general', 'subsecretaria', 'organismo'].includes(bandaOrg(h.categoria))
-  );
-  const resto = contarDescendientesOrg(nodo) - directivos.length;
-
-  return (
-    <div style={{ background: '#fff', border: '.5px solid #e0dfd8', borderRadius: 10, padding: 12, marginBottom: 8 }}>
-      <div style={{ fontSize: 12.5, fontWeight: 600 }}>{nodo.nombre}</div>
-      {nodo.titular ? <div style={{ fontSize: 11, color: '#999', marginTop: 2 }}>{nodo.titular}</div> : null}
-      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5, marginTop: 10 }}>
-        {directivos.map((d) => (
-          <span
-            key={d.id}
-            title={d.titular ? `${d.nombre} · ${d.titular}` : d.nombre}
-            style={{
-              fontSize: 11,
-              padding: '5px 9px',
-              borderRadius: 7,
-              background: d.dependencia === 'funcional' ? '#fff' : '#e8f4f0',
-              color: d.dependencia === 'funcional' ? '#777' : '#04342C',
-              border: d.dependencia === 'funcional' ? '.5px dashed #cfcdc5' : '.5px solid transparent',
-            }}
-          >
-            {d.nombre}
-          </span>
-        ))}
-        {resto > 0 ? (
-          <span style={{ fontSize: 11, padding: '5px 9px', borderRadius: 7, background: '#f6f5f1', color: '#999' }}>
-            + {resto} unidades
-          </span>
-        ) : null}
-      </div>
-    </div>
-  );
-}
-
-// Rama del arbol sangrado. Plegada por defecto: con 80 unidades y ocho
-// niveles, desplegarlo entero no se lee.
-function RamaOrg({ nodo, profundidad, abiertos, alternar }) {
-  const tieneHijos = nodo.hijos.length > 0;
-  const abierto = abiertos.has(nodo.id);
-  const funcional = nodo.dependencia === 'funcional';
-
-  return (
-    <div>
-      <div
-        onClick={tieneHijos ? () => alternar(nodo.id) : undefined}
-        style={{ padding: '7px 0 7px 13px', position: 'relative', cursor: tieneHijos ? 'pointer' : 'default' }}
-      >
-        <span
-          aria-hidden="true"
-          style={{
-            position: 'absolute',
-            left: -15,
-            top: 16,
-            width: 13,
-            borderTop: funcional ? '.5px dashed #cfcdc5' : '.5px solid #e0dfd8',
-          }}
-        />
-        <div style={{ display: 'flex', alignItems: 'baseline', gap: 7, flexWrap: 'wrap' }}>
-          <span style={{ fontSize: profundidad <= 1 ? 12.5 : 12, fontWeight: profundidad <= 1 ? 600 : 400 }}>
-            {nodo.nombre}
-          </span>
-          {tieneHijos ? <span style={{ fontSize: 10.5, color: '#bbb' }}>· {nodo.hijos.length}</span> : null}
-          {funcional ? <span style={{ fontSize: 10.5, color: '#bbb' }}>· funcional</span> : null}
-          {nodo.confianza !== 'alta' ? (
-            <span style={{ fontSize: 10.5, color: '#6d5aef' }} title="Lectura pendiente de revisar">
-              · sin revisar
-            </span>
-          ) : null}
-        </div>
-        {nodo.titular || nodo.telefono ? (
-          <div style={{ fontSize: 11, color: '#999', marginTop: 2 }}>
-            {nodo.titular}
-            {nodo.titular && nodo.telefono ? ' · ' : ''}
-            {nodo.telefono}
-          </div>
-        ) : null}
-      </div>
-      {tieneHijos && abierto ? (
-        <div style={{ paddingLeft: 15, borderLeft: '.5px solid #e0dfd8', marginLeft: 4 }}>
-          {nodo.hijos.map((h) => (
-            <RamaOrg key={h.id} nodo={h} profundidad={profundidad + 1} abiertos={abiertos} alternar={alternar} />
-          ))}
-        </div>
-      ) : null}
-    </div>
-  );
-}
-
 export default function GovernmentMemberProfilePage() {
   const { slug } = useParams();
   const supabase = createClient();
@@ -281,9 +116,6 @@ export default function GovernmentMemberProfilePage() {
   const [notFound, setNotFound] = useState(false);
   const [tab, setTab] = useState('trayectoria');
   const [photoFailed, setPhotoFailed] = useState(false);
-  const [orgFuente, setOrgFuente] = useState(null);
-  const [orgUnidades, setOrgUnidades] = useState([]);
-  const [orgAbiertos, setOrgAbiertos] = useState(new Set());
 
   useEffect(() => {
     let cancelled = false;
@@ -325,27 +157,6 @@ export default function GovernmentMemberProfilePage() {
       if (cancelled) return;
       setOfficials(offs || []);
       setVicepresidents(vps || []);
-
-      // Organigrama oficial del departamento. Se cruza por nombre
-      // normalizado porque government_members no guarda el codigo DIR3
-      // del ministerio; son 22 valores y el cruce es estable.
-      if (data.ministry_name) {
-        const { data: fuentes } = await supabase
-          .from('organigrama_fuentes')
-          .select('id, ministerio, fecha_documento, formato, norma_referencia');
-
-        const key = normalizeMinistry(data.ministry_name);
-        const fuente = (fuentes || []).find((f) => ministryMatches(key, normalizeMinistry(f.ministerio)));
-
-        if (fuente && !cancelled) {
-          setOrgFuente(fuente);
-          const { data: unidades } = await supabase
-            .from('organigrama_unidades')
-            .select('id, nombre, categoria, nivel, superior_id, titular, telefono, dependencia, confianza')
-            .eq('fuente_id', fuente.id);
-          if (!cancelled) setOrgUnidades(unidades || []);
-        }
-      }
 
       // Lo que publica el ministerio en el BOE. government_members no
       // guarda el código DIR3, así que se busca su unidad raíz por
@@ -419,22 +230,6 @@ export default function GovernmentMemberProfilePage() {
   }, [member, officials, vicepresidents]);
 
 
-  // Los hooks van todos antes de cualquier return: React exige el mismo
-  // numero y orden en cada render. Este useMemo estaba despues de los
-  // returns de notFound y !member, y eso provocaba el error #310.
-  const arbolOrg = useMemo(() => construirArbolOrg(orgUnidades), [orgUnidades]);
-  const raizOrg = arbolOrg[0] || null;
-  const nSubdirecciones = orgUnidades.filter((u) => u.categoria === 'subdireccion_general').length;
-
-  function alternarOrg(id) {
-    setOrgAbiertos((prev) => {
-      const s = new Set(prev);
-      if (s.has(id)) s.delete(id);
-      else s.add(id);
-      return s;
-    });
-  }
-
   if (notFound) {
     return (
       <div className="sec">
@@ -469,11 +264,6 @@ export default function GovernmentMemberProfilePage() {
   const tabs = [
     { id: 'trayectoria', label: 'Trayectoria' },
     { id: 'equipo', label: `Equipo${team.length ? ` (${team.length})` : ''}` },
-    // Solo aparece si el ministerio tiene organigrama cargado: hoy son 5
-    // de 22 y una pestana vacia no aporta nada.
-    ...(orgUnidades.length > 0
-      ? [{ id: 'organigrama', label: `Organigrama (${orgUnidades.length})` }]
-      : []),
     ...(boe.length > 0 ? [{ id: 'boe', label: 'BOE' }] : []),
     { id: 'contacto', label: 'Contacto' },
   ];
@@ -649,69 +439,6 @@ export default function GovernmentMemberProfilePage() {
             Fuente: Agenda de la Comunicación 2025 · La Moncloa
           </div>
         </div>
-      )}
-
-      {tab === 'organigrama' && raizOrg && (
-        <>
-          <div className="card" style={{ padding: 16, marginBottom: 12 }}>
-            <div style={CARD_LABEL}>Estructura del departamento</div>
-            <div style={{ fontSize: 11, color: '#999', marginBottom: 12 }}>
-              {orgUnidades.length} unidades
-              {nSubdirecciones ? ` · ${nSubdirecciones} subdirecciones` : ''}
-              {orgFuente?.fecha_documento
-                ? ` · organigrama de ${fechaCorta(orgFuente.fecha_documento)}`
-                : ''}
-            </div>
-
-            <div style={{ background: '#f6f5f1', borderRadius: 12, padding: 12 }}>
-              {raizOrg.hijos
-                .filter((h) =>
-                  ['secretaria_estado', 'subsecretaria', 'secretaria_general'].includes(bandaOrg(h.categoria))
-                )
-                .map((h) => (
-                  <BloqueOrg key={h.id} nodo={h} />
-                ))}
-            </div>
-          </div>
-
-          <div className="card" style={{ padding: '10px 16px' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
-              <div style={CARD_LABEL}>Detalle</div>
-              <button
-                onClick={() =>
-                  setOrgAbiertos(orgAbiertos.size ? new Set() : new Set(orgUnidades.map((u) => u.id)))
-                }
-                style={{
-                  background: 'none',
-                  border: '.5px solid #1d6f5c',
-                  borderRadius: 7,
-                  color: '#1d6f5c',
-                  fontSize: 11,
-                  fontFamily: 'inherit',
-                  padding: '5px 10px',
-                  cursor: 'pointer',
-                }}
-              >
-                {orgAbiertos.size ? 'Plegar todo' : 'Desplegar todo'}
-              </button>
-            </div>
-            <div style={{ paddingLeft: 15, borderLeft: '.5px solid #e0dfd8', marginLeft: 5 }}>
-              {raizOrg.hijos.map((h) => (
-                <RamaOrg
-                  key={h.id}
-                  nodo={h}
-                  profundidad={1}
-                  abiertos={orgAbiertos}
-                  alternar={alternarOrg}
-                />
-              ))}
-            </div>
-            <div style={{ fontSize: 10.5, color: '#bbb', marginTop: 10, lineHeight: 1.6 }}>
-              Estructura tomada del organigrama oficial publicado por el ministerio.
-              {orgFuente?.norma_referencia ? ` ${orgFuente.norma_referencia}.` : ''}
-            </div>
-          </div>
-        </>
       )}
 
       {tab === 'boe' && (
