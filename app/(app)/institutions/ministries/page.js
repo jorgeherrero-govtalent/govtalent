@@ -1068,7 +1068,7 @@ function MinisteriosTab({ members, officials, organigramas }) {
                 </div>
                 <div>
                   <i className="ti ti-address-book" style={{ fontSize: 12, verticalAlign: -1, color: '#aaa' }}></i>{' '}
-                  {cuenta(m.org.contactos, 'contacto', 'contactos')}
+                  {cuenta(m.equipo, 'contacto', 'contactos')}
                 </div>
                 <div style={{ color: '#6d5aef', marginTop: 4 }}>Ver organigrama →</div>
               </>
@@ -1077,8 +1077,8 @@ function MinisteriosTab({ members, officials, organigramas }) {
                  mantiene el recuento de personas para que la tarjeta no
                  quede coja. */
               <div>
-                <i className="ti ti-users" style={{ fontSize: 12, verticalAlign: -1, color: '#aaa' }}></i>{' '}
-                {cuenta(m.equipo, 'persona en el directorio', 'personas en el directorio')}
+                <i className="ti ti-address-book" style={{ fontSize: 12, verticalAlign: -1, color: '#aaa' }}></i>{' '}
+                {cuenta(m.equipo, 'contacto', 'contactos')}
               </div>
             )}
           </div>
@@ -1112,7 +1112,7 @@ export default function MinistriesDirectoryPage() {
       // se agregan aqui: son unos cientos de filas y sale mas barato que
       // mantener una vista agregada.
       supabase.from('organigrama_fuentes').select('id, ministerio, slug, n_unidades, fecha_documento'),
-      supabase.from('organigrama_unidades').select('fuente_id, categoria, telefono'),
+      supabase.from('organigrama_unidades').select('fuente_id, categoria'),
     ]).then(([membersRes, officialsRes, fuentesRes, unidadesRes]) => {
       setMembers(membersRes.data || []);
       setOfficials(officialsRes.data || []);
@@ -1123,7 +1123,6 @@ export default function MinistriesDirectoryPage() {
       //   organismos     = organismos autonomos, agencias, entidades,
       //                    sociedades y fondos (cada ministerio los nombra
       //                    distinto en su leyenda; aqui se unifican)
-      //   contactos      = unidades con telefono publicado
       const ORGANISMO = new Set([
         'organismo_autonomo',
         'organismo_publico',
@@ -1137,11 +1136,10 @@ export default function MinistriesDirectoryPage() {
 
       const conteo = new Map();
       for (const u of unidadesRes.data || []) {
-        const c = conteo.get(u.fuente_id) || { secretarias: 0, subsecretarias: 0, organismos: 0, contactos: 0 };
+        const c = conteo.get(u.fuente_id) || { secretarias: 0, subsecretarias: 0, organismos: 0 };
         if (u.categoria === 'secretaria_estado' || u.categoria === 'secretaria_general') c.secretarias += 1;
         else if (u.categoria === 'subsecretaria') c.subsecretarias += 1;
         else if (ORGANISMO.has(u.categoria)) c.organismos += 1;
-        if (u.telefono) c.contactos += 1;
         conteo.set(u.fuente_id, c);
       }
 
@@ -1150,7 +1148,7 @@ export default function MinistriesDirectoryPage() {
           .filter((f) => f.slug)
           .map((f) => ({
             ...f,
-            ...(conteo.get(f.id) || { secretarias: 0, subsecretarias: 0, organismos: 0, contactos: 0 }),
+            ...(conteo.get(f.id) || { secretarias: 0, subsecretarias: 0, organismos: 0 }),
           }))
       );
     });
