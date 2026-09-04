@@ -409,6 +409,21 @@ export async function GET(req) {
       // En modo indice se le dan tambien los enlaces: el listado solo
       // trae titulos y el detalle esta dentro de cada ficha.
       const enlaces = f.modo === 'indice' ? enlacesDe(html, f.url) : null;
+
+      // Modo diagnostico: devuelve lo que se le iba a mandar al modelo,
+      // sin llamarlo. Sirve para ver si el problema es el contenido que
+      // llega o la extraccion, en vez de ir probando a ciegas.
+      if (searchParams.get('debug') === '1') {
+        return NextResponse.json({
+          fuente: { ministerio: f.ministerio, tipo: f.tipo, url: f.url, modo: f.modo },
+          html_bytes: html.length,
+          texto_bytes: texto.length,
+          texto_primeros_2000: texto.slice(0, 2000),
+          n_enlaces: enlaces?.length ?? 0,
+          primeros_enlaces: (enlaces || []).slice(0, 15),
+        });
+      }
+
       const items = await extraer(texto, f.tipo, f.url, enlaces);
 
       // Vinculo con el organigrama, si ese ministerio lo tiene cargado.
