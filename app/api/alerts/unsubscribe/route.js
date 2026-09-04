@@ -12,7 +12,7 @@ function htmlPage(title, message) {
           <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:420px;background:#ffffff;border-radius:14px;border:1px solid #e0dfd8;">
             <tr>
               <td style="padding:36px 30px;text-align:center;">
-                <div style="font-size:19px;font-weight:800;color:#1a1a18;margin-bottom:20px;">gov<span style="background:#1d6f5c;color:#fff;padding:2px 7px;border-radius:5px;">talent</span></div>
+                <img src="https://govtalent.app/govtalent-logo-email.png" width="180" height="31" alt="GovTalent" style="display:block;margin:0 auto 20px;border:0;" />
                 <div style="font-size:16px;font-weight:700;color:#1a1a18;margin-bottom:8px;">${title}</div>
                 <div style="font-size:13.5px;color:#666;line-height:1.6;">${message}</div>
               </td>
