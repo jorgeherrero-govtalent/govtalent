@@ -6,7 +6,8 @@ import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
 import BackLink from '@/components/BackLink';
 import FollowButton from '@/components/FollowButton';
-import PanelBloqueado from '@/components/PanelBloqueado';
+import PanelBloqueado, { FILAS_CONTACTO_UNIDAD } from '@/components/PanelBloqueado';
+import UpgradeModal from '@/components/UpgradeModal';
 
 const CARD = { background: '#fff', border: '.5px solid #e0dfd8', borderRadius: 12, padding: 18 };
 const LABEL = {
@@ -121,6 +122,7 @@ export default function ConsultaDetallePage() {
   const [hijas, setHijas] = useState([]);
   const [politicos, setPoliticos] = useState([]);
   const [tab, setTab] = useState('resumen');
+  const [upsell, setUpsell] = useState(false);
 
   useEffect(() => {
     if (!id) return;
@@ -499,6 +501,8 @@ export default function ConsultaDetallePage() {
           <PanelBloqueado
             titulo="Los actores de este trámite"
             descripcion="Qué órgano lo tramita, qué subdirecciones redactan el texto y quién responde políticamente. Con la cadena de mando completa del ministerio."
+            filas={FILAS_CONTACTO_UNIDAD}
+            onUpsell={() => setUpsell(true)}
           />
         </div>
       )}
@@ -600,6 +604,14 @@ export default function ConsultaDetallePage() {
         Datos de la web del {item.ministerio}. Verifica el plazo en el trámite original antes de
         presentar nada.
       </div>
+
+      {upsell && (
+        <UpgradeModal
+          title="Los actores de este trámite"
+          message="Qué órgano lo tramita, qué subdirecciones redactan el texto y quién responde políticamente, con la cadena de mando del ministerio. Disponible en el plan Pro."
+          onClose={() => setUpsell(false)}
+        />
+      )}
     </div>
   );
 }
