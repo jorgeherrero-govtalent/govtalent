@@ -148,10 +148,6 @@ function Rama({ nodo, profundidad, abiertos, alternar, filtro }) {
             <span style={{ fontSize: 11, color: '#aaa' }}>· {nodo.hijos.length}</span>
           ) : null}
 
-          {funcional ? (
-            <span style={{ fontSize: 11, color: '#aaa' }}>· funcional</span>
-          ) : null}
-
           {nodo.confianza !== 'alta' ? (
             <span
               style={{ fontSize: 11, color: MORADO }}
@@ -429,9 +425,6 @@ export default function OrganigramaMinisterioPage() {
                   }}
                 >
                   <span style={{ fontSize: 12.5 }}>{u.nombre}</span>
-                  {u.dependencia === 'funcional' ? (
-                    <span style={{ fontSize: 10.5, color: '#bbb' }}>funcional</span>
-                  ) : null}
                 </div>
               ))}
             </div>
