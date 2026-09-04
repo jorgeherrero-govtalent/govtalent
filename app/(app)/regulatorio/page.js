@@ -349,6 +349,25 @@ export default function RegulatorioPage() {
       {/* Lo que funciona va primero: una tarjeta en gris antes que una
           activa haría parecer el módulo más vacío de lo que está. */}
       <Bloque>
+        {/* Primera de España: es la unica con plazo que corre. El BOE y
+            la actividad parlamentaria se pueden mirar cuando toque; una
+            consulta que vence el jueves, no.
+
+            La cifra destacada es la urgencia y no el total, por lo mismo:
+            los otros modulos dan volumen, aqui lo accionable es que
+            queden dias para poder decir algo. */}
+        <ModuloCard
+          href="/regulatorio/consultas"
+          icon="message-2"
+          titulo="Consultas públicas"
+          fuente="Ministerios"
+          descripcion="Consultas previas y audiencias públicas, con plazos, aportaciones y actores."
+          cta="Explorar consultas"
+          cifras={[
+            { n: cifras.consultasUrgentes, label: 'vencen en 7 días', destacada: true },
+            { n: cifras.consultasAbiertas, label: 'abiertas' },
+          ]}
+        />
         {/* Dos cifras, no tres. Antes ponía leyes, PNL y comparecencias
             —stock histórico— junto a un "en trámite" en la cabecera, y no
             se sabía qué número mirar. Ahora se distingue lo que está vivo
@@ -382,22 +401,6 @@ export default function RegulatorioPage() {
             // etiqueta anterior prometía lo segundo.
             { n: cifras.boeSemana, label: 'últimos 7 días', destacada: true },
             { n: cifras.boeMes, label: 'últimos 30 días' },
-          ]}
-        />
-        {/* La cifra destacada es la que vence pronto, no el total.
-            Es el unico modulo del hub que expresa urgencia: los otros
-            tres dan volumen, y aqui lo que importa es que quedan dias
-            para poder decir algo. */}
-        <ModuloCard
-          href="/regulatorio/consultas"
-          icon="message-2"
-          titulo="Consultas públicas"
-          fuente="Ministerios"
-          descripcion="Consulta previa y audiencia pública, con plazos y buzón de aportaciones."
-          cta="Explorar consultas"
-          cifras={[
-            { n: cifras.consultasUrgentes, label: 'vencen en 7 días', destacada: true },
-            { n: cifras.consultasAbiertas, label: 'abiertas' },
           ]}
         />
       </Bloque>
