@@ -10,6 +10,7 @@ import {
   LEVEL_TYPES,
   SHOWS_DETAIL_QUESTIONS,
 } from '@/lib/professionalSituation';
+import Logo from '@/components/Logo';
 
 /**
  * Onboarding en tres pasos.
@@ -255,8 +256,8 @@ export default function OnboardingModal({ userId, onComplete }) {
     >
       <div style={{ maxWidth: 520, margin: '0 auto' }}>
         <div style={{ textAlign: 'center', marginBottom: 20 }}>
-          <div className="logo" style={{ display: 'inline-block' }}>
-            gov<span>talent</span>
+          <div className="logo" style={{ display: 'inline-flex' }}>
+            <Logo height={26} />
           </div>
         </div>
 
