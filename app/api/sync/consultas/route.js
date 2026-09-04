@@ -127,14 +127,41 @@ const MESES = {
   julio: 7, agosto: 8, septiembre: 9, octubre: 10, noviembre: 11, diciembre: 12,
 };
 
-// "11 de septiembre de 2026" -> "2026-09-11"
+/**
+ * Normaliza a AAAA-MM-DD los formatos que usan los ministerios.
+ *
+ * Sanidad escribe "11 de septiembre de 2026"; Transformacion Digital
+ * "18/09/2026". Solo se contemplaba el primero, y por eso las 30 filas de
+ * digital.gob.es entraron sin fecha.
+ */
 function fechaISO(texto) {
   if (!texto) return null;
-  const m = String(texto).toLowerCase().match(/(\d{1,2})\s+de\s+([a-zñ]+)\s+de\s+(\d{4})/);
-  if (!m) return /^\d{4}-\d{2}-\d{2}$/.test(texto) ? texto : null;
-  const mes = MESES[m[2]];
-  if (!mes) return null;
-  return `${m[3]}-${String(mes).padStart(2, '0')}-${String(m[1]).padStart(2, '0')}`;
+  const t = String(texto).toLowerCase().trim();
+
+  // Ya normalizada
+  if (/^\d{4}-\d{2}-\d{2}$/.test(t)) return t;
+
+  // "18/09/2026" o "18-09-2026"
+  const num = t.match(/(\d{1,2})[\/\-.](\d{1,2})[\/\-.](\d{4})/);
+  if (num) {
+    const [, d, m, a] = num;
+    if (Number(m) >= 1 && Number(m) <= 12 && Number(d) >= 1 && Number(d) <= 31) {
+      return `${a}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+    }
+  }
+
+  // "11 de septiembre de 2026"
+  const lit = t.match(/(\d{1,2})\s+de\s+([a-zñ]+)\s+de\s+(\d{4})/);
+  if (lit) {
+    const mes = MESES[lit[2]];
+    if (mes) return `${lit[3]}-${String(mes).padStart(2, '0')}-${String(lit[1]).padStart(2, '0')}`;
+  }
+
+  return null;
+}
+
+function hoyISO() {
+  return new Date().toISOString().slice(0, 10);
 }
 
 /**
@@ -154,7 +181,11 @@ async function extraer(texto, tipo, urlOrigen, enlaces) {
   const prompt = `Extrae los trámites de participación pública ABIERTOS de esta página del Ministerio y registralos con la herramienta.
 
 Reglas:
-- Solo los trámites ABIERTOS. Ignora los cerrados o archivados.
+- Extrae TODOS los trámites que aparezcan, abiertos y cerrados. El filtro
+  por vigencia lo hace el sistema comparando la fecha, no tú.
+- IMPORTANTE: algunas webs escriben "Abierta hasta el ..." en todos los
+  trámites aunque hayan vencido hace años. No te fies de esa etiqueta:
+  limitate a copiar la fecha.
 - Copia las fechas TAL CUAL aparecen ("11 de septiembre de 2026").
 - "buzon" es la dirección de correo para enviar aportaciones.
 - "referencia" es el código de expediente si lo hay (ej. "DG/72/26"); si no, null.
@@ -384,6 +415,7 @@ export async function GET(req) {
         .maybeSingle();
 
       let insertadas = 0;
+      let vencidos = 0;
       const descartadas = [];
 
       for (const it of items) {
@@ -391,6 +423,22 @@ export async function GET(req) {
 
         const inicio = fechaISO(it.fecha_inicio);
         const fin = fechaISO(it.fecha_fin);
+
+        // Vencidos fuera. La vigencia se decide aqui comparando la fecha,
+        // no por lo que diga la pagina: digital.gob.es rotula "Abierta
+        // hasta el ..." en mas de cien tramites, incluidos los de 2017.
+        //
+        // Los que no traen fecha se dejan pasar solo si hay ficha que
+        // consultar; si no, no hay forma de saber si siguen vivos y
+        // guardarlos solo ensucia el listado.
+        if (fin && fin < hoyISO()) {
+          vencidos += 1;
+          continue;
+        }
+        if (!fin && !it.url_ficha) {
+          vencidos += 1;
+          continue;
+        }
 
         // Guardrail anti-alucinación: el buzón tiene que aparecer
         // literalmente en la página. Un correo inventado es peor que un
@@ -418,7 +466,9 @@ export async function GET(req) {
           // Si falta el plazo y hay ficha, queda pendiente de segunda
           // pasada. Sin fecha_fin la consulta no sirve: no hay plazo, ni
           // estado, ni alerta.
-          detalle_pendiente: f.modo === 'indice' && !fin && !!it.url_ficha,
+          // En modo indice la ficha aporta buzon y documentos aunque el
+          // listado ya traiga la fecha, asi que se encola igualmente.
+          detalle_pendiente: f.modo === 'indice' && !!it.url_ficha && !buzonOk,
         };
 
         // Comprobar y escribir, en vez de upsert.
@@ -482,6 +532,7 @@ export async function GET(req) {
         estado: 'procesada',
         encontradas: items.length,
         guardadas: insertadas,
+        vencidas: vencidos || undefined,
         descartadas: descartadas.length || undefined,
       });
     } catch (err) {
@@ -510,11 +561,14 @@ export async function GET(req) {
   let fichasFallidas = 0;
 
   if (Date.now() - t0 < PRESUPUESTO_MS) {
+    // Solo se piden fichas de lo que sigue vivo: gastar una llamada en un
+    // tramite cerrado en 2019 no aporta nada.
     const { data: pendientes } = await supabase
       .from('consultas_publicas')
-      .select('id, url_ficha, titulo')
+      .select('id, url_ficha, titulo, fecha_fin')
       .eq('detalle_pendiente', true)
       .not('url_ficha', 'is', null)
+      .or(`fecha_fin.is.null,fecha_fin.gte.${hoyISO()}`)
       .limit(maxFichas);
 
     for (const p of pendientes || []) {
@@ -541,8 +595,10 @@ export async function GET(req) {
         await supabase
           .from('consultas_publicas')
           .update({
-            fecha_inicio: fechaISO(d.fecha_inicio),
-            fecha_fin: fin,
+            // coalesce manual: si la ficha no trae fecha se conserva la
+            // que ya venia del listado, en vez de borrarla.
+            fecha_inicio: fechaISO(d.fecha_inicio) ?? undefined,
+            fecha_fin: fin ?? undefined,
             buzon: buzonOk ? d.buzon : null,
             referencia: d.referencia || null,
             asunto_requerido: d.asunto_requerido || null,
