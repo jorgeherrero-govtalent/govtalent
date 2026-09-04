@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
+import BackLink from '@/components/BackLink';
 
 const VERDE = '#1d6f5c';
 const MORADO = '#6d5aef';
@@ -100,76 +101,6 @@ function contarDescendientes(nodo) {
 /* Vista de contención: el ministerio como contenedor, las secretarías  */
 /* dentro, y sus órganos directivos como pastillas. Es la portada.      */
 /* ------------------------------------------------------------------ */
-
-function Pastilla({ nodo }) {
-  const funcional = nodo.dependencia === 'funcional';
-  return (
-    <span
-      style={{
-        fontSize: 12,
-        padding: '6px 11px',
-        borderRadius: 8,
-        background: funcional ? '#fff' : '#e8f4f0',
-        color: funcional ? '#666' : '#04342C',
-        border: funcional ? '.5px dashed #cfcdc5' : '.5px solid transparent',
-        whiteSpace: 'nowrap',
-        overflow: 'hidden',
-        textOverflow: 'ellipsis',
-        maxWidth: '100%',
-      }}
-      title={nodo.titular ? `${nodo.nombre} · ${nodo.titular}` : nodo.nombre}
-    >
-      {nodo.nombre}
-    </span>
-  );
-}
-
-function BloqueContencion({ nodo }) {
-  // Solo se muestran como pastilla los órganos directivos; las
-  // subdirecciones se resumen en un contador para que el bloque no crezca
-  // con el número de hijos.
-  const directivos = nodo.hijos.filter((h) =>
-    ['direccion_general', 'secretaria_general', 'subsecretaria', 'organismo'].includes(banda(h.categoria))
-  );
-  const resto = contarDescendientes(nodo) - directivos.length;
-
-  return (
-    <div
-      style={{
-        background: '#fff',
-        border: '.5px solid #e0dfd8',
-        borderRadius: 12,
-        padding: 14,
-        marginBottom: 10,
-      }}
-    >
-      <div style={{ fontSize: 13, fontWeight: 600 }}>{nodo.nombre}</div>
-      {nodo.titular ? (
-        <div style={{ fontSize: 12, color: '#888', marginTop: 2 }}>{nodo.titular}</div>
-      ) : null}
-
-      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 12 }}>
-        {directivos.map((d) => (
-          <Pastilla key={d.id} nodo={d} />
-        ))}
-        {resto > 0 ? (
-          <span
-            style={{
-              fontSize: 12,
-              padding: '6px 11px',
-              borderRadius: 8,
-              background: '#f6f5f1',
-              color: '#888',
-              whiteSpace: 'nowrap',
-            }}
-          >
-            + {resto} unidades más
-          </span>
-        ) : null}
-      </div>
-    </div>
-  );
-}
 
 /* ------------------------------------------------------------------ */
 /* Árbol sangrado: el detalle completo, con guías finas y sin cajas.    */
@@ -331,6 +262,17 @@ export default function OrganigramaMinisterioPage() {
     );
   }, [unidades, filtro]);
 
+  const resumen = useMemo(() => {
+    const lista = unidades || [];
+    const secretarias = lista
+      .filter((u) => ['secretaria_estado', 'subsecretaria', 'secretaria_general'].includes(banda(u.categoria)))
+      .sort((a, b) => a.nombre.localeCompare(b.nombre, 'es'));
+    const organismos = lista
+      .filter((u) => banda(u.categoria) === 'organismo')
+      .sort((a, b) => a.nombre.localeCompare(b.nombre, 'es'));
+    return { secretarias, organismos };
+  }, [unidades]);
+
   const porBanda = useMemo(() => {
     const m = new Map();
     for (const u of unidades || []) {
@@ -370,23 +312,35 @@ export default function OrganigramaMinisterioPage() {
             Todavía no hay organigrama cargado para este ministerio.
           </div>
         </div>
-        <Link href="/institutions/ministries" style={{ fontSize: 13, color: VERDE }}>
-          Volver al directorio
-        </Link>
+        <div style={{ marginTop: 12 }}>
+          <BackLink fallbackHref="/institutions/ministries" fallbackLabel="Ministerios" />
+        </div>
       </div>
     );
   }
 
   return (
     <div className="sec" style={{ maxWidth: 1080 }}>
+      {/* Mismo patrón que las otras fichas: BackLink devuelve a donde
+          venías (no a un destino fijo) y la miga dice dónde estás. */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 12, flexWrap: 'wrap' }}>
+        <BackLink fallbackHref="/institutions/ministries" fallbackLabel="Ministerios" />
+        <span style={{ fontSize: 11.5, color: '#ddd' }}>|</span>
+        <span style={{ fontSize: 11.5, color: '#999' }}>
+          <Link href="/institutions" style={{ color: '#999', textDecoration: 'none' }}>
+            Instituciones
+          </Link>
+          {' › '}
+          <Link href="/institutions/ministries" style={{ color: '#999', textDecoration: 'none' }}>
+            Ministerios
+          </Link>
+          {' › '}
+          <span style={{ color: '#666' }}>{fuente.ministerio}</span>
+        </span>
+      </div>
+
       <div style={{ marginBottom: 14 }}>
-        <Link
-          href="/institutions/ministries"
-          style={{ fontSize: 12, color: '#888', textDecoration: 'none' }}
-        >
-          <i className="ti ti-arrow-left" style={{ fontSize: 14, verticalAlign: '-2px' }}></i> Ministerios
-        </Link>
-        <h1 style={{ fontSize: 18, fontWeight: 700, margin: '6px 0 3px' }}>{fuente.ministerio}</h1>
+        <h1 style={{ fontSize: 18, fontWeight: 700, margin: '0 0 3px' }}>{fuente.ministerio}</h1>
         <p style={{ fontSize: 12, color: '#888', margin: 0 }}>
           {unidades.length} unidades
           {porBanda.get('subdireccion_general')
@@ -405,21 +359,83 @@ export default function OrganigramaMinisterioPage() {
         </div>
       ) : null}
 
-      {/* Contención: la portada. Un bloque por órgano superior. */}
-      {raiz ? (
-        <div style={{ background: '#f6f5f1', borderRadius: 16, padding: 16, marginBottom: 20 }}>
-          <div style={{ fontSize: 15, fontWeight: 600 }}>{raiz.nombre}</div>
-          {raiz.titular ? (
-            <div style={{ fontSize: 12, color: '#888', marginTop: 3, marginBottom: 14 }}>{raiz.titular}</div>
-          ) : (
-            <div style={{ marginBottom: 14 }} />
-          )}
+      {/* Resumen de un vistazo: quién manda y qué organismos cuelgan.
+          El detalle completo está en el árbol de abajo; aquí solo las dos
+          listas que un profesional mira primero. */}
+      {resumen.secretarias.length || resumen.organismos.length ? (
+        <div
+          style={{
+            display: 'grid',
+            gridTemplateColumns: resumen.organismos.length ? 'repeat(auto-fit, minmax(280px, 1fr))' : '1fr',
+            gap: 10,
+            marginBottom: 18,
+          }}
+        >
+          {resumen.secretarias.length ? (
+            <div className="card" style={{ padding: 16 }}>
+              <div
+                style={{
+                  fontSize: 10.5,
+                  fontWeight: 700,
+                  color: '#999',
+                  textTransform: 'uppercase',
+                  letterSpacing: '.3px',
+                  marginBottom: 12,
+                }}
+              >
+                Órganos superiores
+              </div>
+              {resumen.secretarias.map((u, i) => (
+                <div
+                  key={u.id}
+                  style={{
+                    padding: '8px 0',
+                    borderBottom: i === resumen.secretarias.length - 1 ? 'none' : '.5px solid #f0f0eb',
+                  }}
+                >
+                  <div style={{ fontSize: 12.5 }}>{u.nombre}</div>
+                  {u.titular ? (
+                    <div style={{ fontSize: 11, color: '#999', marginTop: 2 }}>{u.titular}</div>
+                  ) : null}
+                </div>
+              ))}
+            </div>
+          ) : null}
 
-          {raiz.hijos
-            .filter((h) => ['secretaria_estado', 'subsecretaria', 'secretaria_general'].includes(banda(h.categoria)))
-            .map((h) => (
-              <BloqueContencion key={h.id} nodo={h} />
-            ))}
+          {resumen.organismos.length ? (
+            <div className="card" style={{ padding: 16 }}>
+              <div
+                style={{
+                  fontSize: 10.5,
+                  fontWeight: 700,
+                  color: '#999',
+                  textTransform: 'uppercase',
+                  letterSpacing: '.3px',
+                  marginBottom: 12,
+                }}
+              >
+                Organismos dependientes
+              </div>
+              {resumen.organismos.map((u, i) => (
+                <div
+                  key={u.id}
+                  style={{
+                    padding: '8px 0',
+                    borderBottom: i === resumen.organismos.length - 1 ? 'none' : '.5px solid #f0f0eb',
+                    display: 'flex',
+                    alignItems: 'baseline',
+                    gap: 7,
+                    flexWrap: 'wrap',
+                  }}
+                >
+                  <span style={{ fontSize: 12.5 }}>{u.nombre}</span>
+                  {u.dependencia === 'funcional' ? (
+                    <span style={{ fontSize: 10.5, color: '#bbb' }}>funcional</span>
+                  ) : null}
+                </div>
+              ))}
+            </div>
+          ) : null}
         </div>
       ) : null}
 
