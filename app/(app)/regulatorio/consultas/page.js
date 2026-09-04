@@ -49,7 +49,6 @@ export default function ConsultasPublicasPage() {
   const [orden, setOrden] = useState('asc');
   const [pageSize, setPageSize] = useState(20);
   const [page, setPage] = useState(1);
-  const [abierta, setAbierta] = useState(null);
 
   useEffect(() => {
     // Se lee la vista y no la tabla: el estado y los días restantes se
@@ -303,22 +302,19 @@ export default function ConsultasPublicasPage() {
           {slice.map((c) => {
             const vigente = c.estado === 'abierta' || c.estado === 'urgente';
             const u = urgencia(vigente ? c.dias_restantes : null);
-            const expandida = abierta === c.id;
 
             return (
               <div key={c.id} style={{ borderBottom: '.5px solid #f0f0eb' }}>
-                {/* Se despliega en la propia fila en vez de navegar: la
-                    ficha de detalle no existe todavía y lo que el usuario
-                    necesita —buzón, asunto y documento— cabe aquí. */}
-                <div
-                  onClick={() => setAbierta(expandida ? null : c.id)}
+                <Link
+                  href={`/regulatorio/consultas/${c.id}`}
                   style={{
                     display: 'grid',
                     gridTemplateColumns: GRID,
                     padding: '11px 14px',
                     alignItems: 'center',
                     gap: 8,
-                    cursor: 'pointer',
+                    textDecoration: 'none',
+                    color: 'inherit',
                   }}
                 >
                   <div style={{ minWidth: 0 }}>
@@ -356,79 +352,9 @@ export default function ConsultasPublicasPage() {
                     )}
                   </div>
 
-                  <i
-                    className={`ti ti-chevron-${expandida ? 'down' : 'right'}`}
-                    style={{ color: '#ccc', fontSize: 14 }}
-                  ></i>
-                </div>
+                  <i className="ti ti-chevron-right" style={{ color: '#ccc', fontSize: 14 }}></i>
+                </Link>
 
-                {expandida && (
-                  <div style={{ padding: '0 14px 14px 14px', background: '#fcfbf8' }}>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 7, paddingTop: 12, fontSize: 12 }}>
-                      {c.fecha_fin && (
-                        <div style={{ color: '#666' }}>
-                          <i className="ti ti-calendar" style={{ fontSize: 13, color: '#aaa', verticalAlign: -1, marginRight: 7 }}></i>
-                          Hasta el {formatDate(c.fecha_fin)}
-                          {c.fecha_inicio ? ` · desde el ${formatDate(c.fecha_inicio)}` : ''}
-                        </div>
-                      )}
-
-                      {c.buzon ? (
-                        <div style={{ color: '#666' }}>
-                          <i className="ti ti-mail" style={{ fontSize: 13, color: '#aaa', verticalAlign: -1, marginRight: 7 }}></i>
-                          <a href={`mailto:${c.buzon}`} style={{ color: '#555', textDecoration: 'none' }}>
-                            {c.buzon}
-                          </a>
-                        </div>
-                      ) : (
-                        <div style={{ color: '#aaa' }}>
-                          <i className="ti ti-mail-off" style={{ fontSize: 13, verticalAlign: -1, marginRight: 7 }}></i>
-                          El ministerio no publica buzón para este trámite
-                        </div>
-                      )}
-
-                      {/* El ministerio exige un asunto concreto para que la
-                          aportación se tenga por presentada, así que va
-                          destacado y no como nota al pie. */}
-                      {c.asunto_requerido && (
-                        <div style={{ color: '#666' }}>
-                          <i className="ti ti-tag" style={{ fontSize: 13, color: '#aaa', verticalAlign: -1, marginRight: 7 }}></i>
-                          Asunto exigido: <span style={{ fontWeight: 600 }}>{c.asunto_requerido}</span>
-                        </div>
-                      )}
-
-                      {c.nota && (
-                        <div style={{ color: '#8a6d3b', fontSize: 11.5 }}>
-                          <i className="ti ti-alert-triangle" style={{ fontSize: 13, verticalAlign: -1, marginRight: 7 }}></i>
-                          {c.nota}
-                        </div>
-                      )}
-
-                      <div style={{ display: 'flex', gap: 14, marginTop: 4, flexWrap: 'wrap' }}>
-                        {c.url_documento && (
-                          <a
-                            href={c.url_documento}
-                            target="_blank"
-                            rel="noreferrer"
-                            style={{ fontSize: 12, color: '#6d5aef', textDecoration: 'none' }}
-                          >
-                            <i className="ti ti-file-text" style={{ fontSize: 13, verticalAlign: -1, marginRight: 5 }}></i>
-                            Texto del proyecto
-                          </a>
-                        )}
-                        <a
-                          href={c.url_origen}
-                          target="_blank"
-                          rel="noreferrer"
-                          style={{ fontSize: 12, color: '#6d5aef', textDecoration: 'none' }}
-                        >
-                          <i className="ti ti-external-link" style={{ fontSize: 13, verticalAlign: -1, marginRight: 5 }}></i>
-                          Ver en la web del ministerio
-                        </a>
-                      </div>
-                    </div>
-                  </div>
-                )}
               </div>
             );
           })}
