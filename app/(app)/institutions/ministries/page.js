@@ -910,10 +910,8 @@ function siglasMinisterio(nombre) {
   return sigla.slice(0, 5);
 }
 
-// Los organigramas se guardan con slug propio (organigrama_fuentes.slug) para
-// no tener que casar el nombre del ministerio por texto, que es justo lo que
-// falla cuando una fuente escribe "Ministerio de Presidencia" y otra
-// "Ministerio de la Presidencia".
+// Los organigramas se guardan con slug propio (organigrama_fuentes.slug):
+// asi no hay que casar el nombre del ministerio por texto en la URL.
 function organigramaDe(ministryName, organigramas) {
   const key = normalizeMinistry(ministryName);
   return organigramas.find((o) => ministryMatches(key, normalizeMinistry(o.ministerio))) || null;
@@ -1001,10 +999,11 @@ function MinisteriosTab({ members, officials, organigramas }) {
        separado por una línea. */
     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(210px, 1fr))', gap: 10 }}>
       {ministerios.map((m) => (
-        /* Con organigrama cargado la tarjeta lleva a la estructura del
-           departamento; sin él, se mantiene el destino anterior (la ficha
-           del titular) para que las 17 carteras que aún no lo tienen no
-           queden sin enlace. */
+        /* Mismo patron que las direcciones generales de la Comision
+           Europea: siglas, nombre y recuento arriba; linea separadora;
+           titular, cifras de estructura y enlace de accion abajo.
+           Con organigrama cargado la tarjeta lleva a la estructura del
+           departamento; sin el, a la ficha del titular. */
         <Link
           key={m.slug}
           href={m.org ? `/institutions/ministries/organigrama/${m.org.slug}` : `/institutions/ministries/${m.slug}`}
@@ -1031,48 +1030,40 @@ function MinisteriosTab({ members, officials, organigramas }) {
             </div>
             <div style={{ minWidth: 0 }}>
               <div style={{ fontSize: 12.5, fontWeight: 600, lineHeight: 1.3 }}>{m.ministry_name}</div>
+              <div style={{ fontSize: 10.5, color: '#999', marginTop: 1 }}>
+                {m.equipo} {m.equipo === 1 ? 'persona' : 'personas'}
+              </div>
             </div>
-          </div>
-
-          {/* Lo que aporta el organigrama: la estructura del departamento.
-              Cuando no está cargado se mantiene el recuento de personas,
-              para que la tarjeta no se quede vacía. */}
-          <div style={{ fontSize: 10.5, color: '#999', lineHeight: 1.5, minHeight: 30 }}>
-            {m.org ? (
-              <>
-                {m.org.secretarias ? `${m.org.secretarias} ${m.org.secretarias === 1 ? 'secretaría' : 'secretarías'} · ` : ''}
-                {m.org.direcciones} {m.org.direcciones === 1 ? 'dirección general' : 'direcciones generales'}
-                {m.org.subdirecciones ? ` · ${m.org.subdirecciones} subdirecciones` : ''}
-              </>
-            ) : (
-              <>
-                {m.equipo} {m.equipo === 1 ? 'persona' : 'personas'} en el directorio
-              </>
-            )}
           </div>
 
           <div
             style={{
               fontSize: 11,
               color: '#666',
-              lineHeight: 1.5,
+              lineHeight: 1.6,
               borderTop: '.5px solid #f0f0eb',
               paddingTop: 9,
-              marginTop: 9,
               display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              gap: 8,
+              flexDirection: 'column',
+              gap: 3,
             }}
           >
-            <span style={{ minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            <div>
               <i className="ti ti-user-star" style={{ fontSize: 12, verticalAlign: -1, color: '#aaa' }}></i>{' '}
               {m.full_name}
-            </span>
+            </div>
+
+            {/* Solo los 5 ministerios con organigrama cargado tienen
+                cifras de estructura; en el resto la linea no aparece en
+                lugar de mostrar ceros. */}
             {m.org ? (
-              <span style={{ color: '#1d6f5c', whiteSpace: 'nowrap', flexShrink: 0 }}>
-                <i className="ti ti-sitemap" style={{ fontSize: 12, verticalAlign: -1 }}></i> Organigrama
-              </span>
+              <>
+                <div>
+                  <i className="ti ti-layout-grid" style={{ fontSize: 12, verticalAlign: -1, color: '#aaa' }}></i>{' '}
+                  {m.org.n_unidades} unidades · {m.org.subdirecciones} subdirecciones
+                </div>
+                <div style={{ color: '#6d5aef', marginTop: 4 }}>Ver organigrama →</div>
+              </>
             ) : null}
           </div>
         </Link>
@@ -1101,31 +1092,26 @@ export default function MinistriesDirectoryPage() {
         .from('government_officials')
         .select('full_name, slug, role, ministry_name, unit_name, dir3_code, unit_email, unit_phone, age_units(nombre, categoria, nivel)')
         .eq('active', true),
-      // Organigramas oficiales cargados. Se piden las unidades en crudo y se
-      // agregan aquí: son unos cientos de filas y sale más barato que una
-      // vista agregada por mantener.
-      supabase.from('organigrama_fuentes').select('id, ministerio, slug, fecha_documento'),
+      // Organigramas oficiales cargados. Se piden las unidades en crudo y
+      // se agregan aqui: son unos cientos de filas y sale mas barato que
+      // mantener una vista agregada.
+      supabase.from('organigrama_fuentes').select('id, ministerio, slug, n_unidades, fecha_documento'),
       supabase.from('organigrama_unidades').select('fuente_id, categoria'),
     ]).then(([membersRes, officialsRes, fuentesRes, unidadesRes]) => {
       setMembers(membersRes.data || []);
       setOfficials(officialsRes.data || []);
 
-      const conteo = new Map();
+      const subdirecciones = new Map();
       for (const u of unidadesRes.data || []) {
-        const c = conteo.get(u.fuente_id) || { secretarias: 0, direcciones: 0, subdirecciones: 0 };
-        if (u.categoria === 'secretaria_estado' || u.categoria === 'secretaria_general') c.secretarias += 1;
-        else if (u.categoria === 'direccion_general') c.direcciones += 1;
-        else if (u.categoria === 'subdireccion_general') c.subdirecciones += 1;
-        conteo.set(u.fuente_id, c);
+        if (u.categoria === 'subdireccion_general') {
+          subdirecciones.set(u.fuente_id, (subdirecciones.get(u.fuente_id) || 0) + 1);
+        }
       }
 
       setOrganigramas(
         (fuentesRes.data || [])
           .filter((f) => f.slug)
-          .map((f) => ({
-            ...f,
-            ...(conteo.get(f.id) || { secretarias: 0, direcciones: 0, subdirecciones: 0 }),
-          }))
+          .map((f) => ({ ...f, subdirecciones: subdirecciones.get(f.id) || 0 }))
       );
     });
   }, []);
