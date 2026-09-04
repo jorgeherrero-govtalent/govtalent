@@ -4,6 +4,8 @@ import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
 import MultiSelectFilter from '@/components/MultiSelectFilter';
+import UpgradeModal from '@/components/UpgradeModal';
+import usePlanPro from '@/lib/usePlanPro';
 
 const PAGE_SIZES = [20, 50, 100, 200];
 
@@ -35,6 +37,8 @@ function urgencia(dias) {
 }
 
 export default function ConsultasPublicasPage() {
+  const esPro = usePlanPro();
+  const [upsell, setUpsell] = useState(false);
   const supabase = createClient();
 
   const [items, setItems] = useState(null);
@@ -58,15 +62,22 @@ export default function ConsultasPublicasPage() {
       .then(({ data }) => setItems(data || []));
   }, []);
 
+  // MultiSelectFilter espera { value, label }. Con { code, label } el
+  // componente pinta las opciones pero no devuelve nada al aplicar.
   const ministerioOptions = useMemo(() => {
-    const set = new Set((items || []).map((i) => i.ministerio).filter(Boolean));
-    return [...set].sort((a, b) => a.localeCompare(b, 'es')).map((m) => ({ code: m, label: m }));
+    const cuenta = new Map();
+    for (const i of items || []) {
+      if (i.ministerio) cuenta.set(i.ministerio, (cuenta.get(i.ministerio) || 0) + 1);
+    }
+    return [...cuenta.entries()]
+      .sort((a, b) => a[0].localeCompare(b[0], 'es'))
+      .map(([m, n]) => ({ value: m, label: `${m} (${n})` }));
   }, [items]);
 
-  const tipoOptions = useMemo(
-    () => Object.entries(TIPOS).map(([code, label]) => ({ code, label })),
-    []
-  );
+  const tipoOptions = useMemo(() => {
+    const codes = [...new Set((items || []).map((i) => i.tipo).filter(Boolean))];
+    return codes.sort().map((c) => ({ value: c, label: tipoLabel(c) }));
+  }, [items]);
 
   const filtered = useMemo(() => {
     let out = items || [];
@@ -205,6 +216,8 @@ export default function ConsultasPublicasPage() {
           values={ministerioOptions}
           selected={ministerioFilter}
           onApply={setMinisterioFilter}
+          bloqueado={esPro === false}
+          onBloqueado={() => setUpsell(true)}
         />
         <MultiSelectFilter
           label="Tipo de trámite"
@@ -500,6 +513,14 @@ export default function ConsultasPublicasPage() {
         Datos tomados de las secciones de participación pública de cada ministerio. Los plazos se
         cuentan en días naturales.
       </div>
+
+      {upsell && (
+        <UpgradeModal
+          title="Filtrar por ministerio"
+          message="Sigue solo los departamentos que te afectan y deja de revisar consultas que no van contigo. Disponible en el plan Pro."
+          onClose={() => setUpsell(false)}
+        />
+      )}
     </div>
   );
 }
