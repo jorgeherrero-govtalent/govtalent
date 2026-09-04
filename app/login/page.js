@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { createClient } from '@/lib/supabase/client';
+import Logo from '@/components/Logo';
 
 export default function LoginPage() {
   const initialParams = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : null;
@@ -89,7 +90,7 @@ export default function LoginPage() {
     <div>
       <div className="login-bar">
         <div className="logo">
-          gov<span>talent</span>
+          <Logo height={24} />
         </div>
         <div style={{ fontSize: 13, color: '#888' }}>
           EN &nbsp;|&nbsp; <b style={{ color: '#1a1a18' }}>ES</b>
