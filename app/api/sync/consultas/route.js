@@ -376,6 +376,11 @@ async function extraerDetalle(texto, url) {
 Reglas:
 - Copia las fechas TAL CUAL aparecen ("11 de septiembre de 2026").
 - "buzon" es la direccion de correo para enviar aportaciones.
+- "resumen": si la ficha trae un apartado de resumen, objeto o
+  descripcion del proyecto, copialo o resumelo en dos o tres frases. Usa
+  las palabras del ministerio, no interpretes ni valores. Si no hay nada
+  de eso, pon null: es preferible dejarlo vacio a redactar algo que el
+  ministerio no ha dicho.
 - Si un campo no aparece, pon null. NO inventes ningun valor.
 
 Ficha - ${url}:
@@ -396,6 +401,7 @@ ${texto.slice(0, 40000)}`,
               referencia: { type: ['string', 'null'] },
               asunto_requerido: { type: ['string', 'null'] },
               url_documento: { type: ['string', 'null'] },
+              resumen: { type: ['string', 'null'] },
             },
             required: [],
           },
@@ -583,7 +589,7 @@ export async function GET(req) {
           // devolvia siempre url_ficha a null y por eso no encolaba
           // ninguna ficha ni conseguia un solo buzon.
           detalle_pendiente:
-            f.modo === 'indice' && !!(it.url_ficha || enlaceParecido(it.titulo, enlaces)) && (!buzonOk || !it.url_documento),
+            f.modo === 'indice' && !!(it.url_ficha || enlaceParecido(it.titulo, enlaces)),
         };
 
         // Comprobar y escribir, en vez de upsert.
@@ -718,6 +724,11 @@ export async function GET(req) {
             referencia: d.referencia || null,
             asunto_requerido: d.asunto_requerido || null,
             url_documento: d.url_documento || null,
+            // Se guarda el resumen que publica el ministerio, no uno
+            // generado: son sus palabras y no hay riesgo de que la
+            // interpretacion se cuele como dato.
+            resumen: d.resumen || null,
+            resumen_generado_at: d.resumen ? new Date().toISOString() : null,
             fecha_captura: new Date().toISOString(),
             // Se marca resuelta aunque no haya fecha: si la ficha tampoco
             // la trae, reintentarlo cada dia no va a cambiar nada.
