@@ -11,6 +11,7 @@ import Footer from '@/components/Footer';
 import MenuUsuario from '@/components/MenuUsuario';
 import BarraMovil from '@/components/BarraMovil';
 import BuscadorGlobal from '@/components/BuscadorGlobal';
+import Logo from '@/components/Logo';
 
 export default function AppLayout({ children }) {
   const supabase = createClient();
@@ -108,8 +109,8 @@ export default function AppLayout({ children }) {
           }
         `}</style>
         <div className="nav-inner">
-          <Link href="/" className="nav-logo">
-            gov<span>talent</span>
+          <Link href="/" className="nav-logo" aria-label="GovTalent, ir al inicio">
+            <Logo height={24} />
           </Link>
 
           {/* Pegado al logo, como en LinkedIn: es lo primero que se
