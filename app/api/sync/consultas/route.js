@@ -112,10 +112,7 @@ function fechaISO(texto) {
  * por ministerio serían 22 parsers que se rompen con cada rediseño.
  */
 async function extraer(texto, tipo, urlOrigen) {
-  const prompt = `Extrae los trámites de participación pública ABIERTOS de esta página del Ministerio.
-
-Devuelve SOLO un array JSON, sin texto alrededor ni bloques de código. Cada elemento:
-{"titulo": "...", "fecha_inicio": "...", "fecha_fin": "...", "buzon": "...", "referencia": "...", "asunto_requerido": "...", "url_documento": "..."}
+  const prompt = `Extrae los trámites de participación pública ABIERTOS de esta página del Ministerio y registralos con la herramienta.
 
 Reglas:
 - Solo los trámites ABIERTOS. Ignora los cerrados o archivados.
@@ -124,8 +121,7 @@ Reglas:
 - "referencia" es el código de expediente si lo hay (ej. "DG/72/26"); si no, null.
 - "asunto_requerido" es el formato de asunto exigido si se indica; si no, null.
 - Si un campo no aparece, pon null. NO inventes ningún valor.
-- Si no hay trámites abiertos, devuelve exactamente: []
-- No expliques nada. No añadas comentarios. Solo el array.
+- Si no hay trámites abiertos, llama a la herramienta con un array vacio.
 
 Página (${tipo}) — ${urlOrigen}:
 
@@ -142,47 +138,62 @@ ${texto.slice(0, 60000)}`;
     body: JSON.stringify({
       model: 'claude-sonnet-5',
       max_tokens: 4000,
-      messages: [
-        { role: 'user', content: prompt },
-        // Se prefija la respuesta con '[' para que el modelo solo pueda
-        // continuar el array. Sin esto, cuando un ministerio no tiene
-        // tramites abiertos responde explicando por que no encuentra
-        // nada, y eso rompe el parseo. Paso con Transformacion Digital.
-        { role: 'assistant', content: '[' },
+      messages: [{ role: 'user', content: prompt }],
+      // Se fuerza la salida con una herramienta de esquema fijo en vez de
+      // pedir JSON en el prompt. claude-sonnet-5 no admite prefijar la
+      // respuesta del asistente, y sin forzarlo el modelo contesta con
+      // prosa cuando no encuentra tramites: paso con Transformacion
+      // Digital, que devolvio una explicacion en vez de [].
+      tools: [
+        {
+          name: 'registrar_tramites',
+          description: 'Registra los tramites de participacion publica abiertos encontrados en la pagina.',
+          input_schema: {
+            type: 'object',
+            properties: {
+              tramites: {
+                type: 'array',
+                description: 'Tramites abiertos. Array vacio si no hay ninguno.',
+                items: {
+                  type: 'object',
+                  properties: {
+                    titulo: { type: 'string' },
+                    fecha_inicio: { type: ['string', 'null'] },
+                    fecha_fin: { type: ['string', 'null'] },
+                    buzon: { type: ['string', 'null'] },
+                    referencia: { type: ['string', 'null'] },
+                    asunto_requerido: { type: ['string', 'null'] },
+                    url_documento: { type: ['string', 'null'] },
+                  },
+                  required: ['titulo'],
+                },
+              },
+            },
+            required: ['tramites'],
+          },
+        },
       ],
+      tool_choice: { type: 'tool', name: 'registrar_tramites' },
     }),
   });
 
   if (!r.ok) throw new Error(`API ${r.status}: ${(await r.text()).slice(0, 300)}`);
 
   const data = await r.json();
-  const continuacion = (data.content || [])
-    .filter((b) => b.type === 'text')
-    .map((b) => b.text)
-    .join('')
-    .replace(/```json|```/g, '')
-    .trim();
 
-  // Viene sin el '[' porque se lo dimos nosotros como prefijo.
-  const bruto = '[' + continuacion;
-
-  try {
-    const parsed = JSON.parse(bruto);
-    return Array.isArray(parsed) ? parsed : [];
-  } catch {
-    // Red de seguridad: si aun asi llega texto alrededor, se rescata el
-    // primer array antes de dar la fuente por fallida.
-    const m = bruto.match(/\[[\s\S]*\]/);
-    if (m) {
-      try {
-        const parsed = JSON.parse(m[0]);
-        return Array.isArray(parsed) ? parsed : [];
-      } catch {
-        /* cae al error de abajo */
-      }
-    }
-    throw new Error(`respuesta no parseable: ${bruto.slice(0, 200)}`);
+  // Con tool_choice forzado la respuesta llega en un bloque tool_use, ya
+  // como objeto: no hay que parsear texto ni limpiar bloques de codigo.
+  const uso = (data.content || []).find((b) => b.type === 'tool_use');
+  if (!uso) {
+    const texto = (data.content || [])
+      .filter((b) => b.type === 'text')
+      .map((b) => b.text)
+      .join('');
+    throw new Error(`sin tool_use: ${texto.slice(0, 200)}`);
   }
+
+  const tramites = uso.input?.tramites;
+  return Array.isArray(tramites) ? tramites : [];
 }
 
 export async function GET(req) {
