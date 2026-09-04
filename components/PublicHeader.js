@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import Logo from '@/components/Logo';
 
 /**
  * La cabecera de las páginas públicas.
@@ -15,8 +16,8 @@ export default function PublicHeader({ maxWidth = 760, volverHref = '/' }) {
         {/* Sin eslogan bajo el logo: en páginas que ya tienen su propio
             titular, repetía el mensaje dos veces en la misma pantalla. */}
         <div className="pub-header-brand">
-          <Link href="/jobs" className="pub-header-logo">
-            gov<span>talent</span>
+          <Link href="/jobs" className="pub-header-logo" aria-label="GovTalent">
+            <Logo height={24} />
           </Link>
         </div>
         <Link href={volverHref} className="pub-header-link">
