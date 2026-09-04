@@ -107,14 +107,23 @@ function enlacesDe(html, urlBase) {
   // menu lateral del ministerio: idiomas, organigrama, secretarias. Los
   // enlaces de los tramites, que van despues en el documento, no
   // entraban nunca, y por eso url_ficha llegaba siempre a null.
-  const seccion = base.pathname.replace(/\/$/, '');
-  const hijos = candidatos.filter(
-    (c) => new URL(c.href).pathname.startsWith(seccion + '/') && new URL(c.href).pathname !== seccion
-  );
+  //
+  // La seccion es el DIRECTORIO de la fuente, no su ruta completa. En
+  // MITECO la fuente es .../participacion-publica/listado_proyectos_normativos.html
+  // y las fichas son .../participacion-publica/rd-concesion-directa.html:
+  // hermanas, no hijas. Usando la ruta entera no casaba ninguna, y por
+  // eso ese ministerio se quedaba sin un solo buzon.
+  const ruta = base.pathname.replace(/\/$/, '');
+  const seccion = /\.[a-z]{2,5}$/i.test(ruta) ? ruta.replace(/\/[^/]*$/, '') : ruta;
 
-  // Si el filtro por seccion no encuentra nada, se devuelven los
-  // candidatos sin filtrar: hay webs que cuelgan las fichas de otra ruta.
-  return (hijos.length ? hijos : candidatos).slice(0, 60);
+  const hermanos = candidatos.filter((c) => {
+    const p = new URL(c.href).pathname;
+    return p.startsWith(seccion + '/') && p !== ruta && p !== seccion;
+  });
+
+  // Si el filtro no encuentra nada se devuelve vacio, no la lista sin
+  // filtrar: 60 enlaces de menu no ayudan al modelo, lo despistan.
+  return hermanos.slice(0, 60);
 }
 
 /**
