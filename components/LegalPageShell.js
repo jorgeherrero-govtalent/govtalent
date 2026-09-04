@@ -1,14 +1,15 @@
 import Link from 'next/link';
 import Footer from '@/components/Footer';
 import BackCloseButton from '@/components/BackCloseButton';
+import Logo from '@/components/Logo';
 
 export default function LegalPageShell({ title, children }) {
   return (
     <div style={{ minHeight: '100vh', background: '#f4f3ee', display: 'flex', flexDirection: 'column' }}>
       <div style={{ background: '#fff', borderBottom: '.5px solid #e0dfd8', padding: '14px 20px' }}>
         <div style={{ maxWidth: 820, margin: '0 auto', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <Link href="/jobs" style={{ fontWeight: 800, fontSize: 19, textDecoration: 'none', color: '#1a1a18' }}>
-            gov<span style={{ background: '#1d6f5c', color: '#fff', padding: '1px 6px', borderRadius: 5 }}>talent</span>
+          <Link href="/jobs" style={{ display: 'flex', alignItems: 'center' }} aria-label="GovTalent">
+            <Logo height={23} />
           </Link>
           <BackCloseButton />
         </div>
