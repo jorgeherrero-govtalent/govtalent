@@ -74,6 +74,20 @@ function hash(texto) {
   return crypto.createHash('sha256').update(texto).digest('hex');
 }
 
+/**
+ * Misma normalización que la columna generada titulo_norm en Postgres.
+ *
+ * Hace falta porque el título de la página y el que se cargó a mano
+ * difieren en un punto final, y eso bastaba para que el upsert por título
+ * literal creara un duplicado de cada consulta.
+ */
+function claveTitulo(titulo) {
+  return String(titulo || '')
+    .toLowerCase()
+    .replace(/[^a-z0-9áéíóúüñ]+/gi, ' ')
+    .trim();
+}
+
 const MESES = {
   enero: 1, febrero: 2, marzo: 3, abril: 4, mayo: 5, junio: 6,
   julio: 7, agosto: 8, septiembre: 9, octubre: 10, noviembre: 11, diciembre: 12,
@@ -258,21 +272,48 @@ export async function GET(req) {
           nota: buzonOk || !it.buzon ? null : `Buzón propuesto sin verificar: ${it.buzon}`,
         };
 
-        // onConflict por (url_origen, titulo): reejecutar no duplica.
-        // detectada_at NO se toca en el update, y es lo que distingue una
-        // consulta nueva de una que ya habíamos visto.
-        const { data, error } = await supabase
-          .from('consultas_publicas')
-          .upsert(fila, { onConflict: 'url_origen,titulo', ignoreDuplicates: false })
-          .select('id, detectada_at');
+        // Comprobar y escribir, en vez de upsert.
+        //
+        // No se usa upsert porque la clave de conflicto real es
+        // titulo_norm, que es una columna generada: PostgREST no admite
+        // enviarla en el payload. Y hacerlo así permite además contar
+        // bien lo nuevo frente a lo actualizado, que con el upsert salía
+        // mal.
+        //
+        // detectada_at solo se escribe al insertar: es lo que distingue
+        // una consulta nueva de una que ya habíamos visto, y lo que lee
+        // la alerta diaria.
+        const clave = claveTitulo(fila.titulo);
 
-        if (error) {
-          descartadas.push(`${error.message} (${fila.titulo.slice(0, 40)})`);
-        } else if (data?.length) {
-          insertadas += 1;
-          const reciente = new Date(data[0].detectada_at).getTime() > Date.now() - 60_000;
-          if (reciente) nuevas += 1;
-          else actualizadas += 1;
+        const { data: existente, error: eBuscar } = await supabase
+          .from('consultas_publicas')
+          .select('id')
+          .eq('url_origen', f.url)
+          .eq('titulo_norm', clave)
+          .maybeSingle();
+
+        if (eBuscar) {
+          descartadas.push(`${eBuscar.message} (${fila.titulo.slice(0, 40)})`);
+          continue;
+        }
+
+        if (existente) {
+          const { error } = await supabase
+            .from('consultas_publicas')
+            .update(fila)
+            .eq('id', existente.id);
+          if (error) descartadas.push(`${error.message} (${fila.titulo.slice(0, 40)})`);
+          else {
+            insertadas += 1;
+            actualizadas += 1;
+          }
+        } else {
+          const { error } = await supabase.from('consultas_publicas').insert(fila);
+          if (error) descartadas.push(`${error.message} (${fila.titulo.slice(0, 40)})`);
+          else {
+            insertadas += 1;
+            nuevas += 1;
+          }
         }
       }
 
