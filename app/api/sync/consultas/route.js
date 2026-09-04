@@ -124,7 +124,8 @@ Reglas:
 - "referencia" es el código de expediente si lo hay (ej. "DG/72/26"); si no, null.
 - "asunto_requerido" es el formato de asunto exigido si se indica; si no, null.
 - Si un campo no aparece, pon null. NO inventes ningún valor.
-- Si no hay trámites abiertos, devuelve [].
+- Si no hay trámites abiertos, devuelve exactamente: []
+- No expliques nada. No añadas comentarios. Solo el array.
 
 Página (${tipo}) — ${urlOrigen}:
 
@@ -141,24 +142,45 @@ ${texto.slice(0, 60000)}`;
     body: JSON.stringify({
       model: 'claude-sonnet-5',
       max_tokens: 4000,
-      messages: [{ role: 'user', content: prompt }],
+      messages: [
+        { role: 'user', content: prompt },
+        // Se prefija la respuesta con '[' para que el modelo solo pueda
+        // continuar el array. Sin esto, cuando un ministerio no tiene
+        // tramites abiertos responde explicando por que no encuentra
+        // nada, y eso rompe el parseo. Paso con Transformacion Digital.
+        { role: 'assistant', content: '[' },
+      ],
     }),
   });
 
   if (!r.ok) throw new Error(`API ${r.status}: ${(await r.text()).slice(0, 300)}`);
 
   const data = await r.json();
-  const bruto = (data.content || [])
+  const continuacion = (data.content || [])
     .filter((b) => b.type === 'text')
     .map((b) => b.text)
     .join('')
     .replace(/```json|```/g, '')
     .trim();
 
+  // Viene sin el '[' porque se lo dimos nosotros como prefijo.
+  const bruto = '[' + continuacion;
+
   try {
     const parsed = JSON.parse(bruto);
     return Array.isArray(parsed) ? parsed : [];
   } catch {
+    // Red de seguridad: si aun asi llega texto alrededor, se rescata el
+    // primer array antes de dar la fuente por fallida.
+    const m = bruto.match(/\[[\s\S]*\]/);
+    if (m) {
+      try {
+        const parsed = JSON.parse(m[0]);
+        return Array.isArray(parsed) ? parsed : [];
+      } catch {
+        /* cae al error de abajo */
+      }
+    }
     throw new Error(`respuesta no parseable: ${bruto.slice(0, 200)}`);
   }
 }
@@ -210,7 +232,15 @@ export async function GET(req) {
     try {
       const res = await fetch(f.url, {
         cache: 'no-store',
-        headers: { 'user-agent': 'GovTalent/1.0 (+https://govtalent.app; hola@govtalent.app)' },
+        // Cabeceras de navegador ademas del user-agent identificable:
+        // Interior (OpenCMS) devolvia 403 con una peticion demasiado
+        // escueta. Se mantiene el contacto para que cualquier
+        // administrador sepa quien esta pidiendo.
+        headers: {
+          'user-agent': 'Mozilla/5.0 (compatible; GovTalent/1.0; +https://govtalent.app; hola@govtalent.app)',
+          accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+          'accept-language': 'es-ES,es;q=0.9',
+        },
       });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
 
