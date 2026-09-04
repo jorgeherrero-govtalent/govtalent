@@ -29,7 +29,10 @@ export const fetchCache = 'force-no-store';
 
 // Cuántas fuentes por invocación. Cada una puede implicar una llamada al
 // modelo, que tarda; con 60s de techo, cuatro es lo que cabe con holgura.
-const LOTE_POR_DEFECTO = 4;
+const LOTE_POR_DEFECTO = 3;
+// Fichas de detalle por invocacion, ademas de las fuentes. Cada una es
+// otra peticion y otra llamada al modelo, asi que van contadas aparte.
+const FICHAS_POR_DEFECTO = 4;
 const PRESUPUESTO_MS = 50_000;
 
 function admin() {
@@ -68,6 +71,37 @@ function textoUtil(html) {
     .replace(/&oacute;/g, 'ó').replace(/&uacute;/g, 'ú').replace(/&ntilde;/g, 'ñ')
     .replace(/\s+/g, ' ')
     .trim();
+}
+
+/**
+ * Enlaces del cuerpo de la pagina, para las fuentes en modo indice.
+ *
+ * Se sacan del HTML crudo porque textoUtil() elimina las etiquetas y con
+ * ellas los href. Solo se conservan los que cuelgan del mismo dominio: el
+ * resto es navegacion, redes sociales y pie.
+ */
+function enlacesDe(html, urlBase) {
+  const base = new URL(urlBase);
+  const vistos = new Set();
+  const salida = [];
+  const re = /<a[^>]+href=["']([^"']+)["'][^>]*>([\s\S]*?)<\/a>/gi;
+  let m;
+  while ((m = re.exec(html)) !== null) {
+    let href = m[1];
+    const texto = m[2].replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+    if (!texto || texto.length < 15) continue;
+    try {
+      href = new URL(href, urlBase).toString();
+    } catch {
+      continue;
+    }
+    if (new URL(href).hostname !== base.hostname) continue;
+    if (vistos.has(href)) continue;
+    vistos.add(href);
+    salida.push({ texto: texto.slice(0, 200), href });
+    if (salida.length >= 80) break;
+  }
+  return salida;
 }
 
 function hash(texto) {
@@ -111,7 +145,12 @@ function fechaISO(texto) {
  * Inclusión una aplicación con parámetros, Interior una tabla. Un parser
  * por ministerio serían 22 parsers que se rompen con cada rediseño.
  */
-async function extraer(texto, tipo, urlOrigen) {
+async function extraer(texto, tipo, urlOrigen, enlaces) {
+  const bloqueEnlaces = enlaces?.length
+    ? `\n\nEnlaces de la página (usa el href como url_ficha del trámite al que corresponda):\n` +
+      enlaces.map((e) => `- ${e.texto} => ${e.href}`).join('\n')
+    : '';
+
   const prompt = `Extrae los trámites de participación pública ABIERTOS de esta página del Ministerio y registralos con la herramienta.
 
 Reglas:
@@ -125,7 +164,7 @@ Reglas:
 
 Página (${tipo}) — ${urlOrigen}:
 
-${texto.slice(0, 60000)}`;
+${texto.slice(0, 50000)}${bloqueEnlaces}`;
 
   const r = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
@@ -164,6 +203,7 @@ ${texto.slice(0, 60000)}`;
                     referencia: { type: ['string', 'null'] },
                     asunto_requerido: { type: ['string', 'null'] },
                     url_documento: { type: ['string', 'null'] },
+                    url_ficha: { type: ['string', 'null'], description: 'Enlace a la ficha del tramite, si la pagina es un indice.' },
                   },
                   required: ['titulo'],
                 },
@@ -194,6 +234,66 @@ ${texto.slice(0, 60000)}`;
 
   const tramites = uso.input?.tramites;
   return Array.isArray(tramites) ? tramites : [];
+}
+
+/**
+ * Segunda pasada: entra en la ficha de un tramite y saca lo que el indice
+ * no traia. Se usa una herramienta distinta porque aqui solo hay un
+ * tramite, no una lista.
+ */
+async function extraerDetalle(texto, url) {
+  const r = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: {
+      'content-type': 'application/json',
+      'x-api-key': process.env.ANTHROPIC_API_KEY,
+      'anthropic-version': '2023-06-01',
+    },
+    cache: 'no-store',
+    body: JSON.stringify({
+      model: 'claude-sonnet-5',
+      max_tokens: 1500,
+      messages: [
+        {
+          role: 'user',
+          content: `Esta es la ficha de un tramite de participacion publica. Registra sus datos con la herramienta.
+
+Reglas:
+- Copia las fechas TAL CUAL aparecen ("11 de septiembre de 2026").
+- "buzon" es la direccion de correo para enviar aportaciones.
+- Si un campo no aparece, pon null. NO inventes ningun valor.
+
+Ficha - ${url}:
+
+${texto.slice(0, 40000)}`,
+        },
+      ],
+      tools: [
+        {
+          name: 'registrar_detalle',
+          description: 'Registra los datos del tramite descrito en la ficha.',
+          input_schema: {
+            type: 'object',
+            properties: {
+              fecha_inicio: { type: ['string', 'null'] },
+              fecha_fin: { type: ['string', 'null'] },
+              buzon: { type: ['string', 'null'] },
+              referencia: { type: ['string', 'null'] },
+              asunto_requerido: { type: ['string', 'null'] },
+              url_documento: { type: ['string', 'null'] },
+            },
+            required: [],
+          },
+        },
+      ],
+      tool_choice: { type: 'tool', name: 'registrar_detalle' },
+    }),
+  });
+
+  if (!r.ok) throw new Error(`API ${r.status}: ${(await r.text()).slice(0, 200)}`);
+  const data = await r.json();
+  const uso = (data.content || []).find((b) => b.type === 'tool_use');
+  return uso?.input || {};
 }
 
 export async function GET(req) {
@@ -271,7 +371,10 @@ export async function GET(req) {
         continue;
       }
 
-      const items = await extraer(texto, f.tipo, f.url);
+      // En modo indice se le dan tambien los enlaces: el listado solo
+      // trae titulos y el detalle esta dentro de cada ficha.
+      const enlaces = f.modo === 'indice' ? enlacesDe(html, f.url) : null;
+      const items = await extraer(texto, f.tipo, f.url, enlaces);
 
       // Vinculo con el organigrama, si ese ministerio lo tiene cargado.
       const { data: fuenteOrg } = await supabase
@@ -311,6 +414,11 @@ export async function GET(req) {
           url_origen: f.url,
           fecha_captura: new Date().toISOString(),
           nota: buzonOk || !it.buzon ? null : `Buzón propuesto sin verificar: ${it.buzon}`,
+          url_ficha: it.url_ficha || null,
+          // Si falta el plazo y hay ficha, queda pendiente de segunda
+          // pasada. Sin fecha_fin la consulta no sirve: no hay plazo, ni
+          // estado, ni alerta.
+          detalle_pendiente: f.modo === 'indice' && !fin && !!it.url_ficha,
         };
 
         // Comprobar y escribir, en vez de upsert.
@@ -390,6 +498,73 @@ export async function GET(req) {
     }
   }
 
+  // -------------------------------------------------------------------
+  // Segunda pasada: fichas pendientes.
+  //
+  // Va despues de las fuentes y con lo que quede de presupuesto: si no da
+  // tiempo, se quedan para manana. La cola no se pierde porque
+  // detalle_pendiente sigue a true.
+  // -------------------------------------------------------------------
+  const maxFichas = Math.min(Number(searchParams.get('fichas')) || FICHAS_POR_DEFECTO, 10);
+  let fichasHechas = 0;
+  let fichasFallidas = 0;
+
+  if (Date.now() - t0 < PRESUPUESTO_MS) {
+    const { data: pendientes } = await supabase
+      .from('consultas_publicas')
+      .select('id, url_ficha, titulo')
+      .eq('detalle_pendiente', true)
+      .not('url_ficha', 'is', null)
+      .limit(maxFichas);
+
+    for (const p of pendientes || []) {
+      if (Date.now() - t0 > PRESUPUESTO_MS) break;
+
+      try {
+        const res = await fetch(p.url_ficha, {
+          cache: 'no-store',
+          headers: {
+            'user-agent': 'Mozilla/5.0 (compatible; GovTalent/1.0; +https://govtalent.app; hola@govtalent.app)',
+            accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+            'accept-language': 'es-ES,es;q=0.9',
+          },
+        });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+
+        const htmlFicha = await res.text();
+        const textoFicha = textoUtil(htmlFicha);
+        const d = await extraerDetalle(textoFicha, p.url_ficha);
+
+        const fin = fechaISO(d.fecha_fin);
+        const buzonOk = d.buzon && textoFicha.toLowerCase().includes(String(d.buzon).toLowerCase());
+
+        await supabase
+          .from('consultas_publicas')
+          .update({
+            fecha_inicio: fechaISO(d.fecha_inicio),
+            fecha_fin: fin,
+            buzon: buzonOk ? d.buzon : null,
+            referencia: d.referencia || null,
+            asunto_requerido: d.asunto_requerido || null,
+            url_documento: d.url_documento || null,
+            fecha_captura: new Date().toISOString(),
+            // Se marca resuelta aunque no haya fecha: si la ficha tampoco
+            // la trae, reintentarlo cada dia no va a cambiar nada.
+            detalle_pendiente: false,
+          })
+          .eq('id', p.id);
+
+        fichasHechas += 1;
+      } catch (err) {
+        fichasFallidas += 1;
+        await supabase
+          .from('consultas_publicas')
+          .update({ nota: `Ficha no leida: ${String(err.message || err).slice(0, 200)}` })
+          .eq('id', p.id);
+      }
+    }
+  }
+
   const ms = Date.now() - t0;
   const conError = resultados.filter((r) => r.estado === 'error').length;
 
@@ -403,6 +578,8 @@ export async function GET(req) {
       `nuevas ${nuevas}`,
       `actualizadas ${actualizadas}`,
       `sin_cambios ${sinCambios}`,
+      fichasHechas ? `fichas ${fichasHechas}` : null,
+      fichasFallidas ? `fichas_fallidas ${fichasFallidas}` : null,
       conError ? `errores ${conError}` : null,
     ]
       .filter(Boolean)
@@ -410,5 +587,14 @@ export async function GET(req) {
       .slice(0, 2000),
   });
 
-  return NextResponse.json({ lote, nuevas, actualizadas, sin_cambios: sinCambios, resultados, ms });
+  return NextResponse.json({
+    lote,
+    nuevas,
+    actualizadas,
+    sin_cambios: sinCambios,
+    fichas: fichasHechas,
+    fichas_fallidas: fichasFallidas || undefined,
+    resultados,
+    ms,
+  });
 }
