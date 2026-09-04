@@ -13,13 +13,13 @@ const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://govtalent.app';
  */
 export const metadata = {
   metadataBase: new URL(SITE_URL),
-  title: 'GovTalent — Talento para asuntos públicos',
+  title: 'GovTalent — Todo lo que necesitas para crecer',
   description:
-    "La plataforma de talento para profesionales de los asuntos públicos, la política y el gobierno.",
+    'La plataforma todo en uno para profesionales de los asuntos públicos.',
   openGraph: {
     title: 'GovTalent',
     description:
-      'La plataforma all in one del ecosistema profesional de los asuntos públicos.',
+      'La plataforma todo en uno para profesionales de los asuntos públicos.',
     url: SITE_URL,
     siteName: 'GovTalent',
     locale: 'es_ES',
@@ -30,7 +30,7 @@ export const metadata = {
     card: 'summary_large_image',
     title: 'GovTalent',
     description:
-      'La plataforma all in one del ecosistema profesional de los asuntos públicos.',
+      'La plataforma todo en uno para profesionales de los asuntos públicos.',
     images: ['/og.png'],
   },
 };
