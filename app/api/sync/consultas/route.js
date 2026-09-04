@@ -83,7 +83,7 @@ function textoUtil(html) {
 function enlacesDe(html, urlBase) {
   const base = new URL(urlBase);
   const vistos = new Set();
-  const salida = [];
+  const candidatos = [];
   const re = /<a[^>]+href=["']([^"']+)["'][^>]*>([\s\S]*?)<\/a>/gi;
   let m;
   while ((m = re.exec(html)) !== null) {
@@ -98,10 +98,23 @@ function enlacesDe(html, urlBase) {
     if (new URL(href).hostname !== base.hostname) continue;
     if (vistos.has(href)) continue;
     vistos.add(href);
-    salida.push({ texto: texto.slice(0, 200), href });
-    if (salida.length >= 80) break;
+    candidatos.push({ texto: texto.slice(0, 200), href });
   }
-  return salida;
+
+  // Solo los que cuelgan de la misma seccion que la fuente.
+  //
+  // Antes se cogian los 80 primeros del HTML y se los comia entero el
+  // menu lateral del ministerio: idiomas, organigrama, secretarias. Los
+  // enlaces de los tramites, que van despues en el documento, no
+  // entraban nunca, y por eso url_ficha llegaba siempre a null.
+  const seccion = base.pathname.replace(/\/$/, '');
+  const hijos = candidatos.filter(
+    (c) => new URL(c.href).pathname.startsWith(seccion + '/') && new URL(c.href).pathname !== seccion
+  );
+
+  // Si el filtro por seccion no encuentra nada, se devuelven los
+  // candidatos sin filtrar: hay webs que cuelgan las fichas de otra ruta.
+  return (hijos.length ? hijos : candidatos).slice(0, 60);
 }
 
 function hash(texto) {
@@ -165,7 +178,15 @@ function hoyISO() {
 }
 
 /**
- * Extrae los trámites abiertos de la página.
+ * Extrae los tramites vigentes de la pagina.
+ *
+ * Se le pide filtrar por fecha en vez de devolver todo y filtrar aqui: la
+ * pagina de audiencia del MTDFP tiene unos setenta tramites y la
+ * respuesta se cortaba por max_tokens en mitad del bloque tool_use, con
+ * lo que el JSON quedaba invalido y la fuente devolvia cero. El codigo
+ * revalida la vigencia despues, asi que un error del modelo no cuela.
+ *
+ * Extrae los tramites abiertos de la pagina.
  *
  * Se hace con el modelo y no con expresiones regulares porque cada
  * ministerio maqueta distinto: Sanidad usa listas anidadas, Trabajo e
@@ -184,12 +205,15 @@ Es obligatorio: sin url_ficha no se puede consultar el detalle.\n\n` +
 
   const prompt = `Extrae los trámites de participación pública ABIERTOS de esta página del Ministerio y registralos con la herramienta.
 
+Hoy es ${hoyISO()}.
+
 Reglas:
-- Extrae TODOS los trámites que aparezcan, abiertos y cerrados. El filtro
-  por vigencia lo hace el sistema comparando la fecha, no tú.
-- IMPORTANTE: algunas webs escriben "Abierta hasta el ..." en todos los
-  trámites aunque hayan vencido hace años. No te fies de esa etiqueta:
-  limitate a copiar la fecha.
+- Registra SOLO los trámites cuya fecha de fin de plazo sea igual o
+  posterior a hoy. Los vencidos no interesan.
+- NO te fies de etiquetas como "Abierta hasta el ...": algunas webs las
+  ponen en todos los trámites, incluidos los de hace años. Compara la
+  fecha con la de hoy.
+- Si un trámite no tiene fecha de fin visible, inclúyelo igualmente.
 - Copia las fechas TAL CUAL aparecen ("11 de septiembre de 2026").
 - "buzon" es la dirección de correo para enviar aportaciones.
 - "referencia" es el código de expediente si lo hay (ej. "DG/72/26"); si no, null.
@@ -211,7 +235,9 @@ ${texto.slice(0, 15000)}`;
     cache: 'no-store',
     body: JSON.stringify({
       model: 'claude-sonnet-5',
-      max_tokens: 4000,
+      // Holgura: si un ministerio publica muchos tramites vigentes, una
+      // respuesta cortada deja el JSON invalido y la fuente en cero.
+      max_tokens: 8000,
       messages: [{ role: 'user', content: prompt }],
       // Se fuerza la salida con una herramienta de esquema fijo en vez de
       // pedir JSON en el prompt. claude-sonnet-5 no admite prefijar la
