@@ -131,6 +131,8 @@ export default function RegulatorioPage() {
     actividadTotal: null,
     boeSemana: null,
     boeMes: null,
+    consultasAbiertas: null,
+    consultasUrgentes: null,
   });
 
   useEffect(() => {
@@ -166,7 +168,19 @@ export default function RegulatorioPage() {
         .from('boe_documents')
         .select('id', { count: 'exact', head: true })
         .gte('fecha_publicacion', new Date(Date.now() - 30 * 86400000).toISOString().slice(0, 10)),
-    ]).then(([exp, ven, proc, tram, esT, esV, actTotal, boeH, boeM]) => {
+      // Se cuenta sobre consultas_estado y no sobre la tabla: la vista ya
+      // calcula el estado y los dias restantes a partir de fecha_fin, y
+      // repetir aqui esa logica es garantizar que un dia dejen de
+      // coincidir.
+      supabase
+        .from('consultas_estado')
+        .select('id', { count: 'exact', head: true })
+        .in('estado', ['abierta', 'urgente']),
+      supabase
+        .from('consultas_estado')
+        .select('id', { count: 'exact', head: true })
+        .eq('estado', 'urgente'),
+    ]).then(([exp, ven, proc, tram, esT, esV, actTotal, boeH, boeM, consA, consU]) => {
       setCifras({
         expedientes: exp.count ?? null,
         ventanas: ven.count ?? null,
@@ -177,6 +191,8 @@ export default function RegulatorioPage() {
         actividadTotal: actTotal.count ?? null,
         boeSemana: boeH.count ?? null,
         boeMes: boeM.count ?? null,
+        consultasAbiertas: consA.count ?? null,
+        consultasUrgentes: consU.count ?? null,
       });
     });
   }, []);
@@ -368,8 +384,24 @@ export default function RegulatorioPage() {
             { n: cifras.boeMes, label: 'últimos 30 días' },
           ]}
         />
+        {/* La cifra destacada es la que vence pronto, no el total.
+            Es el unico modulo del hub que expresa urgencia: los otros
+            tres dan volumen, y aqui lo que importa es que quedan dias
+            para poder decir algo. */}
+        <ModuloCard
+          href="/regulatorio/consultas"
+          icon="message-2"
+          titulo="Consultas públicas"
+          fuente="Ministerios"
+          descripcion="Consulta previa y audiencia pública, con plazos y buzón de aportaciones."
+          cta="Explorar consultas"
+          cifras={[
+            { n: cifras.consultasUrgentes, label: 'vencen en 7 días', destacada: true },
+            { n: cifras.consultasAbiertas, label: 'abiertas' },
+          ]}
+        />
       </Bloque>
-      <Proximamente items={['Consultas públicas de los ministerios', 'Senado']} />
+      <Proximamente items={['Senado']} />
     </div>
   );
 }
