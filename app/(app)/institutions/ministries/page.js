@@ -917,6 +917,11 @@ function organigramaDe(ministryName, organigramas) {
   return organigramas.find((o) => ministryMatches(key, normalizeMinistry(o.ministerio))) || null;
 }
 
+// Singular/plural sin repetir el ternario en cada linea de la tarjeta.
+function cuenta(n, singular, plural) {
+  return `${n} ${n === 1 ? singular : plural}`;
+}
+
 function MinisteriosTab({ members, officials, organigramas }) {
   const [search, setSearch] = useState('');
   const [orden, setOrden] = useState('alfabetico');
@@ -1000,8 +1005,8 @@ function MinisteriosTab({ members, officials, organigramas }) {
     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(210px, 1fr))', gap: 10 }}>
       {ministerios.map((m) => (
         /* Mismo patron que las direcciones generales de la Comision
-           Europea: siglas, nombre y recuento arriba; linea separadora;
-           titular, cifras de estructura y enlace de accion abajo.
+           Europea: siglas y nombre arriba, linea separadora, y debajo el
+           titular, las cifras y el enlace de accion.
            Con organigrama cargado la tarjeta lleva a la estructura del
            departamento; sin el, a la ficha del titular. */
         <Link
@@ -1030,9 +1035,6 @@ function MinisteriosTab({ members, officials, organigramas }) {
             </div>
             <div style={{ minWidth: 0 }}>
               <div style={{ fontSize: 12.5, fontWeight: 600, lineHeight: 1.3 }}>{m.ministry_name}</div>
-              <div style={{ fontSize: 10.5, color: '#999', marginTop: 1 }}>
-                {m.equipo} {m.equipo === 1 ? 'persona' : 'personas'}
-              </div>
             </div>
           </div>
 
@@ -1053,18 +1055,32 @@ function MinisteriosTab({ members, officials, organigramas }) {
               {m.full_name}
             </div>
 
-            {/* Solo los 5 ministerios con organigrama cargado tienen
-                cifras de estructura; en el resto la linea no aparece en
-                lugar de mostrar ceros. */}
             {m.org ? (
               <>
                 <div>
-                  <i className="ti ti-layout-grid" style={{ fontSize: 12, verticalAlign: -1, color: '#aaa' }}></i>{' '}
-                  {m.org.n_unidades} unidades · {m.org.subdirecciones} subdirecciones
+                  <i className="ti ti-sitemap" style={{ fontSize: 12, verticalAlign: -1, color: '#aaa' }}></i>{' '}
+                  {cuenta(m.org.secretarias, 'secretaría', 'secretarías')} ·{' '}
+                  {cuenta(m.org.subsecretarias, 'subsecretaría', 'subsecretarías')}
+                </div>
+                <div>
+                  <i className="ti ti-building-bank" style={{ fontSize: 12, verticalAlign: -1, color: '#aaa' }}></i>{' '}
+                  {cuenta(m.org.organismos, 'organismo dependiente', 'organismos dependientes')}
+                </div>
+                <div>
+                  <i className="ti ti-address-book" style={{ fontSize: 12, verticalAlign: -1, color: '#aaa' }}></i>{' '}
+                  {cuenta(m.org.contactos, 'contacto', 'contactos')}
                 </div>
                 <div style={{ color: '#6d5aef', marginTop: 4 }}>Ver organigrama →</div>
               </>
-            ) : null}
+            ) : (
+              /* Sin organigrama cargado no hay cifras de estructura: se
+                 mantiene el recuento de personas para que la tarjeta no
+                 quede coja. */
+              <div>
+                <i className="ti ti-users" style={{ fontSize: 12, verticalAlign: -1, color: '#aaa' }}></i>{' '}
+                {cuenta(m.equipo, 'persona en el directorio', 'personas en el directorio')}
+              </div>
+            )}
           </div>
         </Link>
       ))}
@@ -1096,22 +1112,46 @@ export default function MinistriesDirectoryPage() {
       // se agregan aqui: son unos cientos de filas y sale mas barato que
       // mantener una vista agregada.
       supabase.from('organigrama_fuentes').select('id, ministerio, slug, n_unidades, fecha_documento'),
-      supabase.from('organigrama_unidades').select('fuente_id, categoria'),
+      supabase.from('organigrama_unidades').select('fuente_id, categoria, telefono'),
     ]).then(([membersRes, officialsRes, fuentesRes, unidadesRes]) => {
       setMembers(membersRes.data || []);
       setOfficials(officialsRes.data || []);
 
-      const subdirecciones = new Map();
+      // Criterios de recuento, explicitos para poder cambiarlos de un sitio:
+      //   secretarias    = secretarias de Estado + secretarias generales
+      //   subsecretarias = subsecretarias
+      //   organismos     = organismos autonomos, agencias, entidades,
+      //                    sociedades y fondos (cada ministerio los nombra
+      //                    distinto en su leyenda; aqui se unifican)
+      //   contactos      = unidades con telefono publicado
+      const ORGANISMO = new Set([
+        'organismo_autonomo',
+        'organismo_publico',
+        'agencia_estatal',
+        'entidad_derecho_publico',
+        'entidad_gestora',
+        'sociedad_mercantil',
+        'otro_organismo',
+        'fondo',
+      ]);
+
+      const conteo = new Map();
       for (const u of unidadesRes.data || []) {
-        if (u.categoria === 'subdireccion_general') {
-          subdirecciones.set(u.fuente_id, (subdirecciones.get(u.fuente_id) || 0) + 1);
-        }
+        const c = conteo.get(u.fuente_id) || { secretarias: 0, subsecretarias: 0, organismos: 0, contactos: 0 };
+        if (u.categoria === 'secretaria_estado' || u.categoria === 'secretaria_general') c.secretarias += 1;
+        else if (u.categoria === 'subsecretaria') c.subsecretarias += 1;
+        else if (ORGANISMO.has(u.categoria)) c.organismos += 1;
+        if (u.telefono) c.contactos += 1;
+        conteo.set(u.fuente_id, c);
       }
 
       setOrganigramas(
         (fuentesRes.data || [])
           .filter((f) => f.slug)
-          .map((f) => ({ ...f, subdirecciones: subdirecciones.get(f.id) || 0 }))
+          .map((f) => ({
+            ...f,
+            ...(conteo.get(f.id) || { secretarias: 0, subsecretarias: 0, organismos: 0, contactos: 0 }),
+          }))
       );
     });
   }, []);
