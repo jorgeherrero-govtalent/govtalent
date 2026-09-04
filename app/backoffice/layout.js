@@ -1,146 +1,232 @@
 'use client';
 
-import Link from 'next/link';
-import { usePathname } from 'next/navigation';
 import { useEffect, useState } from 'react';
+import { usePathname, useRouter } from 'next/navigation';
+import Link from 'next/link';
+import { createClient } from '@/lib/supabase/client';
+import Toast from '@/components/Toast';
+import OnboardingModal from '@/components/OnboardingModal';
+import PublicHeader from '@/components/PublicHeader';
+import Footer from '@/components/Footer';
+import MenuUsuario from '@/components/MenuUsuario';
+import BarraMovil from '@/components/BarraMovil';
+import BuscadorGlobal from '@/components/BuscadorGlobal';
+import Logo from '@/components/Logo';
 
-const NAV = [
-  { href: '/backoffice', label: 'Dashboard', icon: 'ti-layout-dashboard' },
-  { href: '/backoffice/organizaciones', label: 'Organizaciones', icon: 'ti-building' },
-  { href: '/backoffice/reclamaciones', label: 'Reclamaciones', icon: 'ti-shield-check' },
-  { href: '/backoffice/usuarios', label: 'Usuarios', icon: 'ti-users' },
-  { href: '/backoffice/radar', label: 'Radar', icon: 'ti-radar-2' },
-];
-
-export default function BackofficeLayout({ children }) {
+export default function AppLayout({ children }) {
+  const supabase = createClient();
   const pathname = usePathname();
-  const [collapsed, setCollapsed] = useState(false);
-  const [ready, setReady] = useState(false);
+  const router = useRouter();
+  const [user, setUser] = useState(null);
+  const [authChecked, setAuthChecked] = useState(false);
+  const [misOrgs, setMisOrgs] = useState([]);
+  const [tieneOfertas, setTieneOfertas] = useState(false);
+  const [novedades, setNovedades] = useState(0);
+  const [needsOnboarding, setNeedsOnboarding] = useState(false);
 
   useEffect(() => {
-    const saved = localStorage.getItem('gt_backoffice_collapsed');
-    if (saved === '1') setCollapsed(true);
-    setReady(true);
-  }, []);
+    let active = true;
+    async function load() {
+      const { data } = await supabase.auth.getUser();
+      if (!active) return;
+      if (!data.user) {
+        setAuthChecked(true);
+        return;
+      }
+      const { data: profile } = await supabase
+        .from('users')
+        .select('*')
+        .eq('id', data.user.id)
+        .single();
+      if (!active) return;
+      setUser(profile);
+      setAuthChecked(true);
+      setNeedsOnboarding(!!profile && !profile.onboarding_completed);
 
-  function toggleCollapsed() {
-    setCollapsed((prev) => {
-      localStorage.setItem('gt_backoffice_collapsed', !prev ? '1' : '0');
-      return !prev;
-    });
+      // Todas, no solo una: el menú es un selector y con .limit(1) solo
+      // aparecería la primera de quien pertenezca a varias.
+      const { data: membresias } = await supabase
+        .from('organization_members')
+        .select('organization_id, organizations(id, slug, name, logo_url, plan, plan_status, trial_ends_at, is_founding_member)')
+        .eq('user_id', data.user.id);
+      if (active) {
+        const orgs = (membresias || []).map((m) => m.organizations).filter(Boolean);
+        setMisOrgs(orgs);
+
+        // Si ya has publicado, el menú no te invita a publicar tu primera
+        // oferta: sonaría a que nadie mira lo que haces.
+        if (orgs.length) {
+          const { count } = await supabase
+            .from('jobs')
+            .select('id', { count: 'exact', head: true })
+            .in('organization_id', orgs.map((o) => o.id));
+          if (active) setTieneOfertas((count || 0) > 0);
+        }
+      }
+
+      // El punto de la barra: cuántas novedades hay sin ver. Solo cuenta,
+      // no trae las filas, para no cargar la barra en cada navegación.
+      const { count } = await supabase
+        .from('my_follow_events')
+        .select('event_id', { count: 'exact', head: true })
+        .eq('es_nueva', true);
+      if (active) setNovedades(count || 0);
+    }
+    load();
+    return () => {
+      active = false;
+    };
+  }, [pathname]);
+
+  async function signOut() {
+    await supabase.auth.signOut();
+    router.push('/login');
   }
 
-  const sidebarWidth = collapsed ? 64 : 216;
+  function handleOnboardingComplete() {
+    // Recarga completa para que toda la app (nav incluida) refleje
+    // los nuevos datos de perfil sin tener que replicar el estado a mano.
+    window.location.reload();
+  }
+
 
   return (
-    <div style={{ minHeight: '100vh', display: 'flex', background: '#f4f3ee' }}>
-      <aside
-        style={{
-          width: sidebarWidth,
-          flexShrink: 0,
-          background: '#fff',
-          borderRight: '.5px solid #e0dfd8',
-          padding: collapsed ? '18px 10px' : '18px 14px',
-          display: 'flex',
-          flexDirection: 'column',
-          gap: 2,
-          transition: ready ? 'width .15s ease' : 'none',
-          position: 'sticky',
-          top: 0,
-          height: '100vh',
-        }}
-      >
-        <div
-          style={{
-            padding: collapsed ? '0 0 20px' : '0 6px 20px',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: collapsed ? 'center' : 'space-between',
-          }}
-        >
-          {!collapsed && (
-            <div>
-              <div style={{ fontSize: 16, fontWeight: 800, color: '#1a1a18' }}>
-                gov<span style={{ background: '#1d6f5c', color: '#fff', padding: '1px 6px', borderRadius: 5 }}>talent</span>
-              </div>
-              <div style={{ fontSize: 10, fontWeight: 700, color: '#6d5aef', letterSpacing: '.05em', marginTop: 3 }}>
-                BACKOFFICE
-              </div>
-            </div>
-          )}
-          <button
-            onClick={toggleCollapsed}
-            aria-label={collapsed ? 'Expandir menú' : 'Contraer menú'}
-            style={{
-              width: 26,
-              height: 26,
-              borderRadius: 7,
-              border: '.5px solid #e0dfd8',
-              background: '#fff',
-              color: '#888',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              flexShrink: 0,
-            }}
+    <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
+      {authChecked && !user ? (
+        <PublicHeader />
+      ) : (
+        <nav className="nav">
+        {/* En móvil los módulos bajan a BarraMovil y aquí solo quedan
+            el logotipo, la campana y el menú. Antes se desbordaban: los
+            elementos llevan flex-shrink:0 y no se encogen. */}
+        <style>{`
+          @media (max-width: 720px) {
+            .nav-inner { padding: 0 14px; gap: 2px; overflow: visible; }
+            /* Los módulos los cubre BarraMovil abajo. El buscador no:
+               es lo único de la barra que no está duplicado ahí. */
+            .nav-inner .ni-modulo { display: none; }
+            .nav-inner .nav-sp { flex: 0; }
+          }
+        `}</style>
+        <div className="nav-inner">
+          <Link href="/" className="nav-logo" aria-label="GovTalent, ir al inicio">
+            <Logo height={24} />
+          </Link>
+
+          {/* Pegado al logo, como en LinkedIn: es lo primero que se
+              busca con la vista y no compite con la navegación, que se
+              va al otro extremo. */}
+          <BuscadorGlobal />
+
+          {/* Con el buscador a la izquierda, los módulos se empujan a la
+              derecha. Antes iban seguidos del logo y el hueco quedaba al
+              final. */}
+          <div className="nav-sp"></div>
+          {/* El orden dice de qué va el producto: primero lo que se
+              mueve, luego quién decide, después lo tuyo, y el empleo al
+              final. Organizaciones pasa a vivir dentro de Instituciones.
+
+              Regulatorio se marca activo también en sus rutas hijas para
+              que la barra no se apague al entrar en un expediente. */}
+          <Link
+            href="/regulatorio"
+            className={`ni ni-modulo ${
+              pathname.startsWith('/regulatorio') ||
+              pathname.startsWith('/initiatives') ||
+              pathname.startsWith('/procedures') ||
+              pathname.startsWith('/congreso')
+                ? 'on'
+                : ''
+            }`}
           >
-            <i className={`ti ${collapsed ? 'ti-layout-sidebar-right-expand' : 'ti-layout-sidebar-left-expand'}`} style={{ fontSize: 14 }}></i>
-          </button>
+            <i className="ti ti-timeline-event"></i>Regulatorio
+          </Link>
+
+          <Link
+            href="/institutions"
+            className={`ni ni-modulo ${
+              pathname.startsWith('/institutions') ||
+              (pathname.startsWith('/organizations') && !pathname.includes('admin'))
+                ? 'on'
+                : ''
+            }`}
+          >
+            <i className="ti ti-building-bank"></i>Instituciones
+          </Link>
+
+          {/* Seguimiento deja de ser pestaña y pasa a la campana de la
+              derecha: como pestaña competía con Proyectos —las dos decían
+              "aquí está lo que te importa"— y una campana no compite con
+              nada. La ruta /seguimiento sigue existiendo. */}
+          <Link href="/projects" className={`ni ni-modulo ${pathname.startsWith('/projects') ? 'on' : ''}`}>
+            <i className="ti ti-folder"></i>Proyectos
+          </Link>
+
+          <Link href="/jobs" className={`ni ni-modulo ${pathname.startsWith('/jobs') ? 'on' : ''}`}>
+            <i className="ti ti-briefcase"></i>Empleos
+          </Link>
+
+          {/* Todo lo que ha pasado, tenga proyecto o no. Con el número y
+              no un punto: saber que hay tres es distinto de saber que hay
+              algo. */}
+          <Link
+            href="/seguimiento"
+            className={`ni ni-icono ${pathname.startsWith('/seguimiento') ? 'on' : ''}`}
+            aria-label={novedades > 0 ? `Avisos, ${novedades} sin leer` : 'Avisos'}
+            title="Avisos"
+          >
+            <span style={{ position: 'relative', display: 'inline-flex' }}>
+              <i className="ti ti-bell"></i>
+              {novedades > 0 && (
+                <span
+                  style={{
+                    position: 'absolute',
+                    top: -6,
+                    left: 11,
+                    minWidth: 15,
+                    height: 15,
+                    padding: '0 4px',
+                    borderRadius: 20,
+                    background: '#6d5aef',
+                    color: '#fff',
+                    fontSize: 10,
+                    lineHeight: '15px',
+                    textAlign: 'center',
+                    border: '1.5px solid #fff',
+                    fontWeight: 600,
+                  }}
+                >
+                  {novedades > 9 ? '9+' : novedades}
+                </span>
+              )}
+            </span>
+          </Link>
+
+          {/* "Mi organización" y "Para empresas" desaparecen de la
+              barra: eran dos elementos que hacían lo mismo según si
+              tenías organización o no, y ahora viven dentro del menú
+              junto al resto de contextos. */}
+
+          <MenuUsuario
+            user={user}
+            organizaciones={misOrgs}
+            enOrganizacion={pathname.includes('/organizations/admin') ? misOrgs[0]?.slug : null}
+            tieneOfertas={tieneOfertas}
+            onSignOut={signOut}
+          />
         </div>
+      </nav>
+      )}
 
-        {NAV.map((item) => {
-          const active = pathname === item.href || (item.href !== '/backoffice' && pathname.startsWith(item.href));
-          return (
-            <Link
-              key={item.href}
-              href={item.href}
-              title={collapsed ? item.label : undefined}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: collapsed ? 'center' : 'flex-start',
-                gap: 9,
-                padding: collapsed ? '9px' : '9px 10px',
-                borderRadius: 8,
-                color: active ? '#1d6f5c' : '#666',
-                background: active ? '#f0f8f5' : 'transparent',
-                fontWeight: active ? 600 : 500,
-                textDecoration: 'none',
-                fontSize: 13,
-              }}
-            >
-              <i className={`ti ${item.icon}`} style={{ fontSize: 15, flexShrink: 0 }}></i>
-              {!collapsed && item.label}
-            </Link>
-          );
-        })}
+      <BarraMovil />
 
-        <div style={{ flex: 1 }} />
+      <main style={{ flex: 1 }}>{children}</main>
+      <Footer />
+      <Toast />
 
-        <Link
-          href="/jobs"
-          title={collapsed ? 'Volver a GovTalent' : undefined}
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: collapsed ? 'center' : 'flex-start',
-            gap: 9,
-            padding: collapsed ? '9px' : '9px 10px',
-            borderRadius: 8,
-            color: '#999',
-            textDecoration: 'none',
-            fontSize: 12.5,
-            borderTop: '.5px solid #e0dfd8',
-            marginTop: 8,
-            paddingTop: 14,
-          }}
-        >
-          <i className="ti ti-arrow-back" style={{ fontSize: 14, flexShrink: 0 }}></i>
-          {!collapsed && 'Volver a GovTalent'}
-        </Link>
-      </aside>
-
-      <main style={{ flex: 1, padding: '26px 32px', minWidth: 0 }}>{children}</main>
+      {needsOnboarding && user && pathname !== '/organizations/new' && (
+        <OnboardingModal userId={user.id} onComplete={handleOnboardingComplete} />
+      )}
     </div>
   );
 }
