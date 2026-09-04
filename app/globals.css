@@ -6,8 +6,7 @@ a{color:inherit}
 
 /* ── LOGIN / AUTH ── */
 .login-bar{display:flex;align-items:center;justify-content:space-between;padding:14px 32px}
-.logo{font-size:19px;font-weight:700;color:#1a1a18}
-.logo span{background:#1d6f5c;color:#fff;padding:1px 7px;border-radius:5px}
+.logo{display:inline-flex;align-items:center;line-height:0}
 .login-body{display:flex;align-items:center;justify-content:center;padding:20px;min-height:calc(100vh - 52px)}
 .split{display:flex;max-width:900px;width:100%;border-radius:20px;overflow:hidden;box-shadow:0 4px 32px rgba(0,0,0,.09)}
 .sl-left{flex:1;background:linear-gradient(160deg,#0a2e22 0%,#0f3d2e 45%,#1d6f5c 100%);padding:48px 40px;color:#fff;position:relative;overflow:hidden}
@@ -76,8 +75,7 @@ a{color:inherit}
 /* ── APP SHELL ── */
 .nav{background:#fff;border-bottom:1px solid #e5e4de;position:sticky;top:0;z-index:200;height:64px}
 .nav-inner{max-width:1200px;margin:0 auto;height:100%;padding:0 24px;display:flex;align-items:center;gap:4px;overflow-x:auto}
-.nav-logo{font-size:19px;font-weight:800;margin-right:14px;cursor:pointer;flex-shrink:0;text-decoration:none;color:#1a1a18}
-.nav-logo span{background:#1d6f5c;color:#fff;padding:1px 7px;border-radius:5px}
+.nav-logo{display:flex;align-items:center;margin-right:14px;cursor:pointer;flex-shrink:0;text-decoration:none;line-height:0}
 /* Pastilla, no pestaña. El icono va en línea con la etiqueta y no
    encima: apilado ocupa 46px de alto y no cabe junto al buscador.
    El estado activo es el mismo que el de Seguimiento —fondo lavanda y
@@ -339,15 +337,14 @@ a{color:inherit}
 
 .pub-header{background:#fff;border-bottom:.5px solid #e0dfd8;padding:14px 20px}
 .pub-header-inner{margin:0 auto;display:flex;align-items:center;justify-content:space-between;gap:12px}
-.pub-header-logo{font-weight:800;font-size:19px;text-decoration:none;color:#1a1a18}
-.pub-header-logo span{background:#1d6f5c;color:#fff;padding:1px 6px;border-radius:5px}
+.pub-header-logo{display:flex;align-items:center;text-decoration:none;line-height:0}
 .pub-header-tagline{font-size:11.5px;color:#888;font-weight:500;margin-top:2px;max-width:380px}
 .pub-header-link{font-size:13px;color:#1d6f5c;text-decoration:none;font-weight:500;white-space:nowrap;flex-shrink:0}
 
 @media (max-width: 480px){
   .pub-header{padding:12px 16px}
   .pub-header-tagline{display:none}
-  .pub-header-logo{font-size:17px}
+  .pub-header-logo svg{height:21px}
 }
 
 .job-page-wrap{padding:0 20px 60px}
