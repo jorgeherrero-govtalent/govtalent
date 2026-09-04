@@ -117,6 +117,45 @@ function enlacesDe(html, urlBase) {
   return (hijos.length ? hijos : candidatos).slice(0, 60);
 }
 
+/**
+ * Casa un titulo con el enlace cuyo texto mas se le parece.
+ *
+ * Respaldo para cuando el modelo no devuelve url_ficha: se comparan las
+ * palabras significativas del titulo con las del texto del enlace y se
+ * acepta a partir de la mitad en comun. Por debajo es ruido.
+ */
+function enlaceParecido(titulo, enlaces) {
+  if (!titulo || !enlaces?.length) return null;
+  const palabras = (t) =>
+    new Set(
+      String(t)
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .toLowerCase()
+        .replace(/[^a-z0-9 ]/g, ' ')
+        .split(/\s+/)
+        .filter((w) => w.length > 3)
+    );
+
+  const objetivo = palabras(titulo);
+  if (objetivo.size < 3) return null;
+
+  let mejor = null;
+  let mejorRatio = 0;
+  for (const e of enlaces) {
+    const otras = palabras(e.texto);
+    if (!otras.size) continue;
+    let comunes = 0;
+    for (const w of objetivo) if (otras.has(w)) comunes += 1;
+    const ratio = comunes / objetivo.size;
+    if (ratio > mejorRatio) {
+      mejorRatio = ratio;
+      mejor = e.href;
+    }
+  }
+  return mejorRatio >= 0.5 ? mejor : null;
+}
+
 function hash(texto) {
   return crypto.createHash('sha256').update(texto).digest('hex');
 }
@@ -258,6 +297,12 @@ ${texto.slice(0, 15000)}`;
                   type: 'object',
                   properties: {
                     titulo: { type: 'string' },
+                    tipo: {
+                      type: ['string', 'null'],
+                      enum: ['consulta_previa', 'audiencia_publica', null],
+                      description:
+                        'consulta_previa si es previa a redactar la norma, audiencia_publica si el texto ya esta redactado. Deducelo del titulo y del texto del tramite.',
+                    },
                     fecha_inicio: { type: ['string', 'null'] },
                     fecha_fin: { type: ['string', 'null'] },
                     buzon: { type: ['string', 'null'] },
@@ -384,8 +429,12 @@ export async function GET(req) {
     .select('*')
     .eq('activo', true)
     .lt('intentos_fallidos', 3)
-    .order('prioridad', { ascending: true })
+    // Antiguedad primero y prioridad como desempate. Al reves, una fuente
+    // nueva con prioridad baja no entraba nunca: las de prioridad alta se
+    // llevaban todos los turnos y las recien anadidas se quedaban con
+    // ultima_captura a null indefinidamente.
     .order('ultima_captura', { ascending: true, nullsFirst: true })
+    .order('prioridad', { ascending: true })
     .limit(lote);
 
   if (eF) {
@@ -496,7 +545,12 @@ export async function GET(req) {
         const fila = {
           ministerio: f.ministerio,
           fuente_id: fuenteOrg?.id ?? null,
-          tipo: f.tipo,
+          // El tipo que dice el tramite manda sobre el de la fuente:
+          // MITECO publica consultas previas dentro de su listado de
+          // audiencias, y salian mal clasificadas. La fuente queda de
+          // respaldo cuando el modelo no lo determina.
+          tipo:
+            it.tipo === 'consulta_previa' || it.tipo === 'audiencia_publica' ? it.tipo : f.tipo,
           titulo: String(it.titulo).replace(/\s+/g, ' ').trim(),
           referencia: it.referencia || null,
           fecha_inicio: inicio,
@@ -507,14 +561,20 @@ export async function GET(req) {
           url_origen: f.url,
           fecha_captura: new Date().toISOString(),
           nota: buzonOk || !it.buzon ? null : `Buzón propuesto sin verificar: ${it.buzon}`,
-          url_ficha: it.url_ficha || null,
+          url_ficha: it.url_ficha || enlaceParecido(it.titulo, enlaces) || null,
           // Si falta el plazo y hay ficha, queda pendiente de segunda
           // pasada. Sin fecha_fin la consulta no sirve: no hay plazo, ni
           // estado, ni alerta.
           // En modo indice la ficha aporta buzon y documentos aunque el
           // listado ya traiga la fecha, asi que se encola siempre que
           // falte alguno de los dos.
-          detalle_pendiente: f.modo === 'indice' && !!it.url_ficha && (!buzonOk || !it.url_documento),
+          //
+          // Si el modelo no supo asociar el enlace, se intenta casar por
+          // parecido de titulo con los enlaces de la pagina: MITECO
+          // devolvia siempre url_ficha a null y por eso no encolaba
+          // ninguna ficha ni conseguia un solo buzon.
+          detalle_pendiente:
+            f.modo === 'indice' && !!(it.url_ficha || enlaceParecido(it.titulo, enlaces)) && (!buzonOk || !it.url_documento),
         };
 
         // Comprobar y escribir, en vez de upsert.
