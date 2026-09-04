@@ -419,6 +419,22 @@ export default function GovernmentMemberProfilePage() {
   }, [member, officials, vicepresidents]);
 
 
+  // Los hooks van todos antes de cualquier return: React exige el mismo
+  // numero y orden en cada render. Este useMemo estaba despues de los
+  // returns de notFound y !member, y eso provocaba el error #310.
+  const arbolOrg = useMemo(() => construirArbolOrg(orgUnidades), [orgUnidades]);
+  const raizOrg = arbolOrg[0] || null;
+  const nSubdirecciones = orgUnidades.filter((u) => u.categoria === 'subdireccion_general').length;
+
+  function alternarOrg(id) {
+    setOrgAbiertos((prev) => {
+      const s = new Set(prev);
+      if (s.has(id)) s.delete(id);
+      else s.add(id);
+      return s;
+    });
+  }
+
   if (notFound) {
     return (
       <div className="sec">
@@ -449,19 +465,6 @@ export default function GovernmentMemberProfilePage() {
     objectFit: 'cover',
     background: '#ece9e2',
   };
-
-  const arbolOrg = useMemo(() => construirArbolOrg(orgUnidades), [orgUnidades]);
-  const raizOrg = arbolOrg[0] || null;
-  const nSubdirecciones = orgUnidades.filter((u) => u.categoria === 'subdireccion_general').length;
-
-  function alternarOrg(id) {
-    setOrgAbiertos((prev) => {
-      const s = new Set(prev);
-      if (s.has(id)) s.delete(id);
-      else s.add(id);
-      return s;
-    });
-  }
 
   const tabs = [
     { id: 'trayectoria', label: 'Trayectoria' },
