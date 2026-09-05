@@ -255,6 +255,7 @@ export default function Home() {
         { data: sec },
         { data: porTema },
         { data: sigue },
+        { data: cons },
       ] = await Promise.all([
         // Plazos españoles: leyes con enmiendas abiertas.
         supabase
@@ -319,7 +320,16 @@ export default function Home() {
           .order('plazo', { ascending: true, nullsFirst: false })
           .limit(60),
         // Solo asuntos: un diputado seguido no tiene plazo que vencer.
-        supabase.from('my_follows').select('kind, ref_id').eq('es_actor', false).eq('activo', true),
+        supabase.from('my_follows').select('kind, ref_id, label, ruta, fuente').eq('es_actor', false).eq('activo', true),
+        // Consultas públicas españolas abiertas: son la cuarta fuente de
+        // plazos y hasta ahora no entraban en la tarjeta ni en la lista.
+        supabase
+          .from('consultas_estado')
+          .select('id, titulo, fecha_fin, ministerio, estado')
+          .in('estado', ['abierta', 'urgente'])
+          .not('fecha_fin', 'is', null)
+          .order('fecha_fin', { ascending: true })
+          .limit(40),
       ]);
 
       // Los dos orígenes se mezclan y se ordenan por lo que cierra antes:
@@ -345,7 +355,19 @@ export default function Home() {
           kind: 'expediente',
           refId: String(r.id),
         })),
-      ].sort((a, b) => a.dias - b.dias);
+        ...(cons || []).map((r) => ({
+          id: `co-${r.id}`,
+          dias: diasHasta(r.fecha_fin),
+          fecha: r.fecha_fin,
+          title: r.titulo,
+          fuente: ['Consulta pública', r.ministerio].filter(Boolean).join(' · '),
+          ruta: `/regulatorio/consultas/${r.id}`,
+          kind: 'consulta',
+          refId: String(r.id),
+        })),
+      ]
+        .filter((x) => x.dias !== null && x.dias >= 0)
+        .sort((a, b) => a.dias - b.dias);
 
       setPlazos(todos);
       setNovedades(nov || []);
@@ -392,99 +414,137 @@ export default function Home() {
    *
    * Dentro de cada eslabón manda la fecha, que es lo accionable.
    */
+  /**
+   * Lo que es tuyo y tiene plazo abierto.
+   *
+   * EL PLAZO NO VIVE EN sector_matches. Ese es el fallo que traía loca a
+   * esta tarjeta: el análisis guarda `plazo` a null en casi todas sus
+   * filas, así que filtrar por él dejaba la lista vacía y la home caía al
+   * plazo más próximo del regulatorio general, que es de donde salía
+   * Ucrania. La fecha de verdad está en las tablas de origen, y se busca
+   * ahí por kind + ref_id.
+   *
+   * Entran las cuatro áreas: Congreso, Comisión Europea, consultas
+   * públicas y lo que se siga del Parlamento Europeo. Los procedimientos
+   * del PE no tienen fecha de cierre en el directorio, así que aparecen
+   * como asunto tuyo pero no compiten por el plazo.
+   */
   const misAsuntos = useMemo(() => {
+    // Índice de plazos reales, por kind + ref_id.
+    const plazoDe = new Map();
+    for (const p of plazos) plazoDe.set(clave(p.kind, p.refId), p);
 
-    // Los dos orígenes temáticos se funden por kind + ref_id. El
-    // análisis pisa a la coincidencia por palabras cuando hay ambos:
-    // sabe por qué te afecta y lo dice en el motivo.
     const porClave = new Map();
+
+    const anadir = (kind, refId, datos) => {
+      if (!kind || !refId) return;
+      const k = clave(kind, refId);
+      const real = plazoDe.get(k);
+      const previo = porClave.get(k) || {};
+      porClave.set(k, {
+        ...previo,
+        ...datos,
+        kind,
+        refId,
+        // El plazo propio si lo hay; si no, el de la tabla de origen.
+        plazo: datos.plazo || previo.plazo || (real ? real.fecha : null),
+        ruta: datos.ruta || previo.ruta || (real ? real.ruta : null),
+        fuente: datos.fuente || previo.fuente || (real ? real.fuente : null),
+        titulo: datos.titulo || previo.titulo || (real ? real.title : null),
+      });
+    };
+
+    // Coincidencia por palabras del onboarding.
     for (const t of temas) {
-      if (!t.kind || !t.ref_id) continue;
-      porClave.set(clave(t.kind, t.ref_id), {
+      anadir(t.kind, t.ref_id, {
         titulo: t.titulo,
         motivo: t.motivo || null,
         temas: Array.isArray(t.temas) ? t.temas : null,
         plazo: t.plazo,
         ruta: t.ruta,
-        kind: t.kind,
-        refId: t.ref_id,
         fuente: t.fuente,
         origen: 'temas',
       });
     }
+
+    // El análisis pisa a las palabras: sabe por qué te afecta y lo dice.
+    // Relevancia 1 es "contexto útil" según su propio prompt, así que no
+    // opta a la tarjeta grande.
     for (const m of sector) {
-      if (!m.kind || !m.ref_id) continue;
-      // Relevancia 1 es "contexto útil" según el propio prompt del
-      // análisis. Útil para leer, no para ocupar la tarjeta grande.
       if ((Number(m.relevancia) || 0) < 2) continue;
-      porClave.set(clave(m.kind, m.ref_id), {
+      anadir(m.kind, m.ref_id, {
         titulo: m.titulo,
         motivo: m.motivo || null,
-        temas: null,
         plazo: m.plazo,
         ruta: m.ruta,
-        kind: m.kind,
-        refId: m.ref_id,
         fuente: m.fuente,
         relevancia: Number(m.relevancia) || null,
         origen: 'analisis',
       });
     }
 
+    // Lo que sigue entra siempre: seguir algo ya es decir que te importa.
+    for (const f of seguidos || []) {
+      anadir(f.kind, f.ref_id, {
+        titulo: f.label,
+        ruta: f.ruta,
+        fuente: f.fuente,
+        origen: 'seguido',
+      });
+    }
+
+    const sigue = new Set((seguidos || []).filter((f) => f.kind && f.ref_id).map((f) => clave(f.kind, f.ref_id)));
+
     return [...porClave.values()]
-      .filter((a) => a.plazo && diasHasta(a.plazo) !== null && diasHasta(a.plazo) >= 0)
-      .sort((a, b) => diasHasta(a.plazo) - diasHasta(b.plazo));
-  }, [sector, temas]);
+      .map((a) => ({ ...a, sigues: sigue.has(clave(a.kind, a.refId)), dias: diasHasta(a.plazo) }))
+      .filter((a) => a.dias !== null && a.dias >= 0)
+      .sort((a, b) => a.dias - b.dias);
+  }, [sector, temas, seguidos, plazos]);
 
   /** Lo que la plataforma ha deducido, en una línea. Va en la tarjeta negra. */
   const lectura = useMemo(() => {
     if (!cargado) return 'Preparando tu resumen…';
-    // Cuenta exactamente lo mismo que alimenta la tarjeta grande: si
-    // aquí saliera un número mayor, el usuario buscaría asuntos que la
-    // otra tarjeta nunca le va a enseñar.
+    // Cuenta exactamente lo que alimenta la tarjeta grande: si aquí
+    // saliera un número mayor, se buscarían asuntos que la otra tarjeta
+    // nunca va a enseñar.
     if (misAsuntos.length > 0) {
-      const min = diasHasta(misAsuntos[0].plazo);
-      return `${misAsuntos.length} ${
-        misAsuntos.length === 1 ? 'asunto de tus temas tiene' : 'asuntos de tus temas tienen'
-      } plazo abierto. El más urgente cierra ${frasePlazo(min)}.`;
+      const tuyos = misAsuntos.filter((a) => a.sigues).length;
+      const base = `${misAsuntos.length} ${
+        misAsuntos.length === 1 ? 'asunto tuyo tiene' : 'asuntos tuyos tienen'
+      } plazo abierto. El más urgente cierra ${frasePlazo(misAsuntos[0].dias)}.`;
+      return tuyos > 0 ? `${base} ${tuyos} de ellos los sigues.` : base;
     }
     if (novedades.length > 0) {
       return `${novedades.length} ${
         novedades.length === 1 ? 'novedad' : 'novedades'
       } en lo que sigues desde tu última visita.`;
     }
-    if (plazos.length > 0) {
-      return plazos[0].dias === 0
-        ? 'Nada de tus temas hoy. El plazo más próximo del regulatorio vence hoy.'
-        : `Nada de tus temas ahora mismo. El plazo más próximo del regulatorio vence ${frasePlazo(plazos[0].dias)}.`;
-    }
-    return 'Sin plazos abiertos ahora mismo.';
-  }, [cargado, misAsuntos, novedades, plazos]);
+    return 'Ningún asunto tuyo tiene plazo abierto ahora mismo.';
+  }, [cargado, misAsuntos, novedades]);
 
+  /**
+   * Quién ocupa la tarjeta grande.
+   *
+   * El tema es un filtro, no un criterio de orden: lo que no es tuyo no
+   * puede entrar aquí ni cerrando esta tarde. Dentro de lo tuyo manda la
+   * fecha, y el número grande de la tarjeta es la de ese mismo asunto.
+   */
   const urgente = useMemo(() => {
-    const sigueClaves = new Set(
-      (seguidos || []).filter((f) => f.kind && f.ref_id).map((f) => clave(f.kind, f.ref_id))
-    );
+    const conTema = (a) => a.origen === 'analisis' || a.origen === 'temas';
 
-    // Eslabón 1: lo que sigue y además toca un tema suyo.
-    const seguidoConTema = misAsuntos.find((a) => sigueClaves.has(clave(a.kind, a.refId)));
-    // Eslabón 2: lo que toca un tema suyo, siga o no.
-    const elegido = seguidoConTema || misAsuntos[0];
+    const elegido =
+      misAsuntos.find((a) => a.sigues && conTema(a)) ||
+      misAsuntos.find((a) => a.sigues) ||
+      misAsuntos.find(conTema) ||
+      null;
 
     if (elegido) {
-      return {
-        ...elegido,
-        title: elegido.titulo,
-        fecha: elegido.plazo,
-        dias: diasHasta(elegido.plazo),
-        ruta: elegido.ruta || '/regulatorio/sector',
-        seguido: Boolean(seguidoConTema),
-      };
+      return { ...elegido, title: elegido.titulo, fecha: elegido.plazo };
     }
-
-    // Eslabón 3: nada encaja. Se enseña lo general y se dice que lo es.
-    return plazos[0] ? { ...plazos[0], motivo: null, temas: null, origen: 'general', seguido: false } : null;
-  }, [misAsuntos, seguidos, plazos]);
+    // Nada tuyo con plazo abierto: se enseña lo primero del calendario y
+    // se dice que no es tuyo.
+    return plazos[0] ? { ...plazos[0], motivo: null, temas: null, origen: 'general', sigues: false } : null;
+  }, [misAsuntos, plazos]);
 
   const vacantes = resumen?.vacantes_recomendadas || [];
 
@@ -497,7 +557,7 @@ export default function Home() {
         <p style={{ fontSize: 13.5, color: '#8b8780', margin: '4px 0 0', lineHeight: 1.55 }}>
           {fechaLarga()}
           {cargado && misAsuntos.length > 0
-            ? ` · ${misAsuntos.length} ${misAsuntos.length === 1 ? 'asunto' : 'asuntos'} de tus temas con plazo abierto`
+            ? ` · ${misAsuntos.length} ${misAsuntos.length === 1 ? 'asunto tuyo' : 'asuntos tuyos'} con plazo abierto`
             : ''}
         </p>
       </div>
@@ -573,13 +633,13 @@ export default function Home() {
                     marginBottom: 14,
                   }}
                 >
-                  {urgente.seguido
+                  {urgente.sigues
                     ? 'Lo más urgente que sigues'
                     : urgente.origen === 'analisis'
                       ? 'Lo más urgente de tu sector'
                       : urgente.origen === 'temas'
                         ? 'Lo más urgente de tus temas'
-                        : 'Lo más urgente del regulatorio'}
+                        : 'Lo más urgente'}
                 </span>
                 <Link href={urgente.ruta} style={{ textDecoration: 'none', color: 'inherit', display: 'block' }}>
                   <div style={{ fontSize: 19, lineHeight: 1.4, fontWeight: 600, letterSpacing: '-.2px' }}>
