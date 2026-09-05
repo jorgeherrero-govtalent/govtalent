@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { createClient } from '@/lib/supabase/client';
 import { toast } from '@/lib/toast';
 import SelectorProyecto from '@/components/SelectorProyecto';
@@ -78,6 +79,19 @@ function BotonProyecto({ onClick }) {
       <i className="ti ti-folder-plus" style={{ fontSize: 15 }} aria-hidden="true"></i>
     </button>
   );
+}
+
+/**
+ * Los modales salen al <body> por un portal.
+ *
+ * Si se quedaran donde están, cualquier antepasado con `transform`
+ * —el hover de las tarjetas de la home, por ejemplo— se convierte en el
+ * bloque contenedor de sus hijos `position: fixed`, y el overlay deja de
+ * ocupar la ventana para encajonarse dentro de la tarjeta.
+ */
+function EnElBody({ children }) {
+  if (typeof document === 'undefined') return null;
+  return createPortal(children, document.body);
 }
 
 export default function FollowButton({ kind, refId, label, variant = 'button', className, conProyecto = true }) {
@@ -251,14 +265,18 @@ export default function FollowButton({ kind, refId, label, variant = 'button', c
     </button>
     {conProyecto && <BotonProyecto onClick={() => setSelector(true)} />}
     {selector && (
-      <SelectorProyecto kind={kind} refId={refId} label={label} onClose={() => setSelector(false)} />
+      <EnElBody>
+        <SelectorProyecto kind={kind} refId={refId} label={label} onClose={() => setSelector(false)} />
+      </EnElBody>
     )}
     {upsell && (
-      <UpgradeModal
-        title="Seguir es una función de Pro"
-        message="Sigue leyes, expedientes y personas, y recibe un aviso cuando se mueva algo. Con alertas, proyectos y el directorio completo."
-        onClose={() => setUpsell(false)}
-      />
+      <EnElBody>
+        <UpgradeModal
+          title="Seguir es una función de Pro"
+          message="Sigue leyes, expedientes y personas, y recibe un aviso cuando se mueva algo. Con alertas, proyectos y el directorio completo."
+          onClose={() => setUpsell(false)}
+        />
+      </EnElBody>
     )}
     </span>
   );
