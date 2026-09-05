@@ -395,3 +395,17 @@ a{color:inherit}
 .skel{background:#f0efe9;border-radius:8px;position:relative;overflow:hidden}
 .skel::after{content:'';position:absolute;inset:0;background:linear-gradient(90deg,transparent,rgba(255,255,255,.7),transparent);animation:skel-shine 1.4s infinite}
 @keyframes skel-shine{0%{transform:translateX(-100%)}100%{transform:translateX(100%)}}
+
+/* --- Mosaico de la home ---------------------------------------------
+   Las tarjetas crecen un pelín al pasar por encima. Un 1,8 % y no más:
+   por encima de eso el mosaico entero parece que tiembla. */
+.bento{transition:transform .16s ease, box-shadow .16s ease}
+.bento:hover{transform:scale(1.018);box-shadow:0 8px 26px rgba(0,0,0,.07)}
+@media (prefers-reduced-motion: reduce){
+  .bento{transition:none}
+  .bento:hover{transform:none}
+}
+@media (max-width: 760px){
+  .bento-fila{grid-template-columns:1fr!important}
+  .bento-cifras{grid-template-columns:1fr 1fr!important}
+}
