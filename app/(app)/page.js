@@ -254,7 +254,9 @@ export default function Home() {
           .not('dias_plazo', 'is', null)
           .eq('is_blocked', false)
           .order('dias_plazo', { ascending: true })
-          .limit(6),
+          // 40 y no 6: esta lista también sirve para emparejar el asunto
+          // del sector con su kind y su refId, y con seis apenas casaba.
+          .limit(40),
         // Y europeos: consultas abiertas de la Comisión.
         supabase
           .from('eu_initiatives_directory')
@@ -262,7 +264,7 @@ export default function Home() {
           .eq('is_open', true)
           .not('dias_restantes', 'is', null)
           .order('dias_restantes', { ascending: true })
-          .limit(6),
+          .limit(40),
         supabase
           .from('my_follow_events')
           .select('event_id, kind, title, detail, occurred_at, es_nueva')
@@ -389,7 +391,40 @@ export default function Home() {
     return 'Sin plazos abiertos en tu sector ahora mismo.';
   }, [cargado, sector, novedades, plazos]);
 
-  const urgente = plazos[0] || null;
+  /**
+   * Qué ocupa la tarjeta grande.
+   *
+   * Si la plataforma ya sabe qué le afecta —porque ha analizado su
+   * sector o porque sigue asuntos—, lo urgente es lo suyo y no lo del
+   * calendario general. Solo cuando no hay nada de eso se cae al plazo
+   * más próximo de todo el regulatorio.
+   *
+   * El kind y el refId no vienen en sector_matches, así que se recuperan
+   * emparejando por ruta con los directorios. Si no hay pareja se ocultan
+   * los botones en vez de inventarse un identificador.
+   */
+  const urgente = useMemo(() => {
+    const delSector = sector
+      .filter((m) => m.plazo && diasHasta(m.plazo) !== null && diasHasta(m.plazo) >= 0)
+      .sort((a, b) => diasHasta(a.plazo) - diasHasta(b.plazo))[0];
+
+    if (delSector) {
+      const gemelo = plazos.find((p) => p.ruta && p.ruta === delSector.ruta);
+      return {
+        title: delSector.titulo,
+        fuente: delSector.fuente,
+        motivo: delSector.motivo || null,
+        ruta: delSector.ruta || '/regulatorio/sector',
+        fecha: delSector.plazo,
+        dias: diasHasta(delSector.plazo),
+        kind: gemelo ? gemelo.kind : null,
+        refId: gemelo ? gemelo.refId : null,
+        deSector: true,
+      };
+    }
+    return plazos[0] ? { ...plazos[0], motivo: null, deSector: false } : null;
+  }, [sector, plazos]);
+
   const vacantes = resumen?.vacantes_recomendadas || [];
 
   return (
@@ -477,14 +512,19 @@ export default function Home() {
                     marginBottom: 14,
                   }}
                 >
-                  Lo más urgente
+                  {urgente.deSector ? 'Lo más urgente de tu sector' : 'Lo más urgente'}
                 </span>
                 <Link href={urgente.ruta} style={{ textDecoration: 'none', color: 'inherit', display: 'block' }}>
                   <div style={{ fontSize: 19, lineHeight: 1.4, fontWeight: 600, letterSpacing: '-.2px' }}>
                     {urgente.title}
                   </div>
                 </Link>
-                <div style={{ fontSize: 13, color: '#8b8780', lineHeight: 1.6, paddingTop: 10 }}>{urgente.fuente}</div>
+                {urgente.motivo && (
+                  <div style={{ fontSize: 13, color: '#8b8780', lineHeight: 1.6, paddingTop: 10 }}>{urgente.motivo}</div>
+                )}
+                <div style={{ fontSize: 12, color: '#a8a49c', lineHeight: 1.6, paddingTop: urgente.motivo ? 6 : 10 }}>
+                  {urgente.fuente}
+                </div>
               </div>
               <div
                 style={{
@@ -502,11 +542,13 @@ export default function Home() {
                   </div>
                   <div style={{ fontSize: 11.5, color: '#8b8780', paddingTop: 3 }}>cierre de alegaciones</div>
                 </div>
-                <div style={{ marginLeft: 'auto' }}>
-                  {/* Variante completa y no "icon": la de icono no trae el
-                      botón de proyecto, que es justo el que hace falta aquí. */}
-                  <FollowButton kind={urgente.kind} refId={urgente.refId} label={urgente.title} />
-                </div>
+                {urgente.kind && urgente.refId && (
+                  <div style={{ marginLeft: 'auto' }}>
+                    {/* Variante completa y no "icon": la de icono no trae el
+                        botón de proyecto, que es justo el que hace falta aquí. */}
+                    <FollowButton kind={urgente.kind} refId={urgente.refId} label={urgente.title} />
+                  </div>
+                )}
               </div>
             </>
           ) : (
@@ -544,8 +586,8 @@ export default function Home() {
 
       {/* Fila 2: el tamaño del sector, en cuatro cifras. */}
       <div className="bento-cifras" style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 14, marginBottom: 14 }}>
+        <TarjetaCifra valor={cifras.ue} rotulo="Actos jurídicos en la UE" bandera="ue" href="/initiatives" />
         <TarjetaCifra valor={cifras.leyes} rotulo="Leyes en Congreso" bandera="es" href="/congreso" />
-        <TarjetaCifra valor={cifras.ue} rotulo="Actos jurídicos en la UE" bandera="ue" href="/procedures" />
         <TarjetaCifra valor={cifras.consultas} rotulo="Consultas públicas" bandera="es" href="/regulatorio/consultas" />
         <TarjetaCifra valor={cifras.boe} rotulo="BOE hoy" bandera="es" href="/boe" />
       </div>
