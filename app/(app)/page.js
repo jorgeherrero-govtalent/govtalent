@@ -37,6 +37,11 @@ function haceDiasISO(n) {
   return new Date(Date.now() - n * 86400000).toISOString().slice(0, 10);
 }
 
+/** Identidad de un asunto: el par kind + ref_id, que es como lo nombran las tres vistas. */
+function clave(kind, refId) {
+  return `${kind}:${refId}`;
+}
+
 function diasHasta(iso) {
   if (!iso) return null;
   const d = new Date(iso);
@@ -214,6 +219,8 @@ export default function Home() {
   const [plazos, setPlazos] = useState([]);
   const [novedades, setNovedades] = useState([]);
   const [sector, setSector] = useState([]);
+  const [temas, setTemas] = useState([]);
+  const [seguidos, setSeguidos] = useState([]);
   const [desdeTemas, setDesdeTemas] = useState(false);
   const [cifras, setCifras] = useState({ leyes: null, ue: null, consultas: null, boe: null });
   const [actividad, setActividad] = useState(null);
@@ -246,6 +253,8 @@ export default function Home() {
         actCe,
         actBoe,
         { data: sec },
+        { data: porTema },
+        { data: sigue },
       ] = await Promise.all([
         // Plazos españoles: leyes con enmiendas abiertas.
         supabase
@@ -296,12 +305,21 @@ export default function Home() {
         supabase.from('eu_initiatives_directory').select('id', { count: 'exact', head: true }).gte('created_at', hace30),
         supabase.from('boe_documents').select('id', { count: 'exact', head: true }).gte('fecha_publicacion', hace30),
 
+        // Las tres fuentes que deciden la tarjeta grande, en paralelo y
+        // no en cascada: hacen falta las tres a la vez para cruzarlas.
         supabase
           .from('sector_matches')
           .select('*')
           .order('relevancia', { ascending: false })
           .order('plazo', { ascending: true, nullsFirst: false })
-          .limit(20),
+          .limit(60),
+        supabase
+          .from('asuntos_de_mis_temas')
+          .select('*')
+          .order('plazo', { ascending: true, nullsFirst: false })
+          .limit(60),
+        // Solo asuntos: un diputado seguido no tiene plazo que vencer.
+        supabase.from('my_follows').select('kind, ref_id').eq('es_actor', false).eq('activo', true),
       ]);
 
       // Los dos orígenes se mezclan y se ordenan por lo que cierra antes:
@@ -348,34 +366,86 @@ export default function Home() {
         { clave: 'CE', titulo: 'Comisión Europea', valor: actCe.count ?? 0 },
       ]);
 
-      // Si aún no ha lanzado el análisis con IA, se rellena con los
-      // asuntos que coinciden con sus temas del onboarding: así no está
-      // vacío el primer día, que es justo cuando peor sienta.
-      if ((sec || []).length > 0) {
-        setSector(sec);
-      } else {
-        const { data: porTema } = await supabase
-          .from('asuntos_de_mis_temas')
-          .select('*')
-          .order('relevancia', { ascending: false })
-          .order('plazo', { ascending: true, nullsFirst: false })
-          .limit(20);
-        setSector(porTema || []);
-        setDesdeTemas((porTema || []).length > 0);
-      }
+      setSector(sec || []);
+      setTemas(porTema || []);
+      setSeguidos(sigue || []);
+      setDesdeTemas((sec || []).length === 0 && (porTema || []).length > 0);
 
       setCargado(true);
     })();
   }, []);
 
+  /**
+   * Qué ocupa la tarjeta grande.
+   *
+   * EL TEMA ES UN FILTRO, NO UN CRITERIO DE ORDEN. Esta es la regla que
+   * antes estaba mal: se ordenaba por fecha entre todo lo abierto, así
+   * que cualquier asunto que cerrara pronto se colaba en la tarjeta
+   * aunque no tuviera nada que ver con el usuario. Ahora, lo que no toca
+   * uno de sus temas no puede llegar aquí ni cerrando esta tarde.
+   *
+   * La cadena, en este orden:
+   *   1. Lo que sigue y además toca un tema suyo.
+   *   2. Si no sigue nada de eso, lo que toca un tema suyo.
+   *   3. Y solo si nada encaja, lo más urgente del regulatorio general,
+   *      diciendo claramente que es general y no suyo.
+   *
+   * Dentro de cada eslabón manda la fecha, que es lo accionable.
+   */
+  const misAsuntos = useMemo(() => {
+
+    // Los dos orígenes temáticos se funden por kind + ref_id. El
+    // análisis pisa a la coincidencia por palabras cuando hay ambos:
+    // sabe por qué te afecta y lo dice en el motivo.
+    const porClave = new Map();
+    for (const t of temas) {
+      if (!t.kind || !t.ref_id) continue;
+      porClave.set(clave(t.kind, t.ref_id), {
+        titulo: t.titulo,
+        motivo: t.motivo || null,
+        temas: Array.isArray(t.temas) ? t.temas : null,
+        plazo: t.plazo,
+        ruta: t.ruta,
+        kind: t.kind,
+        refId: t.ref_id,
+        fuente: t.fuente,
+        origen: 'temas',
+      });
+    }
+    for (const m of sector) {
+      if (!m.kind || !m.ref_id) continue;
+      // Relevancia 1 es "contexto útil" según el propio prompt del
+      // análisis. Útil para leer, no para ocupar la tarjeta grande.
+      if ((Number(m.relevancia) || 0) < 2) continue;
+      porClave.set(clave(m.kind, m.ref_id), {
+        titulo: m.titulo,
+        motivo: m.motivo || null,
+        temas: null,
+        plazo: m.plazo,
+        ruta: m.ruta,
+        kind: m.kind,
+        refId: m.ref_id,
+        fuente: m.fuente,
+        relevancia: Number(m.relevancia) || null,
+        origen: 'analisis',
+      });
+    }
+
+    return [...porClave.values()]
+      .filter((a) => a.plazo && diasHasta(a.plazo) !== null && diasHasta(a.plazo) >= 0)
+      .sort((a, b) => diasHasta(a.plazo) - diasHasta(b.plazo));
+  }, [sector, temas]);
+
   /** Lo que la plataforma ha deducido, en una línea. Va en la tarjeta negra. */
   const lectura = useMemo(() => {
     if (!cargado) return 'Preparando tu resumen…';
-    const conPlazo = sector.filter((m) => m.plazo && diasHasta(m.plazo) >= 0);
-    if (conPlazo.length > 0) {
-      const min = Math.min(...conPlazo.map((m) => diasHasta(m.plazo)));
-      return `${conPlazo.length} ${
-        conPlazo.length === 1 ? 'asunto de tu sector tiene' : 'asuntos de tu sector tienen'
+    // Cuenta exactamente lo mismo que alimenta la tarjeta grande: si
+    // aquí saliera un número mayor, el usuario buscaría asuntos que la
+    // otra tarjeta nunca le va a enseñar.
+    if (misAsuntos.length > 0) {
+      const min = diasHasta(misAsuntos[0].plazo);
+      return `${misAsuntos.length} ${
+        misAsuntos.length === 1 ? 'asunto de tus temas tiene' : 'asuntos de tus temas tienen'
       } plazo abierto. El más urgente cierra ${frasePlazo(min)}.`;
     }
     if (novedades.length > 0) {
@@ -385,57 +455,36 @@ export default function Home() {
     }
     if (plazos.length > 0) {
       return plazos[0].dias === 0
-        ? 'El plazo más próximo vence hoy.'
-        : `El plazo más próximo vence ${frasePlazo(plazos[0].dias)}.`;
+        ? 'Nada de tus temas hoy. El plazo más próximo del regulatorio vence hoy.'
+        : `Nada de tus temas ahora mismo. El plazo más próximo del regulatorio vence ${frasePlazo(plazos[0].dias)}.`;
     }
-    return 'Sin plazos abiertos en tu sector ahora mismo.';
-  }, [cargado, sector, novedades, plazos]);
+    return 'Sin plazos abiertos ahora mismo.';
+  }, [cargado, misAsuntos, novedades, plazos]);
 
-  /**
-   * Qué ocupa la tarjeta grande.
-   *
-   * Si la plataforma ya sabe qué le afecta —porque ha analizado su
-   * sector o porque sigue asuntos—, lo urgente es lo suyo y no lo del
-   * calendario general. Solo cuando no hay nada de eso se cae al plazo
-   * más próximo de todo el regulatorio.
-   *
-   * El kind y el refId no vienen en sector_matches, así que se recuperan
-   * emparejando por ruta con los directorios. Si no hay pareja se ocultan
-   * los botones en vez de inventarse un identificador.
-   */
   const urgente = useMemo(() => {
-    const abiertos = sector.filter(
-      (m) => m.plazo && diasHasta(m.plazo) !== null && diasHasta(m.plazo) >= 0
+    const sigueClaves = new Set(
+      (seguidos || []).filter((f) => f.kind && f.ref_id).map((f) => clave(f.kind, f.ref_id))
     );
 
-    // Manda la relevancia y luego la fecha, en ese orden. Al revés
-    // —que es como estaba— un asunto de relevancia 1, que el análisis
-    // marca como simple contexto útil, le gana la tarjeta grande a uno
-    // que te afecta de lleno solo por cerrar antes.
-    const delSector = abiertos.sort((a, b) => {
-      const ra = Number(a.relevancia) || 0;
-      const rb = Number(b.relevancia) || 0;
-      if (ra !== rb) return rb - ra;
-      return diasHasta(a.plazo) - diasHasta(b.plazo);
-    })[0];
+    // Eslabón 1: lo que sigue y además toca un tema suyo.
+    const seguidoConTema = misAsuntos.find((a) => sigueClaves.has(clave(a.kind, a.refId)));
+    // Eslabón 2: lo que toca un tema suyo, siga o no.
+    const elegido = seguidoConTema || misAsuntos[0];
 
-    if (delSector) {
-      const gemelo = plazos.find((p) => p.ruta && p.ruta === delSector.ruta);
+    if (elegido) {
       return {
-        title: delSector.titulo,
-        fuente: delSector.fuente,
-        motivo: delSector.motivo || null,
-        ruta: delSector.ruta || '/regulatorio/sector',
-        fecha: delSector.plazo,
-        dias: diasHasta(delSector.plazo),
-        kind: gemelo ? gemelo.kind : null,
-        refId: gemelo ? gemelo.refId : null,
-        relevancia: Number(delSector.relevancia) || null,
-        origen: desdeTemas ? 'temas' : 'analisis',
+        ...elegido,
+        title: elegido.titulo,
+        fecha: elegido.plazo,
+        dias: diasHasta(elegido.plazo),
+        ruta: elegido.ruta || '/regulatorio/sector',
+        seguido: Boolean(seguidoConTema),
       };
     }
-    return plazos[0] ? { ...plazos[0], motivo: null, relevancia: null, origen: 'general' } : null;
-  }, [sector, plazos, desdeTemas]);
+
+    // Eslabón 3: nada encaja. Se enseña lo general y se dice que lo es.
+    return plazos[0] ? { ...plazos[0], motivo: null, temas: null, origen: 'general', seguido: false } : null;
+  }, [misAsuntos, seguidos, plazos]);
 
   const vacantes = resumen?.vacantes_recomendadas || [];
 
@@ -447,8 +496,8 @@ export default function Home() {
         </h1>
         <p style={{ fontSize: 13.5, color: '#8b8780', margin: '4px 0 0', lineHeight: 1.55 }}>
           {fechaLarga()}
-          {cargado && sector.length > 0
-            ? ` · ${sector.length} ${sector.length === 1 ? 'asunto' : 'asuntos'} en tu sector`
+          {cargado && misAsuntos.length > 0
+            ? ` · ${misAsuntos.length} ${misAsuntos.length === 1 ? 'asunto' : 'asuntos'} de tus temas con plazo abierto`
             : ''}
         </p>
       </div>
@@ -524,20 +573,26 @@ export default function Home() {
                     marginBottom: 14,
                   }}
                 >
-                  {urgente.origen === 'analisis'
-                    ? 'Lo más urgente de tu sector'
-                    : urgente.origen === 'temas'
-                      ? 'Coincide con tus temas'
-                      : 'Lo más urgente'}
+                  {urgente.seguido
+                    ? 'Lo más urgente que sigues'
+                    : urgente.origen === 'analisis'
+                      ? 'Lo más urgente de tu sector'
+                      : urgente.origen === 'temas'
+                        ? 'Lo más urgente de tus temas'
+                        : 'Lo más urgente del regulatorio'}
                 </span>
                 <Link href={urgente.ruta} style={{ textDecoration: 'none', color: 'inherit', display: 'block' }}>
                   <div style={{ fontSize: 19, lineHeight: 1.4, fontWeight: 600, letterSpacing: '-.2px' }}>
                     {urgente.title}
                   </div>
                 </Link>
-                {urgente.motivo && (
+                {urgente.motivo ? (
                   <div style={{ fontSize: 13, color: '#8b8780', lineHeight: 1.6, paddingTop: 10 }}>{urgente.motivo}</div>
-                )}
+                ) : urgente.temas && urgente.temas.length > 0 ? (
+                  <div style={{ fontSize: 13, color: '#8b8780', lineHeight: 1.6, paddingTop: 10 }}>
+                    Toca {urgente.temas.slice(0, 2).join(' y ')}.
+                  </div>
+                ) : null}
                 <div style={{ fontSize: 12, color: '#a8a49c', lineHeight: 1.6, paddingTop: urgente.motivo ? 6 : 10 }}>
                   {urgente.fuente}
                 </div>
