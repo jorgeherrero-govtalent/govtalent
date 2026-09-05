@@ -404,9 +404,20 @@ export default function Home() {
    * los botones en vez de inventarse un identificador.
    */
   const urgente = useMemo(() => {
-    const delSector = sector
-      .filter((m) => m.plazo && diasHasta(m.plazo) !== null && diasHasta(m.plazo) >= 0)
-      .sort((a, b) => diasHasta(a.plazo) - diasHasta(b.plazo))[0];
+    const abiertos = sector.filter(
+      (m) => m.plazo && diasHasta(m.plazo) !== null && diasHasta(m.plazo) >= 0
+    );
+
+    // Manda la relevancia y luego la fecha, en ese orden. Al revés
+    // —que es como estaba— un asunto de relevancia 1, que el análisis
+    // marca como simple contexto útil, le gana la tarjeta grande a uno
+    // que te afecta de lleno solo por cerrar antes.
+    const delSector = abiertos.sort((a, b) => {
+      const ra = Number(a.relevancia) || 0;
+      const rb = Number(b.relevancia) || 0;
+      if (ra !== rb) return rb - ra;
+      return diasHasta(a.plazo) - diasHasta(b.plazo);
+    })[0];
 
     if (delSector) {
       const gemelo = plazos.find((p) => p.ruta && p.ruta === delSector.ruta);
@@ -419,11 +430,12 @@ export default function Home() {
         dias: diasHasta(delSector.plazo),
         kind: gemelo ? gemelo.kind : null,
         refId: gemelo ? gemelo.refId : null,
-        deSector: true,
+        relevancia: Number(delSector.relevancia) || null,
+        origen: desdeTemas ? 'temas' : 'analisis',
       };
     }
-    return plazos[0] ? { ...plazos[0], motivo: null, deSector: false } : null;
-  }, [sector, plazos]);
+    return plazos[0] ? { ...plazos[0], motivo: null, relevancia: null, origen: 'general' } : null;
+  }, [sector, plazos, desdeTemas]);
 
   const vacantes = resumen?.vacantes_recomendadas || [];
 
@@ -512,7 +524,11 @@ export default function Home() {
                     marginBottom: 14,
                   }}
                 >
-                  {urgente.deSector ? 'Lo más urgente de tu sector' : 'Lo más urgente'}
+                  {urgente.origen === 'analisis'
+                    ? 'Lo más urgente de tu sector'
+                    : urgente.origen === 'temas'
+                      ? 'Coincide con tus temas'
+                      : 'Lo más urgente'}
                 </span>
                 <Link href={urgente.ruta} style={{ textDecoration: 'none', color: 'inherit', display: 'block' }}>
                   <div style={{ fontSize: 19, lineHeight: 1.4, fontWeight: 600, letterSpacing: '-.2px' }}>
