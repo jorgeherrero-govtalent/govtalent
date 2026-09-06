@@ -87,17 +87,15 @@ const FUENTES = [
   ['ue', 'Parlamento'],
 ];
 
-// Solo el nombre de la fase. Las fechas de lo ya ocurrido sobraban: lo
-// único accionable es cuánto queda para el trámite abierto.
 const FASES = [
-  ['Presentación', null, 'hecha'],
-  ['Toma en consideración', null, 'hecha'],
+  ['Presentación', '12 feb', 'hecha'],
+  ['Toma en consideración', '28 feb', 'hecha'],
   ['Enmiendas', 'Quedan 13 días', 'actual'],
-  ['Ponencia', null, 'futura'],
-  ['Senado', null, 'futura'],
+  ['Ponencia', '—', 'futura'],
+  ['Senado', '—', 'futura'],
 ];
 
-const CLAVES = ['inteligencia artificial', 'algoritmos', 'protección de datos'];
+const CLAVES = ['inteligencia artificial', 'algoritmos', 'protección de datos', 'servicios digitales'];
 
 export default function LoginPanel() {
   return (
@@ -133,7 +131,9 @@ export default function LoginPanel() {
                 <div style={{ fontSize: 13.5, fontWeight: 600, lineHeight: 1.35 }}>
                   Ley de gobernanza de la inteligencia artificial
                 </div>
-                <div style={{ fontSize: 10.5, color: '#8b8780', marginTop: 4 }}>Congreso de los Diputados</div>
+                <div style={{ fontSize: 10.5, color: '#8b8780', marginTop: 4, lineHeight: 1.45 }}>
+                  Congreso · Comisión de Economía, Comercio y Transformación Digital
+                </div>
               </div>
               <span
                 style={{
@@ -151,10 +151,14 @@ export default function LoginPanel() {
               >
                 <i className="ti ti-bell" style={{ fontSize: 12 }}></i> Siguiendo
               </span>
+              <i className="ti ti-folder-plus" style={{ fontSize: 15, color: '#a8a49c', flexShrink: 0 }}></i>
             </div>
 
             <div style={TARJETA}>
-              <div style={{ ...ROTULO, marginBottom: 11 }}>LA NORMA Y SU TRAMITACIÓN</div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 11 }}>
+                <span style={ROTULO}>LA NORMA Y SU TRAMITACIÓN</span>
+                <span style={{ fontSize: 10, color: MORADO }}>Ver ficha completa →</span>
+              </div>
               <div style={{ display: 'flex', gap: 6 }}>
                 {FASES.map(([nombre, cuando, estado]) => (
                   <div key={nombre} style={{ flex: 1 }}>
@@ -176,9 +180,16 @@ export default function LoginPanel() {
                     >
                       {nombre}
                     </div>
-                    {cuando && (
-                      <div style={{ fontSize: 9.5, color: MORADO, fontWeight: 600, marginTop: 2 }}>{cuando}</div>
-                    )}
+                    <div
+                      style={{
+                        fontSize: 9.5,
+                        marginTop: 2,
+                        color: estado === 'actual' ? MORADO : estado === 'futura' ? '#a8a49c' : '#8b8780',
+                        fontWeight: estado === 'actual' ? 600 : 400,
+                      }}
+                    >
+                      {cuando}
+                    </div>
                   </div>
                 ))}
               </div>
@@ -327,13 +338,31 @@ export default function LoginPanel() {
           <Etiqueta>Directorio de cargos</Etiqueta>
           <div className="bento" style={VENTANA}>
             <div style={TARJETA}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 12 }}>
+                <Bandera pais="es" />
+                <Bandera pais="ue" />
+                <span style={{ fontSize: 11.5, fontWeight: 600, marginLeft: 3 }}>Directorio institucional</span>
+              </div>
               <Cargo
                 avatar="#e8eefb"
                 titulo="Directora General de Telecomunicaciones"
-                sub="España · en el cargo desde marzo de 2025"
+                sub="En el cargo desde marzo de 2025"
               />
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 8,
+                  fontSize: 10.5,
+                  color: '#57534e',
+                  marginTop: 10,
+                }}
+              >
+                <i className="ti ti-corner-down-right" style={{ fontSize: 12, color: '#a8a49c' }}></i>
+                Depende de la Secretaría de Estado de Digitalización
+              </div>
               <div style={{ paddingTop: 12, marginTop: 12, borderTop: '.5px solid #f2f0ec' }}>
-                <Cargo siglas="CNECT" titulo="Jefe de Unidad · Redes y Tecnología" sub="Comisión Europea" />
+                <Cargo siglas="CNECT" titulo="Jefe de Unidad · Redes y Tecnología" sub="Comisión Europea · DG CNECT" />
               </div>
               {/* El correo desenfocado: enseña que el dato existe sin
                   publicarlo, y es el argumento de la etiqueta Pro. */}
