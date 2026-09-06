@@ -1,8 +1,7 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import Link from 'next/link';
-import { createClient } from '@/lib/supabase/client';
 import UpgradeModal from '@/components/UpgradeModal';
 
 /**
@@ -29,6 +28,35 @@ import UpgradeModal from '@/components/UpgradeModal';
  */
 
 const MORADO = '#6d5aef';
+
+/**
+ * CIFRAS FIJAS. HAY QUE MANTENERLAS A MANO.
+ *
+ * Se fijaron a petición: son las cifras "de oficio", las que diría un
+ * profesional del sector, y no siempre coinciden con lo que devuelve la
+ * base de datos.
+ *
+ * Dos discrepancias conocidas a día de hoy:
+ *   · deputies devuelve 351 filas y aquí se dice 350, que son los
+ *     escaños reales del Congreso. Sobra una fila en la tabla.
+ *   · eu_committees_directory devuelve 26 y aquí se dice 22, que son
+ *     las comisiones permanentes; las otras cuatro son subcomisiones o
+ *     comisiones especiales.
+ *
+ * Mientras esas dos diferencias existan, consultarlas en vivo haría que
+ * la portada y la sección se contradijeran a la vista. Cuando se limpie
+ * la tabla de diputados y haya con qué filtrar las comisiones del PE,
+ * esto debería volver a ser una consulta: un número escrito a mano
+ * envejece solo y nadie se entera.
+ */
+const CIFRAS = {
+  ministerios: { n: 257, etiqueta: 'altos cargos · 22 ministerios' },
+  congreso: { n: 350, etiqueta: 'diputados · 44 comisiones' },
+  organismos: { n: 77, etiqueta: 'organismos' },
+  parlamentoUe: { n: 720, etiqueta: 'eurodiputados · 22 comisiones' },
+  comisionUe: { n: 2096, etiqueta: 'cargos · 45 direcciones generales' },
+  organizaciones: { n: 2005, etiqueta: 'organizaciones' },
+};
 
 const CARD = {
   background: '#fff',
@@ -96,52 +124,7 @@ function Modulo({ href, pais, titulo, descripcion, cifra, etiqueta }) {
 }
 
 export default function InstitutionsPage() {
-  const supabase = createClient();
   const [upsell, setUpsell] = useState(false);
-  const [n, setN] = useState({
-    cargos: null,
-    diputados: null,
-    comisionesEs: null,
-    organismos: null,
-    meps: null,
-    comisionesUe: null,
-    personasCe: null,
-    organizaciones: null,
-  });
-
-  useEffect(() => {
-    // Solo recuentos, con head: true, así que no se traen filas.
-    //
-    // Los filtros son los mismos que usa cada sección al entrar. Si la
-    // portada contara de otra forma, el usuario vería 312 aquí y 77
-    // dentro, y con razón dejaría de fiarse de los dos números.
-    Promise.all([
-      supabase.from('government_officials').select('slug', { count: 'exact', head: true }).eq('active', true),
-      supabase.from('deputies').select('id', { count: 'exact', head: true }),
-      supabase.from('es_committees').select('id', { count: 'exact', head: true }),
-      // relevante = true, igual que en la sección: filtrar por categoría
-      // de DIR3 mezclaba el Museo del Prado con la CNMV.
-      supabase.from('age_units').select('dir3_code', { count: 'exact', head: true }).eq('activo', true).eq('relevante', true),
-      supabase.from('eu_meps_directory').select('*', { count: 'exact', head: true }),
-      supabase.from('eu_committees_directory').select('*', { count: 'exact', head: true }),
-      supabase.from('ec_people_directory').select('*', { count: 'exact', head: true }),
-      supabase.from('organizations').select('id', { count: 'exact', head: true }),
-    ]).then(([cargos, dip, comEs, org, meps, comUe, ce, orgs]) => {
-      setN({
-        cargos: cargos.count ?? null,
-        diputados: dip.count ?? null,
-        comisionesEs: comEs.count ?? null,
-        organismos: org.count ?? null,
-        meps: meps.count ?? null,
-        comisionesUe: comUe.count ?? null,
-        personasCe: ce.count ?? null,
-        organizaciones: orgs.count ?? null,
-      });
-    });
-  }, []);
-
-  const conComisiones = (n1, n2, uno, dos) =>
-    n2 === null || n2 === undefined ? uno : `${uno} · ${n2} ${dos}`;
 
   return (
     <div className="sec" style={{ maxWidth: 1080 }}>
@@ -206,8 +189,8 @@ export default function InstitutionsPage() {
           pais="es"
           titulo="Ministerios"
           descripcion="Ministros, secretarios de Estado, direcciones generales y gabinetes."
-          cifra={n.cargos}
-          etiqueta="altos cargos"
+          cifra={CIFRAS.ministerios.n}
+          etiqueta={CIFRAS.ministerios.etiqueta}
         />
         {/* Una sola tarjeta para el Congreso, con sus cuatro vistas
             dentro. Diputados y Grupos tuvieron entrada propia y eso
@@ -218,8 +201,8 @@ export default function InstitutionsPage() {
           pais="es"
           titulo="Congreso de los Diputados"
           descripcion="Comisiones, diputados, órganos de gobierno y grupos parlamentarios."
-          cifra={n.diputados}
-          etiqueta={conComisiones(n.diputados, n.comisionesEs, 'diputados', 'comisiones')}
+          cifra={CIFRAS.congreso.n}
+          etiqueta={CIFRAS.congreso.etiqueta}
         />
         {/* Los organismos van aparte de Ministerios: no son parte de un
             ministerio sino entes con personalidad jurídica propia, y
@@ -229,32 +212,32 @@ export default function InstitutionsPage() {
           pais="es"
           titulo="Organismos y reguladores"
           descripcion="CNMC, AEPD, agencias estatales y organismos autónomos que regulan tu sector."
-          cifra={n.organismos}
-          etiqueta="organismos"
+          cifra={CIFRAS.organismos.n}
+          etiqueta={CIFRAS.organismos.etiqueta}
         />
         <Modulo
           href="/institutions/eu-parliament"
           pais="ue"
           titulo="Parlamento Europeo"
           descripcion="Eurodiputados, comisiones, grupos políticos y órganos de gobierno."
-          cifra={n.meps}
-          etiqueta={conComisiones(n.meps, n.comisionesUe, 'eurodiputados', 'comisiones')}
+          cifra={CIFRAS.parlamentoUe.n}
+          etiqueta={CIFRAS.parlamentoUe.etiqueta}
         />
         <Modulo
           href="/institutions/eu-commission"
           pais="ue"
           titulo="Comisión Europea"
           descripcion="Comisarios, gabinetes, direcciones generales y jefes de unidad."
-          cifra={n.personasCe}
-          etiqueta="personas"
+          cifra={CIFRAS.comisionUe.n}
+          etiqueta={CIFRAS.comisionUe.etiqueta}
         />
         <Modulo
           href="/organizations"
           pais="sector"
           titulo="Organizaciones"
           descripcion="Patronales, consultoras y empresas que trabajan con la Administración."
-          cifra={n.organizaciones}
-          etiqueta="organizaciones"
+          cifra={CIFRAS.organizaciones.n}
+          etiqueta={CIFRAS.organizaciones.etiqueta}
         />
 
         {/* La octava casilla evita que la rejilla quede coja, y de paso
@@ -271,7 +254,7 @@ export default function InstitutionsPage() {
           }}
         >
           <div style={{ fontSize: 12, color: '#a8a49c', letterSpacing: '.3px', marginBottom: 6 }}>PRÓXIMAMENTE</div>
-          <div style={{ fontSize: 14, color: '#8b8780', lineHeight: 1.5 }}>Consejo de la UE y Senado</div>
+          <div style={{ fontSize: 14, color: '#8b8780', lineHeight: 1.5 }}>Senado, y organismos y agencias de la UE</div>
         </div>
       </div>
 
