@@ -102,9 +102,10 @@ const CLAVES = ['inteligencia artificial', 'algoritmos', 'protección de datos',
 
 export default function LoginPanel() {
   return (
-    <div className="lp" aria-hidden="true">
+    <div className="lp-wrap" aria-hidden="true">
+      <div className="lp">
       <div className="lp-col">
-        <Etiqueta>Monitoriza lo que te afecta</Etiqueta>
+        <Etiqueta>Monitoriza lo que te afecta, con sus actores y plazos</Etiqueta>
 
         <div className="bento" style={VENTANA}>
           <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', padding: '2px 2px 8px' }}>
@@ -200,7 +201,7 @@ export default function LoginPanel() {
         </div>
 
         <div style={{ marginTop: 14 }} />
-        <Etiqueta>Oportunidades y empleo</Etiqueta>
+        <Etiqueta>Encuentra oportunidades de empleo</Etiqueta>
         <div className="bento" style={VENTANA}>
           <div style={TARJETA}>
             <div style={{ fontSize: 10.5, fontWeight: 600, color: '#1a1a18', lineHeight: 1.35 }}>
@@ -281,7 +282,7 @@ export default function LoginPanel() {
           </div>
         </div>
 
-        <Etiqueta>Directorio institucional y bases de datos</Etiqueta>
+        <Etiqueta>Directorio institucional y base de datos</Etiqueta>
         <div className="bento" style={{ ...VENTANA, marginBottom: 14 }}>
           <div style={TARJETA}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginBottom: 9 }}>
@@ -352,6 +353,17 @@ export default function LoginPanel() {
           </div>
         </div>
 
+      </div>
+      </div>
+
+      {/* Pie del panel, abajo a la derecha. Lo de Recruiter & Teams es la
+          única mención al lado de pago para organizaciones: quien llega
+          aquí buscando contratar necesita saber que existe. */}
+      <div className="lp-pie">
+        <div>Monitorización normativa en España y la UE</div>
+        <div style={{ marginTop: 4 }}>
+          Disponible también para empresas y organizaciones: <b style={{ fontWeight: 600, color: '#c4c0b8' }}>Recruiter &amp; Teams</b>
+        </div>
       </div>
     </div>
   );
