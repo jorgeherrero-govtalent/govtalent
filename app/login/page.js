@@ -248,7 +248,7 @@ export default function LoginPage() {
                 La plataforma <em>all in one</em> para profesionales de los asuntos públicos
               </h2>
               <div className="sl-tagline">
-                Normativa y monitorización en España y la UE, directorio institucional completo, empleos y gestión de
+                Monitorización normativa en España y la UE, directorio institucional completo, empleos y gestión de
                 tus proyectos. Todo lo que necesitas para crecer, en un único lugar.
               </div>
               <LoginPanel />
@@ -258,7 +258,7 @@ export default function LoginPage() {
               <h1>{view === 'signup' ? 'Registrarme' : 'Iniciar sesión'}</h1>
               <p>
                 {view === 'signup'
-                  ? 'Únete gratis al ecosistema profesional de los asuntos públicos.'
+                  ? 'Únete gratis a GovTalent.'
                   : 'Accede a tu cuenta para continuar donde lo dejaste.'}
               </p>
 
