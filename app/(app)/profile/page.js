@@ -5,6 +5,7 @@ import { createPortal } from 'react-dom';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
 import { toast } from '@/lib/toast';
+import { Isotipo } from '@/components/Logo';
 import { useDragPosition, parsePosition } from '@/lib/useDragPosition';
 import FirstTimeHint from '@/components/FirstTimeHint';
 import RadiografiaModal from '@/components/RadiografiaModal';
@@ -694,6 +695,35 @@ export default function ProfilePage() {
                 <div className={`drag-hint ${coverDrag.hover || coverDrag.dragging ? 'on' : ''}`}>
                   <i className="ti ti-arrows-move"></i> Arrastra para ajustar
                 </div>
+              )}
+
+              {/* Portada por defecto, solo mientras no haya subido la suya.
+                  Antes era una franja verde plana, que es lo primero que ve
+                  alguien recién registrado y no dice nada. Ahora lleva la
+                  marca y una frase que apunta a lo siguiente que hay que
+                  hacer.
+
+                  El texto va a la derecha porque el avatar ocupa la esquina
+                  inferior izquierda y lo pisaría. En móvil desaparece y se
+                  queda solo el fondo: a 340 px esa frase no cabe. */}
+              {!profile?.cover_url && (
+                <>
+                  <div
+                    aria-hidden="true"
+                    style={{
+                      position: 'absolute',
+                      inset: 0,
+                      borderRadius: '12px 12px 0 0',
+                      background:
+                        'radial-gradient(circle at 18% 15%, rgba(29,111,92,.20), transparent 55%),' +
+                        ' radial-gradient(circle at 82% 85%, rgba(109,90,239,.22), transparent 55%)',
+                    }}
+                  ></div>
+                  <div className="p-cover-msg">
+                    <Isotipo size={28} />
+                    <span>Personaliza tu perfil y solicita empleos en asuntos públicos</span>
+                  </div>
+                </>
               )}
           <label
             title="Cambiar portada"
