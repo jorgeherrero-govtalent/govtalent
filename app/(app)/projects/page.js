@@ -443,7 +443,7 @@ function Proyectos() {
               {/* El mismo texto con proyectos y sin ellos: el contador no
                   explicaba de qué va el módulo, y las tarjetas ya están
                   ahí para contarse. */}
-              Organiza, planifica y da seguimiento a tus proyectos.
+              Tu espacio de trabajo para gestionar tus asuntos públicos
             </div>
           </div>
           {!creando && (
