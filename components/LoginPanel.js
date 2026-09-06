@@ -106,7 +106,7 @@ export default function LoginPanel() {
       <div className="lp-col">
         <Etiqueta>Monitoriza lo que te afecta</Etiqueta>
 
-        <div style={VENTANA}>
+        <div className="bento" style={VENTANA}>
           <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', padding: '2px 2px 8px' }}>
             {FUENTES.map(([pais, nombre]) => (
               <span
@@ -197,24 +197,35 @@ export default function LoginPanel() {
             </div>
           </div>
 
+        </div>
+
+        <div style={{ marginTop: 14 }} />
+        <Etiqueta>Oportunidades y empleo</Etiqueta>
+        <div className="bento" style={VENTANA}>
           <div style={TARJETA}>
-            <div style={{ ...ROTULO, marginBottom: 8 }}>QUIÉN RESPONDE POLÍTICAMENTE</div>
-            <Actor
-              avatar="#e8eefb"
-              titulo="Secretaría de Estado de Digitalización e IA"
-              sub="Ministerio para la Transformación Digital"
-              seguir
-              linea
-            />
-            <div style={{ ...ROTULO, margin: '9px 0 8px' }}>QUIÉN LO TRAMITA</div>
-            <Actor
-              siglas="CP"
-              titulo="Comisión de Economía y Transformación Digital"
-              sub="Órgano competente · 37 diputados"
-              linea
-            />
-            <div style={{ ...ROTULO, margin: '9px 0 8px' }}>PONENTE</div>
-            <Actor avatar="#e8f4f0" titulo="Ponente del grupo proponente" sub="Grupo parlamentario" seguir />
+            <div style={{ fontSize: 10.5, fontWeight: 600, color: '#1a1a18', lineHeight: 1.35 }}>
+              Técnico/a de Asuntos Públicos y Relaciones Institucionales
+            </div>
+            <div style={{ display: 'flex', gap: 11, margin: '7px 0 10px', fontSize: 8, color: '#8b8780' }}>
+              <span>Madrid</span>
+              <span>Híbrido</span>
+              <span>Jornada completa</span>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 9 }}>
+              <span
+                style={{
+                  fontSize: 9,
+                  background: '#1d6f5c',
+                  color: '#fff',
+                  borderRadius: 6,
+                  padding: '6px 14px',
+                  fontWeight: 600,
+                }}
+              >
+                Solicitar
+              </span>
+              <span style={{ fontSize: 8, color: '#8b8780' }}>4 candidaturas</span>
+            </div>
           </div>
         </div>
       </div>
@@ -224,8 +235,21 @@ export default function LoginPanel() {
             sobre datos, y con qué criterios. La barra se queda quieta en
             su segunda fase; solo gira el icono. Un panel que se anima al
             lado de alguien tecleando la contraseña distrae. */}
-        <div style={{ ...VENTANA, marginBottom: 14 }}>
-          <div style={{ background: '#15140f', borderRadius: 8, padding: '12px 14px' }}>
+        {/* Sin el marco claro de VENTANA: una tarjeta negra dentro de un
+            marco claro dentro de un panel negro son tres capas para nada.
+            Va directa sobre el fondo, con un borde apenas más claro. */}
+        <div
+          className="bento"
+          style={{
+            background: '#1f1e19',
+            border: '1px solid #2c2b26',
+            borderRadius: 11,
+            padding: '15px 17px',
+            marginBottom: 14,
+            boxShadow: '0 18px 44px rgba(0,0,0,.42)',
+          }}
+        >
+          <div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 9 }}>
               <i className="ti ti-sparkles" style={{ fontSize: 10, color: LILA }}></i>
               <span style={{ fontSize: 7.5, color: LILA, letterSpacing: '.35px' }}>
@@ -258,7 +282,7 @@ export default function LoginPanel() {
         </div>
 
         <Etiqueta>Directorio institucional y bases de datos</Etiqueta>
-        <div style={{ ...VENTANA, marginBottom: 14 }}>
+        <div className="bento" style={{ ...VENTANA, marginBottom: 14 }}>
           <div style={TARJETA}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginBottom: 9 }}>
               <Bandera pais="es" />
@@ -328,89 +352,6 @@ export default function LoginPanel() {
           </div>
         </div>
 
-        <Etiqueta>Gestiona tus proyectos</Etiqueta>
-        <div style={{ ...VENTANA, marginBottom: 14 }}>
-          <div style={TARJETA}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginBottom: 10 }}>
-              <span
-                style={{
-                  width: 20,
-                  height: 20,
-                  borderRadius: 6,
-                  background: '#f0eefe',
-                  color: MORADO,
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                }}
-              >
-                <i className="ti ti-folder-plus" style={{ fontSize: 11 }}></i>
-              </span>
-              <span style={{ fontSize: 9.5, fontWeight: 600, color: '#1a1a18' }}>Añadir a un proyecto</span>
-            </div>
-            {[
-              [MORADO, 'Reglamento de redes digitales', '9 actores'],
-              ['#1d6f5c', 'Gobernanza de la IA', '8 actores'],
-            ].map(([color, nombre, n]) => (
-              <div
-                key={nombre}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 8,
-                  padding: '7px 0',
-                  borderTop: '.5px solid #f2f0ec',
-                }}
-              >
-                <span style={{ width: 8, height: 8, borderRadius: 2, background: color, flexShrink: 0 }}></span>
-                <span style={{ fontSize: 9, color: '#1a1a18', flex: 1 }}>{nombre}</span>
-                <span style={{ fontSize: 8, color: '#8b8780' }}>{n}</span>
-              </div>
-            ))}
-            <div
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: 6,
-                paddingTop: 8,
-                borderTop: '.5px solid #f2f0ec',
-                fontSize: 8.5,
-                color: MORADO,
-              }}
-            >
-              <i className="ti ti-plus" style={{ fontSize: 10 }}></i> Nuevo proyecto
-            </div>
-          </div>
-        </div>
-
-        <Etiqueta>Oportunidades y empleo</Etiqueta>
-        <div style={VENTANA}>
-          <div style={TARJETA}>
-            <div style={{ fontSize: 10.5, fontWeight: 600, color: '#1a1a18', lineHeight: 1.35 }}>
-              Técnico/a de Asuntos Públicos y Relaciones Institucionales
-            </div>
-            <div style={{ display: 'flex', gap: 11, margin: '7px 0 10px', fontSize: 8, color: '#8b8780' }}>
-              <span>Madrid</span>
-              <span>Híbrido</span>
-              <span>Jornada completa</span>
-            </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 9 }}>
-              <span
-                style={{
-                  fontSize: 9,
-                  background: '#1d6f5c',
-                  color: '#fff',
-                  borderRadius: 6,
-                  padding: '6px 14px',
-                  fontWeight: 600,
-                }}
-              >
-                Solicitar
-              </span>
-              <span style={{ fontSize: 8, color: '#8b8780' }}>4 candidaturas</span>
-            </div>
-          </div>
-        </div>
       </div>
     </div>
   );
