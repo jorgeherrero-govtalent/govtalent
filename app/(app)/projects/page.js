@@ -39,7 +39,9 @@ import { limiteProyectos, puedeCrearProyecto, tieneProyectos, upsellProyectos } 
 
 const MORADO = '#6d5aef';
 const BORDE = '#e0dfd8';
-const CARD = { background: '#fff', border: `.5px solid ${BORDE}`, borderRadius: 10 };
+// Mismo aspecto que en la home, el regulatorio y las instituciones:
+// sin borde, esquina de 16 y una sombra muy suave.
+const CARD = { background: '#fff', borderRadius: 16, boxShadow: '0 1px 2px rgba(0,0,0,.04)' };
 const ETIQUETA = { fontSize: 11, color: '#888', letterSpacing: '.3px' };
 
 const MESES = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
@@ -713,6 +715,7 @@ function Proyectos() {
             return (
               <div
                 key={p.id}
+                className="bento"
                 draggable={renombrando !== p.id}
                 onDragStart={(e) => alEmpezarArrastre(e, i, p.name)}
                 onDragOver={(e) => e.preventDefault()}
@@ -724,6 +727,10 @@ function Proyectos() {
                   position: 'relative',
                   cursor: 'grab',
                   opacity: arrastrando === i ? 0.4 : 1,
+                  // El estilo en línea gana al hover de la clase: mientras
+                  // se arrastra, la tarjeta no debe crecer o da saltos
+                  // bajo el cursor.
+                  transform: arrastrando === i ? 'none' : undefined,
                 }}
               >
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 10 }}>
