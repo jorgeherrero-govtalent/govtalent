@@ -6,7 +6,8 @@ import OrganizationFollowButton from '@/components/OrganizationFollowButton';
 import OrganizationClaimBanner from '@/components/OrganizationClaimBanner';
 import HoverTooltip from '@/components/HoverTooltip';
 import BackLink from '@/components/BackLink';
-import TransparencyIcon from '@/components/TransparencyIcon';
+
+const MODALITY_LABELS = { presencial: 'Presencial', hibrido: 'Híbrido', remoto: 'Remoto' };
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://govtalent.app';
 
@@ -200,64 +201,49 @@ export default async function OrganizationPublicPage({ params }) {
         userId={userId}
       />
 
+      {/* La tarjeta negra en vez del banner morado con degradado.
+
+          Antes eran cuatro promesas en pastillas y un botón grande, un
+          bloque de media pantalla para decir "regístrate". La tarjeta
+          negra es el lenguaje que ya usa la plataforma para hablar en su
+          propia voz, ocupa un tercio y dice lo mismo. */}
       {!userId && (
         <div
-          className="org-cta-banner"
           style={{
             maxWidth: 900,
             margin: '0 auto 16px',
+            background: '#15140f',
             borderRadius: 16,
-            background: 'linear-gradient(135deg, #6d5aef 0%, #2f2266 100%)',
-            boxShadow: '0 10px 28px rgba(47,34,102,0.24)',
-            textAlign: 'center',
+            padding: '22px 24px',
+            display: 'flex',
+            alignItems: 'center',
+            gap: 16,
+            flexWrap: 'wrap',
           }}
         >
-          <div className="org-cta-headline" style={{ fontWeight: 800, color: '#fff', marginBottom: 18, letterSpacing: '-0.01em' }}>
-            ¿Quieres trabajar o colaborar con {org.name}?
-          </div>
-          <div style={{ fontSize: 13.5, fontWeight: 700, color: 'rgba(255,255,255,0.85)', marginBottom: 14 }}>
-            Regístrate ahora para:
-          </div>
-          <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'center', gap: 8, marginBottom: 28 }}>
-            {[
-              'Recibir alertas cuando publique nuevas ofertas',
-              'Seguir su actividad',
-              'Descubrir organizaciones similares',
-              'Acceder a toda la red profesional del sector',
-            ].map((label) => (
-              <span
-                key={label}
-                style={{
-                  fontSize: 12.5,
-                  color: '#fff',
-                  background: 'rgba(255,255,255,0.12)',
-                  border: '1px solid rgba(255,255,255,0.22)',
-                  borderRadius: 20,
-                  padding: '6px 14px',
-                }}
-              >
-                ✅ {label}
-              </span>
-            ))}
+          <div style={{ flex: 1, minWidth: 230 }}>
+            <div style={{ fontSize: 11.5, color: '#8f7ff5', letterSpacing: '.3px', marginBottom: 9 }}>
+              TRABAJA CON {(org.name || '').toUpperCase()}
+            </div>
+            <div style={{ fontSize: 14.5, color: '#fff', lineHeight: 1.5 }}>
+              Recibe un aviso cuando publique una oferta, sigue su actividad y accede al resto del sector.
+            </div>
           </div>
           <Link
             href="/login?view=signup"
             style={{
+              fontSize: 12.5,
+              background: '#6d5aef',
+              color: '#fff',
+              borderRadius: 9,
+              padding: '10px 20px',
+              fontWeight: 600,
+              whiteSpace: 'nowrap',
               textDecoration: 'none',
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: 8,
-              background: '#fff',
-              color: '#3d2f8f',
-              fontWeight: 800,
-              fontSize: 15,
-              padding: '13px 30px',
-              borderRadius: 999,
-              boxShadow: '0 8px 22px rgba(0,0,0,0.2)',
-              letterSpacing: '-0.005em',
+              flexShrink: 0,
             }}
           >
-            Regístrate gratis <i className="ti ti-arrow-right" style={{ fontSize: 16 }}></i>
+            Regístrate gratis
           </Link>
         </div>
       )}
@@ -277,16 +263,26 @@ export default async function OrganizationPublicPage({ params }) {
                   y recibe una alerta cuando esta organización publique una oferta.
                 </div>
               ))}
-            {(!userId ? jobs.slice(0, 3) : jobs).map((j) => (
+            {/* Se enseñan TODAS, también a quien no ha entrado.
+
+                Antes se recortaban a tres y se pedía registro para ver
+                el resto. Quien llega aquí desde Google viene justo a ver
+                las ofertas: esconderlas es tirar el tráfico que más
+                interesa. El registro se pide en la tarjeta negra de
+                arriba, sin bloquear el contenido.
+
+                Y cada oferta lleva ahora a su propia página en vez de al
+                listado general, que obligaba a buscarla otra vez. */}
+            {jobs.map((j) => (
               <Link
-                href="/jobs"
+                href={`/empleo/${j.id}`}
                 key={j.id}
                 className="ji"
                 style={{ borderRadius: 8, marginBottom: 7, display: 'block', textDecoration: 'none', color: 'inherit' }}
               >
                 <div className="jt">{j.title}</div>
                 <div className="jo">
-                  {org.name} · {j.location}
+                  {[j.location, MODALITY_LABELS[j.modality]].filter(Boolean).join(' · ')}
                 </div>
                 {j.is_featured && (
                   <div style={{ marginTop: 5 }}>
@@ -295,16 +291,6 @@ export default async function OrganizationPublicPage({ params }) {
                 )}
               </Link>
             ))}
-            {!userId && jobs.length > 3 && (
-              <div style={{ textAlign: 'center', marginTop: 8 }}>
-                <Link
-                  href="/login?view=signup"
-                  style={{ fontSize: 13, color: '#1d6f5c', fontWeight: 600, textDecoration: 'none' }}
-                >
-                  Regístrate y revisa todas las ofertas
-                </Link>
-              </div>
-            )}
           </div>
         </div>
 
@@ -337,31 +323,6 @@ export default async function OrganizationPublicPage({ params }) {
             </div>
           </div>
 
-          {org.transparency_pledge && (
-            <div className="sw">
-              <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10, marginBottom: 8 }}>
-                <div
-                  style={{
-                    width: 34,
-                    height: 34,
-                    borderRadius: 8,
-                    background: '#faf9f5',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    flexShrink: 0,
-                  }}
-                >
-                  <TransparencyIcon size={20} />
-                </div>
-                <h4 style={{ margin: 0, paddingTop: 6 }}>Organización comprometida con la integridad y la transparencia</h4>
-              </div>
-              <div style={{ fontSize: 11.5, color: '#666', lineHeight: 1.5 }}>
-                Esta organización forma parte de la iniciativa de GovTalent para impulsar las buenas prácticas y la
-                transparencia en la actividad de los grupos de interés.
-              </div>
-            </div>
-          )}
         </div>
       </div>
     </div>
