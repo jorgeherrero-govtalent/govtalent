@@ -247,6 +247,7 @@ export default function LoginPage() {
               <h2>
                 La plataforma <em>all in one</em> para profesionales de los asuntos públicos
               </h2>
+              <div className="sl-tagline">Todo lo que necesitas para crecer, en un único lugar.</div>
               <LoginPanel />
             </div>
 
