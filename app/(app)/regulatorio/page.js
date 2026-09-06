@@ -260,7 +260,7 @@ export default function RegulatorioPage() {
               </div>
             ) : (
               <div style={{ fontSize: 14.5, color: '#fff', lineHeight: 1.5 }}>
-                Dinos a qué se dedica tu organización y revisamos las cinco fuentes para decirte qué te toca.
+                Dinos a qué se dedica tu organización y revisamos las 5 fuentes para monitorizar qué te afecta.
               </div>
             )}
           </div>
