@@ -23,7 +23,6 @@
  */
 
 const MORADO = '#6d5aef';
-const LILA = '#8f7ff5';
 
 const VENTANA = {
   background: '#f0efe9',
@@ -33,7 +32,7 @@ const VENTANA = {
   color: '#1a1a18',
   borderRadius: 11,
   boxShadow: '0 14px 34px rgba(0,0,0,.4)',
-  padding: 9,
+  padding: 8,
 };
 
 const TARJETA = {
@@ -41,7 +40,7 @@ const TARJETA = {
   color: '#1a1a18',
   borderRadius: 9,
   boxShadow: '0 1px 2px rgba(0,0,0,.05)',
-  padding: '11px 13px',
+  padding: '10px 12px',
 };
 
 const ROTULO = { fontSize: 9, color: '#8b8780', letterSpacing: '.4px' };
@@ -69,13 +68,13 @@ function Etiqueta({ children }) {
       style={{
         display: 'inline-block',
         alignSelf: 'flex-start',
-        fontSize: 11,
+        fontSize: 10.5,
         fontWeight: 600,
         background: MORADO,
         color: '#fff',
         borderRadius: 16,
-        padding: '4px 11px',
-        marginBottom: 8,
+        padding: '4px 10px',
+        marginBottom: 7,
         boxShadow: '0 6px 16px rgba(0,0,0,.3)',
       }}
     >
@@ -99,7 +98,6 @@ const FASES = [
   ['Ponencia', '—', 'futura'],
 ];
 
-const CLAVES = ['inteligencia artificial', 'algoritmos', 'protección de datos', 'servicios digitales'];
 
 export default function LoginPanel() {
   return (
@@ -109,7 +107,7 @@ export default function LoginPanel() {
           <Etiqueta>Anticipa lo que te afecta</Etiqueta>
 
           <div className="bento" style={VENTANA}>
-            <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', padding: '2px 2px 7px' }}>
+            <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', padding: '1px 1px 6px' }}>
               {FUENTES.map(([pais, nombre]) => (
                 <span
                   key={nombre}
@@ -117,7 +115,7 @@ export default function LoginPanel() {
                     display: 'inline-flex',
                     alignItems: 'center',
                     gap: 5,
-                    fontSize: 9.5,
+                    fontSize: 9,
                     color: '#57534e',
                     background: '#fff',
                     borderRadius: 12,
@@ -132,10 +130,10 @@ export default function LoginPanel() {
 
             <div style={{ ...TARJETA, marginBottom: 5, display: 'flex', gap: 10, alignItems: 'flex-start' }}>
               <div style={{ flex: 1 }}>
-                <div style={{ fontSize: 12.5, fontWeight: 600, lineHeight: 1.35 }}>
+                <div style={{ fontSize: 12, fontWeight: 600, lineHeight: 1.35 }}>
                   Ley de gobernanza de la inteligencia artificial
                 </div>
-                <div style={{ fontSize: 10.5, color: '#8b8780', marginTop: 3, lineHeight: 1.45 }}>
+                <div style={{ fontSize: 10, color: '#8b8780', marginTop: 3, lineHeight: 1.4 }}>
                   Congreso · Comisión de Economía, Comercio y Transformación Digital
                 </div>
               </div>
@@ -159,18 +157,18 @@ export default function LoginPanel() {
             </div>
 
             <div style={TARJETA}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 9 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
                 <span style={ROTULO}>PLAZOS</span>
                 <span style={{ fontSize: 10, color: MORADO }}>Ver ficha completa →</span>
               </div>
-              <div style={{ display: 'flex', gap: 6 }}>
+              <div style={{ display: 'flex', gap: 5 }}>
                 {FASES.map(([nombre, cuando, estado]) => (
                   <div key={nombre} style={{ flex: 1 }}>
                     <div
                       style={{
                         height: 3,
                         borderRadius: 2,
-                        marginBottom: 6,
+                        marginBottom: 5,
                         background: estado === 'futura' ? '#e0dfd8' : MORADO,
                       }}
                     ></div>
@@ -200,7 +198,7 @@ export default function LoginPanel() {
             </div>
           </div>
 
-          <div style={{ marginTop: 13 }} />
+          <div style={{ marginTop: 11 }} />
           <Etiqueta>Crece profesionalmente</Etiqueta>
 
           {/* El encaje, no una oferta suelta.
@@ -210,8 +208,8 @@ export default function LoginPanel() {
               que ya existe en el perfil. */}
           <div className="bento" style={VENTANA}>
             <div style={TARJETA}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 11 }}>
-                <svg viewBox="0 0 42 42" width="50" height="50" style={{ flexShrink: 0 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 11, marginBottom: 10 }}>
+                <svg viewBox="0 0 42 42" width="44" height="44" style={{ flexShrink: 0 }}>
                   <circle cx="21" cy="21" r="15.915" fill="none" stroke="#f2f0ec" strokeWidth="5" />
                   <circle
                     cx="21"
@@ -229,8 +227,8 @@ export default function LoginPanel() {
                   </text>
                 </svg>
                 <div>
-                  <div style={{ fontSize: 12, fontWeight: 600, lineHeight: 1.35 }}>Tu encaje con el sector</div>
-                  <div style={{ fontSize: 10.5, color: '#8b8780', marginTop: 2, lineHeight: 1.45 }}>
+                  <div style={{ fontSize: 11.5, fontWeight: 600, lineHeight: 1.35 }}>Tu encaje con el sector</div>
+                  <div style={{ fontSize: 10, color: '#8b8780', marginTop: 2, lineHeight: 1.4 }}>
                     12 ofertas encajan con tu perfil ahora mismo
                   </div>
                 </div>
@@ -238,7 +236,7 @@ export default function LoginPanel() {
 
               <Oferta titulo="Consultor/a de asuntos públicos" meta="Madrid · Híbrido · Jornada completa" encaje="92%" />
 
-              <div style={{ marginTop: 11 }}>
+              <div style={{ marginTop: 10 }}>
                 <span
                   style={{
                     display: 'inline-block',
@@ -246,7 +244,7 @@ export default function LoginPanel() {
                     background: '#1d6f5c',
                     color: '#fff',
                     borderRadius: 8,
-                    padding: '7px 16px',
+                    padding: '6px 15px',
                     fontWeight: 600,
                   }}
                 >
@@ -258,58 +256,10 @@ export default function LoginPanel() {
         </div>
 
         <div className="lp-col lp-col-2">
-          {/* Sin el marco claro de VENTANA: una tarjeta oscura dentro de un
-              marco claro dentro de un panel oscuro son tres capas para
-              nada. Va directa sobre el fondo. */}
-          <div
-            className="bento"
-            style={{
-              background: '#1f1e19',
-              border: '1px solid #2c2b26',
-              borderRadius: 12,
-              padding: '14px 16px',
-              marginBottom: 13,
-              boxShadow: '0 18px 44px rgba(0,0,0,.42)',
-            }}
-          >
-            <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginBottom: 11 }}>
-              <i className="ti ti-sparkles" style={{ fontSize: 12, color: LILA }}></i>
-              <span style={{ fontSize: 10, color: LILA, letterSpacing: '.4px' }}>
-                ANALIZAMOS QUÉ IMPACTA EN TU SECTOR
-              </span>
-            </div>
-            <div style={{ display: 'flex', gap: 4, marginBottom: 12 }}>
-              <span style={{ flex: 1, height: 3.5, borderRadius: 2, background: MORADO }}></span>
-              <span style={{ flex: 1, height: 3.5, borderRadius: 2, background: '#b3a8f7' }}></span>
-              <span style={{ flex: 1, height: 3.5, borderRadius: 2, background: '#35342e' }}></span>
-              <span style={{ flex: 1, height: 3.5, borderRadius: 2, background: '#35342e' }}></span>
-            </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
-              <i className="ti ti-loader-2 lp-gira" style={{ fontSize: 13, color: LILA }}></i>
-              <span style={{ fontSize: 12, color: '#fff' }}>Buscando “inteligencia artificial”</span>
-            </div>
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-              {CLAVES.map((k) => (
-                <span
-                  key={k}
-                  style={{
-                    fontSize: 10,
-                    background: '#2c2b26',
-                    color: '#c4c0b8',
-                    borderRadius: 12,
-                    padding: '3px 10px',
-                  }}
-                >
-                  {k}
-                </span>
-              ))}
-            </div>
-          </div>
-
           <Etiqueta>Directorio de cargos</Etiqueta>
           <div className="bento" style={VENTANA}>
             <div style={TARJETA}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 10 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 9 }}>
                 <Bandera pais="es" />
                 <Bandera pais="ue" />
                 <span style={{ fontSize: 11, fontWeight: 600, marginLeft: 3 }}>Directorio institucional</span>
@@ -326,7 +276,7 @@ export default function LoginPanel() {
                   gap: 8,
                   fontSize: 10,
                   color: '#57534e',
-                  marginTop: 8,
+                  marginTop: 7,
                 }}
               >
                 <i className="ti ti-corner-down-right" style={{ fontSize: 12, color: '#a8a49c' }}></i>
@@ -340,8 +290,8 @@ export default function LoginPanel() {
                   alignItems: 'center',
                   gap: 8,
                   fontSize: 10.5,
-                  paddingTop: 10,
-                  marginTop: 10,
+                  paddingTop: 9,
+                  marginTop: 9,
                   borderTop: '.5px solid #f2f0ec',
                 }}
               >
@@ -390,8 +340,8 @@ function Oferta({ titulo, meta, encaje }) {
         display: 'flex',
         alignItems: 'center',
         gap: 12,
-        paddingTop: 12,
-        marginTop: 12,
+        paddingTop: 10,
+        marginTop: 10,
         borderTop: '.5px solid #f2f0ec',
       }}
     >
@@ -412,9 +362,9 @@ function Cargo({ avatar, siglas, titulo, sub }) {
       {siglas ? (
         <span
           style={{
-            width: 30,
-            height: 30,
-            borderRadius: 8,
+            width: 28,
+            height: 28,
+            borderRadius: 7,
             background: '#f0eefe',
             color: MORADO,
             fontSize: 8.5,
@@ -428,7 +378,7 @@ function Cargo({ avatar, siglas, titulo, sub }) {
           {siglas}
         </span>
       ) : (
-        <span style={{ width: 30, height: 30, borderRadius: '50%', background: avatar, flexShrink: 0 }}></span>
+        <span style={{ width: 28, height: 28, borderRadius: '50%', background: avatar, flexShrink: 0 }}></span>
       )}
       <div style={{ flex: 1, minWidth: 0 }}>
         <div style={{ fontSize: 11.5, fontWeight: 600, lineHeight: 1.3 }}>{titulo}</div>
