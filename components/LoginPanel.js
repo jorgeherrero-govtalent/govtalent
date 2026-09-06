@@ -315,10 +315,73 @@ export default function LoginPanel() {
             </div>
           </div>
 
-          {/* Recruiter y Teams: al pie de esta columna, a la altura de la
-              tarjeta de empleo de la izquierda. En morado y sin caja, que
-              es como se marcan los enlaces de la plataforma. */}
-          <div className="lp-org">Descubre Recruiter y Teams para organizaciones →</div>
+          <div style={{ marginTop: 11 }} />
+          <Etiqueta>Organiza tu trabajo</Etiqueta>
+
+          {/* Un proyecto con su objetivo.
+              El objetivo es lo que distingue un proyecto de una carpeta:
+              aquí no se guardan documentos, se persigue un resultado
+              concreto sobre una norma. Sin esa línea la tarjeta sería una
+              lista de nombres y no contaría nada. */}
+          <div className="bento" style={VENTANA}>
+            <div style={TARJETA}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 9 }}>
+                <span style={{ width: 9, height: 9, borderRadius: 3, background: MORADO, flexShrink: 0 }}></span>
+                <span style={{ fontSize: 11.5, fontWeight: 600, flex: 1 }}>Gobernanza de la IA</span>
+                <span style={{ fontSize: 9.5, color: '#8b8780' }}>Activo</span>
+              </div>
+
+              <div
+                style={{
+                  fontSize: 10,
+                  color: '#57534e',
+                  lineHeight: 1.5,
+                  paddingBottom: 9,
+                  borderBottom: '.5px solid #f2f0ec',
+                }}
+              >
+                <span style={{ color: '#8b8780' }}>Objetivo:</span> que la supervisión no imponga auditoría previa a
+                los sistemas de riesgo limitado.
+              </div>
+
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12, paddingTop: 9 }}>
+                <div style={{ display: 'flex', alignItems: 'center' }}>
+                  {['#e8eefb', '#f0eefe', '#e8f4f0'].map((color, i) => (
+                    <span
+                      key={color}
+                      style={{
+                        width: 22,
+                        height: 22,
+                        borderRadius: '50%',
+                        background: color,
+                        border: '1.5px solid #fff',
+                        marginLeft: i === 0 ? 0 : -6,
+                      }}
+                    ></span>
+                  ))}
+                  <span
+                    style={{
+                      width: 22,
+                      height: 22,
+                      borderRadius: '50%',
+                      background: '#f4f4f0',
+                      border: '1.5px solid #fff',
+                      marginLeft: -6,
+                      color: '#8b8780',
+                      fontSize: 8,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                    }}
+                  >
+                    +3
+                  </span>
+                </div>
+                <span style={{ fontSize: 10, color: '#8b8780' }}>6 actores</span>
+                <span style={{ marginLeft: 'auto', fontSize: 10, color: MORADO, fontWeight: 600 }}>2 novedades</span>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
 
