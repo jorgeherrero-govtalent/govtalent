@@ -25,30 +25,6 @@ import { createClient } from '@/lib/supabase/client';
  * negocia, y al final el BOE, que es cumplir.
  */
 
-const HACE30 = new Date(Date.now() - 30 * 86400000).toISOString().slice(0, 10);
-
-/**
- * Reparte fechas en diez franjas de tres días.
- *
- * Diez puntos son los que caben en una tarjeta sin que la línea parezca
- * ruido: con treinta, un día flojo entre dos fuertes dibuja un diente de
- * sierra que no significa nada.
- */
-function enFranjas(filas, campo, franjas = 10) {
-  const cubos = new Array(franjas).fill(0);
-  const inicio = Date.now() - 30 * 86400000;
-  const ancho = (30 * 86400000) / franjas;
-  for (const f of filas || []) {
-    const v = f?.[campo];
-    if (!v) continue;
-    const t = new Date(v).getTime();
-    if (Number.isNaN(t)) continue;
-    const i = Math.min(franjas - 1, Math.max(0, Math.floor((t - inicio) / ancho)));
-    cubos[i] += 1;
-  }
-  return cubos;
-}
-
 const VERDE = '#1d6f5c';
 const MORADO = '#6d5aef';
 
@@ -97,34 +73,50 @@ function Bandera({ pais, size = 17 }) {
  * lo sabemos. En ese caso se enseñan los totales, que sí son verdad.
  */
 /**
- * La línea de actividad de una institución.
+ * Trazo ornamental de la tarjeta.
  *
- * Diez puntos, uno por cada franja de tres días de los últimos treinta.
- * Se normaliza dentro de la propia tarjeta y no entre tarjetas: el BOE
- * publica cientos de disposiciones al mes y el Congreso decenas, así que
- * una escala común dejaría cuatro líneas planas y una viva. Lo que se
- * compara aquí es cada institución consigo misma.
+ * OJO: ESTO NO ES UN GRÁFICO. No mide nada, no consulta la base de datos
+ * y no cambia nunca. Es un trazo decorativo, fijo por institución, para
+ * dar peso visual a la tarjeta.
+ *
+ * Se probó con datos reales y no funcionaba: tres de las cinco fuentes
+ * no tienen actividad continua que enseñar. En el Congreso se medían
+ * presentaciones de iniciativas, que fuera de periodo de sesiones son
+ * cero; en la Comisión, altas en nuestra propia base, que es el ritmo al
+ * que descubre cosas el sync y no el de Bruselas. Las líneas salían
+ * planas y parecía la plataforma rota.
+ *
+ * La información de verdad vive en la cifra de abajo y en la tarjeta
+ * negra. Si algún día estas curvas van a llevar datos, hay que quitar
+ * este comentario y traerlos de una serie real: dejar el trazo fijo y
+ * llamarlo actividad sería mentir con forma de gráfico.
  */
-function Linea({ serie, color }) {
-  const W = 300;
-  const H = 40;
-  if (!serie || serie.length < 2) {
-    return <div style={{ height: H, margin: '14px 0 10px' }}></div>;
-  }
-  const max = Math.max(...serie, 1);
-  const paso = W / (serie.length - 1);
-  const puntos = serie.map((v, i) => `${(i * paso).toFixed(1)},${(H - 6 - (v / max) * (H - 12)).toFixed(1)}`);
-  const ultimo = puntos[puntos.length - 1].split(',');
+const TRAZOS = {
+  ce: '0,38 30,34 60,36 90,24 120,28 150,18 180,22 210,12 240,16 270,8 300,11',
+  ministerios: '0,24 30,22 60,26 90,18 120,20 150,24 180,16 210,20 240,14 270,18 300,12',
+  pe: '0,20 30,24 60,18 90,26 120,16 150,22 180,14 210,20 240,12 270,18 300,14',
+  congreso: '0,30 30,26 60,28 90,20 120,24 150,14 180,18 210,10 240,16 270,8 300,6',
+  boe: '0,16 30,22 60,10 90,24 120,12 150,26 180,14 210,22 240,10 270,20 300,15',
+};
 
+function Trazo({ nombre, color }) {
+  const puntos = TRAZOS[nombre];
+  if (!puntos) return null;
+  const ultimo = puntos.split(' ').pop().split(',');
   return (
-    <svg viewBox={`0 0 ${W} ${H}`} style={{ width: '100%', height: H, display: 'block', margin: '14px 0 10px' }} aria-hidden="true">
-      <polyline points={puntos.join(' ')} fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+    <svg
+      viewBox="0 0 300 40"
+      style={{ width: '100%', height: 40, display: 'block', margin: '14px 0 10px' }}
+      aria-hidden="true"
+      focusable="false"
+    >
+      <polyline points={puntos} fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
       <circle cx={ultimo[0]} cy={ultimo[1]} r="3" fill={color} />
     </svg>
   );
 }
 
-function Institucion({ href, pais, titulo, descripcion, serie, cifra, etiqueta, afectan, color = MORADO }) {
+function Institucion({ href, pais, titulo, descripcion, trazo, cifra, etiqueta, afectan, color = MORADO }) {
   return (
     <Link
       href={href}
@@ -140,7 +132,7 @@ function Institucion({ href, pais, titulo, descripcion, serie, cifra, etiqueta, 
       </div>
 
       <div>
-        <Linea serie={serie} color={color} />
+        <Trazo nombre={trazo} color={color} />
         <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap' }}>
           <span style={{ fontSize: 24, fontWeight: 600, color, lineHeight: 1 }}>
             {cifra === null || cifra === undefined ? '—' : cifra.toLocaleString('es-ES')}
@@ -162,7 +154,6 @@ export default function RegulatorioPage() {
   const supabase = createClient();
   const [sector, setSector] = useState(null);
   const [afectan, setAfectan] = useState({});
-  const [series, setSeries] = useState({});
   const [cifras, setCifras] = useState({
     ventanas: null,
     tramitacion: null,
@@ -193,15 +184,7 @@ export default function RegulatorioPage() {
       // asuntos analizados.
       supabase.from('sector_matches').select('kind, plazo, visto'),
 
-      // --- Las cinco series de actividad de los últimos 30 días ---
-      // Se traen solo las columnas de fecha y se agrupan en el cliente:
-      // treinta recuentos por institución serían 150 viajes a la base.
-      supabase.from('eu_initiatives_directory').select('created_at').gte('created_at', HACE30).limit(2000),
-      supabase.from('consultas_estado').select('fecha_inicio').gte('fecha_inicio', HACE30).limit(2000),
-      supabase.from('ep_procedures').select('last_activity_at').gte('last_activity_at', HACE30).limit(2000),
-      supabase.from('es_initiatives').select('fecha_presentacion').gte('fecha_presentacion', HACE30).limit(2000),
-      supabase.from('boe_documents').select('fecha_publicacion').gte('fecha_publicacion', HACE30).limit(3000),
-    ]).then(([ven, tram, esV, boeS, consA, consU, { data: matches }, sCe, sMin, sPe, sCd, sBoe]) => {
+    ]).then(([ven, tram, esV, boeS, consA, consU, { data: matches }]) => {
       setCifras({
         ventanas: ven.count ?? null,
         tramitacion: tram.count ?? null,
@@ -215,14 +198,6 @@ export default function RegulatorioPage() {
       const porKind = {};
       for (const x of m) porKind[x.kind] = (porKind[x.kind] || 0) + 1;
       setAfectan(porKind);
-
-      setSeries({
-        ce: enFranjas(sCe.data, 'created_at'),
-        ministerios: enFranjas(sMin.data, 'fecha_inicio'),
-        pe: enFranjas(sPe.data, 'last_activity_at'),
-        congreso: enFranjas(sCd.data, 'fecha_presentacion'),
-        boe: enFranjas(sBoe.data, 'fecha_publicacion'),
-      });
 
       const ahora = Date.now();
       setSector({
@@ -299,7 +274,7 @@ export default function RegulatorioPage() {
           pais="ue"
           titulo="Comisión Europea"
           descripcion="Lo que Bruselas está preparando y todavía admite aportaciones."
-          serie={series.ce}
+          trazo="ce"
           cifra={cifras.ventanas}
           etiqueta="admiten aportaciones"
           afectan={afectan.expediente || 0}
@@ -309,7 +284,7 @@ export default function RegulatorioPage() {
           pais="es"
           titulo="Ministerios"
           descripcion="Consultas previas y audiencias públicas, con su plazo para opinar."
-          serie={series.ministerios}
+          trazo="ministerios"
           cifra={cifras.consultasAbiertas}
           etiqueta={
             cifras.consultasUrgentes > 0
@@ -323,7 +298,7 @@ export default function RegulatorioPage() {
           pais="ue"
           titulo="Parlamento Europeo"
           descripcion="Las normas que se están negociando, con sus ponentes y comisiones."
-          serie={series.pe}
+          trazo="pe"
           cifra={cifras.tramitacion}
           etiqueta="en negociación"
           afectan={afectan.procedimiento || 0}
@@ -333,7 +308,7 @@ export default function RegulatorioPage() {
           pais="es"
           titulo="Congreso"
           descripcion="Leyes en trámite, comparecencias y preguntas, con sus plazos."
-          serie={series.congreso}
+          trazo="congreso"
           cifra={cifras.esVivas}
           etiqueta="leyes vivas"
           afectan={afectan.ley || 0}
@@ -345,7 +320,7 @@ export default function RegulatorioPage() {
           pais="es"
           titulo="BOE"
           descripcion="Lo ya aprobado y los nombramientos de altos cargos."
-          serie={series.boe}
+          trazo="boe"
           cifra={cifras.boeSemana}
           etiqueta="esta semana"
           color={VERDE}
