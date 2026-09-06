@@ -97,7 +97,6 @@ const FASES = [
   ['Toma en consideración', '28 feb', 'hecha'],
   ['Enmiendas', 'Quedan 13 días', 'actual'],
   ['Ponencia', '—', 'futura'],
-  ['Senado', '—', 'futura'],
 ];
 
 const CLAVES = ['inteligencia artificial', 'algoritmos', 'protección de datos', 'servicios digitales'];
@@ -161,7 +160,7 @@ export default function LoginPanel() {
 
             <div style={TARJETA}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 11 }}>
-                <span style={ROTULO}>LA NORMA Y SU TRAMITACIÓN</span>
+                <span style={ROTULO}>PLAZOS</span>
                 <span style={{ fontSize: 10, color: MORADO }}>Ver ficha completa →</span>
               </div>
               <div style={{ display: 'flex', gap: 6 }}>
@@ -396,11 +395,13 @@ function Oferta({ titulo, meta, encaje }) {
         borderTop: '.5px solid #f2f0ec',
       }}
     >
-      <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{ fontSize: 11.5, fontWeight: 600, lineHeight: 1.3 }}>{titulo}</div>
-        <div style={{ fontSize: 10, color: '#8b8780', marginTop: 2 }}>{meta}</div>
+      <div style={{ minWidth: 0 }}>
+        <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap' }}>
+          <span style={{ fontSize: 11.5, fontWeight: 600, lineHeight: 1.3 }}>{titulo}</span>
+          <span style={{ fontSize: 10.5, color: MORADO, fontWeight: 600 }}>{encaje}</span>
+        </div>
+        <div style={{ fontSize: 10, color: '#8b8780', marginTop: 3 }}>{meta}</div>
       </div>
-      <span style={{ fontSize: 10.5, color: MORADO, fontWeight: 600, flexShrink: 0 }}>{encaje}</span>
     </div>
   );
 }
