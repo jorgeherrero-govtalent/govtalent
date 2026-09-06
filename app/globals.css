@@ -452,3 +452,29 @@ a{color:inherit}
   .gt-fase-nombre{flex:1;min-width:0}
   .gt-fase-cuando{margin-top:0!important;flex-shrink:0;white-space:nowrap}
 }
+
+/* Entradas de experiencia, educación e idiomas en el móvil.
+
+   En una fila caben el asa de arrastre, el logo, el texto y la columna
+   de botones. En 340 px eso deja al texto unos 180, y los títulos largos
+   —"Técnico de Asuntos Públicos y Relaciones Institucionales"— quedan
+   partidos en cinco líneas contra una columna de botones.
+
+   Aquí el asa desaparece (en táctil no se arrastra igualmente) y los
+   botones bajan a su propia línea, alineados a la derecha. El texto pasa
+   a tener el ancho completo. */
+@media (max-width: 620px){
+  .exp-fila{flex-wrap:wrap}
+  .exp-fila > .ti-grip-vertical{display:none}
+  .exp-fila .exp-logo{width:34px;height:34px;font-size:15px}
+  .exp-fila .exp-body{min-width:0}
+  .exp-fila .exp-acciones{
+    flex:1 1 100%;
+    flex-direction:row!important;
+    justify-content:flex-end;
+    margin-top:2px;
+  }
+  .exp-body .et,
+  .exp-body .eo,
+  .exp-body .ed{overflow-wrap:anywhere}
+}
