@@ -1,1284 +1,1904 @@
 'use client';
 
-import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
 import { toast } from '@/lib/toast';
-import UpgradeModal from '@/components/UpgradeModal';
-import MapaActores from '@/components/MapaActores';
-import ActividadProyecto from '@/components/ActividadProyecto';
-import AgendaProyecto from '@/components/AgendaProyecto';
-import NotasProyecto from '@/components/NotasProyecto';
-import AsuntosProyecto from '@/components/AsuntosProyecto';
-import Desplegable from '@/components/Desplegable';
-import BriefingProyecto from '@/components/BriefingProyecto';
-import DocumentosProyecto from '@/components/DocumentosProyecto';
-import AnclasProyecto from '@/components/AnclasProyecto';
-import CambiarProyecto from '@/components/CambiarProyecto';
-import ActorAvatar from '@/components/ActorAvatar';
-import ProyectoDemo from '@/components/ProyectoDemo';
-import { limiteProyectos, puedeCrearProyecto, tieneProyectos, upsellProyectos } from '@/lib/proyectos';
+import { useDragPosition, parsePosition } from '@/lib/useDragPosition';
+import FirstTimeHint from '@/components/FirstTimeHint';
+import RadiografiaModal from '@/components/RadiografiaModal';
+import {
+  CAREER_SITUATIONS,
+  ORG_TYPES,
+  ROLE_TYPES,
+  LEVEL_TYPES,
+  SHOWS_DETAIL_QUESTIONS,
+} from '@/lib/professionalSituation';
 
-/**
- * Proyectos.
- *
- * Dos pantallas en una ruta:
- *   /projects           → el índice, con buscador y tarjetas
- *   /projects?p=<id>    → el proyecto abierto, con lateral para cambiar
- *
- * Va en la misma ruta y no en /projects/[id] para que cambiar de
- * proyecto no recargue la página, manteniendo la URL compartible.
- *
- * Free ve el proyecto de ejemplo y el modal de Pro; cualquier clic en la
- * zona de contenido lo abre.
- *
- * Patrones: la tarjeta con cifras es la de Regulatorio; el modal es
- * UpgradeModal. Morado #6d5aef (btn-ai) para todo lo de Pro.
- */
-
-const MORADO = '#6d5aef';
-const BORDE = '#e0dfd8';
-// Mismo aspecto que en la home, el regulatorio y las instituciones:
-// sin borde, esquina de 16 y una sombra muy suave.
-const CARD = { background: '#fff', borderRadius: 16, boxShadow: '0 1px 2px rgba(0,0,0,.04)' };
-const ETIQUETA = { fontSize: 11, color: '#888', letterSpacing: '.3px' };
-
-const MESES = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
-
-function haceCuanto(iso) {
-  if (!iso) return null;
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return null;
-  const min = Math.floor((Date.now() - d.getTime()) / 60000);
-  if (min < 60) return 'hace un momento';
-  const h = Math.floor(min / 60);
-  if (h < 24) return `hace ${h} h`;
-  const dias = Math.floor(h / 24);
-  if (dias === 1) return 'ayer';
-  if (dias < 30) return `hace ${dias} días`;
-  return `${d.getDate()} ${MESES[d.getMonth()]}`;
-}
-
-// Un proyecto arranca desde un ASUNTO, no desde una persona: quien
-// decide es un actor del mapa, no el objeto del trabajo. Por eso el
-// arranque solo ofrece los cinco tipos regulatorios y deja fuera
-// diputados, comisarios, comisiones y grupos.
-const TIPOS_ARRANQUE = {
-  ley: ['Congreso · proyecto de ley', 'ti-file-text'],
-  actividad: ['Congreso · actividad parlamentaria', 'ti-file-text'],
-  expediente: ['Comisión Europea · expediente', 'ti-file-text'],
-  procedimiento: ['Parlamento Europeo · procedimiento', 'ti-gavel'],
-  boe: ['BOE', 'ti-news'],
-};
-
-const DEMO_LISTA = [
-  { id: 'demo-1', name: 'Ley de gobernanza de la IA', objetivo: 'Congreso · fase de enmiendas' },
-  { id: 'demo-2', name: 'Movilidad sostenible', objetivo: 'Trasposición · sin plazo abierto' },
-];
-
-export default function ProjectsPage() {
-  return (
-    <Suspense
-      fallback={
-        <div className="sec">
-          <div className="spinner"></div>
-        </div>
-      }
-    >
-      <Proyectos />
-    </Suspense>
-  );
-}
-
-function Proyectos() {
+export default function ProfilePage() {
   const supabase = createClient();
-  const router = useRouter();
-  const params = useSearchParams();
-  const abiertoId = params.get('p');
-
-  const [cargando, setCargando] = useState(true);
+  const [userId, setUserId] = useState(null);
   const [user, setUser] = useState(null);
-  const [proyectos, setProyectos] = useState([]);
-  const [datos, setDatos] = useState({});
-  const [modalUpsell, setModalUpsell] = useState(false);
-  const [modalCompartidos, setModalCompartidos] = useState(false);
-  const [tieneOrganizacion, setTieneOrganizacion] = useState(false);
-  const [busqueda, setBusqueda] = useState('');
-  const [orden, setOrden] = useState('recientes');
-  const [arrastrando, setArrastrando] = useState(null);
-  const [creando, setCreando] = useState(false);
-  const [nombre, setNombre] = useState('');
-  const [menu, setMenu] = useState(null);
-  const [renombrando, setRenombrando] = useState(null);
-  const [confirmarBorrado, setConfirmarBorrado] = useState(null);
-  // Los botones de la cabecera abren el buscador de la sección que toca.
-  const [atajo, setAtajo] = useState(null);
-  // Vuelve a true al abrir cualquier proyecto: cerrarlo es un "ahora no".
-  const [teams, setTeams] = useState(true);
-  // Para el estado vacío: lo último que el usuario ha seguido. Tres,
-  // no más: es una sugerencia para arrancar, no un directorio.
-  const [seguidos, setSeguidos] = useState([]);
-  const [clientes, setClientes] = useState([]);
-  // Dos condiciones para que desaparezca: que ya haya alguna actividad
-  // registrada, o que se cierre a mano. Lo segundo hace falta porque
-  // quien no vaya a usar el registro nunca cumpliría la primera, y el
-  // aviso se quedaría para siempre.
-  const [avisoRegistro, setAvisoRegistro] = useState(false);
+  const [profile, setProfile] = useState(null);
+  const coverDrag = useDragPosition({
+    axis: 'xy',
+    value: parsePosition(profile?.cover_position),
+    editable: !!profile?.cover_url,
+    onCommit: (pos) => saveCoverPosition(pos),
+  });
+  const avatarDrag = useDragPosition({
+    axis: 'xy',
+    value: parsePosition(user?.avatar_position),
+    editable: !!user?.avatar_url,
+    onCommit: (pos) => saveAvatarPosition(pos),
+  });
+  const [experiences, setExperiences] = useState([]);
+  const [education, setEducation] = useState([]);
+  const [skills, setSkills] = useState([]);
+  const [languages, setLanguages] = useState([]);
+  const [savedJobs, setSavedJobs] = useState([]);
+  const [appliedJobs, setAppliedJobs] = useState([]);
 
-  const esPro = tieneProyectos(user);
+  const [tab, setTab] = useState('e');
+  const [showEditProfile, setShowEditProfile] = useState(false);
+  const [savingProfile, setSavingProfile] = useState(false);
+  const [showExpForm, setShowExpForm] = useState(false);
+  const [showEduForm, setShowEduForm] = useState(false);
+  const [editingExpId, setEditingExpId] = useState(null);
+  const [editingEduId, setEditingEduId] = useState(null);
+  const [editingLangId, setEditingLangId] = useState(null);
+  const [skillInput, setSkillInput] = useState('');
+  const [langName, setLangName] = useState('');
+  const [langLevel, setLangLevel] = useState('B2');
+  const [dragIndex, setDragIndex] = useState(null);
 
-  const cargar = useCallback(async () => {
-    const { data: auth } = await supabase.auth.getUser();
-    if (!auth?.user) {
-      setCargando(false);
-      return;
+  const [radiografia, setRadiografia] = useState(null);
+  const [iaCerrada, setIaCerrada] = useState(false);
+  const [cvCerrado, setCvCerrado] = useState(false);
+  const [verRadiografia, setVerRadiografia] = useState(false);
+
+  const [showAiCvTip, setShowAiCvTip] = useState(true);
+
+  // Cada vez que se abre "Editar perfil", el aviso vuelve a aparecer,
+  // aunque se hubiera cerrado la vez anterior.
+  useEffect(() => {
+    if (showEditProfile) setShowAiCvTip(true);
+  }, [showEditProfile]);
+
+  function dismissAiCvTip() {
+    setShowAiCvTip(false);
+  }
+
+  // Situación profesional (career_situation, org_type, role_type, level_type):
+  // alimenta la Radiografía Profesional. Se piden en el onboarding, pero
+  // quien crea una organización primero nunca pasa por ahí, y quienes se
+  // registraron antes de que existieran estas preguntas tampoco las tienen
+  // — por eso viven aquí también, siempre editables.
+  const [situ, setSitu] = useState({
+    career_situation: '',
+    org_type: '',
+    role_type: '',
+    level_type: '',
+  });
+
+  useEffect(() => {
+    if (profile) {
+      setSitu({
+        career_situation: profile.career_situation || '',
+        org_type: profile.org_type || '',
+        role_type: profile.role_type || '',
+        level_type: profile.level_type || '',
+      });
     }
+  }, [profile]);
 
-    const { data: perfil } = await supabase.from('users').select('id, plan').eq('id', auth.user.id).single();
-    setUser(perfil);
+  function selectSitu(field, value) {
+    setSitu((s) => ({ ...s, [field]: value }));
+  }
 
-    // Solo para saber qué decir en el modal de compartidos: quien no
-    // tiene organización no puede contratar Teams por su cuenta.
-    const { count: nOrgs } = await supabase
-      .from('organization_members')
-      .select('organization_id', { count: 'exact', head: true })
-      .eq('user_id', auth.user.id);
-    setTieneOrganizacion((nOrgs || 0) > 0);
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
+  const [uploadingCover, setUploadingCover] = useState(false);
+  const [uploadingCv, setUploadingCv] = useState(false);
+  const [extractingCv, setExtractingCv] = useState(false);
+  const [cvExtractResult, setCvExtractResult] = useState(null);
+  const [applyingExtract, setApplyingExtract] = useState(false);
+  const [selectedExpIdx, setSelectedExpIdx] = useState(new Set());
+  const [selectedEduIdx, setSelectedEduIdx] = useState(new Set());
+  const [selectedSkills, setSelectedSkills] = useState(new Set());
 
-    if (perfil?.plan !== 'pro') {
-      setCargando(false);
-      setModalUpsell(true);
-      return;
-    }
+  useEffect(() => {
+    load();
+  }, []);
 
-    const { data, error } = await supabase
-      .from('projects')
-      .select('id, name, description, objetivo, orden, updated_at, client_id')
-      .eq('user_id', auth.user.id)
-      .eq('archived', false)
-      .order('updated_at', { ascending: false });
+  // La radiografía se pide una vez al cargar el perfil. Si falla, la
+  // tarjeta no aparece: mejor que enseñar un hueco con un error.
+  useEffect(() => {
+    fetch('/api/radiografia/calcular')
+      .then((r) => r.json())
+      .then((d) => {
+        if (!d?.error) setRadiografia(d);
+      })
+      .catch(() => {});
+  }, []);
 
-    if (error) {
-      toast('No se han podido cargar tus proyectos');
-      setCargando(false);
-      return;
-    }
+  async function load() {
+    try {
+      const { data: authData } = await supabase.auth.getUser();
+      if (!authData.user) return;
+      const uid = authData.user.id;
+      setUserId(uid);
 
-    const ids = (data || []).map((p) => p.id);
-    const acc = {};
-    for (const id of ids) acc[id] = { actores: 0, asuntos: 0, sinContactar: 0, novedades: 0, caras: [], todas: [] };
-
-    // Consultas agregadas, no una por proyecto: con veinte proyectos
-    // serían ochenta llamadas.
-    if (ids.length) {
-      const [{ data: items }, { data: actores }, { data: eventos }] = await Promise.all([
-        supabase.from('project_items').select('project_id').in('project_id', ids),
+      const results = await Promise.allSettled([
+        supabase.from('users').select('*').eq('id', uid).single(),
+        supabase.from('candidate_profiles').select('*').eq('user_id', uid).single(),
+        supabase.from('experiences').select('*').eq('user_id', uid).order('sort_order', { ascending: true }),
+        supabase.from('education').select('*').eq('user_id', uid).order('sort_order', { ascending: true }),
+        supabase.from('skills').select('*').eq('user_id', uid).order('sort_order', { ascending: true }),
+        supabase.from('languages').select('*').eq('user_id', uid).order('sort_order', { ascending: true }),
+        supabase.from('saved_jobs').select('job_id, jobs(id, title, status, organizations(name, logo_url))').eq('user_id', uid),
         supabase
-          .from('project_actors')
-          // imagen faltaba: sin ella ActorAvatar cae siempre a la
-          // silueta, aunque el directorio tenga la foto guardada.
-          .select('project_id, relacion, nombre, kind, ref_id, imagen, es_propio')
-          .in('project_id', ids)
-          .order('created_at'),
-        supabase.from('project_events').select('project_id, estado').in('project_id', ids),
+          .from('job_applications')
+          .select('id, jobs(id, title, status, organizations(name, logo_url))')
+          .eq('candidate_id', uid)
+          .neq('status', 'retirada')
+          .order('applied_at', { ascending: false }),
       ]);
-      for (const it of items || []) acc[it.project_id].asuntos += 1;
-      for (const a of actores || []) {
-        const d = acc[a.project_id];
-        d.actores += 1;
-        if (a.relacion === 'sin_contactar') d.sinContactar += 1;
-        d.todas.push(a);
-      }
-      // Los que tienen foto primero: tres siluetas iguales no dicen de
-      // qué va el proyecto, que es justo para lo que están las caras.
-      for (const id of ids) {
-        const d = acc[id];
-        d.caras = [...d.todas].sort((a, b) => (b.imagen ? 1 : 0) - (a.imagen ? 1 : 0)).slice(0, 3);
-        delete d.todas;
-      }
-      for (const e of eventos || []) if (e.estado === 'nuevo') acc[e.project_id].novedades += 1;
+
+      const [rUser, rProfile, rExp, rEdu, rSk, rLang, rSaved, rApplied] = results;
+
+      results.forEach((r, i) => {
+        if (r.status === 'rejected') console.error('Profile load query', i, 'rejected:', r.reason);
+        else if (r.value?.error) console.error('Profile load query', i, 'error:', r.value.error);
+      });
+
+      const u = rUser.status === 'fulfilled' ? rUser.value.data : null;
+      const p = rProfile.status === 'fulfilled' ? rProfile.value.data : null;
+
+      // Si por lo que sea no existe fila en "users" todavía, usamos los datos
+      // básicos de auth para no dejar la pantalla colgada.
+      setUser(
+        u || {
+          id: uid,
+          first_name: authData.user.email?.split('@')[0] || 'Usuario',
+          last_name: '',
+        }
+      );
+      setProfile(p || {});
+      setExperiences(rExp.status === 'fulfilled' ? rExp.value.data || [] : []);
+      setEducation(rEdu.status === 'fulfilled' ? rEdu.value.data || [] : []);
+      setSkills(rSk.status === 'fulfilled' ? rSk.value.data || [] : []);
+      setLanguages(rLang.status === 'fulfilled' ? rLang.value.data || [] : []);
+      setSavedJobs(rSaved.status === 'fulfilled' ? rSaved.value.data || [] : []);
+      setAppliedJobs(rApplied.status === 'fulfilled' ? rApplied.value.data || [] : []);
+    } catch (err) {
+      console.error('Error inesperado cargando el perfil:', err);
+      // Aseguramos que la pantalla no se quede colgada aunque algo falle.
+      setUser((prev) => prev || { id: userId, first_name: 'Usuario', last_name: '' });
+      setProfile((prev) => prev || {});
     }
+  }
 
-    setDatos(acc);
-    setProyectos(data || []);
+  async function saveProfileEdit(e) {
+    e.preventDefault();
+    setSavingProfile(true);
+    const f = new FormData(e.target);
+    const userUpdates = {
+      first_name: f.get('first_name'),
+      last_name: f.get('last_name'),
+      professional_title: f.get('professional_title') || null,
+      location: f.get('location') || null,
+    };
+    const showsDetail = SHOWS_DETAIL_QUESTIONS.includes(situ.career_situation);
+    const profileUpdates = {
+      website_url: f.get('website_url') || null,
+      linkedin_url: f.get('linkedin_url') || null,
+      contact_email: f.get('contact_email') || null,
+      career_situation: situ.career_situation || null,
+      // Si la situación no requiere entorno/rol/nivel (área no relacionada,
+      // primera experiencia), limpiamos esos campos para que no queden
+      // datos huérfanos de una respuesta anterior.
+      org_type: showsDetail ? situ.org_type || null : null,
+      role_type: showsDetail ? situ.role_type || null : null,
+      level_type: showsDetail ? situ.level_type || null : null,
+    };
 
-    // head: solo interesa si existe alguna, no cuáles.
-    const { count: registradas } = await supabase
-      .from('activities')
-      .select('id', { count: 'exact', head: true })
-      .limit(1);
-    let cerrado = false;
+    const [{ error: uErr }, { error: pErr }] = await Promise.all([
+      supabase.from('users').update(userUpdates).eq('id', userId),
+      supabase.from('candidate_profiles').update(profileUpdates).eq('user_id', userId),
+    ]);
+
+    setSavingProfile(false);
+    if (uErr || pErr) {
+      toast('No se pudieron guardar los cambios');
+      return;
+    }
+    setUser({ ...user, ...userUpdates });
+    setProfile({ ...profile, ...profileUpdates });
+    setShowEditProfile(false);
+    toast('Perfil actualizado ✓');
+  }
+
+  async function handleAvatarUpload(e) {
+    const file = e.target.files?.[0];
+    if (!file || !userId) return;
+    setUploadingAvatar(true);
+    const ext = file.name.split('.').pop();
+    const path = `${userId}/avatar.${ext}`;
+    const { error: upErr } = await supabase.storage
+      .from('avatars')
+      .upload(path, file, { upsert: true });
+    setUploadingAvatar(false);
+    if (upErr) {
+      toast('No se pudo subir la foto. Comprueba que existe el bucket "avatars".');
+      return;
+    }
+    const { data } = supabase.storage.from('avatars').getPublicUrl(path);
+    const avatarUrl = `${data.publicUrl}?t=${Date.now()}`;
+    await supabase.from('users').update({ avatar_url: avatarUrl }).eq('id', userId);
+    setUser({ ...user, avatar_url: avatarUrl });
+    toast('Foto de perfil actualizada ✓');
+  }
+
+  async function handleCoverUpload(e) {
+    const file = e.target.files?.[0];
+    if (!file || !userId) return;
+    setUploadingCover(true);
+    const ext = file.name.split('.').pop();
+    const path = `${userId}/cover.${ext}`;
+    const { error: upErr } = await supabase.storage
+      .from('covers')
+      .upload(path, file, { upsert: true });
+    setUploadingCover(false);
+    if (upErr) {
+      toast('No se pudo subir la portada. Comprueba que existe el bucket "covers".');
+      return;
+    }
+    const { data } = supabase.storage.from('covers').getPublicUrl(path);
+    const coverUrl = `${data.publicUrl}?t=${Date.now()}`;
+    await supabase.from('candidate_profiles').update({ cover_url: coverUrl }).eq('user_id', userId);
+    setProfile({ ...profile, cover_url: coverUrl });
+    toast('Portada actualizada ✓');
+  }
+
+  async function saveAvatarPosition(pos) {
+    const value = `${pos.x}% ${pos.y}%`;
+    setUser((prev) => ({ ...prev, avatar_position: value }));
+    await supabase.from('users').update({ avatar_position: value }).eq('id', userId);
+  }
+
+  async function saveCoverPosition(pos) {
+    const value = `${pos.x}% ${pos.y}%`;
+    setProfile((prev) => ({ ...prev, cover_position: value }));
+    await supabase.from('candidate_profiles').update({ cover_position: value }).eq('user_id', userId);
+  }
+
+  async function handleCvUpload(e) {
+    const file = e.target.files?.[0];
+    if (!file || !userId) return;
+    if (file.type !== 'application/pdf') {
+      toast('El CV debe estar en formato PDF');
+      return;
+    }
+    setUploadingCv(true);
+    const path = `${userId}/cv.pdf`;
+    const { error: upErr } = await supabase.storage
+      .from('cvs')
+      .upload(path, file, { upsert: true });
+    setUploadingCv(false);
+    if (upErr) {
+      toast('No se pudo subir el CV. Comprueba que existe el bucket "cvs".');
+      return;
+    }
+    // Guardamos solo la ruta interna del archivo, no una URL pública: el
+    // bucket "cvs" es privado y las visualizaciones se hacen con una URL
+    // firmada temporal generada bajo demanda (ver viewCv más abajo).
+    const uploadedAt = new Date().toISOString();
+    await supabase
+      .from('candidate_profiles')
+      .update({ cv_url: path, cv_uploaded_at: uploadedAt })
+      .eq('user_id', userId);
+    setProfile({ ...profile, cv_url: path, cv_uploaded_at: uploadedAt });
+    toast('CV subido correctamente ✓');
+  }
+
+  async function viewCv() {
     try {
-      cerrado = window.localStorage.getItem('gt_aviso_registro') === 'off';
-    } catch {}
-    setAvisoRegistro(!cerrado && (registradas ?? 0) === 0);
-
-    // Solo hace falta si no hay ningún proyecto: es lo que se ofrece
-    // en la pantalla vacía.
-    if ((data || []).length === 0) {
-      const { data: fs } = await supabase
-        .from('follows')
-        .select('kind, ref_id, label')
-        .eq('user_id', auth.user.id)
-        .in('kind', Object.keys(TIPOS_ARRANQUE))
-        .order('created_at', { ascending: false })
-        .limit(3);
-      setSeguidos(fs || []);
-    }
-
-    // Los clientes de la organización. Solo los activos: los archivados
-    // siguen en los proyectos antiguos pero no se ofrecen para nuevos.
-    const { data: cls } = await supabase
-      .from('clients')
-      .select('id, nombre')
-      .eq('activo', true)
-      .order('nombre');
-    setClientes(cls || []);
-
-    setCargando(false);
-  }, [supabase]);
-
-  useEffect(() => {
-    cargar();
-  }, [cargar]);
-
-  useEffect(() => {
-    if (!menu) return;
-    const cerrar = () => setMenu(null);
-    window.addEventListener('click', cerrar);
-    return () => window.removeEventListener('click', cerrar);
-  }, [menu]);
-
-  const lista = esPro ? proyectos : DEMO_LISTA;
-  const abierto = lista.find((p) => p.id === abiertoId) || (!esPro ? DEMO_LISTA[0] : null);
-
-  const visibles = useMemo(() => {
-    const q = busqueda.trim().toLowerCase();
-    let out = proyectos;
-    if (q) out = out.filter((p) => `${p.name} ${p.objetivo || ''}`.toLowerCase().includes(q));
-    if (orden === 'alfabetico') out = [...out].sort((a, b) => a.name.localeCompare(b.name, 'es'));
-    // El orden manual no compite con los otros dos: es una opción más, y
-    // se selecciona sola en cuanto arrastras una tarjeta.
-    if (orden === 'manual') out = [...out].sort((a, b) => (a.orden ?? 0) - (b.orden ?? 0));
-    return out;
-  }, [proyectos, busqueda, orden]);
-
-  // Mismo patrón que en el perfil: se sustituye el fantasma del
-  // navegador —una foto semitransparente de la tarjeta entera— por una
-  // etiqueta limpia con el nombre.
-  function alEmpezarArrastre(e, indice, nombre) {
-    setArrastrando(indice);
-    const pastilla = document.createElement('div');
-    pastilla.textContent = nombre;
-    pastilla.style.cssText =
-      'position:fixed;top:-999px;left:-999px;background:#6d5aef;color:#fff;padding:7px 16px;' +
-      'border-radius:20px;font-size:13px;font-weight:500;white-space:nowrap;' +
-      'font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;' +
-      'box-shadow:0 4px 12px rgba(0,0,0,.25);';
-    document.body.appendChild(pastilla);
-    e.dataTransfer.setDragImage(pastilla, 16, 16);
-    requestAnimationFrame(() => requestAnimationFrame(() => pastilla.remove()));
-  }
-
-  // Se renumera la lista entera y se guarda de una vez: con pocos
-  // proyectos es más simple que intercambiar vecinos, y deja los huecos
-  // de 10 en su sitio.
-  async function soltarEn(destino) {
-    const desde = arrastrando;
-    setArrastrando(null);
-    if (desde == null || desde === destino) return;
-
-    const nueva = [...visibles];
-    const [movido] = nueva.splice(desde, 1);
-    nueva.splice(destino, 0, movido);
-
-    const conOrden = nueva.map((p, i) => ({ ...p, orden: (i + 1) * 10 }));
-    setProyectos((prev) =>
-      prev.map((p) => conOrden.find((x) => x.id === p.id) || p)
-    );
-    setOrden('manual');
-
-    const res = await Promise.all(
-      conOrden.map((p) => supabase.from('projects').update({ orden: p.orden }).eq('id', p.id))
-    );
-    if (res.some((r) => r.error)) {
-      toast('No se ha podido guardar el orden');
-      cargar();
+      const res = await fetch('/api/cv/signed-url', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ context: 'own' }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'No se pudo abrir el CV');
+      window.open(data.url, '_blank', 'noopener,noreferrer');
+    } catch (err) {
+      toast(err.message);
     }
   }
 
-  function abrir(id) {
-    router.replace(`/projects?p=${id}`, { scroll: false });
-    setTeams(true);
-  }
-
-
-  async function crear() {
-    const t = nombre.trim();
-    if (!t) return;
-    if (!puedeCrearProyecto(user, proyectos.length)) {
-      toast(`Has llegado al máximo de ${limiteProyectos()} proyectos`);
-      return;
-    }
-    const { data, error } = await supabase
-      .from('projects')
-      .insert({ user_id: user.id, created_by: user.id, name: t })
-      .select('id, name, description, objetivo, orden, updated_at, client_id')
-      .single();
-    if (error) {
-      toast('No se ha podido crear el proyecto');
-      return;
-    }
-    setProyectos((prev) => [data, ...prev]);
-    setDatos((prev) => ({ ...prev, [data.id]: { actores: 0, asuntos: 0, sinContactar: 0, novedades: 0, caras: [] } }));
-    setNombre('');
-    setCreando(false);
-    abrir(data.id);
-  }
-
-  // El proyecto nace con el asunto dentro, así que trae su histórico de
-  // avisos y sus plazos sin que haya que añadir nada.
-  async function crearDesde(f) {
-    const { data, error } = await supabase
-      .from('projects')
-      .insert({ user_id: user.id, created_by: user.id, name: f.label || 'Proyecto sin título' })
-      .select('id, name, description, objetivo, orden, updated_at, client_id')
-      .single();
-    if (error) {
-      toast('No se ha podido crear el proyecto');
-      return;
-    }
-    const { error: e2 } = await supabase
-      .from('project_items')
-      .insert({ project_id: data.id, kind: f.kind, ref_id: f.ref_id, etiqueta: f.label });
-    if (e2) toast('El proyecto se ha creado, pero el asunto no se ha añadido');
-
-    setProyectos((prev) => [data, ...prev]);
-    setDatos((prev) => ({
-      ...prev,
-      [data.id]: { actores: 0, asuntos: e2 ? 0 : 1, sinContactar: 0, novedades: 0, caras: [] },
-    }));
-    abrir(data.id);
-  }
-
-  function cerrarAviso() {
-    setAvisoRegistro(false);
+  async function extractFromCv() {
+    if (!profile?.cv_url) return;
+    setExtractingCv(true);
     try {
-      window.localStorage.setItem('gt_aviso_registro', 'off');
-    } catch {}
+      const res = await fetch('/api/ai/extract-cv', { method: 'POST' });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Error desconocido');
+      setCvExtractResult(data);
+      setSelectedExpIdx(new Set(data.experiences.map((_, i) => i)));
+      setSelectedEduIdx(new Set(data.education.map((_, i) => i)));
+      setSelectedSkills(new Set(data.skills));
+    } catch (err) {
+      toast('No se pudo leer el CV: ' + err.message);
+    }
+    setExtractingCv(false);
   }
 
-  async function renombrar(id, texto) {
-    const t = texto.trim();
-    setRenombrando(null);
-    if (!t) return;
-    setProyectos((prev) => prev.map((p) => (p.id === id ? { ...p, name: t } : p)));
-    const { error } = await supabase.from('projects').update({ name: t }).eq('id', id);
-    if (error) toast('No se ha podido renombrar');
+  function toggleSetIdx(setter, set, idx) {
+    setter((prev) => {
+      const n = new Set(prev);
+      n.has(idx) ? n.delete(idx) : n.add(idx);
+      return n;
+    });
   }
 
-  async function archivar(id) {
-    setProyectos((prev) => prev.filter((p) => p.id !== id));
-    if (abiertoId === id) router.replace('/projects', { scroll: false });
-    const { error } = await supabase.from('projects').update({ archived: true }).eq('id', id);
-    if (error) toast('No se ha podido archivar');
+  async function applyCvExtract() {
+    if (!cvExtractResult) return;
+    setApplyingExtract(true);
+
+    const userUpdates = {};
+    if (cvExtractResult.professional_title && !user.professional_title) {
+      userUpdates.professional_title = cvExtractResult.professional_title;
+    }
+    if (Object.keys(userUpdates).length > 0) {
+      await supabase.from('users').update(userUpdates).eq('id', userId);
+    }
+
+
+    const expToInsert = cvExtractResult.experiences
+      .filter((_, i) => selectedExpIdx.has(i))
+      .map((e) => ({
+        user_id: userId,
+        title: e.title,
+        organization_name: e.organization_name,
+        location: e.location || null,
+        start_date: e.start_date,
+        end_date: e.end_date || null,
+        description: e.description || null,
+      }));
+    const eduToInsert = cvExtractResult.education
+      .filter((_, i) => selectedEduIdx.has(i))
+      .map((e) => ({
+        user_id: userId,
+        degree: e.degree,
+        institution: e.institution,
+        start_date: e.start_date || null,
+        end_date: e.end_date || null,
+      }));
+    const skillsToInsert = [...selectedSkills].map((s) => ({ user_id: userId, skill_name: s }));
+
+    const [expRes, eduRes] = await Promise.all([
+      expToInsert.length > 0 ? supabase.from('experiences').insert(expToInsert).select() : Promise.resolve({ data: [] }),
+      eduToInsert.length > 0 ? supabase.from('education').insert(eduToInsert).select() : Promise.resolve({ data: [] }),
+    ]);
+    if (skillsToInsert.length > 0) {
+      // Ignoramos errores de duplicado (habilidad ya existente para este usuario)
+      await supabase.from('skills').insert(skillsToInsert).select();
+    }
+
+    if (expRes.data?.length) setExperiences((prev) => [...expRes.data, ...prev]);
+    if (eduRes.data?.length) setEducation((prev) => [...eduRes.data, ...prev]);
+    if (userUpdates.professional_title) setUser((prev) => ({ ...prev, ...userUpdates }));
+
+    const { data: freshSkills } = await supabase.from('skills').select('*').eq('user_id', userId);
+    if (freshSkills) setSkills(freshSkills);
+
+    setApplyingExtract(false);
+    setCvExtractResult(null);
+    toast('Perfil actualizado a partir de tu CV ✓');
   }
 
-  async function eliminar(id) {
-    setConfirmarBorrado(null);
-    setProyectos((prev) => prev.filter((p) => p.id !== id));
-    if (abiertoId === id) router.replace('/projects', { scroll: false });
-    const { error } = await supabase.from('projects').delete().eq('id', id);
-    if (error) toast('No se ha podido eliminar');
+  // ── Ayudante genérico para mover un elemento arriba/abajo intercambiando
+  // su sort_order con el vecino, tanto en la base de datos como en pantalla.
+  async function moveItem(table, list, setList, id, direction) {
+    const idx = list.findIndex((x) => x.id === id);
+    const swapIdx = direction === 'up' ? idx - 1 : idx + 1;
+    if (idx === -1 || swapIdx < 0 || swapIdx >= list.length) return;
+
+    const a = list[idx];
+    const b = list[swapIdx];
+    const aOrder = a.sort_order ?? idx;
+    const bOrder = b.sort_order ?? swapIdx;
+
+    const newList = [...list];
+    newList[idx] = { ...b, sort_order: aOrder };
+    newList[swapIdx] = { ...a, sort_order: bOrder };
+    setList(newList);
+
+    await Promise.all([
+      supabase.from(table).update({ sort_order: aOrder }).eq('id', b.id),
+      supabase.from(table).update({ sort_order: bOrder }).eq('id', a.id),
+    ]);
   }
 
-  // Por cuenta de quién se trabaja el proyecto. La actividad lo hereda,
-  // así que se elige una vez aquí y no en cada registro.
-  async function guardarCliente(id) {
-    const valor = id || null;
-    setAbierto((prev) => (prev ? { ...prev, client_id: valor } : prev));
-    setProyectos((prev) => prev.map((p) => (p.id === abierto.id ? { ...p, client_id: valor } : p)));
-    const { error } = await supabase.from('projects').update({ client_id: valor }).eq('id', abierto.id);
-    if (error) toast('No se ha podido guardar el cliente');
+  // ── Reordenar arrastrando: mueve el elemento a cualquier posición y
+  // renumera el sort_order de toda la lista de una vez.
+  async function reorderByDrag(table, list, setList, fromIndex, toIndex) {
+    if (fromIndex === toIndex || fromIndex == null || toIndex == null) return;
+    const newList = [...list];
+    const [moved] = newList.splice(fromIndex, 1);
+    newList.splice(toIndex, 0, moved);
+    const withOrder = newList.map((item, i) => ({ ...item, sort_order: i }));
+    setList(withOrder);
+    await Promise.all(withOrder.map((item, i) => supabase.from(table).update({ sort_order: i }).eq('id', item.id)));
   }
 
-  async function guardarObjetivo(texto) {
-    if (!abierto || !esPro) return;
-    const v = texto.trim();
-    if (v === (abierto.objetivo || '')) return;
-    setProyectos((prev) => prev.map((p) => (p.id === abierto.id ? { ...p, objetivo: v || null } : p)));
-    const { error } = await supabase.from('projects').update({ objetivo: v || null }).eq('id', abierto.id);
-    if (error) toast('No se ha podido guardar el objetivo');
+  // ── Sustituye el "fantasma" por defecto del navegador (una foto
+  // semitransparente de toda la tarjeta, con la que se ve el texto de
+  // debajo) por una pequeña etiqueta limpia que sigue al cursor.
+  // Se elimina en dos "frames" después, para darle tiempo al navegador
+  // a capturar la imagen antes de borrarla (si se borra demasiado
+  // pronto, algunos navegadores no llegan a usarla).
+  function handleCardDragStart(e, index, label) {
+    setDragIndex(index);
+    const pill = document.createElement('div');
+    pill.textContent = label;
+    pill.style.cssText =
+      'position:fixed;top:-999px;left:-999px;background:#1d6f5c;color:#fff;padding:7px 16px;' +
+      'border-radius:20px;font-size:13px;font-weight:500;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;' +
+      'white-space:nowrap;box-shadow:0 4px 12px rgba(0,0,0,.25);';
+    document.body.appendChild(pill);
+    e.dataTransfer.setDragImage(pill, 16, 16);
+    requestAnimationFrame(() => requestAnimationFrame(() => pill.remove()));
   }
 
-  if (cargando) {
-    return (
-      <div className="sec">
-        <div className="spinner"></div>
-      </div>
-    );
+  async function addExperience(e) {
+    e.preventDefault();
+    const f = new FormData(e.target);
+    const row = {
+      user_id: userId,
+      title: f.get('title'),
+      organization_name: f.get('organization_name'),
+      location: f.get('location'),
+      start_date: f.get('start_date'),
+      end_date: f.get('end_date') || null,
+      description: f.get('description'),
+      sort_order: experiences.length,
+    };
+    const { data } = await supabase.from('experiences').insert(row).select().single();
+    if (data) setExperiences([...experiences, data]);
+    setShowExpForm(false);
+    e.target.reset();
+    toast('Experiencia añadida ✓');
   }
 
-  // =====================================================================
-  // ÍNDICE
-  // =====================================================================
-  if (esPro && !abierto) {
-    const conPlazo = proyectos.length > 0;
-    return (
-      <div className="sec" style={{ maxWidth: 1080 }}>
-        <div
-          style={{
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'flex-start',
-            gap: 12,
-            flexWrap: 'wrap',
-            marginBottom: 16,
-          }}
-        >
-          <div>
-            <h1 style={{ fontSize: 22, fontWeight: 600, margin: 0 }}>Proyectos</h1>
-            <div style={{ fontSize: 12.5, color: '#888', marginTop: 3 }}>
-              {/* El mismo texto con proyectos y sin ellos: el contador no
-                  explicaba de qué va el módulo, y las tarjetas ya están
-                  ahí para contarse. */}
-              Organiza, planifica y da seguimiento a tus proyectos.
-            </div>
-          </div>
-          {!creando && (
-            <button className="btn-ai" onClick={() => setCreando(true)}>
-              <i className="ti ti-plus"></i> Nuevo proyecto
-            </button>
-          )}
-        </div>
+  async function updateExperience(e) {
+    e.preventDefault();
+    const f = new FormData(e.target);
+    const updates = {
+      title: f.get('title'),
+      organization_name: f.get('organization_name'),
+      location: f.get('location'),
+      start_date: f.get('start_date'),
+      end_date: f.get('end_date') || null,
+      description: f.get('description'),
+    };
+    await supabase.from('experiences').update(updates).eq('id', editingExpId);
+    setExperiences(experiences.map((x) => (x.id === editingExpId ? { ...x, ...updates } : x)));
+    setEditingExpId(null);
+    toast('Experiencia actualizada ✓');
+  }
 
-        {/* A ancho completo y encima del buscador: dentro de la fila de
-            filtros estrecharía el campo de búsqueda, y ahí el texto no
-            cabría sin apretujarse. */}
-        {avisoRegistro && proyectos.length > 0 && (
-          <div
+  async function deleteExperience(id) {
+    await supabase.from('experiences').delete().eq('id', id);
+    setExperiences(experiences.filter((x) => x.id !== id));
+  }
+
+  async function addEducation(e) {
+    e.preventDefault();
+    const f = new FormData(e.target);
+    const row = {
+      user_id: userId,
+      degree: f.get('degree'),
+      institution: f.get('institution'),
+      start_date: f.get('start_date') || null,
+      end_date: f.get('end_date') || null,
+      sort_order: education.length,
+    };
+    const { data } = await supabase.from('education').insert(row).select().single();
+    if (data) setEducation([...education, data]);
+    setShowEduForm(false);
+    e.target.reset();
+    toast('Educación añadida ✓');
+  }
+
+  async function updateEducation(e) {
+    e.preventDefault();
+    const f = new FormData(e.target);
+    const updates = {
+      degree: f.get('degree'),
+      institution: f.get('institution'),
+      start_date: f.get('start_date') || null,
+      end_date: f.get('end_date') || null,
+    };
+    await supabase.from('education').update(updates).eq('id', editingEduId);
+    setEducation(education.map((x) => (x.id === editingEduId ? { ...x, ...updates } : x)));
+    setEditingEduId(null);
+    toast('Educación actualizada ✓');
+  }
+
+  async function deleteEducation(id) {
+    await supabase.from('education').delete().eq('id', id);
+    setEducation(education.filter((x) => x.id !== id));
+  }
+
+  async function addSkill(e) {
+    e.preventDefault();
+    const name = skillInput.trim();
+    if (!name) return;
+    const { data, error } = await supabase
+      .from('skills')
+      .insert({ user_id: userId, skill_name: name, sort_order: skills.length })
+      .select()
+      .single();
+    if (!error && data) setSkills([...skills, data]);
+    setSkillInput('');
+  }
+
+  async function deleteSkill(id) {
+    await supabase.from('skills').delete().eq('id', id);
+    setSkills(skills.filter((s) => s.id !== id));
+  }
+
+  const LANGUAGE_LEVELS = ['Nativo', 'C2', 'C1', 'B2', 'B1', 'A2', 'A1'];
+
+  async function addLanguage(e) {
+    e.preventDefault();
+    const name = langName.trim();
+    if (!name) return;
+    const { data, error } = await supabase
+      .from('languages')
+      .insert({ user_id: userId, language_name: name, proficiency: langLevel, sort_order: languages.length })
+      .select()
+      .single();
+    if (!error && data) setLanguages([...languages, data]);
+    setLangName('');
+  }
+
+  async function deleteLanguage(id) {
+    await supabase.from('languages').delete().eq('id', id);
+    setLanguages(languages.filter((l) => l.id !== id));
+  }
+
+  async function updateLanguage(e) {
+    e.preventDefault();
+    const f = new FormData(e.target);
+    const updates = {
+      language_name: f.get('language_name'),
+      proficiency: f.get('proficiency'),
+    };
+    await supabase.from('languages').update(updates).eq('id', editingLangId);
+    setLanguages(languages.map((x) => (x.id === editingLangId ? { ...x, ...updates } : x)));
+    setEditingLangId(null);
+    toast('Idioma actualizado ✓');
+  }
+
+  if (!user) return <div className="spinner"></div>;
+
+  // Basta con haberla cerrado para que no vuelva en esta sesión: quien
+  // escribe a mano no quiere verla, y quien acaba de subir el CV sí.
+  const mostrarIa = !iaCerrada && !!profile?.cv_url;
+  // Primera vez de verdad: sin CV y sin experiencia. Con cualquiera de
+  // las dos cosas, esta persona ya ha pasado por aquí.
+  const primeraVez = !cvCerrado && !profile?.cv_url && experiences.length === 0;
+
+  // Seis piezas, cada una vale lo mismo. Se calcula aquí y no en el
+  // endpoint de la radiografía para que esta tarjeta no dependa de que
+  // aquel funcione.
+  const PIEZAS = [
+    ['una foto', !!user?.avatar_url],
+    ['tu CV', !!profile?.cv_url],
+    ['tu experiencia', experiences.length > 0],
+    ['tu formación', education.length > 0],
+    ['tus idiomas', languages.length > 0],
+  ];
+  const perfilPct = Math.round((PIEZAS.filter(([, ok]) => ok).length / PIEZAS.length) * 100);
+  const perfilFalta = PIEZAS.filter(([, ok]) => !ok).map(([etiqueta]) => etiqueta);
+
+
+  return (
+    <div className="sec">
+
+      {/* En móvil las dos columnas se apilan: antes era una rejilla
+          fija de 3fr 2fr y la derecha quedaba ilegible. */}
+      <style>{`
+        /* El mismo ancho que la home: 900px. A 1080 la portada quedaba
+           demasiado apaisada por mucho que subiera de alto. */
+        .p-wrap { max-width: 900px; margin: 0 auto; }
+        /* 900 de ancho por 160 de alto son 5.6:1, proporción de portada.
+           Y la foto sube de 84 a 108 para que no se pierda contra ella:
+           antes ocupaba menos de la mitad del alto de la portada. */
+        .p-wrap .p-cover { height: 160px; }
+        .p-wrap .p-av {
+          width: 108px;
+          height: 108px;
+          bottom: -54px;
+          left: 20px;
+          font-size: 34px;
+        }
+        /* El avatar ocupa de left:20 a left:128 y baja 54px por debajo de
+           la portada. La cámara se sitúa sobre su borde inferior derecho:
+           a 24px de la izquierda del extremo y 8 por encima del final. */
+        .p-wrap .p-cam {
+          position: absolute;
+          left: 96px;
+          bottom: -46px;
+          width: 26px;
+          height: 26px;
+          border-radius: 50%;
+          background: #1d6f5c;
+          border: 2px solid #fff;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          color: #fff;
+          cursor: pointer;
+          z-index: 3;
+        }
+        .p-wrap .p-cam i { font-size: 12px; }
+        /* Una sola declaración con las cuatro medidas. Antes había dos
+           reglas de padding para .p-info y la segunda pisaba a la
+           primera, que es lo que dejaba el nombre bajo la foto.
+
+           El hueco superior son los 54px que sobresale la foto más 14 de
+           aire. El derecho, sitio para el botón de editar. */
+        .p-wrap .p-info { padding: 68px 150px 18px 20px; }
+        @media (max-width: 520px) { .p-wrap .p-info { padding: 68px 20px 18px; } }
+        .p-wrap .p-name { font-size: 21px; margin-bottom: 2px; }
+        .p-wrap .p-title { font-size: 13.5px; margin-bottom: 5px; }
+        .p-wrap .p-tabs { padding: 0 20px; }
+        /* Las acciones de cada experiencia, secundarias: aparecen al
+           pasar por encima en vez de competir con el contenido. */
+        .p-wrap .exp-acciones { opacity: 0; transition: opacity .15s ease; }
+        .p-wrap .exp-fila:hover .exp-acciones,
+        .p-wrap .exp-fila:focus-within .exp-acciones { opacity: 1; }
+        @media (hover: none) { .p-wrap .exp-acciones { opacity: 1; } }
+        /* Empleos más ancho: es el único de los tres que lleva lista. */
+        .p-widgets { display: grid; grid-template-columns: 1fr 1fr 1.6fr; gap: 13px; margin-bottom: 13px; }
+        @media (max-width: 980px) { .p-widgets { grid-template-columns: 1fr 1fr; } }
+        @media (max-width: 620px) { .p-widgets { grid-template-columns: 1fr; } }
+      `}</style>
+      {/* ESTRUCTURA: cabecera, una fila de tres widgets y la trayectoria
+          a ancho completo. Antes la columna derecha se llevaba dos
+          quintos de la pantalla para información secundaria, y la
+          trayectoria —que es el contenido del perfil— quedaba encajonada
+          en la izquierda. */}
+      <div className="p-wrap">
+<div className="card" style={{ marginBottom: 13 }}>
+            <div
+              ref={coverDrag.containerRef}
+              className="p-cover"
+              {...coverDrag.bind}
+              style={
+                profile?.cover_url
+                  ? {
+                      backgroundImage: `url(${profile.cover_url})`,
+                      backgroundSize: 'cover',
+                      backgroundPosition: coverDrag.backgroundPosition,
+                      ...coverDrag.bind.style,
+                    }
+                  : undefined
+              }
+            >
+              {profile?.cover_url && (
+                <div className={`drag-hint ${coverDrag.hover || coverDrag.dragging ? 'on' : ''}`}>
+                  <i className="ti ti-arrows-move"></i> Arrastra para ajustar
+                </div>
+              )}
+          <label
+            title="Cambiar portada"
+            onPointerDown={(e) => e.stopPropagation()}
             style={{
-              ...CARD,
-              padding: '13px 16px',
-              marginBottom: 14,
+              position: 'absolute',
+              top: 11,
+              right: 11,
+              width: 32,
+              height: 32,
+              borderRadius: '50%',
+              background: 'rgba(0,0,0,.45)',
               display: 'flex',
               alignItems: 'center',
-              gap: 12,
+              justifyContent: 'center',
+              cursor: 'pointer',
+              color: '#fff',
             }}
           >
-            <div
-              style={{
-                width: 30,
-                height: 30,
-                borderRadius: 8,
-                background: '#f0eefe',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                flexShrink: 0,
-              }}
-            >
-              <i className="ti ti-file-check" style={{ fontSize: 15, color: MORADO }}></i>
-            </div>
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ fontSize: 12.5, fontWeight: 600 }}>Registra tu actividad institucional</div>
-              <div style={{ fontSize: 11.5, color: '#888', marginTop: 2, lineHeight: 1.5 }}>
-                Cada reunión, entrega o comunicación con la Administración queda registrada con su acta, en
-                cumplimiento de la nueva regulación de grupos de interés.
-              </div>
-            </div>
-            <Link
-              href="/organizations/admin/registro"
-              style={{ fontSize: 11.5, color: MORADO, flexShrink: 0, whiteSpace: 'nowrap', textDecoration: 'none' }}
-            >
-              Cómo funciona
-            </Link>
-            <i
-              className="ti ti-x"
-              onClick={cerrarAviso}
-              style={{ fontSize: 15, color: '#b8b4ac', flexShrink: 0, cursor: 'pointer' }}
-            ></i>
-          </div>
-        )}
-
-        {proyectos.length > 0 && (
-          <div style={{ display: 'flex', gap: 8, marginBottom: 14, flexWrap: 'wrap' }}>
-            <div
-              style={{
-                flex: 1,
-                minWidth: 200,
-                display: 'flex',
-                alignItems: 'center',
-                gap: 8,
-                ...CARD,
-                padding: '9px 12px',
-              }}
-            >
-              <i className="ti ti-search" style={{ fontSize: 15, color: '#a8a49c' }}></i>
-              <input
-                value={busqueda}
-                onChange={(e) => setBusqueda(e.target.value)}
-                placeholder="Buscar por nombre…"
-                style={{ border: 'none', outline: 'none', fontSize: 12.5, fontFamily: 'inherit', flex: 1, background: 'none' }}
-              />
-            </div>
-            {/* Con la etiqueta del plan y sin candado: ya usas ese
-                distintivo en Configuración y en la cabecera de la
-                organización, y además dice qué plan lo abre. Un candado
-                solo dice "cerrado". */}
-            <button
-              type="button"
-              onClick={() => setModalCompartidos(true)}
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: 7,
-                border: `.5px solid ${BORDE}`,
-                borderRadius: 8,
-                padding: '6px 10px',
-                background: '#fff',
-                fontSize: 12.5,
-                color: '#555',
-                whiteSpace: 'nowrap',
-              }}
-            >
-              Compartidos
-              <span
-                style={{
-                  fontSize: 10.5,
-                  background: '#f0eefe',
-                  color: '#3c3489',
-                  borderRadius: 20,
-                  padding: '2px 8px',
-                }}
-              >
-                Teams
-              </span>
-            </button>
-
-            <select className="fsel" value={orden} onChange={(e) => setOrden(e.target.value)}>
-              <option value="recientes">Recientes</option>
-              <option value="alfabetico">Por nombre</option>
-              <option value="manual">Mi orden</option>
-            </select>
-          </div>
-        )}
-
-        {creando && (
-          <div style={{ ...CARD, padding: 16, marginBottom: 12 }}>
-            <input
-              autoFocus
-              value={nombre}
-              maxLength={140}
-              onChange={(e) => setNombre(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') crear();
-                if (e.key === 'Escape') {
-                  setNombre('');
-                  setCreando(false);
-                }
-              }}
-              placeholder="Ley de gobernanza de la inteligencia artificial"
-              style={{
-                width: '100%',
-                padding: '10px 13px',
-                border: `1px solid ${MORADO}`,
-                borderRadius: 9,
-                fontSize: 13.5,
-                outline: 'none',
-                fontFamily: 'inherit',
-              }}
-            />
-            <div style={{ display: 'flex', gap: 8, marginTop: 11 }}>
-              <button className="btn-ai" onClick={crear} disabled={!nombre.trim()}>
-                Crear proyecto
-              </button>
-              <button
-                className="btn-o"
-                onClick={() => {
-                  setNombre('');
-                  setCreando(false);
-                }}
-              >
-                Cancelar
-              </button>
-            </div>
-          </div>
-        )}
-
-        {/* Sin empty-state a propósito: esa clase agranda los botones y
-            convierte el arranque en un cartel. */}
-        {proyectos.length === 0 && !creando && seguidos.length > 0 && (
-          <div style={{ ...CARD, padding: '18px 20px' }}>
-            <div style={{ fontSize: 15, fontWeight: 600 }}>Empieza por un asunto que ya sigues</div>
-            <div style={{ fontSize: 12.5, color: '#888', marginTop: 4, marginBottom: 14 }}>
-              El proyecto nacerá con ese asunto dentro, con su histórico y sus plazos.
-            </div>
-
-            {seguidos.map((f, i) => {
-              const [donde, icono] = TIPOS_ARRANQUE[f.kind] || ['Seguimiento', 'ti-bookmark'];
-              return (
-                <div
-                  key={`${f.kind}-${f.ref_id}`}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 11,
-                    padding: '10px 0',
-                    borderTop: `.5px solid ${BORDE}`,
-                    borderBottom: i === seguidos.length - 1 ? `.5px solid ${BORDE}` : 'none',
-                  }}
-                >
-                  <i className={`ti ${icono}`} style={{ fontSize: 16, color: '#a8a49c', flexShrink: 0 }}></i>
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div
-                      style={{
-                        fontSize: 12.5,
-                        fontWeight: 500,
-                        overflow: 'hidden',
-                        textOverflow: 'ellipsis',
-                        whiteSpace: 'nowrap',
-                      }}
-                    >
-                      {f.label || 'Sin título'}
-                    </div>
-                    <div style={{ fontSize: 11, color: '#888', marginTop: 1 }}>{donde}</div>
-                  </div>
-                  <button className="btn-ai-o" onClick={() => crearDesde(f)} style={{ flexShrink: 0 }}>
-                    Crear proyecto
-                  </button>
-                </div>
-              );
-            })}
-
-            <div style={{ fontSize: 12, color: '#888', marginTop: 13 }}>
-              O{' '}
-              <button
-                onClick={() => setCreando(true)}
-                style={{ background: 'none', border: 'none', padding: 0, color: MORADO, fontSize: 12 }}
-              >
-                empieza uno en blanco
-              </button>
-              .
-            </div>
-          </div>
-        )}
-
-        {/* Quien no sigue nada todavía no tiene de dónde partir: se le
-            explica y se le deja escribir directamente. */}
-        {proyectos.length === 0 && !creando && seguidos.length === 0 && (
-          <div style={{ ...CARD, padding: '22px 24px' }}>
-            <div style={{ maxWidth: 430 }}>
-              <div style={{ fontSize: 16, fontWeight: 600, lineHeight: 1.4 }}>
-                Monitoriza, planifica y gestiona desde el mismo lugar
-              </div>
-              <div style={{ fontSize: 12.5, color: '#888', marginTop: 7, lineHeight: 1.6 }}>
-                Un proyecto reúne los asuntos que sigues, los actores a los que quieres llegar y lo que vas
-                haciendo con cada uno. Dale nombre al que estés trabajando.
-              </div>
-              <div style={{ display: 'flex', gap: 7, marginTop: 15, flexWrap: 'wrap' }}>
-                <input
-                  value={nombre}
-                  maxLength={140}
-                  onChange={(e) => setNombre(e.target.value)}
-                  onKeyDown={(e) => e.key === 'Enter' && crear()}
-                  placeholder="Ley de gobernanza de la inteligencia artificial"
-                  style={{
-                    flex: 1,
-                    minWidth: 200,
-                    padding: '9px 12px',
-                    border: `1px solid ${MORADO}`,
-                    borderRadius: 9,
-                    fontSize: 13,
-                    outline: 'none',
-                    fontFamily: 'inherit',
-                  }}
-                />
-                <button className="btn-ai" onClick={crear} disabled={!nombre.trim()}>
-                  Crear
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {visibles.length === 0 && proyectos.length > 0 && (
-          <div style={{ fontSize: 12.5, color: '#999', padding: '20px 0', textAlign: 'center' }}>
-            Ningún proyecto coincide con «{busqueda}».
-          </div>
-        )}
-
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(290px, 1fr))', gap: 10 }}>
-          {visibles.map((p, i) => {
-            const d = datos[p.id] || { actores: 0, asuntos: 0, sinContactar: 0, novedades: 0, caras: [] };
-            return (
-              <div
-                key={p.id}
-                className="bento"
-                draggable={renombrando !== p.id}
-                onDragStart={(e) => alEmpezarArrastre(e, i, p.name)}
-                onDragOver={(e) => e.preventDefault()}
-                onDrop={() => soltarEn(i)}
-                onDragEnd={() => setArrastrando(null)}
-                style={{
-                  ...CARD,
-                  padding: '16px 18px',
-                  position: 'relative',
-                  cursor: 'grab',
-                  opacity: arrastrando === i ? 0.4 : 1,
-                  // El estilo en línea gana al hover de la clase: mientras
-                  // se arrastra, la tarjeta no debe crecer o da saltos
-                  // bajo el cursor.
-                  transform: arrastrando === i ? 'none' : undefined,
-                }}
-              >
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 10 }}>
-                  <div style={{ minWidth: 0, flex: 1 }}>
-                    {renombrando === p.id ? (
-                      <input
-                        autoFocus
-                        draggable={false}
-                        onDragStart={(e) => e.stopPropagation()}
-                        defaultValue={p.name}
-                        maxLength={140}
-                        onBlur={(e) => renombrar(p.id, e.target.value)}
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter') renombrar(p.id, e.target.value);
-                          if (e.key === 'Escape') setRenombrando(null);
-                        }}
-                        style={{
-                          width: '100%',
-                          padding: '5px 8px',
-                          border: `1px solid ${MORADO}`,
-                          borderRadius: 7,
-                          fontSize: 14.5,
-                          fontWeight: 600,
-                          outline: 'none',
-                          fontFamily: 'inherit',
-                        }}
-                      />
-                    ) : (
-                      <button
-                        onClick={() => abrir(p.id)}
-                        style={{
-                          background: 'none',
-                          border: 'none',
-                          padding: 0,
-                          textAlign: 'left',
-                          fontSize: 14.5,
-                          fontWeight: 600,
-                          lineHeight: 1.35,
-                          width: '100%',
-                          // Safari en iOS pinta de azul los botones sin
-                          // color declarado. En escritorio heredaba el
-                          // negro y por eso no se veía.
-                          color: '#1a1a18',
-                          fontFamily: 'inherit',
-                        }}
-                      >
-                        {p.name}
-                      </button>
-                    )}
-                    {(p.objetivo || p.description) && (
-                      <div
-                        style={{
-                          fontSize: 11.5,
-                          color: '#888',
-                          marginTop: 3,
-                          overflow: 'hidden',
-                          textOverflow: 'ellipsis',
-                          whiteSpace: 'nowrap',
-                        }}
-                      >
-                        {p.objetivo || p.description}
-                      </div>
-                    )}
-                    {/* El cliente en la tarjeta: en una consultora con
-                        veinte proyectos, saber de quién es cada uno sin
-                        entrar es lo primero que se mira. */}
-                    {p.client_id && (
-                      <div style={{ fontSize: 10.5, color: '#a8a49c', marginTop: 4 }}>
-                        <i className="ti ti-briefcase" style={{ fontSize: 11, verticalAlign: -1, marginRight: 4 }}></i>
-                        {clientes.find((c) => c.id === p.client_id)?.nombre || 'Cliente'}
-                      </div>
-                    )}
-                  </div>
-
-                  <button
-                    // Sin esto, pulsar el menú dentro de una tarjeta
-                    // arrastrable empieza a moverla.
-                    draggable={false}
-                    onDragStart={(e) => e.preventDefault()}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setMenu(menu === p.id ? null : p.id);
-                    }}
-                    aria-label="Opciones del proyecto"
-                    style={{ background: 'none', border: 'none', color: '#a8a49c', padding: 2, flexShrink: 0 }}
-                  >
-                    <i className="ti ti-dots" style={{ fontSize: 17 }}></i>
-                  </button>
-                </div>
-
-                {menu === p.id && (
-                  <div
-                    onClick={(e) => e.stopPropagation()}
-                    style={{
-                      position: 'absolute',
-                      right: 14,
-                      top: 40,
-                      ...CARD,
-                      boxShadow: '0 4px 14px rgba(0,0,0,.09)',
-                      padding: 5,
-                      width: 155,
-                      zIndex: 5,
-                    }}
-                  >
-                    {[
-                      ['Renombrar', () => { setMenu(null); setRenombrando(p.id); }],
-                      ['Archivar', () => { setMenu(null); archivar(p.id); }],
-                    ].map(([texto, accion]) => (
-                      <button
-                        key={texto}
-                        onClick={accion}
-                        style={{
-                          display: 'block',
-                          width: '100%',
-                          textAlign: 'left',
-                          fontSize: 12,
-                          padding: '7px 9px',
-                          borderRadius: 6,
-                          border: 'none',
-                          background: 'none',
-                          color: '#555',
-                        }}
-                      >
-                        {texto}
-                      </button>
-                    ))}
-                    <button
-                      onClick={() => { setMenu(null); setConfirmarBorrado(p); }}
-                      style={{
-                        display: 'block',
-                        width: '100%',
-                        textAlign: 'left',
-                        fontSize: 12,
-                        padding: '8px 9px 7px',
-                        borderRadius: 6,
-                        border: 'none',
-                        background: 'none',
-                        color: '#555',
-                        borderTop: `.5px solid ${BORDE}`,
-                        marginTop: 3,
-                      }}
-                    >
-                      Eliminar
-                    </button>
-                  </div>
-                )}
-
-                {/* Las caras dicen de qué va el proyecto más rápido que el
-                    título: se reconoce por quién hay dentro. */}
-                <div style={{ display: 'flex', alignItems: 'center', gap: 6, margin: '14px 0 12px', minHeight: 26 }}>
-                  {d.caras.map((a, i) => (
-                    <span key={i} style={{ marginRight: -10, border: '1.5px solid #fff', borderRadius: 8, display: 'inline-flex' }}>
-                      <ActorAvatar actor={a} size={26} />
-                    </span>
-                  ))}
-                  {d.actores > 3 && (
-                    <span style={{ fontSize: 11.5, color: '#888', paddingLeft: 16 }}>y {d.actores - 3} más</span>
-                  )}
-                  {d.actores === 0 && <span style={{ fontSize: 11.5, color: '#a8a49c' }}>Sin actores todavía</span>}
-                </div>
-
-                <div style={{ display: 'flex', gap: 20, paddingTop: 12, borderTop: `.5px solid ${BORDE}` }}>
-                  <div>
-                    <div style={{ fontSize: 19, fontWeight: 600, color: MORADO, lineHeight: 1.1 }}>{d.actores}</div>
-                    <div style={{ fontSize: 10.5, color: '#888' }}>actores</div>
-                  </div>
-                  <div>
-                    <div style={{ fontSize: 19, fontWeight: 600, color: MORADO, lineHeight: 1.1 }}>{d.asuntos}</div>
-                    <div style={{ fontSize: 10.5, color: '#888' }}>asuntos</div>
-                  </div>
-                  <div>
-                    <div style={{ fontSize: 19, fontWeight: 600, color: d.novedades > 0 ? '#1a1a18' : '#a8a49c', lineHeight: 1.1 }}>
-                      {d.novedades}
-                    </div>
-                    <div style={{ fontSize: 10.5, color: '#888' }}>novedades</div>
-                  </div>
-                  <div style={{ marginLeft: 'auto', textAlign: 'right', alignSelf: 'flex-end' }}>
-                    <div style={{ fontSize: 10.5, color: '#888' }}>{haceCuanto(p.updated_at)}</div>
-                  </div>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-
-        {confirmarBorrado && (
-          <div className="modal-ov on" onClick={(e) => e.target === e.currentTarget && setConfirmarBorrado(null)}>
-            <div className="modal-box" style={{ maxWidth: 420 }}>
-              <div className="modal-head">
-                <h2>Eliminar el proyecto</h2>
-                <div className="modal-x" onClick={() => setConfirmarBorrado(null)}>
-                  <i className="ti ti-x"></i>
-                </div>
-              </div>
-              <p style={{ fontSize: 13, color: '#555', lineHeight: 1.65 }}>
-                Se borran «{confirmarBorrado.name}», su mapa de actores, sus notas y su agenda. Los asuntos
-                que sigues no se ven afectados. No se puede deshacer.
-              </p>
-              <div style={{ display: 'flex', gap: 8, marginTop: 16 }}>
-                <button className="btn-o" onClick={() => setConfirmarBorrado(null)}>
-                  Cancelar
-                </button>
-                <button className="btn-ai" onClick={() => eliminar(confirmarBorrado.id)}>
-                  Eliminar
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {modalUpsell && <UpgradeModal {...upsellProyectos()} onClose={() => setModalUpsell(false)} />}
-
-        {/* Quien no tiene organización no puede contratar Teams: lo
-            contrata su empresa. Decirle "hazte Teams" sería mandarle a
-            una puerta que no puede abrir. */}
-        {modalCompartidos && (
-          <UpgradeModal
-            title="Los proyectos compartidos llegan con Teams"
-            message={
-              tieneOrganizacion
-                ? 'Todo el equipo sobre el mismo asunto: un responsable por cada actor, menciones en las notas, registro de contactos con trazabilidad y agenda compartida.'
-                : 'Todo el equipo sobre el mismo asunto: un responsable por cada actor, menciones en las notas y agenda compartida. Lo contrata tu organización, así que habla con quien la gestione en GovTalent.'
-            }
-            onClose={() => setModalCompartidos(false)}
-          />
-        )}
-      </div>
-    );
-  }
-
-  // =====================================================================
-  // PROYECTO ABIERTO
-  // =====================================================================
-  const d = (esPro && abierto ? datos[abierto.id] : null) || {
-    actores: 0,
-    asuntos: 0,
-    sinContactar: 0,
-    novedades: 0,
-    briefings: 0,
-    acciones: 0,
-  };
-
-  // Una sola página que se recorre entera. El índice salta, no oculta:
-  // por eso solo se listan secciones que existen de verdad.
-  const secciones = esPro
-    ? [
-        // Asuntos ya no es sección propia: vive junto al objetivo, en
-        // el resumen, y el recorrido completo se abre en un modal.
-        { id: 'resumen', label: 'Resumen', cuenta: d.asuntos },
-        { id: 'mapa', label: 'Mapa de actores', cuenta: d.actores },
-        { id: 'briefing', label: 'Briefing', cuenta: d.briefings },
-        // Una sola entrada para las dos tarjetas: están en la misma fila,
-        // así que dos anclas llevarían al mismo sitio.
-        { id: 'actividad', label: 'Agenda y registro', cuenta: d.acciones },
-        // Una sola entrada: las dos secciones están en la misma fila,
-        // así que dos anclas llevarían al mismo sitio.
-        { id: 'documentos', label: 'Documentos y notas' },
-      ]
-    : [
-        // Los ids tienen que existir en ProyectoDemo: AnclasProyecto
-        // hace getElementById y se calla si no encuentra nada, así que
-        // un id equivocado no da error, simplemente deja el ítem muerto.
-        // Aquí ponía 'actividad', que en la demo no existe —son dos
-        // tarjetas, 'registro' y 'agenda'— y por eso no se podía pinchar.
-        { id: 'norma', label: 'La norma' },
-        { id: 'mapa', label: 'Mapa de actores' },
-        { id: 'notas', label: 'Objetivo y notas' },
-        { id: 'briefing', label: 'Briefing' },
-        // Registro va suelto y con distintivo: es lo único de la demo
-        // que responde a una obligación legal, y es lo que queremos que
-        // se mire.
-        { id: 'registro', label: 'Registro', distintivo: 'NUEVO' },
-        { id: 'agenda', label: 'Agenda' },
-        { id: 'documentos', label: 'Documentos' },
-      ];
-
-  return (
-    <div className="sec" style={{ maxWidth: 1180 }}>
-      <style>{`
-        .gt-proyecto { display: grid; grid-template-columns: minmax(0,1fr) minmax(0,168px); gap: 26px; }
-        @media (max-width: 900px) { .gt-proyecto { grid-template-columns: minmax(0,1fr); gap: 0; } }
-      `}</style>
-
-      {/* Cabecera: el título es el selector de proyecto, y las acciones
-          a mano. Sin lateral izquierda — la columna se la queda el
-          índice, que es lo que se usa constantemente. */}
-      <div
-        style={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'flex-start',
-          gap: 14,
-          flexWrap: 'wrap',
-          marginBottom: 18,
-        }}
-      >
-        <div style={{ minWidth: 0 }}>
-          {esPro ? (
-            <CambiarProyecto
-              proyectos={proyectos}
-              actual={abierto}
-              novedades={Object.fromEntries(Object.entries(datos).map(([k, v]) => [k, v.novedades]))}
-              onElegir={abrir}
-              onNuevo={() => {
-                router.replace('/projects', { scroll: false });
-                setCreando(true);
-              }}
-              onVerTodos={() => router.replace('/projects', { scroll: false })}
-            />
-          ) : (
-            /* En Free el titular no es el nombre del proyecto de
-               ejemplo —que suena a que el usuario ya tiene uno— sino lo
-               que la pantalla enseña de verdad: cómo se trabaja aquí. */
-            <div style={{ fontSize: 19, fontWeight: 600, lineHeight: 1.35 }}>
-              {esPro ? abierto?.name : 'Tu espacio de trabajo para gestionar tus asuntos públicos'}
-            </div>
-          )}
-          {/* En Free la cabecera leía los datos reales del usuario —cero
-              y cero— mientras el cuerpo enseña los del ejemplo. Quien no
-              supiera que es una demostración lo leía como un fallo. */}
-          <div style={{ fontSize: 12, color: '#888', marginTop: 4 }}>
-            {esPro ? (
-              <>
-                {d.actores} {d.actores === 1 ? 'actor' : 'actores'} · {d.asuntos}{' '}
-                {d.asuntos === 1 ? 'asunto' : 'asuntos'}
-              </>
+            {uploadingCover ? (
+              <i className="ti ti-loader-2" style={{ fontSize: 15 }}></i>
             ) : (
-              'Un proyecto de ejemplo, con datos de muestra'
+              <i className="ti ti-camera" style={{ fontSize: 15 }}></i>
+            )}
+            <input type="file" accept="image/*" hidden onChange={handleCoverUpload} disabled={uploadingCover} />
+          </label>
+
+          <div
+            ref={avatarDrag.containerRef}
+            className="p-av"
+            {...avatarDrag.bind}
+            style={{
+              ...avatarDrag.bind.style,
+              backgroundImage: user.avatar_url ? `url(${user.avatar_url})` : undefined,
+              backgroundSize: 'cover',
+              backgroundPosition: avatarDrag.backgroundPosition,
+            }}
+          >
+            {!user.avatar_url && user.first_name?.[0]}
+            {user.avatar_url && (
+              <div className={`drag-hint drag-hint-round ${avatarDrag.hover || avatarDrag.dragging ? 'on' : ''}`} style={{ fontSize: 10 }}>
+                <i className="ti ti-arrows-move"></i>
+              </div>
+            )}
+          </div>
+
+          {/* El botón vive FUERA del avatar, no dentro. Dentro dependía
+              de que un stopPropagation ganara al arrastre, y además el
+              overflow circular del avatar se comía la esquina. Aquí se
+              posiciona contra la portada y no le afecta ninguna de las
+              dos cosas. */}
+          <label
+            className="p-cam"
+            title="Cambiar foto de perfil"
+            onPointerDown={(e) => e.stopPropagation()}
+          >
+            {uploadingAvatar ? <i className="ti ti-loader-2"></i> : <i className="ti ti-camera"></i>}
+            <input type="file" accept="image/*" hidden onChange={handleAvatarUpload} disabled={uploadingAvatar} />
+          </label>
+        </div>
+        <div className="p-info" style={{ position: 'relative' }}>
+          {/* A la derecha y a la altura del nombre: en el flujo vertical
+              empujaba todo hacia abajo y alargaba la cabecera. */}
+          <button
+            className="btn-o"
+            style={{ position: 'absolute', top: 16, right: 20, fontSize: 12.5 }}
+            onClick={() => setShowEditProfile(true)}
+          >
+            <i className="ti ti-edit"></i> Editar perfil
+          </button>
+
+          <div className="p-name">
+            {user.first_name} {user.last_name}
+          </div>
+          <div className="p-title">{user.professional_title || 'Añade tu título profesional'}</div>
+          <div className="p-meta">
+            {user.location && (
+              <span>
+                <i className="ti ti-map-pin" style={{ fontSize: 12 }}></i> {user.location}
+              </span>
+            )}
+            {profile?.website_url && (
+              <span>
+                <i className="ti ti-world" style={{ fontSize: 12 }}></i>{' '}
+                <a
+                  href={profile.website_url.startsWith('http') ? profile.website_url : `https://${profile.website_url}`}
+                  target="_blank"
+                  rel="noreferrer"
+                  style={{ color: '#1d6f5c' }}
+                >
+                  {profile.website_url.replace(/^https?:\/\//, '')}
+                </a>
+              </span>
+            )}
+            {profile?.linkedin_url && (
+              <span>
+                <i className="ti ti-brand-linkedin" style={{ fontSize: 12 }}></i>{' '}
+                <a
+                  href={profile.linkedin_url.startsWith('http') ? profile.linkedin_url : `https://${profile.linkedin_url}`}
+                  target="_blank"
+                  rel="noreferrer"
+                  style={{ color: '#1d6f5c' }}
+                >
+                  LinkedIn
+                </a>
+              </span>
             )}
           </div>
         </div>
+      </div>
 
-        {/* El aviso de Teams vive arriba a la derecha, donde no compite
-            con nada. Se puede cerrar, pero vuelve al abrir un proyecto:
-            no se guarda que lo cerraste porque no es una preferencia,
-            es un "ahora no". */}
-        {esPro && teams && (
-          <div
-            style={{
-              ...CARD,
-              background: '#fafaff',
-              borderColor: '#d8d3f5',
-              padding: '11px 13px',
-              display: 'flex',
-              alignItems: 'flex-start',
-              gap: 10,
-              maxWidth: 370,
-              flexShrink: 0,
-            }}
-          >
-            <i
-              className="ti ti-users-group"
-              style={{ fontSize: 17, color: MORADO, flexShrink: 0, marginTop: 1 }}
-            ></i>
-            <div style={{ minWidth: 0 }}>
-              <div style={{ fontSize: 12.5, fontWeight: 600 }}>Trabaja con tu equipo</div>
-              <div style={{ fontSize: 11.5, color: '#555', marginTop: 2, lineHeight: 1.5 }}>
-                Responsables por actor, menciones, registro de contactos y agenda compartida.
-              </div>
-              {/* En pestaña nueva, como el resto de enlaces a precios: quien
-                  está trabajando en un proyecto no debería perderlo por
-                  consultar un plan. */}
-              <a
-                href="/precios?para=organizaciones"
-                target="_blank"
-                rel="noopener noreferrer"
-                style={{ fontSize: 11.5, color: MORADO, display: 'inline-block', marginTop: 6 }}
+{primeraVez && (
+            <div style={{ position: 'relative' }}>
+              <button
+                onClick={() => setCvCerrado(true)}
+                aria-label="Ocultar"
+                style={{ position: 'absolute', right: 12, top: 12, zIndex: 2, background: 'none', border: 'none', color: '#c4c0b8', padding: 2 }}
               >
-                Ver Teams →
-              </a>
+                <i className="ti ti-x" style={{ fontSize: 14 }}></i>
+              </button>
+<div className="sw bento">
+            <h4>Currículum (CV)</h4>
+
+            <div style={{ display: 'flex', alignItems: 'flex-start', gap: 9, marginBottom: 14 }}>
+              <div
+                style={{
+                  width: 20,
+                  height: 20,
+                  borderRadius: '50%',
+                  background: profile?.cv_url ? '#1d6f5c' : '#e0dfd8',
+                  color: '#fff',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontSize: 11,
+                  fontWeight: 700,
+                  flexShrink: 0,
+                  marginTop: 1,
+                }}
+              >
+                {profile?.cv_url ? <i className="ti ti-check" style={{ fontSize: 11 }}></i> : '1'}
+              </div>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontSize: 12.5, fontWeight: 600 }}>Sube tu CV</div>
+                {profile?.cv_url ? (
+                  <div style={{ fontSize: 11.5, color: '#888', marginTop: 3 }}>
+                    CV subido
+                    {profile.cv_uploaded_at && ` · ${new Date(profile.cv_uploaded_at).toLocaleDateString('es-ES')}`}
+                    <div style={{ display: 'flex', gap: 8, marginTop: 6 }}>
+                      <button type="button" onClick={viewCv} className="btn-o" style={{ fontSize: 11.5, padding: '5px 10px' }}>
+                        Ver CV
+                      </button>
+                      <label className="btn-g" style={{ fontSize: 11.5, padding: '5px 10px', cursor: 'pointer' }}>
+                        {uploadingCv ? 'Subiendo...' : 'Reemplazar'}
+                        <input type="file" accept="application/pdf" hidden onChange={handleCvUpload} disabled={uploadingCv} />
+                      </label>
+                    </div>
+                  </div>
+                ) : (
+                  <label className="btn-p" style={{ display: 'inline-block', marginTop: 6, cursor: 'pointer', fontSize: 12 }}>
+                    {uploadingCv ? 'Subiendo...' : 'Subir CV'}
+                    <input type="file" accept="application/pdf" hidden onChange={handleCvUpload} disabled={uploadingCv} />
+                  </label>
+                )}
+              </div>
             </div>
+
+          </div>
+            </div>
+          )}
+
+        {/* Tres widgets, con Empleos más ancho porque es el único que
+            lleva una lista. Los otros dos son una cifra y un enlace. */}
+        <div className="p-widgets">
+          <div className="sw bento" style={{ marginBottom: 0 }}>
+            <h4>Radiografía profesional</h4>
+            {radiografia?.benchmark?.porcentaje > 0 ? (
+              <>
+                <div style={{ fontSize: 26, fontWeight: 600, color: '#6d5aef', lineHeight: 1.1 }}>
+                  {radiografia.benchmark.porcentaje}%
+                </div>
+                <div style={{ fontSize: 12, color: '#888', marginTop: 3 }}>Encaje con el sector</div>
+              </>
+            ) : (
+              <div style={{ fontSize: 12, color: '#888', lineHeight: 1.6 }}>
+                Aún sin datos suficientes para calcular tu encaje con el sector.
+              </div>
+            )}
             <button
-              onClick={() => setTeams(false)}
-              aria-label="Cerrar"
-              style={{ background: 'none', border: 'none', color: '#a8a49c', padding: 2, flexShrink: 0 }}
+              onClick={() => setVerRadiografia(true)}
+              style={{
+                background: 'none',
+                border: 'none',
+                padding: 0,
+                marginTop: 12,
+                color: '#6d5aef',
+                fontSize: 12.5,
+              }}
             >
-              <i className="ti ti-x" style={{ fontSize: 14 }}></i>
+              Ver radiografía →
             </button>
           </div>
-        )}
 
-        {!esPro && (
-          /* "Crear proyecto" y no "Desbloquear": dice qué se consigue,
-             no qué barrera hay. El modal que abre ya explica que
-             Proyectos es de Pro, así que la barrera se cuenta después
-             de haber enseñado el valor, no antes. */
-          <button className="btn-ai" onClick={() => setModalUpsell(true)}>
-            <i className="ti ti-plus"></i> Crear proyecto
-          </button>
-        )}
-      </div>
+          <div className="sw bento" style={{ marginBottom: 0 }}>
+            <h4>Perfil completado</h4>
+            <div style={{ display: 'flex', alignItems: 'baseline', gap: 7 }}>
+              <span style={{ fontSize: 26, fontWeight: 600, color: '#1d6f5c', lineHeight: 1.1 }}>
+                {perfilPct}%
+              </span>
+              {perfilPct === 100 && <i className="ti ti-check" style={{ fontSize: 15, color: '#1d6f5c' }}></i>}
+            </div>
+            {/* La barra solo mientras falte algo: al 100% no aporta nada
+                que el número no diga ya. */}
+            {perfilPct < 100 && (
+              <div style={{ height: 5, background: '#ece9e2', borderRadius: 3, overflow: 'hidden', marginTop: 9 }}>
+                <div style={{ width: `${perfilPct}%`, height: '100%', background: '#1d6f5c' }}></div>
+              </div>
+            )}
+            <div style={{ fontSize: 12, color: '#888', marginTop: 9, lineHeight: 1.55 }}>
+              {perfilFalta.length === 0 ? 'Tu perfil está completo.' : `Te falta ${perfilFalta.join(', ')}.`}
+            </div>
+          </div>
 
-      <div className="gt-proyecto">
-        <div
-          style={{ minWidth: 0 }}
-          onClick={esPro ? undefined : () => setModalUpsell(true)}
-        >
-          {/* Solo ProyectoDemo. ResumenDemo se retiró entera: sus dos
-              tarjetas útiles —objetivo y mención— viven ahora dentro de
-              la demo, después del mapa, y las demás sobraban. La agenda
-              salía dos veces, y al reordenar quedaba por debajo del
-              cierre de "Ver planes", que es donde la demo termina. */}
-          {!esPro && <ProyectoDemo />}
-
-          {esPro && (
-            <>
-              <section id="resumen" style={{ scrollMarginTop: 72, marginBottom: 30 }}>
-                {/* El objetivo y los asuntos, juntos: son las dos cosas
-                    que contestan "de qué va esto" al abrir el proyecto. */}
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: 24 }}>
-                  <div style={{ minWidth: 0 }}>
-                    <div style={{ ...ETIQUETA, marginBottom: 7 }}>OBJETIVO</div>
-                    <textarea
-                      key={abierto.id}
-                      defaultValue={abierto.objetivo || ''}
-                      placeholder="Qué quieres conseguir con este asunto"
-                      onBlur={(e) => guardarObjetivo(e.target.value)}
-                      rows={4}
-                      style={{
-                        width: '100%',
-                        padding: '10px 12px',
-                        border: `.5px solid ${BORDE}`,
-                        borderRadius: 9,
-                        fontSize: 13,
-                        lineHeight: 1.7,
-                        outline: 'none',
-                        fontFamily: 'inherit',
-                        background: '#fafaf7',
-                        resize: 'vertical',
-                      }}
-                    />
-
-                    {/* Por cuenta de quién se trabaja. Solo aparece si la
-                        cuenta tiene clientes cargados: para una empresa
-                        que actúa por cuenta propia el campo sobra.
-
-                        Va bajo el objetivo y no en la actividad porque el
-                        cliente es del proyecto: se elige una vez y cada
-                        registro lo hereda. */}
-                    {clientes.length > 0 && (
-                      <div style={{ marginTop: 14 }}>
-                        <div style={{ ...ETIQUETA, marginBottom: 7 }}>POR CUENTA DE</div>
-                        <Desplegable
-                          value={abierto.client_id || ''}
-                          onChange={(v) => guardarCliente(v || null)}
-                          vacio="Por cuenta propia"
-                          opciones={clientes.map((c) => ({ v: c.id, label: c.nombre }))}
-                        />
-                      </div>
+<div className="sw bento" style={{ marginBottom: 0 }}>
+            <h4>Mis empleos guardados y solicitados</h4>
+            {(() => {
+              // Une ambas listas y quita duplicados por si una oferta está
+              // guardada y solicitada a la vez — para el usuario es "el
+              // mismo empleo", no dos entradas distintas. Las ofertas
+              // pausadas/borradas se quedan fuera de este resumen a
+              // propósito: aquí solo se listan activas. El detalle completo
+              // (incluidas las no disponibles, con aviso) vive en
+              // /profile/jobs, no aquí.
+              const seen = new Set();
+              const combined = [];
+              for (const item of [...appliedJobs, ...savedJobs]) {
+                if (!item.jobs || item.jobs.status !== 'activa') continue;
+                const jobId = item.jobs.id;
+                if (seen.has(jobId)) continue;
+                seen.add(jobId);
+                combined.push(item);
+              }
+              if (combined.length === 0) {
+                return <div style={{ fontSize: 12.5, color: '#999' }}>Ninguno todavía.</div>;
+              }
+              // Dos, para que la tarjeta mida lo mismo que las otras dos.
+              return combined.slice(0, 2).map((sj) => (
+                <div className="sp" key={sj.jobs.id}>
+                  <div className="sp-av" style={{ borderRadius: 8, overflow: 'hidden' }}>
+                    {sj.jobs?.organizations?.logo_url ? (
+                      <img
+                        src={sj.jobs.organizations.logo_url}
+                        alt=""
+                        style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                      />
+                    ) : (
+                      <i className="ti ti-briefcase"></i>
                     )}
                   </div>
-
-                  <div style={{ minWidth: 0 }}>
-                    <AsuntosProyecto
-                      projectId={abierto.id}
-                      userId={user.id}
-                      abrirBuscador={atajo === 'asunto'}
-                      onCerrarBuscador={() => setAtajo(null)}
-                    />
+                  <div>
+                    <div style={{ fontSize: 13, fontWeight: 500 }}>{sj.jobs?.title}</div>
+                    <div style={{ fontSize: 11.5, color: '#888' }}>{sj.jobs?.organizations?.name}</div>
                   </div>
                 </div>
-
-              </section>
-
-              {/* El mapa es lo segundo que se mira y lo más propio del
-                  producto, así que se destaca: tarjeta blanca con borde
-                  frente al resto de secciones, que van sobre el fondo. */}
-              <section
-                id="mapa"
-                style={{
-                  scrollMarginTop: 72,
-                  marginBottom: 30,
-                  ...CARD,
-                  padding: '18px 20px',
-                }}
-              >
-                <div style={{ ...ETIQUETA, marginBottom: 12 }}>MAPA DE ACTORES</div>
-                <MapaActores projectId={abierto.id} />
-              </section>
-
-              <section id="briefing" style={{ scrollMarginTop: 72, marginBottom: 30 }}>
-                <div style={{ ...ETIQUETA, marginBottom: 12 }}>BRIEFING POR ACTOR</div>
-                <BriefingProyecto projectId={abierto.id} userId={user.id} />
-              </section>
-
-              {/* Agenda y registro, una al lado de la otra pero separadas:
-                  la agenda es el método de cada uno y es opcional; el
-                  registro es la obligación del RDL 21/2026. Juntarlas en
-                  pestañas obligaba a decidir en cuál mirar. */}
-              <section
-                id="actividad"
-                style={{
-                  scrollMarginTop: 72,
-                  marginBottom: 30,
-                  display: 'grid',
-                  gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
-                  gap: 12,
-                }}
-              >
-                <div style={{ ...CARD, padding: '16px 18px' }}>
-                  <div style={{ ...ETIQUETA, marginBottom: 4 }}>AGENDA</div>
-                  <p style={{ fontSize: 11.5, color: '#888', margin: '0 0 12px', lineHeight: 1.5 }}>
-                    Anota lo que hay que hacer y cuándo.
-                  </p>
-                  <AgendaProyecto projectId={abierto.id} />
-                </div>
-
-                <div style={{ ...CARD, padding: '16px 18px' }}>
-                  <div style={{ ...ETIQUETA, marginBottom: 4 }}>REGISTRO</div>
-                  <p style={{ fontSize: 11.5, color: '#888', margin: '0 0 12px', lineHeight: 1.5 }}>
-                    Registra tus actividades en conformidad con la ley.
-                  </p>
-                  <ActividadProyecto projectId={abierto.id} userId={user.id} />
-                </div>
-              </section>
-
-              {/* Documentos y notas, una al lado de la otra: ninguna
-                  de las dos necesita el ancho entero, y juntas se leen
-                  como lo que son — el material del proyecto. */}
-              <section
-                id="documentos"
-                style={{
-                  scrollMarginTop: 72,
-                  marginBottom: 10,
-                  display: 'grid',
-                  gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
-                  gap: 12,
-                }}
-              >
-                <div style={{ ...CARD, padding: '16px 18px' }}>
-                  <div style={{ ...ETIQUETA, marginBottom: 12 }}>DOCUMENTOS</div>
-                  <DocumentosProyecto projectId={abierto.id} userId={user.id} />
-                </div>
-
-                <div style={{ ...CARD, padding: '16px 18px' }}>
-                  <div style={{ ...ETIQUETA, marginBottom: 12 }}>NOTAS</div>
-                  <NotasProyecto projectId={abierto.id} userId={user.id} />
-                </div>
-              </section>
-
-            </>
-          )}
+              ));
+            })()}
+            <Link href="/profile/jobs" style={{ fontSize: 12.5, color: '#1d6f5c' }}>
+              Ver todos los empleos
+            </Link>
+          </div>
         </div>
 
-        <AnclasProyecto secciones={secciones} />
+
+
+      {showEditProfile && (
+        <div className="modal-ov on" onClick={(e) => e.target === e.currentTarget && setShowEditProfile(false)}>
+          <div className="modal-box" style={{ maxWidth: 640 }}>
+            <div className="modal-head">
+              <h2>Editar perfil</h2>
+              <div className="modal-x" onClick={() => setShowEditProfile(false)}>
+                <i className="ti ti-x"></i>
+              </div>
+            </div>
+            {showAiCvTip && (
+              <div
+                style={{
+                  background: '#faf9ff',
+                  border: '1px solid #d8d3fb',
+                  borderRadius: 10,
+                  padding: 14,
+                  marginBottom: 16,
+                  position: 'relative',
+                }}
+              >
+                <div
+                  onClick={dismissAiCvTip}
+                  title="Cerrar"
+                  style={{
+                    position: 'absolute',
+                    top: 10,
+                    right: 10,
+                    cursor: 'pointer',
+                    color: '#aaa',
+                    width: 22,
+                    height: 22,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    borderRadius: '50%',
+                  }}
+                >
+                  <i className="ti ti-x" style={{ fontSize: 14 }}></i>
+                </div>
+                <div style={{ fontSize: 12.5, fontWeight: 600, marginBottom: 10, display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <i className="ti ti-bolt" style={{ color: '#6d5aef' }}></i> La forma más rápida de rellenar tu perfil
+                </div>
+
+              <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10, marginBottom: 12 }}>
+                <div
+                  style={{
+                    width: 22,
+                    height: 22,
+                    borderRadius: '50%',
+                    background: profile?.cv_url ? '#1d6f5c' : '#e0dfd8',
+                    color: '#fff',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    fontSize: 12,
+                    fontWeight: 700,
+                    flexShrink: 0,
+                  }}
+                >
+                  {profile?.cv_url ? <i className="ti ti-check" style={{ fontSize: 13 }}></i> : '1'}
+                </div>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontSize: 13, fontWeight: 600 }}>Sube tu CV</div>
+                  {profile?.cv_url ? (
+                    <div style={{ fontSize: 12, color: '#888', marginTop: 2 }}>
+                      CV subido ✓{' '}
+                      <label style={{ color: '#1d6f5c', cursor: 'pointer', fontWeight: 500 }}>
+                        Reemplazar
+                        <input type="file" accept="application/pdf" hidden onChange={handleCvUpload} disabled={uploadingCv} />
+                      </label>
+                    </div>
+                  ) : (
+                    <label className="btn-o" style={{ display: 'inline-block', marginTop: 6, cursor: 'pointer', fontSize: 12 }}>
+                      {uploadingCv ? 'Subiendo...' : 'Elegir archivo PDF'}
+                      <input type="file" accept="application/pdf" hidden onChange={handleCvUpload} disabled={uploadingCv} />
+                    </label>
+                  )}
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
+                <div
+                  style={{
+                    width: 22,
+                    height: 22,
+                    borderRadius: '50%',
+                    background: '#e0dfd8',
+                    color: '#fff',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    fontSize: 12,
+                    fontWeight: 700,
+                    flexShrink: 0,
+                  }}
+                >
+                  2
+                </div>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontSize: 13, fontWeight: 600 }}>Autocompleta tu perfil con IA</div>
+                  <div style={{ fontSize: 12, color: '#888', marginTop: 2, marginBottom: 8 }}>
+                    Rellena experiencia, educación y habilidades leyendo tu CV, en segundos.
+                  </div>
+                  <FirstTimeHint hintKey="cv_autofill_candidate" message="Sube tu CV y rellenamos experiencia, educación y habilidades por ti ⚡">
+                    <button
+                      type="button"
+                      className="btn-ai"
+                      style={{ fontSize: 12.5 }}
+                      disabled={!profile?.cv_url || extractingCv}
+                      onClick={extractFromCv}
+                      title={!profile?.cv_url ? 'Sube tu CV primero' : ''}
+                    >
+                      <i className="ti ti-bolt"></i> {extractingCv ? 'Leyendo tu CV...' : 'Autocompletar perfil con IA'}
+                    </button>
+                  </FirstTimeHint>
+                </div>
+              </div>
+              </div>
+            )}
+
+            <form onSubmit={saveProfileEdit}>
+              <div className="two">
+                <div className="field">
+                  <label>Nombre</label>
+                  <input name="first_name" defaultValue={user.first_name || ''} required />
+                </div>
+                <div className="field">
+                  <label>Apellidos</label>
+                  <input name="last_name" defaultValue={user.last_name || ''} required />
+                </div>
+              </div>
+              <div className="field">
+                <label>Email de la cuenta</label>
+                <input type="email" defaultValue={user.email || ''} disabled style={{ background: '#f4f4f0', color: '#888' }} />
+                <p style={{ fontSize: 11, color: '#999', marginTop: 4 }}>
+                  Es el email con el que inicias sesión. No se puede editar aquí.
+                </p>
+              </div>
+              <div className="field">
+                <label>Email de contacto para contrataciones</label>
+                <input
+                  type="email"
+                  name="contact_email"
+                  defaultValue={profile?.contact_email || user.email || ''}
+                  placeholder="nombre@ejemplo.com"
+                />
+                <p style={{ fontSize: 11, color: '#999', marginTop: 4 }}>
+                  Es el email que verán las organizaciones al recibir tus solicitudes. Puede ser distinto al de tu cuenta.
+                </p>
+              </div>
+              <div className="field">
+                <label>Título profesional</label>
+                <input
+                  name="professional_title"
+                  defaultValue={user.professional_title || ''}
+                  placeholder="Ej: Public Affairs Manager"
+                />
+              </div>
+              <div className="field">
+                <label>Ubicación</label>
+                <input name="location" defaultValue={user.location || ''} placeholder="Ej: Madrid, España" />
+              </div>
+              <div className="two">
+                <div className="field">
+                  <label>Sitio web</label>
+                  <input name="website_url" defaultValue={profile?.website_url || ''} placeholder="https://tuweb.com" />
+                </div>
+                <div className="field">
+                  <label>LinkedIn URL</label>
+                  <input
+                    name="linkedin_url"
+                    defaultValue={profile?.linkedin_url || ''}
+                    placeholder="https://linkedin.com/in/..."
+                  />
+                </div>
+              </div>
+              <div className="field" style={{ marginTop: 4 }}>
+                <label>Tu situación profesional</label>
+                <p style={{ fontSize: 11.5, color: '#999', marginBottom: 10 }}>
+                  Usamos esto para comparar tu perfil con el sector en la Radiografía Profesional.
+                </p>
+
+                <div className="slbl">¿Cuál es tu situación profesional actual respecto a los asuntos públicos?</div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 20 }}>
+                  {CAREER_SITUATIONS.map((opt) => (
+                    <div
+                      key={opt.value}
+                      onClick={() => selectSitu('career_situation', opt.value)}
+                      style={{
+                        padding: '12px 14px',
+                        borderRadius: 10,
+                        border: situ.career_situation === opt.value ? '1.5px solid #1d6f5c' : '1.5px solid #e0dfd8',
+                        background: situ.career_situation === opt.value ? '#eaf5f0' : '#fff',
+                        fontSize: 13,
+                        fontWeight: situ.career_situation === opt.value ? 600 : 400,
+                        cursor: 'pointer',
+                      }}
+                    >
+                      {opt.label}
+                    </div>
+                  ))}
+                </div>
+
+                {SHOWS_DETAIL_QUESTIONS.includes(situ.career_situation) && (
+                  <>
+                    <div className="slbl">¿En qué tipo de entorno trabajas actualmente?</div>
+                    <div className="tags" style={{ marginBottom: 20 }}>
+                      {ORG_TYPES.map((opt) => (
+                        <div
+                          key={opt.value}
+                          className={`tp ${situ.org_type === opt.value ? 'on' : ''}`}
+                          onClick={() => selectSitu('org_type', opt.value)}
+                        >
+                          {opt.label}
+                        </div>
+                      ))}
+                    </div>
+
+                    <div className="slbl">¿Cuál de estos describe mejor tu rol actual?</div>
+                    <div className="tags" style={{ marginBottom: 20 }}>
+                      {ROLE_TYPES.map((opt) => (
+                        <div
+                          key={opt.value}
+                          className={`tp ${situ.role_type === opt.value ? 'on' : ''}`}
+                          onClick={() => selectSitu('role_type', opt.value)}
+                        >
+                          {opt.label}
+                        </div>
+                      ))}
+                    </div>
+
+                    <div className="slbl">¿Qué nivel describe mejor tu puesto actual?</div>
+                    <div className="tags" style={{ marginBottom: 8 }}>
+                      {LEVEL_TYPES.map((opt) => (
+                        <div
+                          key={opt.value}
+                          className={`tp ${situ.level_type === opt.value ? 'on' : ''}`}
+                          onClick={() => selectSitu('level_type', opt.value)}
+                        >
+                          {opt.label}
+                        </div>
+                      ))}
+                    </div>
+                  </>
+                )}
+              </div>
+
+              <div className="m-foot">
+                <button type="button" className="m-back" onClick={() => setShowEditProfile(false)}>
+                  Cancelar
+                </button>
+                <button className="m-next" disabled={savingProfile}>
+                  <i className="ti ti-check"></i> {savingProfile ? 'Guardando...' : 'Guardar cambios'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+        <div className="card">
+          <div className="p-tabs">
+            <button className={`p-tab ${tab === 'e' ? 'on' : ''}`} onClick={() => setTab('e')}>
+              Experiencia
+            </button>
+            <button className={`p-tab ${tab === 'ed' ? 'on' : ''}`} onClick={() => setTab('ed')}>
+              Educación
+            </button>
+            <button className={`p-tab ${tab === 'sk' ? 'on' : ''}`} onClick={() => setTab('sk')}>
+              Habilidades
+            </button>
+            <button className={`p-tab ${tab === 'lang' ? 'on' : ''}`} onClick={() => setTab('lang')}>
+              Idiomas
+            </button>
+          </div>
+
+          {tab === 'e' && (
+            <div className="p-sec" style={{ borderBottom: 'none' }}>
+              <h3>
+                Experiencia
+                <button className="btn-g" style={{ fontSize: 12 }} onClick={() => setShowExpForm(!showExpForm)}>
+                  <i className="ti ti-plus"></i> Añadir
+                </button>
+              </h3>
+
+              {/* La IA vive aquí, junto a lo que rellena, y no en la
+                  tarjeta del CV: allí competía por atención con el propio
+                  currículum. Pequeña y con X, porque quien escribe su
+                  experiencia a mano no quiere verla cada vez. */}
+              {/* El CV se gestiona aquí una vez desaparece su tarjeta:
+                  junto a lo que rellena, y sin ocupar la columna. */}
+              {profile?.cv_url && (
+                <div
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 8,
+                    flexWrap: 'wrap',
+                    fontSize: 11.5,
+                    color: '#888',
+                    marginBottom: 12,
+                  }}
+                >
+                  <i className="ti ti-file-cv" style={{ fontSize: 14, color: '#a8a49c' }}></i>
+                  <span>
+                    CV subido
+                    {profile.cv_uploaded_at &&
+                      ` el ${new Date(profile.cv_uploaded_at).toLocaleDateString('es-ES')}`}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={viewCv}
+                    style={{ background: 'none', border: 'none', color: '#1d6f5c', fontSize: 11.5, padding: 0 }}
+                  >
+                    Ver
+                  </button>
+                  <span style={{ color: '#d5d3c9' }}>·</span>
+                  <label style={{ color: '#1d6f5c', fontSize: 11.5, cursor: 'pointer' }}>
+                    {uploadingCv ? 'Subiendo…' : 'Reemplazar'}
+                    <input type="file" accept="application/pdf" hidden onChange={handleCvUpload} disabled={uploadingCv} />
+                  </label>
+                </div>
+              )}
+
+              {mostrarIa && profile?.cv_url && (
+                <div
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 9,
+                    background: '#faf9ff',
+                    border: '.5px solid #d8d3f5',
+                    borderRadius: 9,
+                    padding: '8px 11px',
+                    marginBottom: 14,
+                  }}
+                >
+                  <i className="ti ti-bolt" style={{ fontSize: 15, color: '#6d5aef', flexShrink: 0 }}></i>
+                  <span style={{ fontSize: 12, color: '#555', flex: 1, minWidth: 0, lineHeight: 1.5 }}>
+                    Podemos rellenar esto leyendo tu CV.
+                  </span>
+                  <button
+                    onClick={extractFromCv}
+                    disabled={extractingCv}
+                    style={{ background: 'none', border: 'none', color: '#6d5aef', fontSize: 12, padding: 0, flexShrink: 0 }}
+                  >
+                    {extractingCv ? 'Leyendo…' : 'Autocompletar'}
+                  </button>
+                  <button
+                    onClick={() => setIaCerrada(true)}
+                    aria-label="Ocultar"
+                    style={{ background: 'none', border: 'none', color: '#c4c0b8', padding: 2, flexShrink: 0 }}
+                  >
+                    <i className="ti ti-x" style={{ fontSize: 13 }}></i>
+                  </button>
+                </div>
+              )}
+              {showExpForm && (
+                <form onSubmit={addExperience} style={{ marginBottom: 16, background: '#f8faf9', padding: 14, borderRadius: 10 }}>
+                  <div className="form-row">
+                    <div className="form-g">
+                      <label>Puesto</label>
+                      <input name="title" required />
+                    </div>
+                    <div className="form-g">
+                      <label>Organización</label>
+                      <input name="organization_name" required />
+                    </div>
+                  </div>
+                  <div className="form-row">
+                    <div className="form-g">
+                      <label>Ubicación</label>
+                      <input name="location" />
+                    </div>
+                    <div className="form-g"></div>
+                  </div>
+                  <div className="form-row">
+                    <div className="form-g">
+                      <label>Fecha inicio</label>
+                      <input type="date" name="start_date" required />
+                    </div>
+                    <div className="form-g">
+                      <label>Fecha fin (vacío = actualidad)</label>
+                      <input type="date" name="end_date" />
+                    </div>
+                  </div>
+                  <div className="form-g">
+                    <label>Descripción</label>
+                    <textarea name="description"></textarea>
+                  </div>
+                  <button className="btn-p">Guardar experiencia</button>{' '}
+                  <button type="button" className="btn-g" onClick={() => setShowExpForm(false)}>
+                    Cancelar
+                  </button>
+                </form>
+              )}
+              {experiences.length === 0 && !showExpForm && (
+                <EmptySection
+                  icon="ti-briefcase"
+                  title="Destaca con tu experiencia"
+                  description="Añade tu experiencia profesional para destacar ante organizaciones y reclutadores."
+                  ctaLabel="Añadir experiencia"
+                  onCta={() => setShowExpForm(true)}
+                />
+              )}
+              {experiences.map((exp, i) =>
+                editingExpId === exp.id ? (
+                  <form
+                    key={exp.id}
+                    onSubmit={updateExperience}
+                    style={{ marginBottom: 14, background: '#f8faf9', padding: 14, borderRadius: 10 }}
+                  >
+                    <div className="form-row">
+                      <div className="form-g">
+                        <label>Puesto</label>
+                        <input name="title" defaultValue={exp.title} required />
+                      </div>
+                      <div className="form-g">
+                        <label>Organización</label>
+                        <input name="organization_name" defaultValue={exp.organization_name} required />
+                      </div>
+                    </div>
+                    <div className="form-row">
+                      <div className="form-g">
+                        <label>Ubicación</label>
+                        <input name="location" defaultValue={exp.location || ''} />
+                      </div>
+                      <div className="form-g"></div>
+                    </div>
+                    <div className="form-row">
+                      <div className="form-g">
+                        <label>Fecha inicio</label>
+                        <input type="date" name="start_date" defaultValue={exp.start_date} required />
+                      </div>
+                      <div className="form-g">
+                        <label>Fecha fin (vacío = actualidad)</label>
+                        <input type="date" name="end_date" defaultValue={exp.end_date || ''} />
+                      </div>
+                    </div>
+                    <div className="form-g">
+                      <label>Descripción</label>
+                      <textarea name="description" defaultValue={exp.description || ''}></textarea>
+                    </div>
+                    <button className="btn-p">Guardar cambios</button>{' '}
+                    <button type="button" className="btn-g" onClick={() => setEditingExpId(null)}>
+                      Cancelar
+                    </button>
+                  </form>
+                ) : (
+                  <div
+                    className="exp-item exp-fila"
+                    key={exp.id}
+                    draggable
+                    onDragStart={(e) => handleCardDragStart(e, i, exp.title)}
+                    onDragOver={(e) => e.preventDefault()}
+                    onDrop={() => {
+                      reorderByDrag('experiences', experiences, setExperiences, dragIndex, i);
+                      setDragIndex(null);
+                    }}
+                    style={{ cursor: 'grab' }}
+                  >
+                    <i className="ti ti-grip-vertical" style={{ color: '#ccc', fontSize: 16, marginTop: 3 }}></i>
+                    <div className="exp-logo">🏛️</div>
+                    <div className="exp-body" style={{ flex: 1 }}>
+                      <div className="et">{exp.title}</div>
+                      <div className="eo">{exp.organization_name}</div>
+                      <div className="ep">
+                        {exp.start_date} – {exp.end_date || 'Actualidad'}
+                      </div>
+                      <div className="ed">{exp.description}</div>
+                    </div>
+                    <div className="exp-acciones" style={{ display: 'flex', flexDirection: 'column', gap: 4, height: 'fit-content' }}>
+                      <div style={{ display: 'flex', gap: 4 }}>
+                        <button
+                          className="btn-g"
+                          style={{ padding: '5px 7px' }}
+                          disabled={i === 0}
+                          onClick={() => moveItem('experiences', experiences, setExperiences, exp.id, 'up')}
+                        >
+                          <i className="ti ti-arrow-up"></i>
+                        </button>
+                        <button
+                          className="btn-g"
+                          style={{ padding: '5px 7px' }}
+                          disabled={i === experiences.length - 1}
+                          onClick={() => moveItem('experiences', experiences, setExperiences, exp.id, 'down')}
+                        >
+                          <i className="ti ti-arrow-down"></i>
+                        </button>
+                        <button className="btn-g" style={{ padding: '5px 7px' }} onClick={() => setEditingExpId(exp.id)}>
+                          <i className="ti ti-edit"></i>
+                        </button>
+                        <button className="btn-g" style={{ padding: '5px 7px' }} onClick={() => deleteExperience(exp.id)}>
+                          <i className="ti ti-trash"></i>
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                )
+              )}
+            </div>
+          )}
+
+          {tab === 'ed' && (
+            <div className="p-sec" style={{ borderBottom: 'none' }}>
+              <h3>
+                Educación
+                <button className="btn-g" style={{ fontSize: 12 }} onClick={() => setShowEduForm(!showEduForm)}>
+                  <i className="ti ti-plus"></i> Añadir
+                </button>
+              </h3>
+              {showEduForm && (
+                <form onSubmit={addEducation} style={{ marginBottom: 16, background: '#f8faf9', padding: 14, borderRadius: 10 }}>
+                  <div className="form-g">
+                    <label>Titulación</label>
+                    <input name="degree" required />
+                  </div>
+                  <div className="form-g">
+                    <label>Institución</label>
+                    <input name="institution" required />
+                  </div>
+                  <div className="form-row">
+                    <div className="form-g">
+                      <label>Año inicio</label>
+                      <input type="date" name="start_date" />
+                    </div>
+                    <div className="form-g">
+                      <label>Año fin</label>
+                      <input type="date" name="end_date" />
+                    </div>
+                  </div>
+                  <button className="btn-p">Guardar educación</button>{' '}
+                  <button type="button" className="btn-g" onClick={() => setShowEduForm(false)}>
+                    Cancelar
+                  </button>
+                </form>
+              )}
+              {education.length === 0 && !showEduForm && (
+                <EmptySection
+                  icon="ti-school"
+                  title="Añade tu formación"
+                  description="Comparte tu titulación e institución para dar más contexto a tu perfil."
+                  ctaLabel="Añadir educación"
+                  onCta={() => setShowEduForm(true)}
+                />
+              )}
+              {education.map((ed, i) =>
+                editingEduId === ed.id ? (
+                  <form
+                    key={ed.id}
+                    onSubmit={updateEducation}
+                    style={{ marginBottom: 14, background: '#f8faf9', padding: 14, borderRadius: 10 }}
+                  >
+                    <div className="form-g">
+                      <label>Titulación</label>
+                      <input name="degree" defaultValue={ed.degree} required />
+                    </div>
+                    <div className="form-g">
+                      <label>Institución</label>
+                      <input name="institution" defaultValue={ed.institution} required />
+                    </div>
+                    <div className="form-row">
+                      <div className="form-g">
+                        <label>Año inicio</label>
+                        <input type="date" name="start_date" defaultValue={ed.start_date || ''} />
+                      </div>
+                      <div className="form-g">
+                        <label>Año fin</label>
+                        <input type="date" name="end_date" defaultValue={ed.end_date || ''} />
+                      </div>
+                    </div>
+                    <button className="btn-p">Guardar cambios</button>{' '}
+                    <button type="button" className="btn-g" onClick={() => setEditingEduId(null)}>
+                      Cancelar
+                    </button>
+                  </form>
+                ) : (
+                  <div
+                    className="exp-item exp-fila"
+                    key={ed.id}
+                    draggable
+                    onDragStart={(e) => handleCardDragStart(e, i, ed.degree)}
+                    onDragOver={(e) => e.preventDefault()}
+                    onDrop={() => {
+                      reorderByDrag('education', education, setEducation, dragIndex, i);
+                      setDragIndex(null);
+                    }}
+                    style={{ cursor: 'grab' }}
+                  >
+                    <i className="ti ti-grip-vertical" style={{ color: '#ccc', fontSize: 16 }}></i>
+                    <div className="exp-logo">🎓</div>
+                    <div className="exp-body" style={{ flex: 1 }}>
+                      <div className="et">{ed.degree}</div>
+                      <div className="eo">{ed.institution}</div>
+                    </div>
+                    <div className="exp-acciones" style={{ display: 'flex', gap: 4, height: 'fit-content' }}>
+                      <button
+                        className="btn-g"
+                        style={{ padding: '5px 7px' }}
+                        disabled={i === 0}
+                        onClick={() => moveItem('education', education, setEducation, ed.id, 'up')}
+                      >
+                        <i className="ti ti-arrow-up"></i>
+                      </button>
+                      <button
+                        className="btn-g"
+                        style={{ padding: '5px 7px' }}
+                        disabled={i === education.length - 1}
+                        onClick={() => moveItem('education', education, setEducation, ed.id, 'down')}
+                      >
+                        <i className="ti ti-arrow-down"></i>
+                      </button>
+                      <button className="btn-g" style={{ padding: '5px 7px' }} onClick={() => setEditingEduId(ed.id)}>
+                        <i className="ti ti-edit"></i>
+                      </button>
+                      <button className="btn-g" style={{ padding: '5px 7px' }} onClick={() => deleteEducation(ed.id)}>
+                        <i className="ti ti-trash"></i>
+                      </button>
+                    </div>
+                  </div>
+                )
+              )}
+            </div>
+          )}
+
+          {tab === 'sk' && (
+            <div className="p-sec" style={{ borderBottom: 'none' }}>
+              <h3>Habilidades</h3>
+              <form onSubmit={addSkill} style={{ display: 'flex', gap: 8, marginBottom: 14 }}>
+                <input
+                  placeholder="Ej: Lobbying, Negociación..."
+                  value={skillInput}
+                  onChange={(e) => setSkillInput(e.target.value)}
+                  style={{
+                    flex: 1,
+                    padding: '9px 12px',
+                    border: '1px solid #e0dfd8',
+                    borderRadius: 8,
+                    fontSize: 13,
+                    outline: 'none',
+                  }}
+                />
+                <button className="btn-p">Añadir</button>
+              </form>
+              <div>
+                {skills.map((s, i) => (
+                  <span
+                    className="skill"
+                    key={s.id}
+                    draggable
+                    onDragStart={(e) => handleCardDragStart(e, i, s.skill_name)}
+                    onDragOver={(e) => e.preventDefault()}
+                    onDrop={() => {
+                      reorderByDrag('skills', skills, setSkills, dragIndex, i);
+                      setDragIndex(null);
+                    }}
+                    style={{ display: 'inline-flex', alignItems: 'center', cursor: 'grab' }}
+                  >
+                    <button
+                      onClick={() => moveItem('skills', skills, setSkills, s.id, 'up')}
+                      disabled={i === 0}
+                      title="Mover antes"
+                      style={{ opacity: i === 0 ? 0.3 : 0.6 }}
+                    >
+                      <i className="ti ti-chevron-left"></i>
+                    </button>
+                    {s.skill_name}
+                    <button
+                      onClick={() => moveItem('skills', skills, setSkills, s.id, 'down')}
+                      disabled={i === skills.length - 1}
+                      title="Mover después"
+                      style={{ opacity: i === skills.length - 1 ? 0.3 : 0.6 }}
+                    >
+                      <i className="ti ti-chevron-right"></i>
+                    </button>
+                    <button onClick={() => deleteSkill(s.id)}>
+                      <i className="ti ti-x"></i>
+                    </button>
+                  </span>
+                ))}
+                {skills.length === 0 && (
+                  <EmptySection
+                    icon="ti-bulb"
+                    title="Muestra tus puntos fuertes"
+                    description="Añade las habilidades que mejor te representan, arriba en el campo de texto."
+                  />
+                )}
+              </div>
+            </div>
+          )}
+
+          {tab === 'lang' && (
+            <div className="p-sec" style={{ borderBottom: 'none' }}>
+              <h3>Idiomas</h3>
+              <form onSubmit={addLanguage} style={{ display: 'flex', gap: 8, marginBottom: 14 }}>
+                <input
+                  placeholder="Ej: Inglés, Francés..."
+                  value={langName}
+                  onChange={(e) => setLangName(e.target.value)}
+                  style={{
+                    flex: 1,
+                    padding: '9px 12px',
+                    border: '1px solid #e0dfd8',
+                    borderRadius: 8,
+                    fontSize: 13,
+                    outline: 'none',
+                  }}
+                />
+                <select
+                  value={langLevel}
+                  onChange={(e) => setLangLevel(e.target.value)}
+                  style={{ padding: '9px 10px', border: '1px solid #e0dfd8', borderRadius: 8, fontSize: 13 }}
+                >
+                  {LANGUAGE_LEVELS.map((lvl) => (
+                    <option key={lvl} value={lvl}>
+                      {lvl}
+                    </option>
+                  ))}
+                </select>
+                <button className="btn-p">Añadir</button>
+              </form>
+              {languages.length === 0 && (
+                <EmptySection
+                  icon="ti-language"
+                  title="Añade tus idiomas"
+                  description="Indica qué idiomas hablas y tu nivel, arriba en el desplegable."
+                />
+              )}
+              {languages.map((l, i) =>
+                editingLangId === l.id ? (
+                  <form
+                    key={l.id}
+                    onSubmit={updateLanguage}
+                    style={{ marginBottom: 14, background: '#f8faf9', padding: 14, borderRadius: 10 }}
+                  >
+                    <div className="form-row">
+                      <div className="form-g">
+                        <label>Idioma</label>
+                        <input name="language_name" defaultValue={l.language_name} required />
+                      </div>
+                      <div className="form-g">
+                        <label>Nivel</label>
+                        <select name="proficiency" defaultValue={l.proficiency}>
+                          {LANGUAGE_LEVELS.map((lvl) => (
+                            <option key={lvl} value={lvl}>
+                              {lvl}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                    </div>
+                    <button className="btn-p">Guardar cambios</button>{' '}
+                    <button type="button" className="btn-g" onClick={() => setEditingLangId(null)}>
+                      Cancelar
+                    </button>
+                  </form>
+                ) : (
+                  <div
+                    className="exp-item exp-fila"
+                    key={l.id}
+                    draggable
+                    onDragStart={(e) => handleCardDragStart(e, i, l.language_name)}
+                    onDragOver={(e) => e.preventDefault()}
+                    onDrop={() => {
+                      reorderByDrag('languages', languages, setLanguages, dragIndex, i);
+                      setDragIndex(null);
+                    }}
+                    style={{ alignItems: 'center', cursor: 'grab' }}
+                  >
+                    <i className="ti ti-grip-vertical" style={{ color: '#ccc', fontSize: 16 }}></i>
+                    <div className="exp-logo">🌐</div>
+                    <div className="exp-body" style={{ flex: 1 }}>
+                      <div className="et">
+                        {l.language_name} <span className="badge bg" style={{ marginLeft: 6 }}>{l.proficiency}</span>
+                      </div>
+                    </div>
+                    <div className="exp-acciones" style={{ display: 'flex', gap: 4, height: 'fit-content' }}>
+                      <button
+                        className="btn-g"
+                        style={{ padding: '5px 7px' }}
+                        disabled={i === 0}
+                        onClick={() => moveItem('languages', languages, setLanguages, l.id, 'up')}
+                      >
+                        <i className="ti ti-arrow-up"></i>
+                      </button>
+                      <button
+                        className="btn-g"
+                        style={{ padding: '5px 7px' }}
+                        disabled={i === languages.length - 1}
+                        onClick={() => moveItem('languages', languages, setLanguages, l.id, 'down')}
+                      >
+                        <i className="ti ti-arrow-down"></i>
+                      </button>
+                      <button className="btn-g" style={{ padding: '5px 7px' }} onClick={() => setEditingLangId(l.id)}>
+                        <i className="ti ti-edit"></i>
+                      </button>
+                      <button className="btn-g" style={{ padding: '5px 7px' }} onClick={() => deleteLanguage(l.id)}>
+                        <i className="ti ti-trash"></i>
+                      </button>
+                    </div>
+                  </div>
+                )
+              )}
+            </div>
+          )}
+        </div>
       </div>
 
-      {modalUpsell && <UpgradeModal {...upsellProyectos()} onClose={() => setModalUpsell(false)} />}
+      {verRadiografia && <RadiografiaModal onClose={() => setVerRadiografia(false)} />}
+
+      {cvExtractResult && (
+        <div className="modal-ov on" onClick={(e) => e.target === e.currentTarget && setCvExtractResult(null)}>
+          <div className="modal-box" style={{ maxWidth: 620 }}>
+            <div className="modal-head">
+              <h2>Revisa lo que hemos leído de tu CV</h2>
+              <div className="modal-x" onClick={() => setCvExtractResult(null)}>
+                <i className="ti ti-x"></i>
+              </div>
+            </div>
+            <p style={{ fontSize: 12.5, color: '#888', marginBottom: 16 }}>
+              Desmarca lo que no quieras añadir. Esto se sumará a lo que ya tienes en tu perfil (no se borra nada).
+            </p>
+
+            {cvExtractResult.professional_title && !user.professional_title && (
+              <div style={{ fontSize: 13, marginBottom: 12 }}>
+                <b>Título profesional:</b> {cvExtractResult.professional_title}
+              </div>
+            )}
+
+            {cvExtractResult.experiences.length > 0 && (
+              <div style={{ marginBottom: 16 }}>
+                <div style={{ fontSize: 12.5, fontWeight: 600, marginBottom: 6 }}>Experiencia detectada</div>
+                {cvExtractResult.experiences.map((e, i) => (
+                  <label key={i} style={{ display: 'flex', gap: 8, alignItems: 'flex-start', fontSize: 12.5, marginBottom: 8, cursor: 'pointer' }}>
+                    <input
+                      type="checkbox"
+                      checked={selectedExpIdx.has(i)}
+                      onChange={() => toggleSetIdx(setSelectedExpIdx, selectedExpIdx, i)}
+                      style={{ marginTop: 3 }}
+                    />
+                    <div>
+                      <b>{e.title}</b> · {e.organization_name}
+                      <div style={{ color: '#999', fontSize: 11 }}>
+                        {e.start_date} – {e.end_date || 'Actualidad'}
+                      </div>
+                    </div>
+                  </label>
+                ))}
+              </div>
+            )}
+
+            {cvExtractResult.education.length > 0 && (
+              <div style={{ marginBottom: 16 }}>
+                <div style={{ fontSize: 12.5, fontWeight: 600, marginBottom: 6 }}>Educación detectada</div>
+                {cvExtractResult.education.map((e, i) => (
+                  <label key={i} style={{ display: 'flex', gap: 8, alignItems: 'flex-start', fontSize: 12.5, marginBottom: 8, cursor: 'pointer' }}>
+                    <input
+                      type="checkbox"
+                      checked={selectedEduIdx.has(i)}
+                      onChange={() => toggleSetIdx(setSelectedEduIdx, selectedEduIdx, i)}
+                      style={{ marginTop: 3 }}
+                    />
+                    <div>
+                      <b>{e.degree}</b> · {e.institution}
+                    </div>
+                  </label>
+                ))}
+              </div>
+            )}
+
+            {cvExtractResult.skills.length > 0 && (
+              <div style={{ marginBottom: 16 }}>
+                <div style={{ fontSize: 12.5, fontWeight: 600, marginBottom: 6 }}>Habilidades detectadas</div>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                  {cvExtractResult.skills.map((s) => (
+                    <div
+                      key={s}
+                      onClick={() =>
+                        setSelectedSkills((prev) => {
+                          const n = new Set(prev);
+                          n.has(s) ? n.delete(s) : n.add(s);
+                          return n;
+                        })
+                      }
+                      className={`tp ${selectedSkills.has(s) ? 'on' : ''}`}
+                    >
+                      {s}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            <div className="m-foot">
+              <button type="button" className="m-back" onClick={() => setCvExtractResult(null)}>
+                Cancelar
+              </button>
+              <button className="m-next" disabled={applyingExtract} onClick={applyCvExtract}>
+                <i className="ti ti-check"></i> {applyingExtract ? 'Aplicando...' : 'Añadir a mi perfil'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function EmptySection({ icon, title, description, ctaLabel, onCta }) {
+  return (
+    <div style={{ textAlign: 'center', padding: '36px 20px' }}>
+      <div
+        style={{
+          width: 56,
+          height: 56,
+          borderRadius: 14,
+          background: '#e8f4f0',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          margin: '0 auto 16px',
+        }}
+      >
+        <i className={`ti ${icon}`} style={{ fontSize: 26, color: '#1d6f5c' }}></i>
+      </div>
+      <div style={{ fontSize: 15.5, fontWeight: 700, marginBottom: 6 }}>{title}</div>
+      <div style={{ fontSize: 13, color: '#888', maxWidth: 320, margin: '0 auto 18px', lineHeight: 1.6 }}>{description}</div>
+      {ctaLabel && (
+        <button className="btn-p" onClick={onCta}>
+          <i className="ti ti-plus"></i> {ctaLabel}
+        </button>
+      )}
     </div>
   );
 }
