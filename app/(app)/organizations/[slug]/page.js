@@ -209,6 +209,7 @@ export default async function OrganizationPublicPage({ params }) {
           propia voz, ocupa un tercio y dice lo mismo. */}
       {!userId && (
         <div
+          className="bento"
           style={{
             maxWidth: 900,
             margin: '0 auto 16px',
@@ -231,6 +232,7 @@ export default async function OrganizationPublicPage({ params }) {
           </div>
           <Link
             href="/login?view=signup"
+            className="btn-mov"
             style={{
               fontSize: 12.5,
               background: '#6d5aef',
