@@ -589,7 +589,7 @@ export default function Home() {
                 ¿Y a tu organización qué le afecta?
               </div>
               <div style={{ fontSize: 12, color: '#8b8780', marginTop: 3, lineHeight: 1.5 }}>
-                Analizamos los proyectos normativos abiertos y te decimos qué te toca, con el motivo.
+                Analizamos los proyectos normativos abiertos y te decimos qué te afecta, con el motivo, sus plazos y actores principales.
               </div>
             </div>
             <Link
