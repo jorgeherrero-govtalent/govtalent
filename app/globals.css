@@ -545,7 +545,10 @@ a{color:inherit}
 /* --- El panel informativo del login -----------------------------------
    Réplica de la interfaz, no la interfaz. Sin eventos de puntero para
    que nadie intente pulsar un botón que no hace nada. */
-.lp{display:flex;gap:14px;margin-top:26px;position:relative;z-index:1;user-select:none}
+.lp-wrap{position:relative;z-index:1;display:flex;flex-direction:column;flex:1;margin-top:26px}
+.lp-pie{text-align:right;font-size:11px;color:#8b8780;line-height:1.5;margin-top:18px;padding-top:14px;border-top:1px solid #2c2b26}
+@media (max-width: 900px){.lp-pie{display:none}}
+.lp{display:flex;gap:14px;user-select:none;flex:1}
 /* Las ventanas sí reciben el ratón, para que funcione el efecto de las
    tarjetas. Nada dentro es pulsable ni enfocable: son divs, y todo el
    bloque va con aria-hidden. */
@@ -561,5 +564,9 @@ a{color:inherit}
 /* En móvil no cabe nada de esto: se queda el titular y el subtítulo,
    que son el mensaje de verdad. */
 @media (max-width: 900px){
-  .lp{display:none}
+  .lp-wrap{display:none}
 }
+
+/* Aviso legal del login, bajo el enlace de registro. */
+.login-legal{font-size:10.5px;color:#a8a49c;line-height:1.55;margin-top:14px;padding-top:13px;border-top:.5px solid #f2f0ec;text-align:center}
+.login-legal a{color:#8b8780;text-decoration:underline}
