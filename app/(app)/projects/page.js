@@ -1045,7 +1045,7 @@ function Proyectos() {
                ejemplo —que suena a que el usuario ya tiene uno— sino lo
                que la pantalla enseña de verdad: cómo se trabaja aquí. */
             <div style={{ fontSize: 19, fontWeight: 600, lineHeight: 1.35 }}>
-              {esPro ? abierto?.name : 'Tu espacio de trabajo para asuntos públicos'}
+              {esPro ? abierto?.name : 'Tu espacio de trabajo para gestionar tus asuntos públicos'}
             </div>
           )}
           {/* En Free la cabecera leía los datos reales del usuario —cero
