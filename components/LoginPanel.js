@@ -282,7 +282,7 @@ export default function LoginPanel() {
           </div>
         </div>
 
-        <Etiqueta>Directorio institucional y base de datos</Etiqueta>
+        <Etiqueta>Directorio institucional y base de datos de cargos</Etiqueta>
         <div className="bento" style={{ ...VENTANA, marginBottom: 14 }}>
           <div style={TARJETA}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginBottom: 9 }}>
@@ -353,17 +353,14 @@ export default function LoginPanel() {
           </div>
         </div>
 
-      </div>
-      </div>
-
-      {/* Pie del panel, abajo a la derecha. Lo de Recruiter & Teams es la
-          única mención al lado de pago para organizaciones: quien llega
-          aquí buscando contratar necesita saber que existe. */}
-      <div className="lp-pie">
-        <div>Monitorización normativa en España y la UE</div>
-        <div style={{ marginTop: 4 }}>
-          Disponible también para empresas y organizaciones: <b style={{ fontWeight: 600, color: '#c4c0b8' }}>Recruiter &amp; Teams</b>
+        {/* Al pie de esta columna, no del panel entero. Es la única
+            mención al lado de pago para organizaciones, y quien llega
+            aquí buscando contratar necesita saber que existe. */}
+        <div className="lp-pie">
+          Disponible también para empresas y organizaciones:{' '}
+          <b style={{ fontWeight: 600, color: '#c4c0b8' }}>Recruiter &amp; Teams</b>
         </div>
+      </div>
       </div>
     </div>
   );
