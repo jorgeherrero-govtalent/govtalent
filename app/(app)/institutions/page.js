@@ -167,20 +167,11 @@ export default function InstitutionsPage() {
               Todos los cargos de la administración en España y la UE en una sola tabla.
             </div>
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10, paddingTop: 18 }}>
-            <span
-              style={{
-                fontSize: 12.5,
-                background: MORADO,
-                color: '#fff',
-                borderRadius: 8,
-                padding: '9px 18px',
-                fontWeight: 600,
-              }}
-            >
-              Ver
-            </span>
-            <span style={{ fontSize: 11.5, color: '#8b8780' }}>Función Pro</span>
+          {/* Mismo tratamiento que la tarjeta negra del regulatorio:
+              enlace en morado, sin botón. Que sea de pago se dice en el
+              modal, no en la tarjeta. */}
+          <div style={{ fontSize: 12.5, color: '#8f7ff5', fontWeight: 600, paddingTop: 18 }}>
+            Ver base de datos →
           </div>
         </button>
 
