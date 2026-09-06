@@ -478,3 +478,44 @@ a{color:inherit}
   .exp-body .eo,
   .exp-body .ed{overflow-wrap:anywhere}
 }
+
+/* Respuesta al pulsar, en TODOS los botones de la plataforma.
+
+   Al pasar por encima el botón se eleva un píxel con una sombra; al
+   pulsar baja y se encoge un poco, como si se hundiera.
+
+   Los cinco tipos comparten el mismo gesto para que un botón se comporte
+   igual en toda la plataforma. La sombra va en negro neutro y no teñida
+   del color de cada botón: en el verde y en el morado se ve igual de
+   limpia, y evita mantener cinco sombras distintas.
+
+   El movimiento es corto —un píxel y un 1,5% de escala— a propósito. En
+   una herramienta que se usa horas al día, un botón que salta cansa; lo
+   que se busca es acusar el gesto, no celebrarlo.
+
+   .btn-mov se conserva como alias para poder dárselo a algo que no sea
+   uno de estos cinco tipos, como un enlace con estilo de botón. */
+.btn-p, .btn-ai, .btn-ai-o, .btn-o, .btn-g, .btn-mov{
+  transition:transform .14s ease, box-shadow .14s ease, background .15s ease, color .15s ease, border-color .15s ease;
+}
+.btn-p:hover, .btn-ai:hover, .btn-ai-o:hover, .btn-o:hover, .btn-g:hover, .btn-mov:hover{
+  transform:translateY(-1px);
+  box-shadow:0 6px 16px rgba(0,0,0,.16);
+}
+.btn-p:active, .btn-ai:active, .btn-ai-o:active, .btn-o:active, .btn-g:active, .btn-mov:active{
+  transform:translateY(0) scale(.985);
+  box-shadow:none;
+}
+/* Un botón deshabilitado no debe responder: prometería una acción que no
+   va a ocurrir. */
+.btn-p:disabled, .btn-ai:disabled, .btn-ai-o:disabled, .btn-o:disabled, .btn-g:disabled{
+  transform:none;
+  box-shadow:none;
+}
+@media (prefers-reduced-motion: reduce){
+  .btn-p, .btn-ai, .btn-ai-o, .btn-o, .btn-g, .btn-mov{transition:background .15s ease}
+  .btn-p:hover, .btn-ai:hover, .btn-ai-o:hover, .btn-o:hover, .btn-g:hover, .btn-mov:hover,
+  .btn-p:active, .btn-ai:active, .btn-ai-o:active, .btn-o:active, .btn-g:active, .btn-mov:active{
+    transform:none;box-shadow:none;
+  }
+}
