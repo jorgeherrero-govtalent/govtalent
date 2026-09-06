@@ -10,12 +10,12 @@ a{color:inherit}
 .logo{display:inline-flex;align-items:center;line-height:0}
 .login-body{display:flex;align-items:center;justify-content:center;padding:20px;min-height:calc(100vh - 52px)}
 .split{display:flex;max-width:1100px;width:100%;border-radius:20px;overflow:hidden;box-shadow:0 4px 32px rgba(0,0,0,.09)}
-.sl-left{flex:1;background:#15140f;padding:40px 36px;color:#fff;position:relative;overflow:hidden}
+.sl-left{flex:1;background:#15140f;padding:34px 30px;color:#fff;position:relative;overflow:hidden}
 /* Los dos halos, verde arriba y morado abajo: el mismo fondo que la
    portada del perfil y las tarjetas negras del resto de la plataforma. */
 .sl-left::after{content:'';position:absolute;inset:0;background:radial-gradient(circle at 12% 6%, rgba(47,156,126,.26), transparent 52%), radial-gradient(circle at 92% 94%, rgba(143,127,245,.30), transparent 52%);pointer-events:none}
 
-.sl-left h2{font-size:25px;font-weight:600;line-height:1.3;margin-bottom:12px;letter-spacing:-.4px;position:relative;z-index:1;max-width:460px}
+.sl-left h2{font-size:23px;font-weight:600;line-height:1.3;margin-bottom:12px;letter-spacing:-.4px;position:relative;z-index:1;max-width:460px}
 .sl-left h2 em{font-style:italic}
 .sl-tagline{font-size:14px;color:#cfcdc6;line-height:1.6;margin-bottom:8px;position:relative;z-index:1;max-width:470px}
 .sl-features{display:flex;flex-direction:column;gap:20px;position:relative;padding:26px 0;margin:24px 0;border-top:1px solid rgba(255,255,255,.15);border-bottom:1px solid rgba(255,255,255,.15)}
@@ -557,10 +557,10 @@ a{color:inherit}
 /* --- El panel informativo del login -----------------------------------
    Réplica de la interfaz, no la interfaz. Sin eventos de puntero para
    que nadie intente pulsar un botón que no hace nada. */
-.lp-wrap{position:relative;z-index:1;display:flex;flex-direction:column;flex:1;margin-top:26px}
-.lp-org{margin-top:14px;text-align:right;font-size:12.5px;font-weight:600;color:#8f7ff5;line-height:1.5}
+.lp-wrap{position:relative;z-index:1;display:flex;flex-direction:column;flex:1;margin-top:20px}
+.lp-org{margin-top:12px;text-align:right;font-size:12px;font-weight:600;color:#8f7ff5;line-height:1.5}
 
-.lp{display:flex;gap:14px;user-select:none;flex:1}
+.lp{display:flex;gap:12px;user-select:none;flex:1}
 /* Las ventanas sí reciben el ratón, para que funcione el efecto de las
    tarjetas. Nada dentro es pulsable ni enfocable: son divs, y todo el
    bloque va con aria-hidden. */
