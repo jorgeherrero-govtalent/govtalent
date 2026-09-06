@@ -73,18 +73,26 @@ function Bandera({ pais, size = 17 }) {
  * lo sabemos. En ese caso se enseñan los totales, que sí son verdad.
  */
 function Institucion({ href, titulo, descripcion, afectan, universo, etiquetaUniverso, pie, color = MORADO, mostrarBarra }) {
-  const pct =
-    afectan !== null && universo ? Math.max(2, Math.min(100, Math.round((afectan / universo) * 100))) : 0;
+  // La barra solo tiene sentido si hay algo que enseñar. "0 te afectan"
+  // ocupa el mismo espacio que un dato y no lo es: o no hay coincidencias
+  // o el análisis no cubre esa fuente, y en ninguno de los dos casos el
+  // cero informa. Sin barra se enseñan los totales, que sí son ciertos.
+  const conBarra = mostrarBarra && universo > 0 && afectan > 0;
+  const pct = conBarra ? Math.max(3, Math.min(100, Math.round((afectan / universo) * 100))) : 0;
 
   return (
-    <Link href={href} className="bento" style={CARD}>
-      <div style={{ fontSize: 15.5, fontWeight: 600, letterSpacing: '-.2px' }}>{titulo}</div>
-      <div style={{ fontSize: 12.5, color: '#8b8780', lineHeight: 1.55, paddingTop: 6, minHeight: 38 }}>
-        {descripcion}
+    <Link
+      href={href}
+      className="bento"
+      style={{ ...CARD, display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}
+    >
+      <div>
+        <div style={{ fontSize: 15.5, fontWeight: 600, letterSpacing: '-.2px' }}>{titulo}</div>
+        <div style={{ fontSize: 12.5, color: '#8b8780', lineHeight: 1.55, paddingTop: 6 }}>{descripcion}</div>
       </div>
 
-      {mostrarBarra && universo ? (
-        <div style={{ marginTop: 16 }}>
+      {conBarra ? (
+        <div style={{ marginTop: 18 }}>
           <div style={{ height: 8, borderRadius: 5, background: '#f2f0ec', overflow: 'hidden', display: 'flex' }}>
             <span style={{ width: `${pct}%`, background: color, display: 'block' }}></span>
           </div>
@@ -98,7 +106,7 @@ function Institucion({ href, titulo, descripcion, afectan, universo, etiquetaUni
           </div>
         </div>
       ) : (
-        <div style={{ marginTop: 16, paddingTop: 14, borderTop: '.5px solid #f2f0ec', display: 'flex', gap: 24, flexWrap: 'wrap' }}>
+        <div style={{ marginTop: 18, paddingTop: 14, borderTop: '.5px solid #f2f0ec', display: 'flex', gap: 24, flexWrap: 'wrap' }}>
           <div>
             <div style={{ fontSize: 22, fontWeight: 600, color, lineHeight: 1 }}>
               {universo === null ? '—' : universo.toLocaleString('es-ES')}
@@ -218,67 +226,49 @@ export default function RegulatorioPage() {
         </p>
       </div>
 
-      {/* Una franja y no una tarjeta más: el análisis cruza las cinco
-          fuentes, así que está por encima de ellas. */}
+      {/* La misma tarjeta negra que la home: es donde vive lo que la
+          plataforma ha deducido, y el análisis cruza las cinco fuentes,
+          así que está por encima de ellas y no es una tarjeta más. */}
       <Link
         href="/regulatorio/sector"
         className="bento"
         style={{
           display: 'flex',
           alignItems: 'center',
-          gap: 14,
-          background: '#fff',
+          gap: 18,
+          background: '#15140f',
           borderRadius: 16,
-          padding: '18px 20px',
-          boxShadow: '0 1px 2px rgba(0,0,0,.04)',
+          padding: '22px 24px',
           textDecoration: 'none',
           color: 'inherit',
           flexWrap: 'wrap',
         }}
       >
-        <span
-          style={{
-            width: 34,
-            height: 34,
-            borderRadius: 9,
-            background: '#f0eefe',
-            color: MORADO,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            flexShrink: 0,
-          }}
-        >
-          <i className="ti ti-sparkles" style={{ fontSize: 16 }}></i>
-        </span>
-        <div style={{ flex: 1, minWidth: 180 }}>
+        <div style={{ flex: 1, minWidth: 220 }}>
+          <div style={{ fontSize: 11.5, color: '#8f7ff5', letterSpacing: '.3px', marginBottom: 10 }}>
+            QUÉ IMPACTA EN TU SECTOR
+          </div>
           {hayAnalisis ? (
-            <>
-              <div style={{ fontSize: 13.5, fontWeight: 600, letterSpacing: '-.1px' }}>
-                {sector.n} {sector.n === 1 ? 'asunto te afecta' : 'asuntos te afectan'}
-                {sector.conPlazo > 0 && ` · ${sector.conPlazo} con plazo abierto`}
-              </div>
-              <div style={{ fontSize: 12, color: '#8b8780', marginTop: 3 }}>
-                {sector.nuevos > 0
-                  ? `${sector.nuevos} ${sector.nuevos === 1 ? 'nuevo' : 'nuevos'} desde tu último análisis.`
-                  : 'Basado en lo que nos contaste de tu organización.'}
-              </div>
-            </>
+            <div style={{ fontSize: 14.5, color: '#fff', lineHeight: 1.5 }}>
+              {sector.n} {sector.n === 1 ? 'asunto te afecta' : 'asuntos te afectan'}
+              {sector.conPlazo > 0
+                ? `, ${sector.conPlazo} con plazo abierto.`
+                : '. Ninguno con plazo abierto ahora mismo.'}
+              {sector.nuevos > 0 &&
+                ` ${sector.nuevos} ${sector.nuevos === 1 ? 'nuevo' : 'nuevos'} desde tu último análisis.`}
+            </div>
           ) : (
-            <>
-              <div style={{ fontSize: 13.5, fontWeight: 600, letterSpacing: '-.1px' }}>¿Qué te afecta a ti?</div>
-              <div style={{ fontSize: 12, color: '#8b8780', marginTop: 3, lineHeight: 1.5 }}>
-                Dinos a qué se dedica tu organización y revisamos qué se está moviendo.
-              </div>
-            </>
+            <div style={{ fontSize: 14.5, color: '#fff', lineHeight: 1.5 }}>
+              Dinos a qué se dedica tu organización y revisamos las cinco fuentes para decirte qué te toca.
+            </div>
           )}
         </div>
         <span
           style={{
             background: hayAnalisis ? 'transparent' : MORADO,
-            color: hayAnalisis ? MORADO : '#fff',
+            color: hayAnalisis ? '#8f7ff5' : '#fff',
             borderRadius: 8,
-            padding: hayAnalisis ? '9px 0' : '9px 16px',
+            padding: hayAnalisis ? 0 : '10px 18px',
             fontSize: 12.5,
             fontWeight: 600,
             whiteSpace: 'nowrap',
@@ -290,7 +280,12 @@ export default function RegulatorioPage() {
       </Link>
 
       <Seccion pais="ue" titulo="Unión Europea" />
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 14 }}>
+      {/* Rejilla fija de tres y no auto-fit: con auto-fit las dos
+          tarjetas europeas se estiraban a media pantalla y las tres
+          españolas quedaban a un tercio, así que parecían de familias
+          distintas. Ahora todas miden lo mismo aunque en Europa sobre
+          un hueco. */}
+      <div className="reg-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 14 }}>
         <Institucion
           href="/initiatives"
           titulo="Comisión Europea"
@@ -314,7 +309,7 @@ export default function RegulatorioPage() {
       </div>
 
       <Seccion pais="es" titulo="España" />
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 14 }}>
+      <div className="reg-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 14 }}>
         <Institucion
           href="/regulatorio/consultas"
           titulo="Ministerios"
