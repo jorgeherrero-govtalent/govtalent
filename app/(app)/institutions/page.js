@@ -76,6 +76,148 @@ const ESTRELLAS = [
   [9, 9], [7.5, 8.6], [6.4, 7.5], [6, 6], [6.4, 4.5], [7.5, 3.4],
 ];
 
+/**
+ * Pictogramas de cada institución.
+ *
+ * Ocho líneas de texto por edificio: la almohadilla pinta un módulo y el
+ * punto lo deja vacío. Ajustar cualquiera es editar una cadena, no
+ * rehacer un SVG.
+ *
+ * Son siluetas ORIGINALES, no versiones de los emblemas oficiales. Los
+ * escudos institucionales están protegidos —el de la UE tiene reglas de
+ * uso explícitas— y una versión derivada puede leerse como que la
+ * institución respalda la plataforma. Dibujadas con el mismo cuadrado
+ * redondeado del isotipo, la trama es la de la marca y de nadie más.
+ */
+const PICTOGRAMAS = {
+  // La Moncloa: cuerpo central, columnas y alas laterales.
+  moncloa: [
+    '....####....',
+    '..########..',
+    '.##########.',
+    '.#........#.',
+    '.#.##.##..#.',
+    '.#.##.##..#.',
+    '.##########.',
+    '############',
+  ],
+  // El frontón del Congreso sobre su columnata.
+  congreso: [
+    '....####....',
+    '...######...',
+    '..########..',
+    '............',
+    '.##.##.##.##',
+    '.##.##.##.##',
+    '.##.##.##.##',
+    '############',
+  ],
+  // El hemiciclo de frente, con dos filas de escaños dentro. La torre
+  // de Estrasburgo se descartó: es cilíndrica y cortada en diagonal, y
+  // en una rejilla de doce columnas eso sale como un bloque vertical
+  // sin más.
+  parlamentoUe: [
+    '....####....',
+    '..##....##..',
+    '.##......##.',
+    '##..####..##',
+    '##........##',
+    '##.######.##',
+    '##........##',
+    '############',
+  ],
+  // Las bandas del Berlaymont, abriéndose desde el centro. El aspa de
+  // su planta se descartó: a este tamaño nadie ve un edificio, ve una
+  // equis, y la equis ya significa cerrar en el resto de la plataforma.
+  //
+  // Se dibujan las bandas, no la bandera: el rectángulo azul del logo
+  // oficial es el emblema de la UE y tiene reglas de uso propias.
+  comisionUe: [
+    '............',
+    '....####....',
+    '...######...',
+    '..########..',
+    '.##########.',
+    '############',
+    '............',
+    '############',
+  ],
+  // Una balanza para los reguladores: no tienen edificio común.
+  balanza: [
+    '.....##.....',
+    '..########..',
+    '.##..##..##.',
+    '###..##..###',
+    '.##..##..##.',
+    '.....##.....',
+    '...######...',
+    '..########..',
+  ],
+  // Un skyline para el sector privado.
+  ciudad: [
+    '.......###..',
+    '..###..###..',
+    '..###..###..',
+    '..###..###..',
+    '############',
+    '##.##.##.##.',
+    '##.##.##.##.',
+    '############',
+  ],
+};
+
+const TONOS = ['#d8d2fb', '#b3a8f7', '#8f7ff5', '#6d5aef'];
+
+/**
+ * El pictograma, en la esquina inferior derecha.
+ *
+ * Los módulos se encienden en diagonal hacia abajo a la derecha: eso es
+ * lo que da la sensación de holograma sin recurrir a brillos.
+ */
+function Pictograma({ nombre }) {
+  const mapa = PICTOGRAMAS[nombre];
+  if (!mapa) return null;
+
+  const LADO = 5;
+  const HUECO = 1.4;
+  const COLS = 12;
+  const paso = LADO + HUECO;
+  const ancho = COLS * paso;
+  const alto = mapa.length * paso;
+
+  const modulos = [];
+  for (let f = 0; f < mapa.length; f++) {
+    for (let c = 0; c < COLS; c++) {
+      if (mapa[f][c] !== '#') continue;
+      const t = (c / COLS) * 0.45 + (f / mapa.length) * 0.55;
+      modulos.push(
+        <rect
+          key={`${f}-${c}`}
+          x={(c * paso).toFixed(1)}
+          y={(f * paso).toFixed(1)}
+          width={LADO}
+          height={LADO}
+          rx="1.4"
+          fill={TONOS[Math.min(3, Math.floor(t * 4))]}
+          opacity={(0.55 + t * 0.45).toFixed(2)}
+        />
+      );
+    }
+  }
+
+  return (
+    <svg
+      viewBox={`0 0 ${ancho.toFixed(1)} ${alto.toFixed(1)}`}
+      width="72"
+      aria-hidden="true"
+      focusable="false"
+      style={{ position: 'absolute', right: 18, bottom: 18, display: 'block', pointerEvents: 'none' }}
+    >
+      {modulos}
+    </svg>
+  );
+}
+
 function Bandera({ pais }) {
   if (pais === 'ue') {
     return (
@@ -103,17 +245,30 @@ function Bandera({ pais }) {
 }
 
 /** Una sección del directorio, con su cifra en vivo. */
-function Modulo({ href, pais, titulo, descripcion, cifra, etiqueta }) {
+function Modulo({ href, pais, titulo, descripcion, cifra, etiqueta, pictograma }) {
   return (
-    <Link href={href} className="bento" style={CARD}>
-      <div>
+    <Link href={href} className="bento" style={{ ...CARD, position: 'relative', overflow: 'hidden' }}>
+      <Pictograma nombre={pictograma} />
+      <div style={{ position: 'relative' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 5 }}>
           <Bandera pais={pais} />
           <span style={{ fontSize: 15.5, fontWeight: 600, letterSpacing: '-.2px' }}>{titulo}</span>
         </div>
-        <div style={{ fontSize: 12.5, color: '#8b8780', lineHeight: 1.55 }}>{descripcion}</div>
+        <div style={{ fontSize: 12.5, color: '#8b8780', lineHeight: 1.55, maxWidth: '72%' }}>{descripcion}</div>
       </div>
-      <div style={{ display: 'flex', alignItems: 'baseline', gap: 7, paddingTop: 16, flexWrap: 'wrap' }}>
+      {/* El paddingRight deja sitio al pictograma: sin él, una cifra
+          larga como 2.096 se le montaba encima. */}
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'baseline',
+          gap: 7,
+          paddingTop: 16,
+          paddingRight: 86,
+          flexWrap: 'wrap',
+          position: 'relative',
+        }}
+      >
         <span style={{ fontSize: 23, fontWeight: 600, color: MORADO, lineHeight: 1 }}>
           {cifra === null || cifra === undefined ? '—' : cifra.toLocaleString('es-ES')}
         </span>
@@ -179,6 +334,7 @@ export default function InstitutionsPage() {
           href="/institutions/ministries"
           pais="es"
           titulo="Ministerios"
+          pictograma="moncloa"
           descripcion="Ministros, secretarios de Estado, direcciones generales y gabinetes."
           cifra={CIFRAS.ministerios.n}
           etiqueta={CIFRAS.ministerios.etiqueta}
@@ -191,6 +347,7 @@ export default function InstitutionsPage() {
           href="/institutions/comisiones"
           pais="es"
           titulo="Congreso de los Diputados"
+          pictograma="congreso"
           descripcion="Comisiones, diputados, órganos de gobierno y grupos parlamentarios."
           cifra={CIFRAS.congreso.n}
           etiqueta={CIFRAS.congreso.etiqueta}
@@ -202,6 +359,7 @@ export default function InstitutionsPage() {
           href="/institutions/organismos"
           pais="es"
           titulo="Organismos y reguladores"
+          pictograma="balanza"
           descripcion="CNMC, AEPD, agencias estatales y organismos autónomos que regulan tu sector."
           cifra={CIFRAS.organismos.n}
           etiqueta={CIFRAS.organismos.etiqueta}
@@ -210,6 +368,7 @@ export default function InstitutionsPage() {
           href="/institutions/eu-parliament"
           pais="ue"
           titulo="Parlamento Europeo"
+          pictograma="parlamentoUe"
           descripcion="Eurodiputados, comisiones, grupos políticos y órganos de gobierno."
           cifra={CIFRAS.parlamentoUe.n}
           etiqueta={CIFRAS.parlamentoUe.etiqueta}
@@ -218,6 +377,7 @@ export default function InstitutionsPage() {
           href="/institutions/eu-commission"
           pais="ue"
           titulo="Comisión Europea"
+          pictograma="comisionUe"
           descripcion="Comisarios, gabinetes, direcciones generales y jefes de unidad."
           cifra={CIFRAS.comisionUe.n}
           etiqueta={CIFRAS.comisionUe.etiqueta}
@@ -226,6 +386,7 @@ export default function InstitutionsPage() {
           href="/organizations"
           pais="sector"
           titulo="Organizaciones"
+          pictograma="ciudad"
           descripcion="Patronales, consultoras y empresas que trabajan con la Administración."
           cifra={CIFRAS.organizaciones.n}
           etiqueta={CIFRAS.organizaciones.etiqueta}
