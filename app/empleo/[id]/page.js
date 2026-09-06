@@ -351,6 +351,7 @@ export default async function PublicJobPage({ params }) {
             botón de solicitar con otro texto, y dos botones que hacen lo
             mismo con nombres distintos confunden. */}
         <div
+          className="bento"
           style={{
             background: '#15140f',
             borderRadius: 16,
@@ -367,6 +368,7 @@ export default async function PublicJobPage({ params }) {
           </div>
           <Link
             href="/login?view=signup"
+            className="btn-mov"
             style={{
               fontSize: 12.5,
               background: '#6d5aef',
