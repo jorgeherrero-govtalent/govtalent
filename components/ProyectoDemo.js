@@ -290,10 +290,17 @@ export default function ProyectoDemo() {
             Ver ficha completa →
           </button>
         </div>
-        <div style={{ display: 'flex', gap: 6 }}>
+        {/* Cinco fases en fila caben en escritorio, pero en un móvil
+            se reparten 66 píxeles cada una y "Toma en consideración" se
+            monta encima de la siguiente. En pantalla estrecha la línea
+            pasa a lista vertical: la barra se queda como marca a la
+            izquierda, el nombre a continuación y la fecha a la derecha.
+            Las reglas están en globals.css, bajo .gt-fases. */}
+        <div className="gt-fases" style={{ display: 'flex', gap: 6 }}>
           {DEMO.norma.fases.map((f) => (
-            <div key={f.nombre} style={{ flex: 1, minWidth: 0, textAlign: 'center' }}>
+            <div key={f.nombre} className="gt-fase" style={{ flex: 1, minWidth: 0, textAlign: 'center' }}>
               <div
+                className="gt-fase-barra"
                 style={{
                   height: 3,
                   borderRadius: 2,
@@ -302,6 +309,7 @@ export default function ProyectoDemo() {
                 }}
               ></div>
               <div
+                className="gt-fase-nombre"
                 style={{
                   fontSize: 11,
                   fontWeight: f.estado === 'futura' ? 400 : 600,
@@ -312,6 +320,7 @@ export default function ProyectoDemo() {
                 {f.nombre}
               </div>
               <div
+                className="gt-fase-cuando"
                 style={{
                   fontSize: 10.5,
                   marginTop: 2,
