@@ -52,8 +52,20 @@ a{color:inherit}
 .field input,.field select,.field textarea{width:100%;padding:10px 13px;border:1px solid #e0dfd8;border-radius:9px;font-size:13.5px;outline:none;background:#fafaf7;transition:border-color .15s;appearance:none;font-family:inherit;color:#1a1a18}
 .field input:focus,.field select:focus,.field textarea:focus{border-color:#1d6f5c;background:#fff}
 .two{display:grid;grid-template-columns:1fr 1fr;gap:10px}
-.mbtn{width:100%;padding:12px;border:none;border-radius:10px;background:#1d6f5c;color:#fff;font-size:14px;font-weight:600;transition:background .15s;margin-top:4px}
-.mbtn:hover{background:#165c4b}
+.mbtn{width:100%;padding:12px;border:none;border-radius:10px;background:#1d6f5c;color:#fff;font-size:14px;font-weight:600;margin-top:4px;cursor:pointer;
+  transition:transform .14s ease, box-shadow .14s ease, background .15s ease}
+.mbtn:hover{background:#165c4b;transform:translateY(-1px);box-shadow:0 6px 16px rgba(0,0,0,.16)}
+.mbtn:active{transform:translateY(0) scale(.985);box-shadow:none}
+.mbtn:disabled{transform:none;box-shadow:none}
+/* Morado por decisión de producto: en el resto de la plataforma el verde
+   es la acción del usuario, pero aquí la acción principal es entrar y se
+   quiere que destaque sobre el botón de Google. */
+.mbtn-morado{background:#6d5aef}
+.mbtn-morado:hover{background:#5c4ade}
+@media (prefers-reduced-motion: reduce){
+  .mbtn{transition:background .15s ease}
+  .mbtn:hover,.mbtn:active{transform:none;box-shadow:none}
+}
 .mbtn:disabled{opacity:.6;cursor:not-allowed}
 .back{display:flex;align-items:center;gap:4px;font-size:13px;color:#888;cursor:pointer;margin-bottom:16px;width:fit-content}
 .back:hover{color:#1d6f5c}
@@ -546,7 +558,7 @@ a{color:inherit}
    Réplica de la interfaz, no la interfaz. Sin eventos de puntero para
    que nadie intente pulsar un botón que no hace nada. */
 .lp-wrap{position:relative;z-index:1;display:flex;flex-direction:column;flex:1;margin-top:26px}
-.lp-pie{text-align:right;font-size:11px;color:#8b8780;line-height:1.5;margin-top:18px;padding-top:14px;border-top:1px solid #2c2b26}
+.lp-pie{text-align:right;font-size:11px;color:#8b8780;line-height:1.5;margin-top:auto;padding-top:16px}
 @media (max-width: 900px){.lp-pie{display:none}}
 .lp{display:flex;gap:14px;user-select:none;flex:1}
 /* Las ventanas sí reciben el ratón, para que funcione el efecto de las
