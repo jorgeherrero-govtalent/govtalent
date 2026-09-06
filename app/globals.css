@@ -157,7 +157,10 @@ a{color:inherit}
 .filters{display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap}
 .fsel{padding:7px 11px;border:.5px solid #e0dfd8;border-radius:8px;font-size:12.5px;background:#fff;color:#555;outline:none;appearance:none;font-family:inherit}
 
-.p-cover{height:190px;background:#efeee9;border-radius:12px 12px 0 0;position:relative;overflow:hidden}
+/* Sin overflow:hidden. El avatar cuelga por debajo del borde inferior a
+   propósito, y recortarlo lo partía por la mitad. El degradado de la
+   portada por defecto lleva su propio redondeo, así que no se sale. */
+.p-cover{height:190px;background:#efeee9;border-radius:12px 12px 0 0;position:relative}
 
 /* El mensaje de la portada por defecto.
 
