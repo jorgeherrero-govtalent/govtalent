@@ -382,6 +382,18 @@ export default function LoginPanel() {
               </div>
             </div>
           </div>
+
+          {/* Al pie de la columna: de qué están hechos los datos.
+              En un producto que vende información oficial, decir de dónde
+              sale y cómo se trata pesa más que cualquier adjetivo. */}
+          <div className="lp-sello">
+            <span>
+              <i className="ti ti-certificate" style={{ fontSize: 13 }}></i> Datos oficiales y contrastados
+            </span>
+            <span>
+              <i className="ti ti-shield-check" style={{ fontSize: 13 }}></i> Cumplimiento RGPD
+            </span>
+          </div>
         </div>
       </div>
 
