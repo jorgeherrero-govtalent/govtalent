@@ -27,6 +27,10 @@ const LILA = '#8f7ff5';
 
 const VENTANA = {
   background: '#f0efe9',
+  // Sin esto, todo lo que no lleve color explícito hereda el blanco de
+  // .sl-left y desaparece sobre la tarjeta clara. Es lo que hacía que
+  // faltaran el nombre de la ley, los cargos y los títulos de oferta.
+  color: '#1a1a18',
   borderRadius: 12,
   boxShadow: '0 18px 44px rgba(0,0,0,.42)',
   padding: 11,
@@ -34,6 +38,7 @@ const VENTANA = {
 
 const TARJETA = {
   background: '#fff',
+  color: '#1a1a18',
   borderRadius: 10,
   boxShadow: '0 1px 2px rgba(0,0,0,.05)',
   padding: '13px 15px',
