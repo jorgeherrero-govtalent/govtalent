@@ -9,11 +9,15 @@ a{color:inherit}
 .login-bar{display:flex;align-items:center;justify-content:space-between;padding:14px 32px}
 .logo{display:inline-flex;align-items:center;line-height:0}
 .login-body{display:flex;align-items:center;justify-content:center;padding:20px;min-height:calc(100vh - 52px)}
-.split{display:flex;max-width:900px;width:100%;border-radius:20px;overflow:hidden;box-shadow:0 4px 32px rgba(0,0,0,.09)}
-.sl-left{flex:1;background:linear-gradient(160deg,#0a2e22 0%,#0f3d2e 45%,#1d6f5c 100%);padding:48px 40px;color:#fff;position:relative;overflow:hidden}
-.sl-left::before{content:'';position:absolute;top:-60px;right:-60px;width:220px;height:220px;border-radius:50%;background:radial-gradient(circle,rgba(168,230,212,.16),transparent 70%)}
-.sl-left h2{font-size:23px;font-weight:800;line-height:1.35;margin-bottom:10px;letter-spacing:-.01em;position:relative}
-.sl-tagline{font-size:14px;color:rgba(255,255,255,.65);margin-bottom:8px;position:relative}
+.split{display:flex;max-width:1100px;width:100%;border-radius:20px;overflow:hidden;box-shadow:0 4px 32px rgba(0,0,0,.09)}
+.sl-left{flex:1;background:#15140f;padding:40px 36px;color:#fff;position:relative;overflow:hidden}
+/* Los dos halos, verde arriba y morado abajo: el mismo fondo que la
+   portada del perfil y las tarjetas negras del resto de la plataforma. */
+.sl-left::after{content:'';position:absolute;inset:0;background:radial-gradient(circle at 12% 6%, rgba(47,156,126,.26), transparent 52%), radial-gradient(circle at 92% 94%, rgba(143,127,245,.30), transparent 52%);pointer-events:none}
+
+.sl-left h2{font-size:25px;font-weight:600;line-height:1.3;margin-bottom:12px;letter-spacing:-.4px;position:relative;z-index:1;max-width:460px}
+.sl-left h2 em{font-style:italic}
+.sl-tagline{font-size:13.5px;color:#9c9a92;line-height:1.65;margin-bottom:8px;position:relative;z-index:1;max-width:470px}
 .sl-features{display:flex;flex-direction:column;gap:20px;position:relative;padding:26px 0;margin:24px 0;border-top:1px solid rgba(255,255,255,.15);border-bottom:1px solid rgba(255,255,255,.15)}
 .sl-feature{display:flex;align-items:center;gap:13px;font-size:14.5px;font-weight:500;color:rgba(255,255,255,.92)}
 .sl-feature i{font-size:18px;color:#a8e6d4;flex-shrink:0;width:20px}
@@ -536,4 +540,21 @@ a{color:inherit}
   .btn-p:active, .btn-ai:active, .btn-ai-o:active, .btn-o:active, .btn-g:active, .btn-mov:active{
     transform:none;box-shadow:none;
   }
+}
+
+/* --- El panel informativo del login -----------------------------------
+   Réplica de la interfaz, no la interfaz. Sin eventos de puntero para
+   que nadie intente pulsar un botón que no hace nada. */
+.lp{display:flex;gap:14px;margin-top:26px;position:relative;z-index:1;pointer-events:none;user-select:none}
+.lp-col{display:flex;flex-direction:column;min-width:0}
+.lp-col:first-child{flex:1.15}
+.lp-col-2{flex:1}
+@keyframes lp-giro{to{transform:rotate(360deg)}}
+.lp-gira{display:inline-block;animation:lp-giro 1.1s linear infinite}
+@media (prefers-reduced-motion: reduce){.lp-gira{animation:none}}
+
+/* En móvil no cabe nada de esto: se queda el titular y el subtítulo,
+   que son el mensaje de verdad. */
+@media (max-width: 900px){
+  .lp{display:none}
 }
