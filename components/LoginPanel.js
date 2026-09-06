@@ -82,9 +82,9 @@ function Etiqueta({ children }) {
 const FUENTES = [
   ['es', 'Congreso'],
   ['es', 'BOE'],
-  ['es', 'Consultas'],
-  ['ue', 'Comisión'],
-  ['ue', 'Parlamento'],
+  ['es', 'Consultas públicas'],
+  ['ue', 'Comisión Europea'],
+  ['ue', 'Parlamento Europeo'],
 ];
 
 const FASES = [
@@ -232,40 +232,22 @@ export default function LoginPanel() {
                 </div>
               </div>
 
-              <div
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 10,
-                  paddingTop: 12,
-                  borderTop: '.5px solid #f2f0ec',
-                }}
-              >
-                <span
-                  style={{
-                    width: 30,
-                    height: 30,
-                    borderRadius: 7,
-                    background: '#e8eefb',
-                    color: '#1d3f80',
-                    fontSize: 9,
-                    fontWeight: 600,
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    flexShrink: 0,
-                  }}
-                >
-                  AP
-                </span>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontSize: 11.5, fontWeight: 600, lineHeight: 1.3 }}>
-                    Técnico/a de Asuntos Públicos
-                  </div>
-                  <div style={{ fontSize: 10, color: '#8b8780', marginTop: 1 }}>Madrid · Híbrido</div>
-                </div>
-                <span style={{ fontSize: 10, color: MORADO, fontWeight: 600, flexShrink: 0 }}>92%</span>
-              </div>
+              <Oferta
+                siglas="AP"
+                fondo="#e8eefb"
+                color="#1d3f80"
+                titulo="Técnico/a de Asuntos Públicos"
+                meta="Madrid · Híbrido · Jornada completa"
+                encaje="92%"
+              />
+              <Oferta
+                siglas="LLYC"
+                fondo="#fbe9ea"
+                color="#8c2b30"
+                titulo="Consultor/a de Relaciones Institucionales"
+                meta="Madrid · Presencial · 4 candidaturas"
+                encaje="85%"
+              />
 
               <div style={{ marginTop: 13 }}>
                 <span
@@ -408,6 +390,45 @@ export default function LoginPanel() {
           <i className="ti ti-arrow-right" style={{ fontSize: 15 }}></i>
         </span>
       </div>
+    </div>
+  );
+}
+
+/** Una oferta dentro de la tarjeta de encaje. */
+function Oferta({ siglas, fondo, color, titulo, meta, encaje }) {
+  return (
+    <div
+      style={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: 10,
+        paddingTop: 11,
+        marginTop: 11,
+        borderTop: '.5px solid #f2f0ec',
+      }}
+    >
+      <span
+        style={{
+          width: 30,
+          height: 30,
+          borderRadius: 7,
+          background: fondo,
+          color,
+          fontSize: siglas.length > 2 ? 7.5 : 9,
+          fontWeight: 600,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          flexShrink: 0,
+        }}
+      >
+        {siglas}
+      </span>
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ fontSize: 11.5, fontWeight: 600, lineHeight: 1.3 }}>{titulo}</div>
+        <div style={{ fontSize: 10, color: '#8b8780', marginTop: 2 }}>{meta}</div>
+      </div>
+      <span style={{ fontSize: 10, color: MORADO, fontWeight: 600, flexShrink: 0 }}>{encaje}</span>
     </div>
   );
 }
