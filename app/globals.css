@@ -432,3 +432,23 @@ a{color:inherit}
 @media (hover: none){
   .fila-sector .acciones-sector{opacity:1}
 }
+
+/* La línea de tramitación de la demo de proyectos.
+
+   En escritorio son cinco columnas iguales con la barra encima. En un
+   móvil eso deja 66 px por fase y los nombres largos se solapan, así que
+   pasa a lista vertical: barra corta a la izquierda, nombre, y la fecha
+   alineada a la derecha. */
+@media (max-width: 620px){
+  .gt-fases{flex-direction:column;gap:0!important}
+  .gt-fase{
+    display:flex;align-items:center;gap:10px;
+    text-align:left!important;
+    padding:7px 0;
+    border-bottom:.5px solid #f2f0ec;
+  }
+  .gt-fase:last-child{border-bottom:none}
+  .gt-fase-barra{width:22px;flex-shrink:0;margin-bottom:0!important}
+  .gt-fase-nombre{flex:1;min-width:0}
+  .gt-fase-cuando{margin-top:0!important;flex-shrink:0;white-space:nowrap}
+}
