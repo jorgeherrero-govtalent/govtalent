@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { createClient } from '@/lib/supabase/client';
+import LoginPanel from '@/components/LoginPanel';
 import Logo from '@/components/Logo';
 
 export default function LoginPage() {
@@ -246,67 +247,14 @@ export default function LoginPage() {
         ) : (
           <div className="split">
             <div className="sl-left">
-              <h2>La plataforma all-in-one del ecosistema profesional de los asuntos públicos.</h2>
-              <div className="sl-tagline">Todo lo que necesitas para crecer. En un único lugar.</div>
-              {/* Los cuatro módulos de la plataforma, en el mismo orden
-                  que la barra de navegación: lo primero que ve alguien
-                  sin cuenta es lo mismo que encontrará al entrar.
-
-                  Cada uno pasa de una línea a dos, así que el icono se
-                  alinea arriba y el hueco entre módulos baja de 20 a 16
-                  para que el bloque no crezca. */}
-              <style>{`
-                /* Sin el bloque de cierre debajo, el borde inferior de
-                   la lista quedaba suelto contra el vacío. */
-                .sl-features { gap: 16px !important; border-bottom: none !important; padding-bottom: 0 !important; margin-bottom: 0 !important; }
-                .sl-feature { align-items: flex-start !important; }
-                .sl-feature i { margin-top: 1px; }
-                .sl-feature em {
-                  display: block;
-                  font-style: normal;
-                  font-size: 12.5px;
-                  font-weight: 400;
-                  color: rgba(255,255,255,.62);
-                  margin-top: 2px;
-                  line-height: 1.5;
-                }
-                /* Morado por decisión de producto, no por el sistema: en
-                   el resto de la plataforma el morado es Pro e IA y el
-                   verde la acción principal. */
-                .mbtn.mbtn-morado { background: #6d5aef; }
-                .mbtn.mbtn-morado:hover { background: #5c4ade; }
-              `}</style>
-
-              <div className="sl-features">
-                <div className="sl-feature">
-                  <i className="ti ti-file-text"></i>
-                  <span>
-                    Regulatorio
-                    <em>Sigue normativa y procesos regulatorios.</em>
-                  </span>
-                </div>
-                <div className="sl-feature">
-                  <i className="ti ti-building-bank"></i>
-                  <span>
-                    Instituciones
-                    <em>Explora instituciones, representantes y organizaciones.</em>
-                  </span>
-                </div>
-                <div className="sl-feature">
-                  <i className="ti ti-folder"></i>
-                  <span>
-                    Proyectos
-                    <em>Organiza y gestiona tu actividad.</em>
-                  </span>
-                </div>
-                <div className="sl-feature">
-                  <i className="ti ti-briefcase"></i>
-                  <span>
-                    Empleo
-                    <em>Descubre y publica oportunidades profesionales.</em>
-                  </span>
-                </div>
+              <h2>
+                La plataforma <em>all in one</em> para profesionales de los asuntos públicos
+              </h2>
+              <div className="sl-tagline">
+                Normativa y monitorización en España y la UE, directorio institucional completo, empleos y gestión de
+                tus proyectos. Todo lo que necesitas para crecer, en un único lugar.
               </div>
+              <LoginPanel />
             </div>
 
             <div className="sl-right">
