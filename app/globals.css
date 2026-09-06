@@ -558,7 +558,7 @@ a{color:inherit}
    Réplica de la interfaz, no la interfaz. Sin eventos de puntero para
    que nadie intente pulsar un botón que no hace nada. */
 .lp-wrap{position:relative;z-index:1;display:flex;flex-direction:column;flex:1;margin-top:26px}
-.lp-org{margin-top:auto;padding-top:18px;text-align:right;font-size:12.5px;font-weight:600;color:#8f7ff5;line-height:1.5}
+.lp-org{margin-top:14px;text-align:right;font-size:12.5px;font-weight:600;color:#8f7ff5;line-height:1.5}
 
 .lp{display:flex;gap:14px;user-select:none;flex:1}
 /* Las ventanas sí reciben el ratón, para que funcione el efecto de las
