@@ -545,7 +545,12 @@ a{color:inherit}
 /* --- El panel informativo del login -----------------------------------
    Réplica de la interfaz, no la interfaz. Sin eventos de puntero para
    que nadie intente pulsar un botón que no hace nada. */
-.lp{display:flex;gap:14px;margin-top:26px;position:relative;z-index:1;pointer-events:none;user-select:none}
+.lp{display:flex;gap:14px;margin-top:26px;position:relative;z-index:1;user-select:none}
+/* Las ventanas sí reciben el ratón, para que funcione el efecto de las
+   tarjetas. Nada dentro es pulsable ni enfocable: son divs, y todo el
+   bloque va con aria-hidden. */
+.lp *{pointer-events:none}
+.lp .bento{pointer-events:auto}
 .lp-col{display:flex;flex-direction:column;min-width:0}
 .lp-col:first-child{flex:1.15}
 .lp-col-2{flex:1}
