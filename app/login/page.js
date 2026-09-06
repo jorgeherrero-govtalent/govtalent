@@ -249,7 +249,8 @@ export default function LoginPage() {
               </h2>
               <div className="sl-tagline">
                 Monitorización normativa en España y la UE, directorio institucional completo, gestión de tus
-                proyectos y búsqueda de empleo. Todo lo que necesitas para crecer, en un único lugar.
+                proyectos y las oportunidades profesionales del sector. Todo lo que necesitas para crecer, en un único
+                lugar.
               </div>
               <LoginPanel />
             </div>
