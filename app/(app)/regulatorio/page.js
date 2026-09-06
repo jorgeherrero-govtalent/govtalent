@@ -200,68 +200,56 @@ export default function RegulatorioPage() {
         </p>
       </div>
 
-      {/* La misma tarjeta negra que la home: es donde vive lo que la
-          plataforma ha deducido, y el análisis cruza las cinco fuentes,
-          así que está por encima de ellas y no es una tarjeta más. */}
-      <Link
-        href="/regulatorio/sector"
-        className="bento"
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: 18,
-          background: '#15140f',
-          borderRadius: 16,
-          padding: '22px 24px',
-          textDecoration: 'none',
-          color: 'inherit',
-          flexWrap: 'wrap',
-        }}
-      >
-        <div style={{ flex: 1, minWidth: 220 }}>
-          <div style={{ fontSize: 11.5, color: '#8f7ff5', letterSpacing: '.3px', marginBottom: 10 }}>
-            QUÉ IMPACTA EN TU SECTOR
-          </div>
-          {hayAnalisis ? (
-            <div style={{ fontSize: 14.5, color: '#fff', lineHeight: 1.5 }}>
-              {/* El plazo solo se menciona si lo hay. Anunciar que no
-                  hay ninguno es gastar la frase más visible de la página
-                  en una ausencia. */}
-              {sector.n} {sector.n === 1 ? 'asunto te afecta' : 'asuntos te afectan'}
-              {sector.conPlazo > 0
-                ? `, ${sector.conPlazo} con plazo abierto.`
-                : '.'}
-              {sector.nuevos > 0 &&
-                ` ${sector.nuevos} ${sector.nuevos === 1 ? 'nuevo' : 'nuevos'} desde tu último análisis.`}
-            </div>
-          ) : (
-            <div style={{ fontSize: 14.5, color: '#fff', lineHeight: 1.5 }}>
-              Dinos a qué se dedica tu organización y revisamos las cinco fuentes para decirte qué te toca.
-            </div>
-          )}
-        </div>
-        <span
+      {/* Una sola rejilla de dos columnas, y la tarjeta negra dentro y
+          no encima: es la primera casilla, del mismo tamaño que las
+          demás. Seis piezas, tres filas limpias.
+
+          No se separa Europa de España. Un plazo de Bruselas que vence
+          el jueves es más urgente que una ley española parada dos años,
+          y el bloque por país escondía justo eso. El orden lo marca el
+          subtítulo: de lo que aún admite aportaciones a lo que ya solo
+          toca cumplir. Quien busque una institución concreta la
+          reconoce por su bandera. */}
+      <div className="reg-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 14 }}>
+        <Link
+          href="/regulatorio/sector"
+          className="bento"
           style={{
-            background: hayAnalisis ? 'transparent' : MORADO,
-            color: hayAnalisis ? '#8f7ff5' : '#fff',
-            borderRadius: 8,
-            padding: hayAnalisis ? 0 : '10px 18px',
-            fontSize: 12.5,
-            fontWeight: 600,
-            whiteSpace: 'nowrap',
-            flexShrink: 0,
+            background: '#15140f',
+            borderRadius: 16,
+            padding: '22px 24px',
+            textDecoration: 'none',
+            color: 'inherit',
+            display: 'flex',
+            flexDirection: 'column',
+            justifyContent: 'space-between',
           }}
         >
-          {hayAnalisis ? 'Ver el análisis →' : 'Analizar mi sector'}
-        </span>
-      </Link>
+          <div>
+            <div style={{ fontSize: 11.5, color: '#8f7ff5', letterSpacing: '.3px', marginBottom: 10 }}>
+              QUÉ IMPACTA EN TU SECTOR
+            </div>
+            {hayAnalisis ? (
+              <div style={{ fontSize: 14.5, color: '#fff', lineHeight: 1.5 }}>
+                {/* El plazo solo se menciona si lo hay: anunciar que no
+                    queda ninguno gasta la frase más visible de la página
+                    en una ausencia. */}
+                {sector.n} {sector.n === 1 ? 'asunto te afecta' : 'asuntos te afectan'}
+                {sector.conPlazo > 0 ? `, ${sector.conPlazo} con plazo abierto.` : '.'}
+                {sector.nuevos > 0 &&
+                  ` ${sector.nuevos} ${sector.nuevos === 1 ? 'nuevo' : 'nuevos'} desde tu último análisis.`}
+              </div>
+            ) : (
+              <div style={{ fontSize: 14.5, color: '#fff', lineHeight: 1.5 }}>
+                Dinos a qué se dedica tu organización y revisamos las cinco fuentes para decirte qué te toca.
+              </div>
+            )}
+          </div>
+          <div style={{ fontSize: 12.5, color: '#8f7ff5', fontWeight: 600, paddingTop: 18 }}>
+            {hayAnalisis ? 'Ver el análisis →' : 'Analizar mi sector →'}
+          </div>
+        </Link>
 
-      {/* Una sola rejilla, sin separar Europa de España. El orden lo
-          marca el subtítulo: primero donde todavía se puede aportar,
-          luego lo que ya solo se negocia hablando, y al final el BOE,
-          que es cumplir. Quien busca una institución concreta la
-          encuentra por su bandera y su nombre, no por el bloque. */}
-      <div className="reg-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 14, marginTop: 22 }}>
         <Institucion
           href="/initiatives"
           pais="ue"
