@@ -93,9 +93,6 @@ export default function LoginPage() {
         <div className="logo">
           <Logo height={24} />
         </div>
-        <div style={{ fontSize: 13, color: '#888' }}>
-          EN &nbsp;|&nbsp; <b style={{ color: '#1a1a18' }}>ES</b>
-        </div>
       </div>
 
       <div className="login-body">
@@ -347,13 +344,22 @@ export default function LoginPage() {
               {view === 'login' ? (
                 <div className="ftxt">
                   ¿Aún no tienes cuenta?{' '}
-                  <a onClick={() => setView('signup')}>Registrarme</a>
+                  <a onClick={() => setView('signup')}>Registrarme gratis</a>
                 </div>
               ) : (
                 <div className="ftxt">
                   Ya tengo cuenta <a onClick={() => setView('login')}>Iniciar sesión</a>
                 </div>
               )}
+
+              {/* El aviso legal, debajo del enlace de registro. Va en las
+                  dos vistas: desde iniciar sesión también se puede crear
+                  cuenta con Google, así que ahí también hace falta. */}
+              <div className="login-legal">
+                Al continuar, confirmas que entiendes y aceptas los{' '}
+                <a href="/condiciones">Términos y condiciones</a> y la{' '}
+                <a href="/privacidad">Política de privacidad</a>.
+              </div>
             </div>
           </div>
         )}
