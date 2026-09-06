@@ -410,11 +410,8 @@ a{color:inherit}
   .bento-cifras{grid-template-columns:1fr 1fr!important}
 }
 
-/* La rejilla del regulatorio: tres columnas fijas para que todas las
-   tarjetas midan igual, dos en tabletas y una en el móvil. */
-@media (max-width: 900px){
-  .reg-grid{grid-template-columns:1fr 1fr!important}
-}
-@media (max-width: 620px){
+/* La rejilla del regulatorio: dos columnas fijas para que las seis
+   piezas midan igual, y una sola columna en el móvil. */
+@media (max-width: 720px){
   .reg-grid{grid-template-columns:1fr!important}
 }
