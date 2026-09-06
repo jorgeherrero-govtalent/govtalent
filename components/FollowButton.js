@@ -94,7 +94,7 @@ function EnElBody({ children }) {
   return createPortal(children, document.body);
 }
 
-export default function FollowButton({ kind, refId, label, variant = 'button', className, conProyecto = true }) {
+export default function FollowButton({ kind, refId, label, variant = 'button', className, conProyecto = true, conIconoProyecto = false }) {
   const supabase = createClient();
   const [siguiendo, setSiguiendo] = useState(false);
   const [userId, setUserId] = useState(null);
@@ -207,8 +207,15 @@ export default function FollowButton({ kind, refId, label, variant = 'button', c
   if (cargando) return null;
 
   // --- Variante icono: para listados, donde el texto sobra -----------
+  //
+  // Con conProyecto sale también el botón de proyecto al lado, en el
+  // mismo formato de icono. Las dos acciones son igual de habituales en
+  // una lista y separarlas obliga a entrar en la ficha para una de las
+  // dos. La variante antigua sigue intacta: `conProyecto` es false por
+  // defecto SOLO en esta variante, para no cambiar de golpe todos los
+  // listados que ya la usan.
   if (variant === 'icon') {
-    return (
+    const boton = (
       <button
         type="button"
         onClick={alternar}
@@ -233,6 +240,29 @@ export default function FollowButton({ kind, refId, label, variant = 'button', c
       >
         <i className={`ti ti-bell${siguiendo ? '-filled' : ''}`} style={{ fontSize: 15 }} aria-hidden="true"></i>
       </button>
+    );
+
+    if (!conIconoProyecto) return boton;
+
+    return (
+      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 2 }}>
+        {boton}
+        <BotonProyecto onClick={() => setSelector(true)} />
+        {selector && (
+          <EnElBody>
+            <SelectorProyecto kind={kind} refId={refId} label={label} onClose={() => setSelector(false)} />
+          </EnElBody>
+        )}
+        {upsell && (
+          <EnElBody>
+            <UpgradeModal
+              title="Seguir es una función de Pro"
+              message="Sigue leyes, expedientes y personas, y recibe un aviso cuando se mueva algo. Con alertas, proyectos y el directorio completo."
+              onClose={() => setUpsell(false)}
+            />
+          </EnElBody>
+        )}
+      </span>
     );
   }
 
