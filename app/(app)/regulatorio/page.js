@@ -215,7 +215,7 @@ export default function RegulatorioPage() {
       <div style={{ marginBottom: 18 }}>
         <h1 style={{ fontSize: 21, fontWeight: 600, margin: 0, letterSpacing: '-.3px' }}>Regulatorio</h1>
         <p style={{ fontSize: 13, color: '#8b8780', margin: '4px 0 0' }}>
-          De lo que aún puedes influir a lo que ya es obligatorio
+          De lo que aún puedes influir a lo que ya está publicado
         </p>
       </div>
 
@@ -307,10 +307,10 @@ export default function RegulatorioPage() {
           href="/congreso"
           pais="es"
           titulo="Congreso"
-          descripcion="Leyes en trámite, comparecencias y preguntas, con sus plazos."
+          descripcion="Leyes, comparecencias y preguntas, con sus plazos."
           trazo="congreso"
           cifra={cifras.esVivas}
-          etiqueta="leyes vivas"
+          etiqueta="leyes en tramitación"
           afectan={afectan.ley || 0}
         />
         {/* El BOE en verde: aquí ya no se influye, se cumple. Y sin
@@ -327,7 +327,7 @@ export default function RegulatorioPage() {
         />
       </div>
 
-      <div style={{ fontSize: 11.5, color: '#a8a49c', paddingTop: 16 }}>Próximamente · Senado</div>
+      <div style={{ fontSize: 11.5, color: '#a8a49c', paddingTop: 16 }}>Próximamente · Senado y CCAA en España</div>
     </div>
   );
 }
