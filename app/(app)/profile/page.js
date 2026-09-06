@@ -814,7 +814,7 @@ export default function ProfilePage() {
               >
                 <i className="ti ti-x" style={{ fontSize: 14 }}></i>
               </button>
-<div className="sw">
+<div className="sw bento">
             <h4>Currículum (CV)</h4>
 
             <div style={{ display: 'flex', alignItems: 'flex-start', gap: 9, marginBottom: 14 }}>
@@ -868,7 +868,7 @@ export default function ProfilePage() {
         {/* Tres widgets, con Empleos más ancho porque es el único que
             lleva una lista. Los otros dos son una cifra y un enlace. */}
         <div className="p-widgets">
-          <div className="sw" style={{ marginBottom: 0 }}>
+          <div className="sw bento" style={{ marginBottom: 0 }}>
             <h4>Radiografía profesional</h4>
             {radiografia?.benchmark?.porcentaje > 0 ? (
               <>
@@ -897,7 +897,7 @@ export default function ProfilePage() {
             </button>
           </div>
 
-          <div className="sw" style={{ marginBottom: 0 }}>
+          <div className="sw bento" style={{ marginBottom: 0 }}>
             <h4>Perfil completado</h4>
             <div style={{ display: 'flex', alignItems: 'baseline', gap: 7 }}>
               <span style={{ fontSize: 26, fontWeight: 600, color: '#1d6f5c', lineHeight: 1.1 }}>
@@ -917,7 +917,7 @@ export default function ProfilePage() {
             </div>
           </div>
 
-<div className="sw" style={{ marginBottom: 0 }}>
+<div className="sw bento" style={{ marginBottom: 0 }}>
             <h4>Mis empleos guardados y solicitados</h4>
             {(() => {
               // Une ambas listas y quita duplicados por si una oferta está
@@ -1417,7 +1417,7 @@ export default function ProfilePage() {
                   </form>
                 ) : (
                   <div
-                    className="exp-item exp-fila"
+                    className="exp-item exp-fila bento"
                     key={exp.id}
                     draggable
                     onDragStart={(e) => handleCardDragStart(e, i, exp.title)}
@@ -1426,7 +1426,12 @@ export default function ProfilePage() {
                       reorderByDrag('experiences', experiences, setExperiences, dragIndex, i);
                       setDragIndex(null);
                     }}
-                    style={{ cursor: 'grab' }}
+                    style={{
+                      cursor: 'grab',
+                      // En línea para ganarle al hover de la clase: la
+                      // entrada que se arrastra no debe crecer.
+                      transform: dragIndex === i ? 'none' : undefined,
+                    }}
                   >
                     <i className="ti ti-grip-vertical" style={{ color: '#ccc', fontSize: 16, marginTop: 3 }}></i>
                     <div className="exp-logo">🏛️</div>
@@ -1545,7 +1550,7 @@ export default function ProfilePage() {
                   </form>
                 ) : (
                   <div
-                    className="exp-item exp-fila"
+                    className="exp-item exp-fila bento"
                     key={ed.id}
                     draggable
                     onDragStart={(e) => handleCardDragStart(e, i, ed.degree)}
@@ -1554,7 +1559,12 @@ export default function ProfilePage() {
                       reorderByDrag('education', education, setEducation, dragIndex, i);
                       setDragIndex(null);
                     }}
-                    style={{ cursor: 'grab' }}
+                    style={{
+                      cursor: 'grab',
+                      // En línea para ganarle al hover de la clase: la
+                      // entrada que se arrastra no debe crecer.
+                      transform: dragIndex === i ? 'none' : undefined,
+                    }}
                   >
                     <i className="ti ti-grip-vertical" style={{ color: '#ccc', fontSize: 16 }}></i>
                     <div className="exp-logo">🎓</div>
@@ -1725,7 +1735,7 @@ export default function ProfilePage() {
                   </form>
                 ) : (
                   <div
-                    className="exp-item exp-fila"
+                    className="exp-item exp-fila bento"
                     key={l.id}
                     draggable
                     onDragStart={(e) => handleCardDragStart(e, i, l.language_name)}
@@ -1734,7 +1744,11 @@ export default function ProfilePage() {
                       reorderByDrag('languages', languages, setLanguages, dragIndex, i);
                       setDragIndex(null);
                     }}
-                    style={{ alignItems: 'center', cursor: 'grab' }}
+                    style={{
+                      alignItems: 'center',
+                      cursor: 'grab',
+                      transform: dragIndex === i ? 'none' : undefined,
+                    }}
                   >
                     <i className="ti ti-grip-vertical" style={{ color: '#ccc', fontSize: 16 }}></i>
                     <div className="exp-logo">🌐</div>
