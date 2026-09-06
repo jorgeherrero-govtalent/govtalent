@@ -231,7 +231,7 @@ export default function LoginPage() {
                 <input
                   type="email"
                   required
-                  placeholder="nombre@organización.com"
+                  placeholder="nombre@email.com"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                 />
@@ -295,7 +295,7 @@ export default function LoginPage() {
                   <input
                     type="email"
                     required
-                    placeholder="nombre@organización.com"
+                    placeholder="nombre@email.com"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                   />
@@ -345,7 +345,7 @@ export default function LoginPage() {
               {view === 'login' ? (
                 <div className="ftxt">
                   ¿Aún no tienes cuenta?{' '}
-                  <a onClick={() => setView('signup')}>Registrarme gratis</a>
+                  <a onClick={() => setView('signup')}>Crear cuenta gratis</a>
                 </div>
               ) : (
                 <div className="ftxt">
