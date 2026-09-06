@@ -1,5 +1,6 @@
 'use client';
 
+import { createPortal } from 'react-dom';
 import { useRef, useState } from 'react';
 import Link from 'next/link';
 import ActorAvatar, { esOrganizacion } from '@/components/ActorAvatar';
@@ -20,7 +21,24 @@ import ActorAvatar, { esOrganizacion } from '@/components/ActorAvatar';
 
 const MORADO = '#6d5aef';
 const BORDE = '#e0dfd8';
-const CARD = { background: '#fff', border: `.5px solid ${BORDE}`, borderRadius: 10 };
+// Mismo aspecto que en la home, el regulatorio y las instituciones:
+// sin borde, esquina de 16 y una sombra muy suave. La clase `bento` de
+// globals.css es la que añade el movimiento al pasar el ratón.
+/**
+ * Las ventanas superpuestas salen al <body>.
+ *
+ * Las tarjetas llevan ahora la clase `bento`, que al pasar el ratón
+ * aplica un `transform`. Cualquier antepasado con transform se convierte
+ * en el bloque contenedor de sus hijos `position: fixed`, así que sin
+ * esto la ficha de actor y el acta se abrirían encajonadas dentro de la
+ * tarjeta en vez de ocupar la ventana.
+ */
+function EnElBody({ children }) {
+  if (typeof document === 'undefined') return null;
+  return createPortal(children, document.body);
+}
+
+const CARD = { background: '#fff', borderRadius: 16, boxShadow: '0 1px 2px rgba(0,0,0,.04)' };
 const ETIQUETA = { fontSize: 11, color: '#888', letterSpacing: '.3px' };
 
 const DEMO = {
@@ -222,7 +240,7 @@ export default function ProyectoDemo() {
   return (
     <div>
       {/* --- Cabecera con las acciones a la vista --- */}
-      <div style={{ ...CARD, padding: '16px 18px', marginBottom: 10 }}>
+      <div className="bento" style={{ ...CARD, padding: '16px 18px', marginBottom: 10 }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 14, flexWrap: 'wrap' }}>
           <div style={{ minWidth: 0 }}>
             <div style={{ fontSize: 18, fontWeight: 600, lineHeight: 1.35 }}>{DEMO.norma.titulo}</div>
@@ -242,7 +260,7 @@ export default function ProyectoDemo() {
       </div>
 
       {/* --- La norma y su tramitación --- */}
-      <div id="norma" style={{ ...CARD, padding: '15px 18px', marginBottom: 10, scrollMarginTop: 72 }}>
+      <div className="bento" id="norma" style={{ ...CARD, padding: '15px 18px', marginBottom: 10, scrollMarginTop: 72 }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, marginBottom: 13, flexWrap: 'wrap' }}>
           <span style={ETIQUETA}>LA NORMA Y SU TRAMITACIÓN</span>
           {/* Abre un ejemplo, no lleva a Regulatorio. La norma de la
@@ -309,7 +327,7 @@ export default function ProyectoDemo() {
       </div>
 
       {/* --- El mapa --- */}
-      <div id="mapa" style={{ ...CARD, padding: '15px 18px', marginBottom: 10, scrollMarginTop: 72 }}>
+      <div className="bento" id="mapa" style={{ ...CARD, padding: '15px 18px', marginBottom: 10, scrollMarginTop: 72 }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, marginBottom: 12, flexWrap: 'wrap' }}>
           <span style={ETIQUETA}>MAPA DE ACTORES</span>
           <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap' }}>
@@ -467,13 +485,13 @@ export default function ProyectoDemo() {
         id="notas"
         style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 10, marginBottom: 10, scrollMarginTop: 72 }}
       >
-<div style={{ ...CARD, padding: '15px 18px', margin: 0 }}>
+<div className="bento" style={{ ...CARD, padding: '15px 18px', margin: 0 }}>
           <div style={{ ...ETIQUETA, marginBottom: 7 }}>OBJETIVO</div>
           <div style={{ fontSize: 13, color: '#555', lineHeight: 1.7 }}>
             Que la supervisión no imponga auditoría previa a los sistemas de riesgo limitado.
           </div>
         </div>
-<div style={{ ...CARD, padding: '13px 16px', borderColor: '#d8d3f5', background: '#fafaff' }}>
+<div className="bento" style={{ ...CARD, padding: '13px 16px', background: '#fafaff', boxShadow: '0 1px 2px rgba(109,90,239,.10)' }}>
           <div style={{ display: 'flex', gap: 10 }}>
             <span style={{ width: 26, height: 26, borderRadius: '50%', background: '#eeedfe', color: MORADO, fontSize: 10, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, fontWeight: 600 }}>
               MR
@@ -493,7 +511,7 @@ export default function ProyectoDemo() {
 
       {/* --- Briefing y agenda --- */}
       <div id="briefing" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(290px, 1fr))', gap: 10, marginBottom: 10, scrollMarginTop: 72 }}>
-        <div style={{ ...CARD, padding: '15px 18px' }}>
+        <div className="bento" style={{ ...CARD, padding: '15px 18px' }}>
           <div style={{ ...ETIQUETA, marginBottom: 12 }}>BRIEFING DEL ACTOR</div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
             <ActorAvatar actor={DEMO.actores[0]} size={34} fondo="#eeedfe" />
@@ -539,7 +557,7 @@ export default function ProyectoDemo() {
         {/* El registro va antes que la agenda y con distintivo: es lo
             único de la demo que responde a una obligación legal, y lo que
             distingue a GovTalent de una herramienta de proyectos. */}
-        <div id="registro" style={{ ...CARD, padding: '15px 18px', scrollMarginTop: 72 }}>
+        <div className="bento" id="registro" style={{ ...CARD, padding: '15px 18px', scrollMarginTop: 72 }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
             <span style={{ display: 'inline-flex', alignItems: 'center', gap: 7 }}>
               <span style={ETIQUETA}>REGISTRO</span>
@@ -613,7 +631,7 @@ export default function ProyectoDemo() {
           ))}
         </div>
 
-        <div id="agenda" style={{ ...CARD, padding: '15px 18px', scrollMarginTop: 72 }}>
+        <div className="bento" id="agenda" style={{ ...CARD, padding: '15px 18px', scrollMarginTop: 72 }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
             <span style={ETIQUETA}>AGENDA</span>
             <span style={{ fontSize: 11.5, color: MORADO }}>+ Acción</span>
@@ -643,7 +661,7 @@ export default function ProyectoDemo() {
 
       {/* --- Documentos y notas --- */}
       <div id="documentos" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(290px, 1fr))', gap: 10, marginBottom: 12, scrollMarginTop: 72 }}>
-        <div style={{ ...CARD, padding: '15px 18px' }}>
+        <div className="bento" style={{ ...CARD, padding: '15px 18px' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
             <span style={ETIQUETA}>DOCUMENTOS</span>
             <span style={{ fontSize: 11.5, color: MORADO }}>+ Subir</span>
@@ -666,7 +684,7 @@ export default function ProyectoDemo() {
           ))}
         </div>
 
-        <div style={{ ...CARD, padding: '15px 18px' }}>
+        <div className="bento" style={{ ...CARD, padding: '15px 18px' }}>
           <div style={{ ...ETIQUETA, marginBottom: 12 }}>NOTAS DEL EQUIPO</div>
           <div style={{ display: 'flex', gap: 9, paddingBottom: 10, borderBottom: `.5px solid ${BORDE}` }}>
             <span style={{ width: 24, height: 24, borderRadius: '50%', background: '#f0f0eb', color: '#7a736b', fontSize: 9.5, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
@@ -687,7 +705,7 @@ export default function ProyectoDemo() {
       </div>
 
       {/* --- Lo que llega con Teams, siempre visible --- */}
-      <div style={{ ...CARD, padding: '13px 18px', marginBottom: 14 }}>
+      <div className="bento" style={{ ...CARD, padding: '13px 18px', marginBottom: 14 }}>
         <div style={{ ...ETIQUETA, marginBottom: 10 }}>Y CUANDO SEÁIS UN EQUIPO · TEAMS</div>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 9, color: '#a8a49c', fontSize: 12 }}>
           {['Responsable por actor', 'Menciones y comentarios', 'Registro de contactos', 'Agenda compartida'].map((t) => (
@@ -743,6 +761,7 @@ export default function ProyectoDemo() {
           · Los documentos son cajas con borde, porque en la ficha real
             se pulsan. */}
       {ficha && (
+        <EnElBody>
         <div
           onClick={(e) => {
             e.stopPropagation();
@@ -962,7 +981,9 @@ export default function ProyectoDemo() {
               </Link>
             </div>
           </div>
+
         </div>
+      </EnElBody>
       )}
 
       {/* El acta de ejemplo, calcada de ActaActividad: mismo ancho,
@@ -970,6 +991,7 @@ export default function ProyectoDemo() {
           grupo de interés y las mismas secciones. Lo único distinto es
           que los botones no hacen nada y que lo dice al pie. */}
       {acta && (
+        <EnElBody>
         <div
           onClick={(e) => {
             e.stopPropagation();
@@ -1105,6 +1127,7 @@ export default function ProyectoDemo() {
             </div>
           </div>
         </div>
+        </EnElBody>
       )}
 
     </div>
