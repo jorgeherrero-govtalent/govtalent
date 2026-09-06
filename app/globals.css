@@ -415,3 +415,20 @@ a{color:inherit}
 @media (max-width: 720px){
   .reg-grid{grid-template-columns:1fr!important}
 }
+
+/* Giro del icono de carga mientras se analiza el sector. */
+@keyframes gt-giro{to{transform:rotate(360deg)}}
+@media (prefers-reduced-motion: reduce){
+  [style*="gt-giro"]{animation:none!important}
+}
+
+/* Filas de resultados del análisis de sector: las acciones aparecen al
+   pasar por encima, para que la lista se lea limpia. En táctil no hay
+   hover, así que ahí se quedan siempre visibles. */
+.fila-sector:hover{background:#faf9f7}
+.fila-sector .acciones-sector{opacity:.5;transition:opacity .15s ease}
+.fila-sector:hover .acciones-sector,
+.fila-sector:focus-within .acciones-sector{opacity:1}
+@media (hover: none){
+  .fila-sector .acciones-sector{opacity:1}
+}
