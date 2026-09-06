@@ -560,6 +560,9 @@ a{color:inherit}
 .lp-wrap{position:relative;z-index:1;display:flex;flex-direction:column;flex:1;margin-top:20px}
 
 .lp{display:flex;gap:12px;user-select:none;flex:1}
+/* El sello de confianza, al pie de la columna derecha. */
+.lp-sello{display:flex;flex-wrap:wrap;gap:6px 18px;justify-content:flex-end;margin-top:14px;font-size:11px;color:#8b8780}
+.lp-sello span{display:inline-flex;align-items:center;gap:6px}
 /* Las ventanas sí reciben el ratón, para que funcione el efecto de las
    tarjetas. Nada dentro es pulsable ni enfocable: son divs, y todo el
    bloque va con aria-hidden. */
