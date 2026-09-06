@@ -105,7 +105,7 @@ export default function LoginPanel() {
     <div className="lp-wrap" aria-hidden="true">
       <div className="lp">
       <div className="lp-col">
-        <Etiqueta>Monitoriza lo que te afecta, con sus actores y plazos</Etiqueta>
+        <Etiqueta>Anticipa lo que te afecta, con sus actores y plazos</Etiqueta>
 
         <div className="bento" style={VENTANA}>
           <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', padding: '2px 2px 8px' }}>
