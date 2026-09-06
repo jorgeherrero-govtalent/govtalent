@@ -237,8 +237,7 @@ export default function LoginPanel() {
                 </div>
               </div>
 
-              <Oferta titulo="Técnico/a de Asuntos Públicos" meta="Madrid · Híbrido · Jornada completa" encaje="92%" />
-              <Oferta titulo="Consultor/a de asuntos públicos" meta="Madrid · Presencial · 4 candidaturas" encaje="85%" />
+              <Oferta titulo="Consultor/a de asuntos públicos" meta="Madrid · Híbrido · Jornada completa" encaje="92%" />
 
               <div style={{ marginTop: 13 }}>
                 <span
@@ -334,9 +333,6 @@ export default function LoginPanel() {
                 <i className="ti ti-corner-down-right" style={{ fontSize: 12, color: '#a8a49c' }}></i>
                 Depende de la Secretaría de Estado de Digitalización
               </div>
-              <div style={{ paddingTop: 12, marginTop: 12, borderTop: '.5px solid #f2f0ec' }}>
-                <Cargo siglas="CNECT" titulo="Jefe de Unidad · Redes y Tecnología" sub="Comisión Europea · DG CNECT" />
-              </div>
               {/* El correo desenfocado: enseña que el dato existe sin
                   publicarlo, y es el argumento de la etiqueta Pro. */}
               <div
@@ -395,8 +391,8 @@ function Oferta({ titulo, meta, encaje }) {
         display: 'flex',
         alignItems: 'center',
         gap: 12,
-        paddingTop: 11,
-        marginTop: 11,
+        paddingTop: 12,
+        marginTop: 12,
         borderTop: '.5px solid #f2f0ec',
       }}
     >
