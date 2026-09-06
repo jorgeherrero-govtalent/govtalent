@@ -231,22 +231,13 @@ export default function InstitutionsPage() {
           etiqueta={CIFRAS.organizaciones.etiqueta}
         />
 
-        {/* La octava casilla evita que la rejilla quede coja, y de paso
-            dice hacia dónde va el directorio. */}
-        <div
-          style={{
-            border: '1px dashed #d5d3c9',
-            borderRadius: 16,
-            padding: '22px 24px',
-            minHeight: 150,
-            display: 'flex',
-            flexDirection: 'column',
-            justifyContent: 'center',
-          }}
-        >
-          <div style={{ fontSize: 12, color: '#a8a49c', letterSpacing: '.3px', marginBottom: 6 }}>PRÓXIMAMENTE</div>
-          <div style={{ fontSize: 14, color: '#8b8780', lineHeight: 1.5 }}>Senado, y organismos y agencias de la UE</div>
-        </div>
+      </div>
+
+      {/* Al pie y en una línea, igual que en el regulatorio. Como
+          tarjeta pesaba lo mismo que una sección real y prometía más de
+          lo que es. */}
+      <div style={{ fontSize: 11.5, color: '#a8a49c', paddingTop: 16 }}>
+        Próximamente · Senado, y organismos y agencias de la UE
       </div>
 
       {upsell && (
