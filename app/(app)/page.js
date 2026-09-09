@@ -737,7 +737,7 @@ export default function Home() {
               {cargado ? 'Ninguno abierto ahora mismo.' : 'Cargando…'}
             </div>
           ) : (
-            plazos.slice(0, 4).map((p, i) => (
+            plazos.slice(0, 3).map((p, i) => (
               <Link
                 key={p.id}
                 href={p.ruta}
@@ -754,7 +754,19 @@ export default function Home() {
                 <span style={{ fontSize: 11.5, color: p.dias <= 1 ? '#6d5aef' : '#8b8780', width: 64, flexShrink: 0 }}>
                   {etiquetaPlazo(p.fecha, p.dias)}
                 </span>
-                <span style={{ fontSize: 13, lineHeight: 1.45 }}>{p.title}</span>
+                <span
+                  title={p.title}
+                  style={{
+                    fontSize: 13,
+                    lineHeight: 1.45,
+                    display: '-webkit-box',
+                    WebkitLineClamp: 2,
+                    WebkitBoxOrient: 'vertical',
+                    overflow: 'hidden',
+                  }}
+                >
+                  {p.title}
+                </span>
               </Link>
             ))
           )}
