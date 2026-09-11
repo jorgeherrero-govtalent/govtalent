@@ -20,6 +20,17 @@ const JURISDICCIONES = [
   { value: 'UE', label: 'UE' },
 ];
 
+// Solo los que hacen falta para el filtro de nacionalidad del
+// Parlamento Europeo. El resto se muestra con su codigo ISO.
+const PAISES = {
+  AT: 'Austria', BE: 'Bélgica', BG: 'Bulgaria', CY: 'Chipre', CZ: 'Chequia',
+  DE: 'Alemania', DK: 'Dinamarca', EE: 'Estonia', ES: 'España', FI: 'Finlandia',
+  FR: 'Francia', GR: 'Grecia', HR: 'Croacia', HU: 'Hungría', IE: 'Irlanda',
+  IT: 'Italia', LT: 'Lituania', LU: 'Luxemburgo', LV: 'Letonia', MT: 'Malta',
+  NL: 'Países Bajos', PL: 'Polonia', PT: 'Portugal', RO: 'Rumanía',
+  SE: 'Suecia', SI: 'Eslovenia', SK: 'Eslovaquia',
+};
+
 const BANDA_LABELS = {
   electo: 'Electo',
   alta_direccion: 'Alta dirección',
@@ -265,6 +276,7 @@ export default function DirectorioInstitucionalPage() {
   const [jurisdiccion, setJurisdiccion] = useState('todas');
   const [institucionFilter, setInstitucionFilter] = useState(new Set());
   const [areaFilter, setAreaFilter] = useState(new Set());
+  const [paisFilter, setPaisFilter] = useState(new Set());
   const [bandaFilter, setBandaFilter] = useState(new Set());
   const [contactoFilter, setContactoFilter] = useState(new Set());
 
@@ -308,7 +320,7 @@ export default function DirectorioInstitucionalPage() {
         const { data, error } = await supabase
           .from('directorio_pro')
           .select(
-            'id, jurisdiccion, tipo_institucion, institucion, unidad, nombre, cargo, cargo_canonico, banda, orden, es_titular, area, email, email_unidad, telefono, direccion_postal, slug, contactabilidad, objecion'
+            'id, jurisdiccion, tipo_institucion, pais, institucion, unidad, nombre, cargo, cargo_canonico, banda, orden, es_titular, area, email, email_unidad, telefono, direccion_postal, slug, contactabilidad, objecion'
           )
           .eq('objecion', false)
           .order('orden', { ascending: true })
@@ -328,7 +340,7 @@ export default function DirectorioInstitucionalPage() {
 
   useEffect(() => {
     setPage(0);
-  }, [search, jurisdiccion, institucionFilter, areaFilter, bandaFilter, contactoFilter, pageSize]);
+  }, [search, jurisdiccion, institucionFilter, areaFilter, paisFilter, bandaFilter, contactoFilter, pageSize]);
 
   const base = filas || [];
 
@@ -355,6 +367,19 @@ export default function DirectorioInstitucionalPage() {
     return [...set].sort().map((v) => ({ value: v, label: BANDA_LABELS[v] || v }));
   }, [base]);
 
+  // Solo tiene sentido cuando hay eurodiputados a la vista: las ramas
+  // espanolas son todas ES y la Comision no guarda nacionalidad.
+  const paisValues = useMemo(() => {
+    const set = new Set();
+    base.forEach((f) => {
+      if (jurisdiccion !== 'todas' && f.jurisdiccion !== jurisdiccion) return;
+      if (f.pais && f.tipo_institucion === 'legislativo' && f.jurisdiccion === 'UE') set.add(f.pais);
+    });
+    return [...set]
+      .sort((a, b) => (PAISES[a] || a).localeCompare(PAISES[b] || b, 'es'))
+      .map((v) => ({ value: v, label: PAISES[v] || v }));
+  }, [base, jurisdiccion]);
+
   const contactoValues = [
     { value: 'alta', label: 'Alta' },
     { value: 'media', label: 'Media' },
@@ -367,6 +392,7 @@ export default function DirectorioInstitucionalPage() {
       .filter((f) => jurisdiccion === 'todas' || f.jurisdiccion === jurisdiccion)
       .filter((f) => institucionFilter.size === 0 || institucionFilter.has(f.institucion))
       .filter((f) => areaFilter.size === 0 || areaFilter.has(f.area))
+      .filter((f) => paisFilter.size === 0 || paisFilter.has(f.pais))
       .filter((f) => bandaFilter.size === 0 || bandaFilter.has(f.banda))
       .filter((f) => {
         if (contactoFilter.size === 0) return true;
@@ -430,7 +456,7 @@ export default function DirectorioInstitucionalPage() {
       });
     }
     return out;
-  }, [base, search, jurisdiccion, institucionFilter, areaFilter, bandaFilter, contactoFilter, sortConfig]);
+  }, [base, search, jurisdiccion, institucionFilter, areaFilter, paisFilter, bandaFilter, contactoFilter, sortConfig]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
   const currentPage = Math.min(page, totalPages - 1);
@@ -491,6 +517,7 @@ export default function DirectorioInstitucionalPage() {
             jurisdiccion,
             institucion: [...institucionFilter],
             area: [...areaFilter],
+            pais: [...paisFilter],
             banda: [...bandaFilter],
             contactabilidad: [...contactoFilter],
           },
@@ -512,6 +539,7 @@ export default function DirectorioInstitucionalPage() {
         Unidad: f.unidad || '',
         Institución: f.institucion || '',
         Jurisdicción: f.jurisdiccion || '',
+        País: PAISES[f.pais] || f.pais || '',
         Poder: f.tipo_institucion || '',
         Área: f.area || '',
         Titular: f.es_titular ? 'Sí' : 'No',
@@ -524,7 +552,7 @@ export default function DirectorioInstitucionalPage() {
       const ws = XLSX.utils.json_to_sheet(rows);
       ws['!cols'] = [
         { wch: 30 }, { wch: 44 }, { wch: 24 }, { wch: 16 }, { wch: 38 }, { wch: 34 },
-        { wch: 12 }, { wch: 13 }, { wch: 26 }, { wch: 8 }, { wch: 32 }, { wch: 32 },
+        { wch: 12 }, { wch: 14 }, { wch: 13 }, { wch: 26 }, { wch: 8 }, { wch: 32 }, { wch: 32 },
         { wch: 14 }, { wch: 40 }, { wch: 16 },
       ];
       const wb = XLSX.utils.book_new();
@@ -644,6 +672,15 @@ export default function DirectorioInstitucionalPage() {
           selected={areaFilter}
           onApply={setAreaFilter}
         />
+        {paisValues.length > 0 && (
+          <FiltroBarra
+            icono="ti-world"
+            label="País"
+            values={paisValues}
+            selected={paisFilter}
+            onApply={setPaisFilter}
+          />
+        )}
 
         {/* Exporta la seleccion, nunca el listado entero: con un solo
             clic se podia descargar todo lo filtrado, que no es lo que
@@ -825,6 +862,11 @@ export default function DirectorioInstitucionalPage() {
                   {f.institucion || '—'}
                   <div style={{ fontSize: 11, color: '#a8a79c', marginTop: 2 }}>
                     {f.jurisdiccion} · {f.tipo_institucion}
+                    {f.pais && f.jurisdiccion === 'UE' && (
+                      <span style={{ color: f.pais === 'ES' ? '#6d5aef' : '#a8a79c' }}>
+                        {' · '}{PAISES[f.pais] || f.pais}
+                      </span>
+                    )}
                   </div>
                 </td>
                 <td style={{ padding: '11px 18px' }}>
