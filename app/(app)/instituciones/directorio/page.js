@@ -368,6 +368,19 @@ export default function DirectorioInstitucionalPage() {
         );
       });
 
+    // Sin orden explicito: primero quien tiene correo nominal y mejor
+    // scoring. Es lo que el usuario viene a buscar, y dejarlo al orden
+    // natural de la tabla enterraba los contactos utiles.
+    if (!sortConfig.key) {
+      out.sort((a, b) => {
+        const ea = a.email ? 1 : 0;
+        const eb = b.email ? 1 : 0;
+        if (ea !== eb) return eb - ea;
+        return (b.contactabilidad || 0) - (a.contactabilidad || 0);
+      });
+      return out;
+    }
+
     if (sortConfig.key) {
       const dir = sortConfig.dir === 'desc' ? -1 : 1;
       out.sort((a, b) => {
@@ -467,7 +480,7 @@ export default function DirectorioInstitucionalPage() {
         'Email de la unidad': f.email_unidad || '',
         Teléfono: f.telefono || '',
         'Dirección postal': f.direccion_postal || '',
-        Contactabilidad: nivelContacto(f.contactabilidad || 0).label,
+        Scoring: nivelContacto(f.contactabilidad || 0).label,
       }));
       const ws = XLSX.utils.json_to_sheet(rows);
       ws['!cols'] = [
@@ -569,8 +582,8 @@ export default function DirectorioInstitucionalPage() {
                 fontSize: 12,
                 fontWeight: 600,
                 cursor: 'pointer',
-                background: jurisdiccion === j.value ? '#6d5aef' : 'transparent',
-                color: jurisdiccion === j.value ? '#fff' : '#8a897f',
+                background: jurisdiccion === j.value ? '#f0edfe' : 'transparent',
+                color: jurisdiccion === j.value ? '#6d5aef' : '#8a897f',
               }}
             >
               {j.label}
@@ -586,33 +599,38 @@ export default function DirectorioInstitucionalPage() {
           onApply={setInstitucionFilter}
         />
         <FiltroBarra
-          icono="ti-target"
+          icono="ti-category-2"
           label="Área"
           values={areaValues}
           selected={areaFilter}
           onApply={setAreaFilter}
         />
 
+        {/* Exporta la seleccion, nunca el listado entero: con un solo
+            clic se podia descargar todo lo filtrado, que no es lo que
+            hace un usuario cuando arma una lista de trabajo. Deshabilitado
+            mientras no haya nada marcado. */}
         <button
-          onClick={() => abrirExportacion(filtered)}
-          disabled={filtered.length === 0}
+          onClick={() => abrirExportacion(seleccionadas)}
+          disabled={selectedIds.size === 0}
+          title={selectedIds.size === 0 ? 'Marca las filas que quieras exportar' : ''}
           style={{
             marginLeft: 'auto',
             display: 'inline-flex',
             alignItems: 'center',
             gap: 7,
-            border: '.5px solid #d9d2f9',
-            background: '#f0edfe',
+            border: '.5px solid #e0dfd8',
+            background: '#fff',
             borderRadius: 9,
-            padding: '8px 14px',
+            padding: '8px 13px',
             fontSize: 12.5,
-            color: '#6d5aef',
-            fontWeight: 700,
-            cursor: filtered.length === 0 ? 'default' : 'pointer',
-            opacity: filtered.length === 0 ? 0.5 : 1,
+            color: selectedIds.size === 0 ? '#a8a79c' : '#3a3a36',
+            fontWeight: 600,
+            cursor: selectedIds.size === 0 ? 'default' : 'pointer',
           }}
         >
-          <i className="ti ti-file-spreadsheet" style={{ fontSize: 15 }}></i> Exportar ({filtered.length})
+          <i className="ti ti-file-spreadsheet" style={{ fontSize: 15, color: '#a8a79c' }}></i>
+          Exportar{selectedIds.size > 0 ? ` (${selectedIds.size})` : ''}
         </button>
       </div>
 
@@ -658,20 +676,6 @@ export default function DirectorioInstitucionalPage() {
               </th>
               <th style={{ padding: '11px 18px' }}>
                 <FilterableHeader
-                  label="Contactabilidad"
-                  columnKey="contactabilidad"
-                  values={contactoValues}
-                  selected={contactoFilter}
-                  onApply={setContactoFilter}
-                  sortConfig={sortConfig}
-                  onSort={(key, dir) => setSortConfig({ key, dir })}
-                  isOpen={openPopover === 'contactabilidad'}
-                  onToggle={() => setOpenPopover(openPopover === 'contactabilidad' ? null : 'contactabilidad')}
-                  onClose={() => setOpenPopover(null)}
-                />
-              </th>
-              <th style={{ padding: '11px 18px' }}>
-                <FilterableHeader
                   label="Cargo"
                   columnKey="banda"
                   values={bandaValues}
@@ -695,6 +699,20 @@ export default function DirectorioInstitucionalPage() {
                   onSort={(key, dir) => setSortConfig({ key, dir })}
                   isOpen={openPopover === 'institucion'}
                   onToggle={() => setOpenPopover(openPopover === 'institucion' ? null : 'institucion')}
+                  onClose={() => setOpenPopover(null)}
+                />
+              </th>
+              <th style={{ padding: '11px 18px' }}>
+                <FilterableHeader
+                  label="Scoring"
+                  columnKey="contactabilidad"
+                  values={contactoValues}
+                  selected={contactoFilter}
+                  onApply={setContactoFilter}
+                  sortConfig={sortConfig}
+                  onSort={(key, dir) => setSortConfig({ key, dir })}
+                  isOpen={openPopover === 'contactabilidad'}
+                  onToggle={() => setOpenPopover(openPopover === 'contactabilidad' ? null : 'contactabilidad')}
                   onClose={() => setOpenPopover(null)}
                 />
               </th>
@@ -753,9 +771,6 @@ export default function DirectorioInstitucionalPage() {
                     <span style={{ fontWeight: 600, color: '#1a1a18' }}>{f.nombre}</span>
                   </div>
                 </td>
-                <td style={{ padding: '11px 18px' }}>
-                  <ScoreBarras score={f.contactabilidad} />
-                </td>
                 <td style={{ padding: '11px 18px', color: '#555' }}>
                   {f.cargo || '—'}
                   <div style={{ fontSize: 11, color: '#a8a79c', marginTop: 2 }}>{f.unidad || ''}</div>
@@ -767,8 +782,11 @@ export default function DirectorioInstitucionalPage() {
                   </div>
                 </td>
                 <td style={{ padding: '11px 18px' }}>
+                  <ScoreBarras score={f.contactabilidad} />
+                </td>
+                <td style={{ padding: '11px 18px' }}>
                   {f.email ? (
-                    <a href={`mailto:${f.email}`} style={{ color: '#6d5aef', textDecoration: 'none' }}>
+                    <a href={`mailto:${f.email}`} style={{ color: '#8a897f', textDecoration: 'none' }}>
                       {f.email}
                     </a>
                   ) : f.email_unidad ? (
