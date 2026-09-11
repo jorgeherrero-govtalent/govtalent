@@ -1,10 +1,11 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import Link from 'next/link';
 import * as XLSX from 'xlsx';
 import { createClient } from '@/lib/supabase/client';
 import FilterableHeader from '@/components/FilterableHeader';
+import UpgradeModal from '@/components/UpgradeModal';
+import DirectorioDemo from '@/components/DirectorioDemo';
 import { canAccessDatabase } from '@/lib/plan';
 
 const PAGE_SIZE_OPTIONS = [25, 50, 100, 200];
@@ -295,6 +296,7 @@ export default function DirectorioInstitucionalPage() {
   const [pageSize, setPageSize] = useState(50);
   const [selectedIds, setSelectedIds] = useState(new Set());
 
+  const [modalUpsell, setModalUpsell] = useState(false);
   const [showExportConfirm, setShowExportConfirm] = useState(false);
   const [exportUsage, setExportUsage] = useState(null);
   const [exportBusy, setExportBusy] = useState(false);
@@ -577,20 +579,32 @@ export default function DirectorioInstitucionalPage() {
 
   if (filas === null || !planChecked) return <div className="spinner"></div>;
 
+  // Free ve la demo, no un muro: el mismo criterio que en Proyectos.
+  // Cualquier clic sobre la tabla abre el modal, que es donde se explica
+  // que es de Pro — despues de haber ensenado el valor, no antes.
   if (!planAllowed) {
     return (
-      <div className="card" style={{ maxWidth: 480, margin: '48px auto', padding: 32, textAlign: 'center' }}>
-        <i className="ti ti-lock" style={{ fontSize: 30, color: '#6d5aef', marginBottom: 10 }}></i>
-        <div style={{ fontSize: 16, fontWeight: 700, marginBottom: 6, color: '#1a1a18' }}>
-          Directorio institucional — plan Pro
+      <div
+        style={{ padding: '24px 28px', maxWidth: 1320, margin: '0 auto' }}
+      >
+        <div style={{ marginBottom: 16 }}>
+          <h1 style={{ fontSize: 19, fontWeight: 700, margin: 0 }}>Directorio institucional</h1>
+          <p style={{ fontSize: 12.5, color: '#888', margin: '4px 0 0' }}>
+            Quién ocupa cada puesto en España y en la UE, con su contacto.
+          </p>
         </div>
-        <p style={{ fontSize: 13, color: '#666', marginBottom: 18 }}>
-          Consulta, filtra y exporta los contactos de la Administración General del Estado y de las
-          instituciones europeas. Disponible en el plan Pro.
-        </p>
-        <Link href="/precios" target="_blank" className="btn-p" style={{ textDecoration: 'none' }}>
-          Ver planes
-        </Link>
+
+        <div onClick={() => setModalUpsell(true)} style={{ cursor: 'pointer' }}>
+          <DirectorioDemo />
+        </div>
+
+        {modalUpsell && (
+          <UpgradeModal
+            title="El directorio institucional es una función Pro"
+            message="Casi doce mil cargos de la Administración General del Estado, el Congreso, la Comisión Europea y el Parlamento Europeo, con su correo, su unidad y su dirección postal. Filtra por institución o área y expórtalo a Excel cuando lo necesites."
+            onClose={() => setModalUpsell(false)}
+          />
+        )}
       </div>
     );
   }
