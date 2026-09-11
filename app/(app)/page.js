@@ -171,7 +171,7 @@ function AnilloActividad({ datos }) {
         width="92"
         height="92"
         role="img"
-        aria-label="Reparto de la actividad normativa de hoy por fuente"
+        aria-label="Reparto por fuente de la norma en tramitación"
         style={{ flexShrink: 0, display: 'block' }}
       >
         <circle cx="21" cy="21" r="15.915" fill="none" stroke="#f2f0ec" strokeWidth="5" />
@@ -192,8 +192,8 @@ function AnilloActividad({ datos }) {
       </svg>
       <div style={{ flex: 1, minWidth: 0 }}>
         <div style={{ fontSize: 12.5, color: '#8b8780', marginBottom: 9, lineHeight: 1.4 }}>
-          Actividad normativa hoy
-          {total === 0 && <span style={{ color: '#a8a49c' }}> · sin movimiento</span>}
+          Actividad normativa en curso
+          {total === 0 && <span style={{ color: '#a8a49c' }}> · sin datos</span>}
         </div>
         {/* Nombre entero y cifra, en una columna. Antes eran siglas en
             dos columnas, y "CD" o "CE" no se entienden sin pasar el
@@ -256,10 +256,6 @@ export default function Home() {
         expedientes,
         consultas,
         boeHoy,
-        actCd,
-        actPe,
-        actCe,
-        actConsultas,
         { data: sec },
         { data: porTema },
         { data: sigue },
@@ -305,24 +301,6 @@ export default function Home() {
         supabase.from('consultas_estado').select('*', { count: 'exact', head: true }).in('estado', ['abierta', 'urgente']),
         supabase.from('boe_documents').select('id', { count: 'exact', head: true }).eq('fecha_publicacion', hoy),
 
-        // --- El anillo: actividad normativa de hoy ---
-        //
-        // Cuatro fuentes donde se produce norma: las dos camaras, la
-        // Comision y las consultas publicas. El BOE queda fuera a
-        // proposito: no genera norma, publica la ya aprobada, y su cifra
-        // del dia ya esta en la fila de abajo.
-        //
-        // Cada una tiene su fecha propia y no son intercambiables:
-        // cuando se registro la iniciativa, cuando se movio el
-        // procedimiento, cuando aparecio el expediente y cuando se abrio
-        // la consulta.
-        supabase.from('es_initiatives').select('num_expediente', { count: 'exact', head: true }).eq('fecha_presentacion', hoy),
-        supabase.from('ep_procedures').select('process_id', { count: 'exact', head: true }).eq('last_activity_at', hoy),
-        // En la Comision se filtra por created_at y no por updated_at: el
-        // sync hace upsert con onConflict, asi que updated_at se toca en
-        // cada pasada y contaria el directorio entero como actividad.
-        supabase.from('eu_initiatives_directory').select('id', { count: 'exact', head: true }).gte('created_at', hoy),
-        supabase.from('consultas_estado').select('id', { count: 'exact', head: true }).eq('fecha_inicio', hoy),
 
         // Las tres fuentes que deciden la tarjeta grande, en paralelo y
         // no en cascada: hacen falta las tres a la vez para cruzarlas.
@@ -399,11 +377,17 @@ export default function Home() {
         boe: boeHoy.count ?? null,
       });
 
+      // El anillo es el desglose de las tarjetas de abajo, no otra
+      // medicion: CE mas PE suman "Actos juridicos en la UE", Congreso
+      // es "Leyes en Congreso" y Consultas es "Consultas publicas".
+      // Antes contaba movimiento del dia y no cuadraba con nada de lo
+      // que se ve debajo, que es justo lo que un anillo tiene que
+      // explicar.
       setActividad([
-        { clave: 'Comisión Europea', titulo: 'Comisión Europea', valor: actCe.count ?? 0 },
-        { clave: 'Parlamento Europeo', titulo: 'Parlamento Europeo', valor: actPe.count ?? 0 },
-        { clave: 'Congreso', titulo: 'Congreso de los Diputados', valor: actCd.count ?? 0 },
-        { clave: 'Consultas públicas', titulo: 'Consultas públicas abiertas hoy', valor: actConsultas.count ?? 0 },
+        { clave: 'Comisión Europea', titulo: 'Expedientes abiertos en la Comisión Europea', valor: ce ?? 0 },
+        { clave: 'Parlamento Europeo', titulo: 'Procedimientos abiertos en el Parlamento Europeo', valor: ep ?? 0 },
+        { clave: 'Congreso', titulo: 'Leyes en tramitación en el Congreso', valor: leyes.count ?? 0 },
+        { clave: 'Consultas públicas', titulo: 'Consultas públicas abiertas', valor: consultas.count ?? 0 },
       ]);
 
       setSector(sec || []);
@@ -727,7 +711,7 @@ export default function Home() {
             <AnilloActividad datos={actividad} />
           ) : (
             <div className="bento" style={{ ...BENTO, padding: '18px 22px' }}>
-              <div style={{ fontSize: 12.5, color: '#8b8780' }}>Actividad normativa hoy</div>
+              <div style={{ fontSize: 12.5, color: '#8b8780' }}>Actividad normativa en curso</div>
             </div>
           )}
         </div>
