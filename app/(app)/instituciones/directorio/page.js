@@ -86,6 +86,15 @@ function clavePersona(nombre) {
     .join(' ');
 }
 
+// Los correos se limpian en la base, pero la fuente puede volver a
+// traer dos direcciones separadas por coma con el prefijo del enlace.
+// Esto evita que eso llegue a verse mientras se corrige el origen.
+function limpiarEmail(v) {
+  if (!v) return null;
+  const primero = String(v).split(',')[0];
+  return primero.replace(/mailto:/gi, '').trim() || null;
+}
+
 function iniciales(nombre) {
   const partes = String(nombre || '').trim().split(/\s+/).filter(Boolean);
   if (partes.length === 0) return '?';
@@ -543,8 +552,8 @@ export default function DirectorioInstitucionalPage() {
         Poder: f.tipo_institucion || '',
         Área: f.area || '',
         Titular: f.es_titular ? 'Sí' : 'No',
-        Email: f.email || '',
-        'Email de la unidad': f.email_unidad || '',
+        Email: limpiarEmail(f.email) || '',
+        'Email de la unidad': limpiarEmail(f.email_unidad) || '',
         Teléfono: f.telefono || '',
         'Dirección postal': f.direccion_postal || '',
         Scoring: nivelContacto(f.contactabilidad || 0).label,
@@ -587,7 +596,13 @@ export default function DirectorioInstitucionalPage() {
   }
 
   return (
-    <div style={{ padding: `24px 28px ${selectedIds.size > 0 ? 90 : 24}px`, maxWidth: 1320 }}>
+    <div
+      style={{
+        padding: `24px 28px ${selectedIds.size > 0 ? 90 : 24}px`,
+        maxWidth: 1320,
+        margin: '0 auto',
+      }}
+    >
       <div style={{ marginBottom: 16 }}>
         <h1 style={{ fontSize: 19, fontWeight: 700, margin: 0 }}>Directorio institucional</h1>
         <p style={{ fontSize: 12.5, color: '#888', margin: '4px 0 0' }}>
@@ -873,13 +888,19 @@ export default function DirectorioInstitucionalPage() {
                   <ScoreBarras score={f.contactabilidad} />
                 </td>
                 <td style={{ padding: '11px 18px' }}>
-                  {f.email ? (
-                    <a href={`mailto:${f.email}`} style={{ color: '#8a897f', textDecoration: 'none' }}>
-                      {f.email}
+                  {limpiarEmail(f.email) ? (
+                    <a
+                      href={`mailto:${limpiarEmail(f.email)}`}
+                      style={{ color: '#8a897f', textDecoration: 'none' }}
+                    >
+                      {limpiarEmail(f.email)}
                     </a>
-                  ) : f.email_unidad ? (
-                    <a href={`mailto:${f.email_unidad}`} style={{ color: '#8a897f', textDecoration: 'none' }}>
-                      {f.email_unidad}
+                  ) : limpiarEmail(f.email_unidad) ? (
+                    <a
+                      href={`mailto:${limpiarEmail(f.email_unidad)}`}
+                      style={{ color: '#8a897f', textDecoration: 'none' }}
+                    >
+                      {limpiarEmail(f.email_unidad)}
                     </a>
                   ) : (
                     <span style={{ color: '#c9c8bf' }}>—</span>
