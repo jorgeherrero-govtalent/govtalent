@@ -60,6 +60,21 @@ function ScoreBarras({ score }) {
   );
 }
 
+// Clave de persona: sin acentos, sin puntuacion y con las palabras
+// ordenadas, para que "Marti Marti, Xavier" y "Xavier Marti Marti"
+// colapsen en la misma. Mismo criterio que clave_persona() en la base.
+function clavePersona(nombre) {
+  return String(nombre || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, ' ')
+    .trim()
+    .split(' ')
+    .sort()
+    .join(' ');
+}
+
 function iniciales(nombre) {
   const partes = String(nombre || '').trim().split(/\s+/).filter(Boolean);
   if (partes.length === 0) return '?';
@@ -368,6 +383,30 @@ export default function DirectorioInstitucionalPage() {
         );
       });
 
+    // Una persona puede ocupar varios cargos a la vez: Xavier Marti es
+    // subsecretario de Exteriores y ademas presidente de la Obra Pia.
+    // Son dos filas legitimas, pero verlas repetidas en la tabla parece
+    // un fallo de datos. Se agrupan en una, la del cargo de mas rango,
+    // y la ficha indica cuantos mas tiene.
+    const porPersona = new Map();
+    out.forEach((f) => {
+      const k = f.jurisdiccion + '|' + clavePersona(f.nombre);
+      const prev = porPersona.get(k);
+      if (!prev) {
+        porPersona.set(k, { ...f, otrosCargos: 0 });
+        return;
+      }
+      // Se queda el de mayor rango; a igualdad, el que tenga correo.
+      const mejor =
+        (f.orden ?? 99) < (prev.orden ?? 99) ||
+        ((f.orden ?? 99) === (prev.orden ?? 99) && f.email && !prev.email);
+      const base = mejor ? { ...f } : prev;
+      porPersona.set(k, { ...base, otrosCargos: (prev.otrosCargos || 0) + 1 });
+    });
+    const agrupadas = [...porPersona.values()];
+    out.length = 0;
+    out.push(...agrupadas);
+
     // Sin orden explicito: primero quien tiene correo nominal y mejor
     // scoring. Es lo que el usuario viene a buscar, y dejarlo al orden
     // natural de la tabla enterraba los contactos utiles.
@@ -524,8 +563,8 @@ export default function DirectorioInstitucionalPage() {
       <div style={{ marginBottom: 16 }}>
         <h1 style={{ fontSize: 19, fontWeight: 700, margin: 0 }}>Directorio institucional</h1>
         <p style={{ fontSize: 12.5, color: '#888', margin: '4px 0 0' }}>
-          {base.length.toLocaleString('es-ES')} personas de la Administración General del Estado, el Congreso y las
-          instituciones europeas.
+          {filtered.length.toLocaleString('es-ES')} personas de la Administración General del Estado, el Congreso y
+          las instituciones europeas.
         </p>
       </div>
 
@@ -773,7 +812,14 @@ export default function DirectorioInstitucionalPage() {
                 </td>
                 <td style={{ padding: '11px 18px', color: '#555' }}>
                   {f.cargo || '—'}
-                  <div style={{ fontSize: 11, color: '#a8a79c', marginTop: 2 }}>{f.unidad || ''}</div>
+                  <div style={{ fontSize: 11, color: '#a8a79c', marginTop: 2 }}>
+                    {f.unidad || ''}
+                    {f.otrosCargos > 0 && (
+                      <span style={{ color: '#6d5aef', marginLeft: f.unidad ? 6 : 0 }}>
+                        · {f.otrosCargos} cargo{f.otrosCargos === 1 ? '' : 's'} más
+                      </span>
+                    )}
+                  </div>
                 </td>
                 <td style={{ padding: '11px 18px', color: '#555' }}>
                   {f.institucion || '—'}
