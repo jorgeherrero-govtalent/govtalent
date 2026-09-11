@@ -227,6 +227,12 @@ export default function InstitutionsPage() {
           cifra={CIFRAS.comisionUe.n}
           etiqueta={CIFRAS.comisionUe.etiqueta}
         />
+        {/* Organizaciones, oculta de momento. Queda aquí y no borrada
+            porque vuelve tal cual cuando se decida reactivarla; su cifra
+            sigue en CIFRAS. Es la única tarjeta que no es una
+            institución, y con seis piezas la rejilla cierra en dos
+            columnas exactas. */}
+        {/*
         <Modulo
           href="/organizations"
           pais="sector"
@@ -235,6 +241,7 @@ export default function InstitutionsPage() {
           cifra={CIFRAS.organizaciones.n}
           etiqueta={CIFRAS.organizaciones.etiqueta}
         />
+        */}
 
       </div>
 
