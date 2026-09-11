@@ -33,10 +33,6 @@ function hoyISO() {
   return new Date().toISOString().slice(0, 10);
 }
 
-function haceDiasISO(n) {
-  return new Date(Date.now() - n * 86400000).toISOString().slice(0, 10);
-}
-
 /** Identidad de un asunto: el par kind + ref_id, que es como lo nombran las tres vistas. */
 function clave(kind, refId) {
   return `${kind}:${refId}`;
@@ -175,7 +171,7 @@ function AnilloActividad({ datos }) {
         width="92"
         height="92"
         role="img"
-        aria-label="Reparto de la actividad por fuente en los últimos 30 días"
+        aria-label="Reparto de la actividad normativa de hoy por fuente"
         style={{ flexShrink: 0, display: 'block' }}
       >
         <circle cx="21" cy="21" r="15.915" fill="none" stroke="#f2f0ec" strokeWidth="5" />
@@ -196,13 +192,26 @@ function AnilloActividad({ datos }) {
       </svg>
       <div style={{ flex: 1, minWidth: 0 }}>
         <div style={{ fontSize: 12.5, color: '#8b8780', marginBottom: 9, lineHeight: 1.4 }}>
-          Actividad en los últimos 30 días
+          Actividad normativa hoy
+          {total === 0 && <span style={{ color: '#a8a49c' }}> · sin movimiento</span>}
         </div>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '5px 10px' }}>
+        {/* Nombre entero y cifra, en una columna. Antes eran siglas en
+            dos columnas, y "CD" o "CE" no se entienden sin pasar el
+            raton por encima. Con ventana de un dia la cifra importa
+            tanto como el reparto: un anillo sin numeros no distingue
+            "tres expedientes" de "treinta". */}
+        <div style={{ display: 'grid', gap: 4 }}>
           {datos.map((d, i) => (
-            <div key={d.clave} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11.5 }} title={`${d.titulo}: ${d.valor}`}>
+            <div
+              key={d.clave}
+              style={{ display: 'flex', alignItems: 'center', gap: 7, fontSize: 11.5 }}
+              title={d.titulo}
+            >
               <span style={{ width: 7, height: 7, borderRadius: 2, background: TONOS[i], flexShrink: 0 }}></span>
-              <span>{d.clave}</span>
+              <span style={{ color: '#5a5952', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                {d.clave}
+              </span>
+              <span style={{ marginLeft: 'auto', fontWeight: 600, color: '#1a1a18' }}>{d.valor}</span>
             </div>
           ))}
         </div>
@@ -237,7 +246,6 @@ export default function Home() {
 
     (async () => {
       const hoy = hoyISO();
-      const hace30 = haceDiasISO(30);
 
       const [
         { data: es },
@@ -251,7 +259,7 @@ export default function Home() {
         actCd,
         actPe,
         actCe,
-        actBoe,
+        actConsultas,
         { data: sec },
         { data: porTema },
         { data: sigue },
@@ -297,14 +305,24 @@ export default function Home() {
         supabase.from('consultas_estado').select('*', { count: 'exact', head: true }).in('estado', ['abierta', 'urgente']),
         supabase.from('boe_documents').select('id', { count: 'exact', head: true }).eq('fecha_publicacion', hoy),
 
-        // --- El anillo: actividad de los últimos 30 días ---
-        supabase.from('es_initiatives').select('num_expediente', { count: 'exact', head: true }).gte('fecha_presentacion', hace30),
-        supabase.from('ep_procedures').select('process_id', { count: 'exact', head: true }).gte('last_activity_at', hace30),
-        // En la Comisión se filtra por created_at y no por updated_at: el
-        // sync hace upsert con onConflict, así que updated_at se toca en
-        // cada pasada y contaría el directorio entero como actividad.
-        supabase.from('eu_initiatives_directory').select('id', { count: 'exact', head: true }).gte('created_at', hace30),
-        supabase.from('boe_documents').select('id', { count: 'exact', head: true }).gte('fecha_publicacion', hace30),
+        // --- El anillo: actividad normativa de hoy ---
+        //
+        // Cuatro fuentes donde se produce norma: las dos camaras, la
+        // Comision y las consultas publicas. El BOE queda fuera a
+        // proposito: no genera norma, publica la ya aprobada, y su cifra
+        // del dia ya esta en la fila de abajo.
+        //
+        // Cada una tiene su fecha propia y no son intercambiables:
+        // cuando se registro la iniciativa, cuando se movio el
+        // procedimiento, cuando aparecio el expediente y cuando se abrio
+        // la consulta.
+        supabase.from('es_initiatives').select('num_expediente', { count: 'exact', head: true }).eq('fecha_presentacion', hoy),
+        supabase.from('ep_procedures').select('process_id', { count: 'exact', head: true }).eq('last_activity_at', hoy),
+        // En la Comision se filtra por created_at y no por updated_at: el
+        // sync hace upsert con onConflict, asi que updated_at se toca en
+        // cada pasada y contaria el directorio entero como actividad.
+        supabase.from('eu_initiatives_directory').select('id', { count: 'exact', head: true }).gte('created_at', hoy),
+        supabase.from('consultas_estado').select('id', { count: 'exact', head: true }).eq('fecha_inicio', hoy),
 
         // Las tres fuentes que deciden la tarjeta grande, en paralelo y
         // no en cascada: hacen falta las tres a la vez para cruzarlas.
@@ -382,10 +400,10 @@ export default function Home() {
       });
 
       setActividad([
-        { clave: 'CD', titulo: 'Congreso de los Diputados', valor: actCd.count ?? 0 },
-        { clave: 'PE', titulo: 'Parlamento Europeo', valor: actPe.count ?? 0 },
-        { clave: 'BOE', titulo: 'Boletín Oficial del Estado', valor: actBoe.count ?? 0 },
-        { clave: 'CE', titulo: 'Comisión Europea', valor: actCe.count ?? 0 },
+        { clave: 'Comisión Europea', titulo: 'Comisión Europea', valor: actCe.count ?? 0 },
+        { clave: 'Parlamento Europeo', titulo: 'Parlamento Europeo', valor: actPe.count ?? 0 },
+        { clave: 'Congreso', titulo: 'Congreso de los Diputados', valor: actCd.count ?? 0 },
+        { clave: 'Consultas públicas', titulo: 'Consultas públicas abiertas hoy', valor: actConsultas.count ?? 0 },
       ]);
 
       setSector(sec || []);
@@ -709,7 +727,7 @@ export default function Home() {
             <AnilloActividad datos={actividad} />
           ) : (
             <div className="bento" style={{ ...BENTO, padding: '18px 22px' }}>
-              <div style={{ fontSize: 12.5, color: '#8b8780' }}>Actividad en los últimos 30 días</div>
+              <div style={{ fontSize: 12.5, color: '#8b8780' }}>Actividad normativa hoy</div>
             </div>
           )}
         </div>
