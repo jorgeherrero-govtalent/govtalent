@@ -217,8 +217,24 @@ export default function DirectorioDemo() {
     <div>
       <BarraFiltros />
 
-      <div style={{ fontSize: 12, color: '#999', marginBottom: 8 }}>
-        {TOTAL} resultados
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          gap: 12,
+          marginBottom: 8,
+          flexWrap: 'wrap',
+        }}
+      >
+        <span style={{ fontSize: 12, color: '#999' }}>{TOTAL} resultados</span>
+        {/* De donde salen los datos, a la vista y no en letra pequena al
+            pie: en un directorio de contactos la procedencia es parte de
+            lo que se compra, no una nota legal. */}
+        <span style={{ fontSize: 11.5, color: '#8a897f', display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+          <i className="ti ti-circle-check" style={{ fontSize: 14, color: '#1d6f5c' }}></i>
+          Fuentes oficiales · DIR3, BOE, congreso.es y portales de la UE · actualizado semanalmente
+        </span>
       </div>
 
       <div
@@ -338,6 +354,10 @@ export default function DirectorioDemo() {
           <div style={{ fontSize: 12.5, color: '#a8a49c', marginTop: 4 }}>
             Ministerios, organismos, Congreso, Comisión Europea y Parlamento Europeo, con su correo,
             su unidad y su dirección postal. Filtrable y exportable a Excel.
+          </div>
+          <div style={{ fontSize: 12, color: '#8a8680', marginTop: 8 }}>
+            Construido solo con fuentes oficiales y contrastado con los nombramientos del BOE. Cada
+            ficha guarda de dónde sale el dato y cuándo se capturó.
           </div>
         </div>
         <span style={{ fontSize: 12.5, color: '#8f7ff5', fontWeight: 600, whiteSpace: 'nowrap' }}>
