@@ -1,8 +1,10 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import UpgradeModal from '@/components/UpgradeModal';
+import { createClient } from '@/lib/supabase/client';
+import { canAccessDatabase } from '@/lib/plan';
 
 /**
  * Directorio institucional.
@@ -125,6 +127,64 @@ function Modulo({ href, pais, titulo, descripcion, cifra, etiqueta }) {
 
 export default function InstitutionsPage() {
   const [upsell, setUpsell] = useState(false);
+  // Si la organizacion tiene Pro, la tarjeta negra lleva directa a la
+  // tabla; si no, sigue abriendo el modal. Hasta saberlo se comporta
+  // como antes: es la opcion segura, porque enviar a un muro a quien no
+  // ha pagado quema mas confianza que un clic de mas.
+  const [tieneDatos, setTieneDatos] = useState(false);
+
+  useEffect(() => {
+    let vigente = true;
+    async function comprobarPlan() {
+      const supabase = createClient();
+      const { data: authData } = await supabase.auth.getUser();
+      if (!authData?.user) return;
+      const { data: membership } = await supabase
+        .from('organization_members')
+        .select('organizations(id, plan)')
+        .eq('user_id', authData.user.id)
+        .limit(1)
+        .maybeSingle();
+      const org = membership?.organizations;
+      if (vigente && org) setTieneDatos(canAccessDatabase(org));
+    }
+    comprobarPlan();
+    return () => {
+      vigente = false;
+    };
+  }, []);
+
+  // Mismo aspecto en los dos casos: solo cambia si es enlace o boton.
+  const estiloTarjetaNegra = {
+    background: '#15140f',
+    borderRadius: 16,
+    padding: '22px 24px',
+    minHeight: 150,
+    border: 'none',
+    textAlign: 'left',
+    cursor: 'pointer',
+    display: 'flex',
+    flexDirection: 'column',
+    justifyContent: 'space-between',
+    font: 'inherit',
+    textDecoration: 'none',
+  };
+
+  const contenidoTarjetaNegra = (
+    <>
+      <div>
+        <div style={{ fontSize: 11.5, color: '#8f7ff5', letterSpacing: '.3px', marginBottom: 10 }}>
+          BASE DE DATOS DE CARGOS
+        </div>
+        <div style={{ fontSize: 14.5, color: '#fff', lineHeight: 1.5 }}>
+          Todos los cargos de la administración en España y la UE en una sola tabla.
+        </div>
+      </div>
+      <div style={{ fontSize: 12.5, color: '#8f7ff5', fontWeight: 600, paddingTop: 18 }}>
+        Ver base de datos →
+      </div>
+    </>
+  );
 
   return (
     <div className="sec" style={{ maxWidth: 1080 }}>
@@ -141,39 +201,18 @@ export default function InstitutionsPage() {
             más. Aquí es además la única de pago, y lo dice antes de que
             nadie pulse: un CTA que lleva a un muro sin avisar quema más
             confianza de la que convierte. */}
-        <button
-          type="button"
-          onClick={() => setUpsell(true)}
-          className="bento"
-          style={{
-            background: '#15140f',
-            borderRadius: 16,
-            padding: '22px 24px',
-            minHeight: 150,
-            border: 'none',
-            textAlign: 'left',
-            cursor: 'pointer',
-            display: 'flex',
-            flexDirection: 'column',
-            justifyContent: 'space-between',
-            font: 'inherit',
-          }}
-        >
-          <div>
-            <div style={{ fontSize: 11.5, color: '#8f7ff5', letterSpacing: '.3px', marginBottom: 10 }}>
-              BASE DE DATOS DE CARGOS
-            </div>
-            <div style={{ fontSize: 14.5, color: '#fff', lineHeight: 1.5 }}>
-              Todos los cargos de la administración en España y la UE en una sola tabla.
-            </div>
-          </div>
-          {/* Mismo tratamiento que la tarjeta negra del regulatorio:
-              enlace en morado, sin botón. Que sea de pago se dice en el
-              modal, no en la tarjeta. */}
-          <div style={{ fontSize: 12.5, color: '#8f7ff5', fontWeight: 600, paddingTop: 18 }}>
-            Ver base de datos →
-          </div>
-        </button>
+        {/* Mismo tratamiento que la tarjeta negra del regulatorio:
+            enlace en morado, sin botón. Con Pro entra en la tabla; sin
+            Pro sigue abriendo el modal, que es donde se explica. */}
+        {tieneDatos ? (
+          <Link href="/instituciones/directorio" className="bento" style={estiloTarjetaNegra}>
+            {contenidoTarjetaNegra}
+          </Link>
+        ) : (
+          <button type="button" onClick={() => setUpsell(true)} className="bento" style={estiloTarjetaNegra}>
+            {contenidoTarjetaNegra}
+          </button>
+        )}
 
         <Modulo
           href="/institutions/ministries"
