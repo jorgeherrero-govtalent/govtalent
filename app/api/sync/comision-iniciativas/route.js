@@ -67,7 +67,10 @@
 //   ?key=<DEBUG_KEY>          lanzarlo a mano
 //   ?dry=1                    no escribe, no mueve el cursor, solo informa
 //   ?from=12                  forzar la posición de inicio del barrido
-//   ?pages=5                  limitar páginas del barrido (pruebas)
+//   ?pages=5                  limitar páginas DEL BARRIDO (pruebas). La
+//                             cabeza se lee siempre aparte, así que
+//                             pages=5 descarga 6 páginas en total, y con
+//                             `pages` no se encadena.
 //   ?paralelo=4               páginas simultáneas (1-8)
 //   ?encadenar=0              no relanzar la pasada siguiente
 // =====================================================================
@@ -347,7 +350,9 @@ export async function GET(request) {
 
   // --- FASE 2: barrido desde el cursor ---------------------------------
   const guardado = desdeManual !== null ? { posicion: desdeManual, vuelta: 0, error: null } : await leerCursor(supabase);
-  if (guardado.error) informe.aviso_cursor = `No se pudo leer el cursor (${guardado.error}); se empieza en 1.`;
+  if (guardado.error) {
+    informe.aviso_cursor = `No se pudo leer el cursor (${guardado.error}); se empieza en 1. Si el mensaje habla de una relación inexistente, falta ejecutar sync_cursores.sql.`;
+  }
 
   // Fuera de rango significa cursor corrupto o fuente encogida: se
   // reinicia la vuelta en vez de quedarse dando vueltas en el vacío.
@@ -499,8 +504,17 @@ export async function GET(request) {
   });
   if (errCursor) informe.error_cursor = errCursor;
 
+  // SIN CURSOR NO SE ENCADENA. Si la tabla no existe o la escritura del
+  // cursor falla, la pasada siguiente volvería a empezar en la misma
+  // página: diez eslabones releyendo el mismo tramo y ni un registro
+  // nuevo. Más vale una vuelta corta y un aviso que una cadena en falso.
+  const cursorVivo = !errCursor;
   const quedaBarrido = !vueltaCompletada && maxPaginas === 0;
-  if (quedaBarrido && encadenar && eslabon < MAX_CADENA) {
+
+  if (!cursorVivo) {
+    informe.aviso_cadena =
+      'No se pudo guardar el cursor, así que no se encadena: sin posición persistida la pasada siguiente repetiría el mismo tramo. Comprobar que existe la tabla sync_cursores.';
+  } else if (quedaBarrido && encadenar && eslabon < MAX_CADENA) {
     informe.siguiente = await lanzarSiguiente(request, eslabon + 1);
   } else if (quedaBarrido && eslabon >= MAX_CADENA) {
     informe.aviso_cadena = `Se alcanzó el tope de ${MAX_CADENA} eslabones con el cursor en ${proximoCursor}. La vuelta se retomará en la próxima ejecución del cron.`;
