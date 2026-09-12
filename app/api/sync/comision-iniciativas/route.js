@@ -87,7 +87,11 @@ const BRP = 'https://ec.europa.eu/info/law/better-regulation/brpapi/searchInitia
 // de 41: el recorrido se saltaría media fuente sin dar ningún error.
 // Verificado en diagnóstico: size=200 -> 100 registros.
 const PAGE_SIZE_MAXIMO = 100;
-const TIMEOUT_MS = 25000;
+// 20 s, no 25. Medido: una página tarda unos 14 s. En el caso peor, con
+// la cabeza y el primer lote agotando el timeout, 25 dejaba la función en
+// 50 s antes de empezar a escribir, con el límite de Vercel en 60. Con 20
+// el caso peor baja a 40 y la operación normal no se entera.
+const TIMEOUT_MS = 20000;
 const LOTE_BD = 500;
 // Presupuesto de descarga. Una página tarda unos 14 s y la comprobación se
 // hace ANTES de lanzar el lote, así que hay que reservar el tiempo de ese
