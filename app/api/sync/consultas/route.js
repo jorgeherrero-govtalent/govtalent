@@ -268,6 +268,11 @@ Reglas:
 - "asunto_requerido" es el formato de asunto exigido si se indica; si no, null.
 - Si un campo no aparece, pon null. NO inventes ningún valor.
 - Si no hay trámites abiertos, llama a la herramienta con un array vacio.
+- Cuenta ademas en "tramites_cerrados" cuantos tramites YA VENCIDOS o
+  cerrados aparecen en la pagina. Es lo que distingue una pagina que si
+  lista tramites pero ahora no tiene ninguno abierto, de una pagina que
+  no lista tramites en absoluto. Si no se ve ningun tramite, ni abierto
+  ni cerrado, pon 0.
 
 Página (${tipo}) — ${urlOrigen}:${bloqueEnlaces}
 
@@ -323,8 +328,13 @@ ${texto.slice(0, 15000)}`;
                   required: ['titulo'],
                 },
               },
+              tramites_cerrados: {
+                type: 'integer',
+                description:
+                  'Cuantos tramites ya vencidos o cerrados aparecen en la pagina. 0 si la pagina no lista ningun tramite.',
+              },
             },
-            required: ['tramites'],
+            required: ['tramites', 'tramites_cerrados'],
           },
         },
       ],
@@ -348,7 +358,11 @@ ${texto.slice(0, 15000)}`;
   }
 
   const tramites = uso.input?.tramites;
-  return Array.isArray(tramites) ? tramites : [];
+  const cerrados = Number(uso.input?.tramites_cerrados);
+  return {
+    tramites: Array.isArray(tramites) ? tramites : [],
+    cerrados: Number.isFinite(cerrados) && cerrados >= 0 ? cerrados : 0,
+  };
 }
 
 /**
@@ -514,7 +528,8 @@ export async function GET(req) {
         });
       }
 
-      const items = await extraer(texto, f.tipo, f.url, enlaces);
+      const { tramites: items, cerrados: cerradosEnPagina } =
+        await extraer(texto, f.tipo, f.url, enlaces);
 
       // Vinculo con el organigrama, si ese ministerio lo tiene cargado.
       const { data: fuenteOrg } = await supabase
@@ -637,12 +652,23 @@ export async function GET(req) {
         }
       }
 
+      // Una pagina sin un solo tramite, ni abierto ni cerrado, casi
+      // siempre es la pagina de presentacion que obliga a tener la Orden
+      // PRE/1590/2016, con el listado un clic mas abajo. Se deja anotado
+      // en la fila para poder listarlas por SQL sin volver a lanzar el
+      // sync. No es un fallo de ejecucion, pero se guarda en el mismo
+      // campo que las descartadas porque ahi es donde se mira.
+      const avisos = [...descartadas];
+      if (items.length === 0 && cerradosEnPagina === 0) {
+        avisos.unshift('La página no lista ningún trámite, ni abierto ni cerrado — probable página de presentación');
+      }
+
       await supabase
         .from('consulta_fuentes')
         .update({
           ultimo_hash: h,
           ultima_captura: new Date().toISOString(),
-          ultimo_error: descartadas.length ? descartadas.join(' | ').slice(0, 500) : null,
+          ultimo_error: avisos.length ? avisos.join(' | ').slice(0, 500) : null,
           intentos_fallidos: 0,
         })
         .eq('id', f.id);
@@ -655,6 +681,10 @@ export async function GET(req) {
         guardadas: insertadas,
         vencidas: vencidos || undefined,
         descartadas: descartadas.length || undefined,
+        // Sin este numero, "no hay nada abierto" y "no estoy mirando
+        // donde debo" salian los dos como encontradas: 0.
+        cerrados_en_pagina: cerradosEnPagina || undefined,
+        sin_tramites: items.length === 0 && cerradosEnPagina === 0 ? true : undefined,
       });
     } catch (err) {
       await supabase
@@ -770,6 +800,11 @@ export async function GET(req) {
   });
 
   return NextResponse.json({
+    // Commit que esta sirviendo esta invocacion. Vercel lo inyecta en el
+    // build. Sin esto no hay forma de distinguir "el codigo nuevo falla"
+    // de "el codigo nuevo no esta desplegado", que son diagnosticos
+    // opuestos y se parecen mucho desde fuera. En local sale 'local'.
+    commit: process.env.VERCEL_GIT_COMMIT_SHA?.slice(0, 7) || 'local',
     lote,
     nuevas,
     actualizadas,
