@@ -5,7 +5,11 @@ import Link from 'next/link';
 // El botón va en btn-ai (morado) y no en btn-p (verde de marca): este
 // modal vende Pro, y en el sistema el morado es Pro e IA. Como todas las
 // llamadas al upsell pasan por aquí, el arreglo alcanza a todas.
-export default function UpgradeModal({ title, message, onClose }) {
+// El destino de "Ver planes" es opcional. Por defecto lleva a la página
+// de precios completa, pero hay upsells que venden una función de un plan
+// concreto —el directorio es de Teams— y conviene aterrizar en su
+// pestaña. Los que no lo pasan siguen funcionando igual que antes.
+export default function UpgradeModal({ title, message, onClose, href = '/precios' }) {
   return (
     <div className="modal-ov on" onClick={(e) => e.target === e.currentTarget && onClose()}>
       <div className="modal-box" style={{ maxWidth: 440 }}>
@@ -19,7 +23,7 @@ export default function UpgradeModal({ title, message, onClose }) {
         </div>
         <p style={{ fontSize: 13, color: '#666', margin: '4px 0 22px', lineHeight: 1.6 }}>{message}</p>
         <Link
-          href="/precios"
+          href={href}
           target="_blank"
           className="btn-ai"
           style={{ textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 6 }}
