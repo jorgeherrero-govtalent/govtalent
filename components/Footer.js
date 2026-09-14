@@ -11,7 +11,7 @@ export default function Footer() {
         <span className="ft-sep">·</span>
         <Link href="/privacidad">Privacidad</Link>
         <span className="ft-sep">·</span>
-        <Link href="/condiciones">Condiciones del servicio</Link>
+        <Link href="/condiciones">Condiciones de contratación</Link>
         <span className="ft-sep">·</span>
         <Link href="/cookies">Cookies</Link>
         <span className="ft-sep">·</span>
