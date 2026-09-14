@@ -80,7 +80,10 @@ export default function LoginPage() {
     setError('');
     setLoading(true);
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: `${window.location.origin}/auth/callback?next=/profile`,
+      // El callback canjea el código por sesión y deja al usuario en la
+      // página donde sí puede escribir la contraseña nueva. Antes apuntaba
+      // a /profile, donde no había ningún campo para hacerlo.
+      redirectTo: `${window.location.origin}/auth/callback?next=/nueva-contrasena`,
     });
     setLoading(false);
     if (error) return setError(traducirError(error.message));
