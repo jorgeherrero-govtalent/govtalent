@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/server';
 import PublicHeader from '@/components/PublicHeader';
+import BotonPlan from '@/components/BotonPlan';
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://govtalent.app';
 
@@ -30,13 +31,35 @@ export const metadata = {
 
 async function getData() {
   const supabase = createClient();
-  const [{ count: orgs }, { count: pros }] = await Promise.all([
+
+  const [{ count: orgs }, { count: pros }, { data: authData }] = await Promise.all([
     supabase.from('organizations').select('id', { count: 'exact', head: true }).eq('is_founding_member', true),
     supabase.from('users').select('id', { count: 'exact', head: true }).eq('plan', 'pro'),
+    supabase.auth.getUser(),
   ]);
+
+  const user = authData?.user || null;
+
+  // Los planes de organización solo los puede contratar un administrador.
+  // Si el usuario no lo es de ninguna, el botón le lleva a crear una en vez
+  // de a un checkout que la ruta rechazaría igualmente.
+  let organizationId = null;
+  if (user) {
+    const { data: membership } = await supabase
+      .from('organization_members')
+      .select('organization_id')
+      .eq('user_id', user.id)
+      .eq('role', 'admin')
+      .limit(1)
+      .maybeSingle();
+    organizationId = membership?.organization_id || null;
+  }
+
   return {
     orgsFundadoras: orgs || 0,
     prosFundadores: pros || 0,
+    autenticado: Boolean(user),
+    organizationId,
   };
 }
 
@@ -65,7 +88,20 @@ function Etiqueta({ children }) {
   );
 }
 
-function Plan({ nombre, precio, periodo, resumen, etiqueta, destacado, distintivo, children, cta, href }) {
+function Plan({
+  nombre,
+  precio,
+  periodo,
+  resumen,
+  etiqueta,
+  destacado,
+  distintivo,
+  children,
+  cta,
+  plan,
+  autenticado,
+  organizationId,
+}) {
   return (
     <div
       className="bento"
@@ -126,25 +162,13 @@ function Plan({ nombre, precio, periodo, resumen, etiqueta, destacado, distintiv
       <p style={{ fontSize: 12.5, color: '#77746e', margin: '0 0 16px', lineHeight: 1.5 }}>{resumen}</p>
       <Etiqueta>{etiqueta}</Etiqueta>
       <div style={{ flex: 1 }}>{children}</div>
-      <Link
-        href={href}
-        className="btn-mov"
-        style={{
-          display: 'block',
-          marginTop: 18,
-          fontSize: 13,
-          fontWeight: 600,
-          padding: '10px',
-          borderRadius: 10,
-          textAlign: 'center',
-          textDecoration: 'none',
-          background: destacado ? '#6d5aef' : 'transparent',
-          color: destacado ? '#fff' : '#3d3a35',
-          border: destacado ? 'none' : '.5px solid #e0dfd8',
-        }}
-      >
-        {cta}
-      </Link>
+      <BotonPlan
+        plan={plan}
+        cta={cta}
+        destacado={destacado}
+        autenticado={autenticado}
+        organizationId={organizationId}
+      />
     </div>
   );
 }
@@ -231,7 +255,7 @@ function BannerFundadores({ titulo, detalle, ocupadas, plazas, icono, asunto }) 
 }
 
 export default async function PricingPage({ searchParams }) {
-  const { orgsFundadoras, prosFundadores } = await getData();
+  const { orgsFundadoras, prosFundadores, autenticado, organizationId } = await getData();
 
   // La pestaña va en la URL y no en estado: así la página sigue siendo un
   // componente de servidor, se puede enlazar directamente a la de
@@ -291,8 +315,10 @@ export default async function PricingPage({ searchParams }) {
                 periodo="/ siempre"
                 resumen="Atrae talento especializado sin compromiso."
                 etiqueta="1 usuario"
-                cta="Empezar gratis"
-                href="/signup"
+                cta="Continuar gratis"
+                plan="free"
+                autenticado={autenticado}
+                organizationId={organizationId}
               >
                 <Check>Ficha de organización verificada y página propia</Check>
                 <Check>1 oferta activa</Check>
@@ -307,7 +333,9 @@ export default async function PricingPage({ searchParams }) {
                 resumen="Atrae y gestiona el mejor talento especializado del sector."
                 etiqueta="1 usuario · todo lo de Free, y además"
                 cta="Elegir Recruiter"
-                href="/signup"
+                plan="recruiter"
+                autenticado={autenticado}
+                organizationId={organizationId}
               >
                 <Check>Ofertas y candidaturas ilimitadas</Check>
                 <Check>Descripción de ofertas con IA</Check>
@@ -324,7 +352,9 @@ export default async function PricingPage({ searchParams }) {
                 destacado
                 distintivo="MÁS COMPLETO"
                 cta="Elegir Teams"
-                href="/signup"
+                plan="teams"
+                autenticado={autenticado}
+                organizationId={organizationId}
               >
                 <Check>Licencia de GovTalent Pro</Check>
                 <Check>Proyectos compartidos y colaborativos</Check>
@@ -356,8 +386,10 @@ export default async function PricingPage({ searchParams }) {
                 periodo="/ siempre"
                 resumen="Descubre la plataforma sin compromiso."
                 etiqueta="Incluye"
-                cta="Empezar gratis"
-                href="/signup"
+                cta="Continuar gratis"
+                plan="free"
+                autenticado={autenticado}
+                organizationId={organizationId}
               >
                 <Check>Ofertas de empleo y candidaturas</Check>
                 <Check>Perfil profesional y recomendaciones</Check>
@@ -374,7 +406,9 @@ export default async function PricingPage({ searchParams }) {
                 destacado
                 distintivo="RECOMENDADO"
                 cta="Empezar con Pro"
-                href="/signup"
+                plan="pro"
+                autenticado={autenticado}
+                organizationId={organizationId}
               >
                 <Check>Búsqueda avanzada e información ampliada</Check>
                 <Check>Seguimiento normativo y regulatorio</Check>
