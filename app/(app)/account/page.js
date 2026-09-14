@@ -6,6 +6,7 @@ import { createClient } from '@/lib/supabase/client';
 import { toast } from '@/lib/toast';
 import SelectorFecha from '@/components/SelectorFecha';
 import BloquePlanCuenta from '@/components/BloquePlanCuenta';
+import BloqueSeguridad from '@/components/BloqueSeguridad';
 
 const CARD = { background: '#fff', borderRadius: 10, boxShadow: '0 1px 2px rgba(0,0,0,.04)' };
 const LABEL = { fontSize: 11, color: '#a8a49c', letterSpacing: '.4px', marginBottom: 14 };
@@ -429,6 +430,8 @@ export default function AccountPage() {
       </div>
 
       <BloquePlanCuenta user={user} />
+
+      <BloqueSeguridad />
 
       <div style={{ ...CARD, padding: '6px 18px' }}>
         <div style={{ ...LABEL, padding: '12px 4px 4px', marginBottom: 0 }}>GESTIÓN DE LA CUENTA</div>
