@@ -182,7 +182,17 @@ function Plan({
  * Y el contador sale del dato, sin sumar nada: no es lo mismo enseñar
  * cuántos hay que aparentar que hay más.
  */
-function BannerFundadores({ titulo, detalle, ocupadas, plazas, icono, asunto }) {
+function BannerFundadores({
+  titulo,
+  detalle,
+  ocupadas,
+  plazas,
+  icono,
+  plan,
+  cta,
+  autenticado,
+  organizationId,
+}) {
   const libres = Math.max(0, plazas - ocupadas);
   if (libres === 0) return null;
   const pct = Math.min(100, Math.round((ocupadas / plazas) * 100));
@@ -234,22 +244,16 @@ function BannerFundadores({ titulo, detalle, ocupadas, plazas, icono, asunto }) 
           <div style={{ width: `${pct}%`, height: '100%', background: '#fff' }}></div>
         </div>
       </div>
-      <a
-        href={`mailto:hola@govtalent.app?subject=${encodeURIComponent(asunto)}`}
-        className="btn-mov"
-        style={{
-          textDecoration: 'none',
-          background: '#fff',
-          color: '#3d2f8f',
-          fontWeight: 700,
-          fontSize: 13.5,
-          padding: '11px 22px',
-          borderRadius: 999,
-          whiteSpace: 'nowrap',
-        }}
-      >
-        Reservar mi plaza
-      </a>
+      <div>
+        <BotonPlan
+          plan={plan}
+          cta={cta}
+          variante="banner"
+          founding
+          autenticado={autenticado}
+          organizationId={organizationId}
+        />
+      </div>
     </div>
   );
 }
@@ -305,7 +309,10 @@ export default async function PricingPage({ searchParams }) {
               ocupadas={orgsFundadoras}
               plazas={PLAZAS_TEAMS}
               icono="building"
-              asunto="Quiero ser Founding Member en GovTalent — organización"
+              plan="teams"
+              cta="Reservar mi plaza"
+              autenticado={autenticado}
+              organizationId={organizationId}
             />
 
             <div className="pricing-grid-3" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: 14 }}>
@@ -376,7 +383,10 @@ export default async function PricingPage({ searchParams }) {
               ocupadas={prosFundadores}
               plazas={PLAZAS_PRO}
               icono="user"
-              asunto="Quiero ser Founding Member en GovTalent — Pro"
+              plan="pro"
+              cta="Reservar mi plaza"
+              autenticado={autenticado}
+              organizationId={organizationId}
             />
 
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 14, maxWidth: 700, margin: '0 auto' }}>
