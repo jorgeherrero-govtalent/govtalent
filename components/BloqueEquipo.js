@@ -132,9 +132,15 @@ export default function BloqueEquipo({ org }) {
         Por ahora los roles son informativos: todos los miembros acceden a todos los módulos.
       </p>
 
-      {libres === 0 && (
+      {/* Hasta que existan las invitaciones, el alta es manual. El aviso
+          sale siempre, no solo al llenarse las plazas: si no, quien tiene
+          sitio libre no encuentra ninguna forma de añadir a nadie. */}
+      {libres !== null && (
         <p style={{ fontSize: 12.5, color: '#8b8780', margin: '10px 0 0', lineHeight: 1.6 }}>
-          ¿Necesitáis más de {plazas} personas? Escríbenos a{' '}
+          {libres === 0
+            ? `¿Necesitáis más de ${plazas} personas? `
+            : `${libres === 1 ? 'Queda 1 plaza' : `Quedan ${libres} plazas`}. Para añadir a alguien a tu equipo, `}
+          escríbenos a{' '}
           <a href="mailto:hola@govtalent.app" style={{ color: '#1d6f5c' }}>
             hola@govtalent.app
           </a>
