@@ -18,7 +18,7 @@ export default function PrivacidadPage() {
         <tbody>
           <tr><td style={tdLabel}>Responsable del tratamiento</td><td style={tdVal}>Jorge Rafael Herrero Vidal, actuando bajo el nombre comercial GovTalent</td></tr>
           <tr><td style={tdLabel}>NIF</td><td style={tdVal}>20455625T</td></tr>
-          <tr><td style={tdLabel}>Domicilio profesional</td><td style={tdVal}>Calle de Santa Hortensia, 46C, 28002 Madrid</td></tr>
+          <tr><td style={tdLabel}>Domicilio profesional</td><td style={tdVal}>Calle de Hermosilla, 48, 28001 Madrid</td></tr>
           <tr><td style={tdLabel}>Correo electrónico</td><td style={tdVal}><a href="mailto:hola@govtalent.app" style={aLink}>hola@govtalent.app</a></td></tr>
           <tr><td style={tdLabel}>Sitio web</td><td style={tdVal}>https://govtalent.app</td></tr>
         </tbody>
