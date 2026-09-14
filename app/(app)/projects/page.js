@@ -69,6 +69,11 @@ const TIPOS_ARRANQUE = {
   actividad: ['Congreso · actividad parlamentaria', 'ti-file-text'],
   expediente: ['Comisión Europea · expediente', 'ti-file-text'],
   procedimiento: ['Parlamento Europeo · procedimiento', 'ti-gavel'],
+  // Una consulta con plazo de alegaciones abierto es el caso más claro de
+  // asunto sobre el que se abre un proyecto: hay una fecha y hay algo que
+  // presentar. Faltaba aquí, así que no se podían arrancar proyectos desde
+  // ellas aunque el seguimiento sí existiera.
+  consulta: ['Ministerios · consulta pública', 'ti-message-2'],
   boe: ['BOE', 'ti-news'],
 };
 
