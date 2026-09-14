@@ -3,7 +3,8 @@
 import { useEffect, useState } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { toast } from '@/lib/toast';
-import { getEffectiveTier } from '@/lib/plan';
+import { esPlanTeams } from '@/lib/plan';
+import BloquePlanOrganizacion from '@/components/BloquePlanOrganizacion';
 import SelectorFecha from '@/components/SelectorFecha';
 
 /**
@@ -57,7 +58,7 @@ export default function ConfiguracionOrganizacion() {
     const { data } = await supabase
       .from('organization_members')
       .select(
-        'role, organizations(id, name, slug, plan, is_public, legal_name, tax_id, org_type, registered_address, cbtg_registry_number, cbtg_registered_at)'
+        'role, organizations(id, name, slug, plan, plan_status, plan_renews_at, cancel_at_period_end, is_founding_member, stripe_customer_id, claimed, verified, is_public, legal_name, tax_id, org_type, registered_address, cbtg_registry_number, cbtg_registered_at)'
       )
       .eq('user_id', auth.user.id)
       .limit(1)
@@ -124,7 +125,10 @@ export default function ConfiguracionOrganizacion() {
     );
   }
 
-  const esTeams = getEffectiveTier(org) === 'pro';
+  // El enum org_plan pasó de {free, plus, pro} a {free, recruiter, teams}
+  // durante la integración de Stripe: comparar con 'pro' ya no se cumple
+  // nunca. esPlanTeams() encapsula la comprobación.
+  const esTeams = esPlanTeams(org);
   const visible = org.is_public !== false;
   const inscrita = !!(datos?.cbtg_registry_number || '').trim();
   const cambiado =
@@ -154,6 +158,8 @@ export default function ConfiguracionOrganizacion() {
       <p style={{ fontSize: 13, color: '#888', marginBottom: 20 }}>
         Los datos de tu organización, quién puede gestionarla y si aparece en GovTalent.
       </p>
+
+      <BloquePlanOrganizacion org={org} esAdmin={esAdmin} />
 
       {/* Los datos legales van primero: son los que hacen falta para que
           un acta identifique a la organización, y sin ellos el resto de
