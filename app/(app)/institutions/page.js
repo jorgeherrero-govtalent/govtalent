@@ -1,6 +1,8 @@
 'use client';
 
+import { useState } from 'react';
 import Link from 'next/link';
+import UpgradeModal from '@/components/UpgradeModal';
 
 /**
  * Directorio institucional.
@@ -122,36 +124,7 @@ function Modulo({ href, pais, titulo, descripcion, cifra, etiqueta }) {
 }
 
 export default function InstitutionsPage() {
-  const estiloTarjetaNegra = {
-    background: '#15140f',
-    borderRadius: 16,
-    padding: '22px 24px',
-    minHeight: 150,
-    border: 'none',
-    textAlign: 'left',
-    cursor: 'pointer',
-    display: 'flex',
-    flexDirection: 'column',
-    justifyContent: 'space-between',
-    font: 'inherit',
-    textDecoration: 'none',
-  };
-
-  const contenidoTarjetaNegra = (
-    <>
-      <div>
-        <div style={{ fontSize: 11.5, color: '#8f7ff5', letterSpacing: '.3px', marginBottom: 10 }}>
-          BASE DE DATOS DE CARGOS
-        </div>
-        <div style={{ fontSize: 14.5, color: '#fff', lineHeight: 1.5 }}>
-          Todos los cargos de la administración en España y la UE en una sola tabla.
-        </div>
-      </div>
-      <div style={{ fontSize: 12.5, color: '#8f7ff5', fontWeight: 600, paddingTop: 18 }}>
-        Ver base de datos →
-      </div>
-    </>
-  );
+  const [upsell, setUpsell] = useState(false);
 
   return (
     <div className="sec" style={{ maxWidth: 1080 }}>
@@ -168,17 +141,39 @@ export default function InstitutionsPage() {
             más. Aquí es además la única de pago, y lo dice antes de que
             nadie pulse: un CTA que lleva a un muro sin avisar quema más
             confianza de la que convierte. */}
-        {/* Mismo tratamiento que la tarjeta negra del regulatorio:
-            enlace en morado, sin botón.
-
-            Lleva a la tabla para todo el mundo. Antes abría el modal a
-            quien no tenía Pro, y con eso nadie llegaba a ver el producto:
-            la barrera se contaba antes que el valor. Ahora free aterriza
-            en la demo del directorio, con datos reales y solo el correo
-            tapado, y decide desde ahí. */}
-        <Link href="/instituciones/directorio" className="bento" style={estiloTarjetaNegra}>
-          {contenidoTarjetaNegra}
-        </Link>
+        <button
+          type="button"
+          onClick={() => setUpsell(true)}
+          className="bento"
+          style={{
+            background: '#15140f',
+            borderRadius: 16,
+            padding: '22px 24px',
+            minHeight: 150,
+            border: 'none',
+            textAlign: 'left',
+            cursor: 'pointer',
+            display: 'flex',
+            flexDirection: 'column',
+            justifyContent: 'space-between',
+            font: 'inherit',
+          }}
+        >
+          <div>
+            <div style={{ fontSize: 11.5, color: '#8f7ff5', letterSpacing: '.3px', marginBottom: 10 }}>
+              BASE DE DATOS DE CARGOS
+            </div>
+            <div style={{ fontSize: 14.5, color: '#fff', lineHeight: 1.5 }}>
+              Todos los cargos de la administración en España y la UE en una sola tabla.
+            </div>
+          </div>
+          {/* Mismo tratamiento que la tarjeta negra del regulatorio:
+              enlace en morado, sin botón. Que sea de pago se dice en el
+              modal, no en la tarjeta. */}
+          <div style={{ fontSize: 12.5, color: '#8f7ff5', fontWeight: 600, paddingTop: 18 }}>
+            Ver base de datos →
+          </div>
+        </button>
 
         <Modulo
           href="/institutions/ministries"
@@ -227,12 +222,6 @@ export default function InstitutionsPage() {
           cifra={CIFRAS.comisionUe.n}
           etiqueta={CIFRAS.comisionUe.etiqueta}
         />
-        {/* Organizaciones, oculta de momento. Queda aquí y no borrada
-            porque vuelve tal cual cuando se decida reactivarla; su cifra
-            sigue en CIFRAS. Es la única tarjeta que no es una
-            institución, y con seis piezas la rejilla cierra en dos
-            columnas exactas. */}
-        {/*
         <Modulo
           href="/organizations"
           pais="sector"
@@ -241,7 +230,6 @@ export default function InstitutionsPage() {
           cifra={CIFRAS.organizaciones.n}
           etiqueta={CIFRAS.organizaciones.etiqueta}
         />
-        */}
 
       </div>
 
@@ -252,6 +240,14 @@ export default function InstitutionsPage() {
         Próximamente · Senado, y organismos y agencias de la UE
       </div>
 
+      {upsell && (
+        <UpgradeModal
+          title="El directorio institucional es una función Teams"
+          message="Todos los cargos de la administración en España y la UE en una sola tabla: filtra por ministerio, organismo o comisión, y expórtala cuando la necesites."
+          href="/precios?para=organizaciones"
+          onClose={() => setUpsell(false)}
+        />
+      )}
     </div>
   );
 }
