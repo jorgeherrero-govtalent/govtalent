@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { stripe } from '@/lib/stripe';
-import { PLAN_SCOPE, PRICE_LOOKUP_KEYS } from '@/lib/plans';
+import { PLAN_SCOPE, PRICE_LOOKUP_KEYS, FOUNDING_PROMO_CODES } from '@/lib/plans';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -11,7 +11,11 @@ const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://govtalent.app';
 
 /**
  * POST /api/stripe/checkout
- * body: { plan: 'pro' | 'recruiter' | 'teams', organizationId?: string }
+ * body: {
+ *   plan: 'pro' | 'recruiter' | 'teams',
+ *   organizationId?: string,
+ *   founding?: boolean      // aplica el descuento de fundador de ese plan
+ * }
  *
  * Devuelve { url } con la sesión de Checkout. Toda la validación de acceso
  * ocurre AQUÍ, antes de cobrar: el webhook no vuelve a comprobar nada, porque
@@ -33,6 +37,7 @@ export async function POST(request) {
 
   const plan = body.plan;
   const organizationId = body.organizationId || null;
+  const founding = body.founding === true;
   const scope = PLAN_SCOPE[plan];
 
   if (!scope) {
@@ -56,6 +61,36 @@ export async function POST(request) {
       { error: 'Plan no disponible temporalmente' },
       { status: 503 }
     );
+  }
+
+  // --- Descuento de fundador -----------------------------------------------
+  // El código nunca viene del cliente: lo decide el servidor a partir del plan.
+  let promotionCodeId = null;
+  if (founding) {
+    const codigo = FOUNDING_PROMO_CODES[plan];
+    if (!codigo) {
+      return NextResponse.json(
+        { error: 'Este plan no tiene oferta de fundador' },
+        { status: 400 }
+      );
+    }
+
+    const promos = await stripe.promotionCodes.list({
+      code: codigo,
+      active: true,
+      limit: 1,
+    });
+    const promo = promos.data[0];
+
+    // Si el código se agotó o caducó, no seguimos en silencio a precio
+    // completo: el cliente pulsó un botón que anunciaba otro importe.
+    if (!promo) {
+      return NextResponse.json(
+        { error: 'La oferta de fundador ya no está disponible' },
+        { status: 409 }
+      );
+    }
+    promotionCodeId = promo.id;
   }
 
   let customerId = null;
@@ -173,12 +208,10 @@ export async function POST(request) {
     };
   }
 
-  const session = await stripe.checkout.sessions.create({
+  const parametros = {
     mode: 'subscription',
     customer: customerId,
     line_items: [{ price: price.id, quantity: 1 }],
-    // Campo de código promocional, para FUNDADOR30 y el cupón de Teams.
-    allow_promotion_codes: true,
     // Stripe Tax: 21% en España, inversión del sujeto pasivo con NIF-IVA
     // válido en VIES, y tipo del país del cliente para particulares de la UE.
     automatic_tax: { enabled: true },
@@ -192,7 +225,27 @@ export async function POST(request) {
     subscription_data: { metadata },
     success_url: `${APP_URL}/suscripcion/gracias?session_id={CHECKOUT_SESSION_ID}`,
     cancel_url: `${APP_URL}/precios`,
-  });
+  };
+
+  // `discounts` y `allow_promotion_codes` son mutuamente excluyentes. Con el
+  // descuento de fundador el cliente ve ya el precio rebajado y no tiene que
+  // teclear nada; sin él, dejamos el campo de código abierto.
+  if (promotionCodeId) {
+    parametros.discounts = [{ promotion_code: promotionCodeId }];
+  } else {
+    parametros.allow_promotion_codes = true;
+  }
+
+  let session;
+  try {
+    session = await stripe.checkout.sessions.create(parametros);
+  } catch (err) {
+    console.error('Error creando la sesión de Checkout:', err.message);
+    return NextResponse.json(
+      { error: 'No hemos podido iniciar el pago. Inténtalo de nuevo.' },
+      { status: 502 }
+    );
+  }
 
   return NextResponse.json({ url: session.url });
 }
