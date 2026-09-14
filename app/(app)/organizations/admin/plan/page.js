@@ -18,6 +18,11 @@ import { getEffectiveTier, planLabel, PLANES, COMPARATIVA } from '@/lib/plan';
  * propia lista, se quedó diciendo "Plus" y "Pro" y prometiendo tres
  * funciones de las siete que anuncia /precios.
  *
+ * LAS CLAVES DE COMPARATIVA SON free / recruiter / teams. Eran plus y pro
+ * hasta que el enum org_plan se recreó durante la integración de Stripe;
+ * con los nombres antiguos, las columnas de Recruiter y Teams salían
+ * vacías porque esas propiedades ya no existían en las filas.
+ *
  * SIN PERIODO DE PRUEBA. Se retiró el trial de la aplicación: aquí ya no
  * hay contador de días ni usos de IA restantes.
  */
@@ -244,10 +249,10 @@ export default function OrganizationPlanPage() {
                   <Marca valor={f.free} color={COLORES.gris.texto} />
                 </span>
                 <span style={{ textAlign: 'center' }}>
-                  <Marca valor={f.plus} color={COLORES.verde.texto} />
+                  <Marca valor={f.recruiter} color={COLORES.verde.texto} />
                 </span>
                 <span style={{ textAlign: 'center' }}>
-                  <Marca valor={f.pro} color={COLORES.morado.texto} />
+                  <Marca valor={f.teams} color={COLORES.morado.texto} />
                 </span>
               </div>
             ))}
