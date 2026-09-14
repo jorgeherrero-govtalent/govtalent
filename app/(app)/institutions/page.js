@@ -1,8 +1,4 @@
-'use client';
-
-import { useState } from 'react';
 import Link from 'next/link';
-import UpgradeModal from '@/components/UpgradeModal';
 
 /**
  * Directorio institucional.
@@ -28,6 +24,10 @@ import UpgradeModal from '@/components/UpgradeModal';
  */
 
 const MORADO = '#6d5aef';
+
+// La demo del directorio. Si la ruta cambia, se cambia aquí y en ningún
+// sitio más.
+const RUTA_DIRECTORIO = '/instituciones/directorio';
 
 /**
  * CIFRAS FIJAS. HAY QUE MANTENERLAS A MANO.
@@ -55,7 +55,6 @@ const CIFRAS = {
   organismos: { n: 77, etiqueta: 'organismos' },
   parlamentoUe: { n: 720, etiqueta: 'eurodiputados · 22 comisiones' },
   comisionUe: { n: 2096, etiqueta: 'cargos · 45 direcciones generales' },
-  organizaciones: { n: 2005, etiqueta: 'organizaciones' },
 };
 
 const CARD = {
@@ -102,7 +101,7 @@ function Bandera({ pais }) {
   return <i className="ti ti-users" style={{ fontSize: 14, color: '#8b8780' }} aria-hidden="true"></i>;
 }
 
-/** Una sección del directorio, con su cifra en vivo. */
+/** Una sección del directorio, con su cifra. */
 function Modulo({ href, pais, titulo, descripcion, cifra, etiqueta }) {
   return (
     <Link href={href} className="bento" style={CARD}>
@@ -124,8 +123,6 @@ function Modulo({ href, pais, titulo, descripcion, cifra, etiqueta }) {
 }
 
 export default function InstitutionsPage() {
-  const [upsell, setUpsell] = useState(false);
-
   return (
     <div className="sec" style={{ maxWidth: 1080 }}>
       <div style={{ marginBottom: 18 }}>
@@ -141,22 +138,24 @@ export default function InstitutionsPage() {
             más. Aquí es además la única de pago, y lo dice antes de que
             nadie pulse: un CTA que lleva a un muro sin avisar quema más
             confianza de la que convierte. */}
-        <button
-          type="button"
-          onClick={() => setUpsell(true)}
+        {/* Lleva a la demo, no a un modal.
+
+            El muro no va aquí: la demo enseña la tabla con su forma real
+            y es allí, al intentar usarla, donde aparece el modal de
+            Teams. Enseñar antes de pedir convierte mejor que pedir antes
+            de enseñar. */}
+        <Link
+          href={RUTA_DIRECTORIO}
           className="bento"
           style={{
             background: '#15140f',
             borderRadius: 16,
             padding: '22px 24px',
             minHeight: 150,
-            border: 'none',
-            textAlign: 'left',
-            cursor: 'pointer',
+            textDecoration: 'none',
             display: 'flex',
             flexDirection: 'column',
             justifyContent: 'space-between',
-            font: 'inherit',
           }}
         >
           <div>
@@ -167,13 +166,10 @@ export default function InstitutionsPage() {
               Todos los cargos de la administración en España y la UE en una sola tabla.
             </div>
           </div>
-          {/* Mismo tratamiento que la tarjeta negra del regulatorio:
-              enlace en morado, sin botón. Que sea de pago se dice en el
-              modal, no en la tarjeta. */}
           <div style={{ fontSize: 12.5, color: '#8f7ff5', fontWeight: 600, paddingTop: 18 }}>
             Ver base de datos →
           </div>
-        </button>
+        </Link>
 
         <Modulo
           href="/institutions/ministries"
@@ -222,14 +218,7 @@ export default function InstitutionsPage() {
           cifra={CIFRAS.comisionUe.n}
           etiqueta={CIFRAS.comisionUe.etiqueta}
         />
-        <Modulo
-          href="/organizations"
-          pais="sector"
-          titulo="Organizaciones"
-          descripcion="Patronales, consultoras y empresas que trabajan con la Administración."
-          cifra={CIFRAS.organizaciones.n}
-          etiqueta={CIFRAS.organizaciones.etiqueta}
-        />
+
 
       </div>
 
@@ -240,14 +229,7 @@ export default function InstitutionsPage() {
         Próximamente · Senado, y organismos y agencias de la UE
       </div>
 
-      {upsell && (
-        <UpgradeModal
-          title="El directorio institucional es una función Teams"
-          message="Todos los cargos de la administración en España y la UE en una sola tabla: filtra por ministerio, organismo o comisión, y expórtala cuando la necesites."
-          href="/precios?para=organizaciones"
-          onClose={() => setUpsell(false)}
-        />
-      )}
+
     </div>
   );
 }
