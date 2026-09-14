@@ -353,9 +353,12 @@ export default function LoginPage() {
                   dos vistas: desde iniciar sesión también se puede crear
                   cuenta con Google, así que ahí también hace falta. */}
               <div className="login-legal">
-                Al continuar, confirmas que entiendes y aceptas los{' '}
-                <a href="/condiciones">Términos y condiciones</a> y la{' '}
-                <a href="/privacidad">Política de privacidad</a>.
+                Al continuar, aceptas las{' '}
+                <a href="/condiciones" target="_blank" rel="noopener noreferrer">Condiciones de contratación</a>{' '}
+                y el <a href="/legal" target="_blank" rel="noopener noreferrer">Aviso legal</a>, y confirmas que has
+                leído la{' '}
+                <a href="/privacidad" target="_blank" rel="noopener noreferrer">Política de privacidad</a> y la{' '}
+                <a href="/cookies" target="_blank" rel="noopener noreferrer">Política de cookies</a>.
               </div>
             </div>
           </div>
