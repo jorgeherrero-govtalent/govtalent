@@ -445,14 +445,6 @@ export default async function PricingPage({ searchParams }) {
           </a>
           .
         </p>
-
-        <p style={{ fontSize: 12, color: '#a8a49c', textAlign: 'center', marginTop: 10, lineHeight: 1.6 }}>
-          ¿Eres una universidad o una entidad formativa?{' '}
-          <a href="mailto:hola@govtalent.app?subject=Informaci%C3%B3n%20sobre%20GovTalent%20Campus" style={{ color: '#6d5aef' }}>
-            Consulta GovTalent Campus
-          </a>
-          .
-        </p>
       </div>
     </div>
   );
