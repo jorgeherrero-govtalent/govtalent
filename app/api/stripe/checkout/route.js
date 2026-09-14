@@ -218,6 +218,10 @@ export async function POST(request) {
     tax_id_collection: { enabled: true },
     billing_address_collection: 'required',
     customer_update: { address: 'auto', name: 'auto' },
+    // Casilla obligatoria de aceptación de las condiciones de contratación.
+    // La URL se configura en el Dashboard, en Ajustes -> Datos públicos: si
+    // falta allí, Stripe rechaza la creación de la sesión.
+    consent_collection: { terms_of_service: 'required' },
     client_reference_id: clientReferenceId,
     metadata,
     // Los mismos metadatos en la suscripción: son los que lee el webhook en
