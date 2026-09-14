@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { toast } from '@/lib/toast';
 import { esPlanTeams } from '@/lib/plan';
-import BloquePlanOrganizacion from '@/components/BloquePlanOrganizacion';
+import BloqueEquipo from '@/components/BloqueEquipo';
 import SelectorFecha from '@/components/SelectorFecha';
 
 /**
@@ -159,7 +159,7 @@ export default function ConfiguracionOrganizacion() {
         Los datos de tu organización, quién puede gestionarla y si aparece en GovTalent.
       </p>
 
-      <BloquePlanOrganizacion org={org} esAdmin={esAdmin} />
+      <BloqueEquipo org={org} />
 
       {/* Los datos legales van primero: son los que hacen falta para que
           un acta identifique a la organización, y sin ellos el resto de
