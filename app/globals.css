@@ -91,7 +91,13 @@ a{color:inherit}
 
 /* ── APP SHELL ── */
 .nav{background:#fff;border-bottom:1px solid #e5e4de;position:sticky;top:0;z-index:200;height:64px}
-.nav-inner{max-width:1200px;margin:0 auto;height:100%;padding:0 24px;display:flex;align-items:center;gap:4px;overflow-x:auto}
+/* Sin overflow aquí: un ancestro con overflow distinto de visible recorta
+   a sus hijos posicionados, y eso cortaba el desplegable del buscador
+   justo en el borde inferior de la barra. El desplazamiento horizontal
+   solo hace falta en pantallas estrechas, donde el buscador ya es la
+   lupa y no cuelga de este contenedor: se activa en la media query de
+   720px. */
+.nav-inner{max-width:1200px;margin:0 auto;height:100%;padding:0 24px;display:flex;align-items:center;gap:4px}
 .nav-logo{display:flex;align-items:center;margin-right:14px;cursor:pointer;flex-shrink:0;text-decoration:none;line-height:0}
 /* Pastilla, no pestaña. El icono va en línea con la etiqueta y no
    encima: apilado ocupa 46px de alto y no cabe junto al buscador.
@@ -358,6 +364,9 @@ a{color:inherit}
 @keyframes spin{to{transform:rotate(360deg)}}
 
 @media (max-width: 720px){
+  /* Aquí sí: el logo, las pestañas, la campana y el avatar no se encogen,
+     así que sin esto la barra desborda la pantalla. */
+  .nav-inner{overflow-x:auto}
   .split{flex-direction:column}
   .sl-right{width:100%}
   .two,.form-row{grid-template-columns:1fr}
