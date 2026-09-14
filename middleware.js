@@ -2,6 +2,14 @@ import { createServerClient } from '@supabase/ssr';
 import { NextResponse } from 'next/server';
 
 export async function middleware(request) {
+  // El webhook de Stripe entra sin cookies de sesión: se autentica con la
+  // firma criptográfica que se verifica dentro de la propia ruta. Si pasa por
+  // la comprobación de sesión de abajo, el middleware lo redirige a /login con
+  // un 307 y la ruta nunca llega a ejecutarse. Salimos antes de tocar nada.
+  if (request.nextUrl.pathname.startsWith('/api/stripe/webhook')) {
+    return NextResponse.next();
+  }
+
   let response = NextResponse.next({ request });
 
   const supabase = createServerClient(
