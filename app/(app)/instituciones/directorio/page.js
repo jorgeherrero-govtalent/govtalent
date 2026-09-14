@@ -598,10 +598,14 @@ export default function DirectorioInstitucionalPage() {
           <DirectorioDemo />
         </div>
 
+        {/* El directorio es una función de Teams, no de Pro, y por eso el
+            enlace de "Ver planes" va a la pestaña de organizaciones: la
+            página de precios abre por defecto en la de profesionales. */}
         {modalUpsell && (
           <UpgradeModal
-            title="El directorio institucional es una función Pro"
+            title="El directorio institucional es una función Teams"
             message="Casi doce mil cargos de la Administración General del Estado, el Congreso, la Comisión Europea y el Parlamento Europeo, con su correo, su unidad y su dirección postal. Filtra por institución o área y expórtalo a Excel cuando lo necesites."
+            href="/precios?para=organizaciones"
             onClose={() => setModalUpsell(false)}
           />
         )}
