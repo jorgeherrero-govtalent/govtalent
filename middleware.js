@@ -1,6 +1,11 @@
 import { createServerClient } from '@supabase/ssr';
 import { NextResponse } from 'next/server';
 
+// Páginas legales: accesibles sin sesión y desde la propia pantalla de login.
+// Deben poder consultarse antes de registrarse y antes de aceptar las
+// condiciones en el proceso de contratación.
+const PUBLIC_LEGAL_PATHS = ['/legal', '/privacidad', '/cookies', '/condiciones'];
+
 export async function middleware(request) {
   // El webhook de Stripe entra sin cookies de sesión: se autentica con la
   // firma criptográfica que se verifica dentro de la propia ruta. Si pasa por
@@ -46,6 +51,7 @@ export async function middleware(request) {
     !path.startsWith('/organizations/new');
   const isPublicUnsubscribe = path.startsWith('/api/alerts/unsubscribe');
   const isPublicPricing = path === '/precios';
+  const isPublicLegal = PUBLIC_LEGAL_PATHS.includes(path);
   // Rutas de sincronización que llama Vercel Cron directamente (sin sesión
   // de usuario) — se autentican con su propio secreto dentro de la propia
   // ruta, no con el login normal de la app.
@@ -58,6 +64,7 @@ export async function middleware(request) {
     !isPublicOrgPage &&
     !isPublicUnsubscribe &&
     !isPublicPricing &&
+    !isPublicLegal &&
     !isInternalSync
   ) {
     const url = request.nextUrl.clone();
