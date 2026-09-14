@@ -68,29 +68,51 @@ function Etiqueta({ children }) {
 function Plan({ nombre, precio, periodo, resumen, etiqueta, destacado, distintivo, children, cta, href }) {
   return (
     <div
+      className="bento"
       style={{
-        background: '#fff',
-        borderRadius: 14,
-        padding: 22,
+        // El destacado sube sobre el resto: fondo más cálido, sin borde,
+        // sombra propia y un halo morado arriba. Antes solo se
+        // diferenciaba por un filete verde, que a un metro no se ve.
+        background: destacado ? 'linear-gradient(180deg,#fbfaff 0%,#fff 42%)' : '#fff',
+        borderRadius: 16,
+        padding: destacado ? '26px 22px 22px' : 22,
         position: 'relative',
-        border: destacado ? '1.5px solid #1d6f5c' : '.5px solid #e6e4dd',
+        overflow: 'hidden',
+        border: destacado ? 'none' : '.5px solid #e6e4dd',
+        boxShadow: destacado
+          ? '0 12px 34px rgba(109,90,239,.18), 0 0 0 1.5px #6d5aef'
+          : '0 1px 2px rgba(0,0,0,.04)',
         display: 'flex',
         flexDirection: 'column',
+        zIndex: destacado ? 1 : 0,
       }}
     >
+      {destacado && (
+        <span
+          aria-hidden="true"
+          style={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            right: 0,
+            height: 3,
+            background: 'linear-gradient(90deg,#6d5aef,#8f7ff5,#1d6f5c)',
+          }}
+        ></span>
+      )}
       {distintivo && (
         <span
           style={{
             position: 'absolute',
-            top: 22,
+            top: destacado ? 26 : 22,
             right: 22,
             fontSize: 9.5,
             fontWeight: 700,
             letterSpacing: '.3px',
             padding: '3px 9px',
             borderRadius: 11,
-            background: '#e8f4f0',
-            color: '#1d6f5c',
+            background: destacado ? '#6d5aef' : '#e8f4f0',
+            color: destacado ? '#fff' : '#1d6f5c',
           }}
         >
           {distintivo}
@@ -106,6 +128,7 @@ function Plan({ nombre, precio, periodo, resumen, etiqueta, destacado, distintiv
       <div style={{ flex: 1 }}>{children}</div>
       <Link
         href={href}
+        className="btn-mov"
         style={{
           display: 'block',
           marginTop: 18,
@@ -142,9 +165,10 @@ function BannerFundadores({ titulo, detalle, ocupadas, plazas, icono, asunto }) 
 
   return (
     <div
+      className="bento"
       style={{
         background: 'linear-gradient(100deg, #6d5aef 0%, #2f2266 100%)',
-        borderRadius: 14,
+        borderRadius: 16,
         padding: '18px 22px',
         marginBottom: 20,
         display: 'flex',
@@ -188,6 +212,7 @@ function BannerFundadores({ titulo, detalle, ocupadas, plazas, icono, asunto }) 
       </div>
       <a
         href={`mailto:hola@govtalent.app?subject=${encodeURIComponent(asunto)}`}
+        className="btn-mov"
         style={{
           textDecoration: 'none',
           background: '#fff',
@@ -306,6 +331,7 @@ export default async function PricingPage({ searchParams }) {
                 <Check>Seguimiento normativo y alertas regulatorias</Check>
                 <Check>Agenda y notas compartidas</Check>
                 <Check>Registro de actividad y automatización de actas</Check>
+                <Check>Base de datos completa y exportable para AGE y UE</Check>
                 <Check>Dashboard de organización</Check>
                 <Check>Roles diferenciados</Check>
                 <Check>Onboarding personalizado</Check>
