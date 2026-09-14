@@ -36,7 +36,7 @@ const SIRVIENDO = new Set(['active', 'trialing', 'past_due']);
 // diferencia entre mirar y vigilar es lo que se está vendiendo aquí.
 const BENEFICIOS_PRO = [
   ['Busca', ' en el directorio con filtros y ficha ampliada'],
-  ['Sigue', ' proyectos y actores, con alertas cuando se mueven'],
+  ['Sigue', ' proyectos y actores, con alertas ante cada actualización'],
   [null, 'Proyectos con diagrama y agenda'],
   [null, 'Registro de actividad y actas automáticas'],
 ];
