@@ -435,6 +435,18 @@ export default async function PricingPage({ searchParams }) {
         )}
 
         <p style={{ fontSize: 12, color: '#a8a49c', textAlign: 'center', marginTop: 26, lineHeight: 1.6 }}>
+          Al contratar cualquier plan aceptas las{' '}
+          <a href="/condiciones" style={{ color: '#77746e', textDecoration: 'underline' }}>
+            condiciones de contratación
+          </a>{' '}
+          y la{' '}
+          <a href="/privacidad" style={{ color: '#77746e', textDecoration: 'underline' }}>
+            política de privacidad
+          </a>
+          .
+        </p>
+
+        <p style={{ fontSize: 12, color: '#a8a49c', textAlign: 'center', marginTop: 10, lineHeight: 1.6 }}>
           ¿Eres una universidad o una entidad formativa?{' '}
           <a href="mailto:hola@govtalent.app?subject=Informaci%C3%B3n%20sobre%20GovTalent%20Campus" style={{ color: '#6d5aef' }}>
             Consulta GovTalent Campus
