@@ -5,6 +5,8 @@ import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
 import { frasePlazo } from '@/lib/plazos';
 import FollowButton from '@/components/FollowButton';
+import TarjetaProyectos from '@/components/TarjetaProyectos';
+import TarjetaNombramientos from '@/components/TarjetaNombramientos';
 
 /**
  * Home.
@@ -69,25 +71,7 @@ function etiquetaPlazo(iso, dias) {
   return fechaCorta(iso) || `${dias} días`;
 }
 
-/**
- * Qué contador enseñar en una oferta.
- *
- * Las candidaturas dicen cuánta competencia hay, que es más útil que las
- * visitas. Pero solo cuando hay varias: "1 candidatura" no informa. Y las
- * visitas solo a partir de diez: hay ofertas con 2 y otras con 77, y
- * enseñar el 2 resta.
- */
-function interes(v) {
-  const cand = v.application_count || 0;
-  const vistas = v.views_count || 0;
-  if (cand >= 3) return `${cand} candidaturas`;
-  if (vistas >= 10) return `${vistas} personas la han visto`;
-  return null;
-}
-
 const BENTO = { background: '#fff', borderRadius: 16, boxShadow: '0 1px 2px rgba(0,0,0,.04)' };
-const CABECERA = { fontSize: 13.5, fontWeight: 600, letterSpacing: '-.1px' };
-const ENLACE = { fontSize: 12, color: '#8b8780', textDecoration: 'none' };
 const BANDERA = { position: 'absolute', top: 16, right: 16, display: 'block' };
 
 const ESTRELLAS = [
@@ -548,8 +532,6 @@ export default function Home() {
     return plazos[0] ? { ...plazos[0], motivo: null, temas: null, origen: 'general', sigues: false } : null;
   }, [misAsuntos, plazos]);
 
-  const vacantes = resumen?.vacantes_recomendadas || [];
-
   return (
     <div style={{ maxWidth: 900, margin: '0 auto', padding: '26px 20px 60px' }}>
       <div style={{ marginBottom: 18 }}>
@@ -563,56 +545,6 @@ export default function Home() {
             : ''}
         </p>
       </div>
-
-      {/* Sin análisis de sector no hay mosaico que valga: la tarjeta negra
-          vive de ahí. Se pide como acción principal, y también cuando lo
-          que se ve viene solo de los temas del onboarding, que es una
-          aproximación por palabras y no el análisis de verdad. */}
-      {cargado && (sector.length === 0 || desdeTemas) && (
-        <div style={{ ...BENTO, padding: 20, marginBottom: 14 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap' }}>
-            <span
-              style={{
-                width: 34,
-                height: 34,
-                borderRadius: 9,
-                background: '#f0eefe',
-                color: '#6d5aef',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                flexShrink: 0,
-              }}
-            >
-              <i className="ti ti-sparkles" style={{ fontSize: 16 }}></i>
-            </span>
-            <div style={{ flex: 1, minWidth: 180 }}>
-              <div style={{ fontSize: 13.5, fontWeight: 600, letterSpacing: '-.1px' }}>
-                ¿Y a tu organización qué le afecta?
-              </div>
-              <div style={{ fontSize: 12, color: '#8b8780', marginTop: 3, lineHeight: 1.5 }}>
-                Analizamos los proyectos normativos abiertos y te decimos qué te afecta, con el motivo, sus plazos y actores principales.
-              </div>
-            </div>
-            <Link
-              href="/regulatorio/sector"
-              style={{
-                background: '#6d5aef',
-                color: '#fff',
-                borderRadius: 8,
-                padding: '9px 16px',
-                fontSize: 12.5,
-                fontWeight: 600,
-                textDecoration: 'none',
-                whiteSpace: 'nowrap',
-                flexShrink: 0,
-              }}
-            >
-              Analizar mi sector
-            </Link>
-          </div>
-        </div>
-      )}
 
       {/* Fila 1: lo que cierra antes, grande. Al lado, lo deducido y el
           reparto de actividad. */}
@@ -701,11 +633,52 @@ export default function Home() {
         </div>
 
         <div style={{ display: 'grid', gridTemplateRows: 'auto 1fr', gap: 14 }}>
+          {/* La tarjeta negra es ahora la entrada al análisis. Antes había
+              encima un banner que pedía lo mismo, y dos llamadas a la misma
+              acción en la misma pantalla se estorban. */}
           <div className="bento" style={{ background: '#15140f', borderRadius: 16, padding: '20px 22px' }}>
             <div style={{ fontSize: 11.5, color: '#8f7ff5', letterSpacing: '.3px', marginBottom: 10 }}>
               QUÉ IMPACTA EN TU SECTOR
             </div>
-            <div style={{ fontSize: 14, color: '#fff', lineHeight: 1.5 }}>{lectura}</div>
+            {cargado && (sector.length === 0 || desdeTemas) ? (
+              <>
+                <div style={{ fontSize: 13.5, color: '#fff', lineHeight: 1.5, marginBottom: 13 }}>
+                  Dinos a qué se dedica tu organización y revisamos todas las fuentes para
+                  monitorizar qué te afecta.
+                </div>
+                <Link
+                  href="/regulatorio/sector"
+                  style={{
+                    display: 'inline-block',
+                    background: '#6d5aef',
+                    color: '#fff',
+                    borderRadius: 8,
+                    padding: '9px 16px',
+                    fontSize: 12.5,
+                    fontWeight: 600,
+                    textDecoration: 'none',
+                  }}
+                >
+                  Analizar mi sector
+                </Link>
+              </>
+            ) : (
+              <>
+                <div style={{ fontSize: 14, color: '#fff', lineHeight: 1.5 }}>{lectura}</div>
+                <Link
+                  href="/regulatorio/sector"
+                  style={{
+                    display: 'inline-block',
+                    marginTop: 11,
+                    fontSize: 12.5,
+                    color: '#8f7ff5',
+                    textDecoration: 'none',
+                  }}
+                >
+                  Ver el análisis →
+                </Link>
+              </>
+            )}
           </div>
           {actividad ? (
             <AnilloActividad datos={actividad} />
@@ -725,112 +698,14 @@ export default function Home() {
         <TarjetaCifra valor={cifras.boe} rotulo="BOE hoy" bandera="es" href="/boe" />
       </div>
 
-      {/* Fila 3: lo que hay que hacer y lo que puede interesar. */}
-      <div className="bento-fila" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
-        <div className="bento" style={{ ...BENTO, padding: '20px 24px' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 12, gap: 10 }}>
-            <div style={CABECERA}>Plazos más próximos</div>
-            <Link href="/regulatorio" style={ENLACE}>
-              Ver todos
-            </Link>
-          </div>
-          {plazos.length === 0 ? (
-            <div style={{ fontSize: 12.5, color: '#8b8780', lineHeight: 1.6 }}>
-              {cargado ? 'Ninguno abierto ahora mismo.' : 'Cargando…'}
-            </div>
-          ) : (
-            plazos.slice(0, 3).map((p, i) => (
-              <Link
-                key={p.id}
-                href={p.ruta}
-                style={{
-                  display: 'flex',
-                  gap: 12,
-                  alignItems: 'baseline',
-                  padding: i === 0 ? '0 0 11px' : '11px 0',
-                  borderTop: i === 0 ? 'none' : '.5px solid #f2f0ec',
-                  textDecoration: 'none',
-                  color: 'inherit',
-                }}
-              >
-                <span style={{ fontSize: 11.5, color: p.dias <= 1 ? '#6d5aef' : '#8b8780', width: 64, flexShrink: 0 }}>
-                  {etiquetaPlazo(p.fecha, p.dias)}
-                </span>
-                <span
-                  title={p.title}
-                  style={{
-                    fontSize: 13,
-                    lineHeight: 1.45,
-                    display: '-webkit-box',
-                    WebkitLineClamp: 2,
-                    WebkitBoxOrient: 'vertical',
-                    overflow: 'hidden',
-                  }}
-                >
-                  {p.title}
-                </span>
-              </Link>
-            ))
-          )}
-        </div>
-
-        <div className="bento" style={{ ...BENTO, padding: '20px 24px' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 12, gap: 10 }}>
-            <div style={CABECERA}>Oportunidades para ti</div>
-            <Link href="/jobs" style={ENLACE}>
-              Ver empleos
-            </Link>
-          </div>
-          {vacantes.length === 0 ? (
-            <div style={{ fontSize: 12.5, color: '#8b8780', lineHeight: 1.6 }}>
-              Todavía no hay ofertas que encajen con tu perfil.
-            </div>
-          ) : (
-            vacantes.slice(0, 3).map((v, i) => (
-              <Link
-                key={v.id}
-                href={`/jobs?job=${v.id}`}
-                style={{
-                  display: 'flex',
-                  gap: 11,
-                  alignItems: 'center',
-                  padding: i === 0 ? '0 0 11px' : '11px 0',
-                  borderTop: i === 0 ? 'none' : '.5px solid #f2f0ec',
-                  textDecoration: 'none',
-                  color: 'inherit',
-                }}
-              >
-                <span
-                  style={{
-                    width: 32,
-                    height: 32,
-                    borderRadius: 7,
-                    background: '#f5f4f1',
-                    flexShrink: 0,
-                    overflow: 'hidden',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                  }}
-                >
-                  {v.organization_logo ? (
-                    <img src={v.organization_logo} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                  ) : (
-                    <i className="ti ti-building" style={{ fontSize: 14, color: '#a8a49c' }}></i>
-                  )}
-                </span>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontSize: 13, lineHeight: 1.4 }}>{v.title}</div>
-                  <div style={{ fontSize: 11.5, color: '#8b8780', marginTop: 2 }}>
-                    {[v.organization_name, v.location].filter(Boolean).join(' · ')}
-                    {interes(v) && <span> · {interes(v)}</span>}
-                  </div>
-                </div>
-              </Link>
-            ))
-          )}
-        </div>
+      {/* Fila 3: en qué estás trabajando y quién ha cambiado de silla.
+          Antes eran los plazos —que ya salen arriba, en la tarjeta grande y
+          en el subtítulo— y las ofertas de empleo, que tienen su pestaña. */}
+      <div className="bento-fila" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, alignItems: 'stretch' }}>
+        <TarjetaProyectos />
+        <TarjetaNombramientos />
       </div>
+
     </div>
   );
 }
