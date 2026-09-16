@@ -5,8 +5,7 @@ import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
 import { frasePlazo } from '@/lib/plazos';
 import FollowButton from '@/components/FollowButton';
-import TarjetaProyectos from '@/components/TarjetaProyectos';
-import TarjetaNombramientos from '@/components/TarjetaNombramientos';
+import FilaInferior from '@/components/FilaInferior';
 
 /**
  * Home.
@@ -681,7 +680,9 @@ export default function Home() {
             )}
           </div>
           {actividad ? (
-            <AnilloActividad datos={actividad} />
+            <Link href="/regulatorio" style={{ textDecoration: 'none', color: 'inherit', display: 'block' }}>
+              <AnilloActividad datos={actividad} />
+            </Link>
           ) : (
             <div className="bento" style={{ ...BENTO, padding: '18px 22px' }}>
               <div style={{ fontSize: 12.5, color: '#8b8780' }}>Actividad normativa en curso</div>
@@ -698,13 +699,12 @@ export default function Home() {
         <TarjetaCifra valor={cifras.boe} rotulo="BOE hoy" bandera="es" href="/boe" />
       </div>
 
-      {/* Fila 3: en qué estás trabajando y quién ha cambiado de silla.
-          Antes eran los plazos —que ya salen arriba, en la tarjeta grande y
-          en el subtítulo— y las ofertas de empleo, que tienen su pestaña. */}
-      <div className="bento-fila" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, alignItems: 'stretch' }}>
-        <TarjetaProyectos />
-        <TarjetaNombramientos />
-      </div>
+      {/* Fila 3: en qué estás trabajando. Cambia de forma según el plan, y
+          es a propósito: en Free hay al lado una muestra del directorio,
+          porque quien no paga necesita descubrir el producto; con Pro los
+          proyectos ocupan el ancho entero. Antes eran los plazos —que ya
+          salen arriba— y las ofertas de empleo, que tienen su pestaña. */}
+      <FilaInferior />
 
     </div>
   );
