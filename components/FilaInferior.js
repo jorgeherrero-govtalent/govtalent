@@ -25,28 +25,19 @@ const MORADO = '#6d5aef';
 const BENTO = { background: '#fff', borderRadius: 16, boxShadow: '0 1px 2px rgba(0,0,0,.04)' };
 const SIRVIENDO = new Set(['active', 'trialing', 'past_due']);
 
-const PROYECTOS_EJEMPLO = [
-  {
-    id: 'ej-1',
-    nombre: 'Ley de gobernanza de la IA',
-    objetivo: 'Que el marco de cumplimiento no recaiga sobre el desplegador.',
-    iniciales: ['MG', 'JR', 'CD'],
-    resto: 6,
-    actores: 9,
-    asuntos: 1,
-    novedades: 4,
-  },
-  {
-    id: 'ej-2',
-    nombre: 'Movilidad sostenible',
-    objetivo: 'Seguimiento de la trasposición y de las ayudas asociadas.',
-    iniciales: ['SH', 'RB'],
-    resto: 4,
-    actores: 6,
-    asuntos: 2,
-    novedades: 3,
-  },
-];
+// Un solo ejemplo: la tarjeta del directorio de al lado tiene tres fichas,
+// y con dos proyectos completos esta columna se pasaba de largo. Uno bien
+// enseñado explica lo mismo que dos a medias.
+const PROYECTO_EJEMPLO = {
+  id: 'ej-1',
+  nombre: 'Ley de gobernanza de la IA',
+  objetivo: 'Que el marco de cumplimiento no recaiga sobre el desplegador.',
+  iniciales: ['MG', 'JR', 'CD'],
+  resto: 6,
+  actores: 9,
+  asuntos: 1,
+  novedades: 4,
+};
 
 // Fichas de muestra del directorio. Del correo solo se escribe el dominio:
 // la parte local nunca llega al navegador.
@@ -318,12 +309,10 @@ export default function FilaInferior() {
         <div className="bento" style={{ ...BENTO, padding: '20px 24px', display: 'flex', flexDirection: 'column' }}>
           <Cabecera />
           <div style={{ fontSize: 11.5, color: '#8b8780', marginBottom: 13 }}>
-            Tu espacio de trabajo para asuntos públicos. Algunos ejemplos:
+            Tu espacio de trabajo para asuntos públicos. Un ejemplo:
           </div>
-          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 10 }}>
-            {PROYECTOS_EJEMPLO.map((p) => (
-              <TarjetaProyecto key={p.id} p={p} />
-            ))}
+          <div style={{ flex: 1 }}>
+            <TarjetaProyecto p={PROYECTO_EJEMPLO} />
           </div>
           <div style={{ borderTop: '.5px solid #f2f0ec', marginTop: 13, paddingTop: 13 }}>
             <Boton href="/projects">Ver proyectos</Boton>
