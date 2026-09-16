@@ -1,435 +1,711 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
+import { frasePlazo } from '@/lib/plazos';
+import FollowButton from '@/components/FollowButton';
+import FilaInferior from '@/components/FilaInferior';
 
 /**
- * La última fila de la home.
+ * Home.
  *
- * CAMBIA DE FORMA SEGÚN EL PLAN, y es a propósito: quien está en Free
- * necesita descubrir el producto, y quien paga necesita trabajar. Con Free
- * hay dos columnas, proyectos de ejemplo y una muestra del directorio.
- * Con Pro, proyectos ocupa el ancho entero y no hay nada al lado: el
- * directorio ya lo tiene en el menú.
+ * Antes era una lista de listas: cuatro pestañas, cuatro barras y tres
+ * ofertas, todo del mismo tamaño. Cuando todo pesa igual, el ojo no sabe
+ * dónde ir y la página acaba sin decir nada.
  *
- * EL PLAN SE CARGA UNA VEZ AQUÍ y no en cada tarjeta, para no repetir la
- * misma consulta dos veces en la misma fila.
+ * Ahora es un mosaico donde el tamaño es el mensaje: lo que cierra antes
+ * ocupa la tarjeta grande, lo que la plataforma ha deducido va en negro,
+ * y el resto acompaña en piezas pequeñas.
  *
- * LOS CORREOS VIAJAN YA ENMASCARADOS. Difuminar con CSS no protege nada:
- * el texto sigue en el HTML y se lee con las herramientas del navegador.
- * De la dirección real solo sale el dominio.
+ * Todas las cifras salen de consultas reales. Cuando una no se puede
+ * calcular se queda en null y la tarjeta enseña un guion: poner un cero
+ * sería afirmar que no hay nada, y no es lo mismo que no saberlo.
  */
 
-const MORADO = '#6d5aef';
+const MESES = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
+const DIAS = ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado'];
+const MESES_LARGOS = [
+  'enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio',
+  'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre',
+];
+
+function hoyISO() {
+  return new Date().toISOString().slice(0, 10);
+}
+
+/** Identidad de un asunto: el par kind + ref_id, que es como lo nombran las tres vistas. */
+function clave(kind, refId) {
+  return `${kind}:${refId}`;
+}
+
+function diasHasta(iso) {
+  if (!iso) return null;
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return null;
+  return Math.ceil((d.getTime() - Date.now()) / 86400000);
+}
+
+function fechaLarga() {
+  const d = new Date();
+  return `${DIAS[d.getDay()]} ${d.getDate()} de ${MESES_LARGOS[d.getMonth()]}`;
+}
+
+function fechaCorta(iso) {
+  if (!iso) return '';
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return '';
+  return `${d.getDate()} ${MESES[d.getMonth()]}`;
+}
+
+/**
+ * Cómo se nombra un plazo en la columna de la izquierda.
+ *
+ * "Hoy" y "mañana" antes que la fecha: son las dos únicas etiquetas que
+ * se leen sin tener que calcular nada.
+ */
+function etiquetaPlazo(iso, dias) {
+  if (dias === 0) return 'Hoy';
+  if (dias === 1) return 'Mañana';
+  return fechaCorta(iso) || `${dias} días`;
+}
+
 const BENTO = { background: '#fff', borderRadius: 16, boxShadow: '0 1px 2px rgba(0,0,0,.04)' };
-const SIRVIENDO = new Set(['active', 'trialing', 'past_due']);
+const BANDERA = { position: 'absolute', top: 16, right: 16, display: 'block' };
 
-// Un solo ejemplo: la tarjeta del directorio de al lado tiene tres fichas,
-// y con dos proyectos completos esta columna se pasaba de largo. Uno bien
-// enseñado explica lo mismo que dos a medias.
-const PROYECTO_EJEMPLO = {
-  id: 'ej-1',
-  nombre: 'Ley de gobernanza de la IA',
-  objetivo: 'Que el marco de cumplimiento no recaiga sobre el desplegador.',
-  iniciales: ['MG', 'JR', 'CD'],
-  resto: 6,
-  actores: 9,
-  asuntos: 1,
-  novedades: 4,
-};
-
-// Fichas de muestra del directorio. Del correo solo se escribe el dominio:
-// la parte local nunca llega al navegador.
-const CARGOS_MUESTRA = [
-  { id: 'c1', nombre: 'Leire Iglesias Santiago', puesto: 'Secretaria de Estado · Vivienda', dominio: 'vivienda.gob.es' },
-  { id: 'c2', nombre: 'Esteban González Pons', puesto: 'Eurodiputado · Grupo PPE', dominio: 'europarl.europa.eu' },
-  { id: 'c3', nombre: 'Sara Hernández del Olmo', puesto: 'Secretaria General · Transportes', dominio: 'transportes.gob.es' },
+const ESTRELLAS = [
+  [9, 3], [10.5, 3.4], [11.6, 4.5], [12, 6], [11.6, 7.5], [10.5, 8.6],
+  [9, 9], [7.5, 8.6], [6.4, 7.5], [6, 6], [6.4, 4.5], [7.5, 3.4],
 ];
 
-function iniciales(nombre) {
-  const p = (nombre || '').trim().split(/\s+/);
-  return ((p[0]?.[0] || '') + (p[1]?.[0] || '')).toUpperCase();
-}
-
-const TONOS = [
-  { fondo: '#e8f4f0', texto: '#0f6e56' },
-  { fondo: '#f0eefe', texto: '#3c3489' },
-  { fondo: '#faeeda', texto: '#854f0b' },
-];
-
-function Caras({ caras, iniciales: ini, resto }) {
-  const lista = ini || caras || [];
-  if (!lista.length) return null;
+/** Banderas a 11 px: marca de origen del dato, no contenido. */
+function Bandera({ pais }) {
+  if (pais === 'ue') {
+    return (
+      <svg viewBox="0 0 18 12" width="11" height="7.3" role="img" aria-label="Unión Europea" style={BANDERA}>
+        <rect width="18" height="12" rx="2" fill="#003399" />
+        <g fill="#FFCC00">
+          {ESTRELLAS.map(([cx, cy], i) => (
+            <circle key={i} cx={cx} cy={cy} r="0.5" />
+          ))}
+        </g>
+      </svg>
+    );
+  }
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 11 }}>
-      <span style={{ display: 'flex' }}>
-        {lista.slice(0, 3).map((c, i) => {
-          const tono = TONOS[i % TONOS.length];
-          const esTexto = typeof c === 'string';
-          return (
-            <span
-              key={i}
-              style={{
-                width: 22,
-                height: 22,
-                borderRadius: '50%',
-                background: tono.fondo,
-                color: tono.texto,
-                border: '1.5px solid #fff',
-                marginLeft: i === 0 ? 0 : -7,
-                overflow: 'hidden',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                fontSize: 9,
-                fontWeight: 600,
-                flexShrink: 0,
-              }}
-            >
-              {esTexto ? c : c?.imagen ? (
-                <img src={c.imagen} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-              ) : (
-                iniciales(c?.nombre)
-              )}
-            </span>
-          );
-        })}
-      </span>
-      {resto > 0 && <span style={{ fontSize: 11, color: '#a8a49c' }}>y {resto} más</span>}
-    </div>
+    <svg viewBox="0 0 18 12" width="11" height="7.3" role="img" aria-label="España" style={BANDERA}>
+      <rect width="18" height="12" rx="2" fill="#C60B1E" />
+      <rect y="3" width="18" height="6" fill="#FFC400" />
+    </svg>
   );
 }
 
-function Cifra({ valor, rotulo, morado }) {
-  return (
-    <div>
-      <div style={{ fontSize: 16, fontWeight: 600, lineHeight: 1.1, color: morado ? MORADO : '#1a1a18' }}>
-        {valor}
-      </div>
-      <div style={{ fontSize: 10.5, color: '#8b8780' }}>{rotulo}</div>
-    </div>
-  );
-}
-
-function TarjetaProyecto({ p, href }) {
-  const cuerpo = (
-    <>
-      <div style={{ fontSize: 13, color: '#1a1a18', fontWeight: 600, lineHeight: 1.35, marginBottom: p.objetivo ? 3 : 9 }}>
-        {p.nombre}
-      </div>
-      {p.objetivo && (
-        <div style={{ fontSize: 11.5, color: '#8b8780', lineHeight: 1.5, marginBottom: 11 }}>{p.objetivo}</div>
-      )}
-      <Caras caras={p.caras} iniciales={p.iniciales} resto={p.resto} />
-      <div style={{ borderTop: '.5px solid #f2f0ec', paddingTop: 10, display: 'flex', gap: 18 }}>
-        <Cifra valor={p.actores} rotulo={p.actores === 1 ? 'actor' : 'actores'} morado />
-        <Cifra valor={p.asuntos} rotulo={p.asuntos === 1 ? 'asunto' : 'asuntos'} />
-        <Cifra valor={p.novedades} rotulo={p.novedades === 1 ? 'novedad' : 'novedades'} />
-      </div>
-    </>
-  );
-
-  const estilo = {
-    border: '.5px solid #e6e4dd',
-    borderRadius: 11,
-    padding: 14,
-    display: 'block',
-    textDecoration: 'none',
-    color: 'inherit',
-  };
-
-  if (!href) return <div style={estilo}>{cuerpo}</div>;
-  return (
-    <Link href={href} style={estilo}>
-      {cuerpo}
-    </Link>
-  );
-}
-
-function NuevoProyecto() {
-  return (
-    <Link
-      href="/projects"
-      style={{
-        border: '.5px dashed #d6d2ca',
-        borderRadius: 11,
-        padding: 14,
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        gap: 7,
-        color: '#8b8780',
-        fontSize: 12.5,
-        textDecoration: 'none',
-      }}
-    >
-      <i className="ti ti-plus" style={{ fontSize: 14 }} aria-hidden="true"></i>
-      Nuevo proyecto
-    </Link>
-  );
-}
-
-function Boton({ href, children }) {
+/** Una cifra, su rótulo y la bandera de quién la produce. */
+function TarjetaCifra({ valor, rotulo, bandera, href }) {
   return (
     <Link
       href={href}
+      className="bento"
       style={{
-        display: 'inline-block',
-        background: MORADO,
-        color: '#fff',
-        borderRadius: 8,
-        padding: '9px 16px',
-        fontSize: 12.5,
-        fontWeight: 600,
+        ...BENTO,
+        padding: '18px 20px',
+        position: 'relative',
+        display: 'block',
         textDecoration: 'none',
-        whiteSpace: 'nowrap',
+        color: 'inherit',
       }}
     >
-      {children}
+      <Bandera pais={bandera} />
+      <div style={{ fontSize: 26, fontWeight: 600, lineHeight: 1, letterSpacing: '-.5px' }}>
+        {valor === null || valor === undefined ? '—' : valor}
+      </div>
+      <div style={{ fontSize: 11.5, color: '#8b8780', paddingTop: 6, lineHeight: 1.4 }}>{rotulo}</div>
     </Link>
   );
 }
 
-function Cabecera({ verTodos }) {
+/**
+ * Anillo de actividad por fuente.
+ *
+ * Cuatro tonos del morado y no cuatro colores distintos: todo esto es
+ * dato agregado por la plataforma, y un arcoíris haría pensar que cada
+ * segmento es de otra naturaleza.
+ *
+ * Los segmentos se dibujan sobre una circunferencia de longitud 100
+ * (r = 15.915), así que cada dasharray es directamente su porcentaje y
+ * no hay que calcular arcos.
+ */
+function AnilloActividad({ datos }) {
+  const TONOS = ['#6d5aef', '#8f7ff5', '#b3a8f7', '#d8d2fb'];
+  const total = datos.reduce((s, d) => s + (d.valor || 0), 0);
+
+  let acumulado = 0;
+  const segmentos = datos.map((d, i) => {
+    const pct = total > 0 ? ((d.valor || 0) / total) * 100 : 0;
+    const seg = { pct, offset: 25 - acumulado, tono: TONOS[i] };
+    acumulado += pct;
+    return seg;
+  });
+
   return (
-    <>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 10, marginBottom: 3 }}>
-        <span style={{ fontSize: 14, fontWeight: 600, color: '#1a1a18' }}>Proyectos</span>
-        {verTodos && (
-          <Link href="/projects" style={{ fontSize: 12, color: MORADO, textDecoration: 'none' }}>
-            Ver todos
-          </Link>
-        )}
+    <div className="bento" style={{ ...BENTO, padding: '18px 22px', display: 'flex', alignItems: 'center', gap: 18 }}>
+      <svg
+        viewBox="0 0 42 42"
+        width="92"
+        height="92"
+        role="img"
+        aria-label="Reparto por fuente de la norma en tramitación"
+        style={{ flexShrink: 0, display: 'block' }}
+      >
+        <circle cx="21" cy="21" r="15.915" fill="none" stroke="#f2f0ec" strokeWidth="5" />
+        {total > 0 &&
+          segmentos.map((s, i) => (
+            <circle
+              key={i}
+              cx="21"
+              cy="21"
+              r="15.915"
+              fill="none"
+              stroke={s.tono}
+              strokeWidth="5"
+              strokeDasharray={`${s.pct} ${100 - s.pct}`}
+              strokeDashoffset={s.offset}
+            />
+          ))}
+      </svg>
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ fontSize: 12.5, color: '#8b8780', marginBottom: 9, lineHeight: 1.4 }}>
+          Actividad normativa en curso
+          {total === 0 && <span style={{ color: '#a8a49c' }}> · sin datos</span>}
+        </div>
+        {/* Nombre entero y cifra, en una columna. Antes eran siglas en
+            dos columnas, y "CD" o "CE" no se entienden sin pasar el
+            raton por encima. Con ventana de un dia la cifra importa
+            tanto como el reparto: un anillo sin numeros no distingue
+            "tres expedientes" de "treinta". */}
+        <div style={{ display: 'grid', gap: 4 }}>
+          {datos.map((d, i) => (
+            <div
+              key={d.clave}
+              style={{ display: 'flex', alignItems: 'center', gap: 7, fontSize: 11.5 }}
+              title={d.titulo}
+            >
+              <span style={{ width: 7, height: 7, borderRadius: 2, background: TONOS[i], flexShrink: 0 }}></span>
+              <span style={{ color: '#5a5952', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                {d.clave}
+              </span>
+              <span style={{ marginLeft: 'auto', fontWeight: 600, color: '#1a1a18' }}>{d.valor}</span>
+            </div>
+          ))}
+        </div>
       </div>
-    </>
+    </div>
   );
 }
 
-export default function FilaInferior() {
+export default function Home() {
   const supabase = createClient();
-  const [esPro, setEsPro] = useState(null);
-  const [proyectos, setProyectos] = useState([]);
+
+  const [resumen, setResumen] = useState(null);
+  const [nombre, setNombre] = useState('');
+  const [plazos, setPlazos] = useState([]);
+  const [novedades, setNovedades] = useState([]);
+  const [sector, setSector] = useState([]);
+  const [temas, setTemas] = useState([]);
+  const [seguidos, setSeguidos] = useState([]);
+  const [desdeTemas, setDesdeTemas] = useState(false);
+  const [cifras, setCifras] = useState({ leyes: null, ue: null, consultas: null, boe: null });
+  const [actividad, setActividad] = useState(null);
+  const [cargado, setCargado] = useState(false);
 
   useEffect(() => {
-    let cancelado = false;
+    fetch('/api/radar/summary')
+      .then((r) => r.json())
+      .then((d) => {
+        setResumen(d);
+        setNombre(d?.perfil?.nombre || '');
+      })
+      .catch(() => setResumen({}));
 
     (async () => {
-      const { data: auth } = await supabase.auth.getUser();
-      const uid = auth?.user?.id;
-      if (!uid) {
-        if (!cancelado) setEsPro(false);
-        return;
-      }
+      const hoy = hoyISO();
 
-      // Pro propio o heredado del Teams de su organización: quien tiene
-      // Teams tiene la licencia Pro incluida.
-      const [{ data: perfil }, { data: pertenencias }] = await Promise.all([
-        supabase.from('users').select('plan, plan_status').eq('id', uid).single(),
-        supabase.from('organization_members').select('organizations(plan, plan_status)').eq('user_id', uid),
-      ]);
-
-      const tienePro =
-        (perfil?.plan === 'pro' && SIRVIENDO.has(perfil?.plan_status || 'active')) ||
-        (pertenencias || []).some(
-          (f) =>
-            f.organizations &&
-            f.organizations.plan === 'teams' &&
-            SIRVIENDO.has(f.organizations.plan_status || 'active')
-        );
-
-      if (cancelado) return;
-      setEsPro(tienePro);
-      if (!tienePro) return;
-
-      const { data: lista } = await supabase
-        .from('projects')
-        .select('id, name, objetivo, updated_at')
-        .eq('user_id', uid)
-        .eq('archived', false)
-        .order('updated_at', { ascending: false })
-        .limit(2);
-
-      const ids = (lista || []).map((p) => p.id);
-      if (!ids.length) {
-        if (!cancelado) setProyectos([]);
-        return;
-      }
-
-      // Agregadas: tres consultas para todos los proyectos, no tres por cada uno.
-      const [{ data: items }, { data: actores }, { data: eventos }] = await Promise.all([
-        supabase.from('project_items').select('project_id').in('project_id', ids),
+      const [
+        { data: es },
+        { data: eu },
+        { data: nov },
+        leyes,
+        procedimientos,
+        expedientes,
+        consultas,
+        boeHoy,
+        { data: sec },
+        { data: porTema },
+        { data: sigue },
+        { data: cons },
+      ] = await Promise.all([
+        // Plazos españoles: leyes con enmiendas abiertas.
         supabase
-          .from('project_actors')
-          .select('project_id, nombre, imagen')
-          .in('project_id', ids)
-          .order('created_at'),
-        supabase.from('project_events').select('project_id, estado').in('project_id', ids),
+          .from('es_initiatives_directory')
+          .select('num_expediente, slug, title, comision, plazo_enmiendas, dias_plazo')
+          .not('dias_plazo', 'is', null)
+          .eq('is_blocked', false)
+          .order('dias_plazo', { ascending: true })
+          // 40 y no 6: esta lista también sirve para emparejar el asunto
+          // del sector con su kind y su refId, y con seis apenas casaba.
+          .limit(40),
+        // Y europeos: consultas abiertas de la Comisión.
+        supabase
+          .from('eu_initiatives_directory')
+          .select('id, slug, title, act_type, feedback_end, dias_restantes')
+          .eq('is_open', true)
+          .not('dias_restantes', 'is', null)
+          .order('dias_restantes', { ascending: true })
+          .limit(40),
+        supabase
+          .from('my_follow_events')
+          .select('event_id, kind, title, detail, occurred_at, es_nueva')
+          .eq('es_nueva', true)
+          .order('occurred_at', { ascending: false })
+          .limit(4),
+
+        // --- Las cuatro cifras ---
+        supabase.from('es_initiatives').select('num_expediente', { count: 'exact', head: true }).eq('is_closed', false),
+        // "Actos jurídicos en la UE" suma las dos patas del proceso
+        // legislativo europeo: lo que tramita el Parlamento y lo que abre
+        // la Comisión. Por separado, ninguna de las dos dice gran cosa a
+        // quien mira desde fuera.
+        supabase.from('ep_procedures').select('process_id', { count: 'exact', head: true }).eq('is_closed', false),
+        supabase.from('eu_initiatives_directory').select('id', { count: 'exact', head: true }).eq('is_open', true),
+        // Consultas públicas españolas. Se cuenta sobre la vista y no
+        // sobre la tabla porque el estado se calcula allí a partir de
+        // fecha_fin: repetir ese cálculo aquí sería garantizar que algún
+        // día dejen de coincidir.
+        supabase.from('consultas_estado').select('*', { count: 'exact', head: true }).in('estado', ['abierta', 'urgente']),
+        supabase.from('boe_documents').select('id', { count: 'exact', head: true }).eq('fecha_publicacion', hoy),
+
+
+        // Las tres fuentes que deciden la tarjeta grande, en paralelo y
+        // no en cascada: hacen falta las tres a la vez para cruzarlas.
+        supabase
+          .from('sector_matches')
+          .select('*')
+          .order('relevancia', { ascending: false })
+          .order('plazo', { ascending: true, nullsFirst: false })
+          .limit(60),
+        supabase
+          .from('asuntos_de_mis_temas')
+          .select('*')
+          .order('plazo', { ascending: true, nullsFirst: false })
+          .limit(60),
+        // Solo asuntos: un diputado seguido no tiene plazo que vencer.
+        supabase.from('my_follows').select('kind, ref_id, label, ruta, fuente').eq('es_actor', false).eq('activo', true),
+        // Consultas públicas españolas abiertas: son la cuarta fuente de
+        // plazos y hasta ahora no entraban en la tarjeta ni en la lista.
+        supabase
+          .from('consultas_estado')
+          .select('id, titulo, fecha_fin, ministerio, estado')
+          .in('estado', ['abierta', 'urgente'])
+          .not('fecha_fin', 'is', null)
+          .order('fecha_fin', { ascending: true })
+          .limit(40),
       ]);
 
-      const acc = {};
-      for (const id of ids) acc[id] = { actores: 0, asuntos: 0, novedades: 0, todas: [] };
-      for (const it of items || []) acc[it.project_id].asuntos += 1;
-      for (const a of actores || []) {
-        acc[a.project_id].actores += 1;
-        acc[a.project_id].todas.push(a);
-      }
-      for (const e of eventos || []) if (e.estado === 'nuevo') acc[e.project_id].novedades += 1;
+      // Los dos orígenes se mezclan y se ordenan por lo que cierra antes:
+      // a quien mira le da igual de qué institución venga.
+      const todos = [
+        ...(es || []).map((r) => ({
+          id: `es-${r.num_expediente}`,
+          dias: r.dias_plazo,
+          fecha: r.plazo_enmiendas,
+          title: r.title,
+          fuente: ['Congreso', r.comision].filter(Boolean).join(' · '),
+          ruta: `/congreso/${r.slug}`,
+          kind: 'ley',
+          refId: r.num_expediente,
+        })),
+        ...(eu || []).map((r) => ({
+          id: `eu-${r.id}`,
+          dias: r.dias_restantes,
+          fecha: r.feedback_end,
+          title: r.title,
+          fuente: ['Comisión Europea', r.act_type].filter(Boolean).join(' · '),
+          ruta: `/initiatives/${r.slug}`,
+          kind: 'expediente',
+          refId: String(r.id),
+        })),
+        ...(cons || []).map((r) => ({
+          id: `co-${r.id}`,
+          dias: diasHasta(r.fecha_fin),
+          fecha: r.fecha_fin,
+          title: r.titulo,
+          fuente: ['Consulta pública', r.ministerio].filter(Boolean).join(' · '),
+          ruta: `/regulatorio/consultas/${r.id}`,
+          kind: 'consulta',
+          refId: String(r.id),
+        })),
+      ]
+        .filter((x) => x.dias !== null && x.dias >= 0)
+        .sort((a, b) => a.dias - b.dias);
 
-      const montados = (lista || []).map((p) => {
-        const d = acc[p.id];
-        // Los que tienen foto primero: tres siluetas iguales no dicen de
-        // qué va el proyecto, que es para lo que están las caras.
-        const caras = [...d.todas].sort((a, b) => (b.imagen ? 1 : 0) - (a.imagen ? 1 : 0)).slice(0, 3);
-        return {
-          id: p.id,
-          nombre: p.name,
-          objetivo: null,
-          caras,
-          resto: Math.max(0, d.actores - caras.length),
-          actores: d.actores,
-          asuntos: d.asuntos,
-          novedades: d.novedades,
-        };
+      setPlazos(todos);
+      setNovedades(nov || []);
+
+      const ep = procedimientos.count;
+      const ce = expedientes.count;
+      setCifras({
+        leyes: leyes.count ?? null,
+        ue: ep == null || ce == null ? null : ep + ce,
+        consultas: consultas.count ?? null,
+        boe: boeHoy.count ?? null,
       });
 
-      if (!cancelado) setProyectos(montados);
-    })();
+      // El anillo es el desglose de las tarjetas de abajo, no otra
+      // medicion: CE mas PE suman "Actos juridicos en la UE", Congreso
+      // es "Leyes en Congreso" y Consultas es "Consultas publicas".
+      // Antes contaba movimiento del dia y no cuadraba con nada de lo
+      // que se ve debajo, que es justo lo que un anillo tiene que
+      // explicar.
+      setActividad([
+        { clave: 'Comisión Europea', titulo: 'Expedientes abiertos en la Comisión Europea', valor: ce ?? 0 },
+        { clave: 'Parlamento Europeo', titulo: 'Procedimientos abiertos en el Parlamento Europeo', valor: ep ?? 0 },
+        { clave: 'Congreso', titulo: 'Leyes en tramitación en el Congreso', valor: leyes.count ?? 0 },
+        { clave: 'Consultas públicas', titulo: 'Consultas públicas abiertas', valor: consultas.count ?? 0 },
+      ]);
 
-    return () => {
-      cancelado = true;
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+      setSector(sec || []);
+      setTemas(porTema || []);
+      setSeguidos(sigue || []);
+      setDesdeTemas((sec || []).length === 0 && (porTema || []).length > 0);
+
+      setCargado(true);
+    })();
   }, []);
 
-  // --- Free: proyectos de ejemplo y muestra del directorio ----------------
-  if (esPro === false) {
-    return (
-      <div className="bento-fila" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, alignItems: 'stretch' }}>
-        <div className="bento" style={{ ...BENTO, padding: '20px 24px', display: 'flex', flexDirection: 'column' }}>
-          <Cabecera />
-          <div style={{ fontSize: 11.5, color: '#8b8780', marginBottom: 13 }}>
-            Tu espacio de trabajo para asuntos públicos. Un ejemplo:
-          </div>
-          <div style={{ flex: 1 }}>
-            <TarjetaProyecto p={PROYECTO_EJEMPLO} />
-          </div>
-          <div style={{ borderTop: '.5px solid #f2f0ec', marginTop: 13, paddingTop: 13 }}>
-            <Boton href="/projects">Ver proyectos</Boton>
-          </div>
-        </div>
+  /**
+   * Qué ocupa la tarjeta grande.
+   *
+   * EL TEMA ES UN FILTRO, NO UN CRITERIO DE ORDEN. Esta es la regla que
+   * antes estaba mal: se ordenaba por fecha entre todo lo abierto, así
+   * que cualquier asunto que cerrara pronto se colaba en la tarjeta
+   * aunque no tuviera nada que ver con el usuario. Ahora, lo que no toca
+   * uno de sus temas no puede llegar aquí ni cerrando esta tarde.
+   *
+   * La cadena, en este orden:
+   *   1. Lo que sigue y además toca un tema suyo.
+   *   2. Si no sigue nada de eso, lo que toca un tema suyo.
+   *   3. Y solo si nada encaja, lo más urgente del regulatorio general,
+   *      diciendo claramente que es general y no suyo.
+   *
+   * Dentro de cada eslabón manda la fecha, que es lo accionable.
+   */
+  /**
+   * Lo que es tuyo y tiene plazo abierto.
+   *
+   * EL PLAZO NO VIVE EN sector_matches. Ese es el fallo que traía loca a
+   * esta tarjeta: el análisis guarda `plazo` a null en casi todas sus
+   * filas, así que filtrar por él dejaba la lista vacía y la home caía al
+   * plazo más próximo del regulatorio general, que es de donde salía
+   * Ucrania. La fecha de verdad está en las tablas de origen, y se busca
+   * ahí por kind + ref_id.
+   *
+   * Entran las cuatro áreas: Congreso, Comisión Europea, consultas
+   * públicas y lo que se siga del Parlamento Europeo. Los procedimientos
+   * del PE no tienen fecha de cierre en el directorio, así que aparecen
+   * como asunto tuyo pero no compiten por el plazo.
+   */
+  const misAsuntos = useMemo(() => {
+    // Índice de plazos reales, por kind + ref_id.
+    const plazoDe = new Map();
+    for (const p of plazos) plazoDe.set(clave(p.kind, p.refId), p);
 
-        <div className="bento" style={{ ...BENTO, padding: '20px 24px', display: 'flex', flexDirection: 'column' }}>
-          <div style={{ fontSize: 14, fontWeight: 600, color: '#1a1a18', marginBottom: 3 }}>Quién decide</div>
-          <div style={{ fontSize: 11.5, color: '#8b8780', marginBottom: 13 }}>
-            Cargos de la AGE, el Congreso, la Comisión y el Parlamento Europeo.
-          </div>
-          <div style={{ flex: 1 }}>
-            {CARGOS_MUESTRA.map((c, i) => (
+    const porClave = new Map();
+
+    const anadir = (kind, refId, datos) => {
+      if (!kind || !refId) return;
+      const k = clave(kind, refId);
+      const real = plazoDe.get(k);
+      const previo = porClave.get(k) || {};
+      porClave.set(k, {
+        ...previo,
+        ...datos,
+        kind,
+        refId,
+        // El plazo propio si lo hay; si no, el de la tabla de origen.
+        plazo: datos.plazo || previo.plazo || (real ? real.fecha : null),
+        ruta: datos.ruta || previo.ruta || (real ? real.ruta : null),
+        fuente: datos.fuente || previo.fuente || (real ? real.fuente : null),
+        titulo: datos.titulo || previo.titulo || (real ? real.title : null),
+      });
+    };
+
+    // Coincidencia por palabras del onboarding.
+    for (const t of temas) {
+      anadir(t.kind, t.ref_id, {
+        titulo: t.titulo,
+        motivo: t.motivo || null,
+        temas: Array.isArray(t.temas) ? t.temas : null,
+        plazo: t.plazo,
+        ruta: t.ruta,
+        fuente: t.fuente,
+        origen: 'temas',
+      });
+    }
+
+    // El análisis pisa a las palabras: sabe por qué te afecta y lo dice.
+    // Relevancia 1 es "contexto útil" según su propio prompt, así que no
+    // opta a la tarjeta grande.
+    for (const m of sector) {
+      if ((Number(m.relevancia) || 0) < 2) continue;
+      anadir(m.kind, m.ref_id, {
+        titulo: m.titulo,
+        motivo: m.motivo || null,
+        plazo: m.plazo,
+        ruta: m.ruta,
+        fuente: m.fuente,
+        relevancia: Number(m.relevancia) || null,
+        origen: 'analisis',
+      });
+    }
+
+    // Lo que sigue entra siempre: seguir algo ya es decir que te importa.
+    for (const f of seguidos || []) {
+      anadir(f.kind, f.ref_id, {
+        titulo: f.label,
+        ruta: f.ruta,
+        fuente: f.fuente,
+        origen: 'seguido',
+      });
+    }
+
+    const sigue = new Set((seguidos || []).filter((f) => f.kind && f.ref_id).map((f) => clave(f.kind, f.ref_id)));
+
+    return [...porClave.values()]
+      .map((a) => ({ ...a, sigues: sigue.has(clave(a.kind, a.refId)), dias: diasHasta(a.plazo) }))
+      .filter((a) => a.dias !== null && a.dias >= 0)
+      .sort((a, b) => a.dias - b.dias);
+  }, [sector, temas, seguidos, plazos]);
+
+  /** Lo que la plataforma ha deducido, en una línea. Va en la tarjeta negra. */
+  const lectura = useMemo(() => {
+    if (!cargado) return 'Preparando tu resumen…';
+    // Cuenta exactamente lo que alimenta la tarjeta grande: si aquí
+    // saliera un número mayor, se buscarían asuntos que la otra tarjeta
+    // nunca va a enseñar.
+    if (misAsuntos.length > 0) {
+      const tuyos = misAsuntos.filter((a) => a.sigues).length;
+      const base = `${misAsuntos.length} ${
+        misAsuntos.length === 1 ? 'asunto tuyo tiene' : 'asuntos tuyos tienen'
+      } plazo abierto. El más urgente cierra ${frasePlazo(misAsuntos[0].dias)}.`;
+      return tuyos > 0 ? `${base} ${tuyos} de ellos los sigues.` : base;
+    }
+    if (novedades.length > 0) {
+      return `${novedades.length} ${
+        novedades.length === 1 ? 'novedad' : 'novedades'
+      } en lo que sigues desde tu última visita.`;
+    }
+    return 'Ningún asunto tuyo tiene plazo abierto ahora mismo.';
+  }, [cargado, misAsuntos, novedades]);
+
+  /**
+   * Quién ocupa la tarjeta grande.
+   *
+   * El tema es un filtro, no un criterio de orden: lo que no es tuyo no
+   * puede entrar aquí ni cerrando esta tarde. Dentro de lo tuyo manda la
+   * fecha, y el número grande de la tarjeta es la de ese mismo asunto.
+   */
+  const urgente = useMemo(() => {
+    const conTema = (a) => a.origen === 'analisis' || a.origen === 'temas';
+
+    const elegido =
+      misAsuntos.find((a) => a.sigues && conTema(a)) ||
+      misAsuntos.find((a) => a.sigues) ||
+      misAsuntos.find(conTema) ||
+      null;
+
+    if (elegido) {
+      return { ...elegido, title: elegido.titulo, fecha: elegido.plazo };
+    }
+    // Nada tuyo con plazo abierto: se enseña lo primero del calendario y
+    // se dice que no es tuyo.
+    return plazos[0] ? { ...plazos[0], motivo: null, temas: null, origen: 'general', sigues: false } : null;
+  }, [misAsuntos, plazos]);
+
+  return (
+    <div style={{ maxWidth: 900, margin: '0 auto', padding: '26px 20px 60px' }}>
+      <div style={{ marginBottom: 18 }}>
+        <h1 style={{ fontSize: 22, fontWeight: 600, margin: 0, letterSpacing: '-.3px' }}>
+          Hola{nombre ? `, ${nombre}` : ''}
+        </h1>
+        <p style={{ fontSize: 13.5, color: '#8b8780', margin: '4px 0 0', lineHeight: 1.55 }}>
+          {fechaLarga()}
+          {cargado && misAsuntos.length > 0
+            ? ` · ${misAsuntos.length} ${misAsuntos.length === 1 ? 'asunto tuyo' : 'asuntos tuyos'} con plazo abierto`
+            : ''}
+        </p>
+      </div>
+
+      {/* Fila 1: lo que cierra antes, grande. Al lado, lo deducido y el
+          reparto de actividad. */}
+      <div className="bento-fila" style={{ display: 'grid', gridTemplateColumns: '1.55fr 1fr', gap: 14, marginBottom: 14 }}>
+        <div
+          className="bento"
+          style={{ ...BENTO, padding: '24px 26px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}
+        >
+          {urgente ? (
+            <>
+              <div>
+                <span
+                  style={{
+                    display: 'inline-block',
+                    background: '#f0eefe',
+                    color: '#3c3489',
+                    borderRadius: 20,
+                    padding: '4px 12px',
+                    fontSize: 11,
+                    marginBottom: 14,
+                  }}
+                >
+                  {urgente.sigues
+                    ? 'Lo más urgente que sigues'
+                    : urgente.origen === 'analisis'
+                      ? 'Lo más urgente de tu sector'
+                      : urgente.origen === 'temas'
+                        ? 'Lo más urgente de tus temas'
+                        : 'Lo más urgente'}
+                </span>
+                <Link href={urgente.ruta} style={{ textDecoration: 'none', color: 'inherit', display: 'block' }}>
+                  <div style={{ fontSize: 19, lineHeight: 1.4, fontWeight: 600, letterSpacing: '-.2px' }}>
+                    {urgente.title}
+                  </div>
+                </Link>
+                {urgente.motivo ? (
+                  <div style={{ fontSize: 13, color: '#8b8780', lineHeight: 1.6, paddingTop: 10 }}>{urgente.motivo}</div>
+                ) : urgente.temas && urgente.temas.length > 0 ? (
+                  <div style={{ fontSize: 13, color: '#8b8780', lineHeight: 1.6, paddingTop: 10 }}>
+                    Toca {urgente.temas.slice(0, 2).join(' y ')}.
+                  </div>
+                ) : null}
+                <div style={{ fontSize: 12, color: '#a8a49c', lineHeight: 1.6, paddingTop: urgente.motivo ? 6 : 10 }}>
+                  {urgente.fuente}
+                </div>
+              </div>
               <div
-                key={c.id}
                 style={{
                   display: 'flex',
                   alignItems: 'center',
-                  gap: 11,
-                  padding: i === 0 ? '0 0 12px' : '12px 0',
-                  borderTop: i === 0 ? 'none' : '.5px solid #f2f0ec',
+                  gap: 14,
+                  marginTop: 22,
+                  paddingTop: 18,
+                  borderTop: '.5px solid #f2f0ec',
                 }}
               >
-                <span
+                <div>
+                  <div style={{ fontSize: 24, color: '#6d5aef', fontWeight: 600, lineHeight: 1 }}>
+                    {etiquetaPlazo(urgente.fecha, urgente.dias)}
+                  </div>
+                  <div style={{ fontSize: 11.5, color: '#8b8780', paddingTop: 3 }}>cierre de alegaciones</div>
+                </div>
+                {urgente.kind && urgente.refId && (
+                  <div style={{ marginLeft: 'auto' }}>
+                    {/* Variante completa y no "icon": la de icono no trae el
+                        botón de proyecto, que es justo el que hace falta aquí. */}
+                    <FollowButton kind={urgente.kind} refId={urgente.refId} label={urgente.title} />
+                  </div>
+                )}
+              </div>
+            </>
+          ) : (
+            <div style={{ fontSize: 13, color: '#8b8780', lineHeight: 1.6 }}>
+              {cargado ? (
+                <>
+                  No hay plazos abiertos ahora mismo.{' '}
+                  <Link href="/regulatorio" style={{ color: '#6d5aef', textDecoration: 'none' }}>
+                    Ver el regulatorio
+                  </Link>
+                </>
+              ) : (
+                'Cargando…'
+              )}
+            </div>
+          )}
+        </div>
+
+        <div style={{ display: 'grid', gridTemplateRows: 'auto 1fr', gap: 14 }}>
+          {/* La tarjeta negra es ahora la entrada al análisis. Antes había
+              encima un banner que pedía lo mismo, y dos llamadas a la misma
+              acción en la misma pantalla se estorban. */}
+          <div className="bento" style={{ background: '#15140f', borderRadius: 16, padding: '20px 22px' }}>
+            <div style={{ fontSize: 11.5, color: '#8f7ff5', letterSpacing: '.3px', marginBottom: 10 }}>
+              QUÉ IMPACTA EN TU SECTOR
+            </div>
+            {cargado && (sector.length === 0 || desdeTemas) ? (
+              <>
+                <div style={{ fontSize: 13.5, color: '#fff', lineHeight: 1.5, marginBottom: 13 }}>
+                  Dinos a qué se dedica tu organización y revisamos todas las fuentes para
+                  monitorizar qué te afecta.
+                </div>
+                <Link
+                  href="/regulatorio/sector"
                   style={{
-                    width: 36,
-                    height: 36,
-                    borderRadius: '50%',
-                    background: TONOS[i % TONOS.length].fondo,
-                    color: TONOS[i % TONOS.length].texto,
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    fontSize: 12,
+                    display: 'inline-block',
+                    background: '#6d5aef',
+                    color: '#fff',
+                    borderRadius: 8,
+                    padding: '9px 16px',
+                    fontSize: 12.5,
                     fontWeight: 600,
-                    flexShrink: 0,
+                    textDecoration: 'none',
                   }}
                 >
-                  {iniciales(c.nombre)}
-                </span>
-                <div style={{ minWidth: 0, flex: 1 }}>
-                  <div style={{ fontSize: 12.5, color: '#1a1a18' }}>{c.nombre}</div>
-                  <div style={{ fontSize: 11, color: '#a8a49c', marginBottom: 2 }}>{c.puesto}</div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-                    <i className="ti ti-mail" style={{ fontSize: 12, color: '#a8a49c' }} aria-hidden="true"></i>
-                    <span style={{ fontSize: 11, color: '#8b8780' }}>
-                      <span style={{ letterSpacing: '.5px' }}>••••••</span>@{c.dominio}
-                    </span>
-                  </div>
-                </div>
-              </div>
-            ))}
+                  Analizar mi sector
+                </Link>
+              </>
+            ) : (
+              <>
+                <div style={{ fontSize: 14, color: '#fff', lineHeight: 1.5 }}>{lectura}</div>
+                <Link
+                  href="/regulatorio/sector"
+                  style={{
+                    display: 'inline-block',
+                    marginTop: 11,
+                    fontSize: 12.5,
+                    color: '#8f7ff5',
+                    textDecoration: 'none',
+                  }}
+                >
+                  Ver el análisis →
+                </Link>
+              </>
+            )}
           </div>
-          <div style={{ borderTop: '.5px solid #f2f0ec', marginTop: 6, paddingTop: 13 }}>
-            <div style={{ fontSize: 12.5, color: '#8b8780', lineHeight: 1.55, marginBottom: 11 }}>
-              <span style={{ color: '#1a1a18', fontWeight: 600 }}>11.843 cargos</span> de la AGE y la
-              UE con su contacto en un solo directorio.
+          {actividad ? (
+            <Link href="/regulatorio" style={{ textDecoration: 'none', color: 'inherit', display: 'block' }}>
+              <AnilloActividad datos={actividad} />
+            </Link>
+          ) : (
+            <div className="bento" style={{ ...BENTO, padding: '18px 22px' }}>
+              <div style={{ fontSize: 12.5, color: '#8b8780' }}>Actividad normativa en curso</div>
             </div>
-            <Boton href="/instituciones/directorio">Ver base de datos</Boton>
-          </div>
+          )}
         </div>
       </div>
-    );
-  }
 
-  // --- Pro sin ningún proyecto --------------------------------------------
-  if (esPro && proyectos.length === 0) {
-    return (
-      <div className="bento" style={{ ...BENTO, padding: '20px 24px' }}>
-        <Cabecera />
-        <div style={{ fontSize: 11.5, color: '#8b8780', marginBottom: 14 }}>
-          Tu espacio de trabajo para asuntos públicos.
-        </div>
-        <div
-          style={{
-            borderTop: '.5px solid #f2f0ec',
-            paddingTop: 14,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            gap: 16,
-            flexWrap: 'wrap',
-          }}
-        >
-          <div style={{ fontSize: 12.5, color: '#3a3a36', lineHeight: 1.6, maxWidth: 560 }}>
-            Organiza en un proyecto los asuntos que sigues, los actores a los que quieres llegar y el
-            registro de tus reuniones. Con trazabilidad y generación de actas de manera automática.
-          </div>
-          <Boton href="/projects">Crear mi primer proyecto</Boton>
-        </div>
+      {/* Fila 2: el tamaño del sector, en cuatro cifras. */}
+      <div className="bento-cifras" style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 14, marginBottom: 14 }}>
+        <TarjetaCifra valor={cifras.ue} rotulo="Actos jurídicos en la UE" bandera="ue" href="/initiatives" />
+        <TarjetaCifra valor={cifras.leyes} rotulo="Leyes en Congreso" bandera="es" href="/congreso" />
+        <TarjetaCifra valor={cifras.consultas} rotulo="Consultas públicas" bandera="es" href="/regulatorio/consultas" />
+        <TarjetaCifra valor={cifras.boe} rotulo="BOE hoy" bandera="es" href="/boe" />
       </div>
-    );
-  }
 
-  // --- Pro con proyectos ---------------------------------------------------
-  // Con uno solo, la segunda celda es la invitación a crear otro; con dos o
-  // más, las dos celdas son proyectos y el enlace va en la cabecera.
-  const unoSolo = proyectos.length === 1;
+      {/* Fila 3: en qué estás trabajando. Cambia de forma según el plan, y
+          es a propósito: en Free hay al lado una muestra del directorio,
+          porque quien no paga necesita descubrir el producto; con Pro los
+          proyectos ocupan el ancho entero. Antes eran los plazos —que ya
+          salen arriba— y las ofertas de empleo, que tienen su pestaña. */}
+      <FilaInferior />
 
-  return (
-    <div className="bento" style={{ ...BENTO, padding: '20px 24px' }}>
-      <Cabecera verTodos={!unoSolo && esPro !== null} />
-      <div style={{ fontSize: 11.5, color: '#8b8780', marginBottom: 14 }}>
-        Tu espacio de trabajo para asuntos públicos.
-      </div>
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-        {esPro === null ? (
-          <div style={{ fontSize: 12.5, color: '#8b8780' }}>Cargando…</div>
-        ) : (
-          <>
-            {proyectos.map((p) => (
-              <TarjetaProyecto key={p.id} p={p} href={`/projects?p=${p.id}`} />
-            ))}
-            {unoSolo && <NuevoProyecto />}
-          </>
-        )}
-      </div>
     </div>
   );
 }
