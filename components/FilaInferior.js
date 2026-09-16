@@ -41,10 +41,11 @@ const PROYECTO_EJEMPLO = {
 
 // Fichas de muestra del directorio. Del correo solo se escribe el dominio:
 // la parte local nunca llega al navegador.
+// Dos y no tres: con tres fichas esta columna crecía bastante más que la
+// de proyectos, que solo tiene un ejemplo, y la fila quedaba descuadrada.
 const CARGOS_MUESTRA = [
   { id: 'c1', nombre: 'Leire Iglesias Santiago', puesto: 'Secretaria de Estado · Vivienda', dominio: 'vivienda.gob.es' },
   { id: 'c2', nombre: 'Esteban González Pons', puesto: 'Eurodiputado · Grupo PPE', dominio: 'europarl.europa.eu' },
-  { id: 'c3', nombre: 'Sara Hernández del Olmo', puesto: 'Secretaria General · Transportes', dominio: 'transportes.gob.es' },
 ];
 
 function iniciales(nombre) {
@@ -322,7 +323,7 @@ export default function FilaInferior() {
         <div className="bento" style={{ ...BENTO, padding: '20px 24px', display: 'flex', flexDirection: 'column' }}>
           <div style={{ fontSize: 14, fontWeight: 600, color: '#1a1a18', marginBottom: 3 }}>Quién decide</div>
           <div style={{ fontSize: 11.5, color: '#8b8780', marginBottom: 13 }}>
-            Cargos de la AGE, el Congreso, la Comisión y el Parlamento Europeo.
+            Cargos de la AGE y de las instituciones europeas.
           </div>
           <div style={{ flex: 1 }}>
             {CARGOS_MUESTRA.map((c, i) => (
@@ -368,8 +369,8 @@ export default function FilaInferior() {
           </div>
           <div style={{ borderTop: '.5px solid #f2f0ec', marginTop: 6, paddingTop: 13 }}>
             <div style={{ fontSize: 12.5, color: '#8b8780', lineHeight: 1.55, marginBottom: 11 }}>
-              <span style={{ color: '#1a1a18', fontWeight: 600 }}>11.843 cargos</span> de la AGE y la
-              UE con su contacto en un solo directorio.
+              <span style={{ color: '#1a1a18', fontWeight: 600 }}>11.843 cargos</span> con su
+              contacto, en un solo directorio.
             </div>
             <Boton href="/instituciones/directorio">Ver base de datos</Boton>
           </div>
