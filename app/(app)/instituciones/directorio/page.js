@@ -324,7 +324,17 @@ export default function DirectorioInstitucionalPage() {
     comprobarPlan();
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // La descarga espera a saber el plan, y solo ocurre si hay acceso.
+  //
+  // Antes se lanzaba siempre, así que quien no tiene Teams se tragaba
+  // hasta veinte mil filas en bloques de mil, uno detrás de otro, para
+  // acabar viendo una demo que no las usa. Y esas filas traen email,
+  // email_unidad, telefono y direccion_postal: los contactos que se
+  // venden con Teams llegaban al navegador de cualquiera y se leían en la
+  // pestaña de red. No era lentitud, era una fuga.
   useEffect(() => {
+    if (!planChecked || !planAllowed) return;
+
     async function cargar() {
       const acumulado = [];
       for (let desde = 0; desde < MAX_FILAS; desde += CHUNK) {
@@ -347,7 +357,7 @@ export default function DirectorioInstitucionalPage() {
       setFilas(acumulado);
     }
     cargar();
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [planChecked, planAllowed]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     setPage(0);
@@ -577,7 +587,9 @@ export default function DirectorioInstitucionalPage() {
     setExportBusy(false);
   }
 
-  if (filas === null || !planChecked) return <div className="spinner"></div>;
+  // Primero el plan, y solo después las filas: la demo no necesita datos,
+  // así que no tiene por qué esperar a que lleguen.
+  if (!planChecked) return <div className="spinner"></div>;
 
   // Free ve la demo, no un muro: el mismo criterio que en Proyectos.
   // Cualquier clic sobre la tabla abre el modal, que es donde se explica
@@ -612,6 +624,8 @@ export default function DirectorioInstitucionalPage() {
       </div>
     );
   }
+
+  if (filas === null) return <div className="spinner"></div>;
 
   return (
     <div
