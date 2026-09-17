@@ -76,7 +76,7 @@ export async function POST(request) {
       if (!row.users?.email) continue;
       recipients.set(row.user_id, {
         email: row.users.email,
-        firstName: row.users.first_name || 'candidato/a',
+        firstName: row.users.first_name || '',
         reason: `Hay una nueva oferta que coincide con tu alerta de <b>${job.area}</b> en ${job.location}.`,
         unsubscribe: { type: 'area', id: row.id },
       });
@@ -87,8 +87,8 @@ export async function POST(request) {
       // La razón de "sigues a la organización" es más específica, prevalece si hay solape.
       recipients.set(row.user_id, {
         email: row.users.email,
-        firstName: row.users.first_name || 'candidato/a',
-        reason: `<b>${orgName}</b>, a quien sigues en GovTalent, ha publicado una nueva oferta.`,
+        firstName: row.users.first_name || '',
+        reason: `<b>${orgName}</b>, que sigues en GovTalent, ha publicado una nueva oferta.`,
         unsubscribe: { type: 'follow', userId: row.user_id, orgId: job.organization_id },
       });
     }
