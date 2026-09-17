@@ -180,6 +180,16 @@ export default function OnboardingModal({ userId, onComplete }) {
       );
     }
 
+    // Bienvenida por correo. keepalive porque onComplete puede navegar o
+    // desmontar el modal antes de que termine la petición. Un fallo aquí no
+    // afecta al alta: la ruta lo registra y responde 200.
+    fetch('/api/email/welcome', {
+      method: 'POST',
+      keepalive: true,
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ type: 'candidate' }),
+    }).catch((err) => console.error('Error enviando email de bienvenida:', err));
+
     setGuardando(false);
     toast('Todo listo ✓');
     if (onComplete) onComplete();
