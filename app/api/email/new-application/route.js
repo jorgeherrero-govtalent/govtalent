@@ -42,7 +42,7 @@ export async function POST(request) {
     // 1) Confirmación al candidato
     if (candidate?.email) {
       const { subject, html } = applicationConfirmationEmail({
-        firstName: candidate.first_name || 'candidato/a',
+        firstName: candidate.first_name || '',
         jobTitle,
         orgName,
       });
