@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/server';
+import { createClient as createSupabaseClient } from '@supabase/supabase-js';
 import PublicHeader from '@/components/PublicHeader';
 import BotonPlan from '@/components/BotonPlan';
 
@@ -13,6 +14,12 @@ const PLAZAS_TEAMS = 10;
 // Sin offset: el contador antiguo sumaba 3 fijos al recuento real, así que
 // con tres organizaciones marcadas la página decía seis. Ahora sale del
 // dato y sube solo.
+
+// Los contadores tienen que ser del momento: sin esto, la caché de datos de
+// Next puede congelar el recuento aunque la página sea dinámica.
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+export const fetchCache = 'force-no-store';
 
 export const metadata = {
   title: 'Precios · GovTalent',
@@ -29,14 +36,44 @@ export const metadata = {
   },
 };
 
+/**
+ * Cliente con service role SOLO para los dos recuentos de plazas.
+ *
+ * /precios es pública y las políticas RLS de `users` no dejan leer filas de
+ * otros usuarios, así que con el cliente de sesión el recuento de Pro salía a
+ * 0 para cualquier visitante. Con service role el recuento es el real, y como
+ * se pide con `head: true` solo viaja el número: ninguna fila llega a la página.
+ * El fetch sin caché evita que Next sirva un recuento antiguo.
+ */
+function createCountClient() {
+  return createSupabaseClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL,
+    process.env.SUPABASE_SERVICE_ROLE_KEY,
+    {
+      auth: { persistSession: false, autoRefreshToken: false },
+      global: { fetch: (input, init) => fetch(input, { ...init, cache: 'no-store' }) },
+    }
+  );
+}
+
 async function getData() {
   const supabase = createClient();
+  const counts = createCountClient();
 
-  const [{ count: orgs }, { count: pros }, { data: authData }] = await Promise.all([
-    supabase.from('organizations').select('id', { count: 'exact', head: true }).eq('is_founding_member', true),
-    supabase.from('users').select('id', { count: 'exact', head: true }).eq('plan', 'pro'),
+  // Los dos contadores miden lo mismo: quién entró con la oferta de fundador,
+  // que es lo que marca el webhook en `is_founding_member`. Antes el de Pro
+  // contaba cualquier usuario con plan 'pro', también los de precio completo.
+  const [orgsRes, prosRes, { data: authData }] = await Promise.all([
+    counts.from('organizations').select('id', { count: 'exact', head: true }).eq('is_founding_member', true),
+    counts.from('users').select('id', { count: 'exact', head: true }).eq('is_founding_member', true),
     supabase.auth.getUser(),
   ]);
+
+  if (orgsRes.error) console.error('Recuento de organizaciones fundadoras:', orgsRes.error.message);
+  if (prosRes.error) console.error('Recuento de Pro fundadores:', prosRes.error.message);
+
+  const orgs = orgsRes.count;
+  const pros = prosRes.count;
 
   const user = authData?.user || null;
 
