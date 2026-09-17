@@ -61,7 +61,9 @@ export async function middleware(request) {
   // redirigía a /login, el cron no sigue redirecciones y la ruta no llegaba
   // a ejecutarse nunca. Se autentican con CRON_SECRET o DEBUG_KEY dentro.
   const isScheduledEmail =
-    path.startsWith('/api/alerts/weekly') || path.startsWith('/api/alerts/daily');
+    path.startsWith('/api/alerts/weekly') ||
+    path.startsWith('/api/alerts/daily') ||
+    path.startsWith('/api/cron/');
 
   if (
     !user &&
