@@ -5,6 +5,8 @@ import {
   getPeriodEnd,
   getSubscriptionIdFromInvoice,
 } from '@/lib/stripe';
+import { resend, EMAIL_FROM } from '@/lib/resend';
+import { proActivatedEmail, orgPlanActivatedEmail } from '@/lib/email/templates';
 
 // runtime nodejs es obligatorio: la verificación de firma usa crypto.
 export const runtime = 'nodejs';
@@ -142,6 +144,53 @@ async function applySubscription(admin, subscription, extra = {}) {
   }
 }
 
+/**
+ * Correo de activación tras el primer pago.
+ *
+ * Solo se llama desde checkout.session.completed: los eventos de
+ * suscripción se repiten en cada renovación o cambio y no deben reenviarlo.
+ * La tabla stripe_events ya impide procesar dos veces el mismo evento.
+ *
+ * Nunca lanza: un fallo de correo no puede liberar la marca de idempotencia
+ * ni hacer que Stripe reintente y vuelva a aplicar el plan.
+ */
+async function enviarCorreoActivacion(admin, session, subscription, foundingMember) {
+  try {
+    if (!['active', 'trialing'].includes(subscription.status)) return;
+    const meta = { ...(session.metadata || {}), ...(subscription.metadata || {}) };
+    if (!meta.user_id) return;
+
+    const { data: comprador } = await admin
+      .from('users')
+      .select('first_name, email')
+      .eq('id', meta.user_id)
+      .maybeSingle();
+    const to = comprador?.email || session.customer_details?.email;
+    if (!to) return;
+
+    let correo;
+    if (meta.scope === 'user') {
+      correo = proActivatedEmail({ firstName: comprador?.first_name || '', foundingMember });
+    } else if (meta.scope === 'org' && meta.organization_id && ['recruiter', 'teams'].includes(meta.plan_key)) {
+      const { data: org } = await admin
+        .from('organizations')
+        .select('name')
+        .eq('id', meta.organization_id)
+        .maybeSingle();
+      correo = orgPlanActivatedEmail({
+        firstName: comprador?.first_name || '',
+        orgName: org?.name || 'Tu organización',
+        planKey: meta.plan_key,
+      });
+    }
+    if (!correo) return;
+
+    await resend.emails.send({ from: EMAIL_FROM, to, subject: correo.subject, html: correo.html });
+  } catch (err) {
+    console.error(`[email] No se pudo enviar el correo de activación (${session.id}):`, err);
+  }
+}
+
 export async function POST(request) {
   // Cuerpo en CRUDO. Si dejas que Next parsee el JSON, la firma nunca valida.
   const body = await request.text();
@@ -200,6 +249,8 @@ export async function POST(request) {
           foundingMember,
           metadataFallback: session.metadata,
         });
+
+        await enviarCorreoActivacion(admin, session, subscription, foundingMember);
         break;
       }
 
