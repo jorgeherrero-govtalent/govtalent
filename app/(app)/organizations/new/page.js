@@ -115,8 +115,11 @@ export default function NewOrganizationPage() {
     setSaving(false);
     toast('Página creada correctamente ✓');
 
+    // keepalive: la página navega justo después y, sin esto, el navegador
+    // cancelaba la petición antes de que el correo llegara a enviarse.
     fetch('/api/email/welcome', {
       method: 'POST',
+      keepalive: true,
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ type: 'organization', orgId: org.id }),
     }).catch((err) => console.error('Error enviando email de bienvenida:', err));
