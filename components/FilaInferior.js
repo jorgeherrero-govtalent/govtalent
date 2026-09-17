@@ -41,11 +41,13 @@ const PROYECTO_EJEMPLO = {
 
 // Fichas de muestra del directorio. Del correo solo se escribe el dominio:
 // la parte local nunca llega al navegador.
-// Dos y no tres: con tres fichas esta columna crecía bastante más que la
-// de proyectos, que solo tiene un ejemplo, y la fila quedaba descuadrada.
+// Tres fichas, compactas. Con el tamaño anterior esta columna crecía más
+// que la de proyectos, que solo tiene un ejemplo; encogiendo avatar, texto
+// y separación caben las tres sin descuadrar la fila.
 const CARGOS_MUESTRA = [
   { id: 'c1', nombre: 'Leire Iglesias Santiago', puesto: 'Secretaria de Estado · Vivienda', dominio: 'vivienda.gob.es' },
   { id: 'c2', nombre: 'Esteban González Pons', puesto: 'Eurodiputado · Grupo PPE', dominio: 'europarl.europa.eu' },
+  { id: 'c3', nombre: 'Sara Hernández del Olmo', puesto: 'Secretaria General · Transportes', dominio: 'transportes.gob.es' },
 ];
 
 function iniciales(nombre) {
@@ -332,22 +334,22 @@ export default function FilaInferior() {
                 style={{
                   display: 'flex',
                   alignItems: 'center',
-                  gap: 11,
-                  padding: i === 0 ? '0 0 12px' : '12px 0',
+                  gap: 10,
+                  padding: i === 0 ? '0 0 9px' : '9px 0',
                   borderTop: i === 0 ? 'none' : '.5px solid #f2f0ec',
                 }}
               >
                 <span
                   style={{
-                    width: 36,
-                    height: 36,
+                    width: 30,
+                    height: 30,
                     borderRadius: '50%',
                     background: TONOS[i % TONOS.length].fondo,
                     color: TONOS[i % TONOS.length].texto,
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    fontSize: 12,
+                    fontSize: 10.5,
                     fontWeight: 600,
                     flexShrink: 0,
                   }}
@@ -355,11 +357,13 @@ export default function FilaInferior() {
                   {iniciales(c.nombre)}
                 </span>
                 <div style={{ minWidth: 0, flex: 1 }}>
-                  <div style={{ fontSize: 12.5, color: '#1a1a18' }}>{c.nombre}</div>
-                  <div style={{ fontSize: 11, color: '#a8a49c', marginBottom: 2 }}>{c.puesto}</div>
+                  <div style={{ fontSize: 12, color: '#1a1a18', lineHeight: 1.35 }}>{c.nombre}</div>
+                  <div style={{ fontSize: 10.5, color: '#a8a49c', marginBottom: 1, lineHeight: 1.35 }}>
+                    {c.puesto}
+                  </div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-                    <i className="ti ti-mail" style={{ fontSize: 12, color: '#a8a49c' }} aria-hidden="true"></i>
-                    <span style={{ fontSize: 11, color: '#8b8780' }}>
+                    <i className="ti ti-mail" style={{ fontSize: 11, color: '#a8a49c' }} aria-hidden="true"></i>
+                    <span style={{ fontSize: 10.5, color: '#8b8780' }}>
                       <span style={{ letterSpacing: '.5px' }}>••••••</span>@{c.dominio}
                     </span>
                   </div>
@@ -419,7 +423,10 @@ export default function FilaInferior() {
       <div style={{ fontSize: 11.5, color: '#8b8780', marginBottom: 14 }}>
         Tu espacio de trabajo para asuntos públicos.
       </div>
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+      {/* bento-fila trae el salto a una columna en móvil, con !important
+          para ganarle al estilo en línea. Sin la clase, las dos tarjetas
+          seguían en paralelo en pantalla estrecha y la segunda se cortaba. */}
+      <div className="bento-fila" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
         {esPro === null ? (
           <div style={{ fontSize: 12.5, color: '#8b8780' }}>Cargando…</div>
         ) : (
