@@ -27,7 +27,7 @@ export async function POST(request) {
 
   try {
     if (type === 'candidate') {
-      const { subject, html } = welcomeCandidateEmail({ firstName: user.first_name || 'candidato/a' });
+      const { subject, html } = welcomeCandidateEmail({ firstName: user.first_name || '' });
       await resend.emails.send({ from: EMAIL_FROM, to: user.email, subject, html });
     } else {
       if (!orgId) {
@@ -36,7 +36,7 @@ export async function POST(request) {
       const { data: org } = await supabase.from('organizations').select('name').eq('id', orgId).single();
       const { subject, html } = welcomeOrganizationEmail({
         orgName: org?.name || 'tu organización',
-        firstName: user.first_name || 'equipo',
+        firstName: user.first_name || '',
       });
       await resend.emails.send({ from: EMAIL_FROM, to: user.email, subject, html });
     }
