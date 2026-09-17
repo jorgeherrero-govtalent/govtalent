@@ -74,6 +74,7 @@ export async function POST(request) {
         orgName: org.name,
         requesterName,
         requesterEmail: requester?.email || '',
+        type: 'claim',
       });
       await resend.emails.send({ from: EMAIL_FROM, to: adminEmails, subject, html });
     }
