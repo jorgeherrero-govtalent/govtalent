@@ -42,6 +42,17 @@ const PRESUPUESTO_MS = 45000;
 // margen, por si el proceso falló el lunes anterior.
 const VENTANA_DIAS = 8;
 
+// De dónde viene cada plazo, según el tipo de lo que se sigue. Antes todo lo
+// que no era una ley salía como «Comisión Europea».
+const FUENTE_POR_TIPO = {
+  ley: 'Congreso',
+  actividad: 'Congreso',
+  expediente: 'Comisión Europea',
+  direccion: 'Comisión Europea',
+  comisario: 'Comisión Europea',
+  procedimiento: 'Parlamento Europeo',
+};
+
 function admin() {
   return createClient(process.env.NEXT_PUBLIC_SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY, {
     auth: { persistSession: false, autoRefreshToken: false },
@@ -211,7 +222,7 @@ export async function GET(request) {
         if (e.event_type === 'plazo_proximo') {
           // El número de días viene en el texto: "Quedan 7 días de plazo"
           const m = String(e.detail || '').match(/(\d+)/);
-          plazos.push({ ...item, dias: m ? parseInt(m[1], 10) : 0, fuente: e.kind === 'ley' ? 'Congreso' : 'Comisión Europea' });
+          plazos.push({ ...item, dias: m ? parseInt(m[1], 10) : 0, fuente: FUENTE_POR_TIPO[e.kind] || null });
         } else {
           novedades.push(item);
         }
@@ -252,6 +263,7 @@ export async function GET(request) {
         plazos: plazos.slice(0, 6),
         publicado,
         totalSeguidos: sigue.length,
+        sinTemas: palabras.length === 0,
         unsubscribeUrl: `${SITE_URL}/seguimiento?ajustes=1`,
       });
 
