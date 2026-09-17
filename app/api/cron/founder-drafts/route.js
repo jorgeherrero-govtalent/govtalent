@@ -1,29 +1,30 @@
 // =====================================================================
-// CORREOS DE FOUNDER — borradores diarios
+// CORREOS DE FOUNDER — envío diario
 // app/api/cron/founder-drafts/route.js
 //
-// Cada mañana crea en hola@govtalent.app un borrador por cada usuario y
-// cada organización nuevos de los últimos días. Jorge los revisa y envía.
+// Cada mañana envía desde hola@govtalent.app, con la firma de Gmail, un
+// correo personal a cada usuario y cada organización nuevos de los últimos
+// días. La ruta conserva el nombre founder-drafts para no tocar el cron.
 //
 // REGLAS
 //   - Usuario: onboarding terminado, sin solicitud de borrado y sin
-//     borrador previo (users.founder_draft_at).
+//     correo previo (users.founder_draft_at).
 //   - Organización: creada desde la app (tiene administrador), sin
-//     borrador previo (organizations.founder_draft_at). Va a su admin.
+//     correo previo (organizations.founder_draft_at). Va a su admin.
 //   - Quien crea una organización recibe solo el de organización.
 //   - Solo se mira la ventana de VENTANA_DIAS: el primer día no escribe a
 //     toda la base de usuarios.
-//   - La marca se pone solo si el borrador se ha creado.
+//   - La marca se pone solo si el correo se ha enviado.
 //
 // Uso:
-//   ?key=<DEBUG_KEY>&dry=1   prueba sin crear borradores
-//   ?key=<DEBUG_KEY>         ejecución real
+//   ?key=<DEBUG_KEY>&dry=1   prueba sin enviar
+//   ?key=<DEBUG_KEY>         envío real
 // =====================================================================
 
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { founderUserEmail, founderOrganizationEmail } from '@/lib/email/founder';
-import { crearBorradores, gmailConfigurado } from '@/lib/gmail';
+import { enviarCorreosFounder, gmailConfigurado } from '@/lib/gmail';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
@@ -110,7 +111,7 @@ export async function GET(request) {
     }
 
     const todos = [...correosOrg, ...correosUsuario];
-    const resultados = await crearBorradores(todos);
+    const resultados = await enviarCorreosFounder(todos);
     const ahora = new Date().toISOString();
 
     const orgsHechas = [];
@@ -133,7 +134,7 @@ export async function GET(request) {
       await supabase.from('users').update({ founder_draft_at: ahora }).in('id', [...usuariosHechos]);
     }
 
-    informe.borradores = resultados.filter((r) => r.ok).length;
+    informe.enviados = resultados.filter((r) => r.ok).length;
     informe.fallidos = resultados.filter((r) => !r.ok).length;
     informe.detalle_fallos = resultados.filter((r) => !r.ok).slice(0, 3);
     informe.ms_total = Date.now() - t0;
