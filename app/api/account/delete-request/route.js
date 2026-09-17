@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { resend, EMAIL_FROM } from '@/lib/resend';
-import { accountDeletionRequestEmail } from '@/lib/email/templates';
+import { accountDeletionRequestEmail, accountDeletionAckEmail } from '@/lib/email/templates';
 
 export async function POST() {
   const supabase = createClient();
@@ -40,6 +40,16 @@ export async function POST() {
     }
   } catch (err) {
     console.error('Error enviando aviso de borrado de cuenta:', err);
+  }
+
+  // Acuse al usuario: deja por escrito que la solicitud se ha recibido.
+  if (profile.email) {
+    try {
+      const { subject, html } = accountDeletionAckEmail({ firstName: profile.first_name || '' });
+      await resend.emails.send({ from: EMAIL_FROM, to: profile.email, subject, html });
+    } catch (err) {
+      console.error('Error enviando acuse de borrado de cuenta:', err);
+    }
   }
 
   return NextResponse.json({ ok: true });
