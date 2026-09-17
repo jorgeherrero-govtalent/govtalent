@@ -56,6 +56,12 @@ export async function middleware(request) {
   // de usuario) — se autentican con su propio secreto dentro de la propia
   // ruta, no con el login normal de la app.
   const isInternalSync = path.startsWith('/api/sync/');
+  // Los correos programados (resumen de los lunes y alertas diarias) también
+  // los llama Vercel Cron sin sesión. Sin esta excepción el middleware los
+  // redirigía a /login, el cron no sigue redirecciones y la ruta no llegaba
+  // a ejecutarse nunca. Se autentican con CRON_SECRET o DEBUG_KEY dentro.
+  const isScheduledEmail =
+    path.startsWith('/api/alerts/weekly') || path.startsWith('/api/alerts/daily');
 
   if (
     !user &&
@@ -65,7 +71,8 @@ export async function middleware(request) {
     !isPublicUnsubscribe &&
     !isPublicPricing &&
     !isPublicLegal &&
-    !isInternalSync
+    !isInternalSync &&
+    !isScheduledEmail
   ) {
     const url = request.nextUrl.clone();
     url.pathname = '/login';
