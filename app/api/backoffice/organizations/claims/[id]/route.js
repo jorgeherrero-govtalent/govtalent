@@ -26,7 +26,7 @@ export async function PATCH(request, { params }) {
 
   const { data: claim } = await admin
     .from('organization_claims')
-    .select('id, status, claim_type, organization_id, user_id, organizations(name, claimed), users:user_id(first_name, email)')
+    .select('id, status, claim_type, organization_id, user_id, organizations(name, slug, claimed), users:user_id(first_name, email)')
     .eq('id', params.id)
     .single();
 
@@ -124,7 +124,13 @@ export async function PATCH(request, { params }) {
 
     if (requesterEmail) {
       try {
-        const { subject, html } = claimRejectedEmail({ firstName, orgName, reason: rejectionReason });
+        const { subject, html } = claimRejectedEmail({
+          firstName,
+          orgName,
+          orgSlug: claim.organizations?.slug,
+          reason: rejectionReason,
+          type: isVerification ? 'verification' : 'claim',
+        });
         await resend.emails.send({ from: EMAIL_FROM, to: requesterEmail, subject, html });
       } catch (err) {
         console.error('Error enviando email de rechazo:', err);
