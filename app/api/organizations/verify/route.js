@@ -64,6 +64,7 @@ export async function POST(request) {
         orgName,
         requesterName,
         requesterEmail: requester?.email || '',
+        type: 'verification',
       });
       await resend.emails.send({ from: EMAIL_FROM, to: adminEmails, subject, html });
     }
