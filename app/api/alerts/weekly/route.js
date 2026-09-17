@@ -115,14 +115,20 @@ export async function GET(request) {
     if (errU) throw new Error(`No se pudieron leer los usuarios: ${errU.message}`);
 
     // Los eventos de la ventana, de todo lo seguido
+    // Se pide por tandas: con cientos de seguimientos, una sola lista en
+    // la URL supera el límite de longitud y la consulta entera falla.
     const refs = [...new Set((seguimientos || []).map((f) => f.ref_id))];
-    const { data: eventos, error: errE } = await supabase
-      .from('follow_events')
-      .select('id, kind, ref_id, event_type, title, detail, occurred_at')
-      .gte('occurred_at', desde)
-      .in('ref_id', refs.slice(0, 1000))
-      .order('occurred_at', { ascending: false });
-    if (errE) throw new Error(`No se pudieron leer los eventos: ${errE.message}`);
+    const eventos = [];
+    for (let i = 0; i < refs.length; i += 100) {
+      const { data, error: errE } = await supabase
+        .from('follow_events')
+        .select('id, kind, ref_id, event_type, title, detail, occurred_at')
+        .gte('occurred_at', desde)
+        .in('ref_id', refs.slice(i, i + 100))
+        .order('occurred_at', { ascending: false });
+      if (errE) throw new Error(`No se pudieron leer los eventos: ${errE.message}`);
+      eventos.push(...(data || []));
+    }
 
     // Lo publicado en el BOE durante la ventana. Se pide una vez para
     // todos y luego se filtra por los temas de cada uno.
@@ -158,7 +164,11 @@ export async function GET(request) {
     const yaEnviado = new Set((enviados || []).map((d) => `${d.user_id}|${d.event_id}`));
 
     // Las preferencias: quien haya dicho que no, no recibe
-    const { data: prefs } = await supabase.from('alert_preferences').select('user_id, frequency, email');
+    // Se leen todas las columnas: la pantalla de Avisos guarda `semanal`,
+    // `diario` y `email`. Pedir una columna que no existe hacía fallar la
+    // consulta en silencio y se enviaba también a quien se había dado de baja.
+    const { data: prefs, error: errP } = await supabase.from('alert_preferences').select('*');
+    if (errP) throw new Error(`No se pudieron leer las preferencias: ${errP.message}`);
     const prefDe = new Map((prefs || []).map((p) => [p.user_id, p]));
 
 
@@ -177,7 +187,7 @@ export async function GET(request) {
       const sigue = porUsuario.get(userId) || [];
 
       const pref = prefDe.get(userId);
-      if (pref && (pref.email === false || pref.frequency === 'ninguno')) continue;
+      if (pref && (pref.email === false || pref.semanal === false)) continue;
       if (!u.email) continue;
 
       // Los eventos de lo que sigue esta persona, sin los ya enviados
