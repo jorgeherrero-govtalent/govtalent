@@ -50,11 +50,19 @@
     },
     {
       "path": "/api/alerts/weekly",
-      "schedule": "30 10 * * 1"
+      "schedule": "0 6 * * 1"
     },
     {
       "path": "/api/alerts/daily",
       "schedule": "15 10 * * *"
+    },
+    {
+      "path": "/api/cron/founder-drafts",
+      "schedule": "0 7 * * *"
+    },
+    {
+      "path": "/api/cron/profile-reminder",
+      "schedule": "0 8 * * *"
     },
     {
       "path": "/api/sync/eu-feedback",
