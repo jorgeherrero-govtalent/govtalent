@@ -73,6 +73,11 @@ const MAX_CADENA = 10;
 // barato: son unas pocas llamadas al dia.
 const MAX_TEXTO = 60_000;
 
+// Prefijo de los avisos sobre el contenido de una pagina, para poder
+// distinguirlos de los fallos de ejecucion dentro de ultimo_error. Ver
+// el salto por hash para el porque.
+const MARCA_DIAGNOSTICO = '[diagnóstico]';
+
 /**
  * Recorta la pagina para el prompt conservando el FINAL, no el principio.
  *
@@ -610,28 +615,19 @@ export async function GET(req) {
       const texto = textoUtil(html);
       const h = hash(texto);
 
-      // Sin cambios: ni extracción ni llamada al modelo. Es lo que hace
-      // que sondear 44 páginas a diario salga casi gratis.
-      if (!forzar && h === f.ultimo_hash) {
-        sinCambios += 1;
-        await supabase
-          .from('consulta_fuentes')
-          .update({ ultima_captura: new Date().toISOString(), ultimo_error: null, intentos_fallidos: 0 })
-          .eq('id', f.id);
-        resultados.push({ ministerio: f.ministerio, tipo: f.tipo, estado: 'sin_cambios' });
-        continue;
-      }
-
-      // En modo indice se le dan tambien los enlaces: el listado solo
-      // trae titulos y el detalle esta dentro de cada ficha.
-      const enlaces = f.modo === 'indice' ? enlacesDe(html, f.url) : null;
-
       // Modo diagnostico: devuelve lo que se le iba a mandar al modelo,
       // sin llamarlo. Sirve para ver si el problema es el contenido que
       // llega o la extraccion, en vez de ir probando a ciegas.
+      //
+      // Va ANTES del salto por hash a proposito. Puesto despues solo
+      // respondia cuando la pagina habia cambiado, que es justo cuando no
+      // hace falta: una pagina estable devolvia sin_cambios y el debug no
+      // llegaba a dispararse nunca.
       if (searchParams.get('debug') === '1') {
+        const enlacesDebug = f.modo === 'indice' ? enlacesDe(html, f.url) : null;
         return NextResponse.json({
           fuente: { ministerio: f.ministerio, tipo: f.tipo, url: f.url, modo: f.modo },
+          hash_igual_al_guardado: h === f.ultimo_hash,
           html_bytes: html.length,
           texto_bytes: texto.length,
           texto_chars: recortar(texto).largo,
@@ -641,10 +637,44 @@ export async function GET(req) {
           // El final es donde viven los tramites en estos portales: la
           // navegacion va delante. Mirar aqui antes que arriba.
           texto_ultimos_2000: texto.slice(-2000),
-          n_enlaces: enlaces?.length ?? 0,
-          primeros_enlaces: (enlaces || []).slice(0, 15),
+          n_enlaces: enlacesDebug?.length ?? 0,
+          primeros_enlaces: (enlacesDebug || []).slice(0, 15),
         });
       }
+
+      // Sin cambios: ni extracción ni llamada al modelo. Es lo que hace
+      // que sondear 47 páginas a diario salga casi gratis.
+      //
+      // Lo que NO se puede hacer aqui es borrar ultimo_error sin mirar.
+      // Ese campo guarda dos cosas distintas: fallos de ejecucion, que si
+      // caducan cuando la peticion vuelve a funcionar, y diagnosticos
+      // sobre el contenido ("no lista ningun tramite", "buzon no
+      // verificado"), que siguen siendo ciertos mientras la pagina sea
+      // identica — y si el hash coincide, lo es. Borrarlos en cada pasada
+      // dejaba la clasificacion en blanco al dia siguiente.
+      //
+      // Por eso los diagnosticos se escriben con el prefijo de abajo y
+      // solo se conservan ellos.
+      if (!forzar && h === f.ultimo_hash) {
+        sinCambios += 1;
+        const diagnosticoPrevio = String(f.ultimo_error || '').startsWith(MARCA_DIAGNOSTICO)
+          ? f.ultimo_error
+          : null;
+        await supabase
+          .from('consulta_fuentes')
+          .update({
+            ultima_captura: new Date().toISOString(),
+            ultimo_error: diagnosticoPrevio,
+            intentos_fallidos: 0,
+          })
+          .eq('id', f.id);
+        resultados.push({ ministerio: f.ministerio, tipo: f.tipo, estado: 'sin_cambios' });
+        continue;
+      }
+
+      // En modo indice se le dan tambien los enlaces: el listado solo
+      // trae titulos y el detalle esta dentro de cada ficha.
+      const enlaces = f.modo === 'indice' ? enlacesDe(html, f.url) : null;
 
       const { tramites: items, cerrados: cerradosEnPagina, declaraVacio } =
         await extraer(texto, f.tipo, f.url, enlaces);
@@ -687,7 +717,7 @@ export async function GET(req) {
         // hueco, porque el usuario lo usa y rebota.
         const buzonOk = it.buzon && texto.toLowerCase().includes(String(it.buzon).toLowerCase());
         if (it.buzon && !buzonOk) {
-          descartadas.push(`buzón no verificado en origen: ${it.buzon} (${it.titulo.slice(0, 50)})`);
+          descartadas.push(`${MARCA_DIAGNOSTICO} buzón no verificado en origen: ${it.buzon} (${it.titulo.slice(0, 50)})`);
         }
 
         const fila = {
@@ -787,7 +817,7 @@ export async function GET(req) {
       const avisos = [...descartadas];
       const sinTramites = items.length === 0 && cerradosEnPagina === 0 && !declaraVacio;
       if (sinTramites) {
-        avisos.unshift('No lista ningún trámite ni declara estar vacía — probablemente no es la página del listado');
+        avisos.unshift(`${MARCA_DIAGNOSTICO} No lista ningún trámite ni declara estar vacía — probablemente no es la página del listado`);
       }
 
       await supabase
