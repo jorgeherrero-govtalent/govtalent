@@ -59,6 +59,33 @@ const PRESUPUESTO_FUENTES_MS = 35_000;
 // Es un cepo contra el bucle infinito, no un objetivo.
 const MAX_CADENA = 10;
 
+// Cuanto texto de la pagina se le manda al modelo.
+//
+// Estaba en 15.000 y cortaba contenido de verdad: el listado de
+// proyectos normativos de MITECO da 17.856 caracteres de texto, de los
+// cuales los primeros dos mil largos son menu de navegacion —
+// organigrama, organismos publicos, fondos europeos, planes— y los
+// tramites vienen detras. Con el corte en 15.000 se perdian los ultimos
+// 2.856, que es justo donde estaban. La pagina volvia "sin tramites"
+// siendo un listado perfectamente valido.
+//
+// 60.000 caracteres son unos 15.000 tokens, holgado para el modelo y
+// barato: son unas pocas llamadas al dia.
+const MAX_TEXTO = 60_000;
+
+/**
+ * Recorta la pagina para el prompt conservando el FINAL, no el principio.
+ *
+ * En los portales ministeriales la navegacion va arriba y el contenido
+ * abajo, asi que cuando hay que cortar, lo que sobra es la cabecera. Al
+ * reves se tira justo lo que se venia a leer.
+ */
+function recortar(texto) {
+  const t = String(texto || '');
+  if (t.length <= MAX_TEXTO) return { texto: t, recortado: false, largo: t.length };
+  return { texto: t.slice(t.length - MAX_TEXTO), recortado: true, largo: t.length };
+}
+
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://govtalent.app';
 
 function admin() {
@@ -308,7 +335,7 @@ Reglas:
 
 Página (${tipo}) — ${urlOrigen}:${bloqueEnlaces}
 
-${texto.slice(0, 15000)}`;
+${recortar(texto).texto}`;
 
   const r = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
@@ -607,7 +634,13 @@ export async function GET(req) {
           fuente: { ministerio: f.ministerio, tipo: f.tipo, url: f.url, modo: f.modo },
           html_bytes: html.length,
           texto_bytes: texto.length,
+          texto_chars: recortar(texto).largo,
+          texto_recortado: recortar(texto).recortado,
+          max_texto: MAX_TEXTO,
           texto_primeros_2000: texto.slice(0, 2000),
+          // El final es donde viven los tramites en estos portales: la
+          // navegacion va delante. Mirar aqui antes que arriba.
+          texto_ultimos_2000: texto.slice(-2000),
           n_enlaces: enlaces?.length ?? 0,
           primeros_enlaces: (enlaces || []).slice(0, 15),
         });
@@ -778,6 +811,12 @@ export async function GET(req) {
         // Sin este numero, "no hay nada abierto" y "no estoy mirando
         // donde debo" salian los dos como encontradas: 0.
         cerrados_en_pagina: cerradosEnPagina || undefined,
+        // Tamano del texto leido. Si aparece texto_recortado hay que
+        // mirarlo: significa que ni con 60.000 caracteres cabe la pagina
+        // y puede estar quedandose contenido fuera, que es lo que
+        // pasaba con el limite viejo de 15.000.
+        texto_chars: recortar(texto).largo,
+        texto_recortado: recortar(texto).recortado || undefined,
         // La pagina dice que no tiene nada abierto: fuente sana y vacia.
         declara_vacio: declaraVacio || undefined,
         // Ni tramites, ni cerrados, ni explicacion: sospechosa.
