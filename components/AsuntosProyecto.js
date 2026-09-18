@@ -34,6 +34,7 @@ const ORIGEN = {
   actividad: 'Congreso · actividad parlamentaria',
   expediente: 'Comisión Europea · expediente',
   procedimiento: 'Parlamento Europeo · procedimiento',
+  consulta: 'Ministerios · consulta pública',
   boe: 'BOE',
 };
 
@@ -425,7 +426,12 @@ export default function AsuntosProyecto({ projectId, userId, abrirBuscador, onCe
                   ? 'Asunto tuyo, no viene del directorio: no tiene tramitación que seguir ni recibirá avisos automáticos.'
                   : detalle.kind === 'boe'
                     ? 'Publicado en el BOE: no tiene tramitación que seguir.'
-                    : 'Sin recorrido registrado todavía.'}
+                    : detalle.kind === 'consulta'
+                      ? // Una consulta no tiene fases: tiene un plazo. Decir
+                        // "sin recorrido registrado" hacía pensar en un dato
+                        // que falta, cuando es que no existe.
+                        'Consulta pública: no tiene fases, tiene plazo de aportaciones. Abre la ficha para ver el plazo y el buzón.'
+                      : 'Sin recorrido registrado todavía.'}
               </div>
             ) : (
               <div className="gt-fases" style={{ marginBottom: 18 }}>
@@ -658,6 +664,7 @@ const TIPOS_BUSCADOR = [
   { v: 'boe', label: 'BOE' },
   { v: 'expediente', label: 'Expedientes UE' },
   { v: 'procedimiento', label: 'Procedimientos PE' },
+  { v: 'consulta', label: 'Consultas públicas' },
 ];
 
 function BuscadorAsuntos({ projectId, yaEn, onClose, onAdded }) {
