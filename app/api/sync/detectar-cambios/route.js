@@ -51,7 +51,7 @@ function admin() {
  * Cómo se construye la huella de cada tipo.
  *
  * Cada entrada dice de dónde leer y qué campos vigilar. Añadir una
- * fuente nueva —consultas públicas, BOE— es añadir una entrada aquí.
+ * fuente nueva —el BOE, por ejemplo— es añadir una entrada aquí.
  */
 const TIPOS = {
   ley: {
@@ -87,6 +87,33 @@ const TIPOS = {
     huella: (r) => ({ stage: r.stage, feedback_end: r.feedback_end, n_attachments: r.n_attachments }),
     plazo: (r) => r.feedback_end,
     ruta: (r) => `/initiatives/${r.slug}`,
+  },
+  // Las consultas públicas de los ministerios. Faltaban aquí, así que
+  // se podían seguir pero no avisaban de nada: ni novedad ni plazo.
+  //
+  // De una consulta solo cambian dos cosas que importen: que se mueva la
+  // fecha de cierre —prorrogar el plazo es lo más común— y que aparezca
+  // el documento sometido a consulta, porque hasta que no se publica no
+  // hay nada que alegar.
+  //
+  // EL ESTADO NO ENTRA EN LA HUELLA. Se calcula a partir de fecha_fin y
+  // current_date, así que pasaría a 'urgente' el mismo día en que el
+  // aviso de plazo de siete días ya está sonando: dos correos por lo
+  // mismo.
+  //
+  // Del documento se guarda SI LO HAY, no cuál: si el ministerio cambia
+  // la URL del PDF sin publicar nada nuevo, eso no es una novedad.
+  consulta: {
+    tabla: 'consultas_estado',
+    id: 'id',
+    etiqueta: (r) => r.titulo,
+    columnas: 'id, titulo, fecha_fin, url_documento',
+    huella: (r) => ({
+      fecha_fin: r.fecha_fin,
+      documento: r.url_documento ? 'sí' : 'no',
+    }),
+    plazo: (r) => r.fecha_fin,
+    ruta: (r) => `/regulatorio/consultas/${r.id}`,
   },
   // Los actores: seguir una comisión es la forma natural de cubrir un
   // ámbito sin seguir cada ley una a una, así que lo que importa es
