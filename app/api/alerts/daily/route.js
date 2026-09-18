@@ -128,8 +128,13 @@ export async function GET(request) {
             boe: 'boe',
             expediente: 'comision',
             procedimiento: 'parlamento',
+            consulta: 'consultas',
           };
-          if (!a.fuentes.includes(mapa[r.kind])) continue;
+          // Un tipo que no esté en el mapa daba undefined, y ningún
+          // array lo contiene: se descartaba en silencio. Así pasaba con
+          // las consultas públicas, que no llegaban a ningún aviso.
+          const fuente = mapa[r.kind];
+          if (!fuente || !a.fuentes.includes(fuente)) continue;
         }
 
         nuevos.push({
