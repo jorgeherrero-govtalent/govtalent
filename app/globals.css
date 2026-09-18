@@ -17,7 +17,7 @@ a{color:inherit}
 
 .sl-left h2{font-size:23px;font-weight:600;line-height:1.3;margin-bottom:12px;letter-spacing:-.4px;position:relative;z-index:1;max-width:460px}
 .sl-left h2 em{font-style:italic}
-.sl-tagline{font-size:14px;color:#cfcdc6;line-height:1.6;margin-bottom:8px;position:relative;z-index:1;max-width:470px}
+.sl-tagline{font-size:14px;color:#fff;line-height:1.6;margin-bottom:8px;position:relative;z-index:1;max-width:470px}
 .sl-features{display:flex;flex-direction:column;gap:20px;position:relative;padding:26px 0;margin:24px 0;border-top:1px solid rgba(255,255,255,.15);border-bottom:1px solid rgba(255,255,255,.15)}
 .sl-feature{display:flex;align-items:center;gap:13px;font-size:14.5px;font-weight:500;color:rgba(255,255,255,.92)}
 .sl-feature i{font-size:18px;color:#a8e6d4;flex-shrink:0;width:20px}
@@ -580,6 +580,11 @@ a{color:inherit}
 .lp-col{display:flex;flex-direction:column;min-width:0}
 .lp-col:first-child{flex:1.15}
 .lp-col-2{flex:1}
+/* El anillo de "tu encaje con el sector" se completa al cargar. Va aquí y
+   no en el componente para no meter una etiqueta <style> dentro del SVG. */
+@keyframes lp-anillo-carga{from{stroke-dasharray:0 100}to{stroke-dasharray:78 22}}
+.lp-anillo{animation:lp-anillo-carga 1.3s cubic-bezier(.4,0,.2,1) .35s backwards}
+@media (prefers-reduced-motion:reduce){.lp-anillo{animation:none}}
 
 /* En móvil no cabe nada de esto: se queda el titular y el subtítulo,
    que son el mensaje de verdad. */
