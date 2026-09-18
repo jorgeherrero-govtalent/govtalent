@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { syncDeputiesFase1 } from '@/lib/instituciones/syncDeputies';
+import { conRegistro } from '@/lib/syncLog';
 
 export const maxDuration = 60;
 
@@ -14,7 +15,9 @@ function admin() {
 // cabecera "Authorization: Bearer <CRON_SECRET>" si la variable de entorno
 // CRON_SECRET está configurada en el proyecto — así se evita que cualquiera
 // pueda disparar la sincronización llamando a la URL a mano.
-export async function GET(request) {
+export const GET = conRegistro('/api/sync/instituciones', handler);
+
+async function handler(request) {
   const authHeader = request.headers.get('authorization');
   if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
     return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
