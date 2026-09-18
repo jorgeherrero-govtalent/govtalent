@@ -30,6 +30,9 @@ const QUE_AVISAMOS = {
   actividad: 'cuando cambie de situación o se resuelva',
   expediente: 'cuando cambie de fase, se publiquen documentos o se acerque el plazo',
   procedimiento: 'cuando avance de fase o concluya',
+  // Lo que el motor vigila de una consulta: la fecha de cierre y la
+  // publicación del documento. Nada más, así que nada más se promete.
+  consulta: 'cuando se mueva la fecha de cierre, se publique el documento o se acerque el plazo',
   diputado: 'cuando cambie de grupo o de comisión',
   // Las comisiones se siguen para saber qué entra en ellas, no quién
   // las preside: es la forma natural de cubrir un ámbito.
