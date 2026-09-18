@@ -24,14 +24,17 @@ const TIPOS = {
   actividad: { label: 'Actividad', plural: 'Actividad parlamentaria', icon: 'messages', orden: 2 },
   expediente: { label: 'Expediente', plural: 'Expedientes de la Comisión', icon: 'file-text', orden: 3 },
   procedimiento: { label: 'Procedimiento', plural: 'Procedimientos del PE', icon: 'gavel', orden: 4 },
-  boe: { label: 'BOE', plural: 'Publicado en el BOE', icon: 'news', orden: 5 },
-  diputado: { label: 'Diputado', plural: 'Diputados', icon: 'user', orden: 6 },
-  eurodiputado: { label: 'Eurodiputado', plural: 'Eurodiputados', icon: 'user', orden: 7 },
-  comision: { label: 'Comisión', plural: 'Comisiones del Congreso', icon: 'users', orden: 8 },
-  'comision-eu': { label: 'Comisión', plural: 'Comisiones del PE', icon: 'users', orden: 9 },
-  grupo: { label: 'Grupo', plural: 'Grupos parlamentarios', icon: 'flag', orden: 10 },
-  direccion: { label: 'Dirección General', plural: 'Direcciones generales', icon: 'building', orden: 11 },
-  cargo: { label: 'Alto cargo', plural: 'Altos cargos', icon: 'user', orden: 12 },
+  // Antes de lo publicado: una consulta tiene plazo abierto y el BOE ya
+  // no. Sin esta entrada caía en TIPOS.ley y se agrupaba bajo "Leyes".
+  consulta: { label: 'Consulta pública', plural: 'Consultas públicas', icon: 'message-2', orden: 5 },
+  boe: { label: 'BOE', plural: 'Publicado en el BOE', icon: 'news', orden: 6 },
+  diputado: { label: 'Diputado', plural: 'Diputados', icon: 'user', orden: 7 },
+  eurodiputado: { label: 'Eurodiputado', plural: 'Eurodiputados', icon: 'user', orden: 8 },
+  comision: { label: 'Comisión', plural: 'Comisiones del Congreso', icon: 'users', orden: 9 },
+  'comision-eu': { label: 'Comisión', plural: 'Comisiones del PE', icon: 'users', orden: 10 },
+  grupo: { label: 'Grupo', plural: 'Grupos parlamentarios', icon: 'flag', orden: 11 },
+  direccion: { label: 'Dirección General', plural: 'Direcciones generales', icon: 'building', orden: 12 },
+  cargo: { label: 'Alto cargo', plural: 'Altos cargos', icon: 'user', orden: 13 },
 };
 
 const CARD = { background: '#fff', borderRadius: 10, boxShadow: '0 1px 2px rgba(0,0,0,.04)' };
