@@ -30,6 +30,7 @@
 
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { conRegistro } from '@/lib/syncLog';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
@@ -296,7 +297,9 @@ async function lanzarSiguiente(request, eslabon, extra = {}) {
   }
 }
 
-export async function GET(request) {
+export const GET = conRegistro('/api/sync/parlamento-procedimientos', handler);
+
+async function handler(request) {
   const t0 = Date.now();
   const sp = new URL(request.url).searchParams;
 
