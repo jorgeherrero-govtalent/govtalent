@@ -372,7 +372,7 @@ export default function SectorPage() {
       nombre: (perfil.sectores || [])[0] || 'Mi sector',
       keywords: perfil.keywords || [],
       sectores: perfil.sectores || [],
-      fuentes: ['congreso', 'boe', 'comision', 'parlamento'],
+      fuentes: ['congreso', 'boe', 'comision', 'parlamento', 'consultas'],
       frecuencia: 'semanal',
     });
     if (error) toast.error('No se ha podido crear la alerta');
