@@ -26,6 +26,7 @@ const FUENTES = [
   { id: 'boe', label: 'BOE' },
   { id: 'comision', label: 'Comisión Europea' },
   { id: 'parlamento', label: 'Parlamento Europeo' },
+  { id: 'consultas', label: 'Consultas públicas' },
 ];
 
 function haceCuanto(iso) {
