@@ -21,6 +21,7 @@ import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { resend, EMAIL_FROM } from '@/lib/resend';
 import { completeProfileEmail } from '@/lib/email/templates';
+import { conRegistro } from '@/lib/syncLog';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
@@ -36,7 +37,9 @@ function admin() {
   });
 }
 
-export async function GET(request) {
+export const GET = conRegistro('/api/cron/profile-reminder', handler);
+
+async function handler(request) {
   const t0 = Date.now();
   const sp = new URL(request.url).searchParams;
   const isCron = request.headers.get('authorization') === `Bearer ${process.env.CRON_SECRET}`;
