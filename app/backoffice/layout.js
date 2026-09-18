@@ -10,6 +10,7 @@ const NAV = [
   { href: '/backoffice/reclamaciones', label: 'Reclamaciones', icon: 'ti-shield-check' },
   { href: '/backoffice/usuarios', label: 'Usuarios', icon: 'ti-users' },
   { href: '/backoffice/radar', label: 'Radar', icon: 'ti-radar-2' },
+  { href: '/backoffice/syncs', label: 'Syncs', icon: 'ti-refresh' },
 ];
 
 export default function BackofficeLayout({ children }) {
