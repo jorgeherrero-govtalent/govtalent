@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { syncGovernment, seedBios, debugBio } from '@/lib/instituciones/syncGovernment';
+import { conRegistro } from '@/lib/syncLog';
 
 export const maxDuration = 60;
 
@@ -10,7 +11,9 @@ function admin() {
   });
 }
 
-export async function GET(request) {
+export const GET = conRegistro('/api/sync/instituciones-gobierno', handler);
+
+async function handler(request) {
   const sp = new URL(request.url).searchParams;
   const authHeader = request.headers.get('authorization');
   const key = sp.get('key');
