@@ -31,6 +31,7 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { weeklyDigestEmail } from '@/lib/email/templates';
+import { conRegistro } from '@/lib/syncLog';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
@@ -82,7 +83,9 @@ async function enviar({ to, subject, html }) {
   return res.json();
 }
 
-export async function GET(request) {
+export const GET = conRegistro('/api/alerts/weekly', handler);
+
+async function handler(request) {
   const t0 = Date.now();
   const sp = new URL(request.url).searchParams;
 
