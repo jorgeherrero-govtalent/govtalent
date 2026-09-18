@@ -166,7 +166,7 @@ export default function NewOrganizationPage() {
               Seguimiento, y aquí sirve para que la tarjeta no sea un
               formulario gris más. El botón se queda verde, que es el
               color de las acciones en el resto de la aplicación. */}
-          <div style={{ display: 'flex', alignItems: 'flex-start', gap: 11, marginBottom: 5 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 11, marginBottom: 18 }}>
             <span
               style={{
                 width: 32,
@@ -178,18 +178,17 @@ export default function NewOrganizationPage() {
                 alignItems: 'center',
                 justifyContent: 'center',
                 flexShrink: 0,
-                marginTop: 1,
               }}
             >
-              <i className="ti ti-building-store" style={{ fontSize: 17 }}></i>
+              <i className="ti ti-building-bank" style={{ fontSize: 17 }}></i>
             </span>
+            {/* La cabecera anterior reducía la página a un tablón de
+                empleo. Sin subtítulo: el formulario se explica solo y
+                cualquier lista de ventajas aquí competía con los campos. */}
             <h2 style={{ fontSize: 15, fontWeight: 600, lineHeight: 1.35, margin: 0, minWidth: 0 }}>
-              Crea tu página y empieza a publicar ofertas de manera gratuita
+              Crea la página de tu organización
             </h2>
           </div>
-          <p style={{ fontSize: 11.5, color: '#8b8780', lineHeight: 1.55, margin: '0 0 18px 43px' }}>
-            Gestiona las candidaturas con herramientas de reclutamiento avanzadas.
-          </p>
 
           {error && <div className="err-msg">{error}</div>}
 
