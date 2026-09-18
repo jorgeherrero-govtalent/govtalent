@@ -211,7 +211,12 @@ export default function LoginPanel() {
               <div style={{ display: 'flex', alignItems: 'center', gap: 11, marginBottom: 10 }}>
                 <svg viewBox="0 0 42 42" width="44" height="44" style={{ flexShrink: 0 }}>
                   <circle cx="21" cy="21" r="15.915" fill="none" stroke="#f2f0ec" strokeWidth="5" />
+                  {/* El anillo se dibuja al entrar en vez de aparecer
+                      hecho: el gesto cuenta que es un cálculo sobre tu
+                      perfil y no un adorno. Los keyframes están en
+                      globals.css, junto al resto de estilos del panel. */}
                   <circle
+                    className="lp-anillo"
                     cx="21"
                     cy="21"
                     r="15.915"
@@ -256,13 +261,13 @@ export default function LoginPanel() {
         </div>
 
         <div className="lp-col lp-col-2">
-          <Etiqueta>Directorio de cargos</Etiqueta>
+          <Etiqueta>Consulta quién decide</Etiqueta>
           <div className="bento" style={VENTANA}>
             <div style={TARJETA}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 9 }}>
                 <Bandera pais="es" />
                 <Bandera pais="ue" />
-                <span style={{ fontSize: 11, fontWeight: 600, marginLeft: 3 }}>Directorio institucional</span>
+                <span style={{ fontSize: 11, fontWeight: 600, marginLeft: 3 }}>+11.000 cargos en UE y AGE</span>
               </div>
               <Cargo
                 avatar="#e8eefb"
@@ -282,8 +287,10 @@ export default function LoginPanel() {
                 <i className="ti ti-corner-down-right" style={{ fontSize: 12, color: '#a8a49c' }}></i>
                 Depende de la Secretaría de Estado de Digitalización
               </div>
-              {/* El correo desenfocado: enseña que el dato existe sin
-                  publicarlo, y es el argumento de la etiqueta Pro. */}
+              {/* El dominio a la vista y el nombre desenfocado: así se ve
+                  que el dato es real y de dónde sale —una cuenta oficial de
+                  la Comisión— sin publicar el buzón de nadie. Desenfocar el
+                  correo entero no demostraba nada; podía ser cualquier cosa. */}
               <div
                 style={{
                   display: 'flex',
@@ -296,20 +303,11 @@ export default function LoginPanel() {
                 }}
               >
                 <i className="ti ti-mail" style={{ fontSize: 13, color: '#a8a49c' }}></i>
-                <span style={{ color: '#1d6f5c', filter: 'blur(3.6px)', userSelect: 'none' }}>
-                  nombre.apellido@ec.europa.eu
-                </span>
-                <span
-                  style={{
-                    marginLeft: 'auto',
-                    fontSize: 10,
-                    background: '#f0eefe',
-                    color: '#3c3489',
-                    borderRadius: 10,
-                    padding: '3px 9px',
-                  }}
-                >
-                  Pro
+                <span style={{ color: '#1d6f5c', display: 'inline-flex', alignItems: 'baseline' }}>
+                  <span style={{ display: 'inline-block', filter: 'blur(3.4px)', userSelect: 'none' }}>
+                    nombre.apellido
+                  </span>
+                  <span>@ec.europa.eu</span>
                 </span>
               </div>
             </div>
