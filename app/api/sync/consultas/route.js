@@ -294,6 +294,12 @@ Reglas:
 - "asunto_requerido" es el formato de asunto exigido si se indica; si no, null.
 - Si un campo no aparece, pon null. NO inventes ningún valor.
 - Si no hay trámites abiertos, llama a la herramienta con un array vacio.
+- Pon "declara_vacio" a true SOLO si la pagina afirma en su texto que no
+  hay tramites abiertos ahora mismo ("En este momento no hay tramites
+  abiertos", "No existen tramites de consulta publica previa abiertos",
+  "En la actualidad, no existen tramites abiertos" y similares). Es una
+  afirmacion explicita de la pagina, no una deduccion tuya: si la pagina
+  simplemente no muestra nada y no dice por que, va a false.
 - Cuenta ademas en "tramites_cerrados" cuantos tramites YA VENCIDOS o
   cerrados aparecen en la pagina. Es lo que distingue una pagina que si
   lista tramites pero ahora no tiene ninguno abierto, de una pagina que
@@ -359,8 +365,13 @@ ${texto.slice(0, 15000)}`;
                 description:
                   'Cuantos tramites ya vencidos o cerrados aparecen en la pagina. 0 si la pagina no lista ningun tramite.',
               },
+              declara_vacio: {
+                type: 'boolean',
+                description:
+                  'true solo si la pagina AFIRMA en su texto que no hay tramites abiertos en este momento. false si simplemente no muestra ninguno sin decir nada.',
+              },
             },
-            required: ['tramites', 'tramites_cerrados'],
+            required: ['tramites', 'tramites_cerrados', 'declara_vacio'],
           },
         },
       ],
@@ -388,6 +399,7 @@ ${texto.slice(0, 15000)}`;
   return {
     tramites: Array.isArray(tramites) ? tramites : [],
     cerrados: Number.isFinite(cerrados) && cerrados >= 0 ? cerrados : 0,
+    declaraVacio: uso.input?.declara_vacio === true,
   };
 }
 
@@ -601,7 +613,7 @@ export async function GET(req) {
         });
       }
 
-      const { tramites: items, cerrados: cerradosEnPagina } =
+      const { tramites: items, cerrados: cerradosEnPagina, declaraVacio } =
         await extraer(texto, f.tipo, f.url, enlaces);
 
       // Vinculo con el organigrama, si ese ministerio lo tiene cargado.
@@ -725,15 +737,24 @@ export async function GET(req) {
         }
       }
 
-      // Una pagina sin un solo tramite, ni abierto ni cerrado, casi
-      // siempre es la pagina de presentacion que obliga a tener la Orden
-      // PRE/1590/2016, con el listado un clic mas abajo. Se deja anotado
-      // en la fila para poder listarlas por SQL sin volver a lanzar el
-      // sync. No es un fallo de ejecucion, pero se guarda en el mismo
-      // campo que las descartadas porque ahi es donde se mira.
+      // Tres situaciones distintas se veian antes como un mismo cero:
+      //
+      //   1. La pagina lista tramites y alguno esta vigente.
+      //   2. La pagina es un listado sano que ahora no tiene nada. Muchas
+      //      lo dicen con todas las letras ("En este momento no hay
+      //      tramites abiertos") y solo muestran los abiertos, asi que
+      //      tampoco traen cerrados que contar. Hacienda, Sanidad,
+      //      Derechos Sociales, Defensa y Agricultura son de estas.
+      //   3. La pagina no lista nada y no dice por que: casi siempre es
+      //      la pagina de presentacion que obliga a tener la Orden
+      //      PRE/1590/2016, con el listado un clic mas abajo.
+      //
+      // Solo la tercera es un problema, y es la unica que deja aviso. Sin
+      // esta distincion cada cero obligaba a abrir la pagina a mano.
       const avisos = [...descartadas];
-      if (items.length === 0 && cerradosEnPagina === 0) {
-        avisos.unshift('La página no lista ningún trámite, ni abierto ni cerrado — probable página de presentación');
+      const sinTramites = items.length === 0 && cerradosEnPagina === 0 && !declaraVacio;
+      if (sinTramites) {
+        avisos.unshift('No lista ningún trámite ni declara estar vacía — probablemente no es la página del listado');
       }
 
       await supabase
@@ -757,7 +778,10 @@ export async function GET(req) {
         // Sin este numero, "no hay nada abierto" y "no estoy mirando
         // donde debo" salian los dos como encontradas: 0.
         cerrados_en_pagina: cerradosEnPagina || undefined,
-        sin_tramites: items.length === 0 && cerradosEnPagina === 0 ? true : undefined,
+        // La pagina dice que no tiene nada abierto: fuente sana y vacia.
+        declara_vacio: declaraVacio || undefined,
+        // Ni tramites, ni cerrados, ni explicacion: sospechosa.
+        sin_tramites: sinTramites || undefined,
       });
     } catch (err) {
       await supabase
@@ -771,6 +795,20 @@ export async function GET(req) {
 
       resultados.push({ ministerio: f.ministerio, tipo: f.tipo, estado: 'error', detalle: String(err.message || err) });
     }
+  }
+
+  // El testigo se pasa AQUI, antes de la pasada de fichas, no al final.
+  // Puesto al final se disparaba pasados los 55 segundos, y si las fichas
+  // se comian el margen la invocacion moria por maxDuration sin llegar a
+  // relevar: la cola se quedaba a medias y en silencio. Las fichas son
+  // trabajo aplazable; el relevo no.
+  const pendientes = cortadoPorTiempo ? (fuentes || []).length - resultados.length : 0;
+  let relevo = { encadenado: false };
+  if (pendientes > 0) {
+    relevo =
+      cadena < MAX_CADENA
+        ? await encadenar({ cadena, forzar })
+        : { encadenado: false, motivo: `tope de cadena (${MAX_CADENA}) alcanzado con ${pendientes} pendientes` };
   }
 
   // -------------------------------------------------------------------
@@ -853,17 +891,6 @@ export async function GET(req) {
   const ms = Date.now() - t0;
   const conError = resultados.filter((r) => r.estado === 'error').length;
 
-  // Si el tiempo corto la pasada y aun quedan fuentes, se pasa el testigo.
-  // El tope de cadena evita que un fallo que no drene la cola se convierta
-  // en un bucle que corra toda la noche a tu cuenta.
-  const pendientes = cortadoPorTiempo ? (fuentes || []).length - resultados.length : 0;
-  let relevo = { encadenado: false };
-  if (pendientes > 0) {
-    relevo =
-      cadena < MAX_CADENA
-        ? await encadenar({ cadena, forzar })
-        : { encadenado: false, motivo: `tope de cadena (${MAX_CADENA}) alcanzado con ${pendientes} pendientes` };
-  }
 
   await registrar(supabase, {
     estado: conError === resultados.length && resultados.length > 0 ? 'error' : resultados.length ? 'ok' : 'vacio',
