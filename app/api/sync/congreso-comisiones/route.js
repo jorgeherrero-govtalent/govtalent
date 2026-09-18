@@ -18,6 +18,7 @@
 
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { conRegistro } from '@/lib/syncLog';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
@@ -352,7 +353,9 @@ async function escribir(supabase, tabla, filas, conflicto, devolver) {
   return { escritas, errores, filas: salida };
 }
 
-export async function GET(request) {
+export const GET = conRegistro('/api/sync/congreso-comisiones', handler);
+
+async function handler(request) {
   const t0 = Date.now();
   const sp = new URL(request.url).searchParams;
 
