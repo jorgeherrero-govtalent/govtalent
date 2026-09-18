@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { fetchGob } from '@/lib/fetchGob';
 import { createClient } from '@supabase/supabase-js';
 import crypto from 'crypto';
 
@@ -597,7 +598,10 @@ export async function GET(req) {
     }
 
     try {
-      const res = await fetch(f.url, {
+      // fetchGob y no fetch: varias sedes no envian el certificado
+      // intermedio de FNMT y Node no puede cerrar la cadena. Ver
+      // lib/fetchGob.js.
+      const res = await fetchGob(f.url, {
         cache: 'no-store',
         // Cabeceras de navegador ademas del user-agent identificable:
         // Interior (OpenCMS) devolvia 403 con una peticion demasiado
@@ -906,7 +910,7 @@ export async function GET(req) {
       if (Date.now() - t0 > PRESUPUESTO_MS) break;
 
       try {
-        const res = await fetch(p.url_ficha, {
+        const res = await fetchGob(p.url_ficha, {
           cache: 'no-store',
           headers: {
             'user-agent': 'Mozilla/5.0 (compatible; GovTalent/1.0; +https://govtalent.app; hola@govtalent.app)',
