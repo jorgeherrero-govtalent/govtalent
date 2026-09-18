@@ -54,6 +54,13 @@ const PRESUPUESTO_MS = 50_000;
 // llega a correr nunca, con detalle_pendiente creciendo sin fin.
 const PRESUPUESTO_FUENTES_MS = 35_000;
 
+// Maximo de eslabones de la cadena (ver encadenar()). Con ~8 fuentes por
+// eslabon, 10 cubren 80 fuentes, bastante por encima de las que hay.
+// Es un cepo contra el bucle infinito, no un objetivo.
+const MAX_CADENA = 10;
+
+const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://govtalent.app';
+
 function admin() {
   return createClient(process.env.NEXT_PUBLIC_SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY, {
     auth: { persistSession: false, autoRefreshToken: false },
@@ -450,6 +457,46 @@ ${texto.slice(0, 40000)}`,
   return uso?.input || {};
 }
 
+/**
+ * Dispara el siguiente eslabon de la cadena.
+ *
+ * Por que hace falta: una fuente sin cambios cuesta unos 2 segundos solo
+ * de peticion HTTP —las webs de ministerio son lentas— y hay decenas.
+ * Ni siquiera con todas cacheadas caben en una invocacion de 60s. Como
+ * el orden es por ultima_captura ascendente, el eslabon siguiente
+ * arranca exactamente donde lo dejo este, sin solapamiento y sin estado
+ * que mantener.
+ *
+ * NO se espera la respuesta, solo se le da tiempo a que la peticion
+ * salga: esperarla mataria esta invocacion por maxDuration antes de que
+ * la cadena terminara. El abort a los 2s es el final feliz, no un error.
+ *
+ * Se autentica con DEBUG_KEY porque el eslabon no lleva la cabecera del
+ * cron. Si no hay DEBUG_KEY configurada no se encadena, y se dice en la
+ * respuesta en vez de fallar en silencio.
+ */
+async function encadenar({ cadena, forzar }) {
+  if (!process.env.DEBUG_KEY) return { encadenado: false, motivo: 'sin DEBUG_KEY' };
+
+  const url =
+    `${SITE_URL}/api/sync/consultas` +
+    `?key=${encodeURIComponent(process.env.DEBUG_KEY)}` +
+    `&cadena=${cadena + 1}` +
+    (forzar ? '&forzar=1' : '');
+
+  const ctrl = new AbortController();
+  const corte = setTimeout(() => ctrl.abort(), 2000);
+  try {
+    await fetch(url, { cache: 'no-store', signal: ctrl.signal });
+  } catch {
+    // Abort esperado: la peticion ya salio y el siguiente eslabon corre
+    // por su cuenta.
+  } finally {
+    clearTimeout(corte);
+  }
+  return { encadenado: true, siguiente: cadena + 1 };
+}
+
 export async function GET(req) {
   const t0 = Date.now();
   const { searchParams } = new URL(req.url);
@@ -468,6 +515,8 @@ export async function GET(req) {
   const supabase = admin();
   const lote = Math.min(Number(searchParams.get('lote')) || LOTE_POR_DEFECTO, LOTE_MAXIMO);
   const forzar = searchParams.get('forzar') === '1';
+  // Eslabon de la cadena. 0 es la invocacion que arranca el cron.
+  const cadena = Math.max(0, Number(searchParams.get('cadena')) || 0);
 
   // Cola: las que llevan más tiempo sin mirarse primero. Se descartan las
   // que llevan 3 fallos seguidos para que una URL rota no bloquee el turno
@@ -804,14 +853,29 @@ export async function GET(req) {
   const ms = Date.now() - t0;
   const conError = resultados.filter((r) => r.estado === 'error').length;
 
+  // Si el tiempo corto la pasada y aun quedan fuentes, se pasa el testigo.
+  // El tope de cadena evita que un fallo que no drene la cola se convierta
+  // en un bucle que corra toda la noche a tu cuenta.
+  const pendientes = cortadoPorTiempo ? (fuentes || []).length - resultados.length : 0;
+  let relevo = { encadenado: false };
+  if (pendientes > 0) {
+    relevo =
+      cadena < MAX_CADENA
+        ? await encadenar({ cadena, forzar })
+        : { encadenado: false, motivo: `tope de cadena (${MAX_CADENA}) alcanzado con ${pendientes} pendientes` };
+  }
+
   await registrar(supabase, {
     estado: conError === resultados.length && resultados.length > 0 ? 'error' : resultados.length ? 'ok' : 'vacio',
     n_leidos: resultados.length,
     n_escritos: nuevas + actualizadas,
     duracion_ms: ms,
     detalle: [
+      `eslabon ${cadena}`,
       `fuentes ${resultados.length}/${(fuentes || []).length}`,
       cortadoPorTiempo ? 'cortado por tiempo' : null,
+      relevo.encadenado ? `releva a ${relevo.siguiente}` : null,
+      relevo.motivo ? `sin relevo: ${relevo.motivo}` : null,
       `nuevas ${nuevas}`,
       `actualizadas ${actualizadas}`,
       `sin_cambios ${sinCambios}`,
@@ -836,8 +900,13 @@ export async function GET(req) {
     // varios dias seguidos, hay que repartir el cron en mas pasadas.
     fuentes_en_cola: (fuentes || []).length,
     fuentes_procesadas: resultados.length,
-    fuentes_pendientes: cortadoPorTiempo ? (fuentes || []).length - resultados.length : 0,
+    fuentes_pendientes: pendientes,
     cortado_por_tiempo: cortadoPorTiempo || undefined,
+    // Eslabon actual y si ha pasado el testigo. Si ves pendientes > 0 con
+    // encadenado false, la cola se queda a medias y hay que mirar motivo.
+    cadena,
+    encadenado: relevo.encadenado || undefined,
+    sin_relevo: relevo.motivo || undefined,
     nuevas,
     actualizadas,
     sin_cambios: sinCambios,
