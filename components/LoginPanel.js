@@ -289,7 +289,7 @@ export default function LoginPanel() {
               </div>
               {/* El dominio a la vista y el nombre desenfocado: así se ve
                   que el dato es real y de dónde sale —una cuenta oficial de
-                  la Comisión— sin publicar el buzón de nadie. Desenfocar el
+                  la AGE— sin publicar el buzón de nadie. Desenfocar el
                   correo entero no demostraba nada; podía ser cualquier cosa. */}
               <div
                 style={{
@@ -307,7 +307,7 @@ export default function LoginPanel() {
                   <span style={{ display: 'inline-block', filter: 'blur(3.4px)', userSelect: 'none' }}>
                     nombre.apellido
                   </span>
-                  <span>@ec.europa.eu</span>
+                  <span>@digital.gob.es</span>
                 </span>
               </div>
             </div>
