@@ -26,6 +26,7 @@
 // =====================================================================
 
 import { createClient } from '@supabase/supabase-js';
+import { conRegistro } from '@/lib/syncLog';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
@@ -257,7 +258,9 @@ async function enLotes(filas, fn) {
 // ---------------------------------------------------------------------
 // Handler
 // ---------------------------------------------------------------------
-export async function GET(request) {
+export const GET = conRegistro('/api/sync/instituciones-parlamento-europeo', handler);
+
+async function handler(request) {
   const t0 = Date.now();
   const sp = new URL(request.url).searchParams;
   const dry = sp.get('dry') === '1';
