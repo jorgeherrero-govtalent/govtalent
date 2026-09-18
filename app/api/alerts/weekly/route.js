@@ -51,6 +51,7 @@ const FUENTE_POR_TIPO = {
   direccion: 'Comisión Europea',
   comisario: 'Comisión Europea',
   procedimiento: 'Parlamento Europeo',
+  consulta: 'Consulta pública',
 };
 
 function admin() {
