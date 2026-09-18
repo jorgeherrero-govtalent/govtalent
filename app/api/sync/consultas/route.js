@@ -23,17 +23,36 @@ export const fetchCache = 'force-no-store';
  *
  * Uso:
  *   /api/sync/consultas?key=<DEBUG_KEY>
- *   /api/sync/consultas?key=<DEBUG_KEY>&lote=2        (procesar menos)
+ *   /api/sync/consultas?key=<DEBUG_KEY>&lote=2        (pasada corta)
  *   /api/sync/consultas?key=<DEBUG_KEY>&forzar=1      (ignorar el hash)
  */
 
-// Cuántas fuentes por invocación. Cada una puede implicar una llamada al
-// modelo, que tarda; con 60s de techo, cuatro es lo que cabe con holgura.
-const LOTE_POR_DEFECTO = 3;
+// El objetivo es pasar por TODAS las fuentes cada dia, para que no se
+// escape una consulta que se abre y se cierra en quince dias habiles.
+// Por eso el lote ya no limita la cobertura: se piden todas las fuentes
+// activas y es el presupuesto de tiempo quien corta.
+//
+// Sale a cuenta porque el salto por hash evita la llamada al modelo
+// cuando la pagina no ha cambiado, que es lo habitual en casi todas:
+// una fuente sin cambios cuesta la peticion HTTP y poco
+// mas, mientras que una que si cambio cuesta varios segundos de modelo.
+//
+// Si un dia cambian demasiadas y no da tiempo, las que queden conservan
+// su ultima_captura y el orden las pone las primeras en la pasada
+// siguiente. No se pierde ninguna, solo se retrasa un dia.
+const LOTE_POR_DEFECTO = 200;
+// Tope del parametro ?lote=, que sigue existiendo para pasadas manuales
+// cortas. Antes era 10 y es justo lo que impedia la cobertura completa.
+const LOTE_MAXIMO = 200;
 // Fichas de detalle por invocacion, ademas de las fuentes. Cada una es
 // otra peticion y otra llamada al modelo, asi que van contadas aparte.
 const FICHAS_POR_DEFECTO = 4;
+// Techo de la invocacion (maxDuration son 60s; se dejan 10 de margen).
 const PRESUPUESTO_MS = 50_000;
+// Sub-presupuesto de la primera pasada. Sin esto, un dia con muchas
+// paginas modificadas se come el tiempo entero y la cola de fichas no
+// llega a correr nunca, con detalle_pendiente creciendo sin fin.
+const PRESUPUESTO_FUENTES_MS = 35_000;
 
 function admin() {
   return createClient(process.env.NEXT_PUBLIC_SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY, {
@@ -447,7 +466,7 @@ export async function GET(req) {
   }
 
   const supabase = admin();
-  const lote = Math.min(Number(searchParams.get('lote')) || LOTE_POR_DEFECTO, 10);
+  const lote = Math.min(Number(searchParams.get('lote')) || LOTE_POR_DEFECTO, LOTE_MAXIMO);
   const forzar = searchParams.get('forzar') === '1';
 
   // Cola: las que llevan más tiempo sin mirarse primero. Se descartan las
@@ -476,8 +495,13 @@ export async function GET(req) {
   let actualizadas = 0;
   let sinCambios = 0;
 
+  let cortadoPorTiempo = false;
+
   for (const f of fuentes || []) {
-    if (Date.now() - t0 > PRESUPUESTO_MS) break;
+    if (Date.now() - t0 > PRESUPUESTO_FUENTES_MS) {
+      cortadoPorTiempo = true;
+      break;
+    }
 
     try {
       const res = await fetch(f.url, {
@@ -786,7 +810,8 @@ export async function GET(req) {
     n_escritos: nuevas + actualizadas,
     duracion_ms: ms,
     detalle: [
-      `lote ${lote}`,
+      `fuentes ${resultados.length}/${(fuentes || []).length}`,
+      cortadoPorTiempo ? 'cortado por tiempo' : null,
       `nuevas ${nuevas}`,
       `actualizadas ${actualizadas}`,
       `sin_cambios ${sinCambios}`,
@@ -806,6 +831,13 @@ export async function GET(req) {
     // opuestos y se parecen mucho desde fuera. En local sale 'local'.
     commit: process.env.VERCEL_GIT_COMMIT_SHA?.slice(0, 7) || 'local',
     lote,
+    // Cobertura del dia: cuantas fuentes activas habia en cola, cuantas
+    // se procesaron, y si el corte fue por tiempo. Si sobran pendientes
+    // varios dias seguidos, hay que repartir el cron en mas pasadas.
+    fuentes_en_cola: (fuentes || []).length,
+    fuentes_procesadas: resultados.length,
+    fuentes_pendientes: cortadoPorTiempo ? (fuentes || []).length - resultados.length : 0,
+    cortado_por_tiempo: cortadoPorTiempo || undefined,
     nuevas,
     actualizadas,
     sin_cambios: sinCambios,
