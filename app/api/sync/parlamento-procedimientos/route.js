@@ -2,30 +2,56 @@
 // SYNC — Procedimientos legislativos del Parlamento Europeo
 // app/api/sync/parlamento-procedimientos/route.js
 //
-// Dos fases, porque tienen coste muy distinto:
+// Cada noche, en una sola ejecución y en este orden:
 //
-//   FASE 1 (?fase=catalogo) — la ficha de cada procedimiento por años.
-//   Trae título, etapa y ponentes. Una petición por procedimiento.
+//   1. DESCUBRIR. La lista de procedimientos COD de cada año, de 2014 al
+//      actual: una petición por año. Así se detectan los nuevos.
 //
-//   FASE 2 (?fase=eventos) — el recorrido. Otra petición más, así que
-//   solo se piden los de procedimientos que aún no lo tengan, y primero
-//   los que están vivos: la cronología de uno cerrado en 2015 no corre
-//   prisa.
+//   2. FICHAS. La ficha de cada procedimiento nuevo y de CADA uno que
+//      siga vivo. La ficha trae la fase, si está cerrado, la lista de
+//      actos y los ponentes.
 //
-// LÍMITE DE LA API: 500 peticiones cada 5 minutos. Con paralelismo 5 y
-// pausa entre lotes se queda holgadamente por debajo.
+//   3. EVENTOS. La cronología de esos mismos procedimientos.
 //
-// LECCIONES APLICADAS del sync de la Comisión, que costó media sesión:
+// -------------------------------------------------------------------
+// POR QUÉ SE REHIZO, septiembre de 2026
+//
+// La versión anterior solo pedía la ficha de los procedimientos que no
+// conocía, y los eventos de los que nunca los habían tenido. Un
+// procedimiento se cargaba una vez y se congelaba para siempre: su
+// fase, su cierre, su cronología y SUS PONENTES. El motor de avisos
+// vigila fase y cierre, así que seguir un procedimiento del PE no generó
+// nunca un aviso. Había fichas sin tocar desde el 14 de agosto.
+//
+// Ahora todo lo vivo se refresca cada noche. Con 231 vivos son unas 475
+// peticiones, unos siete minutos. Lo cerrado no se vuelve a pedir: un
+// procedimiento firmado o publicado ya no cambia.
+//
+// Y ya no se encadena: con el límite de 60 s de antes había que trocear
+// el trabajo en eslabones que se relanzaban solos, y esa cadena era
+// frágil. En Pro una ejecución puede durar 800 s y todo cabe en una.
+//
+// -------------------------------------------------------------------
+// LÍMITE DE LA API: 500 peticiones cada 5 minutos, 1,67 por segundo.
+// La primera versión iba dieciocho veces por encima y cosechó 101
+// respuestas HTTP 429 en una pasada. Con 3 en paralelo y 2 s de pausa
+// el ritmo queda por debajo de 1,5 por segundo. Si aun así llega un
+// 429, se espera un minuto y se reintenta; si se repite, se para.
+//
+// SOLO COD —procedimiento legislativo ordinario—, por decisión de
+// producto. Ampliar a CNS, NLE, INI y demás multiplicaría los vivos y
+// habría que revisar la política de refresco.
+//
+// LECCIONES APLICADAS del sync de la Comisión:
 //   - Cliente de Supabase SIN caché de Next.js. Su fetch parcheado
 //     devolvía respuestas idénticas al byte y el sync daba vueltas.
 //   - Las escrituras se verifican con .select(): contar llamadas sin
 //     error no es contar filas modificadas.
-//   - Sin memoria de posición: se busca lo que falta, no dónde se iba.
 //
-// Uso:
-//   ?key=<DEBUG_KEY>&fase=catalogo&desde=2024&hasta=2026
-//   ?key=<DEBUG_KEY>&fase=eventos
-//   ?dry=1                sin escribir
+// Uso a mano:
+//   ?key=<DEBUG_KEY>&dry=1                  prueba sin escribir
+//   ?key=<DEBUG_KEY>&desde=2024&hasta=2026  solo esos años al descubrir
+//   ?key=<DEBUG_KEY>                        carga real
 // =====================================================================
 
 import { NextResponse } from 'next/server';
@@ -33,36 +59,34 @@ import { createClient } from '@supabase/supabase-js';
 import { conRegistro } from '@/lib/syncLog';
 
 export const dynamic = 'force-dynamic';
-export const maxDuration = 60;
+
+// El máximo de Pro con Fluid compute. Lo normal son unos siete minutos.
+export const maxDuration = 800;
 
 const EP = 'https://data.europarl.europa.eu/api/v2';
 const TIMEOUT_MS = 15000;
-// El presupuesto controla la DESCARGA, pero después viene la escritura y
-// el lanzamiento del siguiente eslabón. Medido en la fase de eventos: con
-// 40 s de presupuesto la función terminaba en 55,7 s, al borde del límite
-// de 60 de Vercel. Si un eslabón muere por timeout, no llega a lanzar el
-// siguiente y la cadena se rompe — que es lo que pasó a los 90 de 808.
-const PRESUPUESTO_MS = 30000;
+const TIPO = 'COD';
 
-// LÍMITE REAL DE LA API: 500 peticiones cada 5 minutos = 1,67 por segundo.
-//
-// La primera versión iba con 5 en paralelo y 150 ms de pausa, o sea unas
-// 30 por segundo: dieciocho veces por encima. Resultado: 101 respuestas
-// HTTP 429 en una sola pasada.
-//
-// Con 3 en paralelo y 2 s de pausa el ritmo baja a ~1,5 por segundo, por
-// debajo del límite y con margen para los reintentos.
+// A partir de aquí no se pide otra petición. Quedan ~110 s para guardar
+// la última tanda y contestar.
+const PRESUPUESTO_MS = 690_000;
+
+// Ritmo: 3 a la vez y 2 s entre lotes, por debajo del límite de la API.
 const PARALELO = 3;
 const PAUSA_MS = 2000;
-// A ese ritmo, en los 40 s de presupuesto caben unas 60 peticiones.
-const MAX_POR_PASADA = 60;
+// Tras un 429, un minuto de espera antes del único reintento.
+const ESPERA_429_MS = 60_000;
 
-// Encadenamiento: al terminar, si queda trabajo, la función se llama a sí
-// misma. Ayer di por hecho que Vercel cortaba la petición saliente; era
-// falso. Lo que impedía avanzar era la caché de Next.js en el cliente de
-// Supabase, que hacía leer siempre el mismo resultado.
-const MAX_CADENA = 60;
-const MS_LANZAR_SIGUIENTE = 1500;
+// El listado por año se pide con este tope. El año con más COD ronda los
+// 134; si alguno llega al tope, se avisa, porque podría haber
+// procedimientos sin descubrir.
+const LIMITE_LISTADO = 200;
+
+// Cada cuántas fichas o eventos se escribe lo acumulado. Si algo corta
+// la ejecución, lo ya procesado queda guardado.
+const LOTE_ESCRITURA = 30;
+
+const FORMATO = 'format=application%2Fld%2Bjson';
 
 function admin() {
   return createClient(process.env.NEXT_PUBLIC_SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY, {
@@ -272,29 +296,46 @@ async function escribir(supabase, tabla, filas, conflicto) {
 }
 
 /**
- * Lanza la siguiente pasada sin esperar respuesta. Se aborta a propósito:
- * basta con que Vercel reciba la petición para que arranque una función
- * independiente. El AbortError es el comportamiento buscado, no un fallo.
+ * Pide `pedirUno(item)` para cada elemento, PARALELO a la vez y con
+ * PAUSA_MS entre lotes.
+ *
+ * Tras cada lote llama a `alLote(lote)`; si devuelve false, se para
+ * —es la forma de cortar cuando la base rechaza lo que se escribe—.
+ *
+ * Si la API devuelve 429, espera un minuto y reintenta ese lote una
+ * vez. Si se repite, se para: insistir solo alarga el bloqueo.
+ *
+ * Devuelve { parado }, que es null si terminó, o 'tiempo', 'limite' o
+ * 'escritura'.
  */
-async function lanzarSiguiente(request, eslabon, extra = {}) {
-  const url = new URL(request.url);
-  url.searchParams.set('cadena', String(eslabon));
-  for (const [k, v] of Object.entries(extra)) url.searchParams.set(k, v);
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), MS_LANZAR_SIGUIENTE);
-  try {
-    await fetch(url.toString(), {
-      signal: controller.signal,
-      headers: request.headers.get('authorization') ? { authorization: request.headers.get('authorization') } : {},
-      cache: 'no-store',
-    });
-    return { lanzado: true };
-  } catch (e) {
-    if (e.name === 'AbortError') return { lanzado: true };
-    return { lanzado: false, motivo: e.message };
-  } finally {
-    clearTimeout(timer);
+async function porLotes(items, pedirUno, { t0, alLote }) {
+  for (let i = 0; i < items.length; i += PARALELO) {
+    if (Date.now() - t0 > PRESUPUESTO_MS) return { parado: 'tiempo' };
+
+    const grupo = items.slice(i, i + PARALELO);
+    let res = await Promise.all(grupo.map(pedirUno));
+
+    let limitado = false;
+    if (res.some((r) => r.limitado)) {
+      await espera(ESPERA_429_MS);
+      res = await Promise.all(grupo.map(pedirUno));
+      limitado = res.some((r) => r.limitado);
+    }
+
+    // Lo que sí llegó se aprovecha aunque el lote se quede a medias.
+    const lote = grupo.map((item, j) => ({ item, r: res[j] })).filter(({ r }) => !r.limitado);
+    if (alLote && (await alLote(lote)) === false) return { parado: 'escritura' };
+    if (limitado) return { parado: 'limite' };
+
+    await espera(PAUSA_MS);
   }
+  return { parado: null };
+}
+
+// Lista para un filtro `in` de PostgREST. Las comillas protegen los
+// identificadores con guiones.
+function listaIn(valores) {
+  return `(${valores.map((v) => `"${String(v).replace(/"/g, '')}"`).join(',')})`;
 }
 
 export const GET = conRegistro('/api/sync/parlamento-procedimientos', handler);
@@ -310,285 +351,281 @@ async function handler(request) {
   }
 
   const dry = sp.get('dry') === '1';
-  const fase = sp.get('fase') || 'catalogo';
-  const eslabon = Math.max(parseInt(sp.get('cadena') || '0', 10), 0);
-  const encadenar = sp.get('encadenar') !== '0';
+  const desde = parseInt(sp.get('desde') || '2014', 10);
+  const hasta = parseInt(sp.get('hasta') || String(new Date().getUTCFullYear()), 10);
   const supabase = admin();
-  const informe = { inicio: new Date().toISOString(), fase, dry_run: dry, eslabon };
+
+  const informe = { inicio: new Date(t0).toISOString(), dry_run: dry, tipo: TIPO };
+  const fallidos = [];
+  const erroresEscritura = [];
+  const escritura = {
+    procedimientos: { escritas: 0 },
+    participaciones: { escritas: 0 },
+    eventos: { escritas: 0 },
+  };
+  let parado = null;
+
+  const responder = (status = 200) => {
+    informe.ms_total = Date.now() - t0;
+    return NextResponse.json(informe, { status });
+  };
 
   // ===================================================================
-  // FASE 1 — catálogo por años
+  // 1. DESCUBRIR — el listado de cada año
   // ===================================================================
-  if (fase === 'catalogo') {
-    // Por defecto, las tres legislaturas: 8ª (2014-2019), 9ª (2019-2024) y
-    // 10ª (2024-2029). El cron no lleva parámetros, así que estos valores
-    // son los que usará cada noche.
-    const desde = parseInt(sp.get('desde') || '2014', 10);
-    const hasta = parseInt(sp.get('hasta') || String(new Date().getFullYear()), 10);
-    const tipo = sp.get('tipo') || 'COD';
+  const anos = [];
+  for (let a = hasta; a >= desde; a--) anos.push(a);
 
-    const procedimientos = [];
-    const participaciones = [];
-    const fallidos = [];
-    const porAno = {};
-    let cortado = false;
+  const porAno = {};
+  const anosAlTope = [];
+  const idsCatalogo = [];
 
-    for (let ano = hasta; ano >= desde; ano--) {
-      if (Date.now() - t0 > PRESUPUESTO_MS) {
-        cortado = true;
-        break;
-      }
-
-      // El listado solo da id, tipo y label: hace falta pedir cada ficha.
-      const lista = await pedir(`${EP}/procedures?process-type=${tipo}&year=${ano}&limit=200&format=application%2Fld%2Bjson`);
-      if (!lista.ok) {
-        fallidos.push({ ano, motivo: lista.motivo });
-        continue;
-      }
-      const ids = (lista.data || []).map((x) => x.process_id).filter(Boolean);
-      porAno[ano] = ids.length;
-
-      // Las que ya están cargadas no se vuelven a pedir.
-      const { data: existentes } = await supabase
-        .from('ep_procedures')
-        .select('process_id')
-        .in('process_id', ids.length ? ids : ['-']);
-      const yaEstan = new Set((existentes || []).map((x) => x.process_id));
-      const pendientes = ids.filter((id) => !yaEstan.has(id));
-
-      for (let i = 0; i < pendientes.length; i += PARALELO) {
-        if (Date.now() - t0 > PRESUPUESTO_MS) {
-          cortado = true;
-          break;
-        }
-        const grupo = pendientes.slice(i, i + PARALELO);
-        const res = await Promise.all(
-          grupo.map((id) => pedir(`${EP}/procedures/${id}?format=application%2Fld%2Bjson`))
-        );
-        for (let j = 0; j < res.length; j++) {
-          const r = res[j];
+  const r1 = await porLotes(
+    anos,
+    (ano) => pedir(`${EP}/procedures?process-type=${TIPO}&year=${ano}&limit=${LIMITE_LISTADO}&${FORMATO}`),
+    {
+      t0,
+      alLote: (lote) => {
+        for (const { item: ano, r } of lote) {
           if (!r.ok) {
-            fallidos.push({ id: grupo[j], motivo: r.motivo });
+            fallidos.push({ ano, motivo: r.motivo });
+            continue;
+          }
+          const ids = (r.data || []).map((x) => x.process_id).filter(Boolean);
+          porAno[ano] = ids.length;
+          if (ids.length >= LIMITE_LISTADO) anosAlTope.push(ano);
+          idsCatalogo.push(...ids);
+        }
+      },
+    }
+  );
+  parado = r1.parado;
+  informe.anos_recorridos = porAno;
+  if (anosAlTope.length) {
+    informe.aviso = `El listado de ${anosAlTope.join(', ')} llegó al tope de ${LIMITE_LISTADO}: puede haber procedimientos sin descubrir.`;
+  }
+
+  // Cuáles son nuevos
+  const conocidos = new Set();
+  for (let i = 0; i < idsCatalogo.length; i += 200) {
+    const { data, error } = await supabase
+      .from('ep_procedures')
+      .select('process_id')
+      .in('process_id', idsCatalogo.slice(i, i + 200));
+    if (error) {
+      informe.error = `No se pudo leer ep_procedures: ${error.message}`;
+      return responder(500);
+    }
+    for (const x of data || []) conocidos.add(x.process_id);
+  }
+  const nuevos = [...new Set(idsCatalogo.filter((id) => !conocidos.has(id)))];
+
+  // Los vivos salen de la base, no del listado: si el listado de un año
+  // falla, sus vivos se siguen refrescando igual.
+  //
+  // Se piden los que MÁS tiempo llevan sin refrescarse primero. Si una
+  // noche no diera tiempo a todos, la siguiente empezaría por los que se
+  // quedaron fuera, y ninguno puede quedarse atrás para siempre.
+  const { data: filasVivos, error: eVivos } = await supabase
+    .from('ep_procedures')
+    .select('process_id, synced_at')
+    .eq('is_closed', false)
+    .order('synced_at', { ascending: true, nullsFirst: true })
+    .order('process_id', { ascending: true })
+    .limit(5000);
+  if (eVivos) {
+    informe.error = `No se pudieron leer los procedimientos vivos: ${eVivos.message}`;
+    return responder(500);
+  }
+  const vivos = (filasVivos || []).map((x) => x.process_id);
+  const estabaAbierto = new Set(vivos);
+  // Supabase devuelve como mucho 1.000 filas por consulta. Con 231 vivos
+  // queda lejos, pero si algún día se llega, que se vea.
+  if (vivos.length >= 1000) {
+    informe.aviso = [informe.aviso, `Hay ${vivos.length} vivos o más: la consulta pudo quedarse corta.`].filter(Boolean).join(' ');
+  }
+
+  // Primero los nuevos, que no tenemos en absoluto.
+  const aPedir = [...new Set([...nuevos, ...vivos])];
+  informe.nuevos = nuevos.length;
+  informe.vivos = vivos.length;
+
+  // ===================================================================
+  // 2. FICHAS — fase, cierre, actos y ponentes
+  // ===================================================================
+  let bufProc = [];
+  let bufPart = [];
+  const idsPartDe = new Map();
+  const fichasOk = [];
+  let cerradosHoy = 0;
+  let retiradas = 0;
+  const sinFicha = [];
+  let muestra = null;
+
+  async function volcarFichas() {
+    if (bufProc.length === 0) return true;
+    const procs = bufProc;
+    const parts = bufPart;
+    bufProc = [];
+    bufPart = [];
+    if (dry) return true;
+
+    const wP = await escribir(supabase, 'ep_procedures', procs, 'process_id');
+    const wPa = await escribir(supabase, 'ep_procedure_participants', parts, 'id');
+    escritura.procedimientos.escritas += wP.escritas;
+    escritura.participaciones.escritas += wPa.escritas;
+    erroresEscritura.push(...wP.errores, ...wPa.errores);
+
+    // Si una tanda con procedimientos no guarda ninguno, la base lo
+    // está rechazando todo: no tiene sentido seguir pidiendo.
+    if (procs.length > 0 && wP.escritas === 0) return false;
+
+    // Los ponentes que ya no están en la ficha se retiran. Sin esto, un
+    // ponente sustituido seguiría apareciendo como si lo fuera.
+    //
+    // SOLO si la ficha trae participaciones. Una ficha que llegara sin
+    // ninguna podría ser un fallo puntual de la API, y borrar todos los
+    // ponentes de un expediente por eso sería peor que dejar uno de más.
+    for (const p of procs) {
+      const ids = idsPartDe.get(p.process_id) || [];
+      if (ids.length === 0) continue;
+      const { data, error } = await supabase
+        .from('ep_procedure_participants')
+        .delete()
+        .eq('process_id', p.process_id)
+        .not('id', 'in', listaIn(ids))
+        .select('id');
+      if (error) erroresEscritura.push(error.message);
+      else retiradas += Array.isArray(data) ? data.length : 0;
+    }
+    return true;
+  }
+
+  if (!parado) {
+    const r2 = await porLotes(aPedir, (pid) => pedir(`${EP}/procedures/${pid}?${FORMATO}`), {
+      t0,
+      alLote: async (lote) => {
+        for (const { item: pid, r } of lote) {
+          if (!r.ok) {
+            fallidos.push({ id: pid, motivo: r.motivo });
             continue;
           }
           const p = r.data?.[0];
-          if (!p) continue;
+          if (!p) {
+            // La API contestó sin ficha: el procedimiento ya no existe o
+            // cambió de identificador. Se cuenta para que se vea.
+            sinFicha.push(pid);
+            continue;
+          }
           const fila = transformarProcedimiento(p);
           if (!fila) continue;
-          procedimientos.push(fila);
-          participaciones.push(...transformarParticipaciones(p, fila.process_id));
+          const parts = transformarParticipaciones(p, fila.process_id);
+          bufProc.push(fila);
+          bufPart.push(...parts);
+          idsPartDe.set(fila.process_id, parts.map((x) => x.id));
+          fichasOk.push(fila.process_id);
+          if (estabaAbierto.has(fila.process_id) && fila.is_closed) cerradosHoy += 1;
+          if (!muestra) muestra = { ...fila, raw: '[...recortado]' };
         }
-        await espera(PAUSA_MS);
-        if (procedimientos.length >= MAX_POR_PASADA) {
-          cortado = true;
-          break;
-        }
-      }
-      if (cortado) break;
-    }
-
-    informe.anos_recorridos = porAno;
-    informe.procedimientos = procedimientos.length;
-    informe.participaciones = participaciones.length;
-    informe.con_titulo_es = procedimientos.filter((p) => p.title_es).length;
-    informe.con_ponentes = new Set(participaciones.map((x) => x.process_id)).size;
-    informe.cerrados = procedimientos.filter((p) => p.is_closed).length;
-    informe.fallidos = fallidos.length;
-    informe.limitados_429 = fallidos.filter((f) => f.motivo === 'HTTP 429').length;
-    informe.detalle_fallos = fallidos.slice(0, 5);
-    informe.cortado_por_tiempo = cortado;
-
-    if (dry) {
-      // Reparto de roles: had_participation no solo trae personas, también
-      // comisiones (COMMITTEE_LEAD). Sin ver el reparto no se sabe si se
-      // están perdiendo ponentes o si son otro tipo de participante.
-      const porRol = {};
-      for (const p of participaciones) {
-        const k = p.role || '(sin rol)';
-        if (!porRol[k]) porRol[k] = { total: 0, con_mep: 0, con_comision: 0 };
-        porRol[k].total += 1;
-        if (p.mep_id) porRol[k].con_mep += 1;
-        if (p.body_code) porRol[k].con_comision += 1;
-      }
-      informe.roles = porRol;
-      informe.sin_mep_ni_comision = participaciones.filter((p) => !p.mep_id && !p.body_code).length;
-      // Los identificadores en crudo de los que no tienen persona: ahí
-      // debería estar el código de comisión que no estoy extrayendo.
-      informe.ids_sin_persona = participaciones
-        .filter((p) => !p.mep_id)
-        .slice(0, 8)
-        .map((p) => ({ id: p.id, rol: p.role }));
-      informe.muestra = procedimientos[0] ? { ...procedimientos[0], raw: '[...recortado]' } : null;
-      informe.muestra_participacion_persona = participaciones.find((p) => p.mep_id) || null;
-      informe.ms_total = Date.now() - t0;
-      return NextResponse.json(informe);
-    }
-
-    const wProc = await escribir(supabase, 'ep_procedures', procedimientos, 'process_id');
-    const wPart = await escribir(supabase, 'ep_procedure_participants', participaciones, 'id');
-    informe.escritura = { procedimientos: wProc, participaciones: wPart };
-
-    // Se encadena si quedó trabajo. Tres frenos:
-    //   - si la API devolvió 429, se para: insistir empeora el bloqueo
-    //   - si no se escribió nada habiendo procesado, algo falla
-    //   - tope de eslabones como red de seguridad
-    const quedaTrabajo = cortado || procedimientos.length >= MAX_POR_PASADA;
-    const limitado = informe.limitados_429 > 0;
-
-    if (!quedaTrabajo) {
-      informe.nota = 'Catálogo al día para los años indicados.';
-      // Terminado el catálogo, se pasa sola a la fase de eventos: así una
-      // única invocación del cron completa el módulo entero.
-      if (encadenar && eslabon + 1 < MAX_CADENA) {
-        const r = await lanzarSiguiente(request, eslabon + 1, {
-          fase: 'eventos',
-          ...(sp.get('key') ? { key: sp.get('key') } : {}),
-        });
-        informe.siguiente_fase = { fase: 'eventos', ...r };
-        informe.nota = 'Catálogo completo. Lanzada la fase de eventos.';
-      }
-    } else if (limitado) {
-      informe.nota = `La API devolvió ${informe.limitados_429} veces HTTP 429. Se detiene la cadena; espera 5 minutos y relánzalo.`;
-    } else if (!encadenar) {
-      informe.nota = 'Queda trabajo y el encadenado está desactivado.';
-    } else if (wProc.escritas === 0 && procedimientos.length > 0) {
-      informe.nota = 'Se procesaron procedimientos pero no se escribió ninguno: se detiene la cadena para no repetir el error.';
-    } else if (eslabon + 1 >= MAX_CADENA) {
-      informe.nota = `Tope de ${MAX_CADENA} eslabones. Vuelve a lanzarlo para continuar.`;
-    } else {
-      const r = await lanzarSiguiente(request, eslabon + 1, {
-        fase: 'catalogo',
-        desde: String(desde),
-        hasta: String(hasta),
-        ...(sp.get('key') ? { key: sp.get('key') } : {}),
-      });
-      informe.siguiente_eslabon = { numero: eslabon + 1, ...r };
-      informe.nota = r.lanzado ? 'Siguiente pasada lanzada sola.' : `No se pudo encadenar (${r.motivo}).`;
-    }
-
-    informe.ms_total = Date.now() - t0;
-    return NextResponse.json(informe);
+        if (bufProc.length >= LOTE_ESCRITURA) return volcarFichas();
+        return true;
+      },
+    });
+    parado = r2.parado;
   }
+  // Lo que quede se guarda siempre, también si se paró por tiempo.
+  if (parado !== 'escritura' && !(await volcarFichas())) parado = 'escritura';
+
+  informe.procedimientos = fichasOk.length;
+  informe.cerrados_hoy = cerradosHoy;
+  informe.ponentes_retirados = retiradas;
+  if (sinFicha.length) informe.sin_ficha = sinFicha.slice(0, 10);
 
   // ===================================================================
-  // FASE 2 — eventos, primero de los procedimientos vivos
+  // 3. EVENTOS — la cronología de lo que se acaba de refrescar
   // ===================================================================
-  if (fase === 'eventos') {
-    const { data: pendientes, error } = await supabase
+  let bufEv = [];
+  let bufHechos = [];
+  let eventosProcesados = 0;
+
+  async function volcarEventos() {
+    if (bufHechos.length === 0) return true;
+    const evs = bufEv;
+    const hechos = bufHechos;
+    bufEv = [];
+    bufHechos = [];
+    if (dry) return true;
+
+    const wEv = await escribir(supabase, 'ep_procedure_events', evs, 'id');
+    escritura.eventos.escritas += wEv.escritas;
+    erroresEscritura.push(...wEv.errores);
+    if (evs.length > 0 && wEv.escritas === 0) return false;
+
+    // Se marca la fecha aunque no tuviera eventos: dice cuándo se miró
+    // por última vez, no si había algo.
+    const { error } = await supabase
       .from('ep_procedures')
-      .select('process_id, is_closed, last_activity_at')
-      .is('events_synced_at', null)
-      // Los vivos primero: la cronología de uno cerrado en 2015 no corre
-      // prisa. El desempate por process_id evita el orden inestable que
-      // hizo dar vueltas al sync de la Comisión.
-      .order('is_closed', { ascending: true })
-      .order('last_activity_at', { ascending: false, nullsFirst: false })
-      .order('process_id', { ascending: true })
-      .limit(MAX_POR_PASADA);
-
-    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-    if (!pendientes?.length) {
-      return NextResponse.json({ ...informe, nada_pendiente: true, ms_total: Date.now() - t0 });
-    }
-
-    const eventos = [];
-    const hechos = [];
-    const fallidos = [];
-    let cortado = false;
-
-    for (let i = 0; i < pendientes.length; i += PARALELO) {
-      if (Date.now() - t0 > PRESUPUESTO_MS) {
-        cortado = true;
-        break;
-      }
-      const grupo = pendientes.slice(i, i + PARALELO);
-      const res = await Promise.all(
-        grupo.map((p) => pedir(`${EP}/procedures/${p.process_id}/events?format=application%2Fld%2Bjson`))
-      );
-      for (let j = 0; j < res.length; j++) {
-        const r = res[j];
-        const pid = grupo[j].process_id;
-        if (!r.ok) {
-          fallidos.push({ id: pid, motivo: r.motivo });
-          continue;
-        }
-        for (const e of r.data || []) {
-          const aid = e.activity_id || String(e.id || '').split('/').pop();
-          if (!aid) continue;
-          eventos.push({
-            id: aid,
-            process_id: pid,
-            activity_date: e.activity_date || null,
-            activity_type: ultimoTramo(e.had_activity_type),
-            stage: e.occured_at_stage || null,
-            raw: e,
-          });
-        }
-        hechos.push(pid);
-      }
-      await espera(PAUSA_MS);
-    }
-
-    informe.procedimientos_procesados = hechos.length;
-    informe.eventos = eventos.length;
-    informe.fallidos = fallidos.length;
-    informe.limitados_429 = fallidos.filter((f) => f.motivo === 'HTTP 429').length;
-    informe.detalle_fallos = fallidos.slice(0, 5);
-    informe.cortado_por_tiempo = cortado;
-
-    if (dry) {
-      informe.muestra = eventos[0] ? { ...eventos[0], raw: '[...recortado]' } : null;
-      informe.ms_total = Date.now() - t0;
-      return NextResponse.json(informe);
-    }
-
-    const wEv = await escribir(supabase, 'ep_procedure_events', eventos, 'id');
-
-    // Se marcan como hechos aunque no tuvieran eventos: si no, volverían
-    // a la cola indefinidamente. Es el fallo que hizo repetir 600 filas
-    // en el sync de la Comisión.
-    let marcados = 0;
-    for (let i = 0; i < hechos.length; i += 50) {
-      const grupo = hechos.slice(i, i + 50);
-      const { data } = await supabase
-        .from('ep_procedures')
-        .update({ events_synced_at: new Date().toISOString() })
-        .in('process_id', grupo)
-        .select('process_id');
-      marcados += Array.isArray(data) ? data.length : 0;
-    }
-
-    const { count: quedan } = await supabase
-      .from('ep_procedures')
-      .select('process_id', { count: 'exact', head: true })
-      .is('events_synced_at', null);
-
-    informe.escritura = { eventos: wEv, procedimientos_marcados: marcados };
-    informe.quedan_pendientes = quedan ?? null;
-    informe.limitados_429 = fallidos.filter((f) => f.motivo === 'HTTP 429').length;
-
-    if (!quedan || quedan === 0) {
-      informe.nota = 'Recorridos completos: no queda ningún procedimiento sin eventos.';
-    } else if (informe.limitados_429 > 0) {
-      informe.nota = `La API devolvió ${informe.limitados_429} veces HTTP 429. Se detiene la cadena; espera 5 minutos.`;
-    } else if (!encadenar) {
-      informe.nota = 'Quedan pendientes y el encadenado está desactivado.';
-    } else if (marcados === 0 && hechos.length > 0) {
-      informe.nota = 'Se procesaron procedimientos pero ninguno quedó marcado: se detiene la cadena.';
-    } else if (eslabon + 1 >= MAX_CADENA) {
-      informe.nota = `Tope de ${MAX_CADENA} eslabones. Vuelve a lanzarlo para continuar.`;
-    } else {
-      const r = await lanzarSiguiente(request, eslabon + 1, {
-        fase: 'eventos',
-        ...(sp.get('key') ? { key: sp.get('key') } : {}),
-      });
-      informe.siguiente_eslabon = { numero: eslabon + 1, ...r };
-      informe.nota = r.lanzado ? 'Siguiente pasada lanzada sola.' : `No se pudo encadenar (${r.motivo}).`;
-    }
-
-    informe.ms_total = Date.now() - t0;
-    return NextResponse.json(informe);
+      .update({ events_synced_at: new Date().toISOString() })
+      .in('process_id', hechos);
+    if (error) erroresEscritura.push(error.message);
+    return true;
   }
 
-  return NextResponse.json({ error: 'fase no reconocida: usa catalogo o eventos' }, { status: 400 });
+  if (!parado) {
+    const r3 = await porLotes(fichasOk, (pid) => pedir(`${EP}/procedures/${pid}/events?${FORMATO}`), {
+      t0,
+      alLote: async (lote) => {
+        for (const { item: pid, r } of lote) {
+          if (!r.ok) {
+            fallidos.push({ id: pid, eventos: true, motivo: r.motivo });
+            continue;
+          }
+          for (const e of r.data || []) {
+            const aid = e.activity_id || String(e.id || '').split('/').pop();
+            if (!aid) continue;
+            bufEv.push({
+              id: aid,
+              process_id: pid,
+              activity_date: e.activity_date || null,
+              activity_type: ultimoTramo(e.had_activity_type),
+              stage: e.occured_at_stage || null,
+              raw: e,
+            });
+          }
+          bufHechos.push(pid);
+          eventosProcesados += 1;
+        }
+        if (bufHechos.length >= LOTE_ESCRITURA) return volcarEventos();
+        return true;
+      },
+    });
+    parado = r3.parado;
+  }
+  if (parado !== 'escritura' && !(await volcarEventos())) parado = 'escritura';
+
+  informe.eventos_procesados = eventosProcesados;
+  informe.escritura = escritura;
+  informe.fallidos = fallidos.length;
+  informe.limitados_429 = fallidos.filter((f) => f.motivo === 'HTTP 429').length;
+  informe.detalle_fallos = fallidos.slice(0, 5);
+  if (dry) informe.muestra = muestra;
+
+  // --- Veredicto, por orden de gravedad ------------------------------
+  if (parado === 'escritura' || erroresEscritura.length > 0) {
+    informe.error = `La base rechazó la escritura: ${erroresEscritura.slice(0, 2).join(' | ') || 'sin detalle'}`;
+    return responder(500);
+  }
+  if (parado === 'limite') {
+    informe.quedan = true;
+    informe.nota = 'La API devolvió 429 dos veces seguidas y se paró. Lo pendiente se refresca mañana, empezando por ello.';
+  } else if (parado === 'tiempo') {
+    informe.quedan = true;
+    informe.nota = `Se acabó el tiempo: ${fichasOk.length} de ${aPedir.length} fichas. Mañana empieza por las que faltan.`;
+  } else if (fallidos.length > 0) {
+    informe.quedan = true;
+    informe.nota = `Terminado con ${fallidos.length} petición(es) fallida(s); se reintentan mañana.`;
+  } else {
+    informe.nota = `Completo: ${fichasOk.length} fichas y ${eventosProcesados} cronologías.`;
+  }
+  return responder(200);
 }
