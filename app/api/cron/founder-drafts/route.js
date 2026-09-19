@@ -14,7 +14,9 @@
 //   - Quien crea una organización recibe solo el de organización.
 //   - Solo se mira la ventana de VENTANA_DIAS: el primer día no escribe a
 //     toda la base de usuarios.
-//   - La marca se pone solo si el correo se ha enviado.
+//   - La marca se pone ANTES de enviar, y solo se quita si el script
+//     confirma que un correo no salió. Ante la duda, no se repite: ver
+//     el bloque de envío para el porqué.
 //
 // Uso:
 //   ?key=<DEBUG_KEY>&dry=1   prueba sin enviar
@@ -114,32 +116,75 @@ async function handler(request) {
     }
 
     const todos = [...correosOrg, ...correosUsuario];
-    const resultados = await enviarCorreosFounder(todos);
     const ahora = new Date().toISOString();
 
-    const orgsHechas = [];
-    const usuariosHechos = new Set(soloOrg); // quien administra una org no recibe el de usuario
-    resultados.forEach((r, i) => {
-      if (!r.ok) return;
-      const c = todos[i];
-      if (c.orgId) {
-        orgsHechas.push(c.orgId);
-        usuariosHechos.add(c.userId);
-      } else {
-        usuariosHechos.add(c.userId);
-      }
-    });
+    // --- Se marca ANTES de enviar ------------------------------------
+    //
+    // Antes se marcaba después, solo lo confirmado. Parece lo prudente, y
+    // es justo lo que produjo duplicados: el 18 y el 19 de septiembre el
+    // script envió los correos pero la respuesta se perdió por el camino,
+    // la ruta los dio por no enviados y los repitió al día siguiente.
+    //
+    // Entre perder un correo y mandarlo tres veces, para una bienvenida
+    // personal es peor lo segundo. Así que la marca va primero: si algo
+    // falla después, ese correo se da por atendido y no se repite. Lo que
+    // se pierda queda a la vista en la pantalla de syncs, con los
+    // destinatarios, para reenviarlo a mano si hace falta.
+    //
+    // Quien administra una organización nueva se marca también como
+    // usuario: recibe solo el correo de organización, nunca los dos.
+    const orgsIds = correosOrg.map((c) => c.orgId);
+    const usuariosIds = [...new Set([...soloOrg, ...todos.map((c) => c.userId)])];
 
-    if (orgsHechas.length) {
-      await supabase.from('organizations').update({ founder_draft_at: ahora }).in('id', orgsHechas);
+    if (orgsIds.length) {
+      const { error } = await supabase.from('organizations').update({ founder_draft_at: ahora }).in('id', orgsIds);
+      // Si no se puede marcar, no se envía: enviar sin marca es volver a
+      // abrir la puerta a los duplicados.
+      if (error) throw new Error(`No se pudieron marcar las organizaciones antes de enviar: ${error.message}`);
     }
-    if (usuariosHechos.size) {
-      await supabase.from('users').update({ founder_draft_at: ahora }).in('id', [...usuariosHechos]);
+    if (usuariosIds.length) {
+      const { error } = await supabase.from('users').update({ founder_draft_at: ahora }).in('id', usuariosIds);
+      if (error) throw new Error(`No se pudieron marcar los usuarios antes de enviar: ${error.message}`);
+    }
+
+    // --- Envío ---------------------------------------------------------
+    let resultados;
+    try {
+      resultados = await enviarCorreosFounder(todos);
+    } catch (e) {
+      // La llamada entera ha fallado y no se sabe qué salió. No se
+      // desmarca nada: mejor revisar a mano que arriesgar un duplicado.
+      informe.error = `Envío sin confirmar: ${e.message}`;
+      informe.sin_confirmar = todos.map((c) => c.to);
+      informe.ms_total = Date.now() - t0;
+      return NextResponse.json(informe, { status: 500 });
+    }
+
+    // --- Solo se reintenta lo que el script confirma que NO envió -----
+    //
+    // Si el script dice explícitamente que un correo falló, no salió y se
+    // puede volver a intentar sin riesgo: se le quita la marca. Lo que el
+    // script no aclara se deja marcado, por la misma razón de arriba.
+    const noEnviados = resultados
+      .map((r, i) => ({ r, c: todos[i] }))
+      .filter(({ r }) => !r.ok && !r.desconocido);
+
+    const orgsReintentar = noEnviados.filter(({ c }) => c.orgId).map(({ c }) => c.orgId);
+    const usuariosReintentar = noEnviados.filter(({ c }) => !c.orgId).map(({ c }) => c.userId);
+
+    if (orgsReintentar.length) {
+      await supabase.from('organizations').update({ founder_draft_at: null }).in('id', orgsReintentar);
+    }
+    if (usuariosReintentar.length) {
+      await supabase.from('users').update({ founder_draft_at: null }).in('id', usuariosReintentar);
     }
 
     informe.enviados = resultados.filter((r) => r.ok).length;
-    informe.fallidos = resultados.filter((r) => !r.ok).length;
-    informe.detalle_fallos = resultados.filter((r) => !r.ok).slice(0, 3);
+    informe.fallidos = noEnviados.length;
+    informe.sin_confirmar = resultados
+      .map((r, i) => (r.desconocido ? todos[i].to : null))
+      .filter(Boolean);
+    informe.detalle_fallos = noEnviados.slice(0, 3).map(({ r, c }) => ({ to: c.to, error: r.error }));
     informe.ms_total = Date.now() - t0;
     return NextResponse.json(informe);
   } catch (e) {
