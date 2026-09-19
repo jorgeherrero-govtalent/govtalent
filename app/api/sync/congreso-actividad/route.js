@@ -1,413 +1,277 @@
 // =====================================================================
-// SYNC — Actividad parlamentaria del Congreso
-// app/api/sync/congreso-actividad/route.js
+// REGISTRO DE EJECUCIONES
+// lib/syncLog.js
 //
-// FUENTE: endpoint filtrarListado de congreso.es, el mismo que usa el
-// buscador de la web. Localizado en el panel de red: los ficheros de
-// datos abiertos solo publican leyes, no PNL ni comparecencias.
+// Todo cron deja constancia en `sync_log` de que corrió, cuándo, cuánto
+// tardó y qué hizo. Sin esto no hay forma de responder a "¿funcionó
+// anoche?" salvo reconstruirlo a mano desde los datos, que es lo que
+// nos costó una tarde entera: el encadenado de congreso-actividad
+// llevaba roto desde el 17 de agosto y nadie podía saberlo.
 //
-//   POST /es/proposiciones-no-de-ley?p_p_resource_id=filtrarListado
-//   Form Data: _iniciativas_cini, _iniciativas_paginaActual, ...
+// POR QUÉ UN ENVOLTORIO Y NO UNA LLAMADA EN CADA SITIO. Entre las rutas
+// de sync hay más de noventa puntos de retorno. Añadir una línea en cada
+// uno es noventa oportunidades de olvidar justo el camino que falla, que
+// es siempre el que importa. Envolviendo el manejador se registra
+// cualquier salida —incluidas las excepciones y los 500— sin tocar el
+// cuerpo de la ruta.
 //
-// Un solo endpoint sirve para todos los tipos cambiando el cini, y la
-// ruta da igual: probado que la de PNL acepta un cini de decretos-ley.
+// SE ESCRIBEN DOS FILAS, NO UNA. Al empezar se inserta con estado
+// 'empezado' y al terminar se actualiza esa misma fila. Parece un rodeo,
+// pero es lo que hace visible el fallo más traicionero: si la función se
+// muere por tiempo, nunca llega el cierre y la fila se queda en
+// 'empezado' para siempre. Una ejecución que desaparece sin dejar rastro
+// es indistinguible de una que no se lanzó; una que se queda a medias se
+// ve a simple vista.
 //
-// VOLUMEN medido:
-//   161/162 proposiciones no de ley   4.465 · 179 páginas
-//   212/213/214/219 comparecencias    3.025 · 121 páginas
-//   130 reales decretos-ley              50 ·   2 páginas → van a
-//                                          es_initiatives, son legislación
+// NUNCA ROMPE LA RUTA. Cualquier fallo al registrar se traga y se
+// escribe por consola. El registro es para mirar, no de lo que depende
+// el producto.
 //
-// LO QUE NO HAY: comisión competente, plazos ni tramitación. No están
-// escondidos — la propia ficha web del Congreso tampoco los muestra para
-// estos tipos. Una PNL no tiene plazo de enmiendas ni ponencia.
+// Uso, en la ruta:
 //
-// Uso:
-//   ?key=<DEBUG_KEY>&dry=1        prueba sin escribir
-//   ?key=<DEBUG_KEY>&tipo=pnl     solo un tipo
-//   ?key=<DEBUG_KEY>              todo, encadenando
+//   import { conRegistro } from '@/lib/syncLog';
+//
+//   export const GET = conRegistro('/api/sync/boe', handler);
+//
+//   async function handler(request) { ... }
+//
+// La declaración de `handler` se eleva, así que puede ir debajo.
 // =====================================================================
 
-import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
-import { conRegistro } from '@/lib/syncLog';
-
-export const dynamic = 'force-dynamic';
-export const maxDuration = 60;
-
-const BASE = 'https://www.congreso.es/es';
-const RUTA = 'proposiciones-no-de-ley';
-const POR_PAGINA = 25;
-
-// Sin cabeceras de navegador el portal responde 403.
-const HEADERS = {
-  'User-Agent':
-    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
-  Accept: 'application/json, text/html, */*',
-  'Accept-Language': 'es-ES,es;q=0.9',
-  'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
-  'X-Requested-With': 'XMLHttpRequest',
-  Origin: 'https://www.congreso.es',
-  Referer: `${BASE}/${RUTA}`,
-};
-
-// El presupuesto controla la descarga; después vienen la escritura y el
-// encadenado. Con 45 s la función terminaba cerca del límite de 60.
-const PRESUPUESTO_MS = 30000;
-const PAUSA_MS = 300;
-const MAX_CADENA = 40;
-const MS_LANZAR_SIGUIENTE = 1500;
-
-const TIPOS = {
-  pnl: {
-    cini: '(161.CINI. o 162.CINI.)',
-    kind: 'pnl',
-    label: 'Proposición no de ley',
-    total: 4465,
-  },
-  comparecencia: {
-    cini: '(212.CINI. o 213.CINI. o 214.CINI. o 219.CINI.)',
-    kind: 'comparecencia',
-    label: 'Comparecencia',
-    total: 3025,
-  },
-  // Los decretos-ley son legislación, pero su tramitación no se parece a
-  // la de una ley: el Gobierno los aprueba y el Congreso los convalida o
-  // deroga en un solo acto. Sin plazo de enmiendas ni ponencia, así que
-  // encajan aquí y no en es_initiatives.
-  decreto: {
-    cini: '130.CINI.',
-    kind: 'decreto',
-    label: 'Real decreto-ley',
-    total: 50,
-  },
-};
-
-// El prefijo del expediente da el subtipo exacto.
-const SUBTIPOS = {
-  161: 'Proposición no de ley en comisión',
-  162: 'Proposición no de ley ante el pleno',
-  212: 'Comparecencia de autoridades y funcionarios',
-  213: 'Comparecencia del Gobierno en comisión',
-  214: 'Comparecencia del Gobierno en comisión',
-  219: 'Otras comparecencias en comisión',
-  210: 'Comparecencia del Gobierno ante el pleno',
-  130: 'Real decreto-ley',
-};
 
 function admin() {
   return createClient(process.env.NEXT_PUBLIC_SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY, {
     auth: { persistSession: false, autoRefreshToken: false },
-    global: {
-      // Next.js cachea los GET del cliente de Supabase y el sync acaba
-      // leyendo siempre lo mismo.
-      fetch: (url, options = {}) => fetch(url, { ...options, cache: 'no-store' }),
-    },
+    global: { fetch: (u, o = {}) => fetch(u, { ...o, cache: 'no-store' }) },
   });
 }
 
-const espera = (ms) => new Promise((r) => setTimeout(r, ms));
+// El detalle es texto y se mira a ojo: más de esto no aporta y engorda
+// la tabla sin motivo.
+const LIMITE_DETALLE = 1800;
 
-function urlListado() {
-  const p = new URLSearchParams({
-    p_p_id: 'iniciativas',
-    p_p_lifecycle: '2',
-    p_p_state: 'normal',
-    p_p_mode: 'view',
-    p_p_resource_id: 'filtrarListado',
-    p_p_cacheability: 'cacheLevelPage',
-  });
-  return `${BASE}/${RUTA}?${p.toString()}`;
+// Cada ruta llama a sus cosas de forma distinta —una cuenta `registros`,
+// otra `iniciativas`, otra `procedimientos`—. En vez de uniformar
+// veinte informes, se busca el primero que exista. Lo que no encaje en
+// ninguno sigue estando en el detalle completo.
+const CAMPOS_LEIDOS = [
+  'n_leidos',
+  'leidos',
+  'recorridos',
+  'registros',
+  'candidatos',
+  'iniciativas',
+  'procedimientos',
+  'revisados',
+  'alertas',
+];
+
+const CAMPOS_ESCRITOS = [
+  'n_escritos',
+  'escritos',
+  'escritas',
+  'insertadas',
+  'nuevas',
+  'eventos',
+  'coincidencias',
+];
+
+// Claves que no valen para nada en un registro y ocupan casi todo: la
+// muestra de una ficha del Congreso son varios miles de caracteres.
+const CLAVES_PESADAS = new Set(['muestra', 'muestra_autores', 'muestra_etapas', 'muestra_personas', 'raw', 'ids_sin_persona', 'muestra_participacion_persona']);
+
+function primerNumero(informe, campos) {
+  for (const c of campos) {
+    const v = informe?.[c];
+    if (typeof v === 'number' && Number.isFinite(v)) return v;
+  }
+  return null;
 }
 
-function cuerpo(cini, pagina) {
-  // Los campos vacíos se envían igual: el servidor los espera y sin
-  // ellos puede responder 400.
-  const f = new URLSearchParams();
-  f.set('_iniciativas_legislatura', '15');
-  f.set('_iniciativas_estadoTramitacion', '');
-  f.set('_iniciativas_faseTramitacion', '');
-  f.set('_iniciativas_cini', cini);
-  f.set('_iniciativas_tipoLlamada', 'T');
-  f.set('_iniciativas_paginaActual', String(pagina));
-  f.set('_iniciativas_comision_competente', '');
-  return f.toString();
+// Varias rutas agrupan lo escrito por tabla: { actividad: { escritas },
+// autores: { escritas } }. Se suman.
+function sumarEscrituras(informe) {
+  const e = informe?.escritura;
+  if (!e || typeof e !== 'object') return null;
+  let total = 0;
+  let hubo = false;
+  for (const v of Object.values(e)) {
+    if (v && typeof v.escritas === 'number') {
+      total += v.escritas;
+      hubo = true;
+    }
+  }
+  return hubo ? total : null;
 }
 
-async function pedirPagina(cini, pagina) {
+function resumir(informe) {
+  if (!informe || typeof informe !== 'object') return null;
+  const limpio = {};
+  for (const [k, v] of Object.entries(informe)) {
+    if (CLAVES_PESADAS.has(k)) continue;
+    limpio[k] = v;
+  }
+  let txt;
   try {
-    const res = await fetch(urlListado(), {
-      method: 'POST',
-      headers: HEADERS,
-      body: cuerpo(cini, pagina),
-      cache: 'no-store',
-    });
-    if (!res.ok) return { ok: false, motivo: `HTTP ${res.status}` };
-    const d = await res.json();
-    // lista_iniciativas es un objeto indexado (iniciativa1, iniciativa2...),
-    // no un array: hay que convertirlo.
-    const lista = d?.lista_iniciativas ? Object.values(d.lista_iniciativas) : [];
-    return { ok: true, lista, total: parseInt(d?.iniciativas_encontradas || '0', 10) };
-  } catch (e) {
-    return { ok: false, motivo: e.message };
+    txt = JSON.stringify(limpio);
+  } catch {
+    return null;
+  }
+  return txt.length > LIMITE_DETALLE ? `${txt.slice(0, LIMITE_DETALLE)}…` : txt;
+}
+
+/**
+ * El estado, por orden de gravedad.
+ *
+ * 'cortado' merece ser distinto de 'ok': la ruta terminó bien pero dejó
+ * trabajo sin hacer, y si se repite noche tras noche es exactamente el
+ * fallo que estamos tapando.
+ *
+ * Los estados posibles, de más a menos grave:
+ *   error     · falló, con su motivo en el detalle
+ *   empezado  · abrió y nunca cerró: muerta por tiempo
+ *   cortado   · terminó pero dejó trabajo pendiente
+ *   omitido   · no autorizada, ni siquiera llegó a empezar
+ *   vacio     · corrió bien y no había nada que hacer
+ *   prueba    · ejecución en seco, no cuenta como corrida
+ *   ok        · corrió y escribió
+ */
+function calcularEstado(status, informe) {
+  if (status === 401 || status === 403) return 'omitido';
+  if (status >= 500) return 'error';
+  if (informe?.error) return 'error';
+  // Una prueba en seco no es una ejecución. Se distingue en el estado y
+  // no solo en el detalle, porque la pantalla de estado lee esta columna
+  // para decir qué corrió anoche: una prueba manual de media tarde no
+  // puede contar como que el sync se ejecutó.
+  if (informe?.dry_run) return 'prueba';
+  if (informe?.cortado_por_tiempo || informe?.cortado || informe?.quedan) return 'cortado';
+  const leidos = primerNumero(informe, CAMPOS_LEIDOS);
+  const escritos = sumarEscrituras(informe) ?? primerNumero(informe, CAMPOS_ESCRITOS);
+  if ((leidos ?? 0) === 0 && (escritos ?? 0) === 0) return 'vacio';
+  return 'ok';
+}
+
+// Los parámetros distinguen un eslabón de otro: sin esto, seis
+// invocaciones encadenadas son seis filas idénticas.
+function parametros(request) {
+  try {
+    const sp = new URL(request.url).searchParams;
+    const partes = [];
+    for (const [k, v] of sp.entries()) {
+      // La clave de depuración no se guarda en la base, evidentemente.
+      if (k === 'key') continue;
+      partes.push(`${k}=${v}`);
+    }
+    return partes.length ? `?${partes.join('&')}` : '';
+  } catch {
+    return '';
   }
 }
 
-// Para casar nombres de grupo: sin tildes, sin dobles espacios.
-function normalizar(n) {
-  return (n || '')
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .toLowerCase()
-    .replace(/\s+/g, ' ')
-    .trim();
-}
-
-function slugify(t) {
-  return (t || '')
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/(^-|-$)/g, '')
-    .slice(0, 80);
-}
-
-// "21/07/2026" -> "2026-07-21"
-function fechaEs(f) {
-  if (!f) return null;
-  const m = String(f).trim().match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
-  return m ? `${m[3]}-${m[2]}-${m[1]}` : null;
-}
-
-function transformar(row, tipo) {
-  const num = String(row.id_iniciativa || '').trim();
-  if (!num) return null;
-
-  const prefijo = num.split('/')[0];
-  const situacion = (row.situacion_actual || '').trim() || null;
-  // El resultado llega como "Aprobado 12/05/2025", con la fecha pegada.
-  const resultado = (row.resultado_tram || '').replace(/\s*\n\s*/g, ' ').trim() || null;
-
-  return {
-    fila: {
-      num_expediente: num,
-      legislature_code: row.legislatura || 'XV',
-      slug: `${slugify(row.titulo)}-${num.replace(/\//g, '-')}`,
-      kind: tipo.kind,
-      cini: prefijo,
-      kind_label: SUBTIPOS[prefijo] || tipo.label,
-      titulo: String(row.titulo || '').replace(/\s*\n\s*/g, ' ').trim(),
-      fecha_presentacion: fechaEs(row.fecha_presentado),
-      fecha_calificacion: fechaEs(row.fecha_calificado),
-      situacion,
-      resultado,
-      // Sin situación y con resultado, es que terminó. "Cerrado" también
-      // aparece como situación en algunos casos.
-      is_closed: /^cerrado|^caducad|^rechazad|^retirad/i.test(situacion || '') || (!situacion && !!resultado),
-      raw: row,
-      synced_at: new Date().toISOString(),
-    },
-    // Los autores vienen como objeto: {autor01: {...}, autor02: {...}}
-    autores: Object.values(row.autores || {}).map((a, i) => ({
-      num_expediente: num,
-      nombre: String(a.nombre || '').trim(),
-      // idGrupo permite enlazar por identificador y no por nombre, que
-      // es más fiable que lo que hacemos con las leyes.
-      id_grupo: a.idGrupo ? String(a.idGrupo) : null,
-      // Una persona lleva coma (apellidos, nombre); un grupo no.
-      es_persona: String(a.nombre || '').includes(',') && !/^Grupo Parlamentario/i.test(a.nombre || ''),
-      orden: i,
-    })).filter((a) => a.nombre),
-  };
-}
-
-async function escribir(supabase, tabla, filas, conflicto) {
-  if (filas.length === 0) return { escritas: 0, errores: [] };
-  let escritas = 0;
-  const errores = [];
-  for (let i = 0; i < filas.length; i += 100) {
-    const grupo = filas.slice(i, i + 100);
+async function abrir(supabase, ruta, request) {
+  try {
     const { data, error } = await supabase
-      .from(tabla)
-      .upsert(grupo, { onConflict: conflicto })
-      .select(conflicto.split(',')[0]);
-    if (error) errores.push(error.message);
-    else escritas += Array.isArray(data) ? data.length : 0;
+      .from('sync_log')
+      .insert({
+        ruta,
+        estado: 'empezado',
+        n_leidos: 0,
+        n_escritos: 0,
+        duracion_ms: null,
+        detalle: parametros(request) || 'sin parámetros',
+      })
+      .select('id')
+      .single();
+    if (error) {
+      console.error(`[syncLog] no se pudo abrir el registro de ${ruta}:`, error.message);
+      return null;
+    }
+    return data?.id ?? null;
+  } catch (err) {
+    console.error(`[syncLog] no se pudo abrir el registro de ${ruta}:`, err);
+    return null;
   }
-  return { escritas, errores };
 }
 
-async function lanzarSiguiente(request, eslabon, extra = {}) {
-  const url = new URL(request.url);
-  url.searchParams.set('cadena', String(eslabon));
-  for (const [k, v] of Object.entries(extra)) url.searchParams.set(k, v);
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), MS_LANZAR_SIGUIENTE);
+async function cerrar(supabase, id, ruta, fila) {
   try {
-    await fetch(url.toString(), {
-      signal: controller.signal,
-      headers: request.headers.get('authorization') ? { authorization: request.headers.get('authorization') } : {},
-      cache: 'no-store',
-    });
-    return { lanzado: true };
-  } catch (e) {
-    // Abortar es lo buscado: la petición ya salió.
-    if (e.name === 'AbortError') return { lanzado: true };
-    return { lanzado: false, motivo: e.message };
-  } finally {
-    clearTimeout(timer);
+    if (id == null) {
+      // No hubo fila de apertura: se inserta el cierre suelto, que es
+      // mejor que perder la ejecución entera.
+      await supabase.from('sync_log').insert({ ruta, ...fila });
+      return;
+    }
+    await supabase.from('sync_log').update(fila).eq('id', id);
+  } catch (err) {
+    console.error(`[syncLog] no se pudo cerrar el registro de ${ruta}:`, err);
   }
 }
 
-export const GET = conRegistro('/api/sync/congreso-actividad', handler);
-
-async function handler(request) {
-  const t0 = Date.now();
-  const sp = new URL(request.url).searchParams;
-
-  const isCron = request.headers.get('authorization') === `Bearer ${process.env.CRON_SECRET}`;
-  const isManual = !!process.env.DEBUG_KEY && sp.get('key') === process.env.DEBUG_KEY;
-  if (!isCron && !isManual) {
-    return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
+// La ruta de la petición, sin parámetros. Para las rutas dinámicas: la
+// misma función sirve /congreso-actividad/pnl y /comparecencia, y cada
+// una tiene que quedar en su propia fila.
+function rutaDe(request) {
+  try {
+    return new URL(request.url).pathname;
+  } catch {
+    return 'desconocida';
   }
+}
 
-  const dry = sp.get('dry') === '1';
-  const eslabon = Math.max(parseInt(sp.get('cadena') || '0', 10), 0);
-  const encadenar = sp.get('encadenar') !== '0';
-  const tipoParam = sp.get('tipo');
-  const desdePagina = Math.max(parseInt(sp.get('pagina') || '1', 10), 1);
-  const supabase = admin();
+/**
+ * Envuelve el manejador de una ruta y registra su ejecución.
+ *
+ * Devuelve exactamente la respuesta del manejador: el cuerpo se lee de
+ * un clon, así que el original llega intacto a quien llamó.
+ *
+ * Si `rutaFija` es null se usa la ruta real de cada petición. Es lo que
+ * necesita una ruta dinámica como /congreso-actividad/[tipo], cuyo
+ * nombre coincide así con el que tiene en vercel.json.
+ */
+export function conRegistro(rutaFija, handler) {
+  return async function GET(request, ...resto) {
+    const t0 = Date.now();
+    const supabase = admin();
+    const ruta = rutaFija || rutaDe(request);
+    const id = await abrir(supabase, ruta, request);
+    const params = parametros(request);
 
-  const informe = { inicio: new Date().toISOString(), dry_run: dry, eslabon };
+    try {
+      const res = await handler(request, ...resto);
 
-  // Qué tipo toca. Sin parámetro se empieza por las PNL y al terminar se
-  // salta a las comparecencias.
-  const clave = tipoParam && TIPOS[tipoParam] ? tipoParam : 'pnl';
-  const tipo = TIPOS[clave];
-  informe.tipo = clave;
+      let informe = null;
+      try {
+        informe = await res.clone().json();
+      } catch {
+        // No todas las respuestas son JSON, y no pasa nada.
+      }
 
-  const filas = [];
-  const autores = [];
-  const fallidas = [];
-  let totalReal = null;
-  let pagina = desdePagina;
-  let cortado = false;
+      const leidos = primerNumero(informe, CAMPOS_LEIDOS);
+      const escritos = sumarEscrituras(informe) ?? primerNumero(informe, CAMPOS_ESCRITOS);
+      const resumen = resumir(informe);
 
-  while (Date.now() - t0 < PRESUPUESTO_MS) {
-    const r = await pedirPagina(tipo.cini, pagina);
-    if (!r.ok) {
-      fallidas.push({ pagina, motivo: r.motivo });
-      // Un fallo puntual no debe abortar: se salta esa página.
-      pagina += 1;
-      if (fallidas.length > 5) break;
-      continue;
+      await cerrar(supabase, id, ruta, {
+        estado: calcularEstado(res.status, informe),
+        n_leidos: leidos ?? 0,
+        n_escritos: escritos ?? 0,
+        duracion_ms: Date.now() - t0,
+        detalle: [params, resumen].filter(Boolean).join(' ') || null,
+      });
+
+      return res;
+    } catch (err) {
+      // Una excepción sin registrar es justo el caso que nos dejó a
+      // ciegas: se deja constancia y se vuelve a lanzar.
+      await cerrar(supabase, id, ruta, {
+        estado: 'error',
+        n_leidos: 0,
+        n_escritos: 0,
+        duracion_ms: Date.now() - t0,
+        detalle: [params, String(err?.message || err).slice(0, 500)].filter(Boolean).join(' '),
+      });
+      throw err;
     }
-    if (totalReal === null) totalReal = r.total;
-    if (r.lista.length === 0) break;
-
-    for (const row of r.lista) {
-      const t = transformar(row, tipo);
-      if (!t) continue;
-      filas.push(t.fila);
-      autores.push(...t.autores);
-    }
-
-    pagina += 1;
-    if ((pagina - 1) * POR_PAGINA >= (totalReal || 0)) break;
-    await espera(PAUSA_MS);
-  }
-
-  const ultimaPagina = pagina - 1;
-
-  // Se cuenta por REGISTROS ya recorridos, no por páginas: el bucle sale
-  // con `pagina` ya incrementada, y al terminar justo en el límite la
-  // comparación por páginas quedaba ambigua. Eso hizo que al acabar las
-  // proposiciones no de ley no saltara a las comparecencias, y hubo que
-  // lanzarlas a mano.
-  const yaRecorridos = ultimaPagina * POR_PAGINA;
-  const quedanPaginas = totalReal !== null && yaRecorridos < totalReal;
-  cortado = quedanPaginas;
-
-  informe.total_en_origen = totalReal;
-  informe.paginas = { desde: desdePagina, hasta: ultimaPagina };
-  informe.recorridos = yaRecorridos;
-  informe.quedan = quedanPaginas;
-  informe.registros = filas.length;
-  informe.autores = autores.length;
-  informe.con_grupo = autores.filter((a) => a.id_grupo).length;
-  informe.cerrados = filas.filter((f) => f.is_closed).length;
-  informe.fallidas = fallidas.length;
-  informe.detalle_fallos = fallidas.slice(0, 3);
-
-  if (dry) {
-    informe.muestra = filas[0] ? { ...filas[0], raw: '[...recortado]' } : null;
-    informe.muestra_autores = autores.slice(0, 4);
-    informe.subtipos = [...new Set(filas.map((f) => f.kind_label))];
-    informe.ms_total = Date.now() - t0;
-    return NextResponse.json(informe);
-  }
-
-  const wAct = await escribir(supabase, 'es_activity', filas, 'num_expediente');
-
-  // Enlace con los grupos. El endpoint da idGrupo, que sería inequívoco,
-  // pero parliamentary_groups no guarda ese identificador —comprobado en
-  // information_schema— así que se cruza por nombre normalizado, igual
-  // que en el sync de leyes.
-  //
-  // El idGrupo se guarda de todas formas: si algún día se añade la
-  // columna, el enlace se puede rehacer sin volver a descargar.
-  const { data: grupos } = await supabase.from('parliamentary_groups').select('id, name, short_name');
-  const porNombre = new Map();
-  for (const g of grupos || []) {
-    if (g.name) porNombre.set(normalizar(g.name), g.id);
-    if (g.short_name) porNombre.set(normalizar(g.short_name), g.id);
-  }
-  let enlazados = 0;
-  for (const a of autores) {
-    const id = porNombre.get(normalizar(a.nombre));
-    if (id) {
-      a.group_id = id;
-      enlazados += 1;
-    }
-  }
-  const wAut = await escribir(supabase, 'es_activity_authors', autores, 'num_expediente,nombre');
-
-  informe.escritura = { actividad: wAct, autores: wAut };
-  informe.autores_enlazados = enlazados;
-
-  // --- Encadenado ----------------------------------------------------
-  // El orden importa poco, pero conviene que sea determinista: pnl ->
-  // comparecencia -> decreto.
-  const ORDEN = ['pnl', 'comparecencia', 'decreto'];
-  const siguienteTipo = ORDEN[ORDEN.indexOf(clave) + 1] || null;
-
-  if (!encadenar) {
-    informe.nota = 'Queda trabajo y el encadenado está desactivado.';
-  } else if (wAct.escritas === 0 && filas.length > 0) {
-    informe.nota = 'Se procesaron registros pero no se escribió ninguno: se detiene la cadena.';
-  } else if (eslabon + 1 >= MAX_CADENA) {
-    informe.nota = `Tope de ${MAX_CADENA} eslabones. Vuelve a lanzarlo para continuar.`;
-  } else if (quedanPaginas) {
-    const r = await lanzarSiguiente(request, eslabon + 1, {
-      tipo: clave,
-      pagina: String(ultimaPagina + 1),
-      ...(sp.get('key') ? { key: sp.get('key') } : {}),
-    });
-    informe.siguiente = { tipo: clave, pagina: ultimaPagina + 1, ...r };
-    informe.nota = r.lanzado ? 'Siguiente página lanzada sola.' : `No se pudo encadenar (${r.motivo}).`;
-  } else if (siguienteTipo) {
-    const r = await lanzarSiguiente(request, eslabon + 1, {
-      tipo: siguienteTipo,
-      pagina: '1',
-      ...(sp.get('key') ? { key: sp.get('key') } : {}),
-    });
-    informe.siguiente = { tipo: siguienteTipo, pagina: 1, ...r };
-    informe.nota = `Terminadas las ${clave}. Lanzado el siguiente tipo.`;
-  } else {
-    informe.nota = 'Carga completa: proposiciones no de ley y comparecencias al día.';
-  }
-
-  informe.ms_total = Date.now() - t0;
-  return NextResponse.json(informe);
+  };
 }
