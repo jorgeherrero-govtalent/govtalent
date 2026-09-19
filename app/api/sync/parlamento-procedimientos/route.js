@@ -23,8 +23,8 @@
 // vigila fase y cierre, así que seguir un procedimiento del PE no generó
 // nunca un aviso. Había fichas sin tocar desde el 14 de agosto.
 //
-// Ahora todo lo vivo se refresca cada noche. Con 231 vivos son unas 475
-// peticiones, unos siete minutos. Lo cerrado no se vuelve a pedir: un
+// Ahora todo lo vivo se refresca cada noche. Con 230 vivos son unas 470
+// peticiones: a 1,2 por segundo, unos siete minutos. Lo cerrado no se vuelve a pedir: un
 // procedimiento firmado o publicado ya no cambia.
 //
 // Y ya no se encadena: con el límite de 60 s de antes había que trocear
@@ -34,9 +34,9 @@
 // -------------------------------------------------------------------
 // LÍMITE DE LA API: 500 peticiones cada 5 minutos, 1,67 por segundo.
 // La primera versión iba dieciocho veces por encima y cosechó 101
-// respuestas HTTP 429 en una pasada. Con 3 en paralelo y 2 s de pausa
-// el ritmo queda por debajo de 1,5 por segundo. Si aun así llega un
-// 429, se espera un minuto y se reintenta; si se repite, se para.
+// respuestas HTTP 429 en una pasada. Ahora el ritmo tiene un tope de
+// 1,2 por segundo (ver TASA_MAX). Si aun así llega un 429, se espera un
+// minuto y se reintenta; si se repite, se para.
 //
 // SOLO COD —procedimiento legislativo ordinario—, por decisión de
 // producto. Ampliar a CNS, NLE, INI y demás multiplicaría los vivos y
@@ -61,6 +61,8 @@ import { conRegistro } from '@/lib/syncLog';
 export const dynamic = 'force-dynamic';
 
 // El máximo de Pro con Fluid compute. Lo normal son unos siete minutos.
+// La primera ejecución real, con un ritmo más lento, agotó el presupuesto
+// de 690 s: por eso se ajustó TASA_MAX.
 export const maxDuration = 800;
 
 const EP = 'https://data.europarl.europa.eu/api/v2';
@@ -71,9 +73,19 @@ const TIPO = 'COD';
 // la última tanda y contestar.
 const PRESUPUESTO_MS = 690_000;
 
-// Ritmo: 3 a la vez y 2 s entre lotes, por debajo del límite de la API.
-const PARALELO = 3;
-const PAUSA_MS = 2000;
+// RITMO. La API es lenta: medido el 20 de septiembre, unos 4,5 s por
+// ficha. Con 3 a la vez y 2 s de pausa salían menos de 0,5 peticiones
+// por segundo, y la primera ejecución se quedó sin tiempo con solo 75
+// de 228 cronologías.
+//
+// Ahora van 6 a la vez, pero cada lote dura como mínimo lo necesario
+// para no pasar de TASA_MAX. Si la API va lenta, el lote ya tarda eso y
+// no se espera nada; si un día va rápida, se espera la diferencia. Subir
+// solo el paralelismo sin este tope podría disparar el ritmo por encima
+// del límite el día que la API contestara deprisa.
+const PARALELO = 6;
+const TASA_MAX = 1.2; // peticiones por segundo; el límite es 1,67
+const MIN_LOTE_MS = Math.ceil((PARALELO / TASA_MAX) * 1000);
 // Tras un 429, un minuto de espera antes del único reintento.
 const ESPERA_429_MS = 60_000;
 
@@ -296,8 +308,8 @@ async function escribir(supabase, tabla, filas, conflicto) {
 }
 
 /**
- * Pide `pedirUno(item)` para cada elemento, PARALELO a la vez y con
- * PAUSA_MS entre lotes.
+ * Pide `pedirUno(item)` para cada elemento, PARALELO a la vez y sin
+ * pasar de TASA_MAX peticiones por segundo.
  *
  * Tras cada lote llama a `alLote(lote)`; si devuelve false, se para
  * —es la forma de cortar cuando la base rechaza lo que se escribe—.
@@ -312,6 +324,7 @@ async function porLotes(items, pedirUno, { t0, alLote }) {
   for (let i = 0; i < items.length; i += PARALELO) {
     if (Date.now() - t0 > PRESUPUESTO_MS) return { parado: 'tiempo' };
 
+    const inicioLote = Date.now();
     const grupo = items.slice(i, i + PARALELO);
     let res = await Promise.all(grupo.map(pedirUno));
 
@@ -327,7 +340,8 @@ async function porLotes(items, pedirUno, { t0, alLote }) {
     if (alLote && (await alLote(lote)) === false) return { parado: 'escritura' };
     if (limitado) return { parado: 'limite' };
 
-    await espera(PAUSA_MS);
+    const resta = MIN_LOTE_MS - (Date.now() - inicioLote);
+    if (resta > 0) await espera(resta);
   }
   return { parado: null };
 }
@@ -400,6 +414,7 @@ async function handler(request) {
     }
   );
   parado = r1.parado;
+  let faseCortada = parado === 'tiempo' ? 'descubrir' : null;
   informe.anos_recorridos = porAno;
   if (anosAlTope.length) {
     informe.aviso = `El listado de ${anosAlTope.join(', ')} llegó al tope de ${LIMITE_LISTADO}: puede haber procedimientos sin descubrir.`;
@@ -507,6 +522,15 @@ async function handler(request) {
       alLote: async (lote) => {
         for (const { item: pid, r } of lote) {
           if (!r.ok) {
+            // Un 404 no es un fallo pasajero: la API ya no reconoce ese
+            // procedimiento —retirado o renumerado—. Contarlo como fallo
+            // dejaría la ejecución en "dejó trabajo" todas las noches, y
+            // eso acostumbra a no mirar. Se lista aparte para revisarlo a
+            // mano, que es una decisión de contenido, no de código.
+            if (r.motivo === 'HTTP 404') {
+              sinFicha.push(pid);
+              continue;
+            }
             fallidos.push({ id: pid, motivo: r.motivo });
             continue;
           }
@@ -532,6 +556,7 @@ async function handler(request) {
       },
     });
     parado = r2.parado;
+    if (parado === 'tiempo') faseCortada = 'fichas';
   }
   // Lo que quede se guarda siempre, también si se paró por tiempo.
   if (parado !== 'escritura' && !(await volcarFichas())) parado = 'escritura';
@@ -600,6 +625,7 @@ async function handler(request) {
       },
     });
     parado = r3.parado;
+    if (parado === 'tiempo') faseCortada = 'eventos';
   }
   if (parado !== 'escritura' && !(await volcarEventos())) parado = 'escritura';
 
@@ -620,12 +646,20 @@ async function handler(request) {
     informe.nota = 'La API devolvió 429 dos veces seguidas y se paró. Lo pendiente se refresca mañana, empezando por ello.';
   } else if (parado === 'tiempo') {
     informe.quedan = true;
-    informe.nota = `Se acabó el tiempo: ${fichasOk.length} de ${aPedir.length} fichas. Mañana empieza por las que faltan.`;
+    informe.nota =
+      faseCortada === 'eventos'
+        ? `Fichas completas (${fichasOk.length}). Se acabó el tiempo en las cronologías: ${eventosProcesados} de ${fichasOk.length}.`
+        : faseCortada === 'fichas'
+          ? `Se acabó el tiempo en las fichas: ${fichasOk.length} de ${aPedir.length}. Mañana empieza por las que faltan.`
+          : 'Se acabó el tiempo descubriendo procedimientos nuevos.';
   } else if (fallidos.length > 0) {
     informe.quedan = true;
     informe.nota = `Terminado con ${fallidos.length} petición(es) fallida(s); se reintentan mañana.`;
   } else {
     informe.nota = `Completo: ${fichasOk.length} fichas y ${eventosProcesados} cronologías.`;
+  }
+  if (sinFicha.length) {
+    informe.nota += ` ${sinFicha.length} sin ficha en la API (revisar a mano): ${sinFicha.slice(0, 5).join(', ')}.`;
   }
   return responder(200);
 }
