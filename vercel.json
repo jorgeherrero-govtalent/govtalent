@@ -37,8 +37,16 @@
       "schedule": "30 4 * * *"
     },
     {
-      "path": "/api/sync/congreso-actividad",
+      "path": "/api/sync/congreso-actividad/pnl",
       "schedule": "0 3 * * *"
+    },
+    {
+      "path": "/api/sync/congreso-actividad/comparecencia",
+      "schedule": "15 3 * * *"
+    },
+    {
+      "path": "/api/sync/congreso-actividad/decreto",
+      "schedule": "30 3 * * *"
     },
     {
       "path": "/api/sync/congreso-comisiones",
