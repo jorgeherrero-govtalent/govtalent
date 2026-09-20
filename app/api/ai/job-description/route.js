@@ -30,13 +30,18 @@ export async function POST(request) {
   // definido, si tiene una página administrada.
   const { data: membership } = await supabase
     .from('organization_members')
-    .select('organizations(ai_tone, ai_context, plan, is_founding_member)')
+    .select('organizations(ai_tone, ai_context, plan, plan_status, claimed, verified, is_founding_member)')
     .eq('user_id', authData.user.id)
     .limit(1)
     .maybeSingle();
   const org = membership?.organizations;
 
-  if (org && !canUseAIJobDescription(org)) {
+  // Sin organización tampoco: antes la condición `org && ...` dejaba pasar
+  // a cualquier usuario sin organización (auditoría, punto 10).
+  if (!org) {
+    return NextResponse.json({ error: 'Necesitas una página de organización para generar ofertas con IA.' }, { status: 403 });
+  }
+  if (!canUseAIJobDescription(org)) {
     return NextResponse.json(
       { error: 'La generación de ofertas con IA está disponible a partir del plan Plus.', upgradeRequired: true },
       { status: 403 }
