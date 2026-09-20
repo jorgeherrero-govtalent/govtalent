@@ -3,6 +3,10 @@ import { createClient } from '@supabase/supabase-js';
 import { syncGovernment, seedBios, debugBio } from '@/lib/instituciones/syncGovernment';
 import { conRegistro } from '@/lib/syncLog';
 
+// Sin esto, Next.js puede tratar la ruta como estática y servir siempre
+// la misma respuesta: el sync parecería correr y no haría nada. Lo tienen
+// todas las demás rutas de sync.
+export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
 
 function admin() {
