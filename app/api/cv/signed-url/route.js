@@ -10,6 +10,14 @@ import { createAdminClient } from '@/lib/supabase/admin';
 //   - "backoffice": el superadmin de la plataforma
 const SIGNED_URL_TTL_SECONDS = 300; // 5 minutos
 
+// Todo CV vive en "<id del candidato>/cv.pdf". Comprobar el prefijo cierra
+// el hueco de la auditoría (punto 3): antes se firmaba la ruta guardada en
+// la fila sin mirar de quién era el archivo, así que bastaba con escribir en
+// tu perfil la ruta del CV de otra persona para obtener un enlace a él.
+function rutaPerteneceA(path, ownerId) {
+  return typeof path === 'string' && !!ownerId && path.startsWith(`${ownerId}/`) && !path.includes('..');
+}
+
 export async function POST(request) {
   const body = await request.json().catch(() => ({}));
   const { context } = body;
@@ -32,6 +40,9 @@ export async function POST(request) {
       .single();
     if (!profile?.cv_url) {
       return NextResponse.json({ error: 'No tienes un CV subido' }, { status: 404 });
+    }
+    if (!rutaPerteneceA(profile.cv_url, uid)) {
+      return NextResponse.json({ error: 'No autorizado' }, { status: 403 });
     }
     path = profile.cv_url;
   } else if (context === 'application') {
@@ -58,11 +69,15 @@ export async function POST(request) {
         .select('organization_id')
         .eq('user_id', uid)
         .eq('organization_id', application.jobs.organization_id)
+        .limit(1)
         .maybeSingle();
       isOrgMember = !!membership;
     }
 
     if (!isOwnApplication && !isOrgMember) {
+      return NextResponse.json({ error: 'No autorizado' }, { status: 403 });
+    }
+    if (!rutaPerteneceA(application.cv_url_snapshot, application.candidate_id)) {
       return NextResponse.json({ error: 'No autorizado' }, { status: 403 });
     }
     path = application.cv_url_snapshot;
@@ -84,6 +99,9 @@ export async function POST(request) {
       .single();
     if (!profile?.cv_url) {
       return NextResponse.json({ error: 'Este usuario no tiene CV subido' }, { status: 404 });
+    }
+    if (!rutaPerteneceA(profile.cv_url, userId)) {
+      return NextResponse.json({ error: 'La ruta del CV no corresponde a este usuario' }, { status: 409 });
     }
     path = profile.cv_url;
   } else {
