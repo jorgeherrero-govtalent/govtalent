@@ -313,7 +313,7 @@ export default function DirectorioInstitucionalPage() {
       }
       const { data: membership } = await supabase
         .from('organization_members')
-        .select('organizations(id, plan)')
+        .select('organizations(id, plan, plan_status, claimed, verified)')
         .eq('user_id', authData.user.id)
         .limit(1)
         .maybeSingle();
@@ -338,14 +338,18 @@ export default function DirectorioInstitucionalPage() {
     async function cargar() {
       const acumulado = [];
       for (let desde = 0; desde < MAX_FILAS; desde += CHUNK) {
-        const { data, error } = await supabase
-          .from('directorio_pro')
-          .select(
-            'id, jurisdiccion, tipo_institucion, pais, institucion, unidad, nombre, cargo, cargo_canonico, banda, orden, es_titular, area, email, email_unidad, telefono, direccion_postal, slug, contactabilidad, objecion'
-          )
-          .eq('objecion', false)
-          .order('orden', { ascending: true })
-          .range(desde, desde + CHUNK - 1);
+        // La vista ya no se lee desde el navegador: la ruta comprueba el
+        // plan en el servidor y filtra las objeciones en origen.
+        let data = null;
+        let error = null;
+        try {
+          const res = await fetch(`/api/instituciones/directorio/data?desde=${desde}`, { cache: 'no-store' });
+          const json = await res.json().catch(() => ({}));
+          if (res.ok) data = json.filas || [];
+          else error = { message: json.error || 'No se pudo cargar el directorio' };
+        } catch {
+          error = { message: 'No se pudo cargar el directorio' };
+        }
         if (error) {
           setLoadError(error.message);
           setFilas([]);
