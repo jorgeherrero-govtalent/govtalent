@@ -47,13 +47,37 @@ export default function GovernmentOfficialProfilePage() {
   useEffect(() => {
     // .limit(1) antes de .maybeSingle(): sin él la consulta falla en silencio
     // si hay más de una fila que encaje.
-    supabase
-      .from('government_officials')
-      .select('*')
-      .eq('slug', slug)
-      .limit(1)
-      .maybeSingle()
-      .then(({ data }) => (data ? setOfficial(data) : setNotFound(true)));
+    // El contacto (email, teléfono, web) ya no se lee de la tabla: esas
+    // columnas están cerradas al navegador y salen de
+    // /api/instituciones/contactos, que comprueba el plan en el servidor.
+    // Antes llegaban siempre y el candado de Pro solo las tapaba.
+    let cancelado = false;
+    Promise.all([
+      supabase
+        .from('government_officials')
+        .select('full_name, slug, role, ministry_name, unit_name')
+        .eq('slug', slug)
+        .limit(1)
+        .maybeSingle(),
+      fetch(`/api/instituciones/contactos?slug=${encodeURIComponent(slug)}`, { cache: 'no-store' })
+        .then((r) => (r.ok ? r.json() : null))
+        .catch(() => null),
+    ]).then(([{ data }, contactos]) => {
+      if (cancelado) return;
+      if (!data) {
+        setNotFound(true);
+        return;
+      }
+      const c = contactos?.contactos?.[slug];
+      setOfficial({
+        ...data,
+        ...(c && typeof c === 'object' ? c : {}),
+        tiene_contacto: !!c,
+      });
+    });
+    return () => {
+      cancelado = true;
+    };
   }, [slug]);
 
   useEffect(() => {
@@ -103,7 +127,7 @@ export default function GovernmentOfficialProfilePage() {
   if (!official) return <div className="spinner"></div>;
 
   const displayName = nameDisplay(official.full_name);
-  const hasContact = official.unit_email || official.unit_phone || official.unit_website;
+  const hasContact = official.tiene_contacto || official.unit_email || official.unit_phone || official.unit_website;
   const hasUnit = official.unit_name && official.unit_name !== official.ministry_name;
 
   const avatarStyle = {
