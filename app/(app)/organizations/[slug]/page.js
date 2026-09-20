@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { serializeJsonLd } from '@/lib/jsonLd';
 import { createClient } from '@/lib/supabase/server';
 import { SECTOR_LABELS } from '@/lib/orgTaxonomy';
 import { normalizeUrl } from '@/lib/normalizeUrl';
@@ -118,7 +119,7 @@ export default async function OrganizationPublicPage({ params }) {
 
   return (
     <div className="sec">
-      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: serializeJsonLd(jsonLd) }} />
 
       {/* A una ficha de organización se llega desde el directorio, desde
           una oferta, desde el mapa de un proyecto o desde un actor: el
