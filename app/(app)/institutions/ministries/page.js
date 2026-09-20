@@ -572,6 +572,22 @@ function CeldaContacto({ valor, esPro, onUpsell }) {
 
 function BuscarTab({ members, officials }) {
   const esPro = usePlanPro();
+  // Contactos por slug. Con plan llega el dato; sin plan solo `true` donde
+  // hay algo que desbloquear. Las columnas ya no se piden a la tabla desde
+  // el navegador: antes llegaban para todos y el candado solo las tapaba.
+  const [contactos, setContactos] = useState({});
+  useEffect(() => {
+    let cancelado = false;
+    fetch('/api/instituciones/contactos', { cache: 'no-store' })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((json) => {
+        if (!cancelado && json?.contactos) setContactos(json.contactos);
+      })
+      .catch(() => {});
+    return () => {
+      cancelado = true;
+    };
+  }, []);
   // Objeto y no booleano: esta pestaña tiene dos motivos de venta —el
   // filtro de tipo de cargo y el contacto— y cada uno dice lo suyo.
   const [upsell, setUpsell] = useState(null);
@@ -787,7 +803,13 @@ function BuscarTab({ members, officials }) {
               <div style={{ fontSize: 11.5, color: '#888', minWidth: 0 }}>{p.ministry_name}</div>
 
               <CeldaContacto
-                valor={p.unit_email || p.unit_phone}
+                valor={
+                  p.isMember
+                    ? null
+                    : typeof contactos[p.slug] === 'object'
+                    ? contactos[p.slug].unit_email || contactos[p.slug].unit_phone
+                    : contactos[p.slug] || null
+                }
                 esPro={esPro}
                 onUpsell={() =>
                   setUpsell({
@@ -1106,7 +1128,7 @@ export default function MinistriesDirectoryPage() {
         .order('order_index', { ascending: true }),
       supabase
         .from('government_officials')
-        .select('full_name, slug, role, ministry_name, unit_name, dir3_code, unit_email, unit_phone, age_units(nombre, categoria, nivel)')
+        .select('full_name, slug, role, ministry_name, unit_name, dir3_code, age_units(nombre, categoria, nivel)')
         .eq('active', true),
       // Organigramas oficiales cargados. Se piden las unidades en crudo y
       // se agregan aqui: son unos cientos de filas y sale mas barato que
