@@ -33,17 +33,27 @@ import { createClient } from '@supabase/supabase-js';
 import { conRegistro } from '@/lib/syncLog';
 
 export const dynamic = 'force-dynamic';
-export const maxDuration = 60;
+// 800 s, el máximo de Pro con Fluid compute. Con 60 s la ruta se cortaba
+// TODAS las mañanas en el segundo 54: los primeros expedientes de la
+// lista se refrescaban a diario y los últimos no se miraban nunca.
+// Medido el 19 y el 20 de septiembre: 34 expedientes, cortado las dos
+// veces. La pasada entera son unos tres minutos.
+export const maxDuration = 800;
 
 const API = 'https://ec.europa.eu/info/law/better-regulation/api';
 const BRP = 'https://ec.europa.eu/info/law/better-regulation/brpapi';
-const PRESUPUESTO_MS = 45000;
+// A partir de aquí no se empieza ningún expediente nuevo. Quedan 100 s
+// para cerrar el que esté en marcha y escribir lo acumulado —que se
+// guarda todo al final, en tandas de 200—.
+const PRESUPUESTO_MS = 700_000;
 const PARALELO = 4;
 const PAUSA_MS = 150;
 
-// Cuántos expedientes se revisan por pasada. Son pocos —los abiertos
-// rondan los 43— así que caben todos.
-const POR_PASADA = 40;
+// Cuántos expedientes se revisan por pasada. Los abiertos rondan los 34
+// y caben todos. El tope era 40, peligrosamente cerca: si un mes hubiera
+// 45 consultas abiertas, las cinco últimas no se mirarían y nada lo
+// diría. Con 800 s de ejecución sobra sitio para subirlo.
+const POR_PASADA = 200;
 
 const HEADERS = {
   'User-Agent':
