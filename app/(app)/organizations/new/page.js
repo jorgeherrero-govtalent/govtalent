@@ -4,7 +4,6 @@ import { useEffect, useState } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { toast } from '@/lib/toast';
 import { ORG_TYPES, SECTORS } from '@/lib/orgTaxonomy';
-import { normalizeLocation } from '@/lib/normalizeLocation';
 import Interruptor from '@/components/Interruptor';
 
 
@@ -66,51 +65,34 @@ export default function NewOrganizationPage() {
     setError('');
     setSaving(true);
 
-    const { data: authData } = await supabase.auth.getUser();
-    const uid = authData.user?.id;
-
-    const { data: alreadyMember } = await supabase
-      .from('organization_members')
-      .select('organization_id')
-      .eq('user_id', uid)
-      .limit(1)
-      .maybeSingle();
-    if (alreadyMember) {
+    // El alta la hace el servidor: crea la organización, te da de alta como
+    // administrador y actualiza tu rol en un solo paso. El navegador ya no
+    // puede escribir membresías ni roles directamente (auditoría, puntos 1 y 2).
+    let org = null;
+    try {
+      const res = await fetch('/api/organizations/create', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name,
+          orgType,
+          sector: sector || null,
+          location,
+          confirmaRepresentante: verified,
+        }),
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setSaving(false);
+        setError(json.error || 'No se pudo crear la página. Inténtalo de nuevo.');
+        return;
+      }
+      org = { id: json.organizationId };
+    } catch {
       setSaving(false);
-      setError('Tu cuenta ya administra una organización. Recarga la página.');
+      setError('No se pudo crear la página. Comprueba tu conexión e inténtalo de nuevo.');
       return;
     }
-
-    const { data: org, error: orgErr } = await supabase
-      .from('organizations')
-      .insert({
-        name,
-        org_type: orgType,
-        sector: sector || null,
-        location: normalizeLocation(location),
-        claimed: true,
-      })
-      .select()
-      .single();
-
-    if (orgErr || !org) {
-      setSaving(false);
-      setError('No se pudo crear la página. Inténtalo de nuevo.');
-      return;
-    }
-
-    await supabase.from('organization_members').insert({
-      organization_id: org.id,
-      user_id: uid,
-      role: 'admin',
-    });
-
-    // Alguien que crea una página de organización ya no necesita pasar por
-    // el onboarding de candidato (elige "Organización" y llega hasta aquí).
-    await supabase
-      .from('users')
-      .update({ onboarding_completed: true, role: 'org_admin' })
-      .eq('id', uid);
 
     setSaving(false);
     toast('Página creada correctamente ✓');
