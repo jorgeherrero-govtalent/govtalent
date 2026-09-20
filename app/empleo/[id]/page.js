@@ -1,4 +1,5 @@
 import { createClient } from '@/lib/supabase/server';
+import { serializeJsonLd } from '@/lib/jsonLd';
 import Link from 'next/link';
 import PublicJobApplyButton from '@/components/PublicJobApplyButton';
 import PublicHeader from '@/components/PublicHeader';
@@ -206,7 +207,7 @@ export default async function PublicJobPage({ params }) {
 
   return (
     <div style={{ minHeight: '100vh', background: '#f0efe9', display: 'flex', flexDirection: 'column' }}>
-      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jobPostingJsonLd) }} />
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: serializeJsonLd(jobPostingJsonLd) }} />
       <PublicHeader />
 
       <div style={{ maxWidth: 720, margin: '20px auto 40px', flex: 1, width: '100%', padding: '0 16px' }}>
