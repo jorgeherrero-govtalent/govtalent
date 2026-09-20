@@ -39,7 +39,7 @@ export async function POST(request) {
 
   const { data: org, error: orgErr } = await supabase
     .from('organizations')
-    .select('plan, is_founding_member')
+    .select('plan, plan_status, claimed, verified, is_founding_member')
     .eq('id', job.organization_id)
     .single();
 
