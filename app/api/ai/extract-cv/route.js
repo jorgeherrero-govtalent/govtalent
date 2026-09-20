@@ -34,10 +34,18 @@ export async function POST() {
     return NextResponse.json({ error: 'No tienes un CV subido' }, { status: 400 });
   }
 
+  // La descarga usa service_role, así que la ruta tiene que estar en la
+  // carpeta del propio usuario: si no, una ruta ajena escrita en el perfil
+  // haría que la IA leyera el CV de otra persona (auditoría, punto 3).
+  const cvPath = profile.cv_url;
+  if (!cvPath.startsWith(`${authData.user.id}/`) || cvPath.includes('..')) {
+    return NextResponse.json({ error: 'No autorizado' }, { status: 403 });
+  }
+
   let base64Pdf;
   try {
     const admin = createAdminClient();
-    const { data: fileBlob, error: dlErr } = await admin.storage.from('cvs').download(profile.cv_url);
+    const { data: fileBlob, error: dlErr } = await admin.storage.from('cvs').download(cvPath);
     if (dlErr || !fileBlob) throw new Error('No se pudo descargar el CV');
     const arrayBuffer = await fileBlob.arrayBuffer();
     base64Pdf = Buffer.from(arrayBuffer).toString('base64');
