@@ -15,7 +15,7 @@ async function getOrgForUser() {
 
   const { data: membership } = await supabase
     .from('organization_members')
-    .select('organizations(id, plan)')
+    .select('organizations(id, plan, plan_status, claimed, verified)')
     .eq('user_id', authData.user.id)
     .limit(1)
     .maybeSingle();
