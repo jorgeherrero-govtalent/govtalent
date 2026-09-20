@@ -56,7 +56,7 @@ export default function OrganizationAdminLayout({ children }) {
 
     const { data: membresia } = await supabase
       .from('organization_members')
-      .select('organization_id, organizations(id, name, slug, logo_url, plan, is_founding_member)')
+      .select('organization_id, organizations(id, name, slug, logo_url, plan, plan_status, is_founding_member)')
       .eq('user_id', uid)
       .limit(1)
       .maybeSingle();
