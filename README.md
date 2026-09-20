@@ -1,6 +1,6 @@
 # GovTalent
 
-Plataforma de talento para profesionales de asuntos públicos, política y gobierno.
+Plataforma para profesionales de asuntos públicos y relaciones institucionales.
 Construido con Next.js 14 (App Router) + Supabase (base de datos, autenticación y storage).
 
 ## Estructura
