@@ -45,6 +45,10 @@
       "schedule": "45 4 * * *"
     },
     {
+      "path": "/api/sync/congreso-diputados-fotos",
+      "schedule": "15 5 * * *"
+    },
+    {
       "path": "/api/sync/congreso-actividad/pnl",
       "schedule": "0 3 * * *"
     },
