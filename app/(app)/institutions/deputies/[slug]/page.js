@@ -11,15 +11,29 @@ import PanelBloqueado, { FILAS_COLEGAS } from '@/components/PanelBloqueado';
 import UpgradeModal from '@/components/UpgradeModal';
 import FollowButton from '@/components/FollowButton';
 
-// El Resumen lleva lo que más se consulta —portavocías y últimas
-// ponencias— y las otras pestañas el detalle completo. Así lo habitual
-// no obliga a navegar.
+// El Resumen lleva lo que más se consulta —contacto, portavocías y
+// ponencias— y las otras dos el detalle completo.
+//
+// Ponencias tenía pestaña propia y se ha quitado: está vacía para casi
+// todos los diputados, así que abría en un estado vacío la mayoría de
+// las veces. Las que hay siguen saliendo en el Resumen, que es donde se
+// miran.
 const TABS = [
   { id: 'resumen', label: 'Resumen' },
   { id: 'comisiones', label: 'Comisiones' },
-  { id: 'ponencias', label: 'Ponencias' },
   { id: 'biografia', label: 'Biografía' },
 ];
+
+// Las columnas que sí puede leer el navegador.
+//
+// `email` NO está, y no es un olvido: el correo institucional es de Pro
+// y se pide aparte a /api/instituciones/diputados/contacto, que
+// comprueba el plan en el servidor. Un `select('*')` aquí lo mandaría a
+// cualquiera y se leería en la pestaña de red — la misma fuga que se
+// cerró en el directorio institucional.
+const COLUMNAS_FICHA =
+  'id, full_name, first_name, last_name, slug, constituency, photo_url, parliamentary_group_id, ' +
+  'legislature_id, mandate_start, mandate_end, official_bio, cod_parlamentario, active, source, source_updated_at';
 
 function initials(fullName) {
   const [last, first] = (fullName || '').split(',').map((s) => s.trim());
@@ -143,61 +157,32 @@ function Avatar({ nombre, url, size = 28 }) {
 }
 
 // Los colores de grupo viven en lib/grupos, compartidos con el resto.
-// Botón circular gris que pasa a verde al pasar el ratón. Mismo componente
-function CircleButton({ icon, label, onClick, href, active, disabled, title }) {
-  const [hover, setHover] = useState(false);
-  const on = active || (hover && !disabled);
 
-  const style = {
-    width: 34,
-    height: 34,
-    borderRadius: '50%',
-    border: `.5px solid ${on ? '#1d6f5c' : '#e0dfd8'}`,
-    background: on ? '#e8f4f0' : '#fff',
-    color: disabled ? '#ccc' : on ? '#1d6f5c' : '#888',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    cursor: disabled ? 'not-allowed' : 'pointer',
-    transition: 'all .15s ease',
-    padding: 0,
-    flexShrink: 0,
-  };
+// La barra que tapa el correo sin plan. Misma que en DirectorioDemo: el
+// dominio se deja a la vista porque dice que el correo es institucional
+// y real, no inventado.
+const BARRA_CORREO = {
+  display: 'inline-block',
+  width: 74,
+  height: 9,
+  borderRadius: 3,
+  background: 'linear-gradient(90deg, #e6e4f6, #efeef9)',
+  verticalAlign: -1,
+  marginRight: 4,
+};
 
-  const inner = <i className={`ti ti-${icon}`} style={{ fontSize: 16 }} aria-hidden="true"></i>;
-
-  if (href && !disabled) {
-    return (
-      <a
-        href={href}
-        target="_blank"
-        rel="noreferrer"
-        aria-label={label}
-        title={title || label}
-        style={{ ...style, textDecoration: 'none' }}
-        onMouseEnter={() => setHover(true)}
-        onMouseLeave={() => setHover(false)}
-      >
-        {inner}
-      </a>
-    );
-  }
-
-  return (
-    <button
-      type="button"
-      aria-label={label}
-      title={title || label}
-      aria-disabled={disabled ? 'true' : undefined}
-      onClick={disabled ? undefined : onClick}
-      onMouseEnter={() => setHover(true)}
-      onMouseLeave={() => setHover(false)}
-      style={style}
-    >
-      {inner}
-    </button>
-  );
-}
+const BOTON_ICONO = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  padding: 5,
+  borderRadius: 6,
+  border: 'none',
+  background: 'transparent',
+  color: '#a8a49c',
+  cursor: 'pointer',
+  flexShrink: 0,
+};
 
 export default function DeputyProfilePage() {
   const { slug } = useParams();
@@ -210,15 +195,17 @@ export default function DeputyProfilePage() {
   const [comisiones, setComisiones] = useState([]);
   const [ponencias, setPonencias] = useState([]);
   const [esPro, setEsPro] = useState(null);
-  const [upsell, setUpsell] = useState(false);
+  // El modal lleva su propio texto: lo abren el panel de colegas y el
+  // correo, y cada uno vende una cosa distinta.
+  const [upsell, setUpsell] = useState(null);
   const [colegas, setColegas] = useState([]);
   // Cuántos hay aunque no se pidan sus nombres.
   const [nColegas, setNColegas] = useState(0);
-  const [userId, setUserId] = useState(null);
   const [tab, setTab] = useState('resumen');
   const [notFound, setNotFound] = useState(false);
-  const [radarNote, setRadarNote] = useState(false);
   const [photoFailed, setPhotoFailed] = useState(false);
+  // 'cargando' | 'ok' | 'sin-correo' | 'sin-plan'
+  const [contacto, setContacto] = useState({ estado: 'cargando', email: null });
 
   useEffect(() => {
     load();
@@ -227,7 +214,12 @@ export default function DeputyProfilePage() {
   async function load() {
     // .limit(1) antes de .maybeSingle(): sin él, la consulta falla en silencio
     // si por lo que sea hay más de una fila que encaje.
-    const { data: d } = await supabase.from('deputies').select('*').eq('slug', slug).limit(1).maybeSingle();
+    const { data: d } = await supabase
+      .from('deputies')
+      .select(COLUMNAS_FICHA)
+      .eq('slug', slug)
+      .limit(1)
+      .maybeSingle();
     if (!d) {
       setNotFound(true);
       return;
@@ -299,14 +291,30 @@ export default function DeputyProfilePage() {
       setNColegas((colegasData || []).length);
     }
 
-    // FollowButton comprueba por su cuenta si se sigue: se ahorra una
-    // consulta por visita.
-    setUserId(authData.user?.id || null);
+    // El correo va aparte y por el servidor. Solo se pide si el plan da
+    // acceso: pedirlo siempre para descartarlo en el cliente sería
+    // volver a mandar el dato a quien no lo tiene.
+    if (pro) {
+      try {
+        const res = await fetch(`/api/instituciones/diputados/contacto?slug=${encodeURIComponent(slug)}`, {
+          cache: 'no-store',
+        });
+        const json = await res.json().catch(() => ({}));
+        if (res.ok && json.email) setContacto({ estado: 'ok', email: json.email });
+        else if (res.ok) setContacto({ estado: 'sin-correo', email: null });
+        else setContacto({ estado: 'sin-plan', email: null });
+      } catch {
+        setContacto({ estado: 'sin-correo', email: null });
+      }
+    } else {
+      setContacto({ estado: 'sin-plan', email: null });
+    }
   }
 
-  function copyLink() {
-    navigator.clipboard.writeText(window.location.href);
-    toast('Enlace copiado ✓');
+  function copiarCorreo() {
+    if (!contacto.email) return;
+    navigator.clipboard.writeText(contacto.email);
+    toast('Correo copiado ✓');
   }
 
   if (notFound) {
@@ -417,6 +425,79 @@ export default function DeputyProfilePage() {
                 {legislature?.code ? ` · ${legislature.code} Legislatura` : ''}
                 {mandateYear ? ` · desde ${mandateYear}` : ''}
               </div>
+
+              {/* El correo institucional, publicado por el Congreso en su
+                  ficha oficial. Lo tienen 319 de los 350: los demás no lo
+                  publican, y se dice en vez de dejar un hueco mudo. */}
+              {contacto.estado !== 'cargando' && (
+                <div
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 7,
+                    marginTop: 11,
+                    paddingTop: 11,
+                    borderTop: '.5px solid #f0f0eb',
+                    flexWrap: 'wrap',
+                  }}
+                >
+                  <i className="ti ti-mail" style={{ fontSize: 15, color: '#a8a49c' }} aria-hidden="true"></i>
+
+                  {contacto.estado === 'ok' && (
+                    <>
+                      <a
+                        href={`mailto:${contacto.email}`}
+                        style={{ fontSize: 12.5, color: '#555', textDecoration: 'none' }}
+                      >
+                        {contacto.email}
+                      </a>
+                      <button
+                        type="button"
+                        onClick={copiarCorreo}
+                        aria-label="Copiar el correo"
+                        title="Copiar el correo"
+                        style={BOTON_ICONO}
+                      >
+                        <i className="ti ti-copy" style={{ fontSize: 15 }} aria-hidden="true"></i>
+                      </button>
+                    </>
+                  )}
+
+                  {contacto.estado === 'sin-correo' && (
+                    <span style={{ fontSize: 12.5, color: '#a8a79c' }}>
+                      El Congreso no publica su correo institucional.
+                    </span>
+                  )}
+
+                  {contacto.estado === 'sin-plan' && (
+                    <>
+                      <span style={BARRA_CORREO} aria-hidden="true"></span>
+                      <span style={{ fontSize: 12.5, color: '#a8a79c' }}>@congreso.es</span>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setUpsell({
+                            title: 'El correo de cada diputado',
+                            message:
+                              'El correo institucional que publica el Congreso, en la ficha de los 350 diputados. Disponible en el plan Pro.',
+                          })
+                        }
+                        className="btn-ai"
+                        style={{
+                          border: 'none',
+                          cursor: 'pointer',
+                          fontFamily: 'inherit',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: 6,
+                        }}
+                      >
+                        <i className="ti ti-bolt"></i> Ver con Pro
+                      </button>
+                    </>
+                  )}
+                </div>
+              )}
             </div>
           </div>
 
@@ -424,12 +505,6 @@ export default function DeputyProfilePage() {
             <FollowButton kind="diputado" refId={deputy.slug} label={deputy.full_name} />
           </div>
         </div>
-
-        {radarNote && (
-          <div style={{ fontSize: 11.5, color: '#888', marginTop: 12, paddingTop: 11, borderTop: '.5px solid #f0f0eb' }}>
-            El seguimiento en Radar estará disponible próximamente.
-          </div>
-        )}
       </div>
 
       <div style={{ display: 'flex', gap: 16, borderBottom: '.5px solid #e0dfd8', margin: '18px 0', overflowX: 'auto' }}>
@@ -505,7 +580,9 @@ export default function DeputyProfilePage() {
           {ponencias.length > 0 && (
             <div className="card" style={{ padding: 18 }}>
               <div style={LABEL}>Leyes que ha llevado · {ponencias.length}</div>
-              {ponencias.slice(0, 4).map((p) => (
+              {/* Todas, no las cuatro primeras: al quitar la pestaña ya
+                  no hay dónde ver el resto, y son pocas. */}
+              {ponencias.map((p) => (
                 <Link key={p.num_expediente} href={`/congreso/${p.slug}`} style={{ ...FILA, alignItems: 'flex-start' }}>
                   <span
                     style={{
@@ -529,14 +606,6 @@ export default function DeputyProfilePage() {
                   <i className="ti ti-chevron-right" style={{ color: '#ccc', fontSize: 13, flexShrink: 0, marginTop: 3 }}></i>
                 </Link>
               ))}
-              {ponencias.length > 4 && (
-                <span
-                  onClick={() => setTab('ponencias')}
-                  style={{ fontSize: 11.5, color: '#1d6f5c', fontWeight: 600, cursor: 'pointer', display: 'inline-block', paddingTop: 11 }}
-                >
-                  Ver las {ponencias.length} →
-                </span>
-              )}
             </div>
           )}
 
@@ -553,7 +622,13 @@ export default function DeputyProfilePage() {
                 titulo="Con quién trabaja de verdad"
                 descripcion="Los diputados con los que comparte ponencia una y otra vez, y cuántas veces. Es el mapa que no está en congreso.es."
                 filas={FILAS_COLEGAS}
-                onUpsell={() => setUpsell(true)}
+                onUpsell={() =>
+                  setUpsell({
+                    title: 'Con quién coincide en ponencia',
+                    message:
+                      'Los diputados con los que comparte ponencia de forma recurrente, y en cuántas. Disponible en el plan Pro.',
+                  })
+                }
               />
             </div>
           )}
@@ -628,46 +703,6 @@ export default function DeputyProfilePage() {
         </div>
       )}
 
-      {tab === 'ponencias' && (
-        <div className="card" style={{ padding: 18 }}>
-          {ponencias.length === 0 ? (
-            <div className="empty-state">
-              <i className="ti ti-file-off"></i>
-              No ha sido ponente de ninguna ley en esta legislatura.
-            </div>
-          ) : (
-            ponencias.map((p) => (
-              <Link key={p.num_expediente} href={`/congreso/${p.slug}`} style={{ ...FILA, alignItems: 'flex-start' }}>
-                <span
-                  style={{
-                    width: 3,
-                    alignSelf: 'stretch',
-                    background: p.is_closed ? '#d5d3c9' : '#6d5aef',
-                    borderRadius: 2,
-                    flexShrink: 0,
-                  }}
-                ></span>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontSize: 12, fontWeight: 600, lineHeight: 1.4, color: p.is_closed ? '#666' : '#1a1a1a' }}>
-                    {p.title}
-                  </div>
-                  <div style={{ fontSize: 10.5, color: '#999', marginTop: 3 }}>
-                    {[
-                      p.kind === 'proyecto' ? 'Proyecto de ley' : 'Proposición de ley',
-                      p.comision,
-                      p.is_closed ? p.resultado || 'Concluida' : p.fase,
-                    ]
-                      .filter(Boolean)
-                      .join(' · ')}
-                  </div>
-                </div>
-                <i className="ti ti-chevron-right" style={{ color: '#ccc', fontSize: 13, flexShrink: 0, marginTop: 3 }}></i>
-              </Link>
-            ))
-          )}
-        </div>
-      )}
-
       {tab === 'biografia' && (
         <div className="card" style={{ padding: 18 }}>
           {deputy.official_bio ? (
@@ -687,23 +722,14 @@ export default function DeputyProfilePage() {
         <i className="ti ti-shield-check" style={{ fontSize: 13 }}></i>
         Datos obtenidos del Congreso de los Diputados. Última actualización:{' '}
         {deputy.source_updated_at ? formatDate(deputy.source_updated_at) : '—'}.{' '}
-        <a
-          href="https://www.congreso.es/es/opendata/diputados"
-          target="_blank"
-          rel="noreferrer"
-          style={{ color: '#1d6f5c' }}
-        >
-          Ver fuente oficial ↗
+        <a href={officialFichaUrl} target="_blank" rel="noreferrer" style={{ color: '#1d6f5c' }}>
+          Ver su ficha oficial ↗
         </a>
       </div>
 
 
       {upsell && (
-        <UpgradeModal
-          title="Con quién coincide en ponencia"
-          message="Los diputados con los que comparte ponencia de forma recurrente, y en cuántas. Disponible en el plan Pro."
-          onClose={() => setUpsell(false)}
-        />
+        <UpgradeModal title={upsell.title} message={upsell.message} onClose={() => setUpsell(null)} />
       )}
     </div>
   );
