@@ -37,6 +37,12 @@
 // y se reintenta al mes: un diputado puede darse de alta el correo más
 // tarde, así que tampoco vale con descartarlos para siempre.
 //
+// LAS LECTURAS DE SUPABASE MIRAN SU `error`. Quedarse solo con `data`
+// convierte un fallo —una columna que falta, una policy de RLS— en una
+// tabla vacía, y el sync remata con "todo al día" habiendo hecho nada.
+// Pasó el 21-09-2026 con `email_checked_at`: 0 pendientes y 0 errores
+// con la columna sin crear.
+//
 // Uso:
 //   ?key=<DEBUG_KEY>&dry=1        prueba sin escribir
 //   ?key=<DEBUG_KEY>              todo, encadenando
@@ -149,7 +155,10 @@ async function pedirTodos(supabase, informe) {
   informe.estrategia = 'por grupos';
   informe.directo_devolvio = directo.length;
 
-  const { data: grupos } = await supabase.from('parliamentary_groups').select('name');
+  const { data: grupos, error: errorGrupos } = await supabase
+    .from('parliamentary_groups')
+    .select('name');
+  if (errorGrupos) throw new Error(`No se pudieron leer los grupos: ${errorGrupos.message}`);
   const porCodigo = new Map(directo.map((d) => [d.codParlamentario, d]));
   for (const g of grupos || []) {
     try {
@@ -291,10 +300,11 @@ async function handler(request) {
       const listado = await pedirTodos(supabase, informe);
       informe.n_leidos = listado.length;
 
-      const { data: diputados } = await supabase
+      const { data: diputados, error: errorDiputados } = await supabase
         .from('deputies')
         .select('id, full_name')
         .eq('active', true);
+      if (errorDiputados) throw new Error(`No se pudieron leer los diputados: ${errorDiputados.message}`);
 
       const porNombre = new Map((diputados || []).map((d) => [normalizar(d.full_name), d]));
       const filas = [];
@@ -358,15 +368,20 @@ async function handler(request) {
       Date.now() - REINTENTO_CORREO_DIAS * 24 * 60 * 60 * 1000
     ).toISOString();
 
-    const { data: pendientes } = await supabase
+    const { data: pendientes, error: errorPendientes } = await supabase
       .from('deputies')
       .select('id, cod_parlamentario, full_name')
       .eq('active', true)
       .not('cod_parlamentario', 'is', null)
       .is('email', null)
-      .or(`email_checked_at.is.null,email_checked_at.lt.${limiteReintento}`)
+      // El valor va entrecomillado: lleva dos puntos y un punto decimal,
+      // y sin comillas PostgREST puede partirlo por donde no toca.
+      .or(`email_checked_at.is.null,email_checked_at.lt."${limiteReintento}"`)
       .order('id', { ascending: true })
       .limit(400);
+    if (errorPendientes) {
+      throw new Error(`No se pudieron leer los pendientes: ${errorPendientes.message}`);
+    }
 
     informe.pendientes = (pendientes || []).length;
 
