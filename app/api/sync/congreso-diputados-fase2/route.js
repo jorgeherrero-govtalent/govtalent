@@ -1,23 +1,34 @@
 // =====================================================================
-// SYNC — Diputados, Fase 2: foto, correo y código parlamentario
+// SYNC — Diputados, Fase 2: código parlamentario, foto y correo
 // app/api/sync/congreso-diputados-fase2/route.js
 //
-// La Fase 1 carga los 350 diputados del fichero de datos abiertos, que
-// trae nombre, circunscripción y grupo pero no foto ni contacto.
+// La Fase 1 (/api/sync/instituciones, 04:00) carga los 350 diputados
+// del fichero de datos abiertos. Ese fichero trae nombre,
+// circunscripción, grupo y biografía, pero no foto, ni correo, ni el
+// código con el que el Congreso identifica a cada diputado.
 //
-// Esos datos están en la ficha web de cada diputado:
-//   /es/busqueda-de-diputados?...&_diputadomodule_mostrarFicha=true
-//     &codParlamentario=160&idLegislatura=XV
+// DE DÓNDE SALE CADA COSA — verificado el 21-09-2026 contra el portal:
 //
-// Verificado en la ficha: foto, correo institucional y tres enlaces a
-// declaraciones. Solo se guarda la de intereses económicos —la relevante
-// para asuntos públicos— y como ENLACE al documento oficial, no como
-// dato: son PDF escaneados con información personal sensible, y
-// almacenarla no aporta lo suficiente para justificarlo.
+//   codParlamentario → el buscador de diputados no lleva los datos en
+//     el HTML: los pide por AJAX a un endpoint de recurso de Liferay y
+//     pagina en el navegador. Una sola petición devuelve los 350. No
+//     hace falta token p_auth ni cookies de sesión. El registro trae
+//     `apellidosNombre` con el mismo formato que deputies.full_name
+//     ("Abascal Conde, Santiago"), así que el cruce es directo.
 //
-// DOS FASES DENTRO DE ESTA:
-//   ?paso=codigos   saca el codParlamentario de los 350 del listado
-//   ?paso=fichas    pide cada ficha y extrae foto, correo y declaración
+//   foto → https://www.congreso.es/docu/imgweb/diputados/{cod}_{15}.jpg
+//     El número de legislatura va en cifra (15), no en romano. La URL
+//     se construye desde el código, pero el paso 2 la confirma contra
+//     la propia ficha: si alguien no tiene foto, no se inventa una.
+//
+//   correo → está en la ficha, en un enlace mailto:, y viaja en el HTML
+//     que devuelve el servidor. Un fetch normal basta. Aquí sí hay que
+//     pedir una ficha por diputado. Ojo: en la ficha el identificador de
+//     legislatura va en ROMANO (XV), al revés que en el buscador.
+//
+// DOS PASOS:
+//   ?paso=codigos    una petición: código y foto de los 350
+//   ?paso=correos    una ficha por diputado, solo para el correo
 //
 // Uso:
 //   ?key=<DEBUG_KEY>&dry=1        prueba sin escribir
@@ -26,13 +37,22 @@
 
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { conRegistro } from '@/lib/syncLog';
 
 export const dynamic = 'force-dynamic';
-export const maxDuration = 60;
+export const maxDuration = 300;
+
+// Único sitio donde se cambia de legislatura. El buscador la quiere en
+// cifra y la ficha en romano — no es un descuido, es así en el portal.
+const LEGISLATURA = { numero: '15', romana: 'XV' };
 
 const BASE = 'https://www.congreso.es';
-const LISTADO = `${BASE}/es/busqueda-de-diputados`;
+const BUSQUEDA = `${BASE}/es/busqueda-de-diputados`;
+const RECURSO =
+  `${BUSQUEDA}?p_p_id=diputadomodule&p_p_lifecycle=2&p_p_state=normal` +
+  `&p_p_mode=view&p_p_resource_id=searchDiputados&p_p_cacheability=cacheLevelPage`;
 
+// Sin cabeceras de navegador el portal responde 403.
 const HEADERS = {
   'User-Agent':
     'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
@@ -40,11 +60,13 @@ const HEADERS = {
   'Accept-Language': 'es-ES,es;q=0.9',
 };
 
-const PRESUPUESTO_MS = 30000;
-const PARALELO = 4;
-const PAUSA_MS = 250;
+const PRESUPUESTO_MS = 240000; // se corta antes del tope de 300 s
+const PARALELO = 6;
+const PAUSA_MS = 200;
+const ESCRITURA_PARALELA = 10;
 const MAX_CADENA = 20;
 const MS_LANZAR_SIGUIENTE = 1500;
+const MINIMO_ESPERADO = 300; // el Congreso tiene 350; menos de 300 es señal de que algo cambió
 
 function admin() {
   return createClient(process.env.NEXT_PUBLIC_SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY, {
@@ -61,50 +83,84 @@ const espera = (ms) => new Promise((r) => setTimeout(r, ms));
 function normalizar(n) {
   return (n || '')
     .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[̀-ͯ]/g, '')
     .toLowerCase()
     .replace(/\s+/g, ' ')
     .trim();
 }
 
 // ---------------------------------------------------------------------
-// PASO 1: los códigos
-//
-// El listado de búsqueda devuelve HTML con un enlace por diputado que
-// lleva su codParlamentario y su nombre. Con eso se rellena la columna
-// que hoy está vacía en los 350.
+// PASO 1 — El listado
 // ---------------------------------------------------------------------
-async function pedirCodigos() {
-  const p = new URLSearchParams({
-    p_p_id: 'diputadomodule',
-    p_p_lifecycle: '0',
-    p_p_state: 'normal',
-    p_p_mode: 'view',
-    _diputadomodule_idLegislatura: 'XV',
-    // Sin paginar: se piden todos de una vez.
-    _diputadomodule_delta: '400',
+function cuerpoBusqueda(grupo) {
+  return new URLSearchParams({
+    _diputadomodule_idLegislatura: LEGISLATURA.numero,
+    _diputadomodule_genero: '0',
+    _diputadomodule_grupo: grupo,
+    _diputadomodule_tipo: '0', // 0 = en activo
+    _diputadomodule_nombre: '',
+    _diputadomodule_apellidos: '',
+    _diputadomodule_formacion: 'all',
+    _diputadomodule_filtroProvincias: '[]',
+    _diputadomodule_nombreCircunscripcion: '',
   });
-  const res = await fetch(`${LISTADO}?${p.toString()}`, { headers: HEADERS, cache: 'no-store' });
-  if (!res.ok) throw new Error(`El listado devolvió HTTP ${res.status}`);
-  const html = await res.text();
+}
 
-  // Los enlaces de ficha llevan el código y, cerca, el nombre.
-  const encontrados = new Map();
-  const re = /codParlamentario=(\d+)[^>]*>([^<]{4,80})</g;
-  let m;
-  while ((m = re.exec(html)) !== null) {
-    const cod = m[1];
-    const nombre = m[2].replace(/\s+/g, ' ').trim();
-    // El mismo código aparece varias veces (foto, nombre, enlaces); se
-    // guarda la aparición con nombre más largo, que es la buena.
-    const previo = encontrados.get(cod);
-    if (!previo || nombre.length > previo.length) encontrados.set(cod, nombre);
+async function pedirListado(grupo) {
+  const res = await fetch(RECURSO, {
+    method: 'POST',
+    headers: {
+      ...HEADERS,
+      'Content-Type': 'application/x-www-form-urlencoded',
+      'X-Requested-With': 'XMLHttpRequest',
+      Referer: BUSQUEDA,
+    },
+    body: cuerpoBusqueda(grupo),
+    cache: 'no-store',
+  });
+  if (!res.ok) throw new Error(`El buscador devolvió HTTP ${res.status}`);
+  const json = await res.json();
+  const filas = Array.isArray(json?.data) ? json.data : [];
+  return filas.filter((f) => f?.codParlamentario);
+}
+
+/**
+ * Pide los 350 de una vez.
+ *
+ * El desplegable de grupo manda su nombre completo, y no está
+ * documentado qué valor significa "todos". Se prueba el vacío, que es
+ * lo que envía el formulario recién abierto; si viniera corto, se
+ * recorren los grupos que ya tenemos en base de la Fase 1 y se unen.
+ * Así el sync no depende de adivinar un valor centinela.
+ */
+async function pedirTodos(supabase, informe) {
+  const directo = await pedirListado('');
+  informe.estrategia = 'una petición';
+  if (directo.length >= MINIMO_ESPERADO) return directo;
+
+  informe.estrategia = 'por grupos';
+  informe.directo_devolvio = directo.length;
+
+  const { data: grupos } = await supabase.from('parliamentary_groups').select('name');
+  const porCodigo = new Map(directo.map((d) => [d.codParlamentario, d]));
+  for (const g of grupos || []) {
+    try {
+      const filas = await pedirListado(g.name);
+      for (const f of filas) porCodigo.set(f.codParlamentario, f);
+    } catch (e) {
+      informe.grupos_fallidos = [...(informe.grupos_fallidos || []), `${g.name}: ${e.message}`];
+    }
+    await espera(PAUSA_MS);
   }
-  return [...encontrados.entries()].map(([cod, nombre]) => ({ cod, nombre }));
+  return [...porCodigo.values()];
+}
+
+function urlFoto(cod) {
+  return `${BASE}/docu/imgweb/diputados/${cod}_${LEGISLATURA.numero}.jpg`;
 }
 
 // ---------------------------------------------------------------------
-// PASO 2: las fichas
+// PASO 2 — La ficha
 // ---------------------------------------------------------------------
 function urlFicha(cod) {
   const p = new URLSearchParams({
@@ -114,37 +170,30 @@ function urlFicha(cod) {
     p_p_mode: 'view',
     _diputadomodule_mostrarFicha: 'true',
     codParlamentario: String(cod),
-    idLegislatura: 'XV',
+    idLegislatura: LEGISLATURA.romana,
     mostrarAgenda: 'false',
   });
-  return `${LISTADO}?${p.toString()}`;
+  return `${BUSQUEDA}?${p.toString()}`;
 }
 
 /**
- * Extrae de la ficha lo que la Fase 1 no trae.
+ * Saca de la ficha el correo y confirma la foto.
  *
- * Es HTML, no JSON, así que se buscan patrones. Cada campo tiene su
- * propio criterio y falla por separado: si cambia el marcado de la foto,
- * el correo sigue funcionando.
+ * Cada campo falla por separado: si cambia el marcado de la foto, el
+ * correo sigue funcionando. La ficha lleva además la misma imagen
+ * incrustada en base64, que se descarta quedándose solo con las rutas
+ * de /docu/imgweb/diputados/.
  */
 function parsearFicha(html) {
-  const out = { photo_url: null, email: null, intereses_url: null, bio: null };
+  const out = { email: null, photo_url: null };
 
-  // La foto vive en /wc/diputados/ o similar
-  const foto =
-    html.match(/src="(\/wc\/[^"]*(?:foto|imagen)[^"]*)"/i) ||
-    html.match(/src="([^"]*\/fotos_diputados\/[^"]+)"/i) ||
-    html.match(/<img[^>]+src="([^"]+)"[^>]*class="[^"]*foto/i);
-  if (foto) out.photo_url = foto[1].startsWith('http') ? foto[1] : `${BASE}${foto[1]}`;
-
-  // El correo institucional siempre acaba en @congreso.es
-  const mail = html.match(/([a-z0-9._%-]+@congreso\.es)/i);
+  const mail =
+    html.match(/mailto:([A-Za-z0-9._%+-]+@congreso\.es)/i) ||
+    html.match(/([A-Za-z0-9._%+-]+@congreso\.es)/i);
   if (mail) out.email = mail[1].toLowerCase();
 
-  // Solo la declaración de intereses económicos: es la relevante para
-  // asuntos públicos. Se guarda el enlace, no el contenido.
-  const int = html.match(/href="([^"]+)"[^>]*>\s*Declaración de Intereses Económicos/i);
-  if (int) out.intereses_url = int[1].startsWith('http') ? int[1] : `${BASE}${int[1]}`;
+  const foto = html.match(/\/docu\/imgweb\/diputados\/[A-Za-z0-9_-]+\.(?:jpe?g|png)/i);
+  if (foto) out.photo_url = `${BASE}${foto[0]}`;
 
   return out;
 }
@@ -153,22 +202,33 @@ async function pedirFicha(cod) {
   try {
     const res = await fetch(urlFicha(cod), { headers: HEADERS, cache: 'no-store' });
     if (!res.ok) return { cod, ok: false, motivo: `HTTP ${res.status}` };
-    const html = await res.text();
-    return { cod, ok: true, ...parsearFicha(html) };
+    return { cod, ok: true, ...parsearFicha(await res.text()) };
   } catch (e) {
     return { cod, ok: false, motivo: e.message };
   }
 }
 
+// ---------------------------------------------------------------------
+// Escritura
+//
+// Son actualizaciones fila a fila porque cada diputado recibe campos
+// distintos y un upsert exigiría reenviar columnas obligatorias que
+// aquí no tocamos. Van de diez en diez para no encadenar 350 idas y
+// vueltas de una en una.
+// ---------------------------------------------------------------------
 async function escribir(supabase, filas) {
   if (filas.length === 0) return { escritas: 0, errores: [] };
   let escritas = 0;
   const errores = [];
-  for (const f of filas) {
-    const { id, ...campos } = f;
-    const { data, error } = await supabase.from('deputies').update(campos).eq('id', id).select('id');
-    if (error) errores.push(error.message);
-    else escritas += Array.isArray(data) ? data.length : 0;
+  for (let i = 0; i < filas.length; i += ESCRITURA_PARALELA) {
+    const lote = filas.slice(i, i + ESCRITURA_PARALELA);
+    const res = await Promise.all(
+      lote.map(({ id, ...campos }) => supabase.from('deputies').update(campos).eq('id', id).select('id'))
+    );
+    for (const { data, error } of res) {
+      if (error) errores.push(error.message);
+      else escritas += Array.isArray(data) ? data.length : 0;
+    }
   }
   return { escritas, errores: errores.slice(0, 3) };
 }
@@ -182,7 +242,9 @@ async function lanzarSiguiente(request, eslabon, extra = {}) {
   try {
     await fetch(url.toString(), {
       signal: controller.signal,
-      headers: request.headers.get('authorization') ? { authorization: request.headers.get('authorization') } : {},
+      headers: request.headers.get('authorization')
+        ? { authorization: request.headers.get('authorization') }
+        : {},
       cache: 'no-store',
     });
     return { lanzado: true };
@@ -194,7 +256,10 @@ async function lanzarSiguiente(request, eslabon, extra = {}) {
   }
 }
 
-export async function GET(request) {
+// ---------------------------------------------------------------------
+export const GET = conRegistro('/api/sync/congreso-diputados-fase2', handler);
+
+async function handler(request) {
   const t0 = Date.now();
   const sp = new URL(request.url).searchParams;
 
@@ -202,47 +267,6 @@ export async function GET(request) {
   const isManual = !!process.env.DEBUG_KEY && sp.get('key') === process.env.DEBUG_KEY;
   if (!isCron && !isManual) {
     return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
-  }
-
-  // Modo diagnóstico: enseña el HTML del listado para ver cómo vienen
-  // los enlaces. El fichero de datos abiertos no trae el código
-  // —comprobado: solo NOMBRE, CIRCUNSCRIPCION, FORMACIONELECTORAL,
-  // fechas, GRUPOPARLAMENTARIO y BIOGRAFIA— así que hay que sacarlo de
-  // aquí, y sin ver el marcado real es adivinar.
-  if (sp.get('inspeccionar')) {
-    const p = new URLSearchParams({
-      p_p_id: 'diputadomodule',
-      p_p_lifecycle: '0',
-      p_p_state: 'normal',
-      p_p_mode: 'view',
-      _diputadomodule_idLegislatura: 'XV',
-      _diputadomodule_delta: '400',
-    });
-    const url = `${LISTADO}?${p.toString()}`;
-    const res = await fetch(url, { headers: HEADERS, cache: 'no-store' });
-    const html = await res.text();
-
-    // Cuántas veces aparece cada pista, para saber por dónde tirar
-    const cuenta = (re) => (html.match(re) || []).length;
-    return NextResponse.json({
-      modo: 'inspeccionar',
-      url,
-      status: res.status,
-      tamano: html.length,
-      pistas: {
-        codParlamentario: cuenta(/codParlamentario/g),
-        codParlamentario_igual: cuenta(/codParlamentario=\d+/g),
-        mostrarFicha: cuenta(/mostrarFicha/g),
-        imagenDiputado: cuenta(/imagenDiputado/g),
-        congreso_es_mail: cuenta(/@congreso\.es/g),
-      },
-      // Un trozo alrededor de la primera mención, que es donde se ve la
-      // forma del enlace
-      contexto: (() => {
-        const i = html.indexOf('codParlamentario');
-        return i < 0 ? null : html.slice(Math.max(0, i - 400), i + 400);
-      })(),
-    });
   }
 
   const dry = sp.get('dry') === '1';
@@ -253,68 +277,81 @@ export async function GET(request) {
 
   try {
     // =================================================================
-    // PASO 1: rellenar cod_parlamentario
+    // PASO 1: código parlamentario y foto
     // =================================================================
     if (paso === 'codigos') {
-      const codigos = await pedirCodigos();
-      informe.encontrados = codigos.length;
+      const listado = await pedirTodos(supabase, informe);
+      informe.n_leidos = listado.length;
 
       const { data: diputados } = await supabase
         .from('deputies')
-        .select('id, full_name, cod_parlamentario')
+        .select('id, full_name')
         .eq('active', true);
 
-      // El listado da el nombre como "Apellidos, Nombre", igual que
-      // deputies.full_name, así que el cruce es directo.
       const porNombre = new Map((diputados || []).map((d) => [normalizar(d.full_name), d]));
       const filas = [];
       const sinCasar = [];
-      for (const c of codigos) {
-        const d = porNombre.get(normalizar(c.nombre));
-        if (d) filas.push({ id: d.id, cod_parlamentario: c.cod });
-        else sinCasar.push(c.nombre);
+      for (const r of listado) {
+        const d = porNombre.get(normalizar(r.apellidosNombre));
+        if (!d) {
+          sinCasar.push(r.apellidosNombre);
+          continue;
+        }
+        filas.push({
+          id: d.id,
+          cod_parlamentario: String(r.codParlamentario),
+          photo_url: urlFoto(r.codParlamentario),
+        });
       }
 
       informe.casados = filas.length;
       informe.sin_casar = sinCasar.length;
       informe.muestra_sin_casar = sinCasar.slice(0, 5);
-      informe.muestra = codigos.slice(0, 3);
 
       if (dry) {
+        informe.muestra = filas.slice(0, 3);
         informe.ms_total = Date.now() - t0;
         return NextResponse.json(informe);
       }
 
-      // Salvaguarda: si casan muy pocos, algo cambió en el listado y es
-      // mejor no tocar nada que dejar los datos a medias.
-      if (filas.length < 300) {
+      // Si casan muy pocos, algo cambió en el portal: mejor no tocar
+      // nada que dejar los 350 a medias.
+      if (filas.length < MINIMO_ESPERADO) {
         return NextResponse.json(
-          { ...informe, error: `Solo casaron ${filas.length} de 350 — no se escribe nada`, ms_total: Date.now() - t0 },
+          {
+            ...informe,
+            error: `Solo casaron ${filas.length} de ~350 — no se escribe nada`,
+            ms_total: Date.now() - t0,
+          },
           { status: 502 }
         );
       }
 
-      informe.escritura = await escribir(supabase, filas);
+      const escritura = await escribir(supabase, filas);
+      informe.escritura = escritura;
+      informe.n_escritos = escritura.escritas;
+
       const r = await lanzarSiguiente(request, eslabon + 1, {
-        paso: 'fichas',
+        paso: 'correos',
         ...(sp.get('key') ? { key: sp.get('key') } : {}),
       });
-      informe.siguiente = { paso: 'fichas', ...r };
+      informe.siguiente = { paso: 'correos', ...r };
       informe.ms_total = Date.now() - t0;
       return NextResponse.json(informe);
     }
 
     // =================================================================
-    // PASO 2: foto, correo y declaración de intereses
+    // PASO 2: correo (y confirmación de la foto)
+    //
+    // Se piden los que aún no tienen correo. Sin memoria de posición:
+    // relanzarlo continúa donde lo dejó.
     // =================================================================
-    // Se buscan los que aún no tienen foto: sin memoria de posición, así
-    // que relanzarlo continúa donde lo dejó.
     const { data: pendientes } = await supabase
       .from('deputies')
       .select('id, cod_parlamentario, full_name')
       .eq('active', true)
       .not('cod_parlamentario', 'is', null)
-      .is('photo_url', null)
+      .is('email', null)
       .order('id', { ascending: true })
       .limit(400);
 
@@ -322,6 +359,7 @@ export async function GET(request) {
 
     const filas = [];
     const fallidos = [];
+    const sinCorreo = [];
     let i = 0;
 
     while (i < (pendientes || []).length && Date.now() - t0 < PRESUPUESTO_MS) {
@@ -333,12 +371,13 @@ export async function GET(request) {
           fallidos.push({ nombre: d.full_name, motivo: r.motivo });
           return;
         }
-        // Solo se escriben los campos que se han encontrado, para no
-        // borrar lo que ya hubiera.
         const campos = { id: d.id };
-        if (r.photo_url) campos.photo_url = r.photo_url;
         if (r.email) campos.email = r.email;
-        if (r.intereses_url) campos.intereses_url = r.intereses_url;
+        // La ficha manda sobre el patrón: si la imagen no está donde la
+        // esperábamos, se corrige; si no hay ninguna, se deja lo que ya
+        // tuviera en vez de apuntar a un enlace roto.
+        if (r.photo_url) campos.photo_url = r.photo_url;
+        if (!r.email) sinCorreo.push(d.full_name);
         if (Object.keys(campos).length > 1) filas.push(campos);
         else fallidos.push({ nombre: d.full_name, motivo: 'ficha sin datos reconocibles' });
       });
@@ -346,11 +385,11 @@ export async function GET(request) {
       await espera(PAUSA_MS);
     }
 
-    informe.procesados = i;
-    informe.con_datos = filas.length;
+    informe.n_leidos = i;
+    informe.con_correo = filas.filter((f) => f.email).length;
     informe.con_foto = filas.filter((f) => f.photo_url).length;
-    informe.con_email = filas.filter((f) => f.email).length;
-    informe.con_intereses = filas.filter((f) => f.intereses_url).length;
+    informe.sin_correo = sinCorreo.length;
+    informe.muestra_sin_correo = sinCorreo.slice(0, 5);
     informe.fallidos = fallidos.length;
     informe.detalle_fallos = fallidos.slice(0, 3);
 
@@ -360,20 +399,25 @@ export async function GET(request) {
       return NextResponse.json(informe);
     }
 
-    informe.escritura = await escribir(supabase, filas);
+    const escritura = await escribir(supabase, filas);
+    informe.escritura = escritura;
+    informe.n_escritos = escritura.escritas;
 
+    // Los que no publican correo seguirían saliendo como pendientes en
+    // cada pasada. Se cuentan, pero no se reintentan sin fin: la
+    // siguiente vuelta los vuelve a mirar solo si sigue habiendo cola.
     const quedan = (pendientes || []).length > i;
     if (quedan && eslabon + 1 < MAX_CADENA) {
       const r = await lanzarSiguiente(request, eslabon + 1, {
-        paso: 'fichas',
+        paso: 'correos',
         ...(sp.get('key') ? { key: sp.get('key') } : {}),
       });
-      informe.siguiente = { paso: 'fichas', ...r };
+      informe.siguiente = { paso: 'correos', ...r };
       informe.nota = 'Siguiente lote lanzado solo.';
     } else if (quedan) {
       informe.nota = `Tope de ${MAX_CADENA} eslabones. Vuelve a lanzarlo para continuar.`;
     } else {
-      informe.nota = 'Fase 2 completa: fotos, correos y declaraciones al día.';
+      informe.nota = 'Fase 2 completa: códigos, fotos y correos al día.';
     }
 
     informe.ms_total = Date.now() - t0;
