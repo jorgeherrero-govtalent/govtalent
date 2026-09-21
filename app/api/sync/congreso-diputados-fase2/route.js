@@ -30,6 +30,13 @@
 //   ?paso=codigos    una petición: código y foto de los 350
 //   ?paso=correos    una ficha por diputado, solo para el correo
 //
+// NO TODOS PUBLICAN CORREO. Comprobado el 21-09-2026: 319 de 350 lo
+// tienen y 31 no, con la ficha cargando bien. Sin marcar esas 31 como
+// ya miradas, el cron volvería a pedir sus fichas cada noche para no
+// sacar nada. `email_checked_at` guarda cuándo se miró por última vez
+// y se reintenta al mes: un diputado puede darse de alta el correo más
+// tarde, así que tampoco vale con descartarlos para siempre.
+//
 // Uso:
 //   ?key=<DEBUG_KEY>&dry=1        prueba sin escribir
 //   ?key=<DEBUG_KEY>              todo, encadenando
@@ -67,6 +74,7 @@ const ESCRITURA_PARALELA = 10;
 const MAX_CADENA = 20;
 const MS_LANZAR_SIGUIENTE = 1500;
 const MINIMO_ESPERADO = 300; // el Congreso tiene 350; menos de 300 es señal de que algo cambió
+const REINTENTO_CORREO_DIAS = 30;
 
 function admin() {
   return createClient(process.env.NEXT_PUBLIC_SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY, {
@@ -346,12 +354,17 @@ async function handler(request) {
     // Se piden los que aún no tienen correo. Sin memoria de posición:
     // relanzarlo continúa donde lo dejó.
     // =================================================================
+    const limiteReintento = new Date(
+      Date.now() - REINTENTO_CORREO_DIAS * 24 * 60 * 60 * 1000
+    ).toISOString();
+
     const { data: pendientes } = await supabase
       .from('deputies')
       .select('id, cod_parlamentario, full_name')
       .eq('active', true)
       .not('cod_parlamentario', 'is', null)
       .is('email', null)
+      .or(`email_checked_at.is.null,email_checked_at.lt.${limiteReintento}`)
       .order('id', { ascending: true })
       .limit(400);
 
@@ -360,6 +373,7 @@ async function handler(request) {
     const filas = [];
     const fallidos = [];
     const sinCorreo = [];
+    const sinNada = [];
     let i = 0;
 
     while (i < (pendientes || []).length && Date.now() - t0 < PRESUPUESTO_MS) {
@@ -371,25 +385,33 @@ async function handler(request) {
           fallidos.push({ nombre: d.full_name, motivo: r.motivo });
           return;
         }
-        const campos = { id: d.id };
+        // La ficha se pidió y respondió: queda marcada como mirada
+        // aunque no traiga correo. Es lo que evita repetirla cada noche.
+        const campos = { id: d.id, email_checked_at: new Date().toISOString() };
         if (r.email) campos.email = r.email;
+        else sinCorreo.push(d.full_name);
         // La ficha manda sobre el patrón: si la imagen no está donde la
         // esperábamos, se corrige; si no hay ninguna, se deja lo que ya
         // tuviera en vez de apuntar a un enlace roto.
         if (r.photo_url) campos.photo_url = r.photo_url;
-        if (!r.email) sinCorreo.push(d.full_name);
-        if (Object.keys(campos).length > 1) filas.push(campos);
-        else fallidos.push({ nombre: d.full_name, motivo: 'ficha sin datos reconocibles' });
+        // Ni correo ni foto es raro: puede ser que cambiara el marcado.
+        if (!r.email && !r.photo_url) sinNada.push(d.full_name);
+        filas.push(campos);
       });
       i += PARALELO;
       await espera(PAUSA_MS);
     }
 
-    informe.n_leidos = i;
+    // `i` avanza de PARALELO en PARALELO y se pasa del final en el
+    // último lote: sin el tope, el informe contaba fichas de más.
+    const procesados = Math.min(i, (pendientes || []).length);
+    informe.n_leidos = procesados;
     informe.con_correo = filas.filter((f) => f.email).length;
     informe.con_foto = filas.filter((f) => f.photo_url).length;
     informe.sin_correo = sinCorreo.length;
     informe.muestra_sin_correo = sinCorreo.slice(0, 5);
+    informe.sin_correo_ni_foto = sinNada.length;
+    informe.muestra_sin_correo_ni_foto = sinNada.slice(0, 5);
     informe.fallidos = fallidos.length;
     informe.detalle_fallos = fallidos.slice(0, 3);
 
@@ -403,10 +425,7 @@ async function handler(request) {
     informe.escritura = escritura;
     informe.n_escritos = escritura.escritas;
 
-    // Los que no publican correo seguirían saliendo como pendientes en
-    // cada pasada. Se cuentan, pero no se reintentan sin fin: la
-    // siguiente vuelta los vuelve a mirar solo si sigue habiendo cola.
-    const quedan = (pendientes || []).length > i;
+    const quedan = (pendientes || []).length > procesados;
     if (quedan && eslabon + 1 < MAX_CADENA) {
       const r = await lanzarSiguiente(request, eslabon + 1, {
         paso: 'correos',
@@ -417,7 +436,9 @@ async function handler(request) {
     } else if (quedan) {
       informe.nota = `Tope de ${MAX_CADENA} eslabones. Vuelve a lanzarlo para continuar.`;
     } else {
-      informe.nota = 'Fase 2 completa: códigos, fotos y correos al día.';
+      informe.nota = sinCorreo.length
+        ? `Fase 2 completa. ${sinCorreo.length} sin correo publicado: se vuelven a mirar dentro de ${REINTENTO_CORREO_DIAS} días.`
+        : 'Fase 2 completa: códigos, fotos y correos al día.';
     }
 
     informe.ms_total = Date.now() - t0;
