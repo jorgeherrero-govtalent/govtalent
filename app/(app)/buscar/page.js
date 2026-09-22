@@ -31,6 +31,7 @@ const ETIQUETA_TIPO = {
   comision: 'Comisión',
   'comision-ue': 'Comisión del PE',
   'grupo-parlamentario': 'Grupo parlamentario',
+  'asesor-parlamentario': 'Asesor',
   organizacion: 'Organización',
   oferta: 'Oferta',
 };
@@ -47,6 +48,7 @@ const ICONO_TIPO = {
   comision: 'ti-users-group',
   'comision-ue': 'ti-users-group',
   'grupo-parlamentario': 'ti-users-group',
+  'asesor-parlamentario': 'ti-user',
   organizacion: 'ti-building-store',
   oferta: 'ti-briefcase',
 };
@@ -58,6 +60,7 @@ const ES_PERSONA = new Set([
   'eurodiputado',
   'comisario',
   'persona-comision-ue',
+  'asesor-parlamentario',
 ]);
 
 function iniciales(nombre) {
