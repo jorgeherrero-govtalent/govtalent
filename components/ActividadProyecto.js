@@ -91,6 +91,18 @@ const etiquetaTipo = (v) => TIPOS.find((t) => t.v === v)?.label || v;
  * Qué le falta a una actividad para poder cerrarse. En lenguaje llano y
  * no con nombres de campo: es lo que verá el usuario.
  */
+/**
+ * Una lista en castellano, con su "y" antes del último.
+ *
+ * `join(', ')` dejaba «falta qué se trató, el lugar», que parece una
+ * enumeración cortada a la mitad. Con dos elementos o más la última coma
+ * se sustituye por la conjunción, que es como se escribe una lista.
+ */
+function enumerar(items) {
+  if (items.length <= 1) return items[0] || '';
+  return `${items.slice(0, -1).join(', ')} y ${items[items.length - 1]}`;
+}
+
 export function faltantes(a, participantes) {
   const falta = [];
   if (!participantes || participantes.length === 0) falta.push('con quién fue');
@@ -400,7 +412,11 @@ export default function ActividadProyecto({ projectId, userId }) {
                   <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                   <button
                     onClick={() => (falta.length === 0 ? cerrar(a) : setAbierto(a))}
-                    title={falta.length > 0 ? `Falta ${falta.join(', ')}` : 'Darla por registrada'}
+                    title={
+                      falta.length > 0
+                        ? `${falta.length === 1 ? 'Falta' : 'Faltan'} ${enumerar(falta)}`
+                        : 'Darla por registrada'
+                    }
                     style={{
                       background: 'none',
                       border: 'none',
@@ -1012,9 +1028,9 @@ function FormularioActividad({
 
         {/* Adjuntar no es obligatorio: el documento pudo enviarse desde
             el correo corporativo o entregarse en papel, y exigirlo haría
-            que la gente se saltara el registro entero. Pero se recomienda
-            expresamente, porque el artículo 11.b obliga a entregar los
-            documentos en quince días hábiles. */}
+            que la gente se saltara el registro entero. Pero se recomienda,
+            porque el acta nombra los documentos intercambiados y tenerlos
+            al lado es la diferencia entre un acta y una prueba. */}
         <div style={{ marginBottom: 14 }}>
           <div style={etiqueta}>Documentos entregados</div>
           {docs.length > 0 && (
@@ -1052,7 +1068,8 @@ function FormularioActividad({
           </button>
           {docs.length === 0 && (
             <p style={{ fontSize: 10.5, color: '#aaa', marginTop: 5, lineHeight: 1.5 }}>
-              Recomendado. Los documentos entregados deben aportarse en un plazo de quince días hábiles.
+              Recomendado. El acta nombra los documentos que se entregaron; adjuntarlos deja la copia
+              guardada junto al registro.
             </p>
           )}
         </div>
@@ -1063,7 +1080,8 @@ function FormularioActividad({
           </button>
           {falta.length > 0 && (
             <span style={{ fontSize: 10.5, color: '#999' }}>
-              Se guarda igual. Para darla por registrada falta {falta.join(', ')}.
+              Se guarda igual. Para darla por registrada {falta.length === 1 ? 'falta' : 'faltan'}{' '}
+              {enumerar(falta)}.
             </span>
           )}
         </div>
