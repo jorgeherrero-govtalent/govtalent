@@ -302,6 +302,19 @@ export default function GroupDetailPage() {
     };
   }, [slug]);
 
+  // El buscador global manda a los asesores a ?tab=equipo, porque no
+  // tienen ficha propia. Se lee de window.location y no con
+  // useSearchParams para no tener que envolver la pagina en un Suspense,
+  // que es lo que exige Next 14 al compilar.
+  useEffect(() => {
+    try {
+      const pedida = new URLSearchParams(window.location.search).get('tab');
+      if (pedida && TABS.some((t) => t.id === pedida)) setTab(pedida);
+    } catch {
+      // Sin window o con una query rara, se queda en Resumen.
+    }
+  }, []);
+
   // Los correos se piden una sola vez por grupo, y solo cuando hay plan
   // y alguien ha abierto la pestaña. Mientras tanto la lista se pinta
   // igual: lo único que cambia es si la píldora vende Pro o enseña la
