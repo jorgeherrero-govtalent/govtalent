@@ -489,8 +489,8 @@ function Proyectos() {
             <div style={{ flex: 1, minWidth: 0 }}>
               <div style={{ fontSize: 12.5, fontWeight: 600 }}>Registra tu actividad institucional</div>
               <div style={{ fontSize: 11.5, color: '#888', marginTop: 2, lineHeight: 1.5 }}>
-                Cada reunión, entrega o comunicación con la Administración queda registrada con su acta, en
-                cumplimiento de la nueva regulación de grupos de interés.
+                Cada reunión, entrega o comunicación con la Administración queda registrada con su acta:
+                fecha, participantes, asuntos tratados y documentos.
               </div>
             </div>
             <Link
@@ -1246,7 +1246,7 @@ function Proyectos() {
                 <div style={{ ...CARD, padding: '16px 18px' }}>
                   <div style={{ ...ETIQUETA, marginBottom: 4 }}>REGISTRO</div>
                   <p style={{ fontSize: 11.5, color: '#888', margin: '0 0 12px', lineHeight: 1.5 }}>
-                    Registra tus actividades en conformidad con la ley.
+                    Deja constancia de cada actividad con la Administración.
                   </p>
                   <ActividadProyecto projectId={abierto.id} userId={user.id} />
                 </div>
