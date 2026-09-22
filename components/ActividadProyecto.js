@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { toast } from '@/lib/toast';
+import { direccionDeParticipantes } from '@/lib/sedes';
 import SelectorFecha from '@/components/SelectorFecha';
 import Desplegable from '@/components/Desplegable';
 import ActaActividad from '@/components/ActaActividad';
@@ -127,7 +128,13 @@ export default function ActividadProyecto({ projectId, userId }) {
         .eq('project_id', projectId)
         .order('fecha', { ascending: false })
         .order('created_at', { ascending: false }),
-      supabase.from('project_actors').select('id, nombre, kind, ref_id, es_propio').eq('project_id', projectId),
+      // `descripcion` se trae por las sedes: en los cargos del directorio
+      // es donde viene el ministerio del que cuelgan, y es lo que permite
+      // precargar el lugar de la reunión.
+      supabase
+        .from('project_actors')
+        .select('id, nombre, kind, ref_id, es_propio, descripcion')
+        .eq('project_id', projectId),
       // Los asuntos anclados al proyecto: son las normas sobre las que
       // se intenta influir, y el artículo 6.1.e pide precisarlas.
       supabase.from('project_items').select('id, etiqueta, kind, ref_id').eq('project_id', projectId),
@@ -585,6 +592,39 @@ function FormularioActividad({
   const [subiendo, setSubiendo] = useState(false);
   const inputArchivo = useRef(null);
 
+  /**
+   * Si el usuario ha tocado el campo del lugar, el automatismo se calla.
+   *
+   * Arranca en true cuando se está completando una actividad que ya traía
+   * lugar escrito: eso es una decisión tomada y no se pisa.
+   *
+   * Escribir, borrar y dejarlo vacío cuentan los dos como tocarlo. Si
+   * alguien borra la dirección que le hemos puesto es porque la reunión
+   * no fue allí, y devolvérsela al marcar al siguiente participante es
+   * pelearse con él.
+   */
+  const lugarTocado = useRef(Boolean(inicial?.lugar));
+
+  /**
+   * Precarga del lugar con la sede de la institución.
+   *
+   * Solo rellena si el campo está vacío y nadie lo ha tocado, y solo en
+   * reuniones presenciales, que es donde el campo existe. Manda el primer
+   * participante marcado que tenga sede conocida; los que no la tienen
+   * —una organización privada, un contacto suelto— no aportan nada y se
+   * saltan.
+   *
+   * Si no hay sede conocida no pasa nada: el campo se queda vacío y se
+   * escribe a mano, que es lo que se hacía antes de esto.
+   */
+  useEffect(() => {
+    if (lugarTocado.current) return;
+    if (tipo !== 'reunion' || modalidad !== 'presencial') return;
+    if (lugar.trim()) return;
+    const direccion = direccionDeParticipantes(parts, actores);
+    if (direccion) setLugar(direccion);
+  }, [parts, actores, tipo, modalidad, lugar]);
+
   // Los documentos ya subidos de una actividad que se está completando.
   useEffect(() => {
     if (!inicial?.id) return;
@@ -945,7 +985,10 @@ function FormularioActividad({
             <div style={etiqueta}>Dónde</div>
             <input
               value={lugar}
-              onChange={(e) => setLugar(e.target.value)}
+              onChange={(e) => {
+                lugarTocado.current = true;
+                setLugar(e.target.value);
+              }}
               placeholder="Sede, dirección o ciudad"
               style={campo}
             />
