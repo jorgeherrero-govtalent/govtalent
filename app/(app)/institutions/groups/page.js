@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
 import { groupColor } from '@/lib/grupos';
+import LogoGrupo from '@/components/LogoGrupo';
 import PestanasCongreso from '@/components/PestanasCongreso';
 
 export default function GroupsDirectoryPage() {
@@ -116,20 +117,7 @@ export default function GroupsDirectoryPage() {
               style={{ padding: 16, textDecoration: 'none', color: 'inherit', display: 'block' }}
             >
               <div style={{ display: 'flex', alignItems: 'flex-start', gap: 11, marginBottom: 13 }}>
-                <span
-                  style={{
-                    width: 38,
-                    height: 38,
-                    borderRadius: 9,
-                    background: `${groupColor(g.name)}18`,
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    flexShrink: 0,
-                  }}
-                >
-                  <span style={{ width: 15, height: 15, borderRadius: 3, background: groupColor(g.name) }}></span>
-                </span>
+                <LogoGrupo nombre={g.name} color={groupColor(g.name)} />
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ fontSize: 13.5, fontWeight: 700, lineHeight: 1.3 }}>{g.name}</div>
                   {/* Los diputados se han bajado al pie, así que aquí ya
