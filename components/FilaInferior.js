@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
+import { useTotalDirectorio, formatearTotal } from '@/lib/useTotalDirectorio';
 
 /**
  * La última fila de la home.
@@ -213,6 +214,7 @@ export default function FilaInferior() {
   const supabase = createClient();
   const [esPro, setEsPro] = useState(null);
   const [proyectos, setProyectos] = useState([]);
+  const totalDirectorio = formatearTotal(useTotalDirectorio());
 
   useEffect(() => {
     let cancelado = false;
@@ -372,9 +374,19 @@ export default function FilaInferior() {
             ))}
           </div>
           <div style={{ borderTop: '.5px solid #f2f0ec', marginTop: 6, paddingTop: 13 }}>
+            {/* La cifra la cuenta la base de datos. Estaba escrita a mano
+                aquí y en el demo del directorio, y ya se habían separado
+                entre sí y del panel del login. Mientras no llega, la
+                frase se sostiene sin número. */}
             <div style={{ fontSize: 12.5, color: '#8b8780', lineHeight: 1.55, marginBottom: 11 }}>
-              <span style={{ color: '#1a1a18', fontWeight: 600 }}>11.843 cargos</span> con su
-              contacto, en un solo directorio.
+              {totalDirectorio ? (
+                <>
+                  <span style={{ color: '#1a1a18', fontWeight: 600 }}>{totalDirectorio} cargos y asesores</span> con
+                  su contacto, en un solo directorio.
+                </>
+              ) : (
+                <>Cargos y asesores con su contacto, en un solo directorio.</>
+              )}
             </div>
             <Boton href="/instituciones/directorio">Ver base de datos</Boton>
           </div>
