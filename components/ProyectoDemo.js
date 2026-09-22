@@ -588,7 +588,7 @@ export default function ProyectoDemo() {
           </div>
           <p style={{ fontSize: 11.5, color: '#888', margin: '0 0 12px', lineHeight: 1.5 }}>
             Cada reunión con la Administración se registra automáticamente desde lo que ya tienes en el
-            proyecto: eliges la fecha, marcas con quién y el acta sale hecha.
+            proyecto: eliges la fecha, marcas con quién y el acta queda redactada.
           </p>
           {DEMO.registro.map((r, i) => (
             <div
