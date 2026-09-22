@@ -20,7 +20,7 @@ import { groupColor, grupoCorto } from '@/lib/grupos';
  * vivía suelto.
  *
  * Equipo es la pestaña que cierra el círculo: el portavoz es quien
- * habla, pero el asesor es quien prepara el papel, y hasta ahora no
+ * habla, pero el asesor es quien redacta, y hasta ahora no
  * estaba en ninguna parte. Sale de `parliamentary_staff`, reconstruida
  * boletín a boletín del BOCG.
  */
@@ -564,11 +564,11 @@ export default function GroupDetailPage() {
                 </div>
               )}
 
-              {/* El portavoz da la cara, pero quien prepara el papel casi
-                  nunca es él. Aquí caben tres; los demás, en Equipo. */}
+              {/* El portavoz da la cara, pero quien redacta casi nunca es
+                  él. Aquí caben tres; los demás, en la pestaña Equipo. */}
               {asesores.length > 0 && (
                 <div style={{ borderTop: '.5px solid #f0f0eb', marginTop: 13, paddingTop: 14 }}>
-                  <div style={{ ...LABEL, marginBottom: 11 }}>Y quién les prepara el papel</div>
+                  <div style={{ ...LABEL, marginBottom: 11 }}>Equipo del grupo</div>
                   {asesores.slice(0, 3).map((a) => (
                     <div key={a.id} style={{ ...FILA, padding: '6px 0' }} title={a.cargo}>
                       <Avatar nombre={a.full_name} size={26} plano />
@@ -579,7 +579,7 @@ export default function GroupDetailPage() {
                     </div>
                   ))}
                   <div onClick={() => setTab('equipo')} style={VER_MAS}>
-                    Ver los {asesores.length} del equipo →
+                    Ver los {asesores.length} →
                   </div>
                 </div>
               )}
