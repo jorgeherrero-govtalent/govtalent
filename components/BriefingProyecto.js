@@ -392,31 +392,49 @@ export default function BriefingProyecto({ projectId, userId }) {
         overflow: 'hidden',
       }}
     >
-      {/* En un teléfono la columna de actores se comía media pantalla:
-          se apila y pasa a ser una fila que se desplaza en horizontal. */}
+      {/* EL ALTO NO LO PONE EL CARRIL.
+          Antes el bloque medía lo que midiera la lista de actores: con
+          veintiuno eran novecientos píxeles, y la ficha —que mide
+          cuatrocientos— dejaba el resto en blanco. Ahora el bloque mide
+          lo que cabe en pantalla y cada lado se desplaza por dentro,
+          como el detalle de una tarea en un gestor de proyectos.
+
+          Y OJO CON EL SELECTOR: antes esto usaba `> div:first-child`,
+          que no encajaba con nada, porque el primer hijo de .gt-brief es
+          este mismo <style>. Las tres reglas de móvil llevaban rotas
+          desde el principio por eso. Van por clase. */}
       <style>{`
-        /* align-items: start es lo que evita el hueco: sin eso las dos
-           celdas se estiran a la altura de la más alta, y con veinte
-           actores el carril mide 900 px mientras la ficha mide 400. El
-           resto era relleno en blanco. El carril se desplaza solo. */
-        .gt-brief { display: grid; grid-template-columns: minmax(0, 215px) minmax(0, 1fr); align-items: start; }
-        .gt-brief > div:first-child { max-height: 560px; overflow-y: auto; }
+        .gt-brief {
+          display: grid;
+          grid-template-columns: minmax(0, 215px) minmax(0, 1fr);
+          /* Ni más de 720 ni más de lo que queda de ventana bajo la
+             cabecera. El mínimo evita que en una pantalla baja el panel
+             quede en una rendija. */
+          height: clamp(420px, calc(100vh - 210px), 720px);
+        }
+        /* min-height 0 es imprescindible: sin él una celda de grid no
+           baja de su contenido y el overflow no llega a activarse. */
+        .gt-brief-carril, .gt-brief-ficha { min-height: 0; overflow-y: auto; }
         @media (max-width: 720px) {
-          .gt-brief { grid-template-columns: minmax(0, 1fr); }
-          .gt-brief > div:first-child { max-height: none; overflow-y: visible; }
-          .gt-brief > div:first-child {
+          .gt-brief { grid-template-columns: minmax(0, 1fr); height: auto; }
+          .gt-brief-ficha { overflow-y: visible; }
+          .gt-brief-carril {
             border-right: none;
             border-bottom: .5px solid ${BORDE};
             display: flex;
             gap: 6px;
             overflow-x: auto;
+            overflow-y: hidden;
             scrollbar-width: none;
           }
-          .gt-brief > div:first-child > div { display: none; }
-          .gt-brief > div:first-child button { width: auto; flex-shrink: 0; }
+          .gt-brief-carril > div { display: none; }
+          .gt-brief-carril button { width: auto; flex-shrink: 0; }
         }
       `}</style>
-      <div style={{ borderRight: `.5px solid ${BORDE}`, padding: '13px 10px', background: '#fafaf7' }}>
+      <div
+        className="gt-brief-carril"
+        style={{ borderRight: `.5px solid ${BORDE}`, padding: '13px 10px', background: '#fafaf7' }}
+      >
         {prioritarios.length > 0 && (
           <>
             <div style={{ fontSize: 10.5, color: MORADO, letterSpacing: '.3px', padding: '0 8px 7px' }}>
@@ -444,7 +462,7 @@ export default function BriefingProyecto({ projectId, userId }) {
         )}
       </div>
 
-      <div style={{ padding: '16px 18px', minWidth: 0 }}>
+      <div className="gt-brief-ficha" style={{ padding: '16px 18px', minWidth: 0 }}>
         {!actor ? (
           <div style={{ fontSize: 12.5, color: '#999' }}>Elige un actor de la lista.</div>
         ) : (
