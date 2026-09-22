@@ -7,6 +7,8 @@ import { createClient } from '@/lib/supabase/client';
 import { toast } from '@/lib/toast';
 import BackLink from '@/components/BackLink';
 import FollowButton from '@/components/FollowButton';
+import UpgradeModal from '@/components/UpgradeModal';
+import usePlanPro from '@/lib/usePlanPro';
 import { groupColor, grupoCorto } from '@/lib/grupos';
 
 /**
@@ -16,6 +18,11 @@ import { groupColor, grupoCorto } from '@/lib/grupos';
  * pestañas para el detalle. Lo que aporta valor es conectar lo que ya
  * estaba cargado —portavoces, iniciativas, alianzas— y que hasta ahora
  * vivía suelto.
+ *
+ * Equipo es la pestaña que cierra el círculo: el portavoz es quien
+ * habla, pero el asesor es quien prepara el papel, y hasta ahora no
+ * estaba en ninguna parte. Sale de `parliamentary_staff`, reconstruida
+ * boletín a boletín del BOCG.
  */
 
 const TABS = [
@@ -23,6 +30,7 @@ const TABS = [
   { id: 'portavoces', label: 'Portavoces' },
   { id: 'iniciativas', label: 'Iniciativas' },
   { id: 'diputados', label: 'Diputados' },
+  { id: 'equipo', label: 'Equipo' },
 ];
 
 const MESES = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
@@ -41,6 +49,21 @@ function haceCuanto(iso) {
 function initials(fullName) {
   const [ap, nom] = (fullName || '').split(',').map((s) => s.trim());
   return `${(nom || '')[0] || ''}${(ap || '')[0] || ''}`.toUpperCase();
+}
+
+// Los asesores llegan del BOCG como "Sara López Núñez", sin la coma que
+// separa apellidos de nombre en los diputados. Pasarlos por initials()
+// devolvería una sola letra.
+function initialsPlano(nombre) {
+  const p = (nombre || '').trim().split(/\s+/);
+  return `${(p[0] || '')[0] || ''}${(p[1] || '')[0] || ''}`.toUpperCase();
+}
+
+function desdeCuando(iso) {
+  if (!iso) return null;
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return null;
+  return `desde ${MESES[d.getMonth()]} ${d.getFullYear()}`;
 }
 
 function fullNameDisplay(oficial) {
@@ -101,7 +124,7 @@ const chip = (activo) => ({
 
 const VER_MAS = { fontSize: 11, color: '#1d6f5c', fontWeight: 600, paddingTop: 10, cursor: 'pointer' };
 
-function Avatar({ nombre, url, size = 28 }) {
+function Avatar({ nombre, url, size = 28, plano = false }) {
   const [falla, setFalla] = useState(false);
   const base = { width: size, height: size, borderRadius: '50%', flexShrink: 0, objectFit: 'cover', background: '#ece9e2' };
   if (url && !falla) {
@@ -120,8 +143,49 @@ function Avatar({ nombre, url, size = 28 }) {
       }}
       aria-hidden="true"
     >
-      {initials(nombre)}
+      {plano ? initialsPlano(nombre) : initials(nombre)}
     </div>
+  );
+}
+
+// La píldora de la derecha en cada fila de asesor. Dice si hay correo,
+// nunca cuál: el correo solo llega si /api/instituciones/asesores/contacto
+// ha dicho que sí, y esa decisión se toma en el servidor.
+function CeldaCorreo({ tiene, correo, onUpsell }) {
+  if (!tiene) {
+    return <span style={{ fontSize: 11, color: '#a8a49c', flexShrink: 0 }}>sin correo</span>;
+  }
+  if (correo) {
+    return (
+      <a
+        href={`mailto:${correo}`}
+        style={{ fontSize: 11, color: '#666', flexShrink: 0, textDecoration: 'none', borderBottom: '.5px solid #e0dfd8' }}
+      >
+        {correo}
+      </a>
+    );
+  }
+  return (
+    <span
+      onClick={onUpsell}
+      style={{
+        fontSize: 10,
+        fontWeight: 600,
+        background: '#f0eefe',
+        color: '#6d5aef',
+        padding: '3px 9px',
+        borderRadius: 10,
+        whiteSpace: 'nowrap',
+        flexShrink: 0,
+        cursor: 'pointer',
+        display: 'inline-flex',
+        alignItems: 'center',
+        gap: 4,
+      }}
+    >
+      <i className="ti ti-bolt" style={{ fontSize: 11 }}></i>
+      Correo con Pro
+    </span>
   );
 }
 
@@ -143,6 +207,12 @@ export default function GroupDetailPage() {
   const [circunscripcion, setCircunscripcion] = useState('');
   const [soloDestacados, setSoloDestacados] = useState(false);
   const [userId, setUserId] = useState(null);
+  const [asesores, setAsesores] = useState([]);
+  const [buscarAsesor, setBuscarAsesor] = useState('');
+  const [categoriaAsesor, setCategoriaAsesor] = useState('');
+  const [correos, setCorreos] = useState(null);
+  const [upsell, setUpsell] = useState(null);
+  const esPro = usePlanPro();
 
   useEffect(() => {
     if (!slug) return;
@@ -157,8 +227,15 @@ export default function GroupDetailPage() {
       }
       setGrupo(data);
 
-      const [{ data: com }, { data: pv }, { data: al }, { data: ult }, { data: dip }, { data: auth }] =
-        await Promise.all([
+      const [
+        { data: com },
+        { data: pv },
+        { data: al },
+        { data: ult },
+        { data: dip },
+        { data: auth },
+        { data: staff },
+      ] = await Promise.all([
           supabase
             .from('group_committees')
             .select('*')
@@ -192,6 +269,17 @@ export default function GroupDetailPage() {
             .eq('active', true)
             .order('last_name'),
           supabase.auth.getUser(),
+          // Personal eventual del grupo. Columnas explícitas y nunca
+          // select('*'): sql/54 cerró `email` por columna, así que un
+          // asterisco aquí devolvería un error de permisos. `tiene_email`
+          // sí se puede leer y es lo que decide el candado.
+          supabase
+            .from('parliamentary_staff')
+            .select('id, slug, full_name, categoria, cargo, fecha_alta, tiene_email, linkedin_url, boletin, boletin_url')
+            .eq('parliamentary_group_id', data.group_id)
+            .eq('active', true)
+            .eq('objecion', false)
+            .order('full_name'),
         ]);
 
       if (cancelled) return;
@@ -212,6 +300,7 @@ export default function GroupDetailPage() {
         if (!cancelled) setUltimas(act || []);
       }
       setDiputados(dip || []);
+      setAsesores(staff || []);
 
       const uid = auth?.user?.id || null;
       setUserId(uid);
@@ -221,6 +310,32 @@ export default function GroupDetailPage() {
       cancelled = true;
     };
   }, [slug]);
+
+  // Los correos se piden una sola vez por grupo, y solo cuando hay plan
+  // y alguien ha abierto la pestaña. Mientras tanto la lista se pinta
+  // igual: lo único que cambia es si la píldora vende Pro o enseña la
+  // dirección.
+  useEffect(() => {
+    if (esPro !== true || tab !== 'equipo' || correos !== null) return;
+    if (!grupo?.group_id || asesores.length === 0) return;
+    let cancelado = false;
+
+    (async () => {
+      try {
+        const res = await fetch(`/api/instituciones/asesores/contacto?grupo=${grupo.group_id}`);
+        const json = await res.json();
+        if (!cancelado) setCorreos(res.ok ? json.correos || {} : {});
+      } catch {
+        // Un fallo de red no debe romper la pestaña: se queda con el
+        // candado puesto, que es el estado seguro.
+        if (!cancelado) setCorreos({});
+      }
+    })();
+
+    return () => {
+      cancelado = true;
+    };
+  }, [esPro, tab, correos, grupo, asesores.length]);
 
   const comisionesConPortavoz = useMemo(
     () => [...new Set(portavoces.map((p) => p.committee_name))].sort((a, b) => a.localeCompare(b)),
@@ -260,6 +375,32 @@ export default function GroupDetailPage() {
 
   // Para las barras: la comisión con más actividad marca el 100%
   const maxVivas = useMemo(() => Math.max(1, ...comisiones.map((c) => c.n_vivas || 0)), [comisiones]);
+
+  // Las categorías salen de los propios datos y no de una lista fija:
+  // el BOCG usa "Asistente", "Asistente A", "Asistente técnico B" y
+  // alguna más, y el reparto cambia de un grupo a otro.
+  const categoriasAsesor = useMemo(() => {
+    const cuenta = new Map();
+    for (const a of asesores) {
+      if (!a.categoria) continue;
+      cuenta.set(a.categoria, (cuenta.get(a.categoria) || 0) + 1);
+    }
+    return [...cuenta.entries()].sort((x, y) => y[1] - x[1] || x[0].localeCompare(y[0]));
+  }, [asesores]);
+
+  const asesoresFiltrados = useMemo(() => {
+    let l = asesores;
+    if (categoriaAsesor) l = l.filter((a) => a.categoria === categoriaAsesor);
+    if (buscarAsesor) {
+      const q = normalize(buscarAsesor);
+      l = l.filter(
+        (a) => normalize(a.full_name).includes(q) || normalize(a.cargo || '').includes(q)
+      );
+    }
+    return l;
+  }, [asesores, buscarAsesor, categoriaAsesor]);
+
+  const asesoresConCorreo = useMemo(() => asesores.filter((a) => a.tiene_email).length, [asesores]);
 
   if (grupo === undefined) {
     return (
@@ -328,6 +469,9 @@ export default function GroupDetailPage() {
                   grupo.n_portavocias > 0
                     ? `portavoz en ${grupo.n_portavocias} ${grupo.n_portavocias === 1 ? 'comisión' : 'comisiones'}`
                     : null,
+                  asesores.length > 0
+                    ? `${asesores.length} ${asesores.length === 1 ? 'asesor' : 'asesores'}`
+                    : null,
                 ]
                   .filter(Boolean)
                   .join(' · ')}
@@ -337,25 +481,6 @@ export default function GroupDetailPage() {
 
           <div style={{ display: 'flex', gap: 4, flexShrink: 0, alignItems: 'center' }}>
             <FollowButton kind="grupo" refId={grupo.slug} label={grupo.name} />
-          </div>
-        </div>
-
-        {/* Lo vivo y lo registrado separados: mezclarlos hacía dudar qué
-            número mirar, igual que pasaba en Regulatorio. */}
-        <div style={{ display: 'flex', gap: 26, paddingTop: 15, marginTop: 15, borderTop: '.5px solid #f0f0eb', flexWrap: 'wrap' }}>
-          <div>
-            <div style={{ fontSize: 19, fontWeight: 700, color: '#1d6f5c' }}>
-              {(grupo.n_vivas || 0).toLocaleString('es-ES')}
-            </div>
-            <div style={{ fontSize: 10.5, color: '#999' }}>en trámite</div>
-          </div>
-          <div>
-            <div style={{ fontSize: 19, fontWeight: 700 }}>{(grupo.n_presentadas || 0).toLocaleString('es-ES')}</div>
-            <div style={{ fontSize: 10.5, color: '#999' }}>presentadas</div>
-          </div>
-          <div>
-            <div style={{ fontSize: 19, fontWeight: 700 }}>{grupo.n_leyes || 0}</div>
-            <div style={{ fontSize: 10.5, color: '#999' }}>leyes</div>
           </div>
         </div>
       </div>
@@ -369,7 +494,9 @@ export default function GroupDetailPage() {
                 ? grupo.n_presentadas
                 : t.id === 'diputados'
                   ? diputados.length
-                  : null;
+                  : t.id === 'equipo'
+                    ? asesores.length
+                    : null;
           return (
             <button
               key={t.id}
@@ -434,6 +561,26 @@ export default function GroupDetailPage() {
               {portavoces.length > 3 && (
                 <div onClick={() => setTab('portavoces')} style={VER_MAS}>
                   Ver los {portavoces.length} →
+                </div>
+              )}
+
+              {/* El portavoz da la cara, pero quien prepara el papel casi
+                  nunca es él. Aquí caben tres; los demás, en Equipo. */}
+              {asesores.length > 0 && (
+                <div style={{ borderTop: '.5px solid #f0f0eb', marginTop: 13, paddingTop: 14 }}>
+                  <div style={{ ...LABEL, marginBottom: 11 }}>Y quién les prepara el papel</div>
+                  {asesores.slice(0, 3).map((a) => (
+                    <div key={a.id} style={{ ...FILA, padding: '6px 0' }} title={a.cargo}>
+                      <Avatar nombre={a.full_name} size={26} plano />
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontSize: 12, fontWeight: 600 }}>{a.full_name}</div>
+                        <div style={{ fontSize: 10, color: '#999' }}>{a.categoria}</div>
+                      </div>
+                    </div>
+                  ))}
+                  <div onClick={() => setTab('equipo')} style={VER_MAS}>
+                    Ver los {asesores.length} del equipo →
+                  </div>
                 </div>
               )}
             </div>
@@ -705,10 +852,116 @@ export default function GroupDetailPage() {
         </>
       )}
 
+      {tab === 'equipo' && (
+        <>
+          <div style={{ display: 'flex', gap: 8, marginBottom: 12, flexWrap: 'wrap' }}>
+            <div style={BUSCADOR}>
+              <i className="ti ti-search" style={{ color: '#999', fontSize: 14 }}></i>
+              <input
+                value={buscarAsesor}
+                onChange={(e) => setBuscarAsesor(e.target.value)}
+                placeholder="Buscar por nombre o cargo..."
+                aria-label="Buscar asesor"
+                style={INPUT}
+              />
+            </div>
+            {/* Desplegable y no chips: el BOCG distingue hasta ocho
+                categorías y en fila no caben. */}
+            {categoriasAsesor.length > 1 && (
+              <select
+                value={categoriaAsesor}
+                onChange={(e) => setCategoriaAsesor(e.target.value)}
+                aria-label="Filtrar por categoría"
+                style={{ ...chip(!!categoriaAsesor), appearance: 'none', paddingRight: 28 }}
+              >
+                <option value="">Categoría</option>
+                {categoriasAsesor.map(([c, n]) => (
+                  <option key={c} value={c}>
+                    {c} ({n})
+                  </option>
+                ))}
+              </select>
+            )}
+            {(buscarAsesor || categoriaAsesor) && (
+              <span
+                onClick={() => {
+                  setBuscarAsesor('');
+                  setCategoriaAsesor('');
+                }}
+                style={{ fontSize: 11.5, color: '#999', textDecoration: 'underline', cursor: 'pointer', alignSelf: 'center' }}
+              >
+                Limpiar
+              </span>
+            )}
+          </div>
+
+          <div style={CARD}>
+            {asesoresFiltrados.length === 0 ? (
+              <div className="empty-state">
+                <i className="ti ti-users-group"></i>
+                {asesores.length === 0
+                  ? 'No consta personal eventual a disposición de este grupo.'
+                  : 'Ningún asesor con estos filtros.'}
+              </div>
+            ) : (
+              asesoresFiltrados.map((a) => (
+                <div key={a.id} style={FILA} title={a.cargo}>
+                  <Avatar nombre={a.full_name} size={32} plano />
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: 12.5, fontWeight: 600 }}>{a.full_name}</div>
+                    <div style={{ fontSize: 10.5, color: '#999', marginTop: 1 }}>
+                      {[a.categoria, desdeCuando(a.fecha_alta)].filter(Boolean).join(' · ')}
+                    </div>
+                  </div>
+                  {a.linkedin_url && (
+                    <a
+                      href={a.linkedin_url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      aria-label={`LinkedIn de ${a.full_name}`}
+                      style={{ color: '#a8a49c', flexShrink: 0, display: 'flex' }}
+                    >
+                      <i className="ti ti-brand-linkedin" style={{ fontSize: 15 }}></i>
+                    </a>
+                  )}
+                  <CeldaCorreo
+                    tiene={a.tiene_email}
+                    correo={correos?.[a.slug]}
+                    onUpsell={() =>
+                      setUpsell({
+                        title: 'El correo de los asesores',
+                        message:
+                          'La dirección de cada asesor del grupo, para escribir a quien prepara el expediente y no solo a quien lo defiende. Disponible en el plan Pro.',
+                      })
+                    }
+                  />
+                </div>
+              ))
+            )}
+            {asesoresFiltrados.length > 0 && asesoresFiltrados.length < asesores.length && (
+              <div style={{ fontSize: 11.5, color: '#888', paddingTop: 12 }}>
+                {asesoresFiltrados.length} de {asesores.length} asesores
+              </div>
+            )}
+            {asesores.length > 0 && asesoresFiltrados.length === asesores.length && (
+              <div style={{ fontSize: 10.5, color: '#aaa', paddingTop: 12 }}>
+                {asesoresConCorreo} de {asesores.length} con correo localizado.
+              </div>
+            )}
+          </div>
+        </>
+      )}
+
       <div style={{ marginTop: 20, fontSize: 11, color: '#999', display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
         <i className="ti ti-shield-check" style={{ fontSize: 13 }}></i>
-        Datos abiertos del Congreso de los Diputados.
+        {tab === 'equipo'
+          ? 'Nombramientos publicados en el Boletín Oficial de las Cortes Generales.'
+          : 'Datos abiertos del Congreso de los Diputados.'}
       </div>
+
+      {upsell && (
+        <UpgradeModal title={upsell.title} message={upsell.message} onClose={() => setUpsell(null)} />
+      )}
     </div>
   );
 }
