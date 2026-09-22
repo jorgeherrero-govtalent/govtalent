@@ -2,11 +2,11 @@
   "crons": [
     {
       "path": "/api/sync/boe",
-      "schedule": "0 5 * * *"
+      "schedule": "0 6 * * *"
     },
     {
       "path": "/api/sync/boe-cargos",
-      "schedule": "0 6 * * *"
+      "schedule": "30 6 * * *"
     },
     {
       "path": "/api/sync/instituciones",
@@ -18,7 +18,7 @@
     },
     {
       "path": "/api/sync/instituciones-parlamento-europeo",
-      "schedule": "0 6 * * *"
+      "schedule": "15 6 * * *"
     },
     {
       "path": "/api/sync/comision-iniciativas",
@@ -70,7 +70,7 @@
     },
     {
       "path": "/api/alerts/weekly",
-      "schedule": "0 6 * * 1"
+      "schedule": "0 7 * * 1"
     },
     {
       "path": "/api/alerts/daily",
