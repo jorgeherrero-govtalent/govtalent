@@ -402,7 +402,10 @@ function Proyectos() {
   // así que se elige una vez aquí y no en cada registro.
   async function guardarCliente(id) {
     const valor = id || null;
-    setAbierto((prev) => (prev ? { ...prev, client_id: valor } : prev));
+    // `abierto` no es estado: sale de un find sobre `lista`, así que no
+    // hay setAbierto que llamar. Actualizar `proyectos` ya lo recalcula.
+    // Antes se llamaba y lanzaba un ReferenceError que se comía el
+    // update de abajo: el cliente no se guardaba nunca.
     setProyectos((prev) => prev.map((p) => (p.id === abierto.id ? { ...p, client_id: valor } : p)));
     const { error } = await supabase.from('projects').update({ client_id: valor }).eq('id', abierto.id);
     if (error) toast('No se ha podido guardar el cliente');
@@ -1145,7 +1148,19 @@ function Proyectos() {
               <section id="resumen" style={{ scrollMarginTop: 72, marginBottom: 30 }}>
                 {/* El objetivo y los asuntos, juntos: son las dos cosas
                     que contestan "de qué va esto" al abrir el proyecto. */}
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: 24 }}>
+                {/* alignItems start: sin esto las dos columnas se estiran
+                    a la altura de la más alta. Con cuatro asuntos y sus
+                    fases, la columna del objetivo se quedaba con un hueco
+                    en blanco de varios cientos de píxeles bajo el
+                    desplegable de cliente. */}
+                <div
+                  style={{
+                    display: 'grid',
+                    gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))',
+                    gap: 24,
+                    alignItems: 'start',
+                  }}
+                >
                   <div style={{ minWidth: 0 }}>
                     <div style={{ ...ETIQUETA, marginBottom: 7 }}>OBJETIVO</div>
                     <textarea
@@ -1233,6 +1248,11 @@ function Proyectos() {
                   display: 'grid',
                   gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
                   gap: 12,
+                  // Cada tarjeta mide lo que mide su contenido. Son dos
+                  // paneles distintos, no dos elementos comparables: con
+                  // ocho acciones en la agenda y una actividad en el
+                  // registro, igualarlas dejaba media tarjeta en blanco.
+                  alignItems: 'start',
                 }}
               >
                 <div style={{ ...CARD, padding: '16px 18px' }}>
@@ -1263,6 +1283,7 @@ function Proyectos() {
                   display: 'grid',
                   gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
                   gap: 12,
+                  alignItems: 'start',
                 }}
               >
                 <div style={{ ...CARD, padding: '16px 18px' }}>
