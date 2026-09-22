@@ -36,6 +36,14 @@ const RUTA_DIRECTORIO = '/instituciones/directorio';
  * profesional del sector, y no siempre coinciden con lo que devuelve la
  * base de datos.
  *
+ * QUÉ VA DELANTE Y QUÉ VA DETRÁS. El número grande es la unidad
+ * institucional —22 ministerios, 350 diputados, 27 comisarios— y el
+ * volumen de personas va en la etiqueta. Antes estaba al revés en
+ * Ministerios y en la Comisión, y eso hacía dos cosas malas: ponía el
+ * foco en un recuento interno en vez de en la institución, y dejaba las
+ * cinco tarjetas sumando 3.500 cargos cuando el login habla de más de
+ * 12.000. Quien entra por el login y suma lo que ve, resta credibilidad.
+ *
  * Dos discrepancias conocidas a día de hoy:
  *   · deputies devuelve 351 filas y aquí se dice 350, que son los
  *     escaños reales del Congreso. Sobra una fila en la tabla.
@@ -48,13 +56,20 @@ const RUTA_DIRECTORIO = '/instituciones/directorio';
  * la tabla de diputados y haya con qué filtrar las comisiones del PE,
  * esto debería volver a ser una consulta: un número escrito a mano
  * envejece solo y nadie se entera.
+ *
+ * Los separadores de millar de las etiquetas van escritos a mano porque
+ * son parte de la cadena; solo el número grande pasa por
+ * toLocaleString.
  */
 const CIFRAS = {
-  ministerios: { n: 257, etiqueta: 'altos cargos · 22 ministerios' },
-  congreso: { n: 350, etiqueta: 'diputados · 44 comisiones' },
+  ministerios: { n: 22, etiqueta: 'ministerios · 820 altos cargos' },
+  // Los 321 asesores son los mismos que cuentan las tarjetas de grupos
+  // parlamentarios: activos y sin objeción. Si esa cifra se mueve, hay
+  // que tocarla aquí también.
+  congreso: { n: 350, etiqueta: 'diputados · 321 asesores' },
   organismos: { n: 77, etiqueta: 'organismos' },
   parlamentoUe: { n: 720, etiqueta: 'eurodiputados · 22 comisiones' },
-  comisionUe: { n: 2096, etiqueta: 'cargos · 45 direcciones generales' },
+  comisionUe: { n: 27, etiqueta: 'comisarios · 2.096 cargos y funcionarios en DG' },
 };
 
 const CARD = {
