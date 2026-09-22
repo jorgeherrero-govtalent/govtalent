@@ -21,10 +21,10 @@
  * desactualizado, que es justo lo contrario de lo que quiere vender.
  */
 
+import { useTotalDirectorio, formatearTotal } from '@/lib/useTotalDirectorio';
+
 const MORADO = '#6d5aef';
 const BORDE = '#e0dfd8';
-
-const TOTAL = '11.843';
 
 const FILAS = [
   {
@@ -202,6 +202,11 @@ function BarraFiltros() {
 }
 
 export default function DirectorioDemo() {
+  // El total lo cuenta la base de datos. Mientras no ha llegado, las dos
+  // frases que lo usan se escriben sin él en vez de enseñar una cifra
+  // provisional que luego cambia delante de quien está mirando.
+  const total = formatearTotal(useTotalDirectorio());
+
   const th = {
     padding: '11px 18px',
     fontWeight: 700,
@@ -227,13 +232,13 @@ export default function DirectorioDemo() {
           flexWrap: 'wrap',
         }}
       >
-        <span style={{ fontSize: 12, color: '#999' }}>{TOTAL} resultados</span>
+        <span style={{ fontSize: 12, color: '#999' }}>{total ? `${total} resultados` : 'Resultados'}</span>
         {/* De donde salen los datos, a la vista y no en letra pequena al
             pie: en un directorio de contactos la procedencia es parte de
             lo que se compra, no una nota legal. */}
         <span style={{ fontSize: 11.5, color: '#8a897f', display: 'inline-flex', alignItems: 'center', gap: 6 }}>
           <i className="ti ti-circle-check" style={{ fontSize: 14, color: '#1d6f5c' }}></i>
-          Fuentes oficiales · DIR3, BOE, congreso.es y portales de la UE · actualizado semanalmente
+          Fuentes oficiales · DIR3, BOE, BOCG, congreso.es y portales de la UE · actualizado semanalmente
         </span>
       </div>
 
@@ -333,7 +338,8 @@ export default function DirectorioDemo() {
       </div>
 
       {/* Cierre. El número es el argumento: lo que se ve arriba son diez
-          filas, lo que se compra son casi doce mil. */}
+          filas, lo que se compra es el directorio entero. La cifra la
+          cuenta la base de datos, no está escrita aquí. */}
       <div
         style={{
           background: '#15140f',
@@ -349,15 +355,16 @@ export default function DirectorioDemo() {
       >
         <div>
           <div style={{ fontSize: 14.5, color: '#fff', lineHeight: 1.5 }}>
-            Estás viendo 8 de {TOTAL} personas.
+            {total ? `Estás viendo 8 de ${total} personas.` : 'Estás viendo 8 personas del directorio.'}
           </div>
           <div style={{ fontSize: 12.5, color: '#a8a49c', marginTop: 4 }}>
             Cargos y asesores de ministerios, organismos, Congreso, Comisión Europea y Parlamento
             Europeo, con su correo, su unidad y su dirección postal. Filtrable y exportable a Excel.
           </div>
           <div style={{ fontSize: 12, color: '#8a8680', marginTop: 8 }}>
-            Construido solo con fuentes oficiales y contrastado con los nombramientos del BOE. Cada
-            ficha guarda de dónde sale el dato y cuándo se capturó.
+            Construido solo con fuentes oficiales: los cargos se contrastan con los nombramientos del
+            BOE y los asesores del Congreso salen del BOCG, Serie D. Cada ficha guarda de dónde sale
+            el dato y cuándo se capturó.
           </div>
         </div>
         <span style={{ fontSize: 12.5, color: '#8f7ff5', fontWeight: 600, whiteSpace: 'nowrap' }}>
