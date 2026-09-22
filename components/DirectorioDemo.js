@@ -352,8 +352,8 @@ export default function DirectorioDemo() {
             Estás viendo 8 de {TOTAL} personas.
           </div>
           <div style={{ fontSize: 12.5, color: '#a8a49c', marginTop: 4 }}>
-            Ministerios, organismos, Congreso, Comisión Europea y Parlamento Europeo, con su correo,
-            su unidad y su dirección postal. Filtrable y exportable a Excel.
+            Cargos y asesores de ministerios, organismos, Congreso, Comisión Europea y Parlamento
+            Europeo, con su correo, su unidad y su dirección postal. Filtrable y exportable a Excel.
           </div>
           <div style={{ fontSize: 12, color: '#8a8680', marginTop: 8 }}>
             Construido solo con fuentes oficiales y contrastado con los nombramientos del BOE. Cada
