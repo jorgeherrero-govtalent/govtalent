@@ -8,9 +8,12 @@
 // alertas— no recibía nunca nada.
 //
 // QUÉ LLEVA, EN ESTE ORDEN:
-//   1. Plazos de lo que sigues (solo si sigues algo)
-//   2. Novedades de lo que sigues
-//   3. Lo publicado en el BOE esta semana, de tus temas
+//   1. Lo que CIERRA en los próximos siete días, de lo que sigues o de
+//      tus temas. Va primero porque es lo único sobre lo que todavía se
+//      puede hacer algo un lunes por la mañana.
+//   2. Plazos más lejanos de lo que sigues, sin repetir lo de arriba
+//   3. Lo publicado en el BOE en los últimos siete días, de tus temas
+//   4. Novedades de lo que sigues
 //
 // El tercer bloque es la base y nunca está vacío: el BOE publica a
 // diario. Los dos primeros son el extra de quien tiene seguimientos.
@@ -39,9 +42,31 @@ export const maxDuration = 60;
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://govtalent.app';
 const PRESUPUESTO_MS = 45000;
 
-// Cuántos días atrás se miran los cambios. Una semana más un día de
-// margen, por si el proceso falló el lunes anterior.
+// Cuántos días atrás se miran los CAMBIOS de lo que se sigue. Una semana
+// más un día de margen, por si el proceso falló el lunes anterior. El
+// margen no duplica nada porque `alert_deliveries` descarta los eventos
+// ya enviados.
 const VENTANA_DIAS = 8;
+
+// El BOE, en cambio, se mira a siete días exactos.
+//
+// No pasa por `alert_deliveries` —se filtra solo por fecha—, así que con
+// la ventana de ocho y un envío cada siete, lo publicado el lunes
+// anterior salía dos veces: en su correo y en el siguiente. Con el sync
+// a las 8:00 y el correo a las 9:00, ese día repetido es además el más
+// reciente y el más visible.
+const VENTANA_BOE_DIAS = 7;
+
+// Qué se considera "esta semana" para lo que está por vencer.
+const HORIZONTE_DIAS = 7;
+
+// Topes por bloque. El correo se lee en el móvil un lunes a las nueve:
+// si hay que hacer scroll dos pantallas, no se lee.
+const TOPE_ESTA_SEMANA = 5;
+const TOPE_PLAZOS = 4;
+const TOPE_BOE = 5;
+const TOPE_BOE_SIN_TEMAS = 3;
+const TOPE_NOVEDADES = 5;
 
 // De dónde viene cada plazo, según el tipo de lo que se sigue. Antes todo lo
 // que no era una ley salía como «Comisión Europea».
@@ -54,6 +79,27 @@ const FUENTE_POR_TIPO = {
   procedimiento: 'Parlamento Europeo',
   consulta: 'Consulta pública',
 };
+
+/**
+ * Si un texto toca alguna de las palabras clave del usuario.
+ *
+ * Palabra completa y no trozo: sin el \b, "gas" pescaría "gastos". Sin
+ * palabras no hay criterio, así que devuelve false y decide quien llama
+ * qué hacer con eso.
+ */
+function tocaTemas(texto, palabras) {
+  if (!palabras || palabras.length === 0) return false;
+  const t = String(texto || '').toLowerCase();
+  return palabras.some((p) => new RegExp(`\\b${p.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`).test(t));
+}
+
+/** Días que faltan hasta una fecha, redondeando hacia arriba. */
+function diasHasta(iso) {
+  if (!iso) return null;
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return null;
+  return Math.max(0, Math.ceil((d.getTime() - Date.now()) / 86400000));
+}
 
 function admin() {
   return createClient(process.env.NEXT_PUBLIC_SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY, {
@@ -102,6 +148,9 @@ async function handler(request) {
 
   try {
     const desde = new Date(Date.now() - VENTANA_DIAS * 86400000).toISOString();
+    const desdeBoe = new Date(Date.now() - VENTANA_BOE_DIAS * 86400000).toISOString().slice(0, 10);
+    const hoy = new Date().toISOString().slice(0, 10);
+    const hasta = new Date(Date.now() + HORIZONTE_DIAS * 86400000).toISOString().slice(0, 10);
 
     // Quién sigue algo. Se agrupa en memoria porque son pocos usuarios y
     // así se evita una consulta por persona.
@@ -150,13 +199,33 @@ async function handler(request) {
     const { data: boeSemana } = await supabase
       .from('boe_directory')
       .select('id, slug, titulo, departamento, rango, sector, sectores, seccion, fecha_publicacion')
-      .gte('fecha_publicacion', desde.slice(0, 10))
+      .gte('fecha_publicacion', desdeBoe)
       // Solo I y III: disposiciones generales y otras disposiciones. La
       // II son nombramientos y ceses, que ocupan sitio en un resumen
       // semanal sin afectar a casi nadie.
       .in('seccion', ['1', '3'])
       .order('fecha_publicacion', { ascending: false })
       .limit(200);
+
+    // Lo que cierra en los próximos siete días, de las cinco fuentes.
+    //
+    // Sale de `regulatorio_search`, que es la vista que ya unifica
+    // Congreso, Comisión Europea, Parlamento Europeo, consultas y BOE con
+    // un `plazo` y una `ruta` por fila. Se pide una vez para todos y
+    // luego se reparte por usuario, igual que el BOE.
+    //
+    // NO SE FILTRA POR `activo` a propósito. Ese filtro es durísimo —de
+    // 4.116 expedientes solo cinco lo cumplen, según sql/49— y aquí
+    // sobra: tener plazo entre hoy y dentro de siete días ya es la
+    // definición de estar vivo.
+    const { data: venceSemana } = await supabase
+      .from('regulatorio_search')
+      .select('kind, ref_id, titulo, fuente, ruta, plazo')
+      .not('plazo', 'is', null)
+      .gte('plazo', hoy)
+      .lte('plazo', hasta)
+      .order('plazo', { ascending: true })
+      .limit(300);
 
     // Los temas de cada usuario, con sus palabras clave: es lo que
     // decide qué parte del BOE le toca.
@@ -222,6 +291,8 @@ async function handler(request) {
           detail: e.detail,
           ruta: '/seguimiento',
           fuente: null,
+          // Para poder cruzarlo con lo que ya sale en «cierra esta semana».
+          clave: `${e.kind}|${e.ref_id}`,
         };
         if (e.event_type === 'plazo_proximo') {
           // El número de días viene en el texto: "Quedan 7 días de plazo"
@@ -240,13 +311,8 @@ async function handler(request) {
       const palabras = misTemas.flatMap((t) => (t.keywords || []).map((k) => k.toLowerCase()));
 
       const publicado = (boeSemana || [])
-        .filter((d) => {
-          if (palabras.length === 0) return true;
-          const titulo = String(d.titulo || '').toLowerCase();
-          // Palabra completa, no trozo: sin esto "gas" pescaría "gastos".
-          return palabras.some((p) => new RegExp(`\\b${p.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`).test(titulo));
-        })
-        .slice(0, 6)
+        .filter((d) => (palabras.length === 0 ? true : tocaTemas(d.titulo, palabras)))
+        .slice(0, palabras.length === 0 ? TOPE_BOE_SIN_TEMAS : TOPE_BOE)
         .map((d) => ({
           title: d.titulo,
           detail: [d.rango, d.departamento].filter(Boolean).join(' · '),
@@ -254,17 +320,44 @@ async function handler(request) {
           sector: d.sector || null,
         }));
 
-      // Solo se salta a quien no tiene absolutamente nada: ni plazos, ni
-      // novedades, ni BOE. Con el BOE publicando a diario, eso es raro.
-      if (plazos.length === 0 && novedades.length === 0 && publicado.length === 0) {
+      // Lo que cierra en los próximos siete días y además es suyo: o lo
+      // sigue, o toca uno de sus temas. Sin ese doble filtro esto sería
+      // el calendario del regulatorio entero, que no es un correo
+      // personal sino un boletín.
+      const cierranSuyos = (venceSemana || [])
+        .filter((r) => claves.has(`${r.kind}|${r.ref_id}`) || tocaTemas(r.titulo, palabras))
+        .slice(0, TOPE_ESTA_SEMANA);
+
+      const estaSemana = cierranSuyos.map((r) => ({
+        title: r.titulo,
+        ruta: r.ruta || '/seguimiento',
+        fuente: r.fuente || FUENTE_POR_TIPO[r.kind] || null,
+        dias: diasHasta(r.plazo),
+      }));
+
+      // Lo que ya sale arriba no se repite abajo. El bloque de plazos se
+      // queda con lo que vence más allá de esta semana, que es lo que
+      // justifica que sean dos bloques y no uno.
+      const yaArriba = new Set(cierranSuyos.map((r) => `${r.kind}|${r.ref_id}`));
+      const plazosRestantes = plazos.filter((x) => !yaArriba.has(x.clave));
+
+      // Solo se salta a quien no tiene absolutamente nada. Con el BOE
+      // publicando a diario, eso es raro.
+      if (
+        estaSemana.length === 0 &&
+        plazosRestantes.length === 0 &&
+        novedades.length === 0 &&
+        publicado.length === 0
+      ) {
         sinNada += 1;
         continue;
       }
 
       const { subject, html } = weeklyDigestEmail({
         firstName: u.first_name || '',
-        novedades: novedades.slice(0, 8),
-        plazos: plazos.slice(0, 6),
+        estaSemana,
+        novedades: novedades.slice(0, TOPE_NOVEDADES),
+        plazos: plazosRestantes.slice(0, TOPE_PLAZOS),
         publicado,
         totalSeguidos: sigue.length,
         sinTemas: palabras.length === 0,
@@ -275,9 +368,11 @@ async function handler(request) {
         user_id: userId,
         email: u.email,
         subject,
-        plazos: plazos.length,
+        esta_semana: estaSemana.length,
+        plazos: plazosRestantes.length,
         novedades: novedades.length,
         publicado: publicado.length,
+        sin_temas: palabras.length === 0,
       });
 
       if (!dry) {
