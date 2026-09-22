@@ -1020,6 +1020,21 @@ function Proyectos() {
       <style>{`
         .gt-proyecto { display: grid; grid-template-columns: minmax(0,1fr) minmax(0,168px); gap: 26px; }
         @media (max-width: 900px) { .gt-proyecto { grid-template-columns: minmax(0,1fr); gap: 0; } }
+
+        /* Agenda, registro, documentos y notas.
+
+           Antes eran dos rejillas de una fila cada una, y una rejilla
+           iguala la altura de sus celdas: con ocho acciones en la agenda
+           y una actividad en el registro, media tarjeta se quedaba en
+           blanco. Poner align-items en start tampoco valía — el hueco
+           salía de dentro de la tarjeta y aparecía justo debajo.
+
+           Aquí no hay filas que igualar: son dos columnas independientes
+           y cada tarjeta empieza donde acaba la anterior. No hay hueco
+           posible, con el contenido que sea. */
+        .gt-paneles { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 12px; align-items: start; }
+        .gt-panel-col { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+        @media (max-width: 720px) { .gt-paneles { grid-template-columns: minmax(0,1fr); } }
       `}</style>
 
       {/* Cabecera: el título es el selector de proyecto, y las acciones
@@ -1240,62 +1255,40 @@ function Proyectos() {
                   la agenda es el método de cada uno y es opcional; el
                   registro es la obligación del RDL 21/2026. Juntarlas en
                   pestañas obligaba a decidir en cuál mirar. */}
-              <section
-                id="actividad"
-                style={{
-                  scrollMarginTop: 72,
-                  marginBottom: 30,
-                  display: 'grid',
-                  gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
-                  gap: 12,
-                  // Cada tarjeta mide lo que mide su contenido. Son dos
-                  // paneles distintos, no dos elementos comparables: con
-                  // ocho acciones en la agenda y una actividad en el
-                  // registro, igualarlas dejaba media tarjeta en blanco.
-                  alignItems: 'start',
-                }}
-              >
-                <div style={{ ...CARD, padding: '16px 18px' }}>
-                  <div style={{ ...ETIQUETA, marginBottom: 4 }}>AGENDA</div>
-                  <p style={{ fontSize: 11.5, color: '#888', margin: '0 0 12px', lineHeight: 1.5 }}>
-                    Anota lo que hay que hacer y cuándo.
-                  </p>
-                  <AgendaProyecto projectId={abierto.id} />
+              {/* Los cuatro paneles fluyen en dos columnas. Los ids de
+                  ancla viajan con la tarjeta que abre cada sección, que
+                  es lo que observa el índice lateral. */}
+              <div className="gt-paneles" style={{ marginBottom: 10 }}>
+                <div className="gt-panel-col">
+                  <div id="actividad" style={{ scrollMarginTop: 72, ...CARD, padding: '16px 18px' }}>
+                    <div style={{ ...ETIQUETA, marginBottom: 4 }}>AGENDA</div>
+                    <p style={{ fontSize: 11.5, color: '#888', margin: '0 0 12px', lineHeight: 1.5 }}>
+                      Anota lo que hay que hacer y cuándo.
+                    </p>
+                    <AgendaProyecto projectId={abierto.id} />
+                  </div>
+
+                  <div id="documentos" style={{ scrollMarginTop: 72, ...CARD, padding: '16px 18px' }}>
+                    <div style={{ ...ETIQUETA, marginBottom: 12 }}>DOCUMENTOS</div>
+                    <DocumentosProyecto projectId={abierto.id} userId={user.id} />
+                  </div>
                 </div>
 
-                <div style={{ ...CARD, padding: '16px 18px' }}>
-                  <div style={{ ...ETIQUETA, marginBottom: 4 }}>REGISTRO</div>
-                  <p style={{ fontSize: 11.5, color: '#888', margin: '0 0 12px', lineHeight: 1.5 }}>
-                    Deja constancia de cada actividad con la Administración.
-                  </p>
-                  <ActividadProyecto projectId={abierto.id} userId={user.id} />
-                </div>
-              </section>
+                <div className="gt-panel-col">
+                  <div style={{ ...CARD, padding: '16px 18px' }}>
+                    <div style={{ ...ETIQUETA, marginBottom: 4 }}>REGISTRO</div>
+                    <p style={{ fontSize: 11.5, color: '#888', margin: '0 0 12px', lineHeight: 1.5 }}>
+                      Deja constancia de cada actividad con la Administración.
+                    </p>
+                    <ActividadProyecto projectId={abierto.id} userId={user.id} />
+                  </div>
 
-              {/* Documentos y notas, una al lado de la otra: ninguna
-                  de las dos necesita el ancho entero, y juntas se leen
-                  como lo que son — el material del proyecto. */}
-              <section
-                id="documentos"
-                style={{
-                  scrollMarginTop: 72,
-                  marginBottom: 10,
-                  display: 'grid',
-                  gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
-                  gap: 12,
-                  alignItems: 'start',
-                }}
-              >
-                <div style={{ ...CARD, padding: '16px 18px' }}>
-                  <div style={{ ...ETIQUETA, marginBottom: 12 }}>DOCUMENTOS</div>
-                  <DocumentosProyecto projectId={abierto.id} userId={user.id} />
+                  <div style={{ ...CARD, padding: '16px 18px' }}>
+                    <div style={{ ...ETIQUETA, marginBottom: 12 }}>NOTAS</div>
+                    <NotasProyecto projectId={abierto.id} userId={user.id} />
+                  </div>
                 </div>
-
-                <div style={{ ...CARD, padding: '16px 18px' }}>
-                  <div style={{ ...ETIQUETA, marginBottom: 12 }}>NOTAS</div>
-                  <NotasProyecto projectId={abierto.id} userId={user.id} />
-                </div>
-              </section>
+              </div>
 
             </>
           )}
