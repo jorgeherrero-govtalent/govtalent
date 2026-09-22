@@ -620,7 +620,7 @@ export default function DirectorioInstitucionalPage() {
         {modalUpsell && (
           <UpgradeModal
             title="El directorio institucional es una función Teams"
-            message="Casi doce mil cargos de la Administración General del Estado, el Congreso, la Comisión Europea y el Parlamento Europeo, con su correo, su unidad y su dirección postal. Filtra por institución o área y expórtalo a Excel cuando lo necesites."
+            message="Más de doce mil cargos y asesores de la Administración General del Estado, el Congreso, la Comisión Europea y el Parlamento Europeo, con su correo, su unidad y su dirección postal. Filtra por institución o área y expórtalo a Excel cuando lo necesites."
             href="/precios?para=organizaciones"
             onClose={() => setModalUpsell(false)}
           />
