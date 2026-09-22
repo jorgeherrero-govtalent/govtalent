@@ -202,7 +202,7 @@ export default function InstitutionsPage() {
           href="/institutions/comisiones"
           pais="es"
           titulo="Congreso de los Diputados"
-          descripcion="Comisiones, diputados, órganos de gobierno y grupos parlamentarios."
+          descripcion="Comisiones, diputados, órganos de gobierno, grupos parlamentarios y sus asesores."
           cifra={CIFRAS.congreso.n}
           etiqueta={CIFRAS.congreso.etiqueta}
         />
