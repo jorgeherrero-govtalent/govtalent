@@ -194,7 +194,6 @@ export default function GroupDetailPage() {
   const { slug } = useParams();
 
   const [grupo, setGrupo] = useState(undefined);
-  const [comisiones, setComisiones] = useState([]);
   const [portavoces, setPortavoces] = useState([]);
   const [aliados, setAliados] = useState([]);
   const [ultimas, setUltimas] = useState([]);
@@ -228,7 +227,6 @@ export default function GroupDetailPage() {
       setGrupo(data);
 
       const [
-        { data: com },
         { data: pv },
         { data: al },
         { data: ult },
@@ -236,12 +234,6 @@ export default function GroupDetailPage() {
         { data: auth },
         { data: staff },
       ] = await Promise.all([
-          supabase
-            .from('group_committees')
-            .select('*')
-            .eq('group_id', data.group_id)
-            .order('n_vivas', { ascending: false })
-            .limit(30),
           supabase
             .from('group_spokespersons')
             .select('*')
@@ -283,7 +275,6 @@ export default function GroupDetailPage() {
         ]);
 
       if (cancelled) return;
-      setComisiones(com || []);
       setPortavoces(pv || []);
       setAliados(al || []);
       // Con los expedientes en mano se piden los que siguen vivos, ya
@@ -372,9 +363,6 @@ export default function GroupDetailPage() {
     }
     return l;
   }, [diputados, buscarDiputado, circunscripcion, soloDestacados, conPortavocia]);
-
-  // Para las barras: la comisión con más actividad marca el 100%
-  const maxVivas = useMemo(() => Math.max(1, ...comisiones.map((c) => c.n_vivas || 0)), [comisiones]);
 
   // Las categorías salen de los propios datos y no de una lista fija:
   // el BOCG usa "Asistente", "Asistente A", "Asistente técnico B" y
@@ -525,26 +513,6 @@ export default function GroupDetailPage() {
 
       {tab === 'resumen' && (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 12 }}>
-          {comisiones.length > 0 && (
-            <div style={CARD}>
-              <div style={LABEL}>Dónde concentra su actividad</div>
-              {comisiones.slice(0, 5).map((c) => (
-                <div key={c.comision} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '7px 0' }}>
-                  <div style={{ flex: 1, minWidth: 0, fontSize: 12 }}>{limpiarComision(c.comision)}</div>
-                  <div style={{ width: 76, height: 5, background: '#f0efe9', borderRadius: 3, overflow: 'hidden', flexShrink: 0 }}>
-                    <div style={{ width: `${(c.n_vivas / maxVivas) * 100}%`, height: '100%', background: color }}></div>
-                  </div>
-                  <span style={{ fontSize: 11, color: '#666', width: 34, textAlign: 'right', flexShrink: 0 }}>
-                    {c.n_vivas}
-                  </span>
-                </div>
-              ))}
-              <div style={{ fontSize: 10.5, color: '#aaa', paddingTop: 10 }}>
-                De {(grupo.n_vivas || 0).toLocaleString('es-ES')} en trámite en {comisiones.length} comisiones.
-              </div>
-            </div>
-          )}
-
           {portavoces.length > 0 && (
             <div style={CARD}>
               <div style={LABEL}>A quién dirigirte</div>
@@ -626,7 +594,7 @@ export default function GroupDetailPage() {
             </div>
           )}
 
-          {comisiones.length === 0 && portavoces.length === 0 && (
+          {portavoces.length === 0 && ultimas.length === 0 && aliados.length === 0 && asesores.length === 0 && (
             <div className="card" style={{ gridColumn: '1 / -1' }}>
               <div className="empty-state">
                 <i className="ti ti-file-off"></i>
