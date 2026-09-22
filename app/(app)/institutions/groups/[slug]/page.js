@@ -10,6 +10,7 @@ import FollowButton from '@/components/FollowButton';
 import UpgradeModal from '@/components/UpgradeModal';
 import usePlanPro from '@/lib/usePlanPro';
 import { groupColor, grupoCorto } from '@/lib/grupos';
+import LogoGrupo from '@/components/LogoGrupo';
 
 /**
  * Ficha de un grupo parlamentario.
@@ -448,20 +449,7 @@ export default function GroupDetailPage() {
       <div style={{ ...CARD, marginBottom: 14 }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 14, flexWrap: 'wrap' }}>
           <div style={{ display: 'flex', gap: 14, alignItems: 'flex-start', minWidth: 200, flex: 1 }}>
-            <span
-              style={{
-                width: 56,
-                height: 56,
-                borderRadius: 12,
-                background: `${color}18`,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                flexShrink: 0,
-              }}
-            >
-              <span style={{ width: 20, height: 20, borderRadius: 4, background: color }}></span>
-            </span>
+            <LogoGrupo nombre={grupo.name} color={color} size={56} radius={12} />
             <div style={{ minWidth: 0 }}>
               <h1 style={{ fontSize: 17, fontWeight: 700, margin: 0, lineHeight: 1.3 }}>{grupo.name}</h1>
               <div style={{ fontSize: 12, color: '#555', marginTop: 5, lineHeight: 1.6 }}>
