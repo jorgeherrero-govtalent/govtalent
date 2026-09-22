@@ -638,12 +638,12 @@ function iniciales(nombre) {
     .toUpperCase();
 }
 
-// Las nueve clases de actor agrupadas en tres familias, que es como se
+// Las diez clases de actor agrupadas en tres familias, que es como se
 // buscan de verdad: o buscas a una persona, o a una organización, o a un
 // órgano.
 const FAMILIAS = {
   todos: { label: 'Todos', kinds: [] },
-  personas: { label: 'Personas', kinds: ['diputado', 'eurodiputado', 'comisario', 'cargo'] },
+  personas: { label: 'Personas', kinds: ['diputado', 'eurodiputado', 'comisario', 'cargo', 'asesor'] },
   organizaciones: { label: 'Organizaciones', kinds: ['organizacion'] },
   organos: { label: 'Órganos', kinds: ['comision', 'comision-eu', 'grupo', 'direccion'] },
 };
