@@ -282,7 +282,11 @@ export default function Home() {
         // fecha_fin: repetir ese cálculo aquí sería garantizar que algún
         // día dejen de coincidir.
         supabase.from('consultas_estado').select('*', { count: 'exact', head: true }).in('estado', ['abierta', 'urgente']),
-        supabase.from('boe_documents').select('id', { count: 'exact', head: true }).eq('fecha_publicacion', hoy),
+        // Sobre boe_directory y no sobre boe_documents: la tabla está
+        // detrás de RLS y desde el cliente el recuento salía vacío, así
+        // que la cifra del BOE se quedaba en 0 con el sumario cargado.
+        // Es la misma vista que ya alimenta /boe.
+        supabase.from('boe_directory').select('id', { count: 'exact', head: true }).eq('fecha_publicacion', hoy),
 
 
         // Las tres fuentes que deciden la tarjeta grande, en paralelo y
@@ -554,7 +558,13 @@ export default function Home() {
         >
           {urgente ? (
             <>
-              <div>
+              {/* Altura reservada y títulos recortados a dos líneas: el
+                  nombre oficial de una ley puede ocupar tres renglones y
+                  el de una consulta uno, y con la altura suelta esta
+                  tarjeta y la de al lado subían y bajaban según qué
+                  asunto tocara ese día. El título completo sigue estando
+                  en el atributo title. */}
+              <div className="urgente-texto">
                 <span
                   style={{
                     display: 'inline-block',
@@ -575,14 +585,24 @@ export default function Home() {
                         : 'Lo más urgente'}
                 </span>
                 <Link href={urgente.ruta} style={{ textDecoration: 'none', color: 'inherit', display: 'block' }}>
-                  <div style={{ fontSize: 19, lineHeight: 1.4, fontWeight: 600, letterSpacing: '-.2px' }}>
+                  <div
+                    className="clamp-2"
+                    title={urgente.title}
+                    style={{ fontSize: 19, lineHeight: 1.4, fontWeight: 600, letterSpacing: '-.2px' }}
+                  >
                     {urgente.title}
                   </div>
                 </Link>
                 {urgente.motivo ? (
-                  <div style={{ fontSize: 13, color: '#8b8780', lineHeight: 1.6, paddingTop: 10 }}>{urgente.motivo}</div>
+                  <div
+                    className="clamp-2"
+                    title={urgente.motivo}
+                    style={{ fontSize: 13, color: '#8b8780', lineHeight: 1.6, paddingTop: 10 }}
+                  >
+                    {urgente.motivo}
+                  </div>
                 ) : urgente.temas && urgente.temas.length > 0 ? (
-                  <div style={{ fontSize: 13, color: '#8b8780', lineHeight: 1.6, paddingTop: 10 }}>
+                  <div className="clamp-2" style={{ fontSize: 13, color: '#8b8780', lineHeight: 1.6, paddingTop: 10 }}>
                     Toca {urgente.temas.slice(0, 2).join(' y ')}.
                   </div>
                 ) : null}
