@@ -63,6 +63,53 @@ function iniciales(nombre) {
     .toUpperCase();
 }
 
+// Palabras que no distinguen a nadie. Sin esta lista, los nueve grupos
+// del Congreso comparten monograma: «Grupo Parlamentario Socialista»,
+// «…Popular» y «…VOX» salen los tres como GP, y un mapa con cinco
+// grupos enseña cinco cuadraditos idénticos.
+const VACIAS = new Set([
+  'grupo', 'parlamentario', 'parlamentaria', 'comision', 'comisión', 'congreso',
+  'senado', 'direccion', 'dirección', 'general', 'de', 'del', 'la', 'el', 'los',
+  'las', 'y', 'en', 'para', 'por', 'per',
+]);
+
+/**
+ * El monograma de una institución.
+ *
+ * Tres reglas, en orden. Si el identificador del directorio ya es un
+ * código corto —ITRE, IMCO, CNECT, ENER—, ese código ES el nombre
+ * corto y no hay que inventar nada. Si el nombre trae una sigla entre
+ * paréntesis o en mayúsculas, se respeta. Y si no, se abrevia la
+ * primera palabra que signifique algo.
+ *
+ * No se deducen siglas de partido: «Socialista» da SOC, no PSOE. El
+ * grupo parlamentario y el partido no son la misma cosa y no nos toca
+ * a nosotros decidirlo.
+ */
+function siglaInstitucion(actor) {
+  const ref = String(actor?.ref_id || '').trim();
+  if (ref.length >= 2 && ref.length <= 6 && ref === ref.toUpperCase() && /^[A-Z0-9]+$/.test(ref)) {
+    return ref;
+  }
+
+  const n = String(actor?.nombre || '').trim();
+  const parentesis = n.match(/\(([^)]{2,14})\)/);
+  if (parentesis) {
+    const limpio = parentesis[1].replace(/[^A-Za-zÁÉÍÓÚÜÑ]/g, '');
+    if (limpio.length >= 2) return limpio.slice(-3).toUpperCase();
+  }
+
+  const palabras = n.split(/[\s.,()–—-]+/).filter(Boolean).filter((p) => !VACIAS.has(p.toLowerCase()));
+  if (palabras.length === 0) return iniciales(n);
+
+  const mayusculas = palabras.find((p) => p.length >= 2 && p === p.toUpperCase());
+  if (mayusculas) return mayusculas.slice(0, 3).toUpperCase();
+
+  const primera = palabras[0];
+  if (primera.length >= 4) return primera.slice(0, 3).toUpperCase();
+  return palabras.slice(0, 2).map((p) => p[0]).join('').toUpperCase();
+}
+
 export default function ActorAvatar({ actor, size = 30, atenuado = false, fondo = '#f0f0eb' }) {
   const org = noEsPersona(actor);
   const institucion = esInstitucion(actor);
@@ -107,9 +154,16 @@ export default function ActorAvatar({ actor, size = 30, atenuado = false, fondo 
 
   // --- Organización sin logo: monograma ---------------------------------
   if (org) {
+    // Las instituciones se abrevian con criterio; a una empresa le
+    // bastan sus iniciales, que es como se la nombra de todos modos.
+    const texto = institucion ? siglaInstitucion(actor) : iniciales(actor?.nombre);
+    // Tres letras no caben al mismo cuerpo que dos: el monograma se
+    // encoge en vez de desbordar el cuadrado.
+    const cuerpo = texto.length > 3 ? 0.26 : texto.length > 2 ? 0.3 : 0.37;
     return (
       <div
         aria-hidden="true"
+        title={actor?.nombre || undefined}
         style={{
           ...estiloBase,
           background: fondo,
@@ -117,13 +171,13 @@ export default function ActorAvatar({ actor, size = 30, atenuado = false, fondo 
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          fontSize: Math.round(size * 0.37),
+          fontSize: Math.round(size * cuerpo),
           fontWeight: 600,
           color: atenuado ? '#a8a49c' : '#7a736b',
-          letterSpacing: '.3px',
+          letterSpacing: texto.length > 3 ? 0 : '.3px',
         }}
       >
-        {iniciales(actor?.nombre)}
+        {texto}
       </div>
     );
   }
