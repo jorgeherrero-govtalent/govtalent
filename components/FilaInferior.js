@@ -325,7 +325,7 @@ export default function FilaInferior() {
         <div className="bento" style={{ ...BENTO, padding: '20px 24px', display: 'flex', flexDirection: 'column' }}>
           <div style={{ fontSize: 14, fontWeight: 600, color: '#1a1a18', marginBottom: 3 }}>Quién decide</div>
           <div style={{ fontSize: 11.5, color: '#8b8780', marginBottom: 13 }}>
-            Cargos de la AGE y de las instituciones europeas.
+            Cargos y asesores de la AGE, el Congreso y las instituciones europeas.
           </div>
           <div style={{ flex: 1 }}>
             {CARGOS_MUESTRA.map((c, i) => (
