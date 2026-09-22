@@ -197,9 +197,17 @@ export default function ConfiguracionOrganizacion() {
                   ? 'Inscripción en el Registro de grupos de interés declarada'
                   : 'No has indicado número de inscripción'}
               </div>
+              {/* Sin fecha y sin afirmar que exista obligación. Lo que
+                  había aquí daba por vigente desde el 27 de agosto de
+                  2026 un deber de inscripción, y encima se contradecía
+                  con el comentario de arriba, que dice que el registro
+                  no está operativo. Una pantalla no es sitio para
+                  sostener un estado legal que cambia en el Congreso:
+                  esta frase explica qué hace el campo, que es verdad
+                  pase lo que pase con la norma. */}
               <div style={{ fontSize: 11.5, color: '#888', marginTop: 2, lineHeight: 1.5 }}>
-                Desde el 27 de agosto de 2026, la inscripción en el registro del Consejo de Transparencia es
-                obligatoria para mantener contactos de influencia con la Administración General del Estado.
+                Si tu organización está inscrita en un registro de grupos de interés, anota aquí el número:
+                aparecerá en todas las actas de actividad institucional.
               </div>
             </div>
           </div>
