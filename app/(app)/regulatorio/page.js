@@ -28,6 +28,29 @@ import { createClient } from '@/lib/supabase/client';
 const VERDE = '#1d6f5c';
 const MORADO = '#6d5aef';
 
+/**
+ * El lunes de la semana en curso, en formato YYYY-MM-DD.
+ *
+ * La tarjeta del BOE dice "esta semana" y contaba los siete días
+ * anteriores a hoy, que es otra cosa: un jueves incluía el viernes y el
+ * sábado de la semana pasada. Semana natural de lunes a hoy, que es lo
+ * que el rótulo promete.
+ *
+ * getDay() devuelve 0 para el domingo, así que el domingo hay que
+ * retroceder seis días y no cero: sin ese caso, el domingo la tarjeta se
+ * quedaría contando solo ese día.
+ */
+function lunesDeEstaSemana() {
+  const d = new Date();
+  const dia = d.getDay();
+  d.setDate(d.getDate() - (dia === 0 ? 6 : dia - 1));
+  // Fecha local, no toISOString(): en horario peninsular la conversión a
+  // UTC resta dos horas y antes de las 02:00 devolvería el domingo.
+  const mm = String(d.getMonth() + 1).padStart(2, '0');
+  const dd = String(d.getDate()).padStart(2, '0');
+  return `${d.getFullYear()}-${mm}-${dd}`;
+}
+
 const CARD = {
   background: '#fff',
   borderRadius: 16,
@@ -169,10 +192,15 @@ export default function RegulatorioPage() {
       supabase.from('eu_open_windows').select('id', { count: 'exact', head: true }),
       supabase.from('ep_procedures').select('process_id', { count: 'exact', head: true }).eq('is_closed', false),
       supabase.from('es_initiatives').select('num_expediente', { count: 'exact', head: true }).eq('is_closed', false),
+      // Sobre boe_directory y no sobre boe_documents. La tabla está
+      // detrás de RLS y desde el cliente devolvía un recuento vacío, así
+      // que la tarjeta enseñaba 0 con el BOE cargado; la vista es la
+      // misma que ya alimenta /boe, que sí cuenta. Y la ventana es la
+      // semana natural, que es lo que dice el rótulo.
       supabase
-        .from('boe_documents')
+        .from('boe_directory')
         .select('id', { count: 'exact', head: true })
-        .gte('fecha_publicacion', new Date(Date.now() - 7 * 86400000).toISOString().slice(0, 10)),
+        .gte('fecha_publicacion', lunesDeEstaSemana()),
       // Sobre la vista y no sobre la tabla: el estado se calcula allí a
       // partir de fecha_fin, y repetir ese cálculo aquí es garantizar que
       // algún día dejen de coincidir.
