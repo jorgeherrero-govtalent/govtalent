@@ -453,6 +453,24 @@ a{color:inherit}
   .bento-cifras{grid-template-columns:1fr 1fr!important}
 }
 
+/* Recorte a un número fijo de líneas.
+   Va aquí y no en un style inline porque React se deja por el camino
+   -webkit-box-orient y sin esa propiedad el recorte no se aplica: la
+   línea se ve entera y la tarjeta vuelve a crecer.
+
+   Lo usa la tarjeta de lo más urgente de la home: los títulos de las
+   leyes van de cuatro palabras a tres renglones, y con la altura suelta
+   la fila entera del mosaico subía y bajaba según qué norma tocara. */
+.clamp-2{display:-webkit-box;-webkit-line-clamp:2;line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+
+/* El bloque de texto de esa tarjeta reserva su altura aunque falte el
+   motivo, que es opcional. Sin esto, el pie con el plazo subía cuando
+   el asunto venía de seguimiento y no del análisis. */
+.urgente-texto{min-height:168px}
+@media (max-width: 760px){
+  .urgente-texto{min-height:0}
+}
+
 /* La rejilla del regulatorio: dos columnas fijas para que las seis
    piezas midan igual, y una sola columna en el móvil. */
 @media (max-width: 720px){
