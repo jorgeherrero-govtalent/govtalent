@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { toast } from '@/lib/toast';
 import ActorAvatar, { esOrganizacion } from '@/components/ActorAvatar';
@@ -32,6 +32,167 @@ import {
 const BORDE = '#e0dfd8';
 const MORADO = '#6d5aef';
 
+// El chip tenía el ancho en porcentaje del lienzo — hasta el 44 % —, así
+// que con nombres de razón social cuatro chips llenaban una fila y el
+// mapa se volvía ilegible. Ahora el ancho es fijo y el nombre se recorta.
+const CHIP = {
+  1: { w: 34, h: 34 },
+  2: { w: 168, h: 38 },
+  3: { w: 214, h: 48 },
+};
+// Aire mínimo entre dos chips para que se lean como dos.
+const SEPARACION = 6;
+// El lienzo crece con el número de actores en vez de quedarse en 380
+// pase lo que pase: con veinte no cabían y con cinco sobraba la mitad.
+const ALTOS = [
+  [8, 380],
+  [16, 460],
+  [Infinity, 560],
+];
+
+function medidasChip(t) {
+  return CHIP[t] || CHIP[2];
+}
+
+export function altoLienzo(n) {
+  for (const [hasta, alto] of ALTOS) if (n <= hasta) return alto;
+  return 560;
+}
+
+/**
+ * El nombre que se pinta en el chip.
+ *
+ * El directorio guarda razones sociales completas y en un chip no caben:
+ * «ASOCIACIÓN DE EMPRESAS CON GRAN CONSUMO DE ENERGÍA (AEGE)» recortada
+ * por CSS se queda en «ASOCIACIÓN DE EMPR…», que no identifica a nadie.
+ * El acrónimo del final o lo que va antes del guion sí. El nombre entero
+ * sigue estando en el title y en la ficha.
+ */
+export function nombreCorto(nombre) {
+  const n = String(nombre || '').trim();
+  if (n.length <= 26) return n;
+  const acronimo = n.match(/\(([^)]{2,10})\)\s*$/);
+  if (acronimo) return acronimo[1];
+  const antesDelGuion = n.split(/\s+[-–·]\s+/)[0];
+  if (antesDelGuion.length >= 3 && antesDelGuion.length < n.length) return antesDelGuion;
+  return n;
+}
+
+/**
+ * El encuadre del eje vertical.
+ *
+ * Casi todos los actores de un proyecto real se concentran en una franja
+ * de influencia —en uno de ejemplo, entre 40 y 95—, así que la mitad de
+ * abajo del lienzo quedaba vacía mientras la de arriba se saturaba. El
+ * eje se encuadra al rango que se usa, nunca por debajo de 60 puntos
+ * (comprimirlo más exagera diferencias que no existen) y siempre dentro
+ * de 0-100, para que los extremos se sigan pudiendo alcanzar arrastrando.
+ */
+export function marcoDe(lista) {
+  if (!lista || lista.length === 0) return { lo: 0, hi: 100 };
+  let lo = 100;
+  let hi = 0;
+  for (const a of lista) {
+    const v = Number(a.influencia);
+    const n = Number.isFinite(v) ? v : 50;
+    if (n < lo) lo = n;
+    if (n > hi) hi = n;
+  }
+  const span = Math.min(100, Math.max(60, hi - lo + 20));
+  let bajo = Math.round((lo + hi) / 2 - span / 2);
+  bajo = Math.max(0, Math.min(100 - span, bajo));
+  return { lo: bajo, hi: bajo + span };
+}
+
+// De influencia (0-100) a porcentaje desde arriba, dentro del marco.
+export function topPorcentaje(influencia, marco) {
+  const span = Math.max(1, marco.hi - marco.lo);
+  const v = Number.isFinite(Number(influencia)) ? Number(influencia) : 50;
+  return Math.min(100, Math.max(0, ((marco.hi - v) / span) * 100));
+}
+
+/**
+ * Reparte los chips para que no se pisen.
+ *
+ * Empuja cada pareja que se solapa por el lado que menos cuesta y luego
+ * tira suave de cada uno hacia su sitio real, así que el resultado se
+ * queda lo más cerca posible del dato. El que se está arrastrando no se
+ * mueve nunca: si se apartara del cursor, el gesto parecería roto.
+ *
+ * Devuelve un Map por id con la posición pintada (x, y), la real
+ * (x0, y0) y si hubo que apartarlo, que es lo que dibuja el hilo.
+ */
+export function repartir(lista, marco, W, H, fijoId) {
+  const span = Math.max(1, marco.hi - marco.lo);
+  const nodos = lista.map((a) => {
+    const m = medidasChip(a.tamano || 2);
+    const pos = Number.isFinite(Number(a.posicion)) ? Number(a.posicion) : 50;
+    const inf = Number.isFinite(Number(a.influencia)) ? Number(a.influencia) : 50;
+    const x0 = (pos / 100) * W;
+    const y0 = ((marco.hi - inf) / span) * H;
+    return { id: a.id, w: m.w, h: m.h, x0, y0, x: x0, y: y0, fijo: a.id === fijoId };
+  });
+
+  // 26 arriba deja libre el rótulo de la zona de prioridad.
+  const dentroX = (n) => Math.max(n.w / 2 + 3, Math.min(W - n.w / 2 - 3, n.x));
+  const dentroY = (n) => Math.max(n.h / 2 + 26, Math.min(H - n.h / 2 - 6, n.y));
+
+  for (let paso = 0; paso < 160; paso++) {
+    let choque = false;
+    for (let i = 0; i < nodos.length; i++) {
+      for (let j = i + 1; j < nodos.length; j++) {
+        const A = nodos[i];
+        const B = nodos[j];
+        const sx = (A.w + B.w) / 2 + SEPARACION;
+        const sy = (A.h + B.h) / 2 + SEPARACION;
+        const dx = B.x - A.x;
+        const dy = B.y - A.y;
+        const px = sx - Math.abs(dx);
+        const py = sy - Math.abs(dy);
+        if (px <= 0 || py <= 0) continue;
+        choque = true;
+        const pesoA = A.fijo ? 0 : B.fijo ? 1 : 0.5;
+        const pesoB = B.fijo ? 0 : A.fijo ? 1 : 0.5;
+        if (py / sy < px / sx) {
+          const d = (dy >= 0 ? 1 : -1) * py;
+          A.y -= d * pesoA;
+          B.y += d * pesoB;
+        } else {
+          const d = (dx >= 0 ? 1 : -1) * px;
+          A.x -= d * pesoA;
+          B.x += d * pesoB;
+        }
+      }
+    }
+    for (const n of nodos) {
+      if (!n.fijo) {
+        n.x += (n.x0 - n.x) * 0.06;
+        n.y += (n.y0 - n.y) * 0.06;
+      }
+      n.x = dentroX(n);
+      n.y = dentroY(n);
+    }
+    if (!choque) break;
+  }
+
+  const salida = new Map();
+  for (const n of nodos) {
+    const dx = n.x0 - n.x;
+    const dy = n.y0 - n.y;
+    const lejos = Math.sqrt(dx * dx + dy * dy);
+    salida.set(n.id, {
+      x: n.x,
+      y: n.y,
+      x0: n.x0,
+      y0: n.y0,
+      largo: lejos,
+      angulo: (Math.atan2(dy, dx) * 180) / Math.PI,
+      desviado: lejos > 12,
+    });
+  }
+  return salida;
+}
+
 export default function MapaActores({ projectId, abrirBuscador, onCerrarBuscador }) {
   const supabase = createClient();
   const lienzo = useRef(null);
@@ -53,6 +214,12 @@ export default function MapaActores({ projectId, abrirBuscador, onCerrarBuscador
   // origen, para convertir el arrastre en uno de los tres pasos.
   const medida = useRef({ id: null, x0: 0, base: 2 });
   const [midiendoId, setMidiendoId] = useState(null);
+  // Qué chip se está arrastrando. En un ref no serviría: el reparto se
+  // calcula al pintar y necesita reaccionar.
+  const [arrastrandoId, setArrastrandoId] = useState(null);
+  // El reparto trabaja en píxeles, así que hace falta el ancho real.
+  const [ancho, setAncho] = useState(0);
+  const [marco, setMarco] = useState({ lo: 0, hi: 100 });
   // En un teléfono el plano no cabe y arrastrar choca con el gesto de
   // deslizar la página: se cambia por una lista agrupada. Se mira con
   // matchMedia y no con CSS porque hay que dejar de montar el lienzo,
@@ -66,6 +233,38 @@ export default function MapaActores({ projectId, abrirBuscador, onCerrarBuscador
     return () => mq.removeEventListener('change', aplicar);
   }, []);
   const [hayDeshacer, setHayDeshacer] = useState(false);
+
+  useEffect(() => {
+    const el = lienzo.current;
+    if (!el || typeof ResizeObserver === 'undefined') return undefined;
+    const medir = () => setAncho(el.getBoundingClientRect().width);
+    medir();
+    const ro = new ResizeObserver(medir);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [esMovil]);
+
+  // El encuadre no se recalcula mientras se arrastra: el eje se movería
+  // bajo el cursor y el chip no iría donde se suelta.
+  useEffect(() => {
+    if (arrastrandoId) return;
+    const m = marcoDe(actores);
+    setMarco((prev) => (prev.lo === m.lo && prev.hi === m.hi ? prev : m));
+  }, [actores, arrastrandoId]);
+
+  const alto = altoLienzo(actores.length);
+  // El reparto se rehace también al arrastrar, para que los demás se
+  // aparten en vivo; el que se arrastra va como fijo y no se mueve.
+  const disposicion = useMemo(
+    () =>
+      ancho > 0 && actores.length > 0
+        ? repartir(actores, marco, ancho, alto, arrastrandoId)
+        : null,
+    [actores, marco, ancho, alto, arrastrandoId]
+  );
+  // La línea de influencia 50 dentro del marco: de ella cuelgan la banda
+  // de prioridad y la horizontal de puntos.
+  const lineaMedia = topPorcentaje(50, marco);
 
   const cargar = useCallback(async () => {
     const [{ data: acts }, { data: cats }] = await Promise.all([
@@ -96,6 +295,7 @@ export default function MapaActores({ projectId, abrirBuscador, onCerrarBuscador
   function alPulsar(e, actor) {
     e.preventDefault();
     arrastre.current = { id: actor.id, movido: false };
+    setArrastrandoId(actor.id);
     e.currentTarget.setPointerCapture(e.pointerId);
   }
 
@@ -106,8 +306,12 @@ export default function MapaActores({ projectId, abrirBuscador, onCerrarBuscador
 
     const r = lienzo.current.getBoundingClientRect();
     const x = Math.round(Math.min(100, Math.max(0, ((e.clientX - r.left) / r.width) * 100)));
-    // El eje vertical va al revés: arriba es más influencia.
-    const y = Math.round(Math.min(100, Math.max(0, 100 - ((e.clientY - r.top) / r.height) * 100)));
+    // El eje vertical va al revés: arriba es más influencia. Y va sobre
+    // el marco encuadrado, no sobre 0-100, o el chip no iría al cursor.
+    const span = Math.max(1, marco.hi - marco.lo);
+    const y = Math.round(
+      Math.min(100, Math.max(0, marco.hi - ((e.clientY - r.top) / r.height) * span))
+    );
 
     setActores((prev) => prev.map((a) => (a.id === id ? { ...a, posicion: x, influencia: y } : a)));
   }
@@ -115,6 +319,7 @@ export default function MapaActores({ projectId, abrirBuscador, onCerrarBuscador
   async function alSoltar(e, actor) {
     const { id, movido } = arrastre.current;
     arrastre.current = { id: null, movido: false };
+    setArrastrandoId(null);
     if (e.currentTarget.hasPointerCapture?.(e.pointerId)) {
       e.currentTarget.releasePointerCapture(e.pointerId);
     }
@@ -377,7 +582,7 @@ export default function MapaActores({ projectId, abrirBuscador, onCerrarBuscador
             ref={lienzo}
             style={{
               position: 'relative',
-              height: 380,
+              height: alto,
               background: '#f0f0eb',
               borderRadius: 10,
               overflow: 'hidden',
@@ -387,17 +592,20 @@ export default function MapaActores({ projectId, abrirBuscador, onCerrarBuscador
             <div
               style={{
                 position: 'absolute',
-                left: '33%',
-                right: '26%',
+                // El corte neutral de lib/proyectos es 40-60. La banda
+                // iba de 33 a 74, así que pintaba como prioritarios a
+                // actores que enZonaDePrioridad no considera tales.
+                left: '40%',
+                right: '40%',
                 top: 0,
-                bottom: '58%',
+                bottom: `${100 - lineaMedia}%`,
                 background: '#f0eefe',
               }}
             ></div>
             <div
               style={{
                 position: 'absolute',
-                left: '33%',
+                left: '40%',
                 top: 7,
                 paddingLeft: 9,
                 fontSize: 10.5,
@@ -409,17 +617,50 @@ export default function MapaActores({ projectId, abrirBuscador, onCerrarBuscador
             </div>
 
             <div
-              style={{ position: 'absolute', left: 0, right: 0, top: '50%', borderTop: `.5px dashed #d5d3c9` }}
+              style={{
+                position: 'absolute',
+                left: 0,
+                right: 0,
+                top: `${lineaMedia}%`,
+                borderTop: `.5px dashed #d5d3c9`,
+              }}
             ></div>
             <div
               style={{ position: 'absolute', top: 0, bottom: 0, left: '50%', borderLeft: `.5px dashed #d5d3c9` }}
             ></div>
+
+            {/* Si un chip se ha tenido que apartar para no pisarse con
+                otro, un hilo lo une a su punto real: la posición que se
+                lee sigue siendo la que dice el dato, no la del dibujo. */}
+            {disposicion &&
+              actores.map((a) => {
+                const p = disposicion.get(a.id);
+                if (!p || !p.desviado) return null;
+                return (
+                  <div
+                    key={`hilo-${a.id}`}
+                    style={{
+                      position: 'absolute',
+                      left: Math.round(p.x),
+                      top: Math.round(p.y),
+                      width: Math.round(p.largo),
+                      height: 0,
+                      borderTop: '.5px solid #c9c5bc',
+                      transformOrigin: '0 0',
+                      transform: `rotate(${p.angulo.toFixed(1)}deg)`,
+                      pointerEvents: 'none',
+                    }}
+                  ></div>
+                );
+              })}
 
             {actores.map((a) => {
               const iniciada = a.relacion !== 'sin_contactar';
               const org = esOrganizacion(a);
               const prioritario = enZonaDePrioridad(a);
               const t = a.tamano || 2;
+              const med = medidasChip(t);
+              const pos = disposicion ? disposicion.get(a.id) : null;
               return (
                 <button
                   key={a.id}
@@ -430,9 +671,12 @@ export default function MapaActores({ projectId, abrirBuscador, onCerrarBuscador
                   title={`${a.nombre} · ${posicionLabel(a.posicion)}`}
                   style={{
                     position: 'absolute',
-                    left: `${a.posicion}%`,
-                    top: `${100 - a.influencia}%`,
+                    left: pos ? `${Math.round(pos.x)}px` : `${a.posicion}%`,
+                    top: pos ? `${Math.round(pos.y)}px` : `${topPorcentaje(a.influencia, marco)}%`,
                     transform: 'translate(-50%, -50%)',
+                    width: med.w,
+                    height: med.h,
+                    boxSizing: 'border-box',
                     display: 'flex',
                     alignItems: 'center',
                     gap: t === 1 ? 0 : 8,
@@ -443,11 +687,13 @@ export default function MapaActores({ projectId, abrirBuscador, onCerrarBuscador
                     // El radio del chip también distingue: personas
                     // redondas, organizaciones cuadradas.
                     borderRadius: org ? 10 : 24,
-                    padding: t === 1 ? 4 : t === 3 ? '6px 14px 6px 6px' : '5px 13px 5px 5px',
+                    padding: t === 1 ? 4 : t === 3 ? '0 14px 0 6px' : '0 13px 0 5px',
                     whiteSpace: 'nowrap',
                     cursor: 'grab',
-                    maxWidth: t === 3 ? '52%' : '44%',
                     textAlign: 'left',
+                    // El que se arrastra por encima de todo, y los de la
+                    // zona de prioridad por encima del resto.
+                    zIndex: arrastre.current.id === a.id ? 3 : prioritario ? 2 : 1,
                     boxShadow: iniciada ? '0 1px 3px rgba(0,0,0,.05)' : 'none',
                   }}
                 >
@@ -470,7 +716,7 @@ export default function MapaActores({ projectId, abrirBuscador, onCerrarBuscador
                         textOverflow: 'ellipsis',
                       }}
                     >
-                      {a.nombre}
+                      {nombreCorto(a.nombre)}
                     </span>
                     {/* La segunda línea sale del directorio, no la
                         escribe el usuario: es el cargo y la institución.
@@ -584,6 +830,18 @@ export default function MapaActores({ projectId, abrirBuscador, onCerrarBuscador
             style={{ display: 'inline-block', width: 16, borderTop: '1px dashed #b8b4ac', verticalAlign: 4, marginRight: 5 }}
           ></span>
           Sin contactar
+        </span>
+        <span>
+          <span
+            style={{
+              display: 'inline-block',
+              width: 14,
+              borderTop: '.5px solid #c9c5bc',
+              verticalAlign: 4,
+              marginRight: 5,
+            }}
+          ></span>
+          Hilo al punto exacto
         </span>
         {hayDeshacer ? (
           <button
