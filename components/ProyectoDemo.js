@@ -587,9 +587,8 @@ export default function ProyectoDemo() {
             <span style={{ fontSize: 11.5, color: MORADO }}>+ Registrar</span>
           </div>
           <p style={{ fontSize: 11.5, color: '#888', margin: '0 0 12px', lineHeight: 1.5 }}>
-            Cada reunión con la Administración se registra sola desde lo que ya tienes en el proyecto:
-            eliges la fecha, marcas con quién y el acta sale hecha. Lista para el Registro de Grupos de
-            Interés.
+            Cada reunión con la Administración se registra automáticamente desde lo que ya tienes en el
+            proyecto: eliges la fecha, marcas con quién y el acta sale hecha.
           </p>
           {DEMO.registro.map((r, i) => (
             <div
