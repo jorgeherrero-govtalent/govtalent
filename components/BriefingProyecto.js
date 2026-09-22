@@ -395,9 +395,15 @@ export default function BriefingProyecto({ projectId, userId }) {
       {/* En un teléfono la columna de actores se comía media pantalla:
           se apila y pasa a ser una fila que se desplaza en horizontal. */}
       <style>{`
-        .gt-brief { display: grid; grid-template-columns: minmax(0, 215px) minmax(0, 1fr); }
+        /* align-items: start es lo que evita el hueco: sin eso las dos
+           celdas se estiran a la altura de la más alta, y con veinte
+           actores el carril mide 900 px mientras la ficha mide 400. El
+           resto era relleno en blanco. El carril se desplaza solo. */
+        .gt-brief { display: grid; grid-template-columns: minmax(0, 215px) minmax(0, 1fr); align-items: start; }
+        .gt-brief > div:first-child { max-height: 560px; overflow-y: auto; }
         @media (max-width: 720px) {
           .gt-brief { grid-template-columns: minmax(0, 1fr); }
+          .gt-brief > div:first-child { max-height: none; overflow-y: visible; }
           .gt-brief > div:first-child {
             border-right: none;
             border-bottom: .5px solid ${BORDE};
