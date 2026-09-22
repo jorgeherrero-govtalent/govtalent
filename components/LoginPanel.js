@@ -264,10 +264,18 @@ export default function LoginPanel() {
           <Etiqueta>Consulta quién decide</Etiqueta>
           <div className="bento" style={VENTANA}>
             <div style={TARJETA}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 9 }}>
-                <Bandera pais="es" />
-                <Bandera pais="ue" />
-                <span style={{ fontSize: 11, fontWeight: 600, marginLeft: 3 }}>+11.000 cargos en UE y AGE</span>
+              {/* La frase creció con los asesores del Congreso y ya no
+                  cabe siempre en un renglón, así que las banderas se
+                  alinean arriba y el texto puede partir sin descuadrar
+                  la fila. */}
+              <div style={{ display: 'flex', alignItems: 'flex-start', gap: 6, marginBottom: 9 }}>
+                <span style={{ display: 'flex', gap: 6, paddingTop: 2, flexShrink: 0 }}>
+                  <Bandera pais="es" />
+                  <Bandera pais="ue" />
+                </span>
+                <span style={{ fontSize: 11, fontWeight: 600, marginLeft: 3, lineHeight: 1.35 }}>
+                  +12.000 cargos y asesores en AGE, UE y Congreso
+                </span>
               </div>
               <Cargo
                 avatar="#e8eefb"
