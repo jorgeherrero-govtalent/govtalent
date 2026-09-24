@@ -9,7 +9,8 @@
 //      campo, escribe un evento en follow_events.
 //
 //   2. CALCULA los plazos que vencen. Estos no comparan nada: se miran
-//      las fechas y se avisa a 30, 7 y 1 día. deadline_alerts evita
+//      las fechas y se avisa a 30, 14, 7, 3 y 1 día y el mismo día.
+//      deadline_alerts evita
 //      repetir el mismo aviso cada noche.
 //
 // POR QUÉ ASÍ: los syncs sobrescriben, y sin huella no hay contra qué
@@ -35,8 +36,20 @@ export const maxDuration = 60;
 const PRESUPUESTO_MS = 40000;
 const LOTE = 1000;
 
-// A cuántos días del cierre se avisa
-const AVISOS_PLAZO = [30, 7, 1];
+// A cuántos días del cierre se avisa. El 0 es «cierra hoy»: sin él, el
+// aviso de 1 día y el del mismo día compartían umbral y el segundo no
+// salía nunca.
+const AVISOS_PLAZO = [30, 14, 7, 3, 1, 0];
+
+// Los avisos lejanos (30, 14, 7) no se mandan si ya hubo otro aviso del
+// mismo plazo hace menos de esto. Sin la regla, un asunto que entra con 8
+// días de plazo avisaba «quedan 8» un día y «quedan 7» al siguiente.
+const DIAS_ENTRE_AVISOS_LEJANOS = 3;
+
+// Una ley con tantas prórrogas se trata como bloqueada: sus plazos se
+// amplían cada semana y la escalera completa sonaría cada lunes. Solo se
+// mantienen los avisos de 3 días, 1 y el mismo día.
+const PRORROGAS_BLOQUEADA = 3;
 
 function admin() {
   return createClient(process.env.NEXT_PUBLIC_SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY, {
@@ -168,11 +181,20 @@ function aplicarPlantilla(tpl, antes, ahora) {
     .replace('{ahora}', ahora === null || ahora === undefined ? '—' : String(ahora));
 }
 
+// Días naturales hasta el cierre, en hora de Madrid. Antes se dividían
+// milisegundos entre 86.400.000 y se redondeaba hacia arriba: un plazo
+// que cierra hoy a las 14:00 daba «1 día» por la mañana y, pasado el
+// cierre, -0, que cuenta como >= 0 y hacía saltar «cierra hoy» con el
+// plazo ya cerrado. Ahora se comparan fechas de calendario y lo cerrado
+// devuelve null.
+const DIA_MADRID = new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Madrid' });
 function diasHasta(fecha) {
   if (!fecha) return null;
   const d = new Date(fecha);
   if (Number.isNaN(d.getTime())) return null;
-  return Math.ceil((d.getTime() - Date.now()) / 86400000);
+  const ahora = new Date();
+  if (d.getTime() < ahora.getTime()) return null;
+  return Math.round((Date.parse(DIA_MADRID.format(d)) - Date.parse(DIA_MADRID.format(ahora))) / 86400000);
 }
 
 async function escribir(supabase, tabla, filas, conflicto) {
@@ -296,10 +318,12 @@ async function handler(request) {
         // --- Plazos -----------------------------------------------------
         const plazo = t.plazo(r);
         const dias = diasHasta(plazo);
+        const bloqueada = (Number(r.n_prorrogas) || 0) >= PRORROGAS_BLOQUEADA;
         if (dias !== null && dias >= 0) {
           for (const umbral of AVISOS_PLAZO) {
             // Se avisa cuando cruza el umbral, no cada día por debajo
             if (dias <= umbral && dias > (AVISOS_PLAZO.find((u) => u < umbral) ?? -1)) {
+              if (bloqueada && umbral > 3) break;
               avisosPlazo.push({
                 kind: clave,
                 ref_id: ref,
@@ -330,19 +354,29 @@ async function handler(request) {
     // Los avisos de plazo ya enviados, para no repetirlos
     const clavesAviso = avisosPlazo.map((a) => `${a.kind}|${a.ref_id}|${a.days_before}|${a.deadline}`);
     const yaAvisados = new Set();
+    const ultimoAviso = new Map();
     if (clavesAviso.length > 0) {
       const { data: previos } = await supabase
         .from('deadline_alerts')
-        .select('kind, ref_id, days_before, deadline')
+        .select('kind, ref_id, days_before, deadline, created_at')
         .in('ref_id', avisosPlazo.map((a) => a.ref_id).slice(0, 500));
       for (const p of previos || []) {
         yaAvisados.add(`${p.kind}|${p.ref_id}|${p.days_before}|${p.deadline}`);
+        // El último aviso de cada plazo, para no mandar dos lejanos seguidos
+        const k = `${p.kind}|${p.ref_id}|${p.deadline}`;
+        if (!ultimoAviso.has(k) || p.created_at > ultimoAviso.get(k)) ultimoAviso.set(k, p.created_at);
       }
     }
 
-    const plazosNuevos = avisosPlazo.filter(
-      (a) => !yaAvisados.has(`${a.kind}|${a.ref_id}|${a.days_before}|${a.deadline}`)
-    );
+    const hace = new Date(Date.now() - DIAS_ENTRE_AVISOS_LEJANOS * 86400000).toISOString();
+    const plazosNuevos = avisosPlazo.filter((a) => {
+      if (yaAvisados.has(`${a.kind}|${a.ref_id}|${a.days_before}|${a.deadline}`)) return false;
+      if (a.days_before > 3) {
+        const ultimo = ultimoAviso.get(`${a.kind}|${a.ref_id}|${a.deadline}`);
+        if (ultimo && ultimo > hace) return false;
+      }
+      return true;
+    });
     for (const p of plazosNuevos) eventos.push(p._evento);
     for (const clave of Object.keys(informe.tipos)) {
       informe.tipos[clave].plazos = plazosNuevos.filter((p) => p.kind === clave).length;
