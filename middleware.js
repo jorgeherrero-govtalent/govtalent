@@ -60,9 +60,13 @@ export async function middleware(request) {
   // los llama Vercel Cron sin sesión. Sin esta excepción el middleware los
   // redirigía a /login, el cron no sigue redirecciones y la ruta no llegaba
   // a ejecutarse nunca. Se autentican con CRON_SECRET o DEBUG_KEY dentro.
+  //
+  // La vigilancia de las alarmas es lo mismo: la lanza el cron tres veces
+  // al día, sin sesión, y se autentica dentro con CRON_SECRET.
   const isScheduledEmail =
     path.startsWith('/api/alerts/weekly') ||
     path.startsWith('/api/alerts/daily') ||
+    path.startsWith('/api/alarmas/vigilar') ||
     path.startsWith('/api/cron/');
 
   if (
