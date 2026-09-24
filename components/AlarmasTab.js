@@ -214,6 +214,49 @@ function Frecuencias({ valor, onCambiar, esPro, onUpsell }) {
   );
 }
 
+/**
+ * «Recordarme los plazos»: cuando algo que encontró la alarma tiene plazo,
+ * recordarlo 30, 14, 7, 3 y 1 días antes, y el mismo día. Es de pago: en
+ * Free se ve bloqueado y abre la mejora.
+ */
+function RecordarPlazos({ valor, onCambiar, esPro, onUpsell }) {
+  const on = esPro && valor !== false;
+  return (
+    <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 14 }}>
+      <div>
+        <div style={{ fontSize: 12.5, fontWeight: 500, color: TINTA }}>
+          Recordarme los plazos
+          {!esPro && (
+            <span
+              style={{
+                fontSize: 9.5,
+                fontWeight: 700,
+                letterSpacing: '.3px',
+                color: MORADO_O,
+                background: MORADO_S,
+                borderRadius: 6,
+                padding: '2px 5px',
+                marginLeft: 6,
+              }}
+            >
+              PRO
+            </span>
+          )}
+        </div>
+        <div style={{ fontSize: 11.5, color: GRIS, marginTop: 3, lineHeight: 1.45 }}>
+          Si algo de lo que encuentra tiene plazo, te lo recuerdo 30, 14, 7, 3 y 1 días antes de que cierre, y el mismo día.
+        </div>
+      </div>
+      <Interruptor
+        activo={on}
+        onChange={() => (esPro ? onCambiar(!on) : onUpsell())}
+        size="pequeno"
+        etiqueta="Recordarme los plazos"
+      />
+    </div>
+  );
+}
+
 function Boton({ children, onClick, tipo = 'secundario', disabled, style }) {
   const principal = tipo === 'principal';
   return (
@@ -508,6 +551,8 @@ function AgenteTrabajando({ p }) {
 // La pantalla
 // ---------------------------------------------------------------------
 
+const CLAVE_BORRADOR = 'govtalent.alarmas.borrador';
+
 export default function AlarmasTab() {
   const supabase = createClient();
 
@@ -530,6 +575,9 @@ export default function AlarmasTab() {
   const [confirmando, setConfirmando] = useState(null);
   const [upsell, setUpsell] = useState(false);
   const cajaRef = useRef(null);
+  // Hasta que no se ha mirado si había algo guardado, no se escribe: si
+  // no, el estado vacío del primer render borraría el borrador.
+  const restaurado = useRef(false);
 
   const esPro = nivel === 'pro';
   const limites = limitesDe(nivel);
@@ -570,6 +618,10 @@ export default function AlarmasTab() {
     setAlarmas(al || []);
     setEncaja(m || []);
     setCorreos(p?.email !== false);
+    if (!restaurado.current) {
+      restaurado.current = true;
+      restaurar(uid, al || []);
+    }
     setCargado(true);
 
     // Entrar aquí cuenta como haberlas visto: es lo que usa Regulatorio
@@ -583,6 +635,58 @@ export default function AlarmasTab() {
     cargar();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // --- Borrador guardado en la pestaña -----------------------------------
+  // Si el usuario abre una ley desde la propuesta y vuelve atrás, la
+  // propuesta (o la edición a medias, o lo que estaba escribiendo) sigue
+  // ahí. Vive en sessionStorage: solo en esta pestaña y hasta cerrarla.
+  // Se borra al activar, guardar o cancelar.
+  function restaurar(uid, lista) {
+    let g = null;
+    try {
+      g = JSON.parse(window.sessionStorage.getItem(CLAVE_BORRADOR) || 'null');
+    } catch {
+      g = null;
+    }
+    if (!g || g.uid !== uid || Date.now() - (g.t || 0) > 12 * 3600000) return;
+    if (g.texto) setTexto(g.texto);
+    if (g.web) setWeb(g.web);
+    if (g.conWeb) setConWeb(true);
+    if (g.vista === 'borrador' && g.borrador) {
+      setBorrador(g.borrador);
+      setVista('borrador');
+    } else if (g.vista === 'editar' && g.editando && lista.some((a) => a.id === g.editando.id)) {
+      setEditando(g.editando);
+      setVista('editar');
+    }
+  }
+
+  useEffect(() => {
+    if (!restaurado.current || !userId) return;
+    try {
+      const hayAlgo = (vista === 'borrador' && borrador) || (vista === 'editar' && editando) || texto.trim() || (conWeb && web.trim());
+      if (!hayAlgo) {
+        window.sessionStorage.removeItem(CLAVE_BORRADOR);
+        return;
+      }
+      window.sessionStorage.setItem(
+        CLAVE_BORRADOR,
+        JSON.stringify({
+          uid: userId,
+          t: Date.now(),
+          vista,
+          borrador: vista === 'borrador' ? borrador : null,
+          editando: vista === 'editar' ? editando : null,
+          texto,
+          web,
+          conWeb,
+        })
+      );
+    } catch {
+      // Sin sessionStorage (modo privado, cuota llena) simplemente no se
+      // recuerda: la pantalla funciona igual.
+    }
+  }, [userId, vista, borrador, editando, texto, web, conWeb]);
 
   const encajaDe = (alertId) => encaja.filter((m) => m.alert_id === alertId);
   const avisosMes = (alertId) =>
@@ -687,6 +791,7 @@ export default function AlarmasTab() {
       encaja: r.encaja || [],
       revisados: r.revisados || 0,
       frecuencia: esPro ? 'inmediato' : 'semanal',
+      recordar_plazos: true,
       restantes: r.propuestas_restantes,
     });
     setVista('borrador');
@@ -718,6 +823,7 @@ export default function AlarmasTab() {
       keywords: b.keywords,
       sectores: b.sectores,
       frecuencia: b.frecuencia,
+      recordar_plazos: b.recordar_plazos !== false,
       activa: true,
       encaja: b.encaja,
     });
@@ -804,6 +910,7 @@ export default function AlarmasTab() {
       keywords: a.keywords || [],
       sectores: a.sectores || [],
       frecuencia: esPro ? a.frecuencia || 'semanal' : 'semanal',
+      recordar_plazos: a.recordar_plazos !== false,
       activa: a.activa,
       pausada_por_plan: a.pausada_por_plan,
     });
@@ -837,6 +944,7 @@ export default function AlarmasTab() {
       keywords,
       sectores,
       frecuencia: e.frecuencia,
+      recordar_plazos: e.recordar_plazos !== false,
       activa: e.activa,
       encaja: nuevasEncaja,
     });
@@ -865,7 +973,7 @@ export default function AlarmasTab() {
   const modalUpsell = upsell && (
     <UpgradeModal
       title="Más alarmas y avisos al momento"
-      message="Con Pro tienes hasta 3 alarmas y te avisamos el mismo día en que se abre un plazo, no el lunes siguiente."
+      message="Con Pro tienes hasta 3 alarmas, te avisamos el mismo día en que se abre un plazo y te recordamos cuándo cierra."
       onClose={() => setUpsell(false)}
     />
   );
@@ -939,6 +1047,9 @@ export default function AlarmasTab() {
                 Reviso lo nuevo tres veces al día y te escribo en cuanto encuentro algo.
               </div>
             )}
+            <div style={{ borderTop: `1px solid ${LINEA2}`, marginTop: 12, paddingTop: 12 }}>
+              <RecordarPlazos valor={b.recordar_plazos} onCambiar={(v) => setB({ recordar_plazos: v })} esPro={esPro} onUpsell={() => setUpsell(true)} />
+            </div>
           </div>
         </div>
 
@@ -1036,6 +1147,9 @@ export default function AlarmasTab() {
             <div style={{ ...CARD, padding: '14px 18px', marginTop: 12 }}>
               <div style={{ ...ETIQUETA, marginBottom: 10 }}>Cuándo te aviso</div>
               <Frecuencias valor={e.frecuencia} onCambiar={(f) => setE({ frecuencia: f })} esPro={esPro} onUpsell={() => setUpsell(true)} />
+              <div style={{ borderTop: `1px solid ${LINEA2}`, marginTop: 12, paddingTop: 12 }}>
+                <RecordarPlazos valor={e.recordar_plazos} onCambiar={(v) => setE({ recordar_plazos: v })} esPro={esPro} onUpsell={() => setUpsell(true)} />
+              </div>
             </div>
 
             {trabajandoAviso}
