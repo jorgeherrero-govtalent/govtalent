@@ -105,71 +105,117 @@ export async function POST(request) {
   // coste ya se ha producido.
   await db.from('ai_usage_log').insert({ user_id: user.id, endpoint: ENDPOINT });
 
-  try {
-    // --- La web, si la hay ---------------------------------------------
-    // Las portadas corporativas grandes pesan varios MB y muchas bloquean
-    // a los bots: se lee como un navegador y solo el principio, que es
-    // donde están el título, la descripción y el primer texto.
-    let web = '';
-    let dominio = '';
-    let avisoWeb = null;
-    if (url) {
-      const normalizada = /^https?:\/\//i.test(url) ? url.replace(/^http:/i, 'https:') : `https://${url}`;
+  // A partir de aquí la respuesta es un FLUJO: una línea JSON por paso
+  // (NDJSON), que la pantalla va pintando según llega. Es lo que hacía el
+  // análisis de sector y lo que hace que la espera se vea como trabajo:
+  // «leyendo telefonica.com», «buscando "autoconsumo" (3 de 12)»,
+  // «evaluando 84 asuntos». Todo es real, nada de barras inventadas.
+  //
+  // Fases: web · web_ok · web_fallo · criterios · criterios_ok · buscando ·
+  // candidatos · evaluando · fin · error
+  const encoder = new TextEncoder();
+  const flujo = new ReadableStream({
+    async start(controller) {
+      const emitir = (obj) => controller.enqueue(encoder.encode(JSON.stringify(obj) + '\n'));
       try {
-        dominio = new URL(normalizada).hostname.replace(/^www\./, '');
-      } catch {
-        dominio = '';
-      }
-      try {
-        web = textoDeHtml(
-          await safeFetchText(normalizada, { maxBytes: 1536 * 1024, truncar: true, navegador: true, timeoutMs: 12000 })
-        );
+        // --- La web, si la hay -----------------------------------------
+        // Las portadas corporativas grandes pesan varios MB y muchas
+        // bloquean a los bots: se lee como un navegador y solo el
+        // principio, que es donde están el título, la descripción y el
+        // primer texto.
+        let web = '';
+        let dominio = '';
+        let avisoWeb = null;
+        if (url) {
+          const normalizada = /^https?:\/\//i.test(url) ? url.replace(/^http:/i, 'https:') : `https://${url}`;
+          try {
+            dominio = new URL(normalizada).hostname.replace(/^www\./, '');
+          } catch {
+            dominio = '';
+          }
+          emitir({ fase: 'web', dominio });
+          try {
+            web = textoDeHtml(
+              await safeFetchText(normalizada, { maxBytes: 1536 * 1024, truncar: true, navegador: true, timeoutMs: 12000 })
+            );
+          } catch (e) {
+            console.warn('[alarmas/proponer] web no leída', normalizada, e.message);
+            web = '';
+          }
+          // Una web hecha solo con JavaScript devuelve casi nada: eso
+          // tampoco cuenta como leída.
+          if (web.length < 150) web = '';
+          if (web) {
+            emitir({ fase: 'web_ok', dominio, titulo: web.split('\n')[0].slice(0, 120) });
+          } else if (dominio) {
+            avisoWeb = `No he podido leer ${dominio}. He usado lo que se sabe públicamente de esa organización: revisa los criterios.`;
+            emitir({ fase: 'web_fallo', dominio });
+          }
+        }
+        if (!texto && !web && !dominio) {
+          emitir({ fase: 'error', error: 'No he podido leer esa web. Escribe en una frase a qué os dedicáis.' });
+          return;
+        }
+
+        // --- 1. Criterios ------------------------------------------------
+        emitir({ fase: 'criterios' });
+        const propuesta = await proponer(texto, web, dominio);
+        if (propuesta.keywords.length === 0) {
+          emitir({
+            fase: 'error',
+            error: texto
+              ? 'No he sabido sacar criterios de eso. Prueba a describirlo con otras palabras.'
+              : `No tengo datos suficientes sobre ${dominio || 'esa organización'}. Escribe en una o dos frases a qué os dedicáis.`,
+          });
+          return;
+        }
+        emitir({
+          fase: 'criterios_ok',
+          nombre: propuesta.nombre,
+          temas: propuesta.criterios.temas,
+          keywords: propuesta.keywords,
+        });
+
+        // --- 2. Lo que ya está abierto -----------------------------------
+        const filas = await candidatos(db, propuesta.keywords, {
+          alBuscar: (p) => emitir({ fase: 'buscando', ...p }),
+        });
+        emitir({ fase: 'candidatos', n: filas.length });
+
+        // --- 3. Lo que encaja de verdad ----------------------------------
+        // Lo que manda en la alarma es lo que escribió el usuario. Si solo
+        // dio la web, se guarda el resumen del agente con el dominio, para
+        // que al editar la alarma se entienda de dónde salió.
+        const descripcion =
+          texto || [dominio ? `Organización: ${dominio}.` : '', propuesta.criterios.resumen].filter(Boolean).join(' ');
+        emitir({ fase: 'evaluando', n: filas.length });
+        const encaja = await evaluar({ descripcion, criterios: propuesta.criterios }, filas);
+
+        emitir({
+          fase: 'fin',
+          propuesta: { ...propuesta, descripcion },
+          encaja,
+          revisados: filas.length,
+          aviso_web: avisoWeb,
+          nivel,
+          propuestas_restantes: Math.max(0, limites.propuestas_mes - usadas - 1),
+        });
       } catch (e) {
-        console.warn('[alarmas/proponer] web no leída', normalizada, e.message);
-        web = '';
+        console.error('[alarmas/proponer]', e);
+        emitir({ fase: 'error', error: 'El agente no ha podido preparar la alarma. Inténtalo de nuevo en un momento.' });
+      } finally {
+        controller.close();
       }
-      // Una web hecha solo con JavaScript devuelve casi nada: eso tampoco
-      // cuenta como leída.
-      if (web.length < 150) web = '';
-      if (!web && dominio) {
-        avisoWeb = `No he podido leer ${dominio}. He usado lo que se sabe públicamente de esa organización: revisa los criterios.`;
-      }
-    }
-    if (!texto && !web && !dominio) {
-      return NextResponse.json({ error: 'No he podido leer esa web. Escribe en una frase a qué os dedicáis.' }, { status: 400 });
-    }
+    },
+  });
 
-    // --- 1. Criterios ----------------------------------------------------
-    const propuesta = await proponer(texto, web, dominio);
-    if (propuesta.keywords.length === 0) {
-      return NextResponse.json(
-        {
-          error: texto
-            ? 'No he sabido sacar criterios de eso. Prueba a describirlo con otras palabras.'
-            : `No tengo datos suficientes sobre ${dominio || 'esa organización'}. Escribe en una o dos frases a qué os dedicáis.`,
-        },
-        { status: 422 }
-      );
-    }
-
-    // --- 2 y 3. Lo que ya está abierto y encaja --------------------------
-    const filas = await candidatos(db, propuesta.keywords);
-    // Lo que manda en la alarma es lo que escribió el usuario. Si solo dio
-    // la web, se guarda el resumen del agente con el dominio, para que al
-    // editar la alarma se entienda de dónde salió.
-    const descripcion = texto || [dominio ? `Organización: ${dominio}.` : '', propuesta.criterios.resumen].filter(Boolean).join(' ');
-    const encaja = await evaluar({ descripcion, criterios: propuesta.criterios }, filas);
-
-    return NextResponse.json({
-      propuesta: { ...propuesta, descripcion },
-      encaja,
-      revisados: filas.length,
-      aviso_web: avisoWeb,
-      nivel,
-      propuestas_restantes: Math.max(0, limites.propuestas_mes - usadas - 1),
-    });
-  } catch (e) {
-    console.error('[alarmas/proponer]', e);
-    return NextResponse.json({ error: 'El agente no ha podido preparar la alarma. Inténtalo de nuevo en un momento.' }, { status: 500 });
-  }
+  return new Response(flujo, {
+    headers: {
+      'Content-Type': 'application/x-ndjson; charset=utf-8',
+      'Cache-Control': 'no-store, no-transform',
+      // Sin esto, algunos proxies acumulan la respuesta y la entregan de
+      // golpe al final, que es justo lo que se quiere evitar.
+      'X-Accel-Buffering': 'no',
+    },
+  });
 }
