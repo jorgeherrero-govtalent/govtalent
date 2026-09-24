@@ -29,6 +29,11 @@ export const maxDuration = 60;
 
 const ENDPOINT = 'alarma-propuesta';
 
+// Una dirección dentro del texto: con https://, con www. o un dominio
+// suelto con una terminación habitual (telefonica.com, iberdrolaespana.com).
+const URL_EN_TEXTO =
+  /(https?:\/\/[^\s]+|www\.[^\s]+\.[a-z]{2,}[^\s]*|\b[a-z0-9][a-z0-9-]*(?:\.[a-z0-9-]+)*\.(?:com|es|org|eu|net|cat|gal|eus|info|io|app|gob\.es)\b[^\s]*)/i;
+
 function admin() {
   return createClient(process.env.NEXT_PUBLIC_SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY, {
     auth: { persistSession: false, autoRefreshToken: false },
@@ -54,8 +59,16 @@ export async function POST(request) {
   } catch {
     return NextResponse.json({ error: 'Petición no válida.' }, { status: 400 });
   }
-  const texto = String(cuerpo?.texto || '').trim().slice(0, 3000);
-  const url = String(cuerpo?.web || '').trim();
+  let texto = String(cuerpo?.texto || '').trim().slice(0, 3000);
+  let url = String(cuerpo?.web || '').trim();
+
+  // Mucha gente pega la dirección en la caja de texto y no en el campo de
+  // la web. Si hay una, se trata como web y se quita del texto.
+  const enTexto = texto.match(URL_EN_TEXTO);
+  if (enTexto) {
+    if (!url) url = enTexto[1];
+    texto = texto.replace(enTexto[1], ' ').replace(/\s+/g, ' ').trim();
+  }
 
   if (texto.length < 20 && !url) {
     return NextResponse.json(
@@ -94,30 +107,57 @@ export async function POST(request) {
 
   try {
     // --- La web, si la hay ---------------------------------------------
+    // Las portadas corporativas grandes pesan varios MB y muchas bloquean
+    // a los bots: se lee como un navegador y solo el principio, que es
+    // donde están el título, la descripción y el primer texto.
     let web = '';
+    let dominio = '';
     let avisoWeb = null;
     if (url) {
+      const normalizada = /^https?:\/\//i.test(url) ? url.replace(/^http:/i, 'https:') : `https://${url}`;
       try {
-        const normalizada = /^https?:\/\//i.test(url) ? url.replace(/^http:/i, 'https:') : `https://${url}`;
-        web = textoDeHtml(await safeFetchText(normalizada, { maxBytes: 2 * 1024 * 1024 }));
+        dominio = new URL(normalizada).hostname.replace(/^www\./, '');
+      } catch {
+        dominio = '';
+      }
+      try {
+        web = textoDeHtml(
+          await safeFetchText(normalizada, { maxBytes: 1536 * 1024, truncar: true, navegador: true, timeoutMs: 12000 })
+        );
       } catch (e) {
-        // Sin web se sigue con el texto: no merece la pena fallar entero.
-        avisoWeb = `No he podido leer la web (${e.message}). He usado solo lo que has escrito.`;
+        console.warn('[alarmas/proponer] web no leída', normalizada, e.message);
+        web = '';
+      }
+      // Una web hecha solo con JavaScript devuelve casi nada: eso tampoco
+      // cuenta como leída.
+      if (web.length < 150) web = '';
+      if (!web && dominio) {
+        avisoWeb = `No he podido leer ${dominio}. He usado lo que se sabe públicamente de esa organización: revisa los criterios.`;
       }
     }
-    if (!texto && !web) {
+    if (!texto && !web && !dominio) {
       return NextResponse.json({ error: 'No he podido leer esa web. Escribe en una frase a qué os dedicáis.' }, { status: 400 });
     }
 
     // --- 1. Criterios ----------------------------------------------------
-    const propuesta = await proponer(texto || `Organización cuya web dice: ${web.slice(0, 1500)}`, web);
+    const propuesta = await proponer(texto, web, dominio);
     if (propuesta.keywords.length === 0) {
-      return NextResponse.json({ error: 'No he sabido sacar criterios de eso. Prueba a describirlo con otras palabras.' }, { status: 422 });
+      return NextResponse.json(
+        {
+          error: texto
+            ? 'No he sabido sacar criterios de eso. Prueba a describirlo con otras palabras.'
+            : `No tengo datos suficientes sobre ${dominio || 'esa organización'}. Escribe en una o dos frases a qué os dedicáis.`,
+        },
+        { status: 422 }
+      );
     }
 
     // --- 2 y 3. Lo que ya está abierto y encaja --------------------------
     const filas = await candidatos(db, propuesta.keywords);
-    const descripcion = texto || propuesta.criterios.resumen;
+    // Lo que manda en la alarma es lo que escribió el usuario. Si solo dio
+    // la web, se guarda el resumen del agente con el dominio, para que al
+    // editar la alarma se entienda de dónde salió.
+    const descripcion = texto || [dominio ? `Organización: ${dominio}.` : '', propuesta.criterios.resumen].filter(Boolean).join(' ');
     const encaja = await evaluar({ descripcion, criterios: propuesta.criterios }, filas);
 
     return NextResponse.json({
