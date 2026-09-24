@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { forwardRef, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
@@ -323,6 +323,33 @@ function Confirmar({ titulo, texto, accion, onConfirmar, onCancelar }) {
     document.body
   );
 }
+
+// ---------------------------------------------------------------------
+// Caja de texto que crece al escribir
+//
+// Como la de Claude: empieza con unas pocas líneas y se alarga con el
+// texto hasta un tope; a partir de ahí, barra de desplazamiento. Se mide
+// con scrollHeight después de cada cambio: primero se pone la altura en
+// auto para que también encoja al borrar.
+// ---------------------------------------------------------------------
+
+const useAlturaEfecto = typeof window === 'undefined' ? useEffect : useLayoutEffect;
+
+const TextoCreciente = forwardRef(function TextoCreciente({ value, maxAltura = 320, style, ...resto }, refExterno) {
+  const propio = useRef(null);
+  const ref = refExterno || propio;
+
+  useAlturaEfecto(() => {
+    const el = ref.current;
+    if (!el) return;
+    el.style.height = 'auto';
+    const alto = Math.min(el.scrollHeight, maxAltura);
+    el.style.height = `${alto}px`;
+    el.style.overflowY = el.scrollHeight > maxAltura ? 'auto' : 'hidden';
+  }, [value, maxAltura]);
+
+  return <textarea ref={ref} value={value} style={{ ...style, resize: 'none', overflowY: 'hidden' }} {...resto} />;
+});
 
 // ---------------------------------------------------------------------
 // El agente trabajando
@@ -993,12 +1020,13 @@ export default function AlarmasTab() {
           <div>
             <div style={{ ...CARD, padding: '16px 18px' }}>
               <div style={{ ...ETIQUETA, marginBottom: 10 }}>Instrucciones</div>
-              <textarea
+              <TextoCreciente
                 value={e.descripcion}
                 onChange={(ev) => setE({ descripcion: ev.target.value })}
-                rows={7}
+                rows={4}
+                maxAltura={480}
                 aria-label="Instrucciones de la alarma"
-                style={{ width: '100%', border: 'none', outline: 'none', resize: 'vertical', fontSize: 14, lineHeight: 1.7, fontFamily: 'inherit', color: '#2b2a26', padding: 0, background: 'transparent' }}
+                style={{ width: '100%', border: 'none', outline: 'none', fontSize: 14, lineHeight: 1.7, fontFamily: 'inherit', color: '#2b2a26', padding: 0, background: 'transparent' }}
               />
               <div style={{ fontSize: 11.5, color: GRIS2, marginTop: 8, lineHeight: 1.5 }}>
                 Escribe qué hace tu organización, qué quieres vigilar y qué no te interesa. Si cambias el texto, el agente lo vuelve a entender al guardar.
@@ -1077,17 +1105,24 @@ export default function AlarmasTab() {
               Cuéntame a qué se dedica tu organización o qué te preocupa. Yo me encargo de buscar y de avisarte.
             </p>
             <div style={{ ...CARD, borderRadius: 20, padding: '16px 18px 12px', boxShadow: '0 1px 2px rgba(0,0,0,.03), 0 10px 30px rgba(26,26,24,.05)' }}>
-              <textarea
+              <TextoCreciente
                 ref={cajaRef}
                 value={texto}
                 onChange={(e) => setTexto(e.target.value)}
                 onKeyDown={(e) => {
-                  if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) enviarCaja();
+                  // Como en Claude: Intro envía y Mayúsculas + Intro hace
+                  // un salto de línea. Mientras se compone un acento o una
+                  // ñ con el teclado (isComposing) no se envía nada.
+                  if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) {
+                    e.preventDefault();
+                    if (!trabajando && !progreso) enviarCaja();
+                  }
                 }}
-                rows={3}
+                rows={2}
+                maxAltura={320}
                 placeholder="Por ejemplo: somos una empresa de centros de datos con proyectos en Aragón y Madrid; nos preocupa el acceso a la red eléctrica…"
                 aria-label="Describe tu organización o lo que quieres vigilar"
-                style={{ width: '100%', border: 'none', outline: 'none', resize: 'none', fontSize: 14.5, lineHeight: 1.6, fontFamily: 'inherit', color: TINTA, padding: 0, background: 'transparent' }}
+                style={{ width: '100%', border: 'none', outline: 'none', fontSize: 14.5, lineHeight: 1.6, fontFamily: 'inherit', color: TINTA, padding: 0, background: 'transparent', minHeight: 48 }}
               />
               {conWeb && (
                 <input
