@@ -67,6 +67,9 @@ export async function POST(request) {
     fuentes: FUENTES_ALARMA,
     frecuencia: FRECUENCIAS.has(a?.frecuencia) ? a.frecuencia : 'semanal',
     activa: a?.activa !== false,
+    // Recordatorios a 30, 14, 7, 3 y 1 días del cierre (sql/60). Solo se
+    // envían en Pro; en Free la opción se guarda pero no tiene efecto.
+    recordar_plazos: a?.recordar_plazos !== false,
   };
 
   if (!fila.descripcion || fila.keywords.length === 0) {
