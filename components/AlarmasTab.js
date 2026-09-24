@@ -325,6 +325,159 @@ function Confirmar({ titulo, texto, accion, onConfirmar, onCancelar }) {
 }
 
 // ---------------------------------------------------------------------
+// El agente trabajando
+//
+// Lo que se ve mientras el agente prepara la alarma. Viene del análisis
+// de sector, que contaba en directo lo que hacía, y ese era su encanto:
+// es la primera vez que mucha gente ve trabajar a GovTalent, y una rueda
+// girando durante medio minuto es donde se pierde al usuario.
+//
+// Todo lo que se enseña sale del flujo de la ruta: qué web se lee, qué
+// término se busca, cuántos asuntos han salido. Ni un número inventado.
+// ---------------------------------------------------------------------
+
+function fraseDelPaso(p) {
+  switch (p.fase) {
+    case 'web':
+      return p.dominio ? `Leyendo ${p.dominio}…` : 'Leyendo la web de tu organización…';
+    case 'web_ok':
+      return `He leído ${p.dominio}. Entendiendo a qué os dedicáis…`;
+    case 'web_fallo':
+      return `${p.dominio} no se deja leer. Tiro de lo que se sabe públicamente…`;
+    case 'criterios':
+      return 'Entendiendo a qué os dedicáis y qué normativa os toca…';
+    case 'criterios_ok':
+      return `${(p.keywords || []).length} términos de búsqueda. Empiezo a rastrear las fuentes…`;
+    case 'buscando':
+      return `Buscando «${p.termino}» (${p.hecho} de ${p.total})`;
+    case 'candidatos':
+      return `${p.n} asuntos abiertos encontrados. Ahora, cuáles os afectan…`;
+    case 'evaluando':
+      return `Leyendo ${p.n} asuntos uno a uno con la descripción de tu organización. Es el paso más lento.`;
+    default:
+      return 'Preparando la alarma…';
+  }
+}
+
+function pasoActual(p) {
+  if (['web', 'web_ok', 'web_fallo'].includes(p.fase)) return 0;
+  if (['criterios'].includes(p.fase)) return 1;
+  if (['criterios_ok', 'buscando'].includes(p.fase)) return 2;
+  return 3; // candidatos, evaluando
+}
+
+function AgenteTrabajando({ p }) {
+  const pasos = [
+    ...(p.conWeb ? [{ id: 0, label: 'Leer la web' }] : []),
+    { id: 1, label: 'Entender' },
+    { id: 2, label: 'Buscar' },
+    { id: 3, label: 'Evaluar' },
+  ];
+  const actual = pasoActual(p);
+  const keywords = p.keywords || [];
+  const buscadas = p.fase === 'buscando' ? Math.max(0, (p.hecho || 1) - 1) : ['candidatos', 'evaluando'].includes(p.fase) ? keywords.length : 0;
+
+  return (
+    <div
+      role="status"
+      aria-live="polite"
+      style={{ ...CARD, padding: '16px 18px', margin: '14px 0', boxShadow: '0 6px 24px rgba(109,90,239,.08)' }}
+    >
+      <style>{`
+        @keyframes gt-latido { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: .45; transform: scale(.82); } }
+        @keyframes gt-brillo { 0%, 100% { background: ${MORADO_S}; } 50% { background: #ddd6fd; } }
+        @media (prefers-reduced-motion: reduce) { .gt-anim { animation: none !important; } }
+      `}</style>
+
+      {/* Los pasos, con el actual latiendo */}
+      <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap', marginBottom: 12 }}>
+        {pasos.map((paso) => {
+          const hecho = paso.id < actual;
+          const ahora = paso.id === actual;
+          return (
+            <span key={paso.id} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 11.5, color: hecho || ahora ? MORADO_O : GRIS2 }}>
+              {hecho ? (
+                <span aria-hidden="true" style={{ color: MORADO, fontSize: 11 }}>✓</span>
+              ) : (
+                <span
+                  className={ahora ? 'gt-anim' : undefined}
+                  style={{
+                    width: 8,
+                    height: 8,
+                    borderRadius: '50%',
+                    background: ahora ? MORADO : '#dcd8ce',
+                    animation: ahora ? 'gt-latido 1.1s ease-in-out infinite' : 'none',
+                    display: 'inline-block',
+                  }}
+                />
+              )}
+              {paso.label}
+            </span>
+          );
+        })}
+      </div>
+
+      {/* Lo que está haciendo ahora, con su número */}
+      <div style={{ fontSize: 13.5, color: TINTA, lineHeight: 1.5, fontWeight: 500 }}>{fraseDelPaso(p)}</div>
+
+      {p.fase !== 'web' && p.titulo && (
+        <div style={{ fontSize: 12, color: GRIS, marginTop: 4 }}>
+          {p.dominio}: «{p.titulo}»
+        </div>
+      )}
+
+      {/* El nombre de la alarma, en cuanto lo tiene */}
+      {p.nombre && (
+        <div style={{ fontSize: 12, color: GRIS, marginTop: 8 }}>
+          Alarma: <b style={{ color: TINTA, fontWeight: 500 }}>{p.nombre}</b>
+          {(p.temas || []).length > 0 ? ` · ${p.temas.slice(0, 4).join(', ')}` : ''}
+        </div>
+      )}
+
+      {/* Los términos: se van encendiendo según se buscan */}
+      {keywords.length > 0 && (
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 12 }}>
+          {keywords.map((k, i) => {
+            const hecho = i < buscadas;
+            const ahora = p.fase === 'buscando' && i === buscadas;
+            return (
+              <span
+                key={`${k}-${i}`}
+                className={ahora ? 'gt-anim' : undefined}
+                style={{
+                  fontSize: 11.5,
+                  borderRadius: 14,
+                  padding: '3px 10px',
+                  border: `1px solid ${hecho || ahora ? MORADO : LINEA}`,
+                  background: hecho ? MORADO : ahora ? MORADO_S : '#fff',
+                  color: hecho ? '#fff' : ahora ? MORADO_O : GRIS,
+                  animation: ahora ? 'gt-brillo 1s ease-in-out infinite' : 'none',
+                  transition: 'background .25s ease, color .25s ease',
+                }}
+              >
+                {k}
+              </span>
+            );
+          })}
+        </div>
+      )}
+
+      {/* El contador de lo encontrado */}
+      {(p.fase === 'buscando' || p.fase === 'candidatos' || p.fase === 'evaluando') && (
+        <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, marginTop: 12 }}>
+          <span style={{ fontSize: 22, fontWeight: 600, color: MORADO, lineHeight: 1, fontVariantNumeric: 'tabular-nums' }}>
+            {p.fase === 'buscando' ? p.encontrados || 0 : p.n || 0}
+          </span>
+          <span style={{ fontSize: 12, color: GRIS }}>
+            {p.fase === 'evaluando' ? 'asuntos abiertos en revisión' : 'asuntos abiertos encontrados'}
+          </span>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------
 // La pantalla
 // ---------------------------------------------------------------------
 
@@ -343,7 +496,8 @@ export default function AlarmasTab() {
   const [texto, setTexto] = useState('');
   const [web, setWeb] = useState('');
   const [conWeb, setConWeb] = useState(false);
-  const [trabajando, setTrabajando] = useState(null); // texto de lo que está haciendo el agente
+  const [trabajando, setTrabajando] = useState(null); // texto de lo que se está guardando
+  const [progreso, setProgreso] = useState(null); // lo que está haciendo el agente, paso a paso
   const [borrador, setBorrador] = useState(null);
   const [editando, setEditando] = useState(null);
   const [confirmando, setConfirmando] = useState(null);
@@ -408,28 +562,70 @@ export default function AlarmasTab() {
     encaja.filter((m) => m.alert_id === alertId && m.avisado_at && Date.now() - new Date(m.avisado_at).getTime() < 30 * 86400000).length;
 
   // --- Pedir una propuesta al agente ------------------------------------
+  /**
+   * Pide la propuesta al agente y va pintando lo que hace.
+   *
+   * La ruta responde con un flujo: una línea JSON por paso. Cada línea
+   * actualiza `progreso`, que es lo que enseña el panel del agente
+   * trabajando. Los errores previos al flujo (sin sesión, tope del mes)
+   * siguen llegando como JSON normal con su código de estado.
+   */
   async function pedirPropuesta({ textoPedido, webPedida, base }) {
     const hayWeb = !!webPedida || /(https?:\/\/|www\.|\.[a-z]{2,4}\b)/i.test(textoPedido || '');
-    setTrabajando(hayWeb ? 'Leyendo la web y preparando la alarma…' : 'Preparando la alarma…');
+    setProgreso({ fase: hayWeb ? 'web' : 'criterios', conWeb: hayWeb, dominio: null });
     try {
       const res = await fetch('/api/alarmas/proponer', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ texto: textoPedido, web: webPedida || '' }),
       });
-      const datos = await res.json();
-      if (!res.ok) {
+      if (!res.ok || !res.body?.getReader) {
+        const datos = await res.json().catch(() => ({}));
         if (datos?.limite && !esPro) setUpsell(true);
         toast.error(datos?.error || 'El agente no ha podido preparar la alarma.');
         return null;
       }
-      if (datos.aviso_web) toast.info(datos.aviso_web);
-      return { ...datos, base };
+
+      const lector = res.body.getReader();
+      const decoder = new TextDecoder();
+      let resto = '';
+      let final = null;
+      let fallo = null;
+      while (true) {
+        const { done, value } = await lector.read();
+        if (done) break;
+        resto += decoder.decode(value, { stream: true });
+        // La última línea puede venir partida: se guarda para la vuelta
+        // siguiente y solo se procesan las completas.
+        const lineas = resto.split('\n');
+        resto = lineas.pop();
+        for (const linea of lineas) {
+          if (!linea.trim()) continue;
+          let ev;
+          try {
+            ev = JSON.parse(linea);
+          } catch {
+            continue;
+          }
+          if (ev.fase === 'fin') final = ev;
+          else if (ev.fase === 'error') fallo = ev;
+          // Se acumula: los términos y el dominio se siguen viendo en los
+          // pasos siguientes, no desaparecen al cambiar de fase.
+          else setProgreso((prev) => ({ ...(prev || {}), ...ev }));
+        }
+      }
+
+      if (fallo || !final) {
+        toast.error(fallo?.error || 'El agente se ha cortado antes de terminar. Inténtalo de nuevo.');
+        return null;
+      }
+      if (final.aviso_web) toast.info(final.aviso_web);
+      return { ...final, base };
     } catch {
       toast.error('No se ha podido contactar con el agente.');
       return null;
     } finally {
-      setTrabajando(null);
+      setProgreso(null);
     }
   }
 
@@ -643,7 +839,9 @@ export default function AlarmasTab() {
     />
   );
 
-  const trabajandoAviso = trabajando && (
+  const agentePanel = progreso && <AgenteTrabajando p={progreso} />;
+
+  const trabajandoAviso = agentePanel || (trabajando && (
     <div
       role="status"
       style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 13, color: MORADO_O, background: MORADO_S, borderRadius: 12, padding: '10px 14px', margin: '12px 0' }}
@@ -651,7 +849,7 @@ export default function AlarmasTab() {
       <span className="spinner" style={{ width: 14, height: 14, margin: 0 }}></span>
       {trabajando}
     </div>
-  );
+  ));
 
   // ============================ BORRADOR ============================
   if (vista === 'borrador' && borrador) {
@@ -715,7 +913,7 @@ export default function AlarmasTab() {
 
         {trabajandoAviso}
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
-          <Boton tipo="principal" onClick={activarBorrador} disabled={!!trabajando}>
+          <Boton tipo="principal" onClick={activarBorrador} disabled={!!trabajando || !!progreso}>
             Activar alarma
           </Boton>
           <Boton
@@ -725,7 +923,7 @@ export default function AlarmasTab() {
               setVista('lista');
               setTimeout(() => cajaRef.current?.focus(), 50);
             }}
-            disabled={!!trabajando}
+            disabled={!!trabajando || !!progreso}
           >
             Ajustar con otra frase
           </Boton>
@@ -734,7 +932,7 @@ export default function AlarmasTab() {
               setBorrador(null);
               setVista('lista');
             }}
-            disabled={!!trabajando}
+            disabled={!!trabajando || !!progreso}
           >
             Cancelar
           </Boton>
@@ -810,10 +1008,10 @@ export default function AlarmasTab() {
 
             {trabajandoAviso}
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 12 }}>
-              <Boton tipo="principal" onClick={guardarEdicion} disabled={!!trabajando}>
+              <Boton tipo="principal" onClick={guardarEdicion} disabled={!!trabajando || !!progreso}>
                 {textoCambiado ? 'Guardar y volver a entender' : 'Guardar cambios'}
               </Boton>
-              <Boton onClick={() => setConfirmando({ id: e.id, nombre: e.nombre })} disabled={!!trabajando}>
+              <Boton onClick={() => setConfirmando({ id: e.id, nombre: e.nombre })} disabled={!!trabajando || !!progreso}>
                 Eliminar alarma
               </Boton>
             </div>
@@ -907,16 +1105,16 @@ export default function AlarmasTab() {
                 <button
                   type="button"
                   onClick={enviarCaja}
-                  disabled={!!trabajando}
+                  disabled={!!trabajando || !!progreso}
                   aria-label="Preparar alarma"
-                  style={{ width: 32, height: 32, borderRadius: 10, background: MORADO, color: '#fff', border: 'none', cursor: trabajando ? 'default' : 'pointer', fontSize: 15, flexShrink: 0, opacity: trabajando ? 0.6 : 1 }}
+                  style={{ width: 32, height: 32, borderRadius: 10, background: MORADO, color: '#fff', border: 'none', cursor: trabajando || progreso ? 'default' : 'pointer', fontSize: 15, flexShrink: 0, opacity: trabajando || progreso ? 0.6 : 1 }}
                 >
                   ↑
                 </button>
               </div>
             </div>
             {trabajandoAviso}
-            {!trabajando && (
+            {!trabajando && !progreso && (
               <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', justifyContent: 'center', marginTop: 14 }}>
                 {IDEAS.map((i) => (
                   <button
