@@ -86,6 +86,19 @@ function Seguimiento() {
     if (sp?.get('ajustes') === '1' || sp?.get('alarmas') === '1') setSeccion('avisos');
   }, [sp]);
 
+  // La pestaña queda en la dirección: al abrir una ley desde Alarmas y
+  // volver atrás, se vuelve a Alarmas y no a «Lo que sigo».
+  function elegirSeccion(s) {
+    setSeccion(s);
+    try {
+      const url = new URL(window.location.href);
+      url.searchParams.delete('ajustes');
+      if (s === 'avisos') url.searchParams.set('alarmas', '1');
+      else url.searchParams.delete('alarmas');
+      window.history.replaceState(window.history.state, '', url.pathname + url.search);
+    } catch {}
+  }
+
   useEffect(() => {
     let cancelled = false;
     (async () => {
@@ -213,10 +226,10 @@ function Seguimiento() {
 
       {/* Dos caras de lo mismo: qué vigilo y cómo me lo cuentan. */}
       <div style={{ display: 'flex', gap: 2, marginBottom: 18, flexWrap: 'wrap' }}>
-        <button type="button" onClick={() => setSeccion('sigo')} style={chip(seccion === 'sigo')}>
+        <button type="button" onClick={() => elegirSeccion('sigo')} style={chip(seccion === 'sigo')}>
           Lo que sigo
         </button>
-        <button type="button" onClick={() => setSeccion('avisos')} style={chip(seccion === 'avisos')}>
+        <button type="button" onClick={() => elegirSeccion('avisos')} style={chip(seccion === 'avisos')}>
           Alarmas
         </button>
       </div>
