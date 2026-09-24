@@ -104,9 +104,20 @@ export async function POST(request) {
       { status: 429 }
     );
   }
-  // Se registra antes de llamar a la IA: si la llamada falla a medias, el
-  // coste ya se ha producido.
-  await db.from('ai_usage_log').insert({ user_id: user.id, endpoint: ENDPOINT });
+  // Se registra antes de llamar a la IA, para que dos pestañas a la vez no
+  // se salten el tope. Si el agente acaba en error, la fila se borra: un
+  // intento fallido no cuenta como propuesta.
+  const { data: registro } = await db
+    .from('ai_usage_log')
+    .insert({ user_id: user.id, endpoint: ENDPOINT })
+    .select('id')
+    .limit(1)
+    .maybeSingle();
+  const devolverIntento = async () => {
+    if (!registro?.id) return;
+    const { error } = await db.from('ai_usage_log').delete().eq('id', registro.id);
+    if (error) console.warn('[alarmas/proponer] no se ha podido devolver el intento', error.message);
+  };
 
   // A partir de aquí la respuesta es un FLUJO: una línea JSON por paso
   // (NDJSON), que la pantalla va pintando según llega. Es lo que hacía el
@@ -120,9 +131,15 @@ export async function POST(request) {
   const flujo = new ReadableStream({
     async start(controller) {
       const t0 = Date.now();
+      let fallido = false;
       const emitir = (obj) => {
+        if (obj.fase === 'error') fallido = true;
         if (obj.fase !== 'buscando') console.log(`[alarmas/proponer] ${obj.fase} +${Date.now() - t0} ms`);
-        controller.enqueue(encoder.encode(JSON.stringify(obj) + '\n'));
+        // Si el usuario cierra la pestaña, el flujo ya no admite más
+        // líneas: se sigue sin romper para que el registro quede bien.
+        try {
+          controller.enqueue(encoder.encode(JSON.stringify(obj) + '\n'));
+        } catch {}
       };
       try {
         // --- La web, si la hay -----------------------------------------
@@ -213,11 +230,14 @@ export async function POST(request) {
         // para que, si falla, se pueda saber en qué paso y por qué.
         emitir({
           fase: 'error',
-          error: 'El agente no ha podido preparar la alarma. Inténtalo de nuevo en un momento.',
+          error: 'El agente no ha podido preparar la alarma. Inténtalo de nuevo: este intento no cuenta.',
           detalle: String(e?.message || e).slice(0, 160),
         });
       } finally {
-        controller.close();
+        if (fallido) await devolverIntento();
+        try {
+          controller.close();
+        } catch {}
       }
     },
   });
