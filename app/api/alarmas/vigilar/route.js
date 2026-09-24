@@ -12,7 +12,11 @@
 //      sola vez por alarma (sector_alert_seen): da igual cuántas pasadas
 //      haya al día, el coste no se multiplica.
 //
-//   2. ENVÍA según la frecuencia de cada alarma:
+//   2. RECUERDA PLAZOS (Pro, pasada de la mañana): de lo que ya encontró
+//      cada alarma, lo que cruza hoy 30, 14, 7, 3, 1 o 0 días del cierre.
+//      Se puede apagar por alarma («Recordarme los plazos»).
+//
+//   3. ENVÍA según la frecuencia de cada alarma:
 //        inmediato → en cada pasada, en cuanto hay algo.
 //        diario    → en la primera pasada del día.
 //        semanal   → en la primera pasada del lunes.
@@ -49,6 +53,26 @@ const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://govtalent.app';
 const PRESUPUESTO_MS = 240000;
 const EN_PARALELO = 4;
 const MAX_POR_CORREO = 8;
+
+// Recordatorios de plazo de lo que encuentran las alarmas: la misma
+// escalera que lo que se sigue a mano (detectar-cambios). El 0 es «cierra
+// hoy».
+const ESCALERA = [30, 14, 7, 3, 1, 0];
+// Los recordatorios lejanos (30, 14, 7) no salen si ya hubo otro del
+// mismo plazo hace menos de esto, ni si el asunto se acaba de encontrar:
+// el aviso de que ha aparecido ya dice cuántos días quedan.
+const DIAS_ENTRE_LEJANOS = 3;
+
+// Días naturales hasta el cierre, en hora de Madrid. Lo ya cerrado, null.
+const DIA_MADRID = new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Madrid' });
+function diasHasta(fecha) {
+  if (!fecha) return null;
+  const d = new Date(fecha);
+  if (Number.isNaN(d.getTime())) return null;
+  const ahora = new Date();
+  if (d.getTime() < ahora.getTime()) return null;
+  return Math.round((Date.parse(DIA_MADRID.format(d)) - Date.parse(DIA_MADRID.format(ahora))) / 86400000);
+}
 
 function admin() {
   return createClient(process.env.NEXT_PUBLIC_SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY, {
@@ -111,7 +135,7 @@ async function handler(request) {
     // --- Alarmas activas y el plan de cada usuario ---------------------
     let q = db
       .from('sector_alerts')
-      .select('id, user_id, nombre, descripcion, criterios, keywords, frecuencia, created_at')
+      .select('id, user_id, nombre, descripcion, criterios, keywords, frecuencia, recordar_plazos, created_at')
       .eq('activa', true)
       .order('created_at', { ascending: true });
     if (soloUsuario) q = q.eq('user_id', soloUsuario);
@@ -204,16 +228,80 @@ async function handler(request) {
     informe.coincidencias_nuevas = nuevas;
     if (errores.length) informe.errores_evaluacion = errores.slice(0, 5);
 
+
+    // --- 2. Recordatorios de plazo ----------------------------------------
+    // Solo en la pasada de la mañana y solo en Pro: a primera hora, que es
+    // cuando sirve saber que algo cierra en tres días.
+    const recordatorios = [];
+    if (esManana) {
+      const conRecordatorio = vigentes.filter((a) => a.nivel === 'pro' && a.recordar_plazos !== false);
+      const idsR = conRecordatorio.map((a) => a.id);
+      const encontrados = [];
+      for (let i = 0; i < idsR.length; i += 100) {
+        const { data } = await db
+          .from('sector_alert_matches')
+          .select('id, alert_id, user_id, kind, ref_id, titulo, fuente, ruta, plazo, created_at, avisado_at')
+          .in('alert_id', idsR.slice(i, i + 100))
+          .eq('descartado', false)
+          .not('plazo', 'is', null);
+        encontrados.push(...(data || []));
+      }
+
+      // El plazo guardado puede haberse ampliado: se toma el de la fuente.
+      const refs = [...new Set(encontrados.map((m) => m.ref_id))];
+      const plazoActual = new Map();
+      for (let i = 0; i < refs.length; i += 100) {
+        const { data } = await db
+          .from('regulatorio_search')
+          .select('kind, ref_id, plazo')
+          .in('ref_id', refs.slice(i, i + 100));
+        for (const r of data || []) if (r.plazo) plazoActual.set(`${r.kind}|${r.ref_id}`, r.plazo);
+      }
+
+      const previos = [];
+      for (let i = 0; i < idsR.length; i += 100) {
+        const { data } = await db
+          .from('sector_alert_plazo_avisos')
+          .select('alert_id, kind, ref_id, deadline, umbral, created_at')
+          .in('alert_id', idsR.slice(i, i + 100));
+        previos.push(...(data || []));
+      }
+      const mismaFecha = (x, y) => new Date(x).getTime() === new Date(y).getTime();
+      const hace = Date.now() - DIAS_ENTRE_LEJANOS * 86400000;
+
+      for (const m of encontrados) {
+        const plazo = plazoActual.get(`${m.kind}|${m.ref_id}`) || m.plazo;
+        if (!mismaFecha(plazo, m.plazo) && !dry) {
+          await db.from('sector_alert_matches').update({ plazo }).eq('id', m.id);
+        }
+        const dias = diasHasta(plazo);
+        if (dias === null) continue;
+        const umbral = ESCALERA.find((u, k) => dias <= u && dias > (ESCALERA[k + 1] ?? -1));
+        if (umbral === undefined) continue;
+        const suyos = previos.filter(
+          (p) => p.alert_id === m.alert_id && p.kind === m.kind && p.ref_id === m.ref_id && mismaFecha(p.deadline, plazo)
+        );
+        if (suyos.some((p) => p.umbral === umbral)) continue;
+        if (umbral > 3) {
+          const reciente = suyos.some((p) => new Date(p.created_at).getTime() > hace);
+          const recienEncontrado = new Date(m.avisado_at || m.created_at).getTime() > hace;
+          if (reciente || recienEncontrado) continue;
+        }
+        recordatorios.push({ ...m, plazo, dias, umbral });
+      }
+    }
+    informe.recordatorios = recordatorios.length;
+
     if (sinEnvio) {
       informe.ms_total = Date.now() - t0;
       return NextResponse.json(informe);
     }
 
-    // --- 2. Enviar -------------------------------------------------------
+    // --- 3. Enviar -------------------------------------------------------
     const tocaEnviar = (a) =>
       a.frecuencia === 'inmediato' || (a.frecuencia === 'diario' && esManana) || (a.frecuencia === 'semanal' && esManana && esLunes);
     const aEnviar = vigentes.filter(tocaEnviar);
-    const porId = new Map(aEnviar.map((a) => [a.id, a]));
+    const porId = new Map(vigentes.map((a) => [a.id, a]));
 
     let pendientes = [];
     if (aEnviar.length > 0) {
@@ -221,7 +309,7 @@ async function handler(request) {
       for (let i = 0; i < ids.length; i += 100) {
         const { data } = await db
           .from('sector_alert_matches')
-          .select('id, alert_id, user_id, titulo, fuente, ruta, motivo, plazo, relevancia')
+          .select('id, alert_id, user_id, kind, ref_id, titulo, fuente, ruta, motivo, plazo, relevancia')
           .in('alert_id', ids.slice(i, i + 100))
           .is('avisado_at', null)
           .eq('descartado', false);
@@ -230,9 +318,17 @@ async function handler(request) {
     }
 
     const porUsuario = new Map();
-    for (const m of pendientes) {
-      if (!porUsuario.has(m.user_id)) porUsuario.set(m.user_id, []);
-      porUsuario.get(m.user_id).push(m);
+    const de = (userId) => {
+      if (!porUsuario.has(userId)) porUsuario.set(userId, { novedades: [], plazos: [] });
+      return porUsuario.get(userId);
+    };
+    for (const m of pendientes) de(m.user_id).novedades.push(m);
+    for (const r of recordatorios) {
+      // Si el mismo asunto va como novedad, no se repite como recordatorio.
+      const u = de(r.user_id);
+      if (u.novedades.some((n) => n.kind === r.kind && n.ref_id === r.ref_id)) continue;
+      if (u.plazos.some((p) => p.kind === r.kind && p.ref_id === r.ref_id)) continue;
+      u.plazos.push(r);
     }
     informe.usuarios_con_novedades = porUsuario.size;
 
@@ -249,17 +345,20 @@ async function handler(request) {
 
       let enviados = 0;
       const marcados = [];
+      const avisosPlazo = [];
       const fallos = [];
-      for (const [userId, matches] of porUsuario) {
+      for (const [userId, { novedades, plazos }] of porUsuario) {
+        if (novedades.length === 0 && plazos.length === 0) continue;
         const u = datosDe.get(userId);
         if (!u?.email || sinCorreo.has(userId)) continue;
-        const suyas = matches.map((m) => porId.get(m.alert_id)).filter(Boolean);
-        const tipo = suyas.some((a) => a.frecuencia === 'inmediato') && !esManana
-          ? 'inmediato'
-          : suyas.every((a) => a.frecuencia === 'semanal')
-            ? 'semanal'
-            : 'diario';
-        const ordenados = [...matches].sort((a, b) => {
+        const suyas = novedades.map((m) => porId.get(m.alert_id)).filter(Boolean);
+        const tipo =
+          suyas.some((a) => a.frecuencia === 'inmediato') && !esManana
+            ? 'inmediato'
+            : suyas.length > 0 && suyas.every((a) => a.frecuencia === 'semanal')
+              ? 'semanal'
+              : 'diario';
+        const ordenados = [...novedades].sort((a, b) => {
           if (!!a.plazo !== !!b.plazo) return a.plazo ? -1 : 1;
           return (b.relevancia || 0) - (a.relevancia || 0);
         });
@@ -273,7 +372,17 @@ async function handler(request) {
             plazo: m.plazo,
             alarma: porId.get(m.alert_id)?.nombre || null,
           })),
-          total: matches.length,
+          total: novedades.length,
+          recordatorios: [...plazos]
+            .sort((a, b) => a.dias - b.dias)
+            .map((r) => ({
+              title: r.titulo,
+              fuente: r.fuente,
+              ruta: r.ruta,
+              plazo: r.plazo,
+              dias: r.dias,
+              alarma: porId.get(r.alert_id)?.nombre || null,
+            })),
           tipo,
           esFree: (niveles.get(userId) || 'free') !== 'pro',
           ajustesUrl: `${SITE_URL}/seguimiento?alarmas=1`,
@@ -281,7 +390,10 @@ async function handler(request) {
         try {
           await enviar({ to: u.email, subject, html });
           enviados += 1;
-          marcados.push(...matches.map((m) => m.id));
+          marcados.push(...novedades.map((m) => m.id));
+          avisosPlazo.push(
+            ...plazos.map((r) => ({ alert_id: r.alert_id, kind: r.kind, ref_id: r.ref_id, deadline: r.plazo, umbral: r.umbral }))
+          );
         } catch (e) {
           fallos.push(`${userId}: ${e.message}`);
         }
@@ -295,8 +407,14 @@ async function handler(request) {
           .update({ avisado_at: new Date().toISOString(), canal: 'email' })
           .in('id', marcados.slice(i, i + 200));
       }
+      if (avisosPlazo.length > 0) {
+        await db
+          .from('sector_alert_plazo_avisos')
+          .upsert(avisosPlazo, { onConflict: 'alert_id,kind,ref_id,deadline,umbral', ignoreDuplicates: true });
+      }
       informe.enviados = enviados;
       informe.marcados = marcados.length;
+      informe.recordatorios_enviados = avisosPlazo.length;
       if (fallos.length) informe.fallos_envio = fallos.slice(0, 3);
     }
 
