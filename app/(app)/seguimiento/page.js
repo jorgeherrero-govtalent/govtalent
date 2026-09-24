@@ -5,7 +5,7 @@ import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
 import { toast } from '@/lib/toast';
-import AvisosTab from '@/components/AvisosTab';
+import AlarmasTab from '@/components/AlarmasTab';
 
 /**
  * Lo que sigue el usuario, con sus novedades.
@@ -71,7 +71,8 @@ export default function SeguimientoPage() {
 
 function Seguimiento() {
   const supabase = createClient();
-  // Los dos correos enlazan a ?ajustes=1 para darse de baja.
+  // Los correos antiguos enlazan a ?ajustes=1 y los de las alarmas a
+  // ?alarmas=1: los dos abren la pestaña de Alarmas.
   const sp = useSearchParams();
 
   const [items, setItems] = useState(null);
@@ -82,7 +83,7 @@ function Seguimiento() {
   const [sinSesion, setSinSesion] = useState(false);
 
   useEffect(() => {
-    if (sp?.get('ajustes') === '1') setSeccion('avisos');
+    if (sp?.get('ajustes') === '1' || sp?.get('alarmas') === '1') setSeccion('avisos');
   }, [sp]);
 
   useEffect(() => {
@@ -206,7 +207,7 @@ function Seguimiento() {
             ? '—'
             : items.length === 0
               ? 'Aún no sigues nada.'
-              : `${items.length} ${items.length === 1 ? 'asunto' : 'asuntos'}${nuevas.length > 0 ? ` · ${nuevas.length} ${nuevas.length === 1 ? 'novedad' : 'novedades'}` : ''}${nAlertas > 0 ? ` · ${nAlertas} ${nAlertas === 1 ? 'alerta activa' : 'alertas activas'}` : ''}`}
+              : `${items.length} ${items.length === 1 ? 'asunto' : 'asuntos'}${nuevas.length > 0 ? ` · ${nuevas.length} ${nuevas.length === 1 ? 'novedad' : 'novedades'}` : ''}${nAlertas > 0 ? ` · ${nAlertas} ${nAlertas === 1 ? 'alarma activa' : 'alarmas activas'}` : ''}`}
         </p>
       </div>
 
@@ -216,12 +217,12 @@ function Seguimiento() {
           Lo que sigo
         </button>
         <button type="button" onClick={() => setSeccion('avisos')} style={chip(seccion === 'avisos')}>
-          Gestión de mis avisos
+          Alarmas
         </button>
       </div>
 
       {seccion === 'avisos' ? (
-        <AvisosTab />
+        <AlarmasTab />
       ) : items === null ? (
         <div className="spinner"></div>
       ) : items.length === 0 ? (
