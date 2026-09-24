@@ -210,7 +210,7 @@ export default function RegulatorioPage() {
       // `sector` y no lo rellenaba nunca, así que la franja de arriba
       // enseñaba "¿Qué te afecta a ti?" incluso a quien ya tenía veinte
       // asuntos analizados.
-      supabase.from('sector_matches').select('kind, plazo, visto'),
+      supabase.from('alarma_encaja').select('kind, plazo, visto'),
 
     ]).then(([ven, tram, esV, boeS, consA, consU, { data: matches }]) => {
       setCifras({
@@ -259,7 +259,7 @@ export default function RegulatorioPage() {
           reconoce por su bandera. */}
       <div className="reg-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 14 }}>
         <Link
-          href="/regulatorio/sector"
+          href="/seguimiento?alarmas=1"
           className="bento"
           style={{
             background: '#15140f',
@@ -284,16 +284,16 @@ export default function RegulatorioPage() {
                 {sector.n} {sector.n === 1 ? 'asunto te afecta' : 'asuntos te afectan'}
                 {sector.conPlazo > 0 ? `, ${sector.conPlazo} con plazo abierto.` : '.'}
                 {sector.nuevos > 0 &&
-                  ` ${sector.nuevos} ${sector.nuevos === 1 ? 'nuevo' : 'nuevos'} desde tu último análisis.`}
+                  ` ${sector.nuevos} ${sector.nuevos === 1 ? 'nuevo' : 'nuevos'} sin revisar en tus alarmas.`}
               </div>
             ) : (
               <div style={{ fontSize: 14.5, color: '#fff', lineHeight: 1.5 }}>
-                Dinos a qué se dedica tu organización y revisamos las 5 fuentes para monitorizar qué te afecta.
+                Crea una alarma: dinos a qué se dedica tu organización y vigilamos las 5 fuentes por ti.
               </div>
             )}
           </div>
           <div style={{ fontSize: 12.5, color: '#8f7ff5', fontWeight: 600, paddingTop: 18 }}>
-            {hayAnalisis ? 'Ver el análisis →' : 'Analizar mi sector →'}
+            {hayAnalisis ? 'Ver mis alarmas →' : 'Crear una alarma →'}
           </div>
         </Link>
 
