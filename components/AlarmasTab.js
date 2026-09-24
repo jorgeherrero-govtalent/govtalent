@@ -409,7 +409,8 @@ export default function AlarmasTab() {
 
   // --- Pedir una propuesta al agente ------------------------------------
   async function pedirPropuesta({ textoPedido, webPedida, base }) {
-    setTrabajando(webPedida ? 'Leyendo la web y preparando la alarma…' : 'Preparando la alarma…');
+    const hayWeb = !!webPedida || /(https?:\/\/|www\.|\.[a-z]{2,4}\b)/i.test(textoPedido || '');
+    setTrabajando(hayWeb ? 'Leyendo la web y preparando la alarma…' : 'Preparando la alarma…');
     try {
       const res = await fetch('/api/alarmas/proponer', {
         method: 'POST',
@@ -435,7 +436,10 @@ export default function AlarmasTab() {
   async function enviarCaja() {
     const t = texto.trim();
     const w = conWeb ? web.trim() : '';
-    if (t.length < 20 && !w) {
+    // Una dirección pegada en la caja vale aunque sea corta
+    // (iberdrolaespana.com): el servidor la reconoce y la lee como web.
+    const pareceWeb = /(https?:\/\/|www\.|\.[a-z]{2,4}\b)/i.test(t);
+    if (t.length < 20 && !w && !pareceWeb) {
       toast.info('Cuéntame algo más: a qué se dedica tu organización o qué te preocupa.');
       return;
     }
