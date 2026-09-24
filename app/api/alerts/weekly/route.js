@@ -2,10 +2,10 @@
 // CORREO — resumen semanal
 // app/api/alerts/weekly/route.js
 //
-// Se ejecuta los lunes por la mañana y va A TODOS los usuarios, sigan
-// algo o no. Antes solo salía si tenías seguimientos y además se habían
-// movido; con eso, quien está en Free —que no puede seguir ni tener
-// alertas— no recibía nunca nada.
+// Se ejecuta los lunes por la mañana y va A TODOS LOS USUARIOS DE PAGO
+// (Pro propio o Teams), sigan algo o no. Free ya no lo recibe: desde el
+// 24-09-2026 su único correo es el resumen semanal de su alarma, que
+// manda /api/alarmas/vigilar.
 //
 // QUÉ LLEVA, EN ESTE ORDEN:
 //   1. Lo que CIERRA en los próximos siete días, de lo que sigues o de
@@ -34,6 +34,7 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { weeklyDigestEmail } from '@/lib/email/templates';
+import { nivelesAvisos } from '@/lib/nivelAvisos';
 import { conRegistro } from '@/lib/syncLog';
 
 export const dynamic = 'force-dynamic';
@@ -255,6 +256,13 @@ async function handler(request) {
     if (errP) throw new Error(`No se pudieron leer las preferencias: ${errP.message}`);
     const prefDe = new Map((prefs || []).map((p) => [p.user_id, p]));
 
+    // Solo para usuarios de pago (Pro propio o Teams). Free recibe los
+    // lunes el resumen de su única alarma, que lo manda
+    // /api/alarmas/vigilar; este correo, con seguimientos y BOE por
+    // temas, es de Pro.
+    const niveles = await nivelesAvisos(supabase, (todosLosUsuarios || []).map((u) => u.id));
+    informe.usuarios_free_omitidos = (todosLosUsuarios || []).filter((u) => niveles.get(u.id) !== 'pro').length;
+
 
     const resultados = [];
     let enviadosOk = 0;
@@ -269,6 +277,8 @@ async function handler(request) {
 
       const userId = u.id;
       const sigue = porUsuario.get(userId) || [];
+
+      if (niveles.get(userId) !== 'pro') continue;
 
       const pref = prefDe.get(userId);
       if (pref && (pref.email === false || pref.semanal === false)) continue;
