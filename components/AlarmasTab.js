@@ -616,7 +616,11 @@ export default function AlarmasTab() {
       }
 
       if (fallo || !final) {
-        toast.error(fallo?.error || 'El agente se ha cortado antes de terminar. Inténtalo de nuevo.');
+        toast.error(
+          fallo?.error
+            ? `${fallo.error}${fallo.detalle ? ` (${fallo.detalle})` : ''}`
+            : 'El agente se ha cortado antes de terminar. Inténtalo de nuevo.'
+        );
         return null;
       }
       if (final.aviso_web) toast.info(final.aviso_web);
