@@ -25,7 +25,10 @@ import { nivelAvisos } from '@/lib/nivelAvisos';
 import { limitesDe, LIMITES } from '@/lib/alarmas';
 
 export const dynamic = 'force-dynamic';
-export const maxDuration = 60;
+// Leer la web, entender, buscar y evaluar hasta 120 asuntos puede pasar
+// del minuto. Con 60 s Vercel cortaba la función a medias y la pantalla
+// se quedaba sin respuesta. Vercel Pro permite hasta 800.
+export const maxDuration = 300;
 
 const ENDPOINT = 'alarma-propuesta';
 
@@ -116,7 +119,11 @@ export async function POST(request) {
   const encoder = new TextEncoder();
   const flujo = new ReadableStream({
     async start(controller) {
-      const emitir = (obj) => controller.enqueue(encoder.encode(JSON.stringify(obj) + '\n'));
+      const t0 = Date.now();
+      const emitir = (obj) => {
+        if (obj.fase !== 'buscando') console.log(`[alarmas/proponer] ${obj.fase} +${Date.now() - t0} ms`);
+        controller.enqueue(encoder.encode(JSON.stringify(obj) + '\n'));
+      };
       try {
         // --- La web, si la hay -----------------------------------------
         // Las portadas corporativas grandes pesan varios MB y muchas
@@ -202,7 +209,13 @@ export async function POST(request) {
         });
       } catch (e) {
         console.error('[alarmas/proponer]', e);
-        emitir({ fase: 'error', error: 'El agente no ha podido preparar la alarma. Inténtalo de nuevo en un momento.' });
+        // El detalle técnico va aparte: la pantalla lo enseña en pequeño
+        // para que, si falla, se pueda saber en qué paso y por qué.
+        emitir({
+          fase: 'error',
+          error: 'El agente no ha podido preparar la alarma. Inténtalo de nuevo en un momento.',
+          detalle: String(e?.message || e).slice(0, 160),
+        });
       } finally {
         controller.close();
       }
