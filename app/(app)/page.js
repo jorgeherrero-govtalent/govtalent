@@ -292,7 +292,7 @@ export default function Home() {
         // Las tres fuentes que deciden la tarjeta grande, en paralelo y
         // no en cascada: hacen falta las tres a la vez para cruzarlas.
         supabase
-          .from('sector_matches')
+          .from('alarma_encaja')
           .select('*')
           .order('relevancia', { ascending: false })
           .order('plazo', { ascending: true, nullsFirst: false })
@@ -406,7 +406,8 @@ export default function Home() {
   /**
    * Lo que es tuyo y tiene plazo abierto.
    *
-   * EL PLAZO NO VIVE EN sector_matches. Ese es el fallo que traía loca a
+   * EL PLAZO NO VIVE EN LAS COINCIDENCIAS (antes sector_matches, hoy
+   * alarma_encaja). Ese es el fallo que traía loca a
    * esta tarjeta: el análisis guarda `plazo` a null en casi todas sus
    * filas, así que filtrar por él dejaba la lista vacía y la home caía al
    * plazo más próximo del regulatorio general, que es de donde salía
@@ -666,7 +667,7 @@ export default function Home() {
                   monitorizar qué te afecta.
                 </div>
                 <Link
-                  href="/regulatorio/sector"
+                  href="/seguimiento?alarmas=1"
                   style={{
                     display: 'inline-block',
                     background: '#6d5aef',
@@ -678,14 +679,14 @@ export default function Home() {
                     textDecoration: 'none',
                   }}
                 >
-                  Analizar mi sector
+                  Crear una alarma
                 </Link>
               </>
             ) : (
               <>
                 <div style={{ fontSize: 14, color: '#fff', lineHeight: 1.5 }}>{lectura}</div>
                 <Link
-                  href="/regulatorio/sector"
+                  href="/seguimiento?alarmas=1"
                   style={{
                     display: 'inline-block',
                     marginTop: 11,
@@ -694,7 +695,7 @@ export default function Home() {
                     textDecoration: 'none',
                   }}
                 >
-                  Ver el análisis →
+                  Ver mis alarmas →
                 </Link>
               </>
             )}
