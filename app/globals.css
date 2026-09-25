@@ -442,6 +442,15 @@ a{color:inherit}
 /* --- Mosaico de la home ---------------------------------------------
    Las tarjetas crecen un pelín al pasar por encima. Un 1,8 % y no más:
    por encima de eso el mosaico entero parece que tiembla. */
+/* Las tarjetas de una misma fila, siempre a la misma altura. La rejilla
+   estira a sus hijos directos, pero cuando la tarjeta va dentro de un
+   enlace (el anillo lleva a Regulatorio) el que se estira es el enlace y
+   la tarjeta se queda con su altura: el anillo quedaba más bajo que «Lo
+   más urgente». Así se estira también lo de dentro. */
+.bento-fila > *{min-width:0}
+.bento-fila > a{display:flex}
+.bento-fila > a > .bento,
+.bento-fila > .bento{flex:1;box-sizing:border-box;height:100%}
 .bento{transition:transform .16s ease, box-shadow .16s ease}
 .bento:hover{transform:scale(1.018);box-shadow:0 8px 26px rgba(0,0,0,.07)}
 @media (prefers-reduced-motion: reduce){
