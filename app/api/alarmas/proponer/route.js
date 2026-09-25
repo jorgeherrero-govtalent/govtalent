@@ -22,7 +22,7 @@ import { createClient } from '@supabase/supabase-js';
 import { safeFetchText } from '@/lib/safeFetch';
 import { proponer, candidatos, evaluar, textoDeHtml } from '@/lib/agenteAlarmas';
 import { nivelAvisos } from '@/lib/nivelAvisos';
-import { limitesDe, LIMITES } from '@/lib/alarmas';
+import { limitesDe, LIMITES, CUENTAS_SIN_TOPE } from '@/lib/alarmas';
 
 export const dynamic = 'force-dynamic';
 // Leer la web, entender, buscar y evaluar hasta 120 asuntos puede pasar
@@ -92,7 +92,11 @@ export async function POST(request) {
     .eq('endpoint', ENDPOINT)
     .gte('created_at', inicioDeMes());
   const usadas = count || 0;
-  if (usadas >= limites.propuestas_mes) {
+  // Las cuentas de demo y la del administrador no tienen tope (lib/alarmas.js).
+  const { data: perfil } = await db.from('users').select('role').eq('id', user.id).maybeSingle();
+  const sinTope =
+    perfil?.role === 'platform_admin' || CUENTAS_SIN_TOPE.includes(String(user.email || '').toLowerCase());
+  if (!sinTope && usadas >= limites.propuestas_mes) {
     return NextResponse.json(
       {
         error:
@@ -222,7 +226,7 @@ export async function POST(request) {
           revisados: filas.length,
           aviso_web: avisoWeb,
           nivel,
-          propuestas_restantes: Math.max(0, limites.propuestas_mes - usadas - 1),
+          propuestas_restantes: sinTope ? null : Math.max(0, limites.propuestas_mes - usadas - 1),
         });
       } catch (e) {
         console.error('[alarmas/proponer]', e);
