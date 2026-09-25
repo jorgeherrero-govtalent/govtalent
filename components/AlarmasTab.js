@@ -566,6 +566,13 @@ export default function AlarmasTab() {
   const [filtroFuente, setFiltroFuente] = useState('todas');
   const [periodo, setPeriodo] = useState('30');
   const [pagina, setPagina] = useState(1);
+  // Filtros al estilo Airtable: una lista de condiciones («Donde Alarma es
+  // Energía», «y Fecha está en los últimos 30 días») que se añaden y se
+  // quitan desde un panel. El orden en que se añadieron es el de la lista.
+  const [condiciones, setCondiciones] = useState(['fecha']);
+  const [orden, setOrden] = useState(null); // null = el de la pestaña
+  const [panel, setPanel] = useState(null); // 'filtrar' | 'ordenar' | null
+  const panelRef = useRef(null);
   const [pedidoPendiente, setPedidoPendiente] = useState(null);
   const cajaRef = useRef(null);
   // Hasta que no se ha mirado si había algo guardado, no se escribe: si
@@ -666,6 +673,23 @@ export default function AlarmasTab() {
     cargar();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // El panel de filtros u orden se cierra al pulsar fuera o con Escape.
+  useEffect(() => {
+    if (!panel) return;
+    const fuera = (e) => {
+      if (panelRef.current && !panelRef.current.contains(e.target)) setPanel(null);
+    };
+    const tecla = (e) => {
+      if (e.key === 'Escape') setPanel(null);
+    };
+    document.addEventListener('mousedown', fuera);
+    document.addEventListener('keydown', tecla);
+    return () => {
+      document.removeEventListener('mousedown', fuera);
+      document.removeEventListener('keydown', tecla);
+    };
+  }, [panel]);
 
   useEffect(() => {
     if (!cargado || !pedidoPendiente) return;
@@ -1385,25 +1409,65 @@ export default function AlarmasTab() {
   ];
   const tab = PESTANAS.find((t) => t.id === pestana) || PESTANAS[0];
 
-  // Filtros, en orden: periodo, fuente y alarma. Los recuentos de los
-  // chips de alarma se calculan con los otros dos filtros ya aplicados,
-  // para que el número diga lo que saldrá al pulsarlo.
+  // Filtros: cada condición activa se aplica; la de fecha no cuenta en
+  // «Con plazo» (manda la fecha de cierre) ni en «Descartado».
+  const activa = (c) => condiciones.includes(c);
+  const fechaAplica = activa('fecha') && !tab.porPlazo && !tab.sinPeriodo;
   const enPeriodo = (x) =>
-    tab.porPlazo || tab.sinPeriodo || periodo === 'todo' || Date.now() - new Date(x.fecha).getTime() <= Number(periodo) * DIA;
+    !fechaAplica || periodo === 'todo' || Date.now() - new Date(x.fecha).getTime() <= Number(periodo) * DIA;
   const base = tab.lista.filter(enPeriodo);
-  const fuentes = [...new Set(base.map((x) => x.fuente))].sort();
-  const fuenteValida = filtroFuente === 'todas' || fuentes.includes(filtroFuente) ? filtroFuente : 'todas';
-  const trasFuente = base.filter((x) => fuenteValida === 'todas' || x.fuente === fuenteValida);
-  const deAlarma = (x, f) => (f === 'todas' ? true : f === 'sigo' ? x.tipo === 'seg' : x.tipo === 'enc' && x.alertas.has(f));
-  const chips = [
-    { id: 'todas', label: 'Todas', n: trasFuente.length },
-    ...alarmas.map((a) => ({ id: a.id, label: a.nombre, n: trasFuente.filter((x) => deAlarma(x, a.id)).length })),
-    ...(tab.id === 'revisar' || tab.id === 'siguiendo' ? [{ id: 'sigo', label: 'Lo que sigo', n: trasFuente.filter((x) => deAlarma(x, 'sigo')).length }] : []),
-  ];
-  const alarmaValida = chips.some((c) => c.id === filtroAlarma) ? filtroAlarma : 'todas';
+  const fuentes = [...new Set(tab.lista.map((x) => x.fuente))].sort();
+  const trasFuente = base.filter((x) => !activa('fuente') || x.fuente === filtroFuente);
+  const deAlarma = (x, f) => (f === 'sigo' ? x.tipo === 'seg' : x.tipo === 'enc' && x.alertas.has(f));
+  const opcionesAlarma = [
+    ...alarmas.map((a) => ({ id: a.id, label: a.nombre })),
+    ...(cambios.length > 0 ? [{ id: 'sigo', label: 'Lo que sigo' }] : []),
+  ].map((o) => ({ ...o, n: trasFuente.filter((x) => deAlarma(x, o.id)).length }));
+  const ordenActual = orden || (tab.porPlazo ? 'cierre' : 'recientes');
   const filtrados = trasFuente
-    .filter((x) => deAlarma(x, alarmaValida))
-    .sort((x, y) => (tab.porPlazo ? x.dias - y.dias : new Date(y.fecha).getTime() - new Date(x.fecha).getTime()));
+    .filter((x) => !activa('alarma') || deAlarma(x, filtroAlarma))
+    .sort((x, y) => {
+      if (ordenActual === 'cierre') {
+        const dx = x.dias === null || x.dias < 0 ? Infinity : x.dias;
+        const dy = y.dias === null || y.dias < 0 ? Infinity : y.dias;
+        if (dx !== dy) return dx - dy;
+      }
+      if (ordenActual === 'relevancia') {
+        const rx = Number(x.m?.relevancia) || 0;
+        const ry = Number(y.m?.relevancia) || 0;
+        if (rx !== ry) return ry - rx;
+      }
+      return new Date(y.fecha).getTime() - new Date(x.fecha).getTime();
+    });
+  const nFiltros = condiciones.filter((c) => c !== 'fecha' || fechaAplica).length;
+
+  // Añadir la siguiente condición que falte, con un valor por defecto.
+  const CAMPOS = [
+    { id: 'alarma', label: 'Alarma' },
+    { id: 'fuente', label: 'Fuente' },
+    { id: 'fecha', label: 'Fecha' },
+  ];
+  const anadirCondicion = () => {
+    const libre = CAMPOS.find((c) => !condiciones.includes(c.id));
+    if (!libre) return;
+    if (libre.id === 'alarma') setFiltroAlarma(opcionesAlarma[0]?.id || 'sigo');
+    if (libre.id === 'fuente') setFiltroFuente(fuentes[0] || '');
+    if (libre.id === 'fecha') setPeriodo('7');
+    setCondiciones((prev) => [...prev, libre.id]);
+    setPagina(1);
+  };
+  const cambiarCampo = (viejo, nuevo) => {
+    if (viejo === nuevo || condiciones.includes(nuevo)) return;
+    if (nuevo === 'alarma') setFiltroAlarma(opcionesAlarma[0]?.id || 'sigo');
+    if (nuevo === 'fuente') setFiltroFuente(fuentes[0] || '');
+    if (nuevo === 'fecha') setPeriodo('7');
+    setCondiciones((prev) => prev.map((c) => (c === viejo ? nuevo : c)));
+    setPagina(1);
+  };
+  const quitarCondicion = (c) => {
+    setCondiciones((prev) => prev.filter((x) => x !== c));
+    setPagina(1);
+  };
   const paginas = Math.max(1, Math.ceil(filtrados.length / POR_PAGINA));
   const paginaActual = Math.min(pagina, paginas);
   const visibles = filtrados.slice((paginaActual - 1) * POR_PAGINA, paginaActual * POR_PAGINA);
@@ -1431,7 +1495,14 @@ export default function AlarmasTab() {
 
   const BOTON_V = { border: 'none', background: '#1d6f5c', color: '#fff', borderRadius: 8, padding: '0 12px', fontSize: 12, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' };
   const BOTON_S = { border: `1px solid ${LINEA}`, background: '#fff', color: '#57534e', borderRadius: 8, padding: '0 12px', fontSize: 12, cursor: 'pointer', fontFamily: 'inherit' };
-  const SELECT = { fontSize: 12.5, color: '#3a3935', background: '#fff', border: `1px solid ${LINEA}`, borderRadius: 9, padding: '7px 10px', fontFamily: 'inherit', cursor: 'pointer' };
+  const BARRA_BOTON = { display: 'inline-flex', alignItems: 'center', gap: 6, height: 32, padding: '0 10px', fontSize: 13, color: '#3a3935', background: 'none', border: 'none', borderRadius: 7, cursor: 'pointer', fontFamily: 'inherit', whiteSpace: 'nowrap' };
+  const PANEL = { position: 'absolute', top: 38, left: 0, zIndex: 30, width: 520, maxWidth: 'calc(100vw - 32px)', boxSizing: 'border-box', background: '#fff', border: `1px solid ${LINEA}`, borderRadius: 10, boxShadow: '0 8px 28px rgba(26,26,24,.12)', padding: '14px 14px 10px' };
+  const CAMPO = { height: 32, fontSize: 12.5, color: '#1a1a18', background: '#fff', border: `1px solid ${LINEA}`, borderRadius: 7, padding: '0 8px', fontFamily: 'inherit', cursor: 'pointer', minWidth: 0 };
+  const ORDENES = [
+    { id: 'recientes', label: 'Más recientes' },
+    { id: 'cierre', label: 'Cierre más próximo' },
+    { id: 'relevancia', label: 'Relevancia' },
+  ];
 
   const acciones = (x) => {
     if (x.tipo === 'seg') {
@@ -1479,6 +1550,8 @@ export default function AlarmasTab() {
         .alarmas-titulo { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
         .alarmas-texto { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
         .alarmas-pestanas { display: flex; gap: 4px; border-bottom: 1px solid ${LINEA}; overflow-x: auto; }
+        .alarmas-condicion { display: flex; gap: 8px; align-items: center; margin-bottom: 8px; }
+        .alarmas-condicion select:focus { outline: 2px solid ${MORADO_S}; border-color: ${MORADO}; }
         @media (max-width: 860px) {
           .alarmas-rejilla { grid-template-columns: 1fr; }
           .alarmas-fila { flex-wrap: wrap; align-items: flex-start; }
@@ -1644,8 +1717,7 @@ export default function AlarmasTab() {
                   aria-selected={on}
                   onClick={() => {
                     setPestana(t.id);
-                    setFiltroAlarma('todas');
-                    setFiltroFuente('todas');
+                    setOrden(null);
                     setPagina(1);
                   }}
                   style={{
@@ -1668,40 +1740,124 @@ export default function AlarmasTab() {
             })}
           </div>
 
-          <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap', margin: '14px 0' }}>
-            <div role="group" aria-label="Filtrar por alarma" style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-              {chips.map((c) => {
-                const on = c.id === alarmaValida;
-                return (
-                  <button
-                    key={c.id}
-                    type="button"
-                    aria-pressed={on}
-                    onClick={() => cambiar(setFiltroAlarma)(c.id)}
-                    style={{ fontSize: 12.5, fontWeight: on ? 600 : 500, color: on ? MORADO : '#57534e', background: on ? MORADO_S : '#fff', border: `1px solid ${on ? MORADO_S : LINEA}`, borderRadius: 18, padding: '6px 12px', cursor: 'pointer', fontFamily: 'inherit', whiteSpace: 'nowrap' }}
-                  >
-                    {c.label} <span style={{ color: on ? MORADO : GRIS2 }}>{c.n}</span>
-                  </button>
-                );
-              })}
-            </div>
-            <span style={{ flex: 1 }} />
-            {fuentes.length > 1 && (
-              <select value={fuenteValida} onChange={(e) => cambiar(setFiltroFuente)(e.target.value)} aria-label="Fuente" style={SELECT}>
-                <option value="todas">Todas las fuentes</option>
-                {fuentes.map((f) => (
-                  <option key={f} value={f}>
-                    {f}
-                  </option>
+          {/* Barra de herramientas al estilo Airtable: «Filtrar» y
+              «Ordenar» abren un panel. Con filtros activos, el botón lo
+              dice («Filtrado por 2 campos») y se resalta. */}
+          <div ref={panelRef} style={{ position: 'relative', display: 'flex', gap: 4, alignItems: 'center', margin: '10px 0 12px', flexWrap: 'wrap' }}>
+            <button
+              type="button"
+              aria-expanded={panel === 'filtrar'}
+              onClick={() => setPanel(panel === 'filtrar' ? null : 'filtrar')}
+              style={{ ...BARRA_BOTON, ...(nFiltros > 0 ? { background: MORADO_S, color: MORADO_O, fontWeight: 600 } : null) }}
+            >
+              <i className="ti ti-filter" style={{ fontSize: 15 }} aria-hidden="true"></i>
+              {nFiltros === 0 ? 'Filtrar' : `Filtrado por ${nFiltros} ${nFiltros === 1 ? 'campo' : 'campos'}`}
+            </button>
+            <button
+              type="button"
+              aria-expanded={panel === 'ordenar'}
+              onClick={() => setPanel(panel === 'ordenar' ? null : 'ordenar')}
+              style={{ ...BARRA_BOTON, ...(orden ? { background: MORADO_S, color: MORADO_O, fontWeight: 600 } : null) }}
+            >
+              <i className="ti ti-arrows-sort" style={{ fontSize: 15 }} aria-hidden="true"></i>
+              {orden ? `Ordenado por ${ORDENES.find((o) => o.id === orden)?.label.toLowerCase()}` : 'Ordenar'}
+            </button>
+            <span style={{ marginLeft: 'auto', fontSize: 12, color: GRIS }}>
+              {filtrados.length} {filtrados.length === 1 ? 'asunto' : 'asuntos'}
+            </span>
+
+            {panel === 'filtrar' && (
+              <div role="dialog" aria-label="Filtros" style={PANEL}>
+                <div style={{ fontSize: 12, color: GRIS, marginBottom: 10 }}>En esta vista, mostrar asuntos</div>
+                {condiciones.length === 0 && (
+                  <div style={{ fontSize: 12.5, color: GRIS2, padding: '4px 0 10px' }}>No hay filtros aplicados.</div>
+                )}
+                {condiciones.map((c, i) => (
+                  <div key={c} className="alarmas-condicion">
+                    <span style={{ fontSize: 12.5, color: GRIS, width: 44, flexShrink: 0 }}>{i === 0 ? 'Donde' : 'y'}</span>
+                    <select value={c} onChange={(e) => cambiarCampo(c, e.target.value)} aria-label="Campo" style={{ ...CAMPO, width: 104 }}>
+                      {CAMPOS.filter((k) => k.id === c || !condiciones.includes(k.id)).map((k) => (
+                        <option key={k.id} value={k.id}>
+                          {k.label}
+                        </option>
+                      ))}
+                    </select>
+                    <span style={{ fontSize: 12.5, color: '#3a3935', width: 64, flexShrink: 0 }}>{c === 'fecha' ? 'está en' : 'es'}</span>
+                    {c === 'alarma' && (
+                      <select value={filtroAlarma} onChange={(e) => cambiar(setFiltroAlarma)(e.target.value)} aria-label="Alarma" style={{ ...CAMPO, flex: 1 }}>
+                        {opcionesAlarma.map((o) => (
+                          <option key={o.id} value={o.id}>
+                            {o.label} ({o.n})
+                          </option>
+                        ))}
+                      </select>
+                    )}
+                    {c === 'fuente' && (
+                      <select value={filtroFuente} onChange={(e) => cambiar(setFiltroFuente)(e.target.value)} aria-label="Fuente" style={{ ...CAMPO, flex: 1 }}>
+                        {fuentes.map((f) => (
+                          <option key={f} value={f}>
+                            {f}
+                          </option>
+                        ))}
+                      </select>
+                    )}
+                    {c === 'fecha' && (
+                      <select value={periodo} onChange={(e) => cambiar(setPeriodo)(e.target.value)} aria-label="Fecha" style={{ ...CAMPO, flex: 1 }}>
+                        <option value="7">los últimos 7 días</option>
+                        <option value="30">los últimos 30 días</option>
+                        <option value="todo">cualquier fecha</option>
+                      </select>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => quitarCondicion(c)}
+                      aria-label={`Quitar el filtro de ${CAMPOS.find((k) => k.id === c)?.label.toLowerCase()}`}
+                      style={{ width: 30, height: 30, flexShrink: 0, border: 'none', background: 'none', color: GRIS, cursor: 'pointer', borderRadius: 7 }}
+                    >
+                      <i className="ti ti-trash" style={{ fontSize: 15 }} aria-hidden="true"></i>
+                    </button>
+                  </div>
                 ))}
-              </select>
+                {activa('fecha') && !fechaAplica && (
+                  <div style={{ fontSize: 11.5, color: GRIS2, padding: '2px 0 6px 52px' }}>
+                    La fecha no se aplica en «{tab.label}».
+                  </div>
+                )}
+                {condiciones.length < CAMPOS.length && (
+                  <button
+                    type="button"
+                    onClick={anadirCondicion}
+                    style={{ display: 'inline-flex', alignItems: 'center', gap: 5, marginTop: 6, fontSize: 12.5, fontWeight: 500, color: MORADO, background: 'none', border: 'none', padding: '6px 2px', cursor: 'pointer', fontFamily: 'inherit' }}
+                  >
+                    <i className="ti ti-plus" style={{ fontSize: 14 }} aria-hidden="true"></i>
+                    Añadir condición
+                  </button>
+                )}
+              </div>
             )}
-            {!tab.porPlazo && !tab.sinPeriodo && (
-              <select value={periodo} onChange={(e) => cambiar(setPeriodo)(e.target.value)} aria-label="Periodo" style={SELECT}>
-                <option value="7">Últimos 7 días</option>
-                <option value="30">Últimos 30 días</option>
-                <option value="todo">Todo</option>
-              </select>
+
+            {panel === 'ordenar' && (
+              <div role="dialog" aria-label="Ordenar" style={{ ...PANEL, width: 260, left: 90 }}>
+                <div style={{ fontSize: 12, color: GRIS, marginBottom: 8 }}>Ordenar por</div>
+                {ORDENES.map((o) => {
+                  const on = ordenActual === o.id;
+                  return (
+                    <button
+                      key={o.id}
+                      type="button"
+                      onClick={() => {
+                        setOrden(o.id === (tab.porPlazo ? 'cierre' : 'recientes') ? null : o.id);
+                        setPagina(1);
+                        setPanel(null);
+                      }}
+                      style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', textAlign: 'left', fontSize: 13, color: on ? MORADO_O : '#3a3935', fontWeight: on ? 600 : 400, background: on ? MORADO_S : 'none', border: 'none', borderRadius: 7, padding: '8px 10px', cursor: 'pointer', fontFamily: 'inherit' }}
+                    >
+                      {o.label}
+                      {on && <i className="ti ti-check" style={{ fontSize: 14 }} aria-hidden="true"></i>}
+                    </button>
+                  );
+                })}
+              </div>
             )}
           </div>
 
