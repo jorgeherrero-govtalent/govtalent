@@ -232,7 +232,7 @@ async function handler(request) {
           plazo: m.plazo,
         })),
         total: matches.length,
-        unsubscribeUrl: `${SITE_URL}/seguimiento?ajustes=1`,
+        unsubscribeUrl: `${SITE_URL}/alarmas`,
       });
 
       resultados.push({ user_id: userId, email: u.email, subject, n: matches.length });
