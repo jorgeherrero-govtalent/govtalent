@@ -70,80 +70,78 @@ function etiquetaPlazo(iso, dias) {
 
 const BENTO = { background: '#fff', borderRadius: 16, boxShadow: '0 1px 2px rgba(0,0,0,.04)' };
 /**
- * Anillo de actividad por fuente.
+ * Actividad normativa en curso, en una barra por tramos (estilo Stripe).
  *
- * Cuatro tonos del morado y no cuatro colores distintos: todo esto es
- * dato agregado por la plataforma, y un arcoíris haría pensar que cada
- * segmento es de otra naturaleza.
- *
- * Los segmentos se dibujan sobre una circunferencia de longitud 100
- * (r = 15.915), así que cada dasharray es directamente su porcentaje y
- * no hay que calcular arcos.
+ * Sustituye al anillo: una barra se compara de un vistazo y deja sitio
+ * para leer cada cifra en grande, que es lo que de verdad se mira. Cada
+ * fuente tiene siempre el mismo color, se ordene como se ordene: morados
+ * para lo legislativo (Congreso, Parlamento Europeo), verdes para lo
+ * que abre la Administración (consultas, Comisión) y un neutro para el
+ * BOE de hoy, que es otra escala (publicaciones del día, no expedientes
+ * abiertos).
  */
-function AnilloActividad({ datos }) {
-  const TONOS = ['#6d5aef', '#8f7ff5', '#b3a8f7', '#d8d2fb'];
-  const total = datos.reduce((s, d) => s + (d.valor || 0), 0);
+const COLOR_FUENTE = {
+  Congreso: '#6d5aef',
+  'Parlamento Europeo': '#a597ef',
+  'Consultas públicas': '#3f8a78',
+  'Comisión Europea': '#a8d5c8',
+  'BOE hoy': '#c9c6bd',
+};
 
-  let acumulado = 0;
-  const segmentos = datos.map((d, i) => {
-    const pct = total > 0 ? ((d.valor || 0) / total) * 100 : 0;
-    const seg = { pct, offset: 25 - acumulado, tono: TONOS[i] };
-    acumulado += pct;
-    return seg;
-  });
-
+function BarraActividad({ datos }) {
+  const orden = [...datos].sort((a, b) => (b.valor || 0) - (a.valor || 0));
+  const total = orden.reduce((s, d) => s + (d.valor || 0), 0);
   return (
-    <div className="bento" style={{ ...BENTO, padding: '18px 22px', display: 'flex', alignItems: 'center', gap: 18 }}>
-      <svg
-        viewBox="0 0 42 42"
-        width="92"
-        height="92"
+    <div className="bento" style={{ ...BENTO, padding: '20px 22px', display: 'flex', flexDirection: 'column', gap: 16 }}>
+      <div style={{ fontSize: 14, fontWeight: 600, color: '#1a1a18' }}>
+        Actividad normativa en curso
+        {total === 0 && <span style={{ fontWeight: 400, color: '#a8a49c' }}> · sin datos</span>}
+      </div>
+      <div
         role="img"
-        aria-label="Reparto por fuente de la norma en tramitación"
-        style={{ flexShrink: 0, display: 'block' }}
+        aria-label={orden.map((d) => `${d.clave}: ${d.valor}`).join(', ')}
+        style={{ display: 'flex', gap: 4, height: 14 }}
       >
-        <circle cx="21" cy="21" r="15.915" fill="none" stroke="#f2f0ec" strokeWidth="5" />
-        {total > 0 &&
-          segmentos.map((s, i) => (
-            <circle
-              key={i}
-              cx="21"
-              cy="21"
-              r="15.915"
-              fill="none"
-              stroke={s.tono}
-              strokeWidth="5"
-              strokeDasharray={`${s.pct} ${100 - s.pct}`}
-              strokeDashoffset={s.offset}
-            />
-          ))}
-      </svg>
-      <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{ fontSize: 12.5, color: '#8b8780', marginBottom: 9, lineHeight: 1.4 }}>
-          Actividad normativa en curso
-          {total === 0 && <span style={{ color: '#a8a49c' }}> · sin datos</span>}
-        </div>
-        {/* Nombre entero y cifra, en una columna. Antes eran siglas en
-            dos columnas, y "CD" o "CE" no se entienden sin pasar el
-            raton por encima. Con ventana de un dia la cifra importa
-            tanto como el reparto: un anillo sin numeros no distingue
-            "tres expedientes" de "treinta". */}
-        <div style={{ display: 'grid', gap: 4 }}>
-          {datos.map((d, i) => (
-            <div
-              key={d.clave}
-              style={{ display: 'flex', alignItems: 'center', gap: 7, fontSize: 11.5 }}
-              title={d.titulo}
-            >
-              <span style={{ width: 7, height: 7, borderRadius: 2, background: TONOS[i], flexShrink: 0 }}></span>
-              <span style={{ color: '#5a5952', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                {d.clave}
-              </span>
-              <span style={{ marginLeft: 'auto', fontWeight: 600, color: '#1a1a18' }}>{d.valor}</span>
+        {total > 0
+          ? orden.map((d) => (
+              <span
+                key={d.clave}
+                title={`${d.titulo}: ${d.valor}`}
+                style={{ flex: `${d.valor || 0} 1 0`, minWidth: d.valor ? 10 : 0, borderRadius: 4, background: COLOR_FUENTE[d.clave] || '#d9d6ce' }}
+              />
+            ))
+          : <span style={{ flex: 1, borderRadius: 4, background: '#f2f0ec' }} />}
+      </div>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: '12px 16px' }}>
+        {orden
+          .filter((d) => d.clave !== 'BOE hoy')
+          .map((d) => (
+            <div key={d.clave} title={d.titulo} style={{ minWidth: 0 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 7, fontSize: 12, color: '#6f6b64' }}>
+                <span style={{ width: 7, height: 7, borderRadius: '50%', background: COLOR_FUENTE[d.clave] || '#d9d6ce', flexShrink: 0 }}></span>
+                <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{d.clave}</span>
+              </div>
+              <div style={{ fontSize: 22, fontWeight: 500, color: '#1a1a18', lineHeight: 1.15, paddingLeft: 14, letterSpacing: '-.3px' }}>
+                {d.valor}
+              </div>
             </div>
           ))}
-        </div>
       </div>
+      {/* El BOE de hoy va aparte: son publicaciones del día, no
+          expedientes abiertos, y en la rejilla parecería lo mismo. */}
+      {orden
+        .filter((d) => d.clave === 'BOE hoy')
+        .map((d) => (
+          <div
+            key={d.clave}
+            title={d.titulo}
+            style={{ display: 'flex', alignItems: 'center', gap: 7, fontSize: 12, color: '#6f6b64', paddingTop: 12, borderTop: '1px solid #f2f0ec', marginTop: 'auto' }}
+          >
+            <span style={{ width: 7, height: 7, borderRadius: '50%', background: COLOR_FUENTE[d.clave], flexShrink: 0 }}></span>
+            Publicado hoy en el BOE
+            <span style={{ marginLeft: 'auto', fontSize: 15, fontWeight: 600, color: '#1a1a18' }}>{d.valor}</span>
+          </div>
+        ))}
     </div>
   );
 }
@@ -178,6 +176,7 @@ export default function Home() {
         procedimientos,
         expedientes,
         consultas,
+        boeHoy,
         { data: sec },
         { data: porTema },
         { data: sigue },
@@ -202,7 +201,7 @@ export default function Home() {
           .order('dias_restantes', { ascending: true })
           .limit(40),
 
-        // --- Lo que alimenta el anillo ---
+        // --- Lo que alimenta la barra de actividad ---
         supabase.from('es_initiatives').select('num_expediente', { count: 'exact', head: true }).eq('is_closed', false),
         // "Actos jurídicos en la UE" suma las dos patas del proceso
         // legislativo europeo: lo que tramita el Parlamento y lo que abre
@@ -215,6 +214,12 @@ export default function Home() {
         // fecha_fin: repetir ese cálculo aquí sería garantizar que algún
         // día dejen de coincidir.
         supabase.from('consultas_estado').select('*', { count: 'exact', head: true }).in('estado', ['abierta', 'urgente']),
+        // Lo publicado hoy en el BOE, sobre boe_directory (la tabla está
+        // detrás de RLS y desde el cliente contaba cero). «Hoy» en Madrid.
+        supabase
+          .from('boe_directory')
+          .select('id', { count: 'exact', head: true })
+          .eq('fecha_publicacion', new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Madrid' }).format(new Date())),
 
 
         // Las tres fuentes que deciden la tarjeta grande, en paralelo y
@@ -285,17 +290,14 @@ export default function Home() {
       const ep = procedimientos.count;
       const ce = expedientes.count;
 
-      // El anillo es el desglose de las tarjetas de abajo, no otra
-      // medicion: CE mas PE suman "Actos juridicos en la UE", Congreso
-      // es "Leyes en Congreso" y Consultas es "Consultas publicas".
-      // Antes contaba movimiento del dia y no cuadraba con nada de lo
-      // que se ve debajo, que es justo lo que un anillo tiene que
-      // explicar.
+      // La barra de actividad: lo abierto en cada institución y, aparte,
+      // lo publicado hoy en el BOE.
       setActividad([
         { clave: 'Comisión Europea', titulo: 'Expedientes abiertos en la Comisión Europea', valor: ce ?? 0 },
         { clave: 'Parlamento Europeo', titulo: 'Procedimientos abiertos en el Parlamento Europeo', valor: ep ?? 0 },
         { clave: 'Congreso', titulo: 'Leyes en tramitación en el Congreso', valor: leyes.count ?? 0 },
         { clave: 'Consultas públicas', titulo: 'Consultas públicas abiertas', valor: consultas.count ?? 0 },
+        { clave: 'BOE hoy', titulo: 'Disposiciones publicadas hoy en el BOE', valor: boeHoy.count ?? 0 },
       ]);
 
       setSector(sec || []);
@@ -459,7 +461,7 @@ export default function Home() {
 
       {/* Debajo, lo que cierra antes, grande, y al lado el reparto de la
           actividad normativa en curso. */}
-      <div className="bento-fila" style={{ display: 'grid', gridTemplateColumns: '1.55fr 1fr', gap: 14, marginBottom: 14, alignItems: 'stretch' }}>
+      <div className="bento-fila" style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: 14, marginBottom: 14, alignItems: 'stretch' }}>
         <div
           className="bento"
           style={{ ...BENTO, padding: '24px 26px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}
@@ -473,48 +475,25 @@ export default function Home() {
                   asunto tocara ese día. El título completo sigue estando
                   en el atributo title. */}
               <div className="urgente-texto">
-                {/* Arriba, junto al título, cuándo vence: es el dato que
-                    hace urgente la tarjeta y antes había que buscarlo al
-                    final. En ámbar suave, para que no se confunda con el
-                    morado de los controles. */}
-                <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap', marginBottom: 12 }}>
-                  <span
-                    style={{
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      gap: 5,
-                      background: '#faeeda',
-                      color: '#854f0b',
-                      borderRadius: 20,
-                      padding: '4px 11px',
-                      fontSize: 11.5,
-                      fontWeight: 600,
-                    }}
-                  >
-                    <i className="ti ti-clock" style={{ fontSize: 13 }} aria-hidden="true"></i>
-                    {urgente.dias === 0 ? 'Hoy' : urgente.dias === 1 ? 'Mañana' : `Quedan ${urgente.dias} días`}
-                    {' · '}
-                    {urgente.kind === 'ley' ? 'fin del plazo de enmiendas' : 'cierre de alegaciones'}
-                  </span>
-                  <span
-                    style={{
-                      display: 'inline-block',
-                      background: '#f0eefe',
-                      color: '#3c3489',
-                      borderRadius: 20,
-                      padding: '4px 12px',
-                      fontSize: 11,
-                    }}
-                  >
-                    {urgente.sigues
-                      ? 'Lo más urgente que sigues'
-                      : urgente.origen === 'analisis'
-                        ? 'Lo más urgente de tus alarmas'
-                        : urgente.origen === 'temas'
-                          ? 'Lo más urgente de tus temas'
-                          : 'Lo más urgente'}
-                  </span>
-                </div>
+                <span
+                  style={{
+                    display: 'inline-block',
+                    background: '#f0eefe',
+                    color: '#3c3489',
+                    borderRadius: 20,
+                    padding: '4px 12px',
+                    fontSize: 11,
+                    marginBottom: 14,
+                  }}
+                >
+                  {urgente.sigues
+                    ? 'Lo más urgente que sigues'
+                    : urgente.origen === 'analisis'
+                      ? 'Lo más urgente de tus alarmas'
+                      : urgente.origen === 'temas'
+                        ? 'Lo más urgente de tus temas'
+                        : 'Lo más urgente'}
+                </span>
                 <Link href={urgente.ruta} style={{ textDecoration: 'none', color: 'inherit', display: 'block' }}>
                   <div
                     className="clamp-2"
@@ -546,13 +525,18 @@ export default function Home() {
                   display: 'flex',
                   alignItems: 'center',
                   gap: 14,
-                  marginTop: 18,
-                  paddingTop: 14,
+                  marginTop: 22,
+                  paddingTop: 18,
                   borderTop: '.5px solid #f2f0ec',
                 }}
               >
-                <div style={{ fontSize: 12, color: '#8b8780' }}>
-                  {urgente.dias <= 1 ? 'Cierra' : 'Cierra el'} {etiquetaPlazo(urgente.fecha, urgente.dias).toLowerCase()}
+                <div>
+                  <div style={{ fontSize: 24, color: '#6d5aef', fontWeight: 600, lineHeight: 1 }}>
+                    {etiquetaPlazo(urgente.fecha, urgente.dias)}
+                  </div>
+                  <div style={{ fontSize: 11.5, color: '#8b8780', paddingTop: 3 }}>
+                    {urgente.kind === 'ley' ? 'fin del plazo de enmiendas' : 'cierre de alegaciones'}
+                  </div>
                 </div>
                 {urgente.kind && urgente.refId && (
                   <div style={{ marginLeft: 'auto' }}>
@@ -581,7 +565,7 @@ export default function Home() {
 
           {actividad ? (
             <Link href="/regulatorio" style={{ textDecoration: 'none', color: 'inherit', display: 'block' }}>
-              <AnilloActividad datos={actividad} />
+              <BarraActividad datos={actividad} />
             </Link>
           ) : (
             <div className="bento" style={{ ...BENTO, padding: '18px 22px' }}>
@@ -591,8 +575,8 @@ export default function Home() {
       </div>
 
       {/* Y abajo, en qué estás trabajando. Ocupa el hueco de las cuatro
-          cifras del sector, que se quitaron: repetían el anillo en otro
-          formato. Cambia de forma según el plan, y
+          cifras del sector, que se quitaron: repetían la barra de
+          actividad en otro formato. Cambia de forma según el plan, y
           es a propósito: en Free hay al lado una muestra del directorio,
           porque quien no paga necesita descubrir el producto; con Pro los
           proyectos ocupan el ancho entero. Antes eran los plazos —que ya
