@@ -11,10 +11,13 @@ import { usePathname } from 'next/navigation';
  * acciones que se ejecutan, y abajo quedan al alcance del pulgar. Arriba
  * no cabían: los elementos llevan flex-shrink:0 y se desbordaban.
  *
- * Y deja sitio para el quinto cuando llegue Talento.
+ * Alarmas es el quinto: sustituye a la campana, que en móvil se quedaba
+ * arriba sola. Lleva el mismo contador que en escritorio, y en morado,
+ * que es el color de la función.
  */
 
 const VERDE = '#1d6f5c';
+const MORADO = '#6d5aef';
 
 const MODULOS = [
   {
@@ -30,6 +33,14 @@ const MODULOS = [
       p.startsWith('/congreso'),
   },
   {
+    href: '/alarmas',
+    etiqueta: 'Alarmas',
+    icono: 'ti-sparkles',
+    color: MORADO,
+    contador: true,
+    activo: (p) => p.startsWith('/alarmas') || p.startsWith('/seguimiento'),
+  },
+  {
     href: '/institutions',
     etiqueta: 'Instituciones',
     icono: 'ti-building-bank',
@@ -39,7 +50,7 @@ const MODULOS = [
   { href: '/jobs', etiqueta: 'Empleos', icono: 'ti-briefcase', activo: (p) => p.startsWith('/jobs') },
 ];
 
-export default function BarraMovil() {
+export default function BarraMovil({ alarmas = 0 }) {
   const pathname = usePathname() || '/';
   const [escribiendo, setEscribiendo] = useState(false);
 
@@ -103,10 +114,37 @@ export default function BarraMovil() {
                 gap: 3,
                 padding: '8px 2px 7px',
                 textDecoration: 'none',
-                color: on ? VERDE : '#8b8780',
+                color: on ? m.color || VERDE : '#8b8780',
+                position: 'relative',
               }}
+              aria-label={m.contador && alarmas > 0 ? `${m.etiqueta}, ${alarmas} sin ver` : undefined}
             >
               <i className={`ti ${m.icono}`} style={{ fontSize: 19 }} aria-hidden="true"></i>
+              {m.contador && alarmas > 0 && (
+                <span
+                  aria-hidden="true"
+                  style={{
+                    position: 'absolute',
+                    top: 4,
+                    left: '50%',
+                    marginLeft: 5,
+                    minWidth: 16,
+                    height: 16,
+                    padding: '0 4px',
+                    boxSizing: 'border-box',
+                    borderRadius: 8,
+                    background: MORADO,
+                    color: '#fff',
+                    fontSize: 10,
+                    lineHeight: '16px',
+                    textAlign: 'center',
+                    fontWeight: 600,
+                    border: '1.5px solid #fff',
+                  }}
+                >
+                  {alarmas > 9 ? '9+' : alarmas}
+                </span>
+              )}
               <span style={{ fontSize: 10, fontWeight: on ? 600 : 400, whiteSpace: 'nowrap' }}>
                 {m.etiqueta}
               </span>
