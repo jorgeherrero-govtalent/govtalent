@@ -10,5 +10,5 @@ import { redirect } from 'next/navigation';
  * lleva directamente a Alarmas.
  */
 export default function AnalisisSectorRedirige() {
-  redirect('/seguimiento?alarmas=1');
+  redirect('/alarmas');
 }
