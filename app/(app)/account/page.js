@@ -410,7 +410,7 @@ export default function AccountPage() {
         <p style={{ fontSize: 12, color: '#8b8780', marginBottom: 14, lineHeight: 1.6 }}>
           No afecta a los correos que hayas pedido tú: confirmaciones de candidatura, alertas de empleo y avisos de
           seguimiento siguen llegando.{' '}
-          <Link href="/seguimiento?ajustes=1" style={{ color: '#6d5aef', textDecoration: 'none' }}>
+          <Link href="/alarmas" style={{ color: '#6d5aef', textDecoration: 'none' }}>
             Gestionar mis avisos
           </Link>
         </p>
