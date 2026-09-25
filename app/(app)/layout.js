@@ -90,12 +90,13 @@ export default function AppLayout({ children }) {
     };
   }, [pathname]);
 
-  // La página de Alarmas marca todo como visto al abrirse y lo avisa con
-  // este evento, para que el contador baje sin esperar a otra navegación.
+  // La página de Alarmas avisa con este evento de lo que queda pendiente
+  // (los cambios de lo que sigues aún sin «Visto»), para que el contador
+  // se ajuste sin esperar a otra navegación.
   useEffect(() => {
-    const poner = () => {
+    const poner = (e) => {
       vistasEn.current = Date.now();
-      setNovedades(0);
+      setNovedades(Math.max(0, Number(e?.detail?.pendientes) || 0));
     };
     window.addEventListener('gt-alarmas-vistas', poner);
     return () => window.removeEventListener('gt-alarmas-vistas', poner);
