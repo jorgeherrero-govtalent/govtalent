@@ -89,7 +89,12 @@ const COLOR_FUENTE = {
 };
 
 function BarraActividad({ datos }) {
-  const orden = [...datos].sort((a, b) => (b.valor || 0) - (a.valor || 0));
+  // Las cuatro de expedientes abiertos, de mayor a menor; el BOE de hoy,
+  // que es otra escala (publicaciones del día), siempre al final.
+  const orden = [
+    ...datos.filter((d) => d.clave !== 'BOE hoy').sort((a, b) => (b.valor || 0) - (a.valor || 0)),
+    ...datos.filter((d) => d.clave === 'BOE hoy'),
+  ];
   const total = orden.reduce((s, d) => s + (d.valor || 0), 0);
   return (
     <div className="bento" style={{ ...BENTO, padding: '20px 22px', display: 'flex', flexDirection: 'column', gap: 16 }}>
@@ -112,36 +117,21 @@ function BarraActividad({ datos }) {
             ))
           : <span style={{ flex: 1, borderRadius: 4, background: '#f2f0ec' }} />}
       </div>
+      {/* Dos columnas: las cuatro de expedientes abiertos y, debajo, el
+          BOE de hoy, con el mismo estilo que las demás. */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: '12px 16px' }}>
-        {orden
-          .filter((d) => d.clave !== 'BOE hoy')
-          .map((d) => (
-            <div key={d.clave} title={d.titulo} style={{ minWidth: 0 }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 7, fontSize: 12, color: '#6f6b64' }}>
-                <span style={{ width: 7, height: 7, borderRadius: '50%', background: COLOR_FUENTE[d.clave] || '#d9d6ce', flexShrink: 0 }}></span>
-                <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{d.clave}</span>
-              </div>
-              <div style={{ fontSize: 22, fontWeight: 500, color: '#1a1a18', lineHeight: 1.15, paddingLeft: 14, letterSpacing: '-.3px' }}>
-                {d.valor}
-              </div>
+        {orden.map((d) => (
+          <div key={d.clave} title={d.titulo} style={{ minWidth: 0 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 7, fontSize: 12, color: '#6f6b64' }}>
+              <span style={{ width: 7, height: 7, borderRadius: '50%', background: COLOR_FUENTE[d.clave] || '#d9d6ce', flexShrink: 0 }}></span>
+              <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{d.clave === 'BOE hoy' ? 'BOE, hoy' : d.clave}</span>
             </div>
-          ))}
-      </div>
-      {/* El BOE de hoy va aparte: son publicaciones del día, no
-          expedientes abiertos, y en la rejilla parecería lo mismo. */}
-      {orden
-        .filter((d) => d.clave === 'BOE hoy')
-        .map((d) => (
-          <div
-            key={d.clave}
-            title={d.titulo}
-            style={{ display: 'flex', alignItems: 'center', gap: 7, fontSize: 12, color: '#6f6b64', paddingTop: 12, borderTop: '1px solid #f2f0ec', marginTop: 'auto' }}
-          >
-            <span style={{ width: 7, height: 7, borderRadius: '50%', background: COLOR_FUENTE[d.clave], flexShrink: 0 }}></span>
-            Publicado hoy en el BOE
-            <span style={{ marginLeft: 'auto', fontSize: 15, fontWeight: 600, color: '#1a1a18' }}>{d.valor}</span>
+            <div style={{ fontSize: 22, fontWeight: 500, color: '#1a1a18', lineHeight: 1.15, paddingLeft: 14, letterSpacing: '-.3px' }}>
+              {d.valor}
+            </div>
           </div>
         ))}
+      </div>
     </div>
   );
 }
