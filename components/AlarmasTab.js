@@ -560,8 +560,12 @@ export default function AlarmasTab() {
   const [seguidos, setSeguidos] = useState(() => new Map()); // kind:ref_id -> { id, ruta }
   const [rutaDeSeguido, setRutaDeSeguido] = useState(() => new Map()); // follow_id -> ruta
   const [nSeguidos, setNSeguidos] = useState(0);
-  const [filtro, setFiltro] = useState('todo');
-  const [cuantos, setCuantos] = useState(30);
+  // La bandeja: pestaña, filtros y página.
+  const [pestana, setPestana] = useState('revisar'); // revisar | plazo | siguiendo | descartado
+  const [filtroAlarma, setFiltroAlarma] = useState('todas'); // todas | <alert_id> | sigo
+  const [filtroFuente, setFiltroFuente] = useState('todas');
+  const [periodo, setPeriodo] = useState('30');
+  const [pagina, setPagina] = useState(1);
   const [pedidoPendiente, setPedidoPendiente] = useState(null);
   const cajaRef = useRef(null);
   // Hasta que no se ha mirado si había algo guardado, no se escribe: si
@@ -591,10 +595,9 @@ export default function AlarmasTab() {
         .from('sector_alert_matches')
         .select('id, alert_id, kind, ref_id, titulo, motivo, relevancia, plazo, ruta, fuente, avisado_at, created_at, descartado, visto')
         .eq('user_id', uid)
-        .eq('descartado', false)
         .order('relevancia', { ascending: false })
         .order('created_at', { ascending: false })
-        .limit(300),
+        .limit(500),
       supabase.from('alert_preferences').select('email').eq('user_id', uid).limit(1).maybeSingle(),
       // Los cambios de los dos últimos meses en lo que sigues. Más atrás ya
       // no es una novedad, y la lista completa sigue en /seguimiento.
@@ -626,24 +629,37 @@ export default function AlarmasTab() {
     }
     setCargado(true);
 
-    // Entrar aquí cuenta como haberlo visto todo: lo encontrado y los
-    // cambios en lo que sigues. En esta visita se siguen marcando como
-    // nuevos (ya están cargados); en la próxima, no. El contador de la
-    // barra se pone a cero al momento con el evento.
-    const marcas = [];
+    // Lo encontrado cuenta como visto al entrar (el punto de «nuevo» se
+    // mantiene en esta visita): lo que falta es decidir, y eso lo dice
+    // «Por revisar», no el contador. Los cambios en lo que sigues, en
+    // cambio, se quedan como pendientes hasta que se pulsa «Visto»: son
+    // avisos, no hay nada que decidir, y verlos es lo único que se pide.
+    // El contador de la barra queda en los cambios que falten por ver.
+    const pendientes = (ev || []).filter((x) => x.es_nueva).length;
+    const avisar = () => {
+      try {
+        window.dispatchEvent(new CustomEvent('gt-alarmas-vistas', { detail: { pendientes } }));
+      } catch {}
+    };
     if ((m || []).some((x) => !x.visto)) {
-      marcas.push(supabase.from('sector_alert_matches').update({ visto: true }).eq('user_id', uid).eq('visto', false));
+      supabase.from('sector_alert_matches').update({ visto: true }).eq('user_id', uid).eq('visto', false).then(avisar);
+    } else {
+      avisar();
     }
-    if ((ev || []).some((x) => x.es_nueva)) {
-      marcas.push(supabase.from('follows').update({ seen_at: new Date().toISOString() }).eq('user_id', uid));
-    }
-    if (marcas.length > 0) {
-      Promise.all(marcas).then(() => {
-        try {
-          window.dispatchEvent(new Event('gt-alarmas-vistas'));
-        } catch {}
-      });
-    }
+  }
+
+  // «Visto» en un cambio de lo que sigues. El visto se guarda por asunto
+  // seguido (follows.seen_at), así que marca a la vez todos sus cambios.
+  async function marcarVisto(followIds) {
+    const ids = [...new Set(followIds.filter(Boolean))];
+    if (!ids.length) return;
+    const restantes = eventos.filter((e) => e.es_nueva && !ids.includes(e.follow_id)).length;
+    setEventos((prev) => prev.map((e) => (ids.includes(e.follow_id) ? { ...e, es_nueva: false } : e)));
+    try {
+      window.dispatchEvent(new CustomEvent('gt-alarmas-vistas', { detail: { pendientes: restantes } }));
+    } catch {}
+    const { error } = await supabase.from('follows').update({ seen_at: new Date().toISOString() }).in('id', ids);
+    if (error) toast.error('No se ha podido guardar');
   }
 
   useEffect(() => {
@@ -725,9 +741,9 @@ export default function AlarmasTab() {
     }
   }, [userId, vista, borrador, editando, texto, web, conWeb]);
 
-  const encajaDe = (alertId) => encaja.filter((m) => m.alert_id === alertId);
+  const encajaDe = (alertId) => encaja.filter((m) => m.alert_id === alertId && !m.descartado);
   const avisosMes = (alertId) =>
-    encaja.filter((m) => m.alert_id === alertId && m.avisado_at && Date.now() - new Date(m.avisado_at).getTime() < 30 * 86400000).length;
+    encaja.filter((m) => m.alert_id === alertId && !m.descartado && m.avisado_at && Date.now() - new Date(m.avisado_at).getTime() < 30 * 86400000).length;
 
   // --- Pedir una propuesta al agente ------------------------------------
   /**
@@ -911,15 +927,21 @@ export default function AlarmasTab() {
     toast.info('Alarma eliminada');
   }
 
-  async function descartar(m) {
-    setEncaja((prev) => prev.filter((x) => x.id !== m.id));
+  // «No me afecta»: pasa a Descartado, enseña a la alarma a no volver a
+  // traerlo y se puede recuperar desde esa pestaña.
+  async function descartar(m, valor = true) {
+    setEncaja((prev) => prev.map((x) => (x.id === m.id ? { ...x, descartado: valor } : x)));
     if (!m.id) return;
     const { error } = await supabase
       .from('sector_alert_matches')
-      .update({ descartado: true, descartado_at: new Date().toISOString() })
+      .update({ descartado: valor, descartado_at: valor ? new Date().toISOString() : null })
       .eq('id', m.id);
-    if (error) toast.error('No se ha podido guardar');
-    else toast.info('Anotado. No volverá a salir en esta alarma.');
+    if (error) {
+      setEncaja((prev) => prev.map((x) => (x.id === m.id ? { ...x, descartado: !valor } : x)));
+      toast.error('No se ha podido guardar');
+    } else {
+      toast.info(valor ? 'Descartado. No volverá a salir en esta alarma.' : 'Recuperado. Vuelve a «Por revisar».');
+    }
   }
 
   // Seguir algo que ha encontrado una alarma: desde ese momento te
@@ -1270,49 +1292,55 @@ export default function AlarmasTab() {
 
   // ============================ LISTA ============================
   //
-  // Una sola página para todo lo que te afecta: lo que encuentran tus
-  // alarmas y lo que cambia en lo que sigues, en una lista, con una
-  // etiqueta que dice de dónde viene cada cosa. Antes eran dos sitios
-  // (esta pestaña y la campana) con dos contadores, y el usuario no sabía
-  // cuál mirar primero.
+  // Una bandeja, no un listado: todo lo que te afecta entra en «Por
+  // revisar» y sale cuando decides. Lo encontrado por una alarma se sigue
+  // o se descarta; un cambio en lo que ya sigues se marca como visto. Así
+  // la lista se mantiene corta sola y no hay scroll infinito. Encima,
+  // filtros por alarma, fuente y periodo, y páginas de 12.
   const mostrarCaja = vista === 'nueva' || alarmas.length === 0;
-  const hoy0 = new Date();
-  hoy0.setHours(0, 0, 0, 0);
-  const grupoDe = (iso) => {
-    const d = new Date(iso);
-    if (Number.isNaN(d.getTime())) return 'Antes';
-    const dias = Math.floor((hoy0.getTime() - new Date(d).setHours(0, 0, 0, 0)) / 86400000);
-    if (dias <= 0) return 'Hoy';
-    if (dias === 1) return 'Ayer';
-    if (dias < 7) return 'Esta semana';
-    return 'Antes';
-  };
+  const POR_PAGINA = 12;
+  const DIA = 86400000;
   const nombreDe = new Map(alarmas.map((a) => [a.id, a.nombre]));
+  const fuenteDeKind = {
+    ley: 'Congreso',
+    actividad: 'Congreso',
+    boe: 'BOE',
+    consulta: 'Consulta pública',
+    expediente: 'Comisión Europea',
+    procedimiento: 'Parlamento Europeo',
+    cargo: 'Gobierno',
+  };
+  const fuenteCorta = (f, kind) => String(f || fuenteDeKind[kind] || 'Otras').split(' · ')[0];
 
   // Lo encontrado, una vez por asunto aunque lo hayan encontrado dos
-  // alarmas (manda la primera, que es la más relevante por el orden de la
-  // carga). Y los cambios en lo que sigues.
-  const vistos = new Set();
-  const encontrados = [];
+  // alarmas: se guarda qué alarmas lo encontraron para poder filtrar.
+  const porClave = new Map();
   for (const m of encaja) {
     const k = `${m.kind}:${m.ref_id}`;
-    if (vistos.has(k)) continue;
-    vistos.add(k);
-    encontrados.push({
+    const previo = porClave.get(k);
+    if (previo) {
+      previo.alertas.add(m.alert_id);
+      continue;
+    }
+    porClave.set(k, {
       id: `m-${m.id}`,
       tipo: 'enc',
       fecha: m.created_at,
       titulo: m.titulo,
       ruta: m.ruta,
-      fuente: m.fuente,
+      fuente: fuenteCorta(m.fuente, m.kind),
+      fuenteLarga: m.fuente,
       texto: m.motivo,
       dias: diasHasta(m.plazo),
       alarma: nombreDe.get(m.alert_id) || 'tu alarma',
+      alertas: new Set([m.alert_id]),
       nuevo: !m.visto,
       sigues: seguidos.has(k),
+      descartado: !!m.descartado,
       m,
     });
   }
+  const encontrados = [...porClave.values()];
   const cambios = eventos.map((e) => ({
     id: `e-${e.event_id}`,
     tipo: 'seg',
@@ -1320,49 +1348,143 @@ export default function AlarmasTab() {
     titulo: e.detail || e.title,
     subtitulo: e.detail ? e.title : null,
     ruta: rutaDeSeguido.get(e.follow_id) || null,
+    fuente: fuenteCorta(null, e.kind),
     proyecto: e.project_name,
     dias: null,
     nuevo: !!e.es_nueva,
+    followId: e.follow_id,
   }));
-  const todos = [...encontrados, ...cambios].sort((x, y) => new Date(y.fecha).getTime() - new Date(x.fecha).getTime());
-  const FILTROS = [
-    { id: 'todo', label: 'Todo', lista: todos },
-    { id: 'enc', label: 'Encontrado', lista: todos.filter((x) => x.tipo === 'enc') },
-    { id: 'seg', label: 'Lo que sigo', lista: todos.filter((x) => x.tipo === 'seg') },
-    { id: 'plazo', label: 'Con plazo', lista: todos.filter((x) => x.dias !== null && x.dias >= 0).sort((x, y) => x.dias - y.dias) },
+
+  const PESTANAS = [
+    {
+      id: 'revisar',
+      label: 'Por revisar',
+      lista: [...encontrados.filter((x) => !x.descartado && !x.sigues), ...cambios.filter((x) => x.nuevo)],
+      vacio: 'Nada por revisar. Cuando tus alarmas encuentren algo o cambie algo que sigues, aparecerá aquí.',
+    },
+    {
+      id: 'plazo',
+      label: 'Con plazo',
+      lista: encontrados.filter((x) => !x.descartado && x.dias !== null && x.dias >= 0),
+      vacio: 'Nada de lo tuyo tiene un plazo abierto ahora mismo.',
+      porPlazo: true,
+    },
+    {
+      id: 'siguiendo',
+      label: 'Siguiendo',
+      lista: [...encontrados.filter((x) => !x.descartado && x.sigues), ...cambios.filter((x) => !x.nuevo)],
+      vacio: 'Aquí verás lo que sigues y lo que ha cambiado en ello.',
+    },
+    {
+      id: 'descartado',
+      label: 'Descartado',
+      lista: encontrados.filter((x) => x.descartado),
+      vacio: 'Lo que marques como «No me afecta» queda aquí, por si quieres recuperarlo.',
+      sinPeriodo: true,
+    },
   ];
-  const actual = FILTROS.find((f) => f.id === filtro) || FILTROS[0];
-  const visibles = actual.lista.slice(0, cuantos);
-  const grupos = [];
-  for (const x of visibles) {
-    const g = filtro === 'plazo' ? 'Por fecha de cierre' : grupoDe(x.fecha);
-    if (!grupos.length || grupos[grupos.length - 1].g !== g) grupos.push({ g, items: [] });
-    grupos[grupos.length - 1].items.push(x);
-  }
+  const tab = PESTANAS.find((t) => t.id === pestana) || PESTANAS[0];
+
+  // Filtros, en orden: periodo, fuente y alarma. Los recuentos de los
+  // chips de alarma se calculan con los otros dos filtros ya aplicados,
+  // para que el número diga lo que saldrá al pulsarlo.
+  const enPeriodo = (x) =>
+    tab.porPlazo || tab.sinPeriodo || periodo === 'todo' || Date.now() - new Date(x.fecha).getTime() <= Number(periodo) * DIA;
+  const base = tab.lista.filter(enPeriodo);
+  const fuentes = [...new Set(base.map((x) => x.fuente))].sort();
+  const fuenteValida = filtroFuente === 'todas' || fuentes.includes(filtroFuente) ? filtroFuente : 'todas';
+  const trasFuente = base.filter((x) => fuenteValida === 'todas' || x.fuente === fuenteValida);
+  const deAlarma = (x, f) => (f === 'todas' ? true : f === 'sigo' ? x.tipo === 'seg' : x.tipo === 'enc' && x.alertas.has(f));
+  const chips = [
+    { id: 'todas', label: 'Todas', n: trasFuente.length },
+    ...alarmas.map((a) => ({ id: a.id, label: a.nombre, n: trasFuente.filter((x) => deAlarma(x, a.id)).length })),
+    ...(tab.id === 'revisar' || tab.id === 'siguiendo' ? [{ id: 'sigo', label: 'Lo que sigo', n: trasFuente.filter((x) => deAlarma(x, 'sigo')).length }] : []),
+  ];
+  const alarmaValida = chips.some((c) => c.id === filtroAlarma) ? filtroAlarma : 'todas';
+  const filtrados = trasFuente
+    .filter((x) => deAlarma(x, alarmaValida))
+    .sort((x, y) => (tab.porPlazo ? x.dias - y.dias : new Date(y.fecha).getTime() - new Date(x.fecha).getTime()));
+  const paginas = Math.max(1, Math.ceil(filtrados.length / POR_PAGINA));
+  const paginaActual = Math.min(pagina, paginas);
+  const visibles = filtrados.slice((paginaActual - 1) * POR_PAGINA, paginaActual * POR_PAGINA);
+  const nRevisar = PESTANAS[0].lista.length;
   const revisada = alarmas.map((a) => a.evaluada_at).filter(Boolean).sort().pop();
+  const cambiosPendientes = cambios.filter((x) => x.nuevo);
+
+  const cambiar = (fn) => (v) => {
+    fn(v);
+    setPagina(1);
+  };
 
   const etiquetaOrigen = (x) =>
     x.tipo === 'enc' ? (
-      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 11, fontWeight: 500, color: MORADO_O, background: MORADO_S, borderRadius: 20, padding: '3px 9px' }}>
+      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 11, fontWeight: 500, color: MORADO_O, background: MORADO_S, borderRadius: 20, padding: '3px 9px', maxWidth: '100%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
         <i className="ti ti-sparkles" style={{ fontSize: 11 }} aria-hidden="true"></i>
-        Encontrado · {x.alarma}
+        {x.alertas.size > 1 ? `Encontrado por ${x.alertas.size} alarmas` : `Encontrado · ${x.alarma}`}
       </span>
     ) : (
-      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 11, fontWeight: 500, color: '#3a3935', background: '#efeee9', borderRadius: 20, padding: '3px 9px' }}>
+      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 11, fontWeight: 500, color: '#3a3935', background: '#efeee9', borderRadius: 20, padding: '3px 9px', maxWidth: '100%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
         <i className="ti ti-check" style={{ fontSize: 11 }} aria-hidden="true"></i>
         {x.proyecto ? `Proyecto · ${x.proyecto}` : 'Lo sigues'}
       </span>
     );
 
+  const BOTON_V = { border: 'none', background: '#1d6f5c', color: '#fff', borderRadius: 8, padding: '0 12px', fontSize: 12, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' };
+  const BOTON_S = { border: `1px solid ${LINEA}`, background: '#fff', color: '#57534e', borderRadius: 8, padding: '0 12px', fontSize: 12, cursor: 'pointer', fontFamily: 'inherit' };
+  const SELECT = { fontSize: 12.5, color: '#3a3935', background: '#fff', border: `1px solid ${LINEA}`, borderRadius: 9, padding: '7px 10px', fontFamily: 'inherit', cursor: 'pointer' };
+
+  const acciones = (x) => {
+    if (x.tipo === 'seg') {
+      return x.nuevo ? (
+        <button type="button" className="alarmas-accion" onClick={() => marcarVisto([x.followId])} style={BOTON_S}>
+          Visto
+        </button>
+      ) : null;
+    }
+    if (x.descartado) {
+      return (
+        <button type="button" className="alarmas-accion" onClick={() => descartar(x.m, false)} style={BOTON_S}>
+          Recuperar
+        </button>
+      );
+    }
+    if (x.sigues) {
+      return (
+        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 12, color: '#1d6f5c', whiteSpace: 'nowrap' }}>
+          <i className="ti ti-check" style={{ fontSize: 13 }} aria-hidden="true"></i>
+          Lo sigues
+        </span>
+      );
+    }
+    return (
+      <>
+        <button type="button" className="alarmas-accion" onClick={() => seguir({ kind: x.m.kind, ref_id: x.m.ref_id, titulo: x.titulo })} style={BOTON_V}>
+          Seguir
+        </button>
+        <button type="button" className="alarmas-accion" onClick={() => descartar(x.m)} style={BOTON_S}>
+          No me afecta
+        </button>
+      </>
+    );
+  };
+
   return (
     <div>
       {modalUpsell}
       <style>{`
-        .alarmas-rejilla { display: grid; grid-template-columns: minmax(0, 1fr) 310px; gap: 18px; align-items: start; }
-        .alarmas-accion { min-height: 34px; }
+        .alarmas-rejilla { display: grid; grid-template-columns: minmax(0, 1fr) 300px; gap: 18px; align-items: start; }
+        .alarmas-fila { display: flex; gap: 14px; align-items: center; padding: 12px 0; border-top: 1px solid ${LINEA2}; }
+        .alarmas-acciones { display: flex; gap: 6px; flex-shrink: 0; align-items: center; }
+        .alarmas-accion { height: 32px; }
+        .alarmas-titulo { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+        .alarmas-texto { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .alarmas-pestanas { display: flex; gap: 4px; border-bottom: 1px solid ${LINEA}; overflow-x: auto; }
         @media (max-width: 860px) {
           .alarmas-rejilla { grid-template-columns: 1fr; }
-          .alarmas-accion { min-height: 40px; flex: 1; }
+          .alarmas-fila { flex-wrap: wrap; align-items: flex-start; }
+          .alarmas-acciones { width: 100%; padding-left: 68px; }
+          .alarmas-accion { height: 40px; flex: 1; }
+          .alarmas-texto { white-space: normal; }
         }
       `}</style>
 
@@ -1370,8 +1492,8 @@ export default function AlarmasTab() {
         <div>
           <h1 style={{ fontSize: 22, fontWeight: 600, margin: 0, letterSpacing: '-.3px' }}>Alarmas</h1>
           <p style={{ fontSize: 13, color: GRIS, margin: '5px 0 0', lineHeight: 1.5 }}>
-            Lo que encuentran tus alarmas y lo que cambia en lo que sigues
-            {revisada ? ` · revisado ${haceCuanto(revisada)}` : ''}
+            Revisa lo nuevo y decide: seguirlo o descartarlo. Lo revisado sale de la bandeja.
+            {revisada ? ` Revisado ${haceCuanto(revisada)}.` : ''}
           </p>
         </div>
         {!mostrarCaja && (
@@ -1507,213 +1629,268 @@ export default function AlarmasTab() {
       </div>
       )}
 
-      {/* Sin alarmas y sin nada que enseñar, solo la caja: una lista vacía
+      {/* Sin alarmas y sin nada que enseñar, solo la caja: una bandeja vacía
           debajo le quitaría protagonismo a lo único que hay que hacer. */}
-      {(alarmas.length > 0 || todos.length > 0 || nSeguidos > 0) && (
-      <div className="alarmas-rejilla">
-        <section style={{ ...CARD, padding: '14px 20px 8px', minWidth: 0 }} aria-label="Lo que te afecta">
-          <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }} role="group" aria-label="Filtrar">
-            {FILTROS.map((f) => {
-              const on = f.id === actual.id;
+      {(alarmas.length > 0 || encontrados.length > 0 || cambios.length > 0 || nSeguidos > 0) && (
+        <>
+          <div className="alarmas-pestanas" role="tablist" aria-label="Bandeja">
+            {PESTANAS.map((t) => {
+              const on = t.id === tab.id;
               return (
                 <button
-                  key={f.id}
+                  key={t.id}
                   type="button"
-                  aria-pressed={on}
+                  role="tab"
+                  aria-selected={on}
                   onClick={() => {
-                    setFiltro(f.id);
-                    setCuantos(30);
+                    setPestana(t.id);
+                    setFiltroAlarma('todas');
+                    setFiltroFuente('todas');
+                    setPagina(1);
                   }}
                   style={{
-                    fontSize: 12.5,
+                    fontSize: 13.5,
                     fontWeight: on ? 600 : 500,
-                    color: on ? MORADO : '#6f6b64',
-                    background: on ? MORADO_S : 'transparent',
+                    color: on ? MORADO : '#57534e',
+                    background: 'none',
                     border: 'none',
-                    borderRadius: 8,
-                    padding: '7px 12px',
+                    borderBottom: `2px solid ${on ? MORADO : 'transparent'}`,
+                    marginBottom: -1,
+                    padding: '9px 12px',
                     cursor: 'pointer',
                     fontFamily: 'inherit',
+                    whiteSpace: 'nowrap',
                   }}
                 >
-                  {f.label} <span style={{ color: on ? MORADO : GRIS2 }}>{f.lista.length}</span>
+                  {t.label} <span style={{ fontWeight: 600, color: on ? MORADO : GRIS2 }}>{t.lista.length}</span>
                 </button>
               );
             })}
           </div>
 
-          {visibles.length === 0 ? (
-            <div style={{ fontSize: 13, color: GRIS, lineHeight: 1.6, padding: '22px 2px 18px' }}>
-              {filtro === 'seg'
-                ? nSeguidos === 0
-                  ? 'Aún no sigues nada. Pulsa Seguir en lo que encuentren tus alarmas o en cualquier ficha y te contaremos cada cambio.'
-                  : 'Nada ha cambiado en lo que sigues en los dos últimos meses.'
-                : filtro === 'plazo'
-                  ? 'Nada de lo tuyo tiene un plazo abierto ahora mismo.'
-                  : alarmas.length === 0
-                    ? 'Cuando crees tu primera alarma, aquí aparecerá lo que encuentre y lo que cambie en lo que sigues.'
-                    : 'Todavía no hay nada. Tus alarmas revisan lo nuevo tres veces al día y te avisarán en cuanto aparezca algo.'}
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap', margin: '14px 0' }}>
+            <div role="group" aria-label="Filtrar por alarma" style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+              {chips.map((c) => {
+                const on = c.id === alarmaValida;
+                return (
+                  <button
+                    key={c.id}
+                    type="button"
+                    aria-pressed={on}
+                    onClick={() => cambiar(setFiltroAlarma)(c.id)}
+                    style={{ fontSize: 12.5, fontWeight: on ? 600 : 500, color: on ? MORADO : '#57534e', background: on ? MORADO_S : '#fff', border: `1px solid ${on ? MORADO_S : LINEA}`, borderRadius: 18, padding: '6px 12px', cursor: 'pointer', fontFamily: 'inherit', whiteSpace: 'nowrap' }}
+                  >
+                    {c.label} <span style={{ color: on ? MORADO : GRIS2 }}>{c.n}</span>
+                  </button>
+                );
+              })}
             </div>
-          ) : (
-            grupos.map(({ g, items }) => (
-              <div key={g}>
-                <div style={{ ...ETIQUETA, color: '#6f6b64', padding: '14px 0 2px' }}>{g}</div>
-                {items.map((x) => {
+            <span style={{ flex: 1 }} />
+            {fuentes.length > 1 && (
+              <select value={fuenteValida} onChange={(e) => cambiar(setFiltroFuente)(e.target.value)} aria-label="Fuente" style={SELECT}>
+                <option value="todas">Todas las fuentes</option>
+                {fuentes.map((f) => (
+                  <option key={f} value={f}>
+                    {f}
+                  </option>
+                ))}
+              </select>
+            )}
+            {!tab.porPlazo && !tab.sinPeriodo && (
+              <select value={periodo} onChange={(e) => cambiar(setPeriodo)(e.target.value)} aria-label="Periodo" style={SELECT}>
+                <option value="7">Últimos 7 días</option>
+                <option value="30">Últimos 30 días</option>
+                <option value="todo">Todo</option>
+              </select>
+            )}
+          </div>
+
+          <div className="alarmas-rejilla">
+            <section style={{ ...CARD, padding: '4px 20px 8px', minWidth: 0 }} aria-label={tab.label}>
+              {tab.id === 'revisar' && cambiosPendientes.length > 1 && (
+                <div style={{ display: 'flex', justifyContent: 'flex-end', padding: '10px 0 2px' }}>
+                  <button
+                    type="button"
+                    onClick={() => marcarVisto(cambiosPendientes.map((x) => x.followId))}
+                    style={{ fontSize: 12, color: GRIS, background: 'none', border: 'none', cursor: 'pointer', padding: 0, fontFamily: 'inherit' }}
+                  >
+                    Marcar como vistos los {cambiosPendientes.length} cambios de lo que sigues
+                  </button>
+                </div>
+              )}
+              {visibles.length === 0 ? (
+                <div style={{ fontSize: 13, color: GRIS, lineHeight: 1.6, padding: '20px 2px 16px' }}>
+                  {tab.lista.length > 0 ? 'Nada con estos filtros.' : tab.vacio}
+                </div>
+              ) : (
+                visibles.map((x, i) => {
                   const pz = x.dias !== null && x.dias >= 0 ? cifraPlazo(x.dias) : null;
                   return (
-                    <article key={x.id} style={{ display: 'flex', gap: 14, padding: '14px 0', borderTop: `1px solid ${LINEA2}` }}>
-                      <div style={{ width: 46, flexShrink: 0, position: 'relative' }}>
+                    <article key={x.id} className="alarmas-fila" style={i === 0 && !(tab.id === 'revisar' && cambiosPendientes.length > 1) ? { borderTop: 'none' } : undefined}>
+                      <div style={{ width: 54, flexShrink: 0, position: 'relative', alignSelf: 'flex-start', paddingTop: 2 }}>
                         {x.nuevo && (
                           <span
                             title="Nuevo"
                             aria-label="Nuevo"
-                            style={{ position: 'absolute', left: -12, top: 6, width: 6, height: 6, borderRadius: '50%', background: MORADO }}
+                            style={{ position: 'absolute', left: -12, top: 8, width: 6, height: 6, borderRadius: '50%', background: MORADO }}
                           />
                         )}
                         {pz ? (
                           <>
-                            <div style={{ fontSize: pz.tam + 1, fontWeight: 600, color: MORADO, lineHeight: 1 }}>{pz.cifra}</div>
-                            {pz.unidad && <div style={{ fontSize: 11, color: GRIS, marginTop: 3 }}>{pz.unidad}</div>}
+                            <div style={{ fontSize: pz.tam, fontWeight: 600, color: MORADO, lineHeight: 1 }}>{pz.cifra}</div>
+                            {pz.unidad && <div style={{ fontSize: 10.5, color: GRIS, marginTop: 2 }}>{pz.unidad}</div>}
                           </>
                         ) : (
-                          <div style={{ fontSize: 11, color: GRIS2, paddingTop: 3 }}>{haceCuanto(x.fecha)}</div>
+                          <div style={{ fontSize: 11, color: GRIS2, lineHeight: 1.35 }}>{haceCuanto(x.fecha)}</div>
                         )}
                       </div>
-                      <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 5 }}>
-                        <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+                      <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 4 }}>
+                        <div style={{ display: 'flex', gap: 8, alignItems: 'center', minWidth: 0 }}>
                           {etiquetaOrigen(x)}
-                          {x.fuente && <span style={{ fontSize: 11.5, color: '#6f6b64' }}>{x.fuente}</span>}
+                          <span style={{ fontSize: 11.5, color: '#6f6b64', whiteSpace: 'nowrap' }}>{x.fuente}</span>
                         </div>
                         {x.ruta ? (
-                          <Link href={x.ruta} style={{ fontSize: 14.5, fontWeight: 500, color: TINTA, textDecoration: 'none', lineHeight: 1.4 }}>
+                          <Link href={x.ruta} className="alarmas-titulo" title={x.titulo} style={{ fontSize: 13.5, fontWeight: 500, color: TINTA, textDecoration: 'none', lineHeight: 1.4 }}>
                             {x.titulo}
                           </Link>
                         ) : (
-                          <div style={{ fontSize: 14.5, fontWeight: 500, color: TINTA, lineHeight: 1.4 }}>{x.titulo}</div>
+                          <div className="alarmas-titulo" title={x.titulo} style={{ fontSize: 13.5, fontWeight: 500, color: TINTA, lineHeight: 1.4 }}>
+                            {x.titulo}
+                          </div>
                         )}
-                        {x.subtitulo && <div style={{ fontSize: 12.5, color: '#57534e', lineHeight: 1.5 }}>{x.subtitulo}</div>}
-                        {x.texto && <div style={{ fontSize: 12.5, color: '#57534e', lineHeight: 1.55 }}>{x.texto}</div>}
-                        {x.tipo === 'enc' &&
-                          (x.sigues ? (
-                            <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: '#1d6f5c', marginTop: 2 }}>
-                              <i className="ti ti-check" style={{ fontSize: 13 }} aria-hidden="true"></i>
-                              Lo sigues
-                            </div>
-                          ) : (
-                            <div style={{ display: 'flex', gap: 8, marginTop: 4 }}>
-                              <button
-                                type="button"
-                                className="alarmas-accion"
-                                onClick={() => seguir({ kind: x.m.kind, ref_id: x.m.ref_id, titulo: x.titulo })}
-                                style={{ border: 'none', background: '#1d6f5c', color: '#fff', borderRadius: 8, padding: '0 13px', fontSize: 12.5, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}
-                              >
-                                Seguir
-                              </button>
-                              <button
-                                type="button"
-                                className="alarmas-accion"
-                                onClick={() => descartar(x.m)}
-                                style={{ border: `1px solid ${LINEA}`, background: '#fff', color: '#57534e', borderRadius: 8, padding: '0 13px', fontSize: 12.5, cursor: 'pointer', fontFamily: 'inherit' }}
-                              >
-                                No me afecta
-                              </button>
-                            </div>
-                          ))}
+                        {(x.texto || x.subtitulo) && (
+                          <div className="alarmas-texto" title={x.texto || x.subtitulo} style={{ fontSize: 12, color: GRIS, lineHeight: 1.5 }}>
+                            {x.texto || x.subtitulo}
+                          </div>
+                        )}
                       </div>
+                      <div className="alarmas-acciones">{acciones(x)}</div>
                     </article>
                   );
-                })}
-              </div>
-            ))
-          )}
-          {actual.lista.length > cuantos && (
-            <button
-              type="button"
-              onClick={() => setCuantos((c) => c + 30)}
-              style={{ display: 'block', width: '100%', margin: '4px 0 8px', padding: '10px 0', fontSize: 12.5, color: GRIS, background: 'none', border: 'none', borderTop: `1px solid ${LINEA2}`, cursor: 'pointer', fontFamily: 'inherit' }}
-            >
-              Ver más ({actual.lista.length - cuantos})
-            </button>
-          )}
-        </section>
+                })
+              )}
 
-        <aside style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-          <div style={{ ...CARD, padding: '15px 18px 8px' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10 }}>
-              <span style={ETIQUETA}>{limites.alarmas === 1 ? 'Tu alarma' : 'Tus alarmas'}</span>
-              <Contador usadas={activas.length} limite={limites.alarmas} esPro={esPro} />
-            </div>
-            {alarmas.length === 0 ? (
-              <div style={{ fontSize: 12.5, color: GRIS, lineHeight: 1.55, padding: '10px 0 8px' }}>
-                Aún no tienes ninguna. Descríbele al agente tu organización y empieza a vigilar.
-              </div>
-            ) : (
-              alarmas.map((a) => {
-                const freq = esPro ? a.frecuencia : 'semanal';
-                return (
-                  <div key={a.id} style={{ display: 'flex', gap: 10, alignItems: 'flex-start', padding: '11px 0', borderTop: `1px solid ${LINEA2}`, marginTop: 8 }}>
-                    <span
-                      aria-hidden="true"
-                      style={{ width: 7, height: 7, borderRadius: '50%', marginTop: 6, flexShrink: 0, background: a.activa ? MORADO : '#c9c6bd', boxShadow: `0 0 0 3px ${a.activa ? MORADO_S : '#efede7'}` }}
-                    />
-                    <button
-                      type="button"
-                      onClick={() => abrirEdicion(a)}
-                      style={{ flex: 1, minWidth: 0, textAlign: 'left', background: 'none', border: 'none', padding: 0, cursor: 'pointer', fontFamily: 'inherit' }}
-                    >
-                      <div style={{ fontSize: 13, fontWeight: 500, color: TINTA }}>{a.nombre}</div>
-                      <div style={{ fontSize: 11.5, color: GRIS, marginTop: 2 }}>
-                        {a.activa
-                          ? `${FRASE_FRECUENCIA[freq] || 'Los lunes'}${esPro && a.recordar_plazos !== false ? ' · plazos recordados' : ''}`
-                          : a.pausada_por_plan
-                            ? 'En pausa por tu plan'
-                            : 'En pausa'}
-                      </div>
-                    </button>
-                    <Interruptor activo={a.activa} onChange={() => alternar(a)} size="pequeno" etiqueta={`Alarma ${a.nombre}`} />
+              {paginas > 1 && (
+                <nav aria-label="Páginas" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, padding: '12px 0 6px', borderTop: `1px solid ${LINEA2}`, flexWrap: 'wrap' }}>
+                  <span style={{ fontSize: 12, color: GRIS }}>
+                    {(paginaActual - 1) * POR_PAGINA + 1}–{Math.min(paginaActual * POR_PAGINA, filtrados.length)} de {filtrados.length}
+                  </span>
+                  <div style={{ display: 'flex', gap: 2, alignItems: 'center' }}>
+                    {paginaActual > 1 && (
+                      <button type="button" onClick={() => setPagina(paginaActual - 1)} style={{ ...BOTON_S, border: 'none', height: 32 }}>
+                        ← Anterior
+                      </button>
+                    )}
+                    {Array.from({ length: paginas }, (_, k) => k + 1)
+                      .filter((n) => n === 1 || n === paginas || Math.abs(n - paginaActual) <= 1)
+                      .map((n, k, arr) => (
+                        <span key={n} style={{ display: 'flex', alignItems: 'center' }}>
+                          {k > 0 && n - arr[k - 1] > 1 && <span style={{ color: GRIS2, padding: '0 4px' }}>…</span>}
+                          <button
+                            type="button"
+                            aria-current={n === paginaActual ? 'page' : undefined}
+                            onClick={() => setPagina(n)}
+                            style={{ minWidth: 32, height: 32, border: 'none', borderRadius: 8, fontSize: 12.5, fontWeight: n === paginaActual ? 600 : 500, color: n === paginaActual ? MORADO : '#57534e', background: n === paginaActual ? MORADO_S : 'transparent', cursor: 'pointer', fontFamily: 'inherit' }}
+                          >
+                            {n}
+                          </button>
+                        </span>
+                      ))}
+                    {paginaActual < paginas && (
+                      <button type="button" onClick={() => setPagina(paginaActual + 1)} style={{ ...BOTON_S, border: 'none', height: 32 }}>
+                        Siguiente →
+                      </button>
+                    )}
                   </div>
-                );
-              })
-            )}
-          </div>
+                </nav>
+              )}
+            </section>
 
-          <div style={{ ...CARD, padding: '15px 18px 12px' }}>
-            <div style={{ ...ETIQUETA, marginBottom: 8 }}>Cómo te aviso</div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12 }}>
-              <div>
-                <div style={{ fontSize: 12.5, fontWeight: 500 }}>Correos</div>
-                <div style={{ fontSize: 11.5, color: GRIS, marginTop: 2, lineHeight: 1.45 }}>
-                  {correos ? `A ${email}` : 'Desactivados. Todo sigue apareciendo aquí.'}
+            <aside style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+              <div style={{ background: MORADO_S, borderRadius: 16, padding: '15px 18px' }}>
+                <div style={{ fontSize: 26, fontWeight: 600, color: MORADO, lineHeight: 1 }}>{nRevisar}</div>
+                <div style={{ fontSize: 12.5, color: MORADO_O, marginTop: 5, lineHeight: 1.5 }}>
+                  {nRevisar === 1 ? 'asunto por revisar.' : 'asuntos por revisar.'} Lo que sigues pasa a «Siguiendo»; lo que no te afecta, a «Descartado».
                 </div>
               </div>
-              <Interruptor activo={correos} onChange={cambiarCorreos} size="pequeno" etiqueta="Recibir correos de las alarmas y de lo que sigues" />
-            </div>
-            <div style={{ fontSize: 11.5, color: GRIS, lineHeight: 1.5, marginTop: 10, paddingTop: 10, borderTop: `1px solid ${LINEA2}` }}>
-              {esPro
-                ? 'La frecuencia y los recordatorios de plazo se eligen en cada alarma.'
-                : 'En Free te escribo los lunes con el resumen de la semana.'}
-              {!esPro && (
-                <>
-                  {' '}
-                  <Link href="/precios" style={{ color: MORADO, textDecoration: 'none' }}>
-                    Con Pro, al momento
-                  </Link>
-                </>
-              )}
-            </div>
-          </div>
 
-          <Link
-            href="/seguimiento"
-            style={{ ...CARD, padding: '13px 18px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', textDecoration: 'none', color: TINTA }}
-          >
-            <span style={{ fontSize: 13, fontWeight: 500 }}>Lo que sigo</span>
-            <span style={{ fontSize: 12.5, color: GRIS }}>
-              {nSeguidos} {nSeguidos === 1 ? 'asunto' : 'asuntos'} →
-            </span>
-          </Link>
-        </aside>
-      </div>
+              <div style={{ ...CARD, padding: '15px 18px 8px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10 }}>
+                  <span style={ETIQUETA}>{limites.alarmas === 1 ? 'Tu alarma' : 'Tus alarmas'}</span>
+                  <Contador usadas={activas.length} limite={limites.alarmas} esPro={esPro} />
+                </div>
+                {alarmas.length === 0 ? (
+                  <div style={{ fontSize: 12.5, color: GRIS, lineHeight: 1.55, padding: '10px 0 8px' }}>
+                    Aún no tienes ninguna. Descríbele al agente tu organización y empieza a vigilar.
+                  </div>
+                ) : (
+                  alarmas.map((a) => {
+                    const freq = esPro ? a.frecuencia : 'semanal';
+                    return (
+                      <div key={a.id} style={{ display: 'flex', gap: 10, alignItems: 'flex-start', padding: '11px 0', borderTop: `1px solid ${LINEA2}`, marginTop: 8 }}>
+                        <span
+                          aria-hidden="true"
+                          style={{ width: 7, height: 7, borderRadius: '50%', marginTop: 6, flexShrink: 0, background: a.activa ? MORADO : '#c9c6bd', boxShadow: `0 0 0 3px ${a.activa ? MORADO_S : '#efede7'}` }}
+                        />
+                        <button
+                          type="button"
+                          onClick={() => abrirEdicion(a)}
+                          style={{ flex: 1, minWidth: 0, textAlign: 'left', background: 'none', border: 'none', padding: 0, cursor: 'pointer', fontFamily: 'inherit' }}
+                        >
+                          <div style={{ fontSize: 13, fontWeight: 500, color: TINTA }}>{a.nombre}</div>
+                          <div style={{ fontSize: 11.5, color: GRIS, marginTop: 2 }}>
+                            {a.activa
+                              ? `${FRASE_FRECUENCIA[freq] || 'Los lunes'}${esPro && a.recordar_plazos !== false ? ' · plazos recordados' : ''}`
+                              : a.pausada_por_plan
+                                ? 'En pausa por tu plan'
+                                : 'En pausa'}
+                          </div>
+                        </button>
+                        <Interruptor activo={a.activa} onChange={() => alternar(a)} size="pequeno" etiqueta={`Alarma ${a.nombre}`} />
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+
+              <div style={{ ...CARD, padding: '15px 18px 12px' }}>
+                <div style={{ ...ETIQUETA, marginBottom: 8 }}>Cómo te aviso</div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12 }}>
+                  <div>
+                    <div style={{ fontSize: 12.5, fontWeight: 500 }}>Correos</div>
+                    <div style={{ fontSize: 11.5, color: GRIS, marginTop: 2, lineHeight: 1.45 }}>
+                      {correos ? `A ${email}` : 'Desactivados. Todo sigue apareciendo aquí.'}
+                    </div>
+                  </div>
+                  <Interruptor activo={correos} onChange={cambiarCorreos} size="pequeno" etiqueta="Recibir correos de las alarmas y de lo que sigues" />
+                </div>
+                <div style={{ fontSize: 11.5, color: GRIS, lineHeight: 1.5, marginTop: 10, paddingTop: 10, borderTop: `1px solid ${LINEA2}` }}>
+                  {esPro
+                    ? 'La frecuencia y los recordatorios de plazo se eligen en cada alarma.'
+                    : 'En Free te escribo los lunes con el resumen de la semana.'}
+                  {!esPro && (
+                    <>
+                      {' '}
+                      <Link href="/precios" style={{ color: MORADO, textDecoration: 'none' }}>
+                        Con Pro, al momento
+                      </Link>
+                    </>
+                  )}
+                </div>
+              </div>
+
+              <Link
+                href="/seguimiento"
+                style={{ ...CARD, padding: '13px 18px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', textDecoration: 'none', color: TINTA }}
+              >
+                <span style={{ fontSize: 13, fontWeight: 500 }}>Lo que sigo</span>
+                <span style={{ fontSize: 12.5, color: GRIS }}>
+                  {nSeguidos} {nSeguidos === 1 ? 'asunto' : 'asuntos'} →
+                </span>
+              </Link>
+            </aside>
+          </div>
+        </>
       )}
     </div>
   );
