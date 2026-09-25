@@ -259,7 +259,7 @@ export default function RegulatorioPage() {
           reconoce por su bandera. */}
       <div className="reg-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 14 }}>
         <Link
-          href="/seguimiento?alarmas=1"
+          href="/alarmas"
           className="bento"
           style={{
             background: '#15140f',
