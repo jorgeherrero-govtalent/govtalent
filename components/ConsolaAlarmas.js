@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
 import { frasePlazo } from '@/lib/plazos';
 import { limitesDe } from '@/lib/alarmas';
+import TextoCreciente, { enviarConIntro } from '@/components/TextoCreciente';
 
 /**
  * La tarjeta negra de la home: la consola de tus alarmas.
@@ -34,7 +35,8 @@ const MORADO_C = '#8f7ff5';
 const NEGRO = '#15140f';
 const VERDE = '#1d6f5c';
 
-const IDEAS = ['Todo lo que afecte a mi sector', 'Una ley concreta y sus cambios', 'Consultas públicas de un ministerio'];
+// Las mismas que en la página de Alarmas: el mismo agente, las mismas ideas.
+const IDEAS = ['Todo lo que afecte a mi sector', 'Los cambios de una ley concreta', 'Consultas públicas de un ministerio'];
 
 function diasHasta(iso) {
   if (!iso) return null;
@@ -62,31 +64,56 @@ function Rotulo({ children }) {
   );
 }
 
+/**
+ * La caja del agente en negro: crece hacia abajo según se escribe, como
+ * la de Claude (TextoCreciente), y debajo lleva las tres ideas para
+ * empezar. Intro envía; Mayúsculas + Intro hace un salto de línea.
+ */
 function Caja({ placeholder, onEnviar, valor, setValor, cajaRef }) {
   return (
-    <form
-      onSubmit={(e) => {
-        e.preventDefault();
-        onEnviar();
-      }}
-      style={{ display: 'flex', alignItems: 'center', gap: 10, background: '#24231d', border: '1px solid #3a392f', borderRadius: 14, padding: '6px 6px 6px 15px' }}
-    >
-      <input
-        ref={cajaRef}
-        value={valor}
-        onChange={(e) => setValor(e.target.value)}
-        placeholder={placeholder}
-        aria-label="Describe tu organización o lo que quieres vigilar"
-        style={{ flex: 1, minWidth: 0, background: 'transparent', border: 'none', outline: 'none', color: '#fff', fontSize: 13.5, fontFamily: 'inherit', padding: '8px 0' }}
-      />
-      <button
-        type="submit"
-        aria-label="Crear alarma"
-        style={{ width: 34, height: 34, border: 'none', borderRadius: 10, background: MORADO, color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0 }}
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+      <form
+        onSubmit={(e) => {
+          e.preventDefault();
+          onEnviar();
+        }}
+        style={{ display: 'flex', alignItems: 'flex-end', gap: 10, background: '#24231d', border: '1px solid #3a392f', borderRadius: 14, padding: '8px 8px 8px 15px' }}
       >
-        <i className="ti ti-arrow-up" style={{ fontSize: 16 }} aria-hidden="true"></i>
-      </button>
-    </form>
+        <TextoCreciente
+          ref={cajaRef}
+          value={valor}
+          onChange={(e) => setValor(e.target.value)}
+          onKeyDown={enviarConIntro(onEnviar)}
+          rows={1}
+          maxAltura={220}
+          placeholder={placeholder}
+          aria-label="Describe tu organización o lo que quieres vigilar"
+          style={{ flex: 1, minWidth: 0, background: 'transparent', border: 'none', outline: 'none', color: '#fff', fontSize: 13.5, lineHeight: 1.55, fontFamily: 'inherit', padding: '7px 0', margin: 0 }}
+        />
+        <button
+          type="submit"
+          aria-label="Crear alarma"
+          style={{ width: 34, height: 34, border: 'none', borderRadius: 10, background: MORADO, color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0 }}
+        >
+          <i className="ti ti-arrow-up" style={{ fontSize: 16 }} aria-hidden="true"></i>
+        </button>
+      </form>
+      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+        {IDEAS.map((i) => (
+          <button
+            key={i}
+            type="button"
+            onClick={() => {
+              setValor((v) => v || `${i}: `);
+              cajaRef.current?.focus();
+            }}
+            style={{ fontSize: 12, color: '#d6d3cb', border: '1px solid #3a392f', background: 'transparent', borderRadius: 16, padding: '6px 11px', cursor: 'pointer', fontFamily: 'inherit' }}
+          >
+            {i}
+          </button>
+        ))}
+      </div>
+    </div>
   );
 }
 
@@ -214,21 +241,6 @@ export default function ConsolaAlarmas() {
             onEnviar={enviar}
             placeholder="Somos una asociación de renovables con proyectos en Castilla-La Mancha…"
           />
-          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-            {IDEAS.map((i) => (
-              <button
-                key={i}
-                type="button"
-                onClick={() => {
-                  setValor((v) => v || `${i}: `);
-                  cajaRef.current?.focus();
-                }}
-                style={{ fontSize: 12, color: '#d6d3cb', border: '1px solid #3a392f', background: 'transparent', borderRadius: 16, padding: '6px 11px', cursor: 'pointer', fontFamily: 'inherit' }}
-              >
-                {i}
-              </button>
-            ))}
-          </div>
         </div>
         <div style={{ display: 'flex', flexDirection: 'column' }}>
           <div style={{ fontSize: 11.5, color: '#8b8780', marginBottom: 4 }}>Así trabaja</div>
