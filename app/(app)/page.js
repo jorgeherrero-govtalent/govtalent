@@ -6,6 +6,7 @@ import { createClient } from '@/lib/supabase/client';
 import { frasePlazo } from '@/lib/plazos';
 import FollowButton from '@/components/FollowButton';
 import FilaInferior from '@/components/FilaInferior';
+import ConsolaAlarmas from '@/components/ConsolaAlarmas';
 
 /**
  * Home.
@@ -30,9 +31,6 @@ const MESES_LARGOS = [
   'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre',
 ];
 
-function hoyISO() {
-  return new Date().toISOString().slice(0, 10);
-}
 
 /** Identidad de un asunto: el par kind + ref_id, que es como lo nombran las tres vistas. */
 function clave(kind, refId) {
@@ -71,59 +69,6 @@ function etiquetaPlazo(iso, dias) {
 }
 
 const BENTO = { background: '#fff', borderRadius: 16, boxShadow: '0 1px 2px rgba(0,0,0,.04)' };
-const BANDERA = { position: 'absolute', top: 16, right: 16, display: 'block' };
-
-const ESTRELLAS = [
-  [9, 3], [10.5, 3.4], [11.6, 4.5], [12, 6], [11.6, 7.5], [10.5, 8.6],
-  [9, 9], [7.5, 8.6], [6.4, 7.5], [6, 6], [6.4, 4.5], [7.5, 3.4],
-];
-
-/** Banderas a 11 px: marca de origen del dato, no contenido. */
-function Bandera({ pais }) {
-  if (pais === 'ue') {
-    return (
-      <svg viewBox="0 0 18 12" width="11" height="7.3" role="img" aria-label="Unión Europea" style={BANDERA}>
-        <rect width="18" height="12" rx="2" fill="#003399" />
-        <g fill="#FFCC00">
-          {ESTRELLAS.map(([cx, cy], i) => (
-            <circle key={i} cx={cx} cy={cy} r="0.5" />
-          ))}
-        </g>
-      </svg>
-    );
-  }
-  return (
-    <svg viewBox="0 0 18 12" width="11" height="7.3" role="img" aria-label="España" style={BANDERA}>
-      <rect width="18" height="12" rx="2" fill="#C60B1E" />
-      <rect y="3" width="18" height="6" fill="#FFC400" />
-    </svg>
-  );
-}
-
-/** Una cifra, su rótulo y la bandera de quién la produce. */
-function TarjetaCifra({ valor, rotulo, bandera, href }) {
-  return (
-    <Link
-      href={href}
-      className="bento"
-      style={{
-        ...BENTO,
-        padding: '18px 20px',
-        position: 'relative',
-        display: 'block',
-        textDecoration: 'none',
-        color: 'inherit',
-      }}
-    >
-      <Bandera pais={bandera} />
-      <div style={{ fontSize: 26, fontWeight: 600, lineHeight: 1, letterSpacing: '-.5px' }}>
-        {valor === null || valor === undefined ? '—' : valor}
-      </div>
-      <div style={{ fontSize: 11.5, color: '#8b8780', paddingTop: 6, lineHeight: 1.4 }}>{rotulo}</div>
-    </Link>
-  );
-}
-
 /**
  * Anillo de actividad por fuente.
  *
@@ -209,12 +154,9 @@ export default function Home() {
   const [resumen, setResumen] = useState(null);
   const [nombre, setNombre] = useState('');
   const [plazos, setPlazos] = useState([]);
-  const [novedades, setNovedades] = useState([]);
   const [sector, setSector] = useState([]);
   const [temas, setTemas] = useState([]);
   const [seguidos, setSeguidos] = useState([]);
-  const [desdeTemas, setDesdeTemas] = useState(false);
-  const [cifras, setCifras] = useState({ leyes: null, ue: null, consultas: null, boe: null });
   const [actividad, setActividad] = useState(null);
   const [cargado, setCargado] = useState(false);
 
@@ -228,17 +170,14 @@ export default function Home() {
       .catch(() => setResumen({}));
 
     (async () => {
-      const hoy = hoyISO();
 
       const [
         { data: es },
         { data: eu },
-        { data: nov },
         leyes,
         procedimientos,
         expedientes,
         consultas,
-        boeHoy,
         { data: sec },
         { data: porTema },
         { data: sigue },
@@ -262,14 +201,8 @@ export default function Home() {
           .not('dias_restantes', 'is', null)
           .order('dias_restantes', { ascending: true })
           .limit(40),
-        supabase
-          .from('my_follow_events')
-          .select('event_id, kind, title, detail, occurred_at, es_nueva')
-          .eq('es_nueva', true)
-          .order('occurred_at', { ascending: false })
-          .limit(4),
 
-        // --- Las cuatro cifras ---
+        // --- Lo que alimenta el anillo ---
         supabase.from('es_initiatives').select('num_expediente', { count: 'exact', head: true }).eq('is_closed', false),
         // "Actos jurídicos en la UE" suma las dos patas del proceso
         // legislativo europeo: lo que tramita el Parlamento y lo que abre
@@ -282,11 +215,6 @@ export default function Home() {
         // fecha_fin: repetir ese cálculo aquí sería garantizar que algún
         // día dejen de coincidir.
         supabase.from('consultas_estado').select('*', { count: 'exact', head: true }).in('estado', ['abierta', 'urgente']),
-        // Sobre boe_directory y no sobre boe_documents: la tabla está
-        // detrás de RLS y desde el cliente el recuento salía vacío, así
-        // que la cifra del BOE se quedaba en 0 con el sumario cargado.
-        // Es la misma vista que ya alimenta /boe.
-        supabase.from('boe_directory').select('id', { count: 'exact', head: true }).eq('fecha_publicacion', hoy),
 
 
         // Las tres fuentes que deciden la tarjeta grande, en paralelo y
@@ -353,16 +281,9 @@ export default function Home() {
         .sort((a, b) => a.dias - b.dias);
 
       setPlazos(todos);
-      setNovedades(nov || []);
 
       const ep = procedimientos.count;
       const ce = expedientes.count;
-      setCifras({
-        leyes: leyes.count ?? null,
-        ue: ep == null || ce == null ? null : ep + ce,
-        consultas: consultas.count ?? null,
-        boe: boeHoy.count ?? null,
-      });
 
       // El anillo es el desglose de las tarjetas de abajo, no otra
       // medicion: CE mas PE suman "Actos juridicos en la UE", Congreso
@@ -380,7 +301,6 @@ export default function Home() {
       setSector(sec || []);
       setTemas(porTema || []);
       setSeguidos(sigue || []);
-      setDesdeTemas((sec || []).length === 0 && (porTema || []).length > 0);
 
       setCargado(true);
     })();
@@ -491,26 +411,6 @@ export default function Home() {
       .sort((a, b) => a.dias - b.dias);
   }, [sector, temas, seguidos, plazos]);
 
-  /** Lo que la plataforma ha deducido, en una línea. Va en la tarjeta negra. */
-  const lectura = useMemo(() => {
-    if (!cargado) return 'Preparando tu resumen…';
-    // Cuenta exactamente lo que alimenta la tarjeta grande: si aquí
-    // saliera un número mayor, se buscarían asuntos que la otra tarjeta
-    // nunca va a enseñar.
-    if (misAsuntos.length > 0) {
-      const tuyos = misAsuntos.filter((a) => a.sigues).length;
-      const base = `${misAsuntos.length} ${
-        misAsuntos.length === 1 ? 'asunto tuyo tiene' : 'asuntos tuyos tienen'
-      } plazo abierto. El más urgente cierra ${frasePlazo(misAsuntos[0].dias)}.`;
-      return tuyos > 0 ? `${base} ${tuyos} de ellos los sigues.` : base;
-    }
-    if (novedades.length > 0) {
-      return `${novedades.length} ${
-        novedades.length === 1 ? 'novedad' : 'novedades'
-      } en lo que sigues desde tu última visita.`;
-    }
-    return 'Ningún asunto tuyo tiene plazo abierto ahora mismo.';
-  }, [cargado, misAsuntos, novedades]);
 
   /**
    * Quién ocupa la tarjeta grande.
@@ -550,9 +450,16 @@ export default function Home() {
         </p>
       </div>
 
-      {/* Fila 1: lo que cierra antes, grande. Al lado, lo deducido y el
-          reparto de actividad. */}
-      <div className="bento-fila" style={{ display: 'grid', gridTemplateColumns: '1.55fr 1fr', gap: 14, marginBottom: 14 }}>
+      {/* Arriba, la consola de tus alarmas: siempre la tarjeta negra y
+          siempre en el mismo sitio, tengas alarmas o no. Es donde vive el
+          agente, y lo que hace la home distinta de un listado. */}
+      <div style={{ marginBottom: 14 }}>
+        <ConsolaAlarmas />
+      </div>
+
+      {/* Debajo, lo que cierra antes, grande, y al lado el reparto de la
+          actividad normativa en curso. */}
+      <div className="bento-fila" style={{ display: 'grid', gridTemplateColumns: '1.55fr 1fr', gap: 14, marginBottom: 14, alignItems: 'stretch' }}>
         <div
           className="bento"
           style={{ ...BENTO, padding: '24px 26px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}
@@ -652,54 +559,6 @@ export default function Home() {
           )}
         </div>
 
-        <div style={{ display: 'grid', gridTemplateRows: 'auto 1fr', gap: 14 }}>
-          {/* La tarjeta negra es ahora la entrada al análisis. Antes había
-              encima un banner que pedía lo mismo, y dos llamadas a la misma
-              acción en la misma pantalla se estorban. */}
-          <div className="bento" style={{ background: '#15140f', borderRadius: 16, padding: '20px 22px' }}>
-            <div style={{ fontSize: 11.5, color: '#8f7ff5', letterSpacing: '.3px', marginBottom: 10 }}>
-              QUÉ IMPACTA EN TU SECTOR
-            </div>
-            {cargado && (sector.length === 0 || desdeTemas) ? (
-              <>
-                <div style={{ fontSize: 13.5, color: '#fff', lineHeight: 1.5, marginBottom: 13 }}>
-                  Dinos a qué se dedica tu organización y revisamos todas las fuentes para
-                  monitorizar qué te afecta.
-                </div>
-                <Link
-                  href="/seguimiento?alarmas=1"
-                  style={{
-                    display: 'inline-block',
-                    background: '#6d5aef',
-                    color: '#fff',
-                    borderRadius: 8,
-                    padding: '9px 16px',
-                    fontSize: 12.5,
-                    fontWeight: 600,
-                    textDecoration: 'none',
-                  }}
-                >
-                  Crear una alarma
-                </Link>
-              </>
-            ) : (
-              <>
-                <div style={{ fontSize: 14, color: '#fff', lineHeight: 1.5 }}>{lectura}</div>
-                <Link
-                  href="/seguimiento?alarmas=1"
-                  style={{
-                    display: 'inline-block',
-                    marginTop: 11,
-                    fontSize: 12.5,
-                    color: '#8f7ff5',
-                    textDecoration: 'none',
-                  }}
-                >
-                  Ver mis alarmas →
-                </Link>
-              </>
-            )}
-          </div>
           {actividad ? (
             <Link href="/regulatorio" style={{ textDecoration: 'none', color: 'inherit', display: 'block' }}>
               <AnilloActividad datos={actividad} />
@@ -709,18 +568,11 @@ export default function Home() {
               <div style={{ fontSize: 12.5, color: '#8b8780' }}>Actividad normativa en curso</div>
             </div>
           )}
-        </div>
       </div>
 
-      {/* Fila 2: el tamaño del sector, en cuatro cifras. */}
-      <div className="bento-cifras" style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 14, marginBottom: 14 }}>
-        <TarjetaCifra valor={cifras.ue} rotulo="Actos jurídicos en la UE" bandera="ue" href="/initiatives" />
-        <TarjetaCifra valor={cifras.leyes} rotulo="Leyes en Congreso" bandera="es" href="/congreso" />
-        <TarjetaCifra valor={cifras.consultas} rotulo="Consultas públicas" bandera="es" href="/regulatorio/consultas" />
-        <TarjetaCifra valor={cifras.boe} rotulo="BOE hoy" bandera="es" href="/boe" />
-      </div>
-
-      {/* Fila 3: en qué estás trabajando. Cambia de forma según el plan, y
+      {/* Y abajo, en qué estás trabajando. Ocupa el hueco de las cuatro
+          cifras del sector, que se quitaron: repetían el anillo en otro
+          formato. Cambia de forma según el plan, y
           es a propósito: en Free hay al lado una muestra del directorio,
           porque quien no paga necesita descubrir el producto; con Pro los
           proyectos ocupan el ancho entero. Antes eran los plazos —que ya
