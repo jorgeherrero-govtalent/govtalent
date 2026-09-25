@@ -385,7 +385,7 @@ async function handler(request) {
             })),
           tipo,
           esFree: (niveles.get(userId) || 'free') !== 'pro',
-          ajustesUrl: `${SITE_URL}/seguimiento?alarmas=1`,
+          ajustesUrl: `${SITE_URL}/alarmas`,
         });
         try {
           await enviar({ to: u.email, subject, html });
