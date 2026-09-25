@@ -299,7 +299,7 @@ async function handler(request) {
         const item = {
           title: f?.label || e.title,
           detail: e.detail,
-          ruta: '/seguimiento',
+          ruta: '/alarmas',
           fuente: null,
           // Para poder cruzarlo con lo que ya sale en «cierra esta semana».
           clave: `${e.kind}|${e.ref_id}`,
@@ -340,7 +340,7 @@ async function handler(request) {
 
       const estaSemana = cierranSuyos.map((r) => ({
         title: r.titulo,
-        ruta: r.ruta || '/seguimiento',
+        ruta: r.ruta || '/alarmas',
         fuente: r.fuente || FUENTE_POR_TIPO[r.kind] || null,
         dias: diasHasta(r.plazo),
       }));
@@ -371,7 +371,7 @@ async function handler(request) {
         publicado,
         totalSeguidos: sigue.length,
         sinTemas: palabras.length === 0,
-        unsubscribeUrl: `${SITE_URL}/seguimiento?ajustes=1`,
+        unsubscribeUrl: `${SITE_URL}/alarmas`,
       });
 
       resultados.push({
