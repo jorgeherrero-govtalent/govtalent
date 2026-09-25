@@ -473,25 +473,48 @@ export default function Home() {
                   asunto tocara ese día. El título completo sigue estando
                   en el atributo title. */}
               <div className="urgente-texto">
-                <span
-                  style={{
-                    display: 'inline-block',
-                    background: '#f0eefe',
-                    color: '#3c3489',
-                    borderRadius: 20,
-                    padding: '4px 12px',
-                    fontSize: 11,
-                    marginBottom: 14,
-                  }}
-                >
-                  {urgente.sigues
-                    ? 'Lo más urgente que sigues'
-                    : urgente.origen === 'analisis'
-                      ? 'Lo más urgente de tu sector'
-                      : urgente.origen === 'temas'
-                        ? 'Lo más urgente de tus temas'
-                        : 'Lo más urgente'}
-                </span>
+                {/* Arriba, junto al título, cuándo vence: es el dato que
+                    hace urgente la tarjeta y antes había que buscarlo al
+                    final. En ámbar suave, para que no se confunda con el
+                    morado de los controles. */}
+                <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap', marginBottom: 12 }}>
+                  <span
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: 5,
+                      background: '#faeeda',
+                      color: '#854f0b',
+                      borderRadius: 20,
+                      padding: '4px 11px',
+                      fontSize: 11.5,
+                      fontWeight: 600,
+                    }}
+                  >
+                    <i className="ti ti-clock" style={{ fontSize: 13 }} aria-hidden="true"></i>
+                    {urgente.dias === 0 ? 'Hoy' : urgente.dias === 1 ? 'Mañana' : `Quedan ${urgente.dias} días`}
+                    {' · '}
+                    {urgente.kind === 'ley' ? 'fin del plazo de enmiendas' : 'cierre de alegaciones'}
+                  </span>
+                  <span
+                    style={{
+                      display: 'inline-block',
+                      background: '#f0eefe',
+                      color: '#3c3489',
+                      borderRadius: 20,
+                      padding: '4px 12px',
+                      fontSize: 11,
+                    }}
+                  >
+                    {urgente.sigues
+                      ? 'Lo más urgente que sigues'
+                      : urgente.origen === 'analisis'
+                        ? 'Lo más urgente de tus alarmas'
+                        : urgente.origen === 'temas'
+                          ? 'Lo más urgente de tus temas'
+                          : 'Lo más urgente'}
+                  </span>
+                </div>
                 <Link href={urgente.ruta} style={{ textDecoration: 'none', color: 'inherit', display: 'block' }}>
                   <div
                     className="clamp-2"
@@ -523,16 +546,13 @@ export default function Home() {
                   display: 'flex',
                   alignItems: 'center',
                   gap: 14,
-                  marginTop: 22,
-                  paddingTop: 18,
+                  marginTop: 18,
+                  paddingTop: 14,
                   borderTop: '.5px solid #f2f0ec',
                 }}
               >
-                <div>
-                  <div style={{ fontSize: 24, color: '#6d5aef', fontWeight: 600, lineHeight: 1 }}>
-                    {etiquetaPlazo(urgente.fecha, urgente.dias)}
-                  </div>
-                  <div style={{ fontSize: 11.5, color: '#8b8780', paddingTop: 3 }}>cierre de alegaciones</div>
+                <div style={{ fontSize: 12, color: '#8b8780' }}>
+                  {urgente.dias <= 1 ? 'Cierra' : 'Cierra el'} {etiquetaPlazo(urgente.fecha, urgente.dias).toLowerCase()}
                 </div>
                 {urgente.kind && urgente.refId && (
                   <div style={{ marginLeft: 'auto' }}>
