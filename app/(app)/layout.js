@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
@@ -23,6 +23,9 @@ export default function AppLayout({ children }) {
   const [tieneOfertas, setTieneOfertas] = useState(false);
   const [novedades, setNovedades] = useState(0);
   const [needsOnboarding, setNeedsOnboarding] = useState(false);
+  // Cuándo se marcó todo como visto en /alarmas. Si el recuento de la
+  // barra salió antes y llega después, traería el número viejo.
+  const vistasEn = useRef(0);
 
   useEffect(() => {
     let active = true;
@@ -64,19 +67,39 @@ export default function AppLayout({ children }) {
         }
       }
 
-      // El punto de la barra: cuántas novedades hay sin ver. Solo cuenta,
-      // no trae las filas, para no cargar la barra en cada navegación.
-      const { count } = await supabase
-        .from('my_follow_events')
-        .select('event_id', { count: 'exact', head: true })
-        .eq('es_nueva', true);
-      if (active) setNovedades(count || 0);
+      // El contador de Alarmas: lo nuevo que han encontrado las alarmas y
+      // lo que ha cambiado en lo que sigues, sumado. Es el único contador
+      // de la aplicación: la campana desaparece porque repetía este mismo
+      // número en otro sitio. Solo cuenta, no trae filas, para no cargar
+      // la barra en cada navegación.
+      const pedidoEn = Date.now();
+      const [{ count: cambios }, { count: encontrados }] = await Promise.all([
+        supabase.from('my_follow_events').select('event_id', { count: 'exact', head: true }).eq('es_nueva', true),
+        supabase
+          .from('sector_alert_matches')
+          .select('id', { count: 'exact', head: true })
+          .eq('user_id', data.user.id)
+          .eq('visto', false)
+          .eq('descartado', false),
+      ]);
+      if (active && vistasEn.current < pedidoEn) setNovedades((cambios || 0) + (encontrados || 0));
     }
     load();
     return () => {
       active = false;
     };
   }, [pathname]);
+
+  // La página de Alarmas marca todo como visto al abrirse y lo avisa con
+  // este evento, para que el contador baje sin esperar a otra navegación.
+  useEffect(() => {
+    const poner = () => {
+      vistasEn.current = Date.now();
+      setNovedades(0);
+    };
+    window.addEventListener('gt-alarmas-vistas', poner);
+    return () => window.removeEventListener('gt-alarmas-vistas', poner);
+  }, []);
 
   async function signOut() {
     await supabase.auth.signOut();
@@ -96,8 +119,8 @@ export default function AppLayout({ children }) {
         <PublicHeader />
       ) : (
         <nav className="nav">
-        {/* En móvil los módulos bajan a BarraMovil y aquí solo quedan
-            el logotipo, la campana y el menú. Antes se desbordaban: los
+        {/* En móvil los módulos, Alarmas incluida, bajan a BarraMovil y
+            aquí solo quedan el logotipo, el buscador y el menú. Antes se desbordaban: los
             elementos llevan flex-shrink:0 y no se encogen. */}
         <style>{`
           @media (max-width: 720px) {
@@ -142,6 +165,40 @@ export default function AppLayout({ children }) {
             <i className="ti ti-timeline-event"></i>Regulatorio
           </Link>
 
+          {/* Alarmas, justo después de Regulatorio: es lo tuyo dentro de
+              lo que se mueve. Sustituye a la campana, que llevaba a
+              Seguimiento y repetía este mismo contador. Con el número y
+              no un punto: saber que hay tres es distinto de saber que hay
+              algo. Morada siempre, porque es el color de la función. */}
+          <Link
+            href="/alarmas"
+            className={`ni ni-modulo ${pathname.startsWith('/alarmas') || pathname.startsWith('/seguimiento') ? 'on' : ''}`}
+            aria-label={novedades > 0 ? `Alarmas, ${novedades} sin ver` : 'Alarmas'}
+            style={{ color: '#6d5aef' }}
+          >
+            <i className="ti ti-sparkles"></i>Alarmas
+            {novedades > 0 && (
+              <span
+                style={{
+                  minWidth: 17,
+                  height: 17,
+                  padding: '0 5px',
+                  boxSizing: 'border-box',
+                  borderRadius: 9,
+                  background: '#6d5aef',
+                  color: '#fff',
+                  fontSize: 10.5,
+                  lineHeight: '17px',
+                  textAlign: 'center',
+                  fontWeight: 600,
+                  marginLeft: 6,
+                }}
+              >
+                {novedades > 9 ? '9+' : novedades}
+              </span>
+            )}
+          </Link>
+
           <Link
             href="/institutions"
             className={`ni ni-modulo ${
@@ -154,52 +211,12 @@ export default function AppLayout({ children }) {
             <i className="ti ti-building-bank"></i>Instituciones
           </Link>
 
-          {/* Seguimiento deja de ser pestaña y pasa a la campana de la
-              derecha: como pestaña competía con Proyectos —las dos decían
-              "aquí está lo que te importa"— y una campana no compite con
-              nada. La ruta /seguimiento sigue existiendo. */}
           <Link href="/projects" className={`ni ni-modulo ${pathname.startsWith('/projects') ? 'on' : ''}`}>
             <i className="ti ti-folder"></i>Proyectos
           </Link>
 
           <Link href="/jobs" className={`ni ni-modulo ${pathname.startsWith('/jobs') ? 'on' : ''}`}>
             <i className="ti ti-briefcase"></i>Empleos
-          </Link>
-
-          {/* Todo lo que ha pasado, tenga proyecto o no. Con el número y
-              no un punto: saber que hay tres es distinto de saber que hay
-              algo. */}
-          <Link
-            href="/seguimiento"
-            className={`ni ni-icono ${pathname.startsWith('/seguimiento') ? 'on' : ''}`}
-            aria-label={novedades > 0 ? `Avisos, ${novedades} sin leer` : 'Avisos'}
-            title="Avisos"
-          >
-            <span style={{ position: 'relative', display: 'inline-flex' }}>
-              <i className="ti ti-bell"></i>
-              {novedades > 0 && (
-                <span
-                  style={{
-                    position: 'absolute',
-                    top: -6,
-                    left: 11,
-                    minWidth: 15,
-                    height: 15,
-                    padding: '0 4px',
-                    borderRadius: 20,
-                    background: '#6d5aef',
-                    color: '#fff',
-                    fontSize: 10,
-                    lineHeight: '15px',
-                    textAlign: 'center',
-                    border: '1.5px solid #fff',
-                    fontWeight: 600,
-                  }}
-                >
-                  {novedades > 9 ? '9+' : novedades}
-                </span>
-              )}
-            </span>
           </Link>
 
           {/* "Mi organización" y "Para empresas" desaparecen de la
@@ -218,7 +235,7 @@ export default function AppLayout({ children }) {
       </nav>
       )}
 
-      <BarraMovil />
+      <BarraMovil alarmas={novedades} />
 
       <main style={{ flex: 1 }}>{children}</main>
       <Footer />
