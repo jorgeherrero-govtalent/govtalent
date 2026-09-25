@@ -71,13 +71,13 @@ function Rotulo({ children }) {
  */
 function Caja({ placeholder, onEnviar, valor, setValor, cajaRef }) {
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
       <form
         onSubmit={(e) => {
           e.preventDefault();
           onEnviar();
         }}
-        style={{ display: 'flex', alignItems: 'flex-end', gap: 10, background: '#24231d', border: '1px solid #3a392f', borderRadius: 14, padding: '8px 8px 8px 15px' }}
+        style={{ display: 'flex', alignItems: 'flex-end', gap: 10, background: '#24231d', border: '1px solid #3a392f', borderRadius: 12, padding: '5px 5px 5px 14px' }}
       >
         <TextoCreciente
           ref={cajaRef}
@@ -88,12 +88,12 @@ function Caja({ placeholder, onEnviar, valor, setValor, cajaRef }) {
           maxAltura={220}
           placeholder={placeholder}
           aria-label="Describe tu organización o lo que quieres vigilar"
-          style={{ flex: 1, minWidth: 0, background: 'transparent', border: 'none', outline: 'none', color: '#fff', fontSize: 13.5, lineHeight: 1.55, fontFamily: 'inherit', padding: '7px 0', margin: 0 }}
+          style={{ flex: 1, minWidth: 0, background: 'transparent', border: 'none', outline: 'none', color: '#fff', fontSize: 13.5, lineHeight: 1.5, fontFamily: 'inherit', padding: '5px 0', margin: 0 }}
         />
         <button
           type="submit"
           aria-label="Crear alarma"
-          style={{ width: 34, height: 34, border: 'none', borderRadius: 10, background: MORADO, color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0 }}
+          style={{ width: 30, height: 30, border: 'none', borderRadius: 9, background: MORADO, color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0 }}
         >
           <i className="ti ti-arrow-up" style={{ fontSize: 16 }} aria-hidden="true"></i>
         </button>
@@ -107,7 +107,7 @@ function Caja({ placeholder, onEnviar, valor, setValor, cajaRef }) {
               setValor((v) => v || `${i}: `);
               cajaRef.current?.focus();
             }}
-            style={{ fontSize: 12, color: '#d6d3cb', border: '1px solid #3a392f', background: 'transparent', borderRadius: 16, padding: '6px 11px', cursor: 'pointer', fontFamily: 'inherit' }}
+            style={{ fontSize: 11.5, color: '#d6d3cb', border: '1px solid #3a392f', background: 'transparent', borderRadius: 14, padding: '4px 10px', cursor: 'pointer', fontFamily: 'inherit' }}
           >
             {i}
           </button>
@@ -204,7 +204,8 @@ export default function ConsolaAlarmas() {
     router.push('/alarmas');
   }
 
-  const TARJETA = { background: NEGRO, borderRadius: 18, padding: '22px 24px' };
+  // Compacta: la consola no debe empujar hacia abajo el resto de la home.
+  const TARJETA = { background: NEGRO, borderRadius: 18, padding: '16px 22px' };
 
   if (!cargado) {
     return <div style={{ ...TARJETA, minHeight: 170 }} aria-busy="true"></div>;
@@ -223,10 +224,10 @@ export default function ConsolaAlarmas() {
     ];
     const pausadas = alarmas.length > 0;
     return (
-      <section className="consola-alarmas" aria-label="Crear tu primera alarma" style={{ ...TARJETA, padding: '24px 26px' }}>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 14, minWidth: 0 }}>
+      <section className="consola-alarmas" aria-label="Crear tu primera alarma" style={TARJETA}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 9, minWidth: 0 }}>
           <Rotulo>{esPro ? 'TUS ALARMAS' : 'TU ALARMA'}</Rotulo>
-          <h2 style={{ margin: 0, fontSize: 21, lineHeight: 1.35, color: '#fff', fontWeight: 500, letterSpacing: '-.3px' }}>
+          <h2 style={{ margin: 0, fontSize: 18, lineHeight: 1.3, color: '#fff', fontWeight: 500, letterSpacing: '-.3px' }}>
             ¿Qué quieres que vigile por ti?
           </h2>
           <div style={{ fontSize: 13, color: '#a8a49c', lineHeight: 1.55 }}>
@@ -245,7 +246,7 @@ export default function ConsolaAlarmas() {
         <div style={{ display: 'flex', flexDirection: 'column' }}>
           <div style={{ fontSize: 11.5, color: '#8b8780', marginBottom: 4 }}>Así trabaja</div>
           {pasos.map(([a, b], i) => (
-            <div key={a} style={{ display: 'flex', gap: 12, padding: '10px 0', borderTop: '1px solid rgba(255,255,255,.08)' }}>
+            <div key={a} style={{ display: 'flex', gap: 12, padding: '6px 0', borderTop: '1px solid rgba(255,255,255,.08)' }}>
               <span style={{ width: 22, height: 22, borderRadius: 7, background: 'rgba(143,127,245,.18)', color: '#cfc8fb', fontSize: 11.5, fontWeight: 600, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                 {i + 1}
               </span>
@@ -273,14 +274,14 @@ export default function ConsolaAlarmas() {
     const n = resumen.semana;
     return (
       <section className="consola-alarmas" aria-label="Tu alarma" style={TARJETA}>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 14, minWidth: 0 }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 9, minWidth: 0 }}>
           <Rotulo>TU ALARMA ESTÁ VIGILANDO</Rotulo>
-          <div style={{ fontSize: 20, lineHeight: 1.4, color: '#fff', fontWeight: 500, letterSpacing: '-.2px' }}>
+          <div style={{ fontSize: 17, lineHeight: 1.35, color: '#fff', fontWeight: 500, letterSpacing: '-.2px' }}>
             {n > 0
               ? `Esta semana he encontrado ${n} ${n === 1 ? 'asunto que te afecta' : 'asuntos que te afectan'}. Te lo resumo el lunes a las 8:00.`
               : 'Esta semana aún no he encontrado nada nuevo. Te escribo el lunes con el resumen.'}
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10, paddingTop: 10, borderTop: '1px solid rgba(255,255,255,.08)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, paddingTop: 8, borderTop: '1px solid rgba(255,255,255,.08)' }}>
             <span style={{ width: 7, height: 7, borderRadius: '50%', background: MORADO_C, boxShadow: '0 0 0 3px rgba(143,127,245,.22)' }} />
             <span style={{ fontSize: 13, color: '#fff', flex: 1, minWidth: 0 }}>{a.nombre}</span>
             <span style={{ fontSize: 12, color: '#cfc8fb', whiteSpace: 'nowrap' }}>
@@ -291,7 +292,7 @@ export default function ConsolaAlarmas() {
             Ver lo que ha encontrado →
           </Link>
         </div>
-        <div style={{ background: '#24231d', border: '1px solid #34332c', borderRadius: 14, padding: 18, display: 'flex', flexDirection: 'column', gap: 10 }}>
+        <div style={{ background: '#24231d', border: '1px solid #34332c', borderRadius: 14, padding: 14, display: 'flex', flexDirection: 'column', gap: 7 }}>
           <div style={{ fontSize: 13.5, fontWeight: 600, color: '#fff' }}>Con Pro, no esperes al lunes</div>
           {['Hasta 3 alarmas', 'Aviso el mismo día en que se abre un plazo', 'Recordatorios a 30, 14, 7, 3 y 1 días'].map((t) => (
             <div key={t} style={{ display: 'flex', gap: 8, fontSize: 12.5, color: '#d6d3cb', lineHeight: 1.45 }}>
@@ -323,9 +324,9 @@ export default function ConsolaAlarmas() {
 
   return (
     <section className="consola-alarmas" aria-label="Tus alarmas" style={TARJETA}>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 14, minWidth: 0 }}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 9, minWidth: 0 }}>
         <Rotulo>TUS ALARMAS ESTÁN VIGILANDO</Rotulo>
-        <div style={{ fontSize: 20, lineHeight: 1.4, color: '#fff', fontWeight: 500, letterSpacing: '-.2px' }}>{titular}</div>
+        <div style={{ fontSize: 17, lineHeight: 1.35, color: '#fff', fontWeight: 500, letterSpacing: '-.2px' }}>{titular}</div>
         {enLimite ? (
           <div style={{ fontSize: 12.5, color: '#8b8780', lineHeight: 1.5 }}>
             Tienes {activas.length} de {limite} alarmas activas.{' '}
@@ -347,14 +348,14 @@ export default function ConsolaAlarmas() {
                 ? { t: `${r.plazos === 1 ? '1 plazo cierra' : `${r.plazos} plazos, el primero`} ${frasePlazo(r.primero)}`, c: '#cfc8fb' }
                 : { t: 'Sin novedades', c: '#8b8780' };
           return (
-            <div key={a.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '9px 0', borderTop: '1px solid rgba(255,255,255,.08)' }}>
+            <div key={a.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '7px 0', borderTop: '1px solid rgba(255,255,255,.08)' }}>
               <span style={{ width: 7, height: 7, borderRadius: '50%', background: MORADO_C, boxShadow: '0 0 0 3px rgba(143,127,245,.22)', flexShrink: 0 }} />
               <span style={{ fontSize: 13, color: '#fff', flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{a.nombre}</span>
               <span style={{ fontSize: 12, color: estado.c, whiteSpace: 'nowrap' }}>{estado.t}</span>
             </div>
           );
         })}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 10, marginTop: 10 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 10, marginTop: 8 }}>
           <Link href="/alarmas" style={{ fontSize: 12.5, color: MORADO_C, textDecoration: 'none' }}>
             Ver lo que han encontrado →
           </Link>
@@ -367,6 +368,6 @@ export default function ConsolaAlarmas() {
 }
 
 const consolaCss = `
-  .consola-alarmas { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); gap: 28px; }
-  @media (max-width: 760px) { .consola-alarmas { grid-template-columns: 1fr; gap: 20px; } }
+  .consola-alarmas { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); gap: 24px; align-items: start; }
+  @media (max-width: 760px) { .consola-alarmas { grid-template-columns: 1fr; gap: 14px; } }
 `;
