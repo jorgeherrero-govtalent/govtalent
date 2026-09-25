@@ -1,20 +1,21 @@
 'use client';
 
 import { Suspense, useEffect, useMemo, useState } from 'react';
-import { useSearchParams } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
 import { toast } from '@/lib/toast';
-import AlarmasTab from '@/components/AlarmasTab';
 
 /**
- * Lo que sigue el usuario, con sus novedades.
+ * Lo que sigue el usuario: la lista completa, para gestionarla.
  *
- * Es la sección que da sentido al botón de seguir: sin ella, sigues
- * cosas y no puedes verlas en ningún sitio.
+ * Las novedades ya no viven aquí: están en /alarmas, junto con lo que
+ * encuentran las alarmas, en una sola lista. Esta página es el inventario
+ * (qué sigues, agrupado por tipo, y dejar de seguir), y se llega desde
+ * «Lo que sigo» en Alarmas.
  *
- * Dos partes: las novedades arriba —lo que ha pasado desde la última
- * visita— y debajo todo lo seguido.
+ * Los enlaces antiguos a ?alarmas=1 y ?ajustes=1 (correos, marcadores)
+ * llevan a /alarmas.
  */
 
 // El orden es el de la lista agrupada: primero lo que se mueve, luego
@@ -72,32 +73,17 @@ export default function SeguimientoPage() {
 function Seguimiento() {
   const supabase = createClient();
   // Los correos antiguos enlazan a ?ajustes=1 y los de las alarmas a
-  // ?alarmas=1: los dos abren la pestaña de Alarmas.
+  // ?alarmas=1: los dos llevan ahora a /alarmas.
   const sp = useSearchParams();
 
   const [items, setItems] = useState(null);
-  const [novedades, setNovedades] = useState([]);
   const [filtro, setFiltro] = useState('todo');
-  const [seccion, setSeccion] = useState('sigo');
-  const [nAlertas, setNAlertas] = useState(0);
   const [sinSesion, setSinSesion] = useState(false);
 
+  const router = useRouter();
   useEffect(() => {
-    if (sp?.get('ajustes') === '1' || sp?.get('alarmas') === '1') setSeccion('avisos');
-  }, [sp]);
-
-  // La pestaña queda en la dirección: al abrir una ley desde Alarmas y
-  // volver atrás, se vuelve a Alarmas y no a «Lo que sigo».
-  function elegirSeccion(s) {
-    setSeccion(s);
-    try {
-      const url = new URL(window.location.href);
-      url.searchParams.delete('ajustes');
-      if (s === 'avisos') url.searchParams.set('alarmas', '1');
-      else url.searchParams.delete('alarmas');
-      window.history.replaceState(window.history.state, '', url.pathname + url.search);
-    } catch {}
-  }
+    if (sp?.get('ajustes') === '1' || sp?.get('alarmas') === '1') router.replace('/alarmas');
+  }, [sp, router]);
 
   useEffect(() => {
     let cancelled = false;
@@ -111,26 +97,19 @@ function Seguimiento() {
         }
         return;
       }
-      const [{ data: f }, { data: e }, { count: nA }] = await Promise.all([
-        supabase.from('my_follows').select('*').order('ultima_novedad', { ascending: false, nullsFirst: false }),
-        supabase.from('my_follow_events').select('*').order('occurred_at', { ascending: false }).limit(40),
-        supabase
-          .from('sector_alerts')
-          .select('id', { count: 'exact', head: true })
-          .eq('user_id', uid)
-          .eq('activa', true),
-      ]);
+      const { data: f } = await supabase
+        .from('my_follows')
+        .select('*')
+        .order('ultima_novedad', { ascending: false, nullsFirst: false });
       if (cancelled) return;
       setItems(f || []);
-      setNovedades(e || []);
-      setNAlertas(nA || 0);
     })();
     return () => {
       cancelled = true;
     };
   }, []);
 
-  const nuevas = useMemo(() => novedades.filter((n) => n.es_nueva), [novedades]);
+  const nuevas = useMemo(() => (items || []).filter((i) => i.n_novedades > 0), [items]);
 
   const filtrados = useMemo(() => {
     let l = items || [];
@@ -159,22 +138,6 @@ function Seguimiento() {
     for (const i of items || []) if (i.fuente) c.set(i.fuente, (c.get(i.fuente) || 0) + 1);
     return [...c.entries()].sort((a, b) => b[1] - a[1]);
   }, [items]);
-
-  // Marcar como visto: la próxima visita ya no las contará como nuevas
-  async function marcarVisto() {
-    const ahora = new Date().toISOString();
-    const { data: auth } = await supabase.auth.getUser();
-    const uid = auth?.user?.id;
-    if (!uid) return;
-    const { error } = await supabase.from('follows').update({ seen_at: ahora }).eq('user_id', uid);
-    if (error) {
-      toast.error('No se ha podido marcar como visto');
-      return;
-    }
-    setItems((prev) => (prev || []).map((i) => ({ ...i, n_novedades: 0, seen_at: ahora })));
-    setNovedades((prev) => prev.map((n) => ({ ...n, es_nueva: false })));
-    toast.info('Marcado como visto');
-  }
 
   async function dejarDeSeguir(item) {
     setItems((prev) => (prev || []).filter((i) => i.id !== item.id));
@@ -214,29 +177,20 @@ function Seguimiento() {
   return (
     <div className="sec" style={{ maxWidth: 780 }}>
       <div style={{ marginBottom: 20 }}>
-        <h1 style={{ fontSize: 20, fontWeight: 600, margin: 0, letterSpacing: '-.2px' }}>Seguimiento</h1>
+        <Link href="/alarmas" style={{ fontSize: 12.5, color: '#8b8780', textDecoration: 'none', display: 'inline-block', marginBottom: 10 }}>
+          ← Alarmas
+        </Link>
+        <h1 style={{ fontSize: 20, fontWeight: 600, margin: 0, letterSpacing: '-.2px' }}>Lo que sigo</h1>
         <p style={{ fontSize: 12.5, color: '#8b8780', margin: '5px 0 0' }}>
           {items === null
             ? '—'
             : items.length === 0
               ? 'Aún no sigues nada.'
-              : `${items.length} ${items.length === 1 ? 'asunto' : 'asuntos'}${nuevas.length > 0 ? ` · ${nuevas.length} ${nuevas.length === 1 ? 'novedad' : 'novedades'}` : ''}${nAlertas > 0 ? ` · ${nAlertas} ${nAlertas === 1 ? 'alarma activa' : 'alarmas activas'}` : ''}`}
+              : `${items.length} ${items.length === 1 ? 'asunto' : 'asuntos'}. Lo que cambia en ellos te lo contamos en Alarmas.`}
         </p>
       </div>
 
-      {/* Dos caras de lo mismo: qué vigilo y cómo me lo cuentan. */}
-      <div style={{ display: 'flex', gap: 2, marginBottom: 18, flexWrap: 'wrap' }}>
-        <button type="button" onClick={() => elegirSeccion('sigo')} style={chip(seccion === 'sigo')}>
-          Lo que sigo
-        </button>
-        <button type="button" onClick={() => elegirSeccion('avisos')} style={chip(seccion === 'avisos')}>
-          Alarmas
-        </button>
-      </div>
-
-      {seccion === 'avisos' ? (
-        <AlarmasTab />
-      ) : items === null ? (
+      {items === null ? (
         <div className="spinner"></div>
       ) : items.length === 0 ? (
         <div style={{ background: '#fff', borderRadius: 10, padding: 22, boxShadow: '0 1px 2px rgba(0,0,0,.04)' }}>
@@ -295,57 +249,6 @@ function Seguimiento() {
         </div>
       ) : (
         <>
-          {nuevas.length > 0 && (
-            <div
-              style={{
-                background: '#fff',
-                borderRadius: 10,
-                padding: 20,
-                marginBottom: 16,
-                boxShadow: '0 1px 2px rgba(0,0,0,.04)',
-              }}
-            >
-              <div
-                style={{
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'baseline',
-                  marginBottom: 14,
-                  gap: 10,
-                  flexWrap: 'wrap',
-                }}
-              >
-                <div style={{ fontSize: 14, fontWeight: 500, letterSpacing: '-.15px' }}>
-                  {nuevas.length} {nuevas.length === 1 ? 'novedad' : 'novedades'} desde tu última visita
-                </div>
-                <button
-                  type="button"
-                  onClick={marcarVisto}
-                  style={{ fontSize: 12, color: '#8b8780', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
-                >
-                  Marcar como visto
-                </button>
-              </div>
-
-              {nuevas.slice(0, 8).map((n) => {
-                const t = TIPOS[n.kind] || TIPOS.ley;
-                return (
-                  <div key={n.event_id} style={{ display: 'flex', gap: 13, padding: '11px 0', alignItems: 'baseline' }}>
-                    <span
-                      style={{ width: 5, height: 5, borderRadius: '50%', background: t.color, flexShrink: 0 }}
-                    ></span>
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ fontSize: 13, lineHeight: 1.45 }}>
-                        {n.title} <span style={{ color: '#8b8780' }}>{(n.detail || '').toLowerCase()}</span>
-                      </div>
-                      <div style={{ fontSize: 11, color: '#b8b4ac', marginTop: 3 }}>{haceCuanto(n.occurred_at)}</div>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-
           <div style={{ display: 'flex', gap: 2, marginBottom: 14, flexWrap: 'wrap', alignItems: 'center' }}>
             <button type="button" onClick={() => setFiltro('todo')} style={chip(filtro === 'todo')}>
               Todo ({items.length})
