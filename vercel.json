@@ -95,6 +95,10 @@
     {
       "path": "/api/cron/vigilante-syncs",
       "schedule": "0 12 * * *"
+    },
+    {
+      "path": "/api/sync/consejo-ministros",
+      "schedule": "*/15 7-20 * * 1-5"
     }
   ]
 }
