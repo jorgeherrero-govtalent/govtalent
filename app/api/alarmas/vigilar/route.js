@@ -36,6 +36,16 @@
 //   ?key=<DEBUG_KEY>&manana=1       fuerza que cuente como pasada de la mañana
 //   ?key=<DEBUG_KEY>&lunes=1        fuerza que cuente como lunes
 //   ?key=<DEBUG_KEY>&sinenvio=1     evalúa y guarda, pero no envía
+//   ?urgente=consejo                pasada urgente (ver abajo)
+//
+// PASADA URGENTE DEL CONSEJO DE MINISTROS. La lanza el sync del Consejo
+// (/api/sync/consejo-ministros) en cuanto guarda acuerdos nuevos del
+// día. Evalúa como cualquier otra pasada, pero al enviar trata lo del
+// Consejo como urgente: sale ya para las alarmas Pro «Al momento» y
+// también para las de «Cada mañana». Las semanales esperan al lunes.
+// A las de «Cada mañana» solo les llega lo del Consejo; el resto de lo
+// que tengan pendiente sigue esperando a su resumen. Nunca cuenta como
+// pasada de la mañana, aunque se lance temprano.
 // =====================================================================
 
 import { NextResponse } from 'next/server';
@@ -125,11 +135,12 @@ async function handler(request) {
   const ahora = new Date();
   // La primera pasada del día es la de las 06:30 UTC. Con margen: si el
   // cron se retrasa, sigue contando como la de la mañana.
-  const esManana = sp.get('manana') === '1' || ahora.getUTCHours() < 9;
+  const urgenteConsejo = sp.get('urgente') === 'consejo';
+  const esManana = !urgenteConsejo && (sp.get('manana') === '1' || ahora.getUTCHours() < 9);
   const esLunes = sp.get('lunes') === '1' || ahora.getUTCDay() === 1;
 
   const db = admin();
-  const informe = { inicio: ahora.toISOString(), dry_run: dry, manana: esManana, lunes: esLunes };
+  const informe = { inicio: ahora.toISOString(), dry_run: dry, manana: esManana, lunes: esLunes, urgente: urgenteConsejo ? 'consejo' : null };
 
   try {
     // --- Alarmas activas y el plan de cada usuario ---------------------
@@ -300,7 +311,9 @@ async function handler(request) {
     // --- 3. Enviar -------------------------------------------------------
     const tocaEnviar = (a) =>
       a.frecuencia === 'inmediato' || (a.frecuencia === 'diario' && esManana) || (a.frecuencia === 'semanal' && esManana && esLunes);
-    const aEnviar = vigentes.filter(tocaEnviar);
+    // En la pasada urgente, las Pro diarias entran solo por lo del Consejo
+    const soloConsejo = (a) => urgenteConsejo && !tocaEnviar(a) && a.nivel === 'pro' && a.frecuencia === 'diario';
+    const aEnviar = vigentes.filter((a) => tocaEnviar(a) || soloConsejo(a));
     const porId = new Map(vigentes.map((a) => [a.id, a]));
 
     let pendientes = [];
@@ -315,6 +328,7 @@ async function handler(request) {
           .eq('descartado', false);
         pendientes.push(...(data || []));
       }
+      pendientes = pendientes.filter((m) => !soloConsejo(porId.get(m.alert_id)) || m.kind === 'consejo');
     }
 
     const porUsuario = new Map();
@@ -353,7 +367,9 @@ async function handler(request) {
         if (!u?.email || sinCorreo.has(userId)) continue;
         const suyas = novedades.map((m) => porId.get(m.alert_id)).filter(Boolean);
         const tipo =
-          suyas.some((a) => a.frecuencia === 'inmediato') && !esManana
+          urgenteConsejo && novedades.length > 0 && novedades.every((m) => m.kind === 'consejo')
+            ? 'consejo'
+            : (urgenteConsejo || suyas.some((a) => a.frecuencia === 'inmediato')) && !esManana
             ? 'inmediato'
             : suyas.length > 0 && suyas.every((a) => a.frecuencia === 'semanal')
               ? 'semanal'
