@@ -243,8 +243,8 @@ export default function SyncsBackoffice() {
 
                 <span style={{ fontSize: 12.5, color: '#1a1a18', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                   {r.ruta.replace('/api/', '')}
-                  {r.cadencia === 'semanal' && (
-                    <span style={{ fontSize: 10.5, color: '#a8a49c', marginLeft: 7 }}>semanal</span>
+                  {r.etiqueta && (
+                    <span style={{ fontSize: 10.5, color: '#a8a49c', marginLeft: 7 }}>{r.etiqueta}</span>
                   )}
                   {r.invocaciones_24h > 1 && (
                     <span style={{ fontSize: 10.5, color: '#a8a49c', marginLeft: 7 }}>
