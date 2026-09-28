@@ -72,7 +72,7 @@ function horaLocal(iso) {
 function programadaLocal(r) {
   const d = new Date(Date.UTC(2026, 0, 1, r.hora_utc, r.minuto_utc));
   const hhmm = d.toLocaleTimeString('es-ES', { timeZone: 'Europe/Madrid', hour: '2-digit', minute: '2-digit' });
-  return r.cadencia === 'semanal' ? `${hhmm}, semanal` : hhmm;
+  return r.etiqueta ? `${hhmm}, ${r.etiqueta}` : hhmm;
 }
 
 const duracion = (ms) => (ms == null ? '—' : ms < 1000 ? `${ms} ms` : `${Math.round(ms / 1000)} s`);
