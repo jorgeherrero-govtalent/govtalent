@@ -99,6 +99,10 @@
     {
       "path": "/api/sync/consejo-ministros",
       "schedule": "*/15 7-20 * * 1-5"
+    },
+    {
+      "path": "/api/sync/agenda-gobierno",
+      "schedule": "*/30 4-20 * * *"
     }
   ]
 }
