@@ -38,7 +38,9 @@ const QUE_AVISAMOS = {
   // las preside: es la forma natural de cubrir un ámbito.
   comision: 'cuando entren asuntos nuevos o cambien sus portavoces',
   grupo: 'cuando presente iniciativas nuevas o cambie su composición',
-  cargo: 'si cambia de puesto o cesa',
+  // De los miembros del Gobierno, además, su agenda pública
+  // (app/api/sync/agenda-gobierno).
+  cargo: 'si cambia de puesto o cesa, y de su agenda pública si es miembro del Gobierno',
   eurodiputado: 'cuando cambie de comisión o sea ponente de un procedimiento',
   direccion: 'cuando abra consultas nuevas o cambie su equipo',
   comisario: 'cuando se abran consultas bajo su cartera o cambie su gabinete',
