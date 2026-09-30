@@ -23,14 +23,18 @@
 //      sin esperar a la pasada de las alarmas:
 //        a. Normativa de referencia de una alarma citada en el acuerdo
 //           → coincidencia directa, sin IA.
-//        b. Lanza /api/alarmas/vigilar?urgente=consejo: la IA evalúa lo
-//           nuevo contra cada alarma Pro y se envía al momento a las
-//           alarmas «Al momento» y «Cada mañana».
+//        b. Lanza /api/alarmas/vigilar?urgente=consejo&sinenvio=1: la
+//           IA evalúa lo nuevo contra cada alarma Pro y lo guarda, sin
+//           enviar. Al terminar, marca la Referencia como evaluada.
 //        c. Norma que alguien sigue citada en el acuerdo → evento en su
-//           seguimiento y, si es Pro, correo al momento.
-//      Es «importante» —y por tanto inmediato— lo que toca una norma
-//      que sigues o lo que tu alarma considera que afecta a tu sector.
-//      El resto queda guardado y visible en Regulatorio, sin aviso.
+//           seguimiento.
+//      EL CORREO sale aparte: /api/alerts/consejo (sql/63) envía a todos
+//      el resumen del Consejo en cuanto la Referencia está evaluada, y a
+//      los Pro les pone arriba lo de (a), (b) y (c). Un correo por
+//      Consejo y no dos: desde el 30-09-2026 este sync ya no envía el
+//      aviso urgente ni el correo de seguimientos.
+//      Quien se da de baja del correo del Consejo recibe lo de sus
+//      alarmas en su resumen habitual, porque no queda marcado.
 //
 // HORARIO (vercel.json): cada 15 minutos en días laborables, de 07:00 a
 // 20:45 UTC (de 09:00 a 22:45 en Madrid en verano). Cubre el Consejo
@@ -51,10 +55,9 @@ import { createClient } from '@supabase/supabase-js';
 import { createHash } from 'node:crypto';
 import { conRegistro } from '@/lib/syncLog';
 import { fetchGob } from '@/lib/fetchGob';
-import { INDICE, referenciasDelIndice, acuerdosDeReferencia, fechaDeUrl, urlCanonica, urlPrevista, citas, nombreCita, VAN_AL_BOE } from '@/lib/consejo';
+import { INDICE, referenciasDelIndice, acuerdosDeReferencia, ampliacionDeReferencia, fechaDeUrl, urlCanonica, urlPrevista, citas, nombreCita, VAN_AL_BOE } from '@/lib/consejo';
 import { nivelesAvisos } from '@/lib/nivelAvisos';
 import { limitesDe } from '@/lib/alarmas';
-import { alarmasEmail } from '@/lib/email/templates';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 300;
@@ -104,16 +107,6 @@ const huellaDe = (acuerdos) =>
     .update(acuerdos.map((a) => a.id).join(','))
     .digest('hex')
     .slice(0, 16);
-
-async function enviar({ to, subject, html }) {
-  const res = await fetch('https://api.resend.com/emails', {
-    method: 'POST',
-    headers: { Authorization: `Bearer ${process.env.RESEND_API_KEY}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify({ from: process.env.RESEND_FROM || 'GovTalent <hola@govtalent.app>', to, subject, html }),
-  });
-  if (!res.ok) throw new Error(`Resend ${res.status}: ${(await res.text()).slice(0, 200)}`);
-  return res.json();
-}
 
 const rutaDe = (a) => `/regulatorio/consejo/${a.id}`;
 
@@ -199,6 +192,8 @@ async function handler(request) {
           throw e;
         }
         const { acuerdos, titulo, diagnostico } = acuerdosDeReferencia(html, ref);
+        // La explicación de los acuerdos, para el correo del Consejo
+        const ampliacion = ampliacionDeReferencia(html);
         if (debug) muestras.push({ url: ref.url, n: acuerdos.length, diagnostico, acuerdos: acuerdos.slice(0, 80) });
 
         // Una Referencia publicada sin puntos es un fallo del parser, no
@@ -219,7 +214,9 @@ async function handler(request) {
         if (antes?.huella === huella && !urlForzada) {
           // Sin cambios: se apunta la lectura para no releerla hasta
           // dentro de una hora.
-          if (!dry) await db.from('consejo_referencias').update({ leida_at: new Date().toISOString() }).eq('url', antes.url);
+          // La ampliación puede publicarse después que el sumario: se
+          // guarda aunque los acuerdos no hayan cambiado.
+          if (!dry) await db.from('consejo_referencias').update({ leida_at: new Date().toISOString(), ampliacion }).eq('url', antes.url);
           continue;
         }
         if (dry) {
@@ -234,6 +231,7 @@ async function handler(request) {
             titulo,
             huella,
             n_acuerdos: acuerdos.length,
+            ampliacion,
             leida_at: new Date().toISOString(),
           },
           { onConflict: 'url' }
@@ -284,6 +282,12 @@ async function handler(request) {
     if (!sinAviso && frescos.length > 0) {
       informe.normativa_alarmas = await coincidenciasPorNormativa(db, frescos);
       informe.vigilar = await lanzarVigilancia();
+      // Evaluada: el correo del Consejo ya puede decir a cada Pro qué le
+      // afecta (app/api/alerts/consejo espera a esto).
+      if (!informe.vigilar.error && informe.vigilar.status === 200) {
+        const urls = [...new Set(frescos.map((a) => a.referencia_url))];
+        await db.from('consejo_referencias').update({ evaluada_at: new Date().toISOString() }).in('url', urls);
+      }
       informe.seguimientos = await avisarSeguimientos(db, frescos);
     }
 
@@ -374,7 +378,7 @@ async function lanzarVigilancia() {
   const ctrl = new AbortController();
   const reloj = setTimeout(() => ctrl.abort(), ESPERA_VIGILAR_MS);
   try {
-    const res = await fetch(`${SITE_URL}/api/alarmas/vigilar?urgente=consejo`, {
+    const res = await fetch(`${SITE_URL}/api/alarmas/vigilar?urgente=consejo&sinenvio=1`, {
       headers: { authorization: `Bearer ${process.env.CRON_SECRET}` },
       cache: 'no-store',
       signal: ctrl.signal,
@@ -403,9 +407,9 @@ async function lanzarVigilancia() {
  * sigue (una ley en tramitación que modifica la Ley 24/2013 y un real
  * decreto aprobado hoy que la desarrolla comparten «ley 24/2013»).
  *
- * Todo seguidor recibe el evento en su seguimiento. Los de Pro, además,
- * un correo al momento, salvo que ya les haya llegado ese acuerdo por
- * una alarma.
+ * Todo seguidor recibe el evento en su seguimiento. El correo ya no sale
+ * de aquí: lo lleva el correo del Consejo en «Te afecta»
+ * (app/api/alerts/consejo, lib/resumenConsejo.js).
  */
 async function avisarSeguimientos(db, acuerdos) {
   const conCitas = acuerdos.filter((a) => a.citas.length > 0);
@@ -428,7 +432,6 @@ async function avisarSeguimientos(db, acuerdos) {
 
   // Qué entidad seguida cita qué acuerdo
   const eventos = new Map(); // `${kind}|${ref_id}|${acuerdo}` → evento
-  const porUsuario = new Map(); // user_id → [{ acuerdo, cita, label }]
   for (const f of follows) {
     const titulo = titulos.get(`${f.kind}|${f.ref_id}`) || f.label || '';
     const suyas = citas(titulo);
@@ -446,9 +449,6 @@ async function avisarSeguimientos(db, acuerdos) {
           detail: `Aprobado en el Consejo de Ministros del ${ac.fecha_consejo.split('-').reverse().join('/')}. Cita la norma ${nombreCita(cita)}. Pendiente de publicación oficial.`,
         });
       }
-      if (!porUsuario.has(f.user_id)) porUsuario.set(f.user_id, []);
-      const lista = porUsuario.get(f.user_id);
-      if (!lista.some((x) => x.acuerdo.id === ac.id)) lista.push({ acuerdo: ac, cita, label: f.label || titulo });
     }
   }
   if (eventos.size === 0) return { con_citas: conCitas.length, eventos: 0 };
@@ -462,59 +462,5 @@ async function avisarSeguimientos(db, acuerdos) {
     .from('follow_events')
     .upsert(filasEv, { onConflict: 'kind,ref_id,event_type,occurred_at', ignoreDuplicates: true });
   if (eEv) return { error: eEv.message };
-
-  // Correo al momento, solo Pro y solo lo que no le haya llegado ya
-  const ids = [...porUsuario.keys()];
-  const niveles = await nivelesAvisos(db, ids);
-  const pro = ids.filter((id) => niveles.get(id) === 'pro');
-  if (pro.length === 0) return { eventos: filasEv.length, correos: 0 };
-
-  const idsAcuerdos = conCitas.map((a) => a.id);
-  const [{ data: porAlarma }, { data: yaAvisados }, { data: usuarios }, { data: prefs }] = await Promise.all([
-    db.from('sector_alert_matches').select('user_id, ref_id').eq('kind', 'consejo').in('ref_id', idsAcuerdos).in('user_id', pro),
-    db.from('consejo_avisos').select('user_id, acuerdo_id').in('acuerdo_id', idsAcuerdos).in('user_id', pro),
-    db.from('users').select('id, email, first_name').in('id', pro),
-    db.from('alert_preferences').select('user_id, email').in('user_id', pro),
-  ]);
-  const saltar = new Set([
-    ...(porAlarma || []).map((m) => `${m.user_id}|${m.ref_id}`),
-    ...(yaAvisados || []).map((m) => `${m.user_id}|${m.acuerdo_id}`),
-  ]);
-  const datos = new Map((usuarios || []).map((u) => [u.id, u]));
-  const sinCorreo = new Set((prefs || []).filter((p) => p.email === false).map((p) => p.user_id));
-
-  let correos = 0;
-  const fallos = [];
-  for (const userId of pro) {
-    const u = datos.get(userId);
-    if (!u?.email || sinCorreo.has(userId)) continue;
-    const suyos = porUsuario.get(userId).filter((x) => !saltar.has(`${userId}|${x.acuerdo.id}`));
-    if (suyos.length === 0) continue;
-    const { subject, html } = alarmasEmail({
-      firstName: u.first_name || '',
-      matches: suyos.map((x) => ({
-        title: x.acuerdo.titulo,
-        fuente: 'Consejo de Ministros',
-        ruta: rutaDe(x.acuerdo),
-        motivo: `Cita la norma ${nombreCita(x.cita)}, que aparece en «${String(x.label).slice(0, 120)}», que sigues. Pendiente de publicación oficial.`,
-        plazo: null,
-        alarma: 'Seguimiento',
-      })),
-      total: suyos.length,
-      tipo: 'consejo',
-      esFree: false,
-      ajustesUrl: `${SITE_URL}/seguimiento`,
-    });
-    try {
-      await enviar({ to: u.email, subject, html });
-      correos += 1;
-      await db.from('consejo_avisos').upsert(
-        suyos.map((x) => ({ user_id: userId, acuerdo_id: x.acuerdo.id, via: 'seguimiento', motivo: x.cita })),
-        { onConflict: 'user_id,acuerdo_id', ignoreDuplicates: true }
-      );
-    } catch (e) {
-      fallos.push(`${userId}: ${e.message}`);
-    }
-  }
-  return { eventos: filasEv.length, correos, ...(fallos.length ? { fallos: fallos.slice(0, 3) } : {}) };
+  return { con_citas: conCitas.length, eventos: filasEv.length };
 }
