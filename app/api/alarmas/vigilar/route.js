@@ -36,7 +36,8 @@
 //   ?key=<DEBUG_KEY>&manana=1       fuerza que cuente como pasada de la mañana
 //   ?key=<DEBUG_KEY>&lunes=1        fuerza que cuente como lunes
 //   ?key=<DEBUG_KEY>&sinenvio=1     evalúa y guarda, pero no envía
-//   ?urgente=consejo                pasada urgente (ver abajo)
+//   ?urgente=consejo                pasada urgente del Consejo (ver abajo)
+//   ?urgente=agenda                 pasada urgente de la agenda (ver abajo)
 //
 // PASADA URGENTE DEL CONSEJO DE MINISTROS. La lanza el sync del Consejo
 // (/api/sync/consejo-ministros) en cuanto guarda acuerdos nuevos del
@@ -46,6 +47,12 @@
 // A las de «Cada mañana» solo les llega lo del Consejo; el resto de lo
 // que tengan pendiente sigue esperando a su resumen. Nunca cuenta como
 // pasada de la mañana, aunque se lance temprano.
+//
+// PASADA URGENTE DE LA AGENDA DEL GOBIERNO. La lanza el sync de la
+// agenda (/api/sync/agenda-gobierno) en cuanto guarda actos nuevos de
+// hoy en adelante. Es una pasada normal que nunca cuenta como la de la
+// mañana: sale ya para las alarmas «Al momento»; las de «Cada mañana» y
+// «Los lunes» reciben esos actos en su resumen.
 // =====================================================================
 
 import { NextResponse } from 'next/server';
@@ -135,12 +142,13 @@ async function handler(request) {
   const ahora = new Date();
   // La primera pasada del día es la de las 06:30 UTC. Con margen: si el
   // cron se retrasa, sigue contando como la de la mañana.
-  const urgenteConsejo = sp.get('urgente') === 'consejo';
-  const esManana = !urgenteConsejo && (sp.get('manana') === '1' || ahora.getUTCHours() < 9);
+  const urgente = ['consejo', 'agenda'].includes(sp.get('urgente')) ? sp.get('urgente') : null;
+  const urgenteConsejo = urgente === 'consejo';
+  const esManana = !urgente && (sp.get('manana') === '1' || ahora.getUTCHours() < 9);
   const esLunes = sp.get('lunes') === '1' || ahora.getUTCDay() === 1;
 
   const db = admin();
-  const informe = { inicio: ahora.toISOString(), dry_run: dry, manana: esManana, lunes: esLunes, urgente: urgenteConsejo ? 'consejo' : null };
+  const informe = { inicio: ahora.toISOString(), dry_run: dry, manana: esManana, lunes: esLunes, urgente };
 
   try {
     // --- Alarmas activas y el plan de cada usuario ---------------------
@@ -204,10 +212,15 @@ async function handler(request) {
         if (pendientes.length > MAX_CANDIDATOS) {
           const claves = (a.keywords || []).map(normalizar).filter((k) => k.length >= 3);
           const toca = (r) => claves.some((k) => normalizar(r.titulo).includes(k));
-          pendientes = [...ordenar(pendientes.filter(toca)), ...ordenar(pendientes.filter((r) => !toca(r)))].slice(
-            0,
-            MAX_CANDIDATOS
-          );
+          // La agenda del Gobierno, detrás de la normativa en cada grupo:
+          // son muchos actos al día y no deben dejar fuera una norma.
+          const agenda = (r) => r.kind === 'agenda';
+          pendientes = [
+            ...ordenar(pendientes.filter((r) => toca(r) && !agenda(r))),
+            ...ordenar(pendientes.filter((r) => toca(r) && agenda(r))),
+            ...ordenar(pendientes.filter((r) => !toca(r) && !agenda(r))),
+            ...ordenar(pendientes.filter((r) => !toca(r) && agenda(r))),
+          ].slice(0, MAX_CANDIDATOS);
         }
 
         const encaja = await evaluar({ descripcion: a.descripcion || (a.keywords || []).join(', '), criterios: a.criterios || {} }, pendientes);
@@ -369,7 +382,7 @@ async function handler(request) {
         const tipo =
           urgenteConsejo && novedades.length > 0 && novedades.every((m) => m.kind === 'consejo')
             ? 'consejo'
-            : (urgenteConsejo || suyas.some((a) => a.frecuencia === 'inmediato')) && !esManana
+            : (urgente || suyas.some((a) => a.frecuencia === 'inmediato')) && !esManana
             ? 'inmediato'
             : suyas.length > 0 && suyas.every((a) => a.frecuencia === 'semanal')
               ? 'semanal'
