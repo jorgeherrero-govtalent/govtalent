@@ -66,6 +66,8 @@ export async function middleware(request) {
   const isScheduledEmail =
     path.startsWith('/api/alerts/weekly') ||
     path.startsWith('/api/alerts/daily') ||
+    // El correo del Consejo de Ministros, igual (cron cada 15 minutos).
+    path.startsWith('/api/alerts/consejo') ||
     path.startsWith('/api/alarmas/vigilar') ||
     path.startsWith('/api/cron/');
 
