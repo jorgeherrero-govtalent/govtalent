@@ -9,6 +9,11 @@
 //   1. Pide el índice de Referencias (una página, la barata) y mira si
 //      hay alguna que no se haya leído. Las de hoy y ayer se releen como
 //      mucho una vez por hora, por si La Moncloa las corrige.
+//      El índice va con retraso (el 29-09-2026 la Referencia llevaba
+//      horas publicada y el índice no la enlazaba), así que además se
+//      prueba la URL prevista de la Referencia de hoy y la de ayer. Si
+//      aún no existe, no es un error: se vuelve a probar en la pasada
+//      siguiente.
 //   2. Si la hay, lee su sumario y guarda TODOS los puntos en
 //      consejo_acuerdos. Los nombramientos se guardan pero no avisan:
 //      se avisan cuando salen en el BOE.
@@ -46,7 +51,7 @@ import { createClient } from '@supabase/supabase-js';
 import { createHash } from 'node:crypto';
 import { conRegistro } from '@/lib/syncLog';
 import { fetchGob } from '@/lib/fetchGob';
-import { INDICE, referenciasDelIndice, acuerdosDeReferencia, fechaDeUrl, urlCanonica, citas, nombreCita, VAN_AL_BOE } from '@/lib/consejo';
+import { INDICE, referenciasDelIndice, acuerdosDeReferencia, fechaDeUrl, urlCanonica, urlPrevista, citas, nombreCita, VAN_AL_BOE } from '@/lib/consejo';
 import { nivelesAvisos } from '@/lib/nivelAvisos';
 import { limitesDe } from '@/lib/alarmas';
 import { alarmasEmail } from '@/lib/email/templates';
@@ -147,6 +152,12 @@ async function handler(request) {
         // cambiado el marcado, no que no haya Consejos.
         return NextResponse.json({ ...informe, error: 'El índice no tiene ninguna Referencia: revisar el parser' }, { status: 500 });
       }
+      // Hoy y ayer, aunque el índice aún no las enlace
+      const enIndice = new Set(candidatas.map((c) => c.url));
+      for (const fecha of [hoy, restarDias(hoy, 1)]) {
+        const url = urlPrevista(fecha);
+        if (!enIndice.has(url)) candidatas.push({ url, fecha, prevista: true });
+      }
     }
 
     const { data: guardadas, error: errG } = await db
@@ -176,13 +187,29 @@ async function handler(request) {
 
     for (const ref of aLeer) {
       try {
-        const html = await pedir(ref.url);
+        let html;
+        try {
+          html = await pedir(ref.url);
+        } catch (e) {
+          // Una Referencia prevista que aún no está publicada: normal.
+          if (ref.prevista) {
+            informe.previstas_sin_publicar = (informe.previstas_sin_publicar || 0) + 1;
+            continue;
+          }
+          throw e;
+        }
         const { acuerdos, titulo, diagnostico } = acuerdosDeReferencia(html, ref);
         if (debug) muestras.push({ url: ref.url, n: acuerdos.length, diagnostico, acuerdos: acuerdos.slice(0, 80) });
 
         // Una Referencia publicada sin puntos es un fallo del parser, no
         // un Consejo vacío: no se da por leída para que se reintente.
         if (acuerdos.length === 0) {
+          // SharePoint puede devolver una página de «no encontrado» con
+          // estado 200: en una prevista, eso es que aún no existe.
+          if (ref.prevista) {
+            informe.previstas_sin_publicar = (informe.previstas_sin_publicar || 0) + 1;
+            continue;
+          }
           errores.push(`${ref.url}: 0 acuerdos (${diagnostico.lineas} líneas, sumario ${diagnostico.sumario_desde ?? 'no encontrado'})`);
           continue;
         }
