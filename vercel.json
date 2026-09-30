@@ -103,6 +103,10 @@
     {
       "path": "/api/sync/agenda-gobierno",
       "schedule": "*/30 4-20 * * *"
+    },
+    {
+      "path": "/api/alerts/consejo",
+      "schedule": "5,20,35,50 7-20 * * 1-5"
     }
   ]
 }
