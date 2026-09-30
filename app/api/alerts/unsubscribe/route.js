@@ -58,6 +58,23 @@ export async function GET(request) {
       );
     }
 
+    // Correo del Consejo de Ministros (app/api/alerts/consejo). Solo
+    // apaga ese correo: alarmas, seguimientos y resumen semanal siguen.
+    if (type === 'consejo') {
+      const user = searchParams.get('user');
+      if (!user || !verifyAlertToken(`consejo:${user}`, token)) {
+        return htmlPage('Enlace no válido', 'Este enlace de baja no es válido o ya ha sido usado.');
+      }
+      const { error } = await admin
+        .from('alert_preferences')
+        .upsert({ user_id: user, consejo: false, updated_at: new Date().toISOString() }, { onConflict: 'user_id' });
+      if (error) throw error;
+      return htmlPage(
+        'Baja confirmada',
+        'Ya no recibirás el correo del Consejo de Ministros. Tus alarmas, seguimientos y el resto de avisos siguen igual.'
+      );
+    }
+
     return htmlPage('Enlace no válido', 'Este enlace de baja no es válido.');
   } catch (err) {
     console.error('Error al procesar la baja de alerta:', err);
