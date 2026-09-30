@@ -164,7 +164,11 @@ async function handler(request) {
       // --- 3. El resumen, una vez ---------------------------------------------
       const guardado = estadoDe.get(ref.url);
       let resumen = guardado?.resumen;
-      if (!resumen || regenerar) {
+      // Si el resumen guardado es el de reserva (la IA falló), se vuelve a
+      // intentar con la IA mientras no haya empezado el envío: así un fallo
+      // pasajero no deja el correo con los títulos a secas.
+      const reintentar = guardado?.modelo === 'sin_ia' && guardado?.estado !== 'enviando';
+      if (!resumen || regenerar || reintentar) {
         const g = await generarResumen({ acuerdos, ampliacion: ref.ampliacion, fecha: ref.fecha });
         resumen = g.resumen;
         r.modelo = g.modelo;
