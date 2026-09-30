@@ -1,236 +1,391 @@
 // =====================================================================
-// RESUMEN DEL CONSEJO DE MINISTROS
-// lib/resumenConsejo.js
+// CORREO — Consejo de Ministros
+// app/api/alerts/consejo/route.js
 //
-// Lo que lleva el correo del Consejo (app/api/alerts/consejo):
+// Un correo por Consejo a TODOS los usuarios, en cuanto se publica la
+// Referencia:
+//   · Free: el resumen general, por tipo de norma.
+//   · Pro y Teams: el mismo resumen y, arriba, «Te afecta»: lo que sus
+//     alarmas han encontrado en ese Consejo y lo que cita una norma que
+//     siguen. Para ellos sustituye al aviso urgente del Consejo, que el
+//     sync ya no envía: un correo por Consejo, no dos.
 //
-//   generarResumen()   la IA lee el sumario y la «Ampliación de
-//                      contenidos» de la Referencia y devuelve, por tipo
-//                      de norma, un titular corto y una o dos frases de
-//                      cada punto. Solo con datos del texto oficial.
-//   resumenSinIA()     lo mismo con los títulos oficiales, si la IA falla:
-//                      el correo sale igual, más seco.
-//   seguimientosQueCitan()  qué acuerdos citan una norma que cada usuario
-//                      sigue (mismo cruce que el sync del Consejo).
+// CADA PASADA (vercel.json, cada 15 minutos en laborables, 5 minutos
+// después del sync del Consejo):
+//   1. Busca Referencias de hoy o de ayer que no se hayan enviado.
+//   2. Espera a que esté lista: que las alarmas la hayan evaluado
+//      (consejo_referencias.evaluada_at) y que tenga la «Ampliación de
+//      contenidos». Si algo de eso no llega, sale igual pasados 45 y 60
+//      minutos desde que se detectó.
+//   3. Genera el resumen UNA vez (lib/resumenConsejo.js) y lo guarda.
+//   4. Envía por lotes a quien no lo haya recibido (consejo_correos). Si
+//      se acaba el tiempo, la pasada siguiente sigue donde lo dejó.
+//   5. Marca como avisado lo que iba en «Te afecta», para que el resumen
+//      de las alarmas no lo repita.
 //
-// Todo lo que devuelve la IA se comprueba contra los acuerdos guardados:
-// un id que no existe se descarta, y un punto sin ids también.
+// No lo reciben: quien ha apagado todos los correos (alert_preferences.
+// email = false), quien se ha dado de baja de este (consejo = false) y
+// quien ha pedido borrar su cuenta.
 //
-// Solo servidor. Usa la clave de Anthropic.
+// Uso:
+//   ?key=<DEBUG_KEY>&dry=1                         genera y cuenta, sin enviar
+//   ?key=<DEBUG_KEY>&fecha=2026-09-29&user=<uuid>   prueba: solo a ese usuario,
+//                                                  aunque ya se haya enviado
+//                                                  u omitido, y sin registrarlo
+//   ?key=<DEBUG_KEY>&fecha=2026-09-29&regenerar=1   vuelve a pedir el resumen a la IA
 // =====================================================================
 
-import { MODELO } from '@/lib/agenteAlarmas';
-import { citas } from '@/lib/consejo';
+import { NextResponse } from 'next/server';
+import { createClient } from '@supabase/supabase-js';
+import { conRegistro } from '@/lib/syncLog';
+import { nivelesAvisos } from '@/lib/nivelAvisos';
+import { generarResumen, conteos, seguimientosQueCitan, tituloOficialCorto } from '@/lib/resumenConsejo';
+import { nombreCita } from '@/lib/consejo';
+import { consejoEmail } from '@/lib/email/templates';
+import { signAlertToken } from '@/lib/unsubscribeToken';
 
-const TIMEOUT_IA_MS = 150000;
+export const dynamic = 'force-dynamic';
+export const maxDuration = 300;
 
-const SISTEMA = `Eres un analista de asuntos públicos que escribe el resumen del Consejo de Ministros para profesionales de relaciones institucionales en España.
+const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://govtalent.app';
+const PRESUPUESTO_MS = 240000;
+// Lo que se espera a las alarmas y a la ampliación antes de enviar igual
+const ESPERA_ALARMAS_MS = 45 * 60 * 1000;
+const ESPERA_AMPLIACION_MS = 60 * 60 * 1000;
+// Una ampliación más corta que esto es que aún no está publicada
+const AMPLIACION_MINIMA = 500;
+// Correos por llamada a Resend (su tope es 100)
+const LOTE = 50;
+const MAX_TUYOS = 5;
 
-Te doy los puntos del SUMARIO de la Referencia oficial (cada uno con su id, tipo y ministerio) y el texto de la AMPLIACIÓN DE CONTENIDOS.
-
-Devuelve SOLO un objeto JSON, sin texto alrededor ni markdown:
-{
-  "asunto": "...",
-  "reales_decretos_ley": [ { "ids": ["..."], "titulo": "...", "resumen": "..." } ],
-  "reales_decretos":     [ { "ids": ["..."], "titulo": "...", "resumen": "..." } ],
-  "destacados":          [ { "ids": ["..."], "titulo": "...", "resumen": "..." } ],
-  "nombramientos":       [ { "id": "...", "texto": "..." } ]
+function admin() {
+  return createClient(process.env.NEXT_PUBLIC_SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY, {
+    auth: { persistSession: false, autoRefreshToken: false },
+    global: { fetch: (url, options = {}) => fetch(url, { ...options, cache: 'no-store' }) },
+  });
 }
 
-Reglas:
-- Usa SOLO información del sumario y de la ampliación. Ninguna cifra, fecha o dato que no esté en el texto. Si la ampliación no explica un punto, el resumen dice qué regula a partir de su título, sin inventar efectos.
-- "titulo": 3 a 10 palabras, en minúscula salvo la primera y los nombres propios. Qué es, no el nombre oficial completo ("Rebaja de carburantes y tope al butano", no "REAL DECRETO-LEY por el que se adoptan…").
-- "resumen": una o dos frases, máximo 220 caracteres, con lo que cambia y las cifras clave si las hay. Tono neutro y profesional: sin adjetivos valorativos ni lenguaje de propaganda.
-- "reales_decretos_ley": todos los de tipo real_decreto_ley, uno por elemento.
-- "reales_decretos": todos los de tipo real_decreto. Puedes agrupar en UN elemento las subvenciones de concesión directa (con todos sus ids), nombrando los beneficiarios en el resumen.
-- "destacados": entre 2 y 4 puntos del resto (acuerdos, informes, proyectos de ley, anteproyectos) con más impacto para empresas, sectores o territorios. Si hay proyectos o anteproyectos de ley, van siempre. Puedes agrupar acuerdos del mismo ministerio y objeto (p. ej. varios contratos de Defensa) con la suma de importes si está en el texto.
-- "nombramientos": uno por cada punto de tipo nombramiento, como "Nombre Apellidos, cargo" con el nombre en mayúsculas y minúsculas normales y el cargo abreviado ("DG de Carreteras").
-- "asunto": máximo 90 caracteres. Empieza por "Consejo de Ministros: " y nombra lo más relevante.
-- Los ids se copian tal cual de la lista.`;
-
-function leerJSON(texto) {
-  const limpio = String(texto || '').replace(/```json|```/g, '').trim();
-  const inicio = limpio.indexOf('{');
-  const fin = limpio.lastIndexOf('}');
-  if (inicio < 0 || fin < inicio) throw new Error('La IA no devolvió JSON');
-  return JSON.parse(limpio.slice(inicio, fin + 1));
+async function enviarLote(correos) {
+  const res = await fetch('https://api.resend.com/emails/batch', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${process.env.RESEND_API_KEY}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify(correos),
+  });
+  if (!res.ok) throw new Error(`Resend ${res.status}: ${(await res.text()).slice(0, 200)}`);
+  return res.json();
 }
 
-async function llamarIA(user) {
-  const ctrl = new AbortController();
-  const reloj = setTimeout(() => ctrl.abort(), TIMEOUT_IA_MS);
+const DIA_MADRID = new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Madrid' });
+const hoyMadrid = () => DIA_MADRID.format(new Date());
+const restarDias = (iso, n) => new Date(Date.parse(`${iso}T12:00:00Z`) - n * 86400000).toISOString().slice(0, 10);
+const DIAS = ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado'];
+function diaTexto(fecha) {
+  const [y, m, d] = String(fecha).split('-').map(Number);
+  return `${DIAS[new Date(Date.UTC(y, m - 1, d, 12)).getUTCDay()]} ${String(d).padStart(2, '0')}/${String(m).padStart(2, '0')}`;
+}
+
+export const GET = conRegistro('/api/alerts/consejo', handler);
+
+async function handler(request) {
+  const t0 = Date.now();
+  const sp = new URL(request.url).searchParams;
+
+  const isCron = request.headers.get('authorization') === `Bearer ${process.env.CRON_SECRET}`;
+  const isManual = !!process.env.DEBUG_KEY && sp.get('key') === process.env.DEBUG_KEY;
+  if (!isCron && !isManual) return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
+
+  const dry = sp.get('dry') === '1';
+  const soloUsuario = sp.get('user');
+  const fechaForzada = sp.get('fecha');
+  const regenerar = sp.get('regenerar') === '1';
+  const prueba = !!soloUsuario;
+
+  if (fechaForzada && !/^\d{4}-\d{2}-\d{2}$/.test(fechaForzada)) {
+    return NextResponse.json({ error: 'fecha debe ser AAAA-MM-DD' }, { status: 400 });
+  }
+
+  const db = admin();
+  const hoy = hoyMadrid();
+  const informe = { inicio: new Date().toISOString(), dry_run: dry, prueba, hoy };
+
   try {
-    const res = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-api-key': process.env.ANTHROPIC_API_KEY,
-        'anthropic-version': '2023-06-01',
-      },
-      body: JSON.stringify({
-        model: MODELO,
-        max_tokens: 6000,
-        system: SISTEMA,
-        messages: [{ role: 'user', content: user }],
-      }),
-      cache: 'no-store',
-      signal: ctrl.signal,
-    });
-    if (!res.ok) throw new Error(`Anthropic ${res.status}: ${(await res.text()).slice(0, 200)}`);
-    const data = await res.json();
-    if (data.stop_reason === 'max_tokens') throw new Error('La respuesta de la IA llegó cortada');
-    return leerJSON((data.content || []).filter((b) => b.type === 'text').map((b) => b.text).join('\n'));
+    // --- 1. Qué Referencias ------------------------------------------------
+    let q = db.from('consejo_referencias').select('url, fecha, detectada_at, evaluada_at, ampliacion').order('fecha', { ascending: true });
+    q = fechaForzada ? q.eq('fecha', fechaForzada) : q.gte('fecha', restarDias(hoy, 1));
+    const { data: refs, error: eR } = await q;
+    if (eR) throw new Error(`No se pudieron leer las Referencias: ${eR.message}`);
+
+    const { data: estados } = await db
+      .from('consejo_resumenes')
+      .select('referencia_url, estado, resumen, modelo')
+      .in(
+        'referencia_url',
+        (refs || []).map((r) => r.url)
+      );
+    const estadoDe = new Map((estados || []).map((e) => [e.referencia_url, e]));
+
+    const pendientes = (refs || []).filter((r) => prueba || fechaForzada || !['enviado', 'omitido'].includes(estadoDe.get(r.url)?.estado));
+    informe.referencias = pendientes.length;
+    const resultados = [];
+
+    for (const ref of pendientes) {
+      if (Date.now() - t0 > PRESUPUESTO_MS) {
+        informe.cortado_por_tiempo = true;
+        break;
+      }
+      const r = { fecha: ref.fecha };
+      resultados.push(r);
+
+      // --- 2. ¿Lista? ------------------------------------------------------
+      const desde = Date.now() - new Date(ref.detectada_at).getTime();
+      const conAmpliacion = (ref.ampliacion || '').length >= AMPLIACION_MINIMA;
+      if (!prueba && !fechaForzada) {
+        if (!ref.evaluada_at && desde < ESPERA_ALARMAS_MS) {
+          r.esperando = 'alarmas';
+          continue;
+        }
+        if (!conAmpliacion && desde < ESPERA_AMPLIACION_MS) {
+          r.esperando = 'ampliacion';
+          continue;
+        }
+      }
+
+      const { data: acuerdos, error: eA } = await db
+        .from('consejo_acuerdos')
+        .select('id, tipo, ministerio, seccion, titulo, citas, orden')
+        .eq('referencia_url', ref.url)
+        .order('orden', { ascending: true });
+      if (eA) throw new Error(eA.message);
+      if (!acuerdos?.length) {
+        r.error = 'La Referencia no tiene acuerdos guardados';
+        continue;
+      }
+
+      // --- 3. El resumen, una vez ---------------------------------------------
+      const guardado = estadoDe.get(ref.url);
+      let resumen = guardado?.resumen;
+      if (!resumen || regenerar) {
+        const g = await generarResumen({ acuerdos, ampliacion: ref.ampliacion, fecha: ref.fecha });
+        resumen = g.resumen;
+        r.modelo = g.modelo;
+        if (g.error) r.aviso_ia = g.error;
+        if (!dry) {
+          const { error: eG } = await db.from('consejo_resumenes').upsert(
+            {
+              referencia_url: ref.url,
+              fecha: ref.fecha,
+              resumen,
+              modelo: g.modelo,
+              generado_at: new Date().toISOString(),
+              // Una prueba no cambia el estado de envío
+              ...(prueba ? {} : { estado: guardado?.estado === 'omitido' && fechaForzada ? 'omitido' : 'enviando' }),
+            },
+            { onConflict: 'referencia_url' }
+          );
+          if (eG) throw new Error(eG.message);
+        }
+      }
+      if (dry || prueba) r.resumen = resumen;
+
+      // --- 4. Destinatarios -----------------------------------------------------
+      // Enviar de verdad a todos solo si la Referencia no está omitida.
+      if (!prueba && guardado?.estado === 'omitido') {
+        r.omitida = true;
+        continue;
+      }
+
+      let qU = db.from('users').select('id, email, first_name').is('deletion_requested_at', null).not('email', 'is', null);
+      if (prueba) qU = qU.eq('id', soloUsuario);
+      const { data: usuarios, error: eU } = await qU;
+      if (eU) throw new Error(eU.message);
+
+      const ids = (usuarios || []).map((u) => u.id);
+      const [{ data: prefs }, { data: yaEnviados }] = await Promise.all([
+        db.from('alert_preferences').select('user_id, email, consejo').in('user_id', ids),
+        prueba ? Promise.resolve({ data: [] }) : db.from('consejo_correos').select('user_id').eq('referencia_url', ref.url),
+      ]);
+      const fuera = new Set([
+        ...(prefs || []).filter((p) => !prueba && (p.email === false || p.consejo === false)).map((p) => p.user_id),
+        ...(yaEnviados || []).map((e) => e.user_id),
+      ]);
+      const destinatarios = (usuarios || []).filter((u) => !fuera.has(u.id));
+      r.destinatarios = destinatarios.length;
+
+      const niveles = await nivelesAvisos(
+        db,
+        destinatarios.map((u) => u.id)
+      );
+      const pro = destinatarios.filter((u) => niveles.get(u.id) === 'pro').map((u) => u.id);
+
+      // «Te afecta»: alarmas y seguimientos de los Pro
+      const tuyos = await queTeAfecta(db, acuerdos, resumen, pro);
+
+      // --- 5. Enviar por lotes ------------------------------------------------
+      const conteo = conteos(acuerdos);
+      const dia = diaTexto(ref.fecha);
+      let enviados = 0;
+      const fallos = [];
+      for (let i = 0; i < destinatarios.length; i += LOTE) {
+        if (Date.now() - t0 > PRESUPUESTO_MS) {
+          informe.cortado_por_tiempo = true;
+          break;
+        }
+        const lote = destinatarios.slice(i, i + LOTE);
+        const correos = lote.map((u) => {
+          const esPro = niveles.get(u.id) === 'pro';
+          const suyos = esPro ? (tuyos.get(u.id) || []).slice(0, MAX_TUYOS) : [];
+          const bajaUrl = `${SITE_URL}/api/alerts/unsubscribe?type=consejo&user=${u.id}&token=${signAlertToken(`consejo:${u.id}`)}`;
+          const { subject, html } = consejoEmail({
+            firstName: u.first_name || '',
+            diaTexto: dia,
+            resumen,
+            conteo,
+            tuyos: suyos,
+            esFree: !esPro,
+            referenciaUrl: ref.url,
+            bajaUrl,
+          });
+          return {
+            usuario: u.id,
+            esPro,
+            suyos,
+            correo: {
+              from: process.env.RESEND_FROM || 'GovTalent <hola@govtalent.app>',
+              to: u.email,
+              subject: prueba ? `[Prueba] ${subject}` : subject,
+              html,
+              headers: { 'List-Unsubscribe': `<${bajaUrl}>` },
+            },
+          };
+        });
+        if (dry) {
+          enviados += correos.length;
+          continue;
+        }
+        try {
+          await enviarLote(correos.map((c) => c.correo));
+          enviados += correos.length;
+          if (!prueba) {
+            await db.from('consejo_correos').upsert(
+              correos.map((c) => ({ user_id: c.usuario, referencia_url: ref.url, pro: c.esPro, n_tuyos: c.suyos.length })),
+              { onConflict: 'user_id,referencia_url', ignoreDuplicates: true }
+            );
+            // Lo que iba en «Te afecta» ya está avisado: el resumen de las
+            // alarmas no lo repite.
+            const idsMatch = correos.flatMap((c) => c.suyos.map((s) => s.match_id).filter(Boolean));
+            if (idsMatch.length) {
+              await db
+                .from('sector_alert_matches')
+                .update({ avisado_at: new Date().toISOString(), canal: 'email' })
+                .in('id', idsMatch)
+                .is('avisado_at', null);
+            }
+          }
+        } catch (e) {
+          fallos.push(e.message);
+        }
+      }
+      r.enviados = enviados;
+      r.pro = pro.length;
+      r.con_tuyos = [...tuyos.values()].filter((l) => l.length > 0).length;
+      if (fallos.length) r.fallos = fallos.slice(0, 3);
+
+      // ¿Terminado?
+      if (!dry && !prueba && !informe.cortado_por_tiempo && fallos.length === 0) {
+        const { count } = await db
+          .from('consejo_correos')
+          .select('user_id', { count: 'exact', head: true })
+          .eq('referencia_url', ref.url);
+        await db
+          .from('consejo_resumenes')
+          .update({ estado: 'enviado', enviado_at: new Date().toISOString(), n_enviados: count || 0 })
+          .eq('referencia_url', ref.url);
+        r.terminado = true;
+      }
+    }
+
+    informe.resultados = resultados;
+    const errores = resultados.filter((x) => x.error || x.fallos);
+    if (errores.length && !resultados.some((x) => x.enviados > 0)) {
+      informe.error = errores[0].error || errores[0].fallos[0];
+    }
+    informe.ms_total = Date.now() - t0;
+    return NextResponse.json(informe);
   } catch (e) {
-    throw new Error(e.name === 'AbortError' ? 'La IA ha tardado demasiado' : e.message);
-  } finally {
-    clearTimeout(reloj);
+    return NextResponse.json({ ...informe, error: e.message, ms_total: Date.now() - t0 }, { status: 500 });
   }
-}
-
-const corta = (t, n) => {
-  const s = String(t || '').replace(/\s+/g, ' ').trim();
-  return s.length > n ? `${s.slice(0, n - 1).trimEnd()}…` : s;
-};
-
-/** Cuántos puntos hay de cada tipo, para la entradilla. */
-export function conteos(acuerdos) {
-  const c = { real_decreto_ley: 0, real_decreto: 0, nombramiento: 0, resto: 0 };
-  for (const a of acuerdos) {
-    if (a.tipo in c) c[a.tipo] += 1;
-    else c.resto += 1;
-  }
-  return c;
 }
 
 /**
- * Comprueba y limpia lo que devuelve la IA. Lo que no se pueda
- * comprobar se tira; si falta un real decreto-ley o un real decreto, se
- * añade con su título oficial para que no se pierda ninguno.
+ * Por usuario Pro, lo que le afecta de este Consejo:
+ *   · lo que han encontrado sus alarmas (sector_alert_matches), con el
+ *     motivo que dio la IA o la normativa de referencia;
+ *   · lo que cita una norma que sigue.
+ * Sin repetir un acuerdo, lo más relevante primero.
+ *
+ * El titular es el de la IA si el acuerdo está en el resumen; si no, el
+ * título oficial acortado.
  */
-function validar(r, acuerdos) {
+async function queTeAfecta(db, acuerdos, resumen, pro) {
+  const out = new Map();
+  if (pro.length === 0) return out;
+
+  const titular = new Map();
+  for (const x of [...(resumen.reales_decretos_ley || []), ...(resumen.reales_decretos || []), ...(resumen.destacados || [])]) {
+    for (const id of x.ids) if (!titular.has(id)) titular.set(id, x.titulo);
+  }
+  const tituloDe = (a) => titular.get(a.id) || tituloOficialCorto(a.titulo);
   const porId = new Map(acuerdos.map((a) => [a.id, a]));
-  const usados = new Set();
-  const lista = (v, tipos, max) =>
-    (Array.isArray(v) ? v : [])
-      .map((x) => {
-        const ids = (Array.isArray(x?.ids) ? x.ids : []).map(String).filter((id) => porId.has(id) && (!tipos || tipos.includes(porId.get(id).tipo)));
-        if (ids.length === 0 || !x?.titulo) return null;
-        ids.forEach((id) => usados.add(id));
-        return { ids, titulo: corta(x.titulo, 90), resumen: corta(x.resumen, 260) };
-      })
-      .filter(Boolean)
-      .slice(0, max);
 
-  const rdl = lista(r.reales_decretos_ley, ['real_decreto_ley'], 20);
-  const rd = lista(r.reales_decretos, ['real_decreto'], 20);
-  const destacados = lista(r.destacados, null, 4).filter((d) => d.ids.every((id) => !['real_decreto_ley', 'real_decreto', 'nombramiento'].includes(porId.get(id).tipo)));
-
-  // Ninguna norma se queda fuera
-  for (const a of acuerdos) {
-    if (usados.has(a.id)) continue;
-    if (a.tipo === 'real_decreto_ley') rdl.push({ ids: [a.id], titulo: tituloOficialCorto(a.titulo), resumen: '' });
-    if (a.tipo === 'real_decreto') rd.push({ ids: [a.id], titulo: tituloOficialCorto(a.titulo), resumen: '' });
+  // Alarmas
+  const idsAcuerdos = acuerdos.map((a) => a.id);
+  const matches = [];
+  for (let i = 0; i < pro.length; i += 100) {
+    const { data } = await db
+      .from('sector_alert_matches')
+      .select('id, alert_id, user_id, ref_id, motivo, relevancia')
+      .eq('kind', 'consejo')
+      .eq('descartado', false)
+      .in('ref_id', idsAcuerdos)
+      .in('user_id', pro.slice(i, i + 100));
+    matches.push(...(data || []));
+  }
+  const alertIds = [...new Set(matches.map((m) => m.alert_id))];
+  const nombres = new Map();
+  if (alertIds.length) {
+    const { data } = await db.from('sector_alerts').select('id, nombre').in('id', alertIds);
+    for (const a of data || []) nombres.set(a.id, a.nombre);
+  }
+  for (const m of matches.sort((a, b) => (b.relevancia || 0) - (a.relevancia || 0))) {
+    const a = porId.get(m.ref_id);
+    if (!a) continue;
+    if (!out.has(m.user_id)) out.set(m.user_id, []);
+    const lista = out.get(m.user_id);
+    if (lista.some((x) => x.id === a.id)) continue;
+    lista.push({
+      id: a.id,
+      match_id: m.id,
+      titulo: tituloDe(a),
+      motivo: m.motivo || '',
+      etiqueta: [a.ministerio, nombres.get(m.alert_id) ? `Alarma «${nombres.get(m.alert_id)}»` : 'Tu alarma'].filter(Boolean).join(' · '),
+    });
   }
 
-  const nombramientos = (Array.isArray(r.nombramientos) ? r.nombramientos : [])
-    .filter((n) => porId.get(String(n?.id))?.tipo === 'nombramiento' && n.texto)
-    .map((n) => ({ id: String(n.id), texto: corta(n.texto, 140) }));
-  const conNombre = new Set(nombramientos.map((n) => n.id));
-  for (const a of acuerdos) {
-    if (a.tipo === 'nombramiento' && !conNombre.has(a.id)) nombramientos.push({ id: a.id, texto: tituloOficialCorto(a.titulo) });
-  }
-
-  return {
-    asunto: corta(r.asunto, 110),
-    reales_decretos_ley: rdl,
-    reales_decretos: rd,
-    destacados,
-    nombramientos,
-  };
-}
-
-/**
- * El título oficial, legible: «REAL DECRETO-LEY por el que…» → «Real
- * decreto-ley por el que…», acortado. Es lo que sale cuando la IA no
- * ha dado un titular.
- */
-export function tituloOficialCorto(titulo) {
-  const t = String(titulo || '').replace(
-    /^(REAL DECRETO(?:[- ]LEY| LEGISLATIVO)?|ACUERDOS?|INFORMES?|ORDEN(?:ES)?|DECLARACI[OÓ]N(?: INSTITUCIONAL)?|PROYECTO DE LEY(?: ORG[AÁ]NICA)?|ANTEPROYECTO DE LEY(?: ORG[AÁ]NICA)?)\b/,
-    (m) => m.charAt(0) + m.slice(1).toLowerCase()
-  );
-  return corta(t, 160);
-}
-
-/** El resumen sin IA: títulos oficiales, agrupados igual. */
-export function resumenSinIA(acuerdos) {
-  const item = (a) => ({ ids: [a.id], titulo: tituloOficialCorto(a.titulo), resumen: '' });
-  const c = conteos(acuerdos);
-  return {
-    asunto: `Consejo de Ministros: ${c.real_decreto_ley === 1 ? '1 real decreto-ley' : `${c.real_decreto_ley} reales decretos-ley`} y ${c.real_decreto === 1 ? '1 real decreto' : `${c.real_decreto} reales decretos`}`,
-    reales_decretos_ley: acuerdos.filter((a) => a.tipo === 'real_decreto_ley').map(item),
-    reales_decretos: acuerdos.filter((a) => a.tipo === 'real_decreto').map(item),
-    destacados: acuerdos.filter((a) => ['proyecto_ley', 'anteproyecto'].includes(a.tipo)).slice(0, 4).map(item),
-    nombramientos: acuerdos.filter((a) => a.tipo === 'nombramiento').map((a) => ({ id: a.id, texto: tituloOficialCorto(a.titulo) })),
-  };
-}
-
-/**
- * El resumen de una Referencia. Si la IA falla, el de títulos: el correo
- * no se queda sin salir por eso.
- *
- * Devuelve { resumen, modelo, error? }.
- */
-export async function generarResumen({ acuerdos, ampliacion, fecha }) {
-  const sumario = acuerdos
-    .map((a) => `- id=${a.id} | ${a.tipo} | ${a.ministerio || a.seccion || '—'} | ${a.titulo}`)
-    .join('\n');
-  const user = `CONSEJO DE MINISTROS DEL ${fecha}\n\nSUMARIO:\n${sumario}\n\nAMPLIACIÓN DE CONTENIDOS:\n${ampliacion || '(no disponible)'}`;
-  try {
-    const r = await llamarIA(user);
-    const resumen = validar(r, acuerdos);
-    if (!resumen.asunto) resumen.asunto = resumenSinIA(acuerdos).asunto;
-    return { resumen, modelo: MODELO };
-  } catch (e) {
-    return { resumen: resumenSinIA(acuerdos), modelo: 'sin_ia', error: e.message };
-  }
-}
-
-/**
- * Por usuario, los acuerdos que citan una norma que sigue: una ley en
- * tramitación que modifica la Ley 24/2013 y un real decreto que la
- * desarrolla comparten «ley 24/2013». Mismo cruce que el sync.
- *
- * Devuelve Map user_id → [{ acuerdo, cita, label }].
- */
-export async function seguimientosQueCitan(db, acuerdos, userIds = null) {
-  const conCitas = acuerdos.filter((a) => (a.citas || []).length > 0);
-  const porUsuario = new Map();
-  if (conCitas.length === 0) return porUsuario;
-
-  let q = db.from('follows').select('user_id, kind, ref_id, label');
-  if (userIds) q = q.in('user_id', userIds);
-  const { data: follows } = await q;
-  if (!follows?.length) return porUsuario;
-
-  const refs = [...new Set(follows.map((f) => f.ref_id))];
-  const titulos = new Map();
-  for (let i = 0; i < refs.length; i += 100) {
-    const { data } = await db.from('regulatorio_search').select('kind, ref_id, titulo').in('ref_id', refs.slice(i, i + 100));
-    for (const r of data || []) titulos.set(`${r.kind}|${r.ref_id}`, r.titulo);
-  }
-
-  for (const f of follows) {
-    const titulo = titulos.get(`${f.kind}|${f.ref_id}`) || f.label || '';
-    const suyas = citas(titulo);
-    if (suyas.length === 0) continue;
-    for (const ac of conCitas) {
-      const cita = ac.citas.find((c) => suyas.includes(c));
-      if (!cita) continue;
-      if (!porUsuario.has(f.user_id)) porUsuario.set(f.user_id, []);
-      const lista = porUsuario.get(f.user_id);
-      if (!lista.some((x) => x.acuerdo.id === ac.id)) lista.push({ acuerdo: ac, cita, label: f.label || titulo });
+  // Seguimientos
+  const seguidos = await seguimientosQueCitan(db, acuerdos, pro);
+  for (const [userId, lista] of seguidos) {
+    if (!out.has(userId)) out.set(userId, []);
+    const suya = out.get(userId);
+    for (const x of lista) {
+      if (suya.some((y) => y.id === x.acuerdo.id)) continue;
+      suya.push({
+        id: x.acuerdo.id,
+        match_id: null,
+        titulo: tituloDe(x.acuerdo),
+        motivo: `Cita la norma ${nombreCita(x.cita)}, que aparece en «${String(x.label).slice(0, 120)}», que sigues.`,
+        etiqueta: [x.acuerdo.ministerio, 'Seguimiento'].filter(Boolean).join(' · '),
+      });
     }
   }
-  return porUsuario;
+  return out;
 }
