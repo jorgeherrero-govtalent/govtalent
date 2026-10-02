@@ -177,9 +177,6 @@ function Seguimiento() {
   return (
     <div className="sec" style={{ maxWidth: 780 }}>
       <div style={{ marginBottom: 20 }}>
-        <Link href="/alarmas" style={{ fontSize: 12.5, color: '#8b8780', textDecoration: 'none', display: 'inline-block', marginBottom: 10 }}>
-          ← Alarmas
-        </Link>
         <h1 style={{ fontSize: 20, fontWeight: 600, margin: 0, letterSpacing: '-.2px' }}>Lo que sigo</h1>
         <p style={{ fontSize: 12.5, color: '#8b8780', margin: '5px 0 0' }}>
           {items === null
