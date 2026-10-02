@@ -622,3 +622,84 @@ a{color:inherit}
 /* Aviso legal del login, bajo el enlace de registro. */
 .login-legal{font-size:10.5px;color:#a8a49c;line-height:1.55;margin-top:14px;padding-top:13px;border-top:.5px solid #f2f0ec;text-align:center}
 .login-legal a{color:#8b8780;text-decoration:underline}
+
+/* --- Menú lateral (calcado de Enginy) ---------------------------------
+   El armazón de la aplicación con sesión: menú a la izquierda, fijo a la
+   altura de la ventana, y el lienzo a la derecha. Por debajo de 720px el
+   menú desaparece y mandan la barra superior reducida y BarraMovil. */
+.gt-app{display:flex;min-height:100vh;align-items:stretch}
+.gt-lienzo{flex:1;min-width:0;display:flex;flex-direction:column}
+.gt-movil-top{display:none}
+.gt-lat{width:272px;flex-shrink:0;position:sticky;top:0;height:100vh;height:100dvh;background:#f7f6f2;border-right:1px solid #e5e4de;display:flex;flex-direction:column;z-index:150;transition:width .18s ease}
+.gt-lat.plegado{width:68px}
+.gt-lat-ws{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:12px 12px 12px 12px;border-bottom:1px solid #e5e4de;min-height:64px}
+.gt-lat.plegado .gt-lat-ws{flex-direction:column;padding:12px 10px;gap:8px}
+.gt-lat-yo{min-width:0;flex:1;display:flex}
+.gt-lat.plegado .gt-lat-yo{flex:none}
+.gt-lat-ctx{display:flex;align-items:center;gap:9px;min-width:0;max-width:100%;border:none;background:none;padding:6px 6px;border-radius:9px;cursor:pointer;font-family:inherit;color:#1a1a18}
+.gt-lat-ctx:hover{background:rgba(26,26,24,.05)}
+.gt-lat-ctx i{font-size:14px;color:#8b8780;flex-shrink:0}
+.gt-lat-ctx-av{width:26px;height:26px;border-radius:50%;background:#1d6f5c;color:#fff;display:flex;align-items:center;justify-content:center;font-size:11.5px;font-weight:600;overflow:hidden;flex-shrink:0}
+.gt-lat-ctx-av.org{border-radius:7px;background:#fff;color:#7a736b;border:1px solid #e0dfd8}
+.gt-lat-ctx-av img{width:100%;height:100%;object-fit:cover}
+.gt-lat-ctx-av.org img{object-fit:contain}
+.gt-lat-ctx-n{font-size:14.5px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
+.gt-lat-plegar{width:34px;height:34px;flex-shrink:0;border:1px solid #dcdbd4;border-radius:9px;background:#fff;color:#767670;display:flex;align-items:center;justify-content:center;cursor:pointer;box-shadow:0 1px 2px rgba(26,26,24,.05)}
+.gt-lat-plegar i{font-size:17px}
+.gt-lat-plegar:hover{color:#1a1a18}
+.gt-lat-busca{padding:14px 12px 4px}
+.gt-lat.plegado .gt-lat-busca{padding:12px 10px 0}
+.gt-lat-scroll{flex:1;overflow-y:auto;padding:8px 12px 12px;display:flex;flex-direction:column;gap:2px}
+.gt-lat.plegado .gt-lat-scroll{padding:8px 10px 12px}
+.gt-lat-principal{margin-bottom:4px}
+.gt-lat-it{display:flex;align-items:center;gap:11px;width:100%;padding:8px 10px;border-radius:9px;border:1px solid transparent;background:none;color:#1a1a18;font-size:14px;text-decoration:none;cursor:pointer;font-family:inherit;text-align:left;white-space:nowrap}
+.gt-lat-it i{font-size:18px;color:#767670;flex-shrink:0;width:20px;text-align:center}
+.gt-lat-it:hover{background:rgba(26,26,24,.05)}
+.gt-lat-it:focus-visible,.gt-lat-ctx:focus-visible,.gt-lat-plegar:focus-visible,.gt-lat-btn:focus-visible,.gt-lat-promo:focus-visible{outline:2px solid #6d5aef;outline-offset:1px}
+.gt-lat-it.on{background:#fff;border-color:#e5e4de;box-shadow:0 1px 2px rgba(26,26,24,.06),0 2px 8px rgba(26,26,24,.04);font-weight:500}
+.gt-lat-it.on i{color:#1a1a18}
+.gt-lat-it.morado,.gt-lat-it.morado i{color:#6d5aef}
+.gt-lat-txt{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis}
+.gt-lat-bd{margin-left:auto;min-width:20px;height:20px;padding:0 6px;box-sizing:border-box;border-radius:6px;background:#6d5aef;color:#fff;font-size:11px;font-weight:600;display:inline-flex;align-items:center;justify-content:center;font-variant-numeric:tabular-nums}
+.gt-lat-sec{font-size:12.5px;color:#8b8780;padding:14px 10px 4px}
+.gt-lat.plegado .gt-lat-sec{font-size:0;padding:10px 0 6px;margin:0 8px;border-bottom:1px solid #e5e4de;margin-bottom:6px}
+.gt-lat.plegado .gt-lat-it{justify-content:center;padding:9px 0;position:relative}
+.gt-lat.plegado .gt-lat-txt{display:none}
+.gt-lat.plegado .gt-lat-bd{position:absolute;top:2px;right:2px;min-width:16px;height:16px;font-size:9.5px;padding:0 4px;border-radius:5px}
+.gt-lat-pie{padding:10px 12px 12px;border-top:1px solid #e5e4de;display:flex;flex-direction:column;gap:10px}
+.gt-lat.plegado .gt-lat-pie{padding:10px;align-items:center}
+.gt-lat-promo{display:flex;align-items:center;gap:10px;border:1px solid #e5e4de;background:#fff;border-radius:10px;padding:8px 10px;font-size:13px;color:#1a1a18;text-decoration:none}
+.gt-lat-promo:hover{border-color:#d8d3f5}
+.gt-lat-promo-ic{width:24px;height:24px;border-radius:6px;background:#f7f6f2;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.gt-lat-promo-ic i{font-size:14px;color:#6d5aef}
+.gt-lat-promo-txt{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.gt-lat-promo>i{font-size:14px;color:#a8a49c}
+.gt-lat-plan{background:#fff;border:1px solid #e5e4de;border-radius:12px;padding:14px;display:flex;flex-direction:column;gap:12px}
+.gt-lat-plan-t{display:flex;align-items:center;gap:10px}
+.gt-lat-plan-t>div{flex:1;min-width:0}
+.gt-lat-plan-t b{display:block;font-size:14px;font-weight:600}
+.gt-lat-plan-t small{display:block;font-size:12.5px;color:#8b8780;margin-top:3px;line-height:1.35}
+.gt-lat-btn{display:block;text-align:center;border:1px solid #dcdbd4;background:#fff;color:#1a1a18;border-radius:9px;padding:8px;font-size:13.5px;font-weight:500;text-decoration:none;box-shadow:0 1px 2px rgba(26,26,24,.06)}
+.gt-lat-btn:hover{background:#faf9f6}
+.gt-lat-anillo{display:flex;line-height:0}
+.gt-lat-ayuda{color:#555}
+
+/* La barra superior de la home y de las páginas que la quieran: acciones
+   a la derecha, como «Create List» y «Create Campaign» en Enginy. */
+.gt-acciones{display:flex;justify-content:flex-end;align-items:center;gap:10px;padding:16px 22px 0;flex-wrap:wrap}
+.gt-accion{display:inline-flex;align-items:center;gap:7px;border:none;background:#e9e8e2;border-radius:9px;padding:9px 14px;font-size:13.5px;font-weight:500;color:#1a1a18;text-decoration:none;cursor:pointer;font-family:inherit}
+.gt-accion i{font-size:16px;color:#767670}
+.gt-accion:hover{background:#e2e1da}
+.gt-accion.morado{color:#6d5aef}
+.gt-accion.morado i{color:#6d5aef}
+.gt-accion-sep{width:1px;height:26px;background:#dcdbd4;margin:0 2px}
+.gt-accion-ic{width:38px;height:38px;border-radius:9px;background:#e9e8e2;display:inline-flex;align-items:center;justify-content:center;color:#767670;text-decoration:none}
+.gt-accion-ic i{font-size:18px}
+.gt-accion-ic:hover{background:#e2e1da;color:#1a1a18}
+
+@media (max-width:720px){
+  .gt-lat{display:none}
+  .gt-movil-top{display:block}
+  .gt-acciones{padding:12px 16px 0}
+}
+@media (prefers-reduced-motion:reduce){.gt-lat{transition:none}}
