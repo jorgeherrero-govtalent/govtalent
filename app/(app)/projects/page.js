@@ -114,6 +114,12 @@ function Proyectos() {
   const [arrastrando, setArrastrando] = useState(null);
   const [creando, setCreando] = useState(false);
   const [nombre, setNombre] = useState('');
+  // «Nuevo proyecto» de la barra de la home llega con ?nuevo=1 y abre
+  // directamente el campo de nombre.
+  useEffect(() => {
+    if (params.get('nuevo') === '1') setCreando(true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   const [menu, setMenu] = useState(null);
   const [renombrando, setRenombrando] = useState(null);
   const [confirmarBorrado, setConfirmarBorrado] = useState(null);
