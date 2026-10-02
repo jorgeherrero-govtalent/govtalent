@@ -3,22 +3,17 @@
 import AlarmasTab from '@/components/AlarmasTab';
 
 /**
- * Alarmas: todo lo que te afecta, en una sola página.
+ * Alarmas: crear, revisar y editar lo que el agente vigila por ti, y
+ * cómo te avisa.
  *
- * Lo que encuentran tus alarmas y lo que cambia en lo que sigues, en una
- * lista, con una etiqueta que dice de dónde viene cada cosa. Sustituye a
- * la campana y a la pestaña «Alarmas» de Seguimiento: eran dos sitios con
- * dos contadores para responder a la misma pregunta, «¿qué me afecta y
- * cuándo cierra?».
- *
- * /seguimiento se queda como la lista completa de lo que sigues, para
- * gestionarla. Sus enlaces antiguos (?alarmas=1, ?ajustes=1, los de los
- * correos) traen aquí.
+ * Lo que encuentran las alarmas se revisa en /novedades. Aquí llega lo
+ * que se escribe en la caja de la home (AlarmasTab lee CLAVE_PEDIDO al
+ * cargar y se lo pide al agente con su progreso a la vista).
  */
 export default function AlarmasPage() {
   return (
     <div className="sec" style={{ maxWidth: 1040 }}>
-      <AlarmasTab />
+      <AlarmasTab seccion="alarmas" />
     </div>
   );
 }
