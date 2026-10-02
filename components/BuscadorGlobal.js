@@ -130,7 +130,22 @@ function Avatar({ fila }) {
   );
 }
 
-export default function BuscadorGlobal() {
+// ¿Hay un buscador del menú lateral a la vista? En escritorio conviven el
+// de la barra móvil (oculto por CSS) y el del lateral; los atajos solo los
+// atiende el que se ve.
+function lateralVisible() {
+  const el = typeof document !== 'undefined' ? document.querySelector('.gt-buscador-caja.lateral') : null;
+  return !!el && el.offsetParent !== null;
+}
+
+/**
+ * variante 'barra': la caja redonda de la barra superior (móvil).
+ * variante 'lateral': la del menú lateral, a todo el ancho, con ⌘K a la
+ * vista como en Enginy. El panel de resultados sale hacia la derecha,
+ * por encima del lienzo.
+ */
+export default function BuscadorGlobal({ variante = 'barra' }) {
+  const lateral = variante === 'lateral';
   const router = useRouter();
   const supabase = createClient();
   const [q, setQ] = useState('');
@@ -142,22 +157,50 @@ export default function BuscadorGlobal() {
   const inputRef = useRef(null);
   const cajaRef = useRef(null);
   const ultimaRef = useRef('');
+  // ⌘K en Mac, Ctrl K en lo demás. Se decide tras montar: en el servidor
+  // no hay navigator y el primer render tiene que coincidir.
+  const [atajo, setAtajo] = useState('⌘K');
+  useEffect(() => {
+    if (!/Mac|iPhone|iPad/i.test(navigator.platform || navigator.userAgent || '')) setAtajo('Ctrl K');
+  }, []);
 
   // Barra inclinada para enfocar, como en GitHub o Linear. Se ignora si
   // ya estás escribiendo en otro sitio: si no, la barra de un formulario
   // te saltaría al buscador a media frase.
   useEffect(() => {
+    function esMio() {
+      return lateral ? lateralVisible() : !lateralVisible();
+    }
+    function enfocar() {
+      setAbiertoMovil(true);
+      setTimeout(() => inputRef.current?.focus(), 0);
+    }
     function onKey(e) {
+      if (!esMio()) return;
+      // ⌘K o Ctrl+K, como en Enginy: funciona aunque estés escribiendo
+      // en otro campo, porque no choca con nada que se escriba.
+      if ((e.metaKey || e.ctrlKey) && !e.altKey && (e.key === 'k' || e.key === 'K')) {
+        e.preventDefault();
+        enfocar();
+        return;
+      }
       if (e.key !== '/' || e.metaKey || e.ctrlKey || e.altKey) return;
       const t = e.target;
       if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable)) return;
       e.preventDefault();
-      setAbiertoMovil(true);
-      inputRef.current?.focus();
+      enfocar();
+    }
+    // El botón de la lupa del menú plegado despliega el menú y pide foco.
+    function onPedido() {
+      if (esMio()) enfocar();
     }
     window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, []);
+    window.addEventListener('gt-buscar', onPedido);
+    return () => {
+      window.removeEventListener('keydown', onKey);
+      window.removeEventListener('gt-buscar', onPedido);
+    };
+  }, [lateral]);
 
   // Cierre al pulsar fuera. Sobre el contenedor entero y no solo sobre
   // la lista: si no, pulsar en la propia caja para corregir una letra
@@ -341,6 +384,21 @@ export default function BuscadorGlobal() {
           .gt-buscador { width: 200px; }
           .gt-buscador-panel { width: 380px; }
         }
+
+        /* En el menú lateral: a todo el ancho, esquinas de 9px y el atajo
+           a la derecha. Va después de la regla de 1080px para ganarle. */
+        .gt-buscador-caja.lateral { width: 100%; margin: 0; }
+        .gt-buscador-caja.lateral .gt-buscador {
+          width: 100%; border-radius: 9px; background: #fff;
+          border: 1px solid #e0dfd8; padding: 8px 10px;
+        }
+        .gt-buscador-caja.lateral .gt-buscador input { font-size: 13.5px; }
+        .gt-buscador-caja.lateral .gt-buscador-panel { width: 460px; }
+        .gt-buscador-kbd {
+          font-size: 11px; color: #8b8780; border: 1px solid #e6e4dc;
+          border-radius: 5px; padding: 1px 6px; background: #f7f6f2;
+          white-space: nowrap; flex-shrink: 0; line-height: 16px;
+        }
         @media (max-width: 720px) {
           .gt-buscador-caja { display: none; }
           .gt-buscador-lupa {
@@ -355,7 +413,7 @@ export default function BuscadorGlobal() {
         }
       `}</style>
 
-      <div ref={cajaRef} className={`gt-buscador-caja${abiertoMovil ? ' abierto' : ''}`}>
+      <div ref={cajaRef} className={`gt-buscador-caja${lateral ? ' lateral' : ''}${abiertoMovil && !lateral ? ' abierto' : ''}`}>
         <form onSubmit={buscar} className="gt-buscador" role="search">
           <i className="ti ti-search" style={{ fontSize: 14, color: '#a8a49c' }} aria-hidden="true"></i>
           <input
@@ -367,10 +425,11 @@ export default function BuscadorGlobal() {
             }}
             onFocus={() => setAbierto(true)}
             onKeyDown={teclas}
-            placeholder="Buscar"
+            placeholder={lateral ? 'Buscar…' : 'Buscar'}
             aria-label="Buscar en GovTalent"
             enterKeyHint="search"
           />
+          {lateral && !q && <span className="gt-buscador-kbd" aria-hidden="true">{atajo}</span>}
           {q && (
             <button
               type="button"
@@ -430,6 +489,7 @@ export default function BuscadorGlobal() {
         )}
       </div>
 
+      {!lateral && (
       <button
         type="button"
         className="gt-buscador-lupa"
@@ -441,6 +501,7 @@ export default function BuscadorGlobal() {
       >
         <i className="ti ti-search" style={{ fontSize: 19 }}></i>
       </button>
+      )}
     </>
   );
 }
