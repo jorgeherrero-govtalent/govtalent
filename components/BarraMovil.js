@@ -32,13 +32,15 @@ const MODULOS = [
       p.startsWith('/procedures') ||
       p.startsWith('/congreso'),
   },
+  // Novedades lleva el contador, como en el menú lateral. Alarmas y
+  // Seguimiento se alcanzan desde su cabecera y la marcan activa.
   {
-    href: '/alarmas',
-    etiqueta: 'Alarmas',
-    icono: 'ti-sparkles',
+    href: '/novedades',
+    etiqueta: 'Novedades',
+    icono: 'ti-inbox',
     color: MORADO,
     contador: true,
-    activo: (p) => p.startsWith('/alarmas') || p.startsWith('/seguimiento'),
+    activo: (p) => p.startsWith('/novedades') || p.startsWith('/alarmas') || p.startsWith('/seguimiento'),
   },
   {
     href: '/institutions',
