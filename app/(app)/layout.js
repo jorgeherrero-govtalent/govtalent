@@ -9,9 +9,11 @@ import OnboardingModal from '@/components/OnboardingModal';
 import PublicHeader from '@/components/PublicHeader';
 import Footer from '@/components/Footer';
 import MenuUsuario from '@/components/MenuUsuario';
+import MenuLateral from '@/components/MenuLateral';
 import BarraMovil from '@/components/BarraMovil';
 import BuscadorGlobal from '@/components/BuscadorGlobal';
 import Logo from '@/components/Logo';
+import { limitesDe } from '@/lib/alarmas';
 
 export default function AppLayout({ children }) {
   const supabase = createClient();
@@ -22,6 +24,8 @@ export default function AppLayout({ children }) {
   const [misOrgs, setMisOrgs] = useState([]);
   const [tieneOfertas, setTieneOfertas] = useState(false);
   const [novedades, setNovedades] = useState(0);
+  // La tarjeta del plan del menú lateral: alarmas activas sobre el límite.
+  const [alarmas, setAlarmas] = useState(null);
   const [needsOnboarding, setNeedsOnboarding] = useState(false);
   // Cuándo se marcó todo como visto en /alarmas. Si el recuento de la
   // barra salió antes y llega después, traería el número viejo.
@@ -73,7 +77,7 @@ export default function AppLayout({ children }) {
       // número en otro sitio. Solo cuenta, no trae filas, para no cargar
       // la barra en cada navegación.
       const pedidoEn = Date.now();
-      const [{ count: cambios }, { count: encontrados }] = await Promise.all([
+      const [{ count: cambios }, { count: encontrados }, { data: nivel }, { count: activas }] = await Promise.all([
         supabase.from('my_follow_events').select('event_id', { count: 'exact', head: true }).eq('es_nueva', true),
         supabase
           .from('sector_alert_matches')
@@ -81,8 +85,18 @@ export default function AppLayout({ children }) {
           .eq('user_id', data.user.id)
           .eq('visto', false)
           .eq('descartado', false),
+        supabase.rpc('nivel_avisos'),
+        supabase
+          .from('sector_alerts')
+          .select('id', { count: 'exact', head: true })
+          .eq('user_id', data.user.id)
+          .eq('activa', true),
       ]);
       if (active && vistasEn.current < pedidoEn) setNovedades((cambios || 0) + (encontrados || 0));
+      if (active) {
+        const esPro = nivel === 'pro';
+        setAlarmas({ usadas: activas || 0, limite: limitesDe(nivel).alarmas, esPro });
+      }
     }
     load();
     return () => {
@@ -114,132 +128,58 @@ export default function AppLayout({ children }) {
   }
 
 
-  return (
-    <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
-      {authChecked && !user ? (
+  // Sin sesión (fichas públicas de organizaciones y ofertas): la cabecera
+  // pública y el pie de siempre. Con sesión: el menú lateral, sin pie.
+  if (authChecked && !user) {
+    return (
+      <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
         <PublicHeader />
-      ) : (
-        <nav className="nav">
-        {/* En móvil los módulos, Alarmas incluida, bajan a BarraMovil y
-            aquí solo quedan el logotipo, el buscador y el menú. Antes se desbordaban: los
-            elementos llevan flex-shrink:0 y no se encogen. */}
-        <style>{`
-          @media (max-width: 720px) {
-            .nav-inner { padding: 0 14px; gap: 2px; overflow: visible; }
-            /* Los módulos los cubre BarraMovil abajo. El buscador no:
-               es lo único de la barra que no está duplicado ahí. */
-            .nav-inner .ni-modulo { display: none; }
-            .nav-inner .nav-sp { flex: 0; }
-          }
-        `}</style>
-        <div className="nav-inner">
-          <Link href="/" className="nav-logo" aria-label="GovTalent, ir al inicio">
-            <Logo height={24} />
-          </Link>
+        <main style={{ flex: 1 }}>{children}</main>
+        <Footer />
+        <Toast />
+      </div>
+    );
+  }
 
-          {/* Pegado al logo, como en LinkedIn: es lo primero que se
-              busca con la vista y no compite con la navegación, que se
-              va al otro extremo. */}
-          <BuscadorGlobal />
+  const enOrganizacion = pathname.includes('/organizations/admin') ? misOrgs[0]?.slug : null;
 
-          {/* Con el buscador a la izquierda, los módulos se empujan a la
-              derecha. Antes iban seguidos del logo y el hueco quedaba al
-              final. */}
-          <div className="nav-sp"></div>
-          {/* El orden dice de qué va el producto: primero lo que se
-              mueve, luego quién decide, después lo tuyo, y el empleo al
-              final. Organizaciones pasa a vivir dentro de Instituciones.
+  return (
+    <div className="gt-app">
+      <MenuLateral
+        user={user}
+        organizaciones={misOrgs}
+        enOrganizacion={enOrganizacion}
+        tieneOfertas={tieneOfertas}
+        novedades={novedades}
+        alarmas={alarmas}
+        onSignOut={signOut}
+      />
 
-              Regulatorio se marca activo también en sus rutas hijas para
-              que la barra no se apague al entrar en un expediente. */}
-          <Link
-            href="/regulatorio"
-            className={`ni ni-modulo ${
-              pathname.startsWith('/regulatorio') ||
-              pathname.startsWith('/initiatives') ||
-              pathname.startsWith('/procedures') ||
-              pathname.startsWith('/congreso')
-                ? 'on'
-                : ''
-            }`}
-          >
-            <i className="ti ti-timeline-event"></i>Regulatorio
-          </Link>
+      <div className="gt-lienzo">
+        {/* En móvil no hay menú lateral: arriba quedan el logotipo, el
+            buscador y el menú de usuario, y los módulos bajan a
+            BarraMovil. */}
+        <nav className="nav gt-movil-top">
+          <div className="nav-inner" style={{ padding: '0 14px', gap: 2, overflow: 'visible' }}>
+            <Link href="/" className="nav-logo" aria-label="GovTalent, ir al inicio">
+              <Logo height={24} />
+            </Link>
+            <div className="nav-sp"></div>
+            <BuscadorGlobal />
+            <MenuUsuario
+              user={user}
+              organizaciones={misOrgs}
+              enOrganizacion={enOrganizacion}
+              tieneOfertas={tieneOfertas}
+              onSignOut={signOut}
+            />
+          </div>
+        </nav>
 
-          {/* Alarmas, justo después de Regulatorio: es lo tuyo dentro de
-              lo que se mueve. Sustituye a la campana, que llevaba a
-              Seguimiento y repetía este mismo contador. Con el número y
-              no un punto: saber que hay tres es distinto de saber que hay
-              algo. Morada siempre, porque es el color de la función. */}
-          <Link
-            href="/alarmas"
-            className={`ni ni-modulo ${pathname.startsWith('/alarmas') || pathname.startsWith('/seguimiento') ? 'on' : ''}`}
-            aria-label={novedades > 0 ? `Alarmas, ${novedades} sin ver` : 'Alarmas'}
-            style={{ color: '#6d5aef' }}
-          >
-            <i className="ti ti-sparkles"></i>Alarmas
-            {novedades > 0 && (
-              <span
-                style={{
-                  minWidth: 17,
-                  height: 17,
-                  padding: '0 5px',
-                  boxSizing: 'border-box',
-                  borderRadius: 9,
-                  background: '#6d5aef',
-                  color: '#fff',
-                  fontSize: 10.5,
-                  lineHeight: '17px',
-                  textAlign: 'center',
-                  fontWeight: 600,
-                  marginLeft: 6,
-                }}
-              >
-                {novedades > 9 ? '9+' : novedades}
-              </span>
-            )}
-          </Link>
-
-          <Link
-            href="/institutions"
-            className={`ni ni-modulo ${
-              pathname.startsWith('/institutions') ||
-              (pathname.startsWith('/organizations') && !pathname.includes('admin'))
-                ? 'on'
-                : ''
-            }`}
-          >
-            <i className="ti ti-building-bank"></i>Instituciones
-          </Link>
-
-          <Link href="/projects" className={`ni ni-modulo ${pathname.startsWith('/projects') ? 'on' : ''}`}>
-            <i className="ti ti-folder"></i>Proyectos
-          </Link>
-
-          <Link href="/jobs" className={`ni ni-modulo ${pathname.startsWith('/jobs') ? 'on' : ''}`}>
-            <i className="ti ti-briefcase"></i>Empleos
-          </Link>
-
-          {/* "Mi organización" y "Para empresas" desaparecen de la
-              barra: eran dos elementos que hacían lo mismo según si
-              tenías organización o no, y ahora viven dentro del menú
-              junto al resto de contextos. */}
-
-          <MenuUsuario
-            user={user}
-            organizaciones={misOrgs}
-            enOrganizacion={pathname.includes('/organizations/admin') ? misOrgs[0]?.slug : null}
-            tieneOfertas={tieneOfertas}
-            onSignOut={signOut}
-          />
-        </div>
-      </nav>
-      )}
+        <main style={{ flex: 1, minWidth: 0 }}>{children}</main>
+      </div>
 
       <BarraMovil alarmas={novedades} />
-
-      <main style={{ flex: 1 }}>{children}</main>
-      <Footer />
       <Toast />
 
       {needsOnboarding && user && pathname !== '/organizations/new' && (
