@@ -29,9 +29,16 @@ export default function MenuUsuario({
   enOrganizacion = null,
   tieneOfertas = false,
   onSignOut,
+  // 'barra': el «Tú ▾» de la barra superior (móvil y páginas públicas).
+  // 'lateral': el selector de arriba del menú lateral, como el espacio de
+  // trabajo de Enginy; el panel se abre debajo y alineado a la izquierda.
+  variante = 'barra',
+  // Con el menú lateral plegado solo se ve el avatar.
+  compacto = false,
 }) {
   const [abierto, setAbierto] = useState(false);
-  const [pos, setPos] = useState({ top: 0, right: 0 });
+  const [pos, setPos] = useState({ top: 0, right: 0, left: null });
+  const lateral = variante === 'lateral';
   const boton = useRef(null);
 
   const inicial = (user?.first_name || user?.email || '·').charAt(0).toUpperCase();
@@ -39,7 +46,8 @@ export default function MenuUsuario({
 
   function abrir() {
     const r = boton.current?.getBoundingClientRect();
-    if (r) setPos({ top: r.bottom + 8, right: Math.max(12, window.innerWidth - r.right) });
+    if (r && lateral) setPos({ top: r.bottom + 6, right: null, left: Math.max(12, r.left) });
+    else if (r) setPos({ top: r.bottom + 8, right: Math.max(12, window.innerWidth - r.right), left: null });
     setAbierto(true);
   }
 
@@ -67,20 +75,51 @@ export default function MenuUsuario({
     textAlign: 'left',
   };
 
+  // En el lateral se nombra el contexto en el que estás: la organización
+  // si estás en su panel, si no tú. Es lo que enseña Enginy arriba.
+  const orgActiva = enOrganizacion ? organizaciones.find((o) => o.slug === enOrganizacion) : null;
+  const nombreContexto = orgActiva
+    ? orgActiva.name
+    : [user?.first_name, user?.last_name].filter(Boolean).join(' ') || user?.email || 'Tu cuenta';
+  const imagenContexto = orgActiva ? orgActiva.logo_url : user?.avatar_url;
+  const inicialContexto = (orgActiva ? orgActiva.name : user?.first_name || user?.email || '·').charAt(0).toUpperCase();
+
   return (
-    <div className="nav-me">
-      <div
-        className="ni"
-        ref={boton}
-        onClick={() => (abierto ? setAbierto(false) : abrir())}
-        aria-expanded={abierto}
-        aria-haspopup="menu"
-      >
-        <div className="nav-av">{user?.avatar_url ? <img src={user.avatar_url} alt="" /> : inicial}</div>
-        <span style={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-          Tú <i className={`ti ${abierto ? 'ti-chevron-up' : 'ti-chevron-down'}`} style={{ fontSize: 12 }}></i>
-        </span>
-      </div>
+    <div className={lateral ? 'gt-lat-yo' : 'nav-me'}>
+      {lateral ? (
+        <button
+          type="button"
+          className="gt-lat-ctx"
+          ref={boton}
+          onClick={() => (abierto ? setAbierto(false) : abrir())}
+          aria-expanded={abierto}
+          aria-haspopup="menu"
+          title={compacto ? nombreContexto : undefined}
+        >
+          <span className={`gt-lat-ctx-av${orgActiva ? ' org' : ''}`}>
+            {imagenContexto ? <img src={imagenContexto} alt="" /> : inicialContexto}
+          </span>
+          {!compacto && (
+            <>
+              <span className="gt-lat-ctx-n">{nombreContexto}</span>
+              <i className={`ti ${abierto ? 'ti-chevron-up' : 'ti-chevron-down'}`} aria-hidden="true"></i>
+            </>
+          )}
+        </button>
+      ) : (
+        <div
+          className="ni"
+          ref={boton}
+          onClick={() => (abierto ? setAbierto(false) : abrir())}
+          aria-expanded={abierto}
+          aria-haspopup="menu"
+        >
+          <div className="nav-av">{user?.avatar_url ? <img src={user.avatar_url} alt="" /> : inicial}</div>
+          <span style={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+            Tú <i className={`ti ${abierto ? 'ti-chevron-up' : 'ti-chevron-down'}`} style={{ fontSize: 12 }}></i>
+          </span>
+        </div>
+      )}
 
       {abierto &&
         typeof document !== 'undefined' &&
@@ -92,7 +131,7 @@ export default function MenuUsuario({
               style={{
                 position: 'fixed',
                 top: pos.top,
-                right: pos.right,
+                ...(pos.left !== null ? { left: pos.left } : { right: pos.right }),
                 width: 292,
                 maxWidth: 'calc(100vw - 24px)',
                 background: '#fff',
@@ -327,6 +366,33 @@ export default function MenuUsuario({
                   Cerrar sesión
                 </button>
               </div>
+
+              {/* Dentro de la aplicación ya no hay pie de página: los
+                  enlaces legales viven aquí. */}
+              {lateral && (
+                <div
+                  style={{
+                    borderTop: `.5px solid ${BORDE}`,
+                    marginTop: 5,
+                    padding: '8px 9px 3px',
+                    display: 'flex',
+                    flexWrap: 'wrap',
+                    gap: '4px 12px',
+                    fontSize: 11,
+                  }}
+                >
+                  {[
+                    ['/legal', 'Aviso legal'],
+                    ['/privacidad', 'Privacidad'],
+                    ['/condiciones', 'Condiciones'],
+                    ['/cookies', 'Cookies'],
+                  ].map(([href, txt]) => (
+                    <Link key={href} href={href} onClick={() => setAbierto(false)} style={{ color: '#8b8780', textDecoration: 'none' }}>
+                      {txt}
+                    </Link>
+                  ))}
+                </div>
+              )}
             </div>
           </>,
           document.body
