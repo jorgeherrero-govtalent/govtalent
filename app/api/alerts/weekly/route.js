@@ -299,7 +299,7 @@ async function handler(request) {
         const item = {
           title: f?.label || e.title,
           detail: e.detail,
-          ruta: '/alarmas',
+          ruta: '/novedades',
           fuente: null,
           // Para poder cruzarlo con lo que ya sale en «cierra esta semana».
           clave: `${e.kind}|${e.ref_id}`,
@@ -340,7 +340,7 @@ async function handler(request) {
 
       const estaSemana = cierranSuyos.map((r) => ({
         title: r.titulo,
-        ruta: r.ruta || '/alarmas',
+        ruta: r.ruta || '/novedades',
         fuente: r.fuente || FUENTE_POR_TIPO[r.kind] || null,
         dias: diasHasta(r.plazo),
       }));
