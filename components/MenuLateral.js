@@ -35,9 +35,6 @@ const enRegulatorio = (p) =>
   p.startsWith('/congreso') ||
   p.startsWith('/boe');
 
-const enOrganizaciones = (p) =>
-  p.startsWith('/organizations') && !p.startsWith('/organizations/admin') && !p.startsWith('/organizations/new');
-
 const PRINCIPALES = [
   { href: '/', etiqueta: 'Asistente', icono: 'ti-sparkles', activo: (p) => p === '/' },
   { href: '/novedades', etiqueta: 'Novedades', icono: 'ti-inbox', activo: (p) => p.startsWith('/novedades'), contador: true },
@@ -45,6 +42,8 @@ const PRINCIPALES = [
   { href: '/seguimiento', etiqueta: 'Seguimiento', icono: 'ti-eye', activo: (p) => p.startsWith('/seguimiento') },
 ];
 
+// Organizaciones y Empleos están ocultos desde el 04-10-2026 (y sus rutas
+// redirigen a la portada: ver RUTAS_OCULTAS en middleware.js).
 const SECCIONES = [
   {
     titulo: 'Vigilar',
@@ -67,19 +66,12 @@ const SECCIONES = [
         icono: 'ti-building-bank',
         activo: (p) => p.startsWith('/institutions') || p.startsWith('/instituciones'),
       },
-      { href: '/organizations', etiqueta: 'Organizaciones', icono: 'ti-building', activo: enOrganizaciones },
     ],
   },
   {
     titulo: 'Trabajo',
     items: [
       { href: '/projects', etiqueta: 'Proyectos', icono: 'ti-folder', activo: (p) => p.startsWith('/projects') },
-      {
-        href: '/jobs',
-        etiqueta: 'Empleos',
-        icono: 'ti-briefcase',
-        activo: (p) => p.startsWith('/jobs') || p.startsWith('/candidates'),
-      },
     ],
   },
 ];
