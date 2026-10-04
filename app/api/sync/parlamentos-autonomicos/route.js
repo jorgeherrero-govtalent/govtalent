@@ -87,9 +87,13 @@ async function handler(request) {
       const ctx = {
         saltar: (num) => cerrados.has(idExpediente(p, num)),
         tiempoAgotado: () => Date.now() - t0 > FIN_LECTURA_MS,
+        diagnostico: {},
       };
       try {
-        return [p, await LECTORES[p].leer(web, ctx)];
+        const r = await LECTORES[p].leer(web, ctx);
+        r.boletines = boletinesUtiles(r);
+        if (Object.keys(ctx.diagnostico).length) r.diagnostico = ctx.diagnostico;
+        return [p, r];
       } catch (e) {
         return [p, { error: String(e.message || e).slice(0, 300) }];
       }
@@ -102,6 +106,7 @@ async function handler(request) {
           expedientes: r.expedientes.length,
           boletines: r.boletines.length,
           ...(sp.get('debug') === '1' ? { detalle: r } : { muestra: r.expedientes.slice(0, 3), boletines_muestra: r.boletines.slice(0, 5) }),
+          ...(r.diagnostico ? { diagnostico: r.diagnostico } : {}),
         };
         continue;
       }
@@ -131,6 +136,32 @@ async function handler(request) {
   }
 
   return Response.json({ ok: true, dry, ms: Date.now() - t0, ...salida });
+}
+
+// Qué boletines merece la pena leer con IA: los de expedientes abiertos
+// (o sin expediente conocido, como los de Asturias y Valencia) y los
+// recientes; de cada expediente, solo los 3 últimos. El historial de los
+// expedientes cerrados no da plazos vigentes y dispararía el coste.
+const DIAS_BOLETIN_RECIENTE = 45;
+const MAX_BOLETINES_POR_EXP = 3;
+
+function boletinesUtiles(r) {
+  const limite = new Date(Date.now() - DIAS_BOLETIN_RECIENTE * 86400000).toISOString().slice(0, 10);
+  const abiertos = new Set(r.expedientes.filter((e) => !e.is_closed).map((e) => claveExpediente(e.num_expediente)));
+  const porExp = new Map();
+  for (const b of r.boletines) {
+    const k = b.expediente ? claveExpediente(b.expediente) : `·${b.id}`;
+    const util = !b.expediente || abiertos.has(k) || (b.fecha && b.fecha >= limite);
+    if (!util) continue;
+    if (!porExp.has(k)) porExp.set(k, []);
+    porExp.get(k).push(b);
+  }
+  const salida = [];
+  for (const lista of porExp.values()) {
+    lista.sort((a, b) => (b.fecha || '').localeCompare(a.fecha || '') || b.id.localeCompare(a.id));
+    salida.push(...lista.slice(0, MAX_BOLETINES_POR_EXP));
+  }
+  return salida;
 }
 
 /** Guarda lo leído de un parlamento. */
