@@ -25,6 +25,8 @@
 //   ?key=<DEBUG_KEY>&sinia=1                    guarda, sin IA
 //   ?key=<DEBUG_KEY>&soloia=1&ia=10             solo la IA, hasta 10 boletines
 //   ?key=<DEBUG_KEY>&boletin=<id>               relee con IA un boletín concreto
+//   ?key=<DEBUG_KEY>&soloia=1&ia=0              solo clasifica sectores (lib/ccaa/sectores.js)
+//   ?key=<DEBUG_KEY>&sectores=0                 sin clasificar sectores
 // =====================================================================
 
 import { createClient } from '@supabase/supabase-js';
@@ -34,6 +36,7 @@ import { mismoTitulo } from '@/lib/ccaa/comun';
 import { FASE1, PARLAMENTOS, idExpediente, slugExpediente, tipoNorm, claveExpediente } from '@/lib/parlamentosAutonomicos';
 import { leerBoletin, guardarActos, MAX_PDF_KB } from '@/lib/lectorBoletines';
 import { eventosDeSeguimiento } from '@/lib/ccaa/eventos';
+import { clasificarSectores } from '@/lib/ccaa/sectores';
 import * as andalucia from '@/lib/ccaa/andalucia';
 import * as aragon from '@/lib/ccaa/aragon';
 import * as asturias from '@/lib/ccaa/asturias';
@@ -48,6 +51,9 @@ export const maxDuration = 300;
 const LECTORES = { andalucia, aragon, asturias, cantabria, castillayleon, rioja, valencia };
 const FIN_LECTURA_MS = 150000;
 const FIN_TOTAL_MS = 270000;
+// La clasificación por sectores tarda hasta ~60 s: solo se lanza si queda
+// tiempo; si no, la hace la ejecución siguiente.
+const FIN_SECTORES_MS = 200000;
 const IA_POR_DEFECTO = 4;
 
 // Cliente de servicio sin caché de Next: si no, las lecturas de Supabase
@@ -136,6 +142,14 @@ async function handler(request) {
   if (!dry && pedidos.includes('valencia') && salida.lectura.valencia?.complementos?.length) {
     salida.lectura.valencia.complementados = await complementar(db, 'valencia', salida.lectura.valencia.complementos);
     delete salida.lectura.valencia.complementos;
+  }
+
+  // -------------------------------------------------------------------
+  // 3 · Sectores de los expedientes nuevos (una llamada, solo los que no
+  //     tienen todavía)
+  // -------------------------------------------------------------------
+  if (!dry && sp.get('sectores') !== '0' && Date.now() - t0 < FIN_SECTORES_MS) {
+    salida.sectores = await clasificarSectores(db);
   }
 
   if (!dry && nuevos.length) salida.seguimiento = await eventosDeSeguimiento(db, nuevos);
