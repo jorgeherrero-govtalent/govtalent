@@ -68,6 +68,10 @@ const ICONO_TIPO = {
   oferta: 'ti-briefcase',
 };
 
+// Tipos que no se enseñan: organizaciones y ofertas de empleo están
+// ocultas desde el 04-10-2026 (ver RUTAS_OCULTAS en middleware.js).
+const TIPOS_OCULTOS = new Set(['organizacion', 'oferta']);
+
 const ES_PERSONA = new Set([
   'diputado',
   'miembro-gobierno',
@@ -227,7 +231,7 @@ export default function BuscadorGlobal({ variante = 'barra' }) {
       // esta comprobación, una consulta lenta de hace tres letras pisa
       // los resultados de la actual.
       if (ultimaRef.current !== t) return;
-      setResultados(error ? [] : data || []);
+      setResultados(error ? [] : (data || []).filter((f) => !TIPOS_OCULTOS.has(f.kind)));
       setCargando(false);
     },
     [supabase]
