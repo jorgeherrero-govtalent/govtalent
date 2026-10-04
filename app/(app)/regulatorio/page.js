@@ -355,7 +355,14 @@ export default function RegulatorioPage() {
         />
       </div>
 
-      <div style={{ fontSize: 11.5, color: '#a8a49c', paddingTop: 16 }}>Próximamente · Senado y CCAA en España</div>
+      {/* Los parlamentos autonómicos tienen entrada propia en el menú
+          lateral; aquí queda el acceso para el móvil, que no lo tiene. */}
+      <div style={{ fontSize: 11.5, color: '#a8a49c', paddingTop: 16 }}>
+        <Link href="/parlamentos-autonomicos" style={{ color: VERDE, textDecoration: 'none' }}>
+          Parlamentos autonómicos →
+        </Link>
+        {' '}· Próximamente · Senado
+      </div>
     </div>
   );
 }
