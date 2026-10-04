@@ -71,6 +71,8 @@ const SECCIONES = [
   {
     titulo: 'Trabajo',
     items: [
+      // Tareas (04-10-2026, sql/68): las sueltas y las acciones de Proyectos.
+      { href: '/tareas', etiqueta: 'Tareas', icono: 'ti-checkbox', activo: (p) => p.startsWith('/tareas') },
       { href: '/projects', etiqueta: 'Proyectos', icono: 'ti-folder', activo: (p) => p.startsWith('/projects') },
     ],
   },
