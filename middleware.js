@@ -4,7 +4,9 @@ import { NextResponse } from 'next/server';
 // Páginas legales: accesibles sin sesión y desde la propia pantalla de login.
 // Deben poder consultarse antes de registrarse y antes de aceptar las
 // condiciones en el proceso de contratación.
-const PUBLIC_LEGAL_PATHS = ['/legal', '/privacidad', '/cookies', '/condiciones'];
+// /bot explica qué es GovTalentBot a las webs que lee: tiene que poder
+// abrirla cualquiera, sin cuenta.
+const PUBLIC_LEGAL_PATHS = ['/legal', '/privacidad', '/cookies', '/condiciones', '/bot'];
 
 export async function middleware(request) {
   // El webhook de Stripe entra sin cookies de sesión: se autentica con la
