@@ -16,9 +16,13 @@ import { toast } from '@/lib/toast';
  *      Pleno»…).
  *   2. Un bloque por fuente (Congreso, Parlamento Europeo…) con los tres
  *      más recientes y «Ver los N».
- *   3. Personas e instituciones, con foto.
+ *   3. Personas e instituciones, con foto. De los miembros del Gobierno se
+ *      resume su agenda en una línea: «Agenda · 3 actos · 11:00 … ·
+ *      16:00 …», con el día de los actos a la derecha (no el día en que
+ *      se leyó).
  *   4. Consejo de Ministros: los acuerdos que han hecho saltar alguna de
- *      tus alarmas (sector_alert_matches, kind 'consejo').
+ *      tus alarmas (sector_alert_matches, kind 'consejo'). Cada uno abre la
+ *      Referencia de La Moncloa en otra pestaña, en el punto del acuerdo.
  *
  * Datos: la vista my_follows (sql/69 añade foto, ultimo_tipo y
  * ultimo_detalle). «Dejar de seguir» va en el menú «···» de cada fila.
@@ -53,6 +57,54 @@ function cuando(iso) {
   if (d.toDateString() === ayer.toDateString()) return 'Ayer';
   const anio = d.getFullYear() !== hoy.getFullYear() ? ` ${d.getFullYear()}` : '';
   return `${d.getDate()} ${MESES[d.getMonth()]}${anio}`;
+}
+
+const DIAS_CORTOS = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
+const VENTANA_AGENDA_DIAS = 7;
+
+/**
+ * Las agendas llegan como un aviso por acto: «Agenda del lunes 05/10,
+ * 17:00 h: Recibe a…». Se agrupan por día y se elige el próximo día con
+ * actos (o, si no hay, el último). Devuelve { dia: 'Lun 5 oct', actos:
+ * [{ hora, texto }] } o null.
+ */
+function resumenAgenda(detalles) {
+  const porDia = new Map();
+  const ahora = new Date();
+  for (const d of detalles) {
+    const m = String(d || '').match(/^Agenda del \S+ (\d{1,2})\/(\d{1,2})(?:,\s*(\d{1,2}:\d{2})\s*h)?:\s*([\s\S]*)$/);
+    if (!m) continue;
+    let fecha = new Date(ahora.getFullYear(), Number(m[2]) - 1, Number(m[1]));
+    // Una agenda de enero leída en diciembre es del año siguiente.
+    if (fecha - ahora > 180 * 86400000) fecha = new Date(fecha.getFullYear() - 1, fecha.getMonth(), fecha.getDate());
+    if (ahora - fecha > 180 * 86400000) fecha = new Date(fecha.getFullYear() + 1, fecha.getMonth(), fecha.getDate());
+    const clave = fecha.getTime();
+    // El acto en corto: hasta el primer punto o «, en …» (el lugar).
+    const texto = m[4].split(/\.\s|, en (?:la|el|los|las) /)[0].replace(/\.$/, '').trim();
+    if (!porDia.has(clave)) porDia.set(clave, []);
+    const lista = porDia.get(clave);
+    if (!lista.some((a) => a.hora === (m[3] || '') && a.texto === texto)) lista.push({ hora: m[3] || '', texto });
+  }
+  if (!porDia.size) return null;
+  const hoy = new Date(ahora.getFullYear(), ahora.getMonth(), ahora.getDate()).getTime();
+  const dias = [...porDia.keys()].sort((a, b) => a - b);
+  const elegido = dias.find((t) => t >= hoy) ?? dias[dias.length - 1];
+  if (Math.abs(elegido - hoy) > VENTANA_AGENDA_DIAS * 86400000) return null;
+  const f = new Date(elegido);
+  const actos = porDia.get(elegido).sort((a, b) => a.hora.localeCompare(b.hora));
+  return { dia: `${DIAS_CORTOS[f.getDay()]} ${f.getDate()} ${MESES[f.getMonth()]}`, actos };
+}
+
+/** La Referencia del Consejo en La Moncloa, en el punto del acuerdo. */
+function referenciaDe(a) {
+  try {
+    const u = new URL(a?.referencia_url);
+    if (u.hostname !== 'www.lamoncloa.gob.es') return null;
+    if (a.ancla) u.hash = a.ancla;
+    return u.toString();
+  } catch {
+    return null;
+  }
 }
 
 function iniciales(nombre) {
@@ -200,6 +252,42 @@ function Fila({ item, conCambio, conFoto, onDejar }) {
   );
 }
 
+/** Una persona o institución: foto, nombre, cargo y su agenda o lo último. */
+function FilaPersona({ item, agenda, onDejar }) {
+  const esGobierno = item.kind === 'cargo';
+  const ag = esGobierno ? agenda : null;
+  const fecha = ag ? ag.dia : cuando(item.ultima_novedad);
+  return (
+    <div style={{ display: 'flex', gap: 14, padding: '12px 18px', borderTop: LINEA, alignItems: 'center' }}>
+      <Avatar item={item} />
+      <Link href={item.ruta || '#'} style={{ flex: 1, minWidth: 0, color: '#1a1a18', textDecoration: 'none' }}>
+        <span style={{ display: 'block', fontWeight: item.n_novedades > 0 ? 600 : 500 }}>{item.label}</span>
+        {item.estado && <span style={{ display: 'block', fontSize: 12, color: GRIS, marginTop: 2 }}>{item.estado}</span>}
+        {ag ? (
+          <span style={{ display: 'flex', gap: 8, alignItems: 'baseline', marginTop: 6, fontSize: 12.5, color: '#3a3a36', minWidth: 0 }}>
+            <span style={{ fontWeight: 600, whiteSpace: 'nowrap', color: '#1a1a18' }}>
+              Agenda · {ag.actos.length} {ag.actos.length === 1 ? 'acto' : 'actos'}
+            </span>
+            <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              {ag.actos.map((a) => [a.hora, a.texto].filter(Boolean).join(' ')).join(' · ')}
+            </span>
+          </span>
+        ) : esGobierno ? (
+          <span style={{ display: 'block', fontSize: 12.5, color: GRIS, marginTop: 6 }}>Sin agenda publicada esta semana</span>
+        ) : (
+          item.ultimo_detalle && (
+            <span style={{ display: 'block', fontSize: 12.5, color: '#3a3a36', marginTop: 6, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              {item.ultimo_detalle}
+            </span>
+          )
+        )}
+      </Link>
+      {fecha && <span style={{ fontSize: 12.5, color: item.n_novedades > 0 ? '#1a1a18' : GRIS, whiteSpace: 'nowrap' }}>{fecha}</span>}
+      <MenuFila onDejar={onDejar} />
+    </div>
+  );
+}
+
 function Bloque({ titulo, derecha, children }) {
   return (
     <section style={CARD}>
@@ -221,6 +309,7 @@ function Seguimiento() {
 
   const [items, setItems] = useState(null);
   const [consejo, setConsejo] = useState([]);
+  const [agendas, setAgendas] = useState(new Map());
   const [soloNovedades, setSoloNovedades] = useState(false);
   const [fuente, setFuente] = useState(null);
   const [abiertos, setAbiertos] = useState(new Set());
@@ -254,13 +343,37 @@ function Seguimiento() {
       ]);
       // Del acuerdo, el ministerio y la fecha del Consejo; de la alarma, el
       // nombre, para decir por qué sale.
+      // Las agendas de los miembros del Gobierno que sigues: un aviso por
+      // acto, de las dos últimas semanas.
+      const slugs = (f || []).filter((x) => x.kind === 'cargo').map((x) => x.ref_id);
+      const mapaAgendas = new Map();
+      if (slugs.length) {
+        const { data: ev } = await supabase
+          .from('follow_events')
+          .select('ref_id, detail')
+          .eq('kind', 'cargo')
+          .eq('event_type', 'agenda')
+          .in('ref_id', slugs)
+          .gte('occurred_at', new Date(Date.now() - 14 * 86400000).toISOString())
+          .limit(500);
+        const det = new Map();
+        for (const e of ev || []) {
+          if (!det.has(e.ref_id)) det.set(e.ref_id, []);
+          det.get(e.ref_id).push(e.detail);
+        }
+        for (const [k, v] of det) {
+          const r = resumenAgenda(v);
+          if (r) mapaAgendas.set(k, r);
+        }
+      }
+
       let acuerdos = [];
       let alarmas = [];
       const ids = [...new Set((m || []).map((x) => x.ref_id))];
       const alertIds = [...new Set((m || []).map((x) => x.alert_id).filter(Boolean))];
       if (ids.length || alertIds.length) {
         const [{ data: a }, { data: al }] = await Promise.all([
-          ids.length ? supabase.from('consejo_acuerdos').select('id, titulo, ministerio, fecha_consejo').in('id', ids) : Promise.resolve({ data: [] }),
+          ids.length ? supabase.from('consejo_acuerdos').select('id, titulo, ministerio, fecha_consejo, referencia_url, ancla').in('id', ids) : Promise.resolve({ data: [] }),
           alertIds.length ? supabase.from('sector_alerts').select('id, nombre').in('id', alertIds) : Promise.resolve({ data: [] }),
         ]);
         acuerdos = a || [];
@@ -280,13 +393,14 @@ function Seguimiento() {
           ministerio: a?.ministerio || null,
           alarma: nombreAlarma.get(x.alert_id) || null,
           fecha: a?.fecha_consejo || x.created_at,
-          ruta: x.ruta || `/regulatorio/consejo/${encodeURIComponent(x.ref_id)}`,
+          referencia: referenciaDe(a),
         });
       }
       lista.sort((p, q) => String(q.fecha).localeCompare(String(p.fecha)));
       if (cancelado) return;
       setItems(f || []);
       setConsejo(lista);
+      setAgendas(mapaAgendas);
     })();
     return () => {
       cancelado = true;
@@ -416,9 +530,13 @@ function Seguimiento() {
         <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
           {!fuente && conCambios.length > 0 && (
             <Bloque titulo="Con cambios" derecha={`${conCambios.length}`}>
-              {conCambios.map((i) => (
-                <Fila key={i.id} item={i} conCambio conFoto={i.es_actor} onDejar={() => dejarDeSeguir(i)} />
-              ))}
+              {conCambios.map((i) =>
+                i.es_actor ? (
+                  <FilaPersona key={i.id} item={i} agenda={agendas.get(i.ref_id)} onDejar={() => dejarDeSeguir(i)} />
+                ) : (
+                  <Fila key={i.id} item={i} conCambio onDejar={() => dejarDeSeguir(i)} />
+                )
+              )}
             </Bloque>
           )}
 
@@ -433,9 +551,13 @@ function Seguimiento() {
             const esPersonas = k === PERSONAS;
             return (
               <Bloque key={k} titulo={k} derecha={lista.length}>
-                {visibles.map((i) => (
-                  <Fila key={i.id} item={i} conCambio={esPersonas || soloNovedades} conFoto={esPersonas} onDejar={() => dejarDeSeguir(i)} />
-                ))}
+                {visibles.map((i) =>
+                  esPersonas ? (
+                    <FilaPersona key={i.id} item={i} agenda={agendas.get(i.ref_id)} onDejar={() => dejarDeSeguir(i)} />
+                  ) : (
+                    <Fila key={i.id} item={i} conCambio={soloNovedades} onDejar={() => dejarDeSeguir(i)} />
+                  )
+                )}
                 {base.length > POR_BLOQUE && !fuente && (
                   <button
                     type="button"
@@ -468,19 +590,22 @@ function Seguimiento() {
               ) : (
                 (fuente === CONSEJO ? consejo : consejo.slice(0, 5)).map((a) => (
                   <div key={a.id} style={{ display: 'flex', gap: 14, padding: '12px 18px', borderTop: LINEA, alignItems: 'flex-start' }}>
-                    <Link href={a.ruta} style={{ flex: 1, minWidth: 0, color: '#1a1a18', textDecoration: 'none' }}>
+                    <a
+                      href={a.referencia || `/regulatorio/consejo/${encodeURIComponent(a.id)}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      style={{ flex: 1, minWidth: 0, color: '#1a1a18', textDecoration: 'none' }}
+                    >
                       <span style={{ display: 'block', fontWeight: 500, lineHeight: 1.4 }}>{a.titulo}</span>
                       <span style={{ display: 'block', fontSize: 12, color: GRIS, marginTop: 3 }}>
                         {[a.ministerio, a.alarma ? `Coincide con tu alarma «${a.alarma}»` : null].filter(Boolean).join(' · ')}
+                        <i className="ti ti-external-link" style={{ fontSize: 12, marginLeft: 6, verticalAlign: -1 }} aria-label="Se abre en otra pestaña"></i>
                       </span>
-                    </Link>
+                    </a>
                     <span style={{ fontSize: 12.5, color: GRIS, whiteSpace: 'nowrap', paddingTop: 2 }}>{cuando(a.fecha)}</span>
                   </div>
                 ))
               )}
-              <Link href="/regulatorio" style={{ ...VER_MAS, textDecoration: 'none' }}>
-                Ver todas las referencias del Consejo en Regulatorio
-              </Link>
             </Bloque>
           )}
         </div>
