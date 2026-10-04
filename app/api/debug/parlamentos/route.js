@@ -20,8 +20,13 @@
 // el Crawl-delay que pida cada robots.txt (máximo 10 s). Los sitios se
 // prueban en paralelo entre sí.
 //
+// Desde el 04-10-2026 (segunda ronda) se identifica como GovTalentBot
+// (lib/govtalentBot.js) y aplica el grupo del robots.txt que corresponde
+// a ese nombre. Sin ?p= prueba solo los 7 de la fase 1.
+//
 // Uso:
-//   ?key=<DEBUG_KEY>                    los 14 parlamentos
+//   ?key=<DEBUG_KEY>                    los 7 de la fase 1
+//   ?key=<DEBUG_KEY>&p=todos            los 14 parlamentos
 //   ?key=<DEBUG_KEY>&p=navarra          solo uno (claves: ver FUENTES)
 //   ?key=<DEBUG_KEY>&p=navarra,rioja    varios
 //
@@ -29,28 +34,22 @@
 // =====================================================================
 
 import { fetchGob } from '@/lib/fetchGob';
+import { HEADERS_BOT, UA_GOVTALENTBOT, leerRobots, permitidoPorRobots } from '@/lib/govtalentBot';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 300;
 
-// Desde Frankfurt y no desde la región por defecto de Vercel (Washington).
-// En la primera prueba (04-10-2026) varios parlamentos no respondían o
-// devolvían el cortafuegos: la sospecha es que bloquean IP de fuera de
-// Europa. ?region= no se puede cambiar en caliente; para comparar con
-// otra región hay que cambiar esta línea.
-export const preferredRegion = 'fra1';
+// La región (fra1, Fráncfort) se fija en Vercel → Settings → Functions:
+// preferredRegion en este archivo no tenía efecto.
 
 const TIMEOUT_MS = 20000;
 const PAUSA_MIN_MS = 1000;
 const PAUSA_MAX_MS = 10000;
 const MUESTRA_MAX = 160;
 
-const HEADERS = {
-  'User-Agent':
-    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
-  Accept: 'text/html,application/xhtml+xml,application/xml,application/rss+xml,application/pdf,*/*',
-  'Accept-Language': 'es-ES,es;q=0.9',
-};
+const HEADERS = HEADERS_BOT;
+
+const FASE1 = ['andalucia', 'aragon', 'asturias', 'cantabria', 'castillayleon', 'rioja', 'valencia'];
 
 // ---------------------------------------------------------------------
 // Las fuentes, del inventario del 04-10-2026. Cada una con su capa:
@@ -172,60 +171,7 @@ const FUENTES = {
 // robots.txt
 // ---------------------------------------------------------------------
 
-/**
- * Las reglas del grupo «User-agent: *» (Disallow, Allow, Crawl-delay) y
- * la lista de agentes que el robots.txt nombra expresamente, para ver si
- * veta a bots de IA (ClaudeBot, GPTBot…).
- */
-function leerRobots(texto) {
-  const grupos = [];
-  let actual = null;
-  let ultimoFueAgente = false;
-  for (const cruda of String(texto || '').split(/\r?\n/)) {
-    const linea = cruda.replace(/#.*$/, '').trim();
-    if (!linea) continue;
-    const m = linea.match(/^([A-Za-z-]+)\s*:\s*(.*)$/);
-    if (!m) continue;
-    const campo = m[1].toLowerCase();
-    const valor = m[2].trim();
-    if (campo === 'user-agent') {
-      if (!actual || !ultimoFueAgente) {
-        actual = { agentes: [], disallow: [], allow: [], crawlDelay: null };
-        grupos.push(actual);
-      }
-      actual.agentes.push(valor.toLowerCase());
-      ultimoFueAgente = true;
-      continue;
-    }
-    ultimoFueAgente = false;
-    if (!actual) continue;
-    if (campo === 'disallow') actual.disallow.push(valor);
-    if (campo === 'allow') actual.allow.push(valor);
-    if (campo === 'crawl-delay') actual.crawlDelay = parseFloat(valor) || null;
-  }
-  const general = grupos.find((g) => g.agentes.includes('*')) || { disallow: [], allow: [], crawlDelay: null };
-  const nombrados = [...new Set(grupos.flatMap((g) => g.agentes).filter((a) => a !== '*'))];
-  const vetados = grupos.filter((g) => g.disallow.includes('/')).flatMap((g) => g.agentes);
-  return { general, nombrados, vetadosDelTodo: vetados };
-}
-
-/** Patrón de robots.txt («*» y «$») → expresión regular. */
-function patron(regla) {
-  const escapada = regla.replace(/[.+?^{}()|[\]\\]/g, '\\$&').replace(/\*/g, '.*');
-  return new RegExp(`^${escapada.endsWith('\\$') ? escapada.slice(0, -2) + '$' : escapada}`);
-}
-
-/** Permitido si la regla más larga que encaja es Allow o no hay ninguna. */
-function permitido(reglas, ruta) {
-  let mejor = { largo: -1, permite: true };
-  for (const r of reglas.disallow) {
-    if (r && patron(r).test(ruta) && r.length > mejor.largo) mejor = { largo: r.length, permite: false };
-  }
-  for (const r of reglas.allow) {
-    if (r && patron(r).test(ruta) && r.length >= mejor.largo) mejor = { largo: r.length, permite: true };
-  }
-  return mejor.permite;
-}
+// leerRobots y permitidoPorRobots están en lib/govtalentBot.js.
 
 // ---------------------------------------------------------------------
 // Peticiones
@@ -272,9 +218,10 @@ async function probarSitio(origen, entradas) {
   let robots;
   if (r.status === 200 && !/<html/i.test((r.texto || '').slice(0, 500))) {
     const leido = leerRobots(r.texto);
-    reglas = leido.general;
+    reglas = leido.reglas;
     robots = {
       estado: 'leido',
+      grupo_aplicado: leido.grupo,
       prohibe_para_todos: reglas.disallow.filter(Boolean),
       permite: reglas.allow.filter(Boolean),
       crawl_delay: reglas.crawlDelay,
@@ -293,7 +240,7 @@ async function probarSitio(origen, entradas) {
     const ruta = new URL(url).pathname + new URL(url).search;
     // Si el robots.txt no se pudo leer, no se sabe qué permite: se prueba
     // igual (es una única petición) y se marca para revisarlo.
-    if (robots.estado === 'leido' && !permitido(reglas, ruta)) {
+    if (robots.estado === 'leido' && !permitidoPorRobots(reglas, ruta)) {
       salida.push({ capa, url, robots: 'prohibido por robots.txt' });
       continue;
     }
@@ -330,7 +277,7 @@ export async function GET(request) {
     return Response.json({ error: 'no autorizado — usa ?key=<DEBUG_KEY>' }, { status: 401 });
   }
   const t0 = Date.now();
-  const pedidos = sp.get('p') ? sp.get('p').split(',').map((s) => s.trim()).filter((s) => FUENTES[s]) : Object.keys(FUENTES);
+  const pedidos = !sp.get('p') ? FASE1 : sp.get('p') === 'todos' ? Object.keys(FUENTES) : sp.get('p').split(',').map((s) => s.trim()).filter((s) => FUENTES[s]);
   if (pedidos.length === 0) return Response.json({ error: `p debe ser una de: ${Object.keys(FUENTES).join(', ')}` }, { status: 400 });
 
   // Agrupar por sitio (origen), para no pedir dos cosas a la vez al mismo
@@ -349,6 +296,7 @@ export async function GET(request) {
 
   return Response.json({
     probado_desde: `Vercel (${process.env.VERCEL_REGION || 'región desconocida'})`,
+    identificado_como: UA_GOVTALENTBOT,
     fecha: new Date().toISOString(),
     ms_total: Date.now() - t0,
     resumen: Object.fromEntries(resultado.map(([k, v]) => [k, v.veredicto])),
