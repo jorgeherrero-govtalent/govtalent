@@ -7,7 +7,7 @@ import { createClient } from '@/lib/supabase/client';
 import { toast } from '@/lib/toast';
 import UpgradeModal from '@/components/UpgradeModal';
 import MapaActores from '@/components/MapaActores';
-import NotasProyecto from '@/components/NotasProyecto';
+import ActividadProyecto from '@/components/ActividadProyecto';
 import AsuntosProyecto from '@/components/AsuntosProyecto';
 import Desplegable from '@/components/Desplegable';
 import BriefingProyecto from '@/components/BriefingProyecto';
@@ -468,8 +468,51 @@ function Proyectos() {
         {/* A ancho completo y encima del buscador: dentro de la fila de
             filtros estrecharía el campo de búsqueda, y ahí el texto no
             cabría sin apretujarse. */}
-        {/* El aviso «Registra tu actividad institucional» se quitó el
-            05-10-2026, con el registro y la agenda de los proyectos. */}
+        {avisoRegistro && proyectos.length > 0 && (
+          <div
+            style={{
+              ...CARD,
+              padding: '13px 16px',
+              marginBottom: 14,
+              display: 'flex',
+              alignItems: 'center',
+              gap: 12,
+            }}
+          >
+            <div
+              style={{
+                width: 30,
+                height: 30,
+                borderRadius: 8,
+                background: '#f0eefe',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                flexShrink: 0,
+              }}
+            >
+              <i className="ti ti-file-check" style={{ fontSize: 15, color: MORADO }}></i>
+            </div>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontSize: 12.5, fontWeight: 600 }}>Registra tu actividad institucional</div>
+              <div style={{ fontSize: 11.5, color: '#888', marginTop: 2, lineHeight: 1.5 }}>
+                Cada reunión, entrega o comunicación con la Administración queda registrada con su acta:
+                fecha, participantes, asuntos tratados y documentos.
+              </div>
+            </div>
+            <Link
+              href="/organizations/admin/registro"
+              style={{ fontSize: 11.5, color: MORADO, flexShrink: 0, whiteSpace: 'nowrap', textDecoration: 'none' }}
+            >
+              Cómo funciona
+            </Link>
+            <i
+              className="ti ti-x"
+              onClick={cerrarAviso}
+              style={{ fontSize: 15, color: '#b8b4ac', flexShrink: 0, cursor: 'pointer' }}
+            ></i>
+          </div>
+        )}
 
         {proyectos.length > 0 && (
           <div style={{ display: 'flex', gap: 8, marginBottom: 14, flexWrap: 'wrap' }}>
@@ -895,7 +938,7 @@ function Proyectos() {
                 </div>
               </div>
               <p style={{ fontSize: 13, color: '#555', lineHeight: 1.65 }}>
-                Se borran «{confirmarBorrado.name}», su mapa de actores, sus notas y su agenda. Los asuntos
+                Se borran «{confirmarBorrado.name}», su mapa de actores, su registro y sus documentos. Los asuntos
                 que sigues no se ven afectados. No se puede deshacer.
               </p>
               <div style={{ display: 'flex', gap: 8, marginTop: 16 }}>
@@ -920,8 +963,8 @@ function Proyectos() {
             title="Los proyectos compartidos llegan con Teams"
             message={
               tieneOrganizacion
-                ? 'Todo el equipo sobre el mismo asunto: un responsable por cada actor y menciones en las notas.'
-                : 'Todo el equipo sobre el mismo asunto: un responsable por cada actor y menciones en las notas. Lo contrata tu organización, así que habla con quien la gestione en GovTalent.'
+                ? 'Todo el equipo sobre el mismo asunto: un responsable por cada actor y registro de contactos con trazabilidad.'
+                : 'Todo el equipo sobre el mismo asunto: un responsable por cada actor y registro de contactos con trazabilidad. Lo contrata tu organización, así que habla con quien la gestione en GovTalent.'
             }
             onClose={() => setModalCompartidos(false)}
           />
@@ -951,11 +994,9 @@ function Proyectos() {
         { id: 'resumen', label: 'Resumen', cuenta: d.asuntos },
         { id: 'mapa', label: 'Mapa de actores', cuenta: d.actores },
         { id: 'briefing', label: 'Briefing', cuenta: d.briefings },
-        // Una sola entrada para las dos tarjetas: están en la misma fila,
-        // así que dos anclas llevarían al mismo sitio.
-        // Una sola entrada: las dos secciones están en la misma fila,
-        // así que dos anclas llevarían al mismo sitio.
-        { id: 'documentos', label: 'Documentos y notas' },
+        // Registro y documentos van en la misma fila, cada uno con su ancla.
+        { id: 'actividad', label: 'Registro' },
+        { id: 'documentos', label: 'Documentos' },
       ]
     : [
         // Los ids tienen que existir en ProyectoDemo: AnclasProyecto
@@ -965,11 +1006,12 @@ function Proyectos() {
         // tarjetas, 'registro' y 'agenda'— y por eso no se podía pinchar.
         { id: 'norma', label: 'La norma' },
         { id: 'mapa', label: 'Mapa de actores' },
-        { id: 'notas', label: 'Objetivo y notas' },
+        { id: 'notas', label: 'Objetivo' },
         { id: 'briefing', label: 'Briefing' },
         // Registro va suelto y con distintivo: es lo único de la demo
         // que responde a una obligación legal, y es lo que queremos que
         // se mire.
+        { id: 'registro', label: 'Registro', distintivo: 'NUEVO' },
         { id: 'documentos', label: 'Documentos' },
       ];
 
@@ -1069,7 +1111,7 @@ function Proyectos() {
             <div style={{ minWidth: 0 }}>
               <div style={{ fontSize: 12.5, fontWeight: 600 }}>Trabaja con tu equipo</div>
               <div style={{ fontSize: 11.5, color: '#555', marginTop: 2, lineHeight: 1.5 }}>
-                Responsables por actor y menciones en las notas.
+                Responsables por actor y registro de contactos.
               </div>
               {/* En pestaña nueva, como el resto de enlaces a precios: quien
                   está trabajando en un proyecto no debería perderlo por
@@ -1209,21 +1251,25 @@ function Proyectos() {
                 <BriefingProyecto projectId={abierto.id} userId={user.id} />
               </section>
 
-              {/* Agenda y registro se quitaron el 05-10-2026: las acciones
-                  del proyecto (project_actions) se ven y se gestionan en
-                  Tareas. Quedan documentos y notas. */}
+              {/* Registro y documentos (05-10-2026). La agenda se quitó: las
+                  acciones del proyecto (project_actions) se ven y se
+                  gestionan en Tareas. Las notas del proyecto también se
+                  quitaron; las del briefing de cada actor siguen. */}
               <div className="gt-paneles" style={{ marginBottom: 10 }}>
                 <div className="gt-panel-col">
-                  <div id="documentos" style={{ scrollMarginTop: 72, ...CARD, padding: '16px 18px' }}>
-                    <div style={{ ...ETIQUETA, marginBottom: 12 }}>DOCUMENTOS</div>
-                    <DocumentosProyecto projectId={abierto.id} userId={user.id} />
+                  <div id="actividad" style={{ scrollMarginTop: 72, ...CARD, padding: '16px 18px' }}>
+                    <div style={{ ...ETIQUETA, marginBottom: 4 }}>REGISTRO</div>
+                    <p style={{ fontSize: 11.5, color: '#888', margin: '0 0 12px', lineHeight: 1.5 }}>
+                      Deja constancia de cada actividad con la Administración.
+                    </p>
+                    <ActividadProyecto projectId={abierto.id} userId={user.id} />
                   </div>
                 </div>
 
                 <div className="gt-panel-col">
-                  <div style={{ ...CARD, padding: '16px 18px' }}>
-                    <div style={{ ...ETIQUETA, marginBottom: 12 }}>NOTAS</div>
-                    <NotasProyecto projectId={abierto.id} userId={user.id} />
+                  <div id="documentos" style={{ scrollMarginTop: 72, ...CARD, padding: '16px 18px' }}>
+                    <div style={{ ...ETIQUETA, marginBottom: 12 }}>DOCUMENTOS</div>
+                    <DocumentosProyecto projectId={abierto.id} userId={user.id} />
                   </div>
                 </div>
               </div>
