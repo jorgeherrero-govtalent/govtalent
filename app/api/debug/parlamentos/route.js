@@ -33,6 +33,13 @@ import { fetchGob } from '@/lib/fetchGob';
 export const dynamic = 'force-dynamic';
 export const maxDuration = 300;
 
+// Desde Frankfurt y no desde la región por defecto de Vercel (Washington).
+// En la primera prueba (04-10-2026) varios parlamentos no respondían o
+// devolvían el cortafuegos: la sospecha es que bloquean IP de fuera de
+// Europa. ?region= no se puede cambiar en caliente; para comparar con
+// otra región hay que cambiar esta línea.
+export const preferredRegion = 'fra1';
+
 const TIMEOUT_MS = 20000;
 const PAUSA_MIN_MS = 1000;
 const PAUSA_MAX_MS = 10000;
@@ -268,7 +275,8 @@ async function probarSitio(origen, entradas) {
     reglas = leido.general;
     robots = {
       estado: 'leido',
-      prohibe_para_todos: reglas.disallow.filter(Boolean).slice(0, 15),
+      prohibe_para_todos: reglas.disallow.filter(Boolean),
+      permite: reglas.allow.filter(Boolean),
       crawl_delay: reglas.crawlDelay,
       agentes_nombrados: leido.nombrados.slice(0, 20),
       vetados_del_todo: leido.vetadosDelTodo.slice(0, 20),
@@ -340,7 +348,7 @@ export async function GET(request) {
   );
 
   return Response.json({
-    probado_desde: 'Vercel',
+    probado_desde: `Vercel (${process.env.VERCEL_REGION || 'región desconocida'})`,
     fecha: new Date().toISOString(),
     ms_total: Date.now() - t0,
     resumen: Object.fromEntries(resultado.map(([k, v]) => [k, v.veredicto])),
