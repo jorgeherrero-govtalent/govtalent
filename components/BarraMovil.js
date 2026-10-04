@@ -49,6 +49,7 @@ const MODULOS = [
     icono: 'ti-building-bank',
     activo: (p) => p.startsWith('/institutions') || p.startsWith('/instituciones'),
   },
+  { href: '/tareas', etiqueta: 'Tareas', icono: 'ti-checkbox', activo: (p) => p.startsWith('/tareas') },
   { href: '/projects', etiqueta: 'Proyectos', icono: 'ti-folder', activo: (p) => p.startsWith('/projects') },
   // Empleos, oculto desde el 04-10-2026 (ver RUTAS_OCULTAS en middleware.js).
 ];
