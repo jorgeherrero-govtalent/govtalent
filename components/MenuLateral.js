@@ -26,8 +26,10 @@ const CLAVE_PLEGADO = 'govtalent.menu.plegado';
 
 // Qué rutas encienden cada entrada. Las fichas hijas también, para que el
 // menú no se apague al entrar en un expediente.
+// Las consultas públicas ya no tienen entrada propia en el menú (04-10-2026):
+// se llega desde la portada de Regulatorio, así que encienden Regulatorio.
 const enRegulatorio = (p) =>
-  (p.startsWith('/regulatorio') && !p.startsWith('/regulatorio/consultas')) ||
+  p.startsWith('/regulatorio') ||
   p.startsWith('/initiatives') ||
   p.startsWith('/procedures') ||
   p.startsWith('/congreso') ||
@@ -49,10 +51,10 @@ const SECCIONES = [
     items: [
       { href: '/regulatorio', etiqueta: 'Regulatorio', icono: 'ti-timeline-event', activo: enRegulatorio },
       {
-        href: '/regulatorio/consultas',
-        etiqueta: 'Consultas públicas',
-        icono: 'ti-message-2',
-        activo: (p) => p.startsWith('/regulatorio/consultas'),
+        href: '/parlamentos-autonomicos',
+        etiqueta: 'Parlamentos autonómicos',
+        icono: 'ti-building-community',
+        activo: (p) => p.startsWith('/parlamentos-autonomicos'),
       },
     ],
   },
