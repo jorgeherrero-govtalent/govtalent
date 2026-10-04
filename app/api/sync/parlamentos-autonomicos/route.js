@@ -51,6 +51,8 @@ export const maxDuration = 300;
 const LECTORES = { andalucia, aragon, asturias, cantabria, castillayleon, rioja, valencia };
 const FIN_LECTURA_MS = 150000;
 const FIN_TOTAL_MS = 270000;
+// Parlamentos cuyos expedientes solo aparecen al leer el boletín con IA.
+const SOLO_BOLETIN = new Set(['valencia', 'asturias']);
 // La clasificación por sectores tarda hasta ~60 s: solo se lanza si queda
 // tiempo; si no, la hace la ejecución siguiente.
 const FIN_SECTORES_MS = 200000;
@@ -129,9 +131,16 @@ async function handler(request) {
   if (!sinIA && maxIA > 0) {
     let q = db.from('ccaa_boletines').select('id, parlamento, numero, fecha, url, url_pdf, kb');
     if (sp.get('boletin')) q = q.eq('id', sp.get('boletin'));
-    else q = q.eq('estado', 'pendiente').in('parlamento', pedidos).order('fecha', { ascending: false, nullsFirst: false }).limit(maxIA);
-    const { data: pendientes } = await q;
-    for (const b of pendientes || []) {
+    else q = q.eq('estado', 'pendiente').in('parlamento', pedidos).order('fecha', { ascending: false, nullsFirst: false }).limit(200);
+    const { data: cola } = await q;
+    // Primero los parlamentos que solo existen gracias a la IA (Valencia y
+    // Asturias: sus expedientes salen del boletín, no de una ficha web);
+    // después, el resto por fecha. Sin esto, la cola de La Rioja dejaba a
+    // Valencia sin ninguna ley durante días.
+    const pendientes = [...(cola || [])]
+      .sort((x, y) => (SOLO_BOLETIN.has(y.parlamento) ? 1 : 0) - (SOLO_BOLETIN.has(x.parlamento) ? 1 : 0))
+      .slice(0, maxIA);
+    for (const b of pendientes) {
       if (Date.now() - t0 > FIN_TOTAL_MS) break;
       salida.ia.push(await leerUno(db, web, b, nuevos));
     }
