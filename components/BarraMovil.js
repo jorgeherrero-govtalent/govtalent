@@ -47,10 +47,10 @@ const MODULOS = [
     href: '/institutions',
     etiqueta: 'Instituciones',
     icono: 'ti-building-bank',
-    activo: (p) => p.startsWith('/institutions') || p.startsWith('/organizations'),
+    activo: (p) => p.startsWith('/institutions') || p.startsWith('/instituciones'),
   },
   { href: '/projects', etiqueta: 'Proyectos', icono: 'ti-folder', activo: (p) => p.startsWith('/projects') },
-  { href: '/jobs', etiqueta: 'Empleos', icono: 'ti-briefcase', activo: (p) => p.startsWith('/jobs') },
+  // Empleos, oculto desde el 04-10-2026 (ver RUTAS_OCULTAS en middleware.js).
 ];
 
 export default function BarraMovil({ alarmas = 0 }) {
