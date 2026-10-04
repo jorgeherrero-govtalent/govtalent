@@ -48,6 +48,9 @@ const QUE_AVISAMOS = {
   // El BOE ya está publicado: lo que puede cambiar es que otra norma
   // la modifique o la derogue.
   boe: 'si otra norma la modifica o la deroga',
+  // Parlamentos autonómicos: cada trámite nuevo que lee el sync (ficha
+  // del parlamento o boletín), incluidos plazos de enmiendas y ampliaciones.
+  ccaa: 'de cada nuevo trámite: plazos de enmiendas y ampliaciones, ponencia, dictamen y votación',
 };
 
 
