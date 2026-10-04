@@ -33,6 +33,7 @@ import { crearWeb } from '@/lib/ccaa/web';
 import { mismoTitulo } from '@/lib/ccaa/comun';
 import { FASE1, PARLAMENTOS, idExpediente, slugExpediente, tipoNorm, claveExpediente } from '@/lib/parlamentosAutonomicos';
 import { leerBoletin, guardarActos, MAX_PDF_KB } from '@/lib/lectorBoletines';
+import { eventosDeSeguimiento } from '@/lib/ccaa/eventos';
 import * as andalucia from '@/lib/ccaa/andalucia';
 import * as aragon from '@/lib/ccaa/aragon';
 import * as asturias from '@/lib/ccaa/asturias';
@@ -75,6 +76,8 @@ async function handler(request) {
   const db = admin();
   const web = crearWeb();
   const salida = { lectura: {}, ia: [] };
+  // Trámites nuevos de esta ejecución, para los avisos de seguimiento.
+  const nuevos = [];
 
   // -------------------------------------------------------------------
   // 1 · Lectura
@@ -110,7 +113,7 @@ async function handler(request) {
         };
         continue;
       }
-      salida.lectura[p] = await guardarLectura(db, p, r);
+      salida.lectura[p] = await guardarLectura(db, p, r, nuevos);
     }
   }
 
@@ -124,7 +127,7 @@ async function handler(request) {
     const { data: pendientes } = await q;
     for (const b of pendientes || []) {
       if (Date.now() - t0 > FIN_TOTAL_MS) break;
-      salida.ia.push(await leerUno(db, web, b));
+      salida.ia.push(await leerUno(db, web, b, nuevos));
     }
   }
 
@@ -134,6 +137,8 @@ async function handler(request) {
     salida.lectura.valencia.complementados = await complementar(db, 'valencia', salida.lectura.valencia.complementos);
     delete salida.lectura.valencia.complementos;
   }
+
+  if (!dry && nuevos.length) salida.seguimiento = await eventosDeSeguimiento(db, nuevos);
 
   return Response.json({ ok: true, dry, ms: Date.now() - t0, ...salida });
 }
@@ -165,7 +170,7 @@ function boletinesUtiles(r) {
 }
 
 /** Guarda lo leído de un parlamento. */
-async function guardarLectura(db, p, r) {
+async function guardarLectura(db, p, r, nuevos = []) {
   const res = { expedientes: r.expedientes.length, nuevos: 0, actualizados: 0, tramites_nuevos: 0, boletines_nuevos: 0, errores: [] };
   const ahora = new Date().toISOString();
 
@@ -215,9 +220,10 @@ async function guardarLectura(db, p, r) {
     if (tram.length) {
       const { data: ins, error: et } = await db.from('ccaa_tramites')
         .upsert(tram, { onConflict: 'expediente_id,tipo,fecha,plazo_hasta', ignoreDuplicates: true })
-        .select('id');
+        .select('expediente_id, tipo, fecha, descripcion, plazo_hasta');
       if (et) res.errores.push(`trámites ${e.num_expediente}: ${et.message}`.slice(0, 200));
       res.tramites_nuevos += ins?.length || 0;
+      if (ins?.length && previo) nuevos.push(...ins);
       // Si la ficha ya trae el plazo de enmiendas (Castilla y León), se
       // refleja en el expediente: el más tardío conocido.
       const plazos = tram.filter((t) => ['plazo_enmiendas', 'ampliacion_plazo'].includes(t.tipo) && t.plazo_hasta).map((t) => t.plazo_hasta).sort();
@@ -242,7 +248,7 @@ async function guardarLectura(db, p, r) {
 }
 
 /** Descarga un boletín, lo lee con IA y guarda los actos. */
-async function leerUno(db, web, b) {
+async function leerUno(db, web, b, nuevos = []) {
   const base = { id: b.id };
   try {
     const r = await web.binario(b.url_pdf || b.url);
@@ -257,6 +263,8 @@ async function leerUno(db, web, b) {
     }
     const { actos, modelo } = await leerBoletin({ parlamento: b.parlamento, numero: b.numero, fecha: b.fecha, pdf: r.buf });
     const g = await guardarActos(db, { parlamento: b.parlamento, boletin: b, actos });
+    if (g.nuevos?.length) nuevos.push(...g.nuevos);
+    delete g.nuevos;
     await db.from('ccaa_boletines').update({ estado: 'leido', modelo, n_actos: actos.length, kb, error: null, leido_at: new Date().toISOString() }).eq('id', b.id);
     return { ...base, estado: 'leido', kb, actos: actos.length, ...g };
   } catch (e) {
