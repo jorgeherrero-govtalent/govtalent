@@ -206,7 +206,7 @@ async function guardarLectura(db, p, r) {
         expediente_id: id,
         tipo: t.tipo || 'otro',
         fecha: t.fecha || null,
-        plazo_hasta: null,
+        plazo_hasta: t.plazo_hasta || null,
         descripcion: t.descripcion ? String(t.descripcion).slice(0, 500) : null,
         organo: t.organo || null,
         url: t.url || null,
@@ -218,6 +218,15 @@ async function guardarLectura(db, p, r) {
         .select('id');
       if (et) res.errores.push(`trámites ${e.num_expediente}: ${et.message}`.slice(0, 200));
       res.tramites_nuevos += ins?.length || 0;
+      // Si la ficha ya trae el plazo de enmiendas (Castilla y León), se
+      // refleja en el expediente: el más tardío conocido.
+      const plazos = tram.filter((t) => ['plazo_enmiendas', 'ampliacion_plazo'].includes(t.tipo) && t.plazo_hasta).map((t) => t.plazo_hasta).sort();
+      if (plazos.length) {
+        const { data: ex } = await db.from('ccaa_expedientes').select('plazo_enmiendas').eq('id', id).maybeSingle();
+        const ultimo = [ex?.plazo_enmiendas, ...plazos].filter(Boolean).sort().pop();
+        const n = tram.filter((t) => t.tipo === 'ampliacion_plazo').length;
+        await db.from('ccaa_expedientes').update({ plazo_enmiendas: ultimo, ...(n ? { n_ampliaciones: n } : {}) }).eq('id', id);
+      }
     }
   }
 
