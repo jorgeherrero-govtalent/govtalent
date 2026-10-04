@@ -28,6 +28,7 @@ const MODULOS = [
     // entrar en un expediente.
     activo: (p) =>
       p.startsWith('/regulatorio') ||
+      p.startsWith('/parlamentos-autonomicos') ||
       p.startsWith('/initiatives') ||
       p.startsWith('/procedures') ||
       p.startsWith('/congreso'),
