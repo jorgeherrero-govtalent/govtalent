@@ -1,66 +1,70 @@
 'use client';
 
-import { Suspense, useEffect, useMemo, useState } from 'react';
+import { Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
+import Desplegable from '@/components/Desplegable';
 import { toast } from '@/lib/toast';
 
 /**
- * Lo que sigue el usuario: la lista completa, para gestionarla.
+ * Seguimiento: lo que sigue el usuario.
  *
- * Las novedades ya no viven aquí: están en /alarmas, junto con lo que
- * encuentran las alarmas, en una sola lista. Esta página es el inventario
- * (qué sigues, agrupado por tipo, y dejar de seguir), y se llega desde
- * «Lo que sigo» en Alarmas.
+ * Diseño del 04-10-2026 (propuesta B):
+ *   1. «Con cambios»: lo que se ha movido desde la última visita, con qué
+ *      pasó (el último aviso: «Quedan 3 días de plazo», «Ha pasado a
+ *      Pleno»…).
+ *   2. Un bloque por fuente (Congreso, Parlamento Europeo…) con los tres
+ *      más recientes y «Ver los N».
+ *   3. Personas e instituciones, con foto.
+ *   4. Consejo de Ministros: los acuerdos que han hecho saltar alguna de
+ *      tus alarmas (sector_alert_matches, kind 'consejo').
  *
- * Los enlaces antiguos a ?alarmas=1 y ?ajustes=1 (correos, marcadores)
- * llevan a /alarmas.
+ * Datos: la vista my_follows (sql/69 añade foto, ultimo_tipo y
+ * ultimo_detalle). «Dejar de seguir» va en el menú «···» de cada fila.
+ *
+ * Los enlaces antiguos a ?alarmas=1 y ?ajustes=1 llevan a /alarmas.
  */
 
-// El orden es el de la lista agrupada: primero lo que se mueve, luego
-// quien decide.
-const TIPOS = {
-  ley: { label: 'Ley', plural: 'Leyes', icon: 'file-text', orden: 1 },
-  actividad: { label: 'Actividad', plural: 'Actividad parlamentaria', icon: 'messages', orden: 2 },
-  expediente: { label: 'Expediente', plural: 'Expedientes de la Comisión', icon: 'file-text', orden: 3 },
-  procedimiento: { label: 'Procedimiento', plural: 'Procedimientos del PE', icon: 'gavel', orden: 4 },
-  // Antes de lo publicado: una consulta tiene plazo abierto y el BOE ya
-  // no. Sin esta entrada caía en TIPOS.ley y se agrupaba bajo "Leyes".
-  consulta: { label: 'Consulta pública', plural: 'Consultas públicas', icon: 'message-2', orden: 5 },
-  boe: { label: 'BOE', plural: 'Publicado en el BOE', icon: 'news', orden: 6 },
-  diputado: { label: 'Diputado', plural: 'Diputados', icon: 'user', orden: 7 },
-  eurodiputado: { label: 'Eurodiputado', plural: 'Eurodiputados', icon: 'user', orden: 8 },
-  comision: { label: 'Comisión', plural: 'Comisiones del Congreso', icon: 'users', orden: 9 },
-  'comision-eu': { label: 'Comisión', plural: 'Comisiones del PE', icon: 'users', orden: 10 },
-  grupo: { label: 'Grupo', plural: 'Grupos parlamentarios', icon: 'flag', orden: 11 },
-  direccion: { label: 'Dirección General', plural: 'Direcciones generales', icon: 'building', orden: 12 },
-  cargo: { label: 'Alto cargo', plural: 'Altos cargos', icon: 'user', orden: 13 },
-};
+const MORADO = '#6d5aef';
+const GRIS = '#6f6b64';
+const LINEA = '1px solid #efeee8';
+const CARD = { background: '#fff', borderRadius: 14, boxShadow: '0 1px 2px rgba(0,0,0,.04)' };
+const POR_BLOQUE = 3;
 
-const CARD = { background: '#fff', borderRadius: 10, boxShadow: '0 1px 2px rgba(0,0,0,.04)' };
+// El orden de los bloques: primero dónde se tramita, luego lo publicado.
+const ORDEN_FUENTES = ['Congreso', 'Parlamentos autonómicos', 'Consultas públicas', 'BOE', 'Parlamento Europeo', 'Comisión Europea', 'Gobierno'];
+const PERSONAS = 'Personas e instituciones';
+const CONSEJO = 'Consejo de Ministros';
+
+// Lo que no es una persona se pinta con un icono en vez de iniciales.
+const ICONO_ACTOR = { comision: 'ti-users-group', 'comision-eu': 'ti-users-group', grupo: 'ti-flag', direccion: 'ti-building-bank' };
 
 const MESES = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
 
-function haceCuanto(iso) {
+function cuando(iso) {
   if (!iso) return null;
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return null;
-  const min = Math.floor((Date.now() - d.getTime()) / 60000);
-  if (min < 60) return 'hace un momento';
-  const horas = Math.floor(min / 60);
-  if (horas < 24) return `hace ${horas} h`;
-  const dias = Math.floor(horas / 24);
-  if (dias === 1) return 'ayer';
-  if (dias < 30) return `hace ${dias} días`;
-  return `${d.getDate()} ${MESES[d.getMonth()]}`;
+  const hoy = new Date();
+  const ayer = new Date();
+  ayer.setDate(hoy.getDate() - 1);
+  if (d.toDateString() === hoy.toDateString()) return 'Hoy';
+  if (d.toDateString() === ayer.toDateString()) return 'Ayer';
+  const anio = d.getFullYear() !== hoy.getFullYear() ? ` ${d.getFullYear()}` : '';
+  return `${d.getDate()} ${MESES[d.getMonth()]}${anio}`;
+}
+
+function iniciales(nombre) {
+  const p = String(nombre || '').trim().split(/\s+/).filter(Boolean);
+  return ((p[0]?.[0] || '') + (p[1]?.[0] || '')).toUpperCase() || '·';
 }
 
 export default function SeguimientoPage() {
   return (
     <Suspense
       fallback={
-        <div className="sec" style={{ maxWidth: 780 }}>
+        <div className="sec" style={{ maxWidth: 880 }}>
           <div className="spinner"></div>
         </div>
       }
@@ -70,74 +74,224 @@ export default function SeguimientoPage() {
   );
 }
 
+function Avatar({ item }) {
+  const [rota, setRota] = useState(false);
+  const caja = {
+    width: 40,
+    height: 40,
+    borderRadius: '50%',
+    flexShrink: 0,
+    background: '#ebe9e2',
+    color: '#5f5b54',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    fontSize: 13,
+    fontWeight: 600,
+    overflow: 'hidden',
+  };
+  if (item.foto && !rota) {
+    return (
+      <span style={caja}>
+        <img src={item.foto} alt="" onError={() => setRota(true)} style={{ width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'center 20%' }} />
+      </span>
+    );
+  }
+  const icono = ICONO_ACTOR[item.kind];
+  return (
+    <span style={caja} aria-hidden="true">
+      {icono ? <i className={`ti ${icono}`} style={{ fontSize: 18 }}></i> : iniciales(item.label)}
+    </span>
+  );
+}
+
+/** El menú «···» de una fila: por ahora, dejar de seguir. */
+function MenuFila({ onDejar }) {
+  const [abierto, setAbierto] = useState(false);
+  const caja = useRef(null);
+  useEffect(() => {
+    if (!abierto) return;
+    const fuera = (e) => {
+      if (!caja.current?.contains(e.target)) setAbierto(false);
+    };
+    const tecla = (e) => {
+      if (e.key === 'Escape') setAbierto(false);
+    };
+    window.addEventListener('mousedown', fuera);
+    window.addEventListener('keydown', tecla);
+    return () => {
+      window.removeEventListener('mousedown', fuera);
+      window.removeEventListener('keydown', tecla);
+    };
+  }, [abierto]);
+  return (
+    <div ref={caja} style={{ position: 'relative', flexShrink: 0 }}>
+      <button
+        type="button"
+        aria-label="Más acciones"
+        aria-haspopup="menu"
+        aria-expanded={abierto}
+        onClick={() => setAbierto((v) => !v)}
+        style={{ width: 32, height: 32, borderRadius: 7, border: 'none', background: abierto ? '#f4f3ee' : 'transparent', color: GRIS, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+      >
+        <i className="ti ti-dots" style={{ fontSize: 16 }} aria-hidden="true"></i>
+      </button>
+      {abierto && (
+        <div role="menu" style={{ position: 'absolute', right: 0, top: 36, background: '#fff', border: '.5px solid #e0dfd8', borderRadius: 10, boxShadow: '0 8px 24px rgba(0,0,0,.10)', padding: 5, zIndex: 20, minWidth: 170 }}>
+          <button
+            type="button"
+            role="menuitem"
+            onClick={() => {
+              setAbierto(false);
+              onDejar();
+            }}
+            style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', background: 'none', border: 'none', borderRadius: 7, padding: '8px 10px', font: 'inherit', fontSize: 13, color: '#1a1a18', textAlign: 'left' }}
+            onMouseEnter={(e) => (e.currentTarget.style.background = '#f5f4f1')}
+            onMouseLeave={(e) => (e.currentTarget.style.background = 'none')}
+          >
+            <i className="ti ti-bell-off" style={{ fontSize: 15, color: GRIS }} aria-hidden="true"></i>
+            Dejar de seguir
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function Fila({ item, conCambio, conFoto, onDejar }) {
+  const sub = [item.estado, item.activo === false ? 'concluido' : null].filter(Boolean).join(' · ');
+  const fecha = cuando(item.ultima_novedad);
+  const nueva = item.n_novedades > 0;
+  const contenido = (
+    <>
+      <span style={{ display: 'block', fontWeight: nueva ? 600 : 500, lineHeight: 1.4 }}>{item.label}</span>
+      {conCambio && item.ultimo_detalle && (
+        <span style={{ display: 'block', fontSize: 12.5, color: '#3a3a36', marginTop: 3 }}>{item.ultimo_detalle}</span>
+      )}
+      {(sub || conCambio) && (
+        <span style={{ display: 'block', fontSize: 12, color: GRIS, marginTop: 3 }}>
+          {conCambio ? [item.fuente, sub].filter(Boolean).join(' · ') : sub}
+        </span>
+      )}
+    </>
+  );
+  return (
+    <div style={{ display: 'flex', gap: 14, padding: '12px 18px', borderTop: LINEA, alignItems: conFoto ? 'center' : 'flex-start' }}>
+      {conFoto ? (
+        <Avatar item={item} />
+      ) : (
+        <span
+          aria-label={nueva ? 'Con novedades' : undefined}
+          style={{ width: 8, height: 8, borderRadius: '50%', background: nueva ? MORADO : 'transparent', marginTop: 7, flexShrink: 0 }}
+        ></span>
+      )}
+      {item.ruta ? (
+        <Link href={item.ruta} style={{ flex: 1, minWidth: 0, color: '#1a1a18', textDecoration: 'none' }}>
+          {contenido}
+        </Link>
+      ) : (
+        <div style={{ flex: 1, minWidth: 0 }}>{contenido}</div>
+      )}
+      {fecha && (
+        <span style={{ fontSize: 12.5, color: nueva ? '#1a1a18' : GRIS, whiteSpace: 'nowrap', paddingTop: conFoto ? 0 : 2 }}>{fecha}</span>
+      )}
+      <MenuFila onDejar={onDejar} />
+    </div>
+  );
+}
+
+function Bloque({ titulo, derecha, children }) {
+  return (
+    <section style={CARD}>
+      <h2 style={{ margin: 0, padding: '14px 18px 10px', fontSize: 13, fontWeight: 600, display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 10 }}>
+        {titulo}
+        {derecha != null && <span style={{ fontSize: 12, fontWeight: 400, color: GRIS }}>{derecha}</span>}
+      </h2>
+      {children}
+    </section>
+  );
+}
+
+const VER_MAS = { display: 'block', width: '100%', textAlign: 'left', padding: '11px 18px', border: 'none', borderTop: LINEA, background: 'none', font: 'inherit', fontSize: 12.5, color: '#4b3bc4', cursor: 'pointer', borderRadius: '0 0 14px 14px' };
+
 function Seguimiento() {
   const supabase = createClient();
-  // Los correos antiguos enlazan a ?ajustes=1 y los de las alarmas a
-  // ?alarmas=1: los dos llevan ahora a /alarmas.
   const sp = useSearchParams();
+  const router = useRouter();
 
   const [items, setItems] = useState(null);
-  const [filtro, setFiltro] = useState('todo');
+  const [consejo, setConsejo] = useState([]);
+  const [soloNovedades, setSoloNovedades] = useState(false);
+  const [fuente, setFuente] = useState(null);
+  const [abiertos, setAbiertos] = useState(new Set());
   const [sinSesion, setSinSesion] = useState(false);
 
-  const router = useRouter();
   useEffect(() => {
     if (sp?.get('ajustes') === '1' || sp?.get('alarmas') === '1') router.replace('/alarmas');
   }, [sp, router]);
 
   useEffect(() => {
-    let cancelled = false;
+    let cancelado = false;
     (async () => {
       const { data: auth } = await supabase.auth.getUser();
       const uid = auth?.user?.id || null;
       if (!uid) {
-        if (!cancelled) {
+        if (!cancelado) {
           setSinSesion(true);
           setItems([]);
         }
         return;
       }
-      const { data: f } = await supabase
-        .from('my_follows')
-        .select('*')
-        .order('ultima_novedad', { ascending: false, nullsFirst: false });
-      if (cancelled) return;
+      const [{ data: f }, { data: m }] = await Promise.all([
+        supabase.from('my_follows').select('*').eq('user_id', uid).order('ultima_novedad', { ascending: false, nullsFirst: false }),
+        supabase
+          .from('sector_alert_matches')
+          .select('id, alert_id, ref_id, titulo, ruta, created_at')
+          .eq('kind', 'consejo')
+          .eq('descartado', false)
+          .order('created_at', { ascending: false })
+          .limit(20),
+      ]);
+      // Del acuerdo, el ministerio y la fecha del Consejo; de la alarma, el
+      // nombre, para decir por qué sale.
+      let acuerdos = [];
+      let alarmas = [];
+      const ids = [...new Set((m || []).map((x) => x.ref_id))];
+      const alertIds = [...new Set((m || []).map((x) => x.alert_id).filter(Boolean))];
+      if (ids.length || alertIds.length) {
+        const [{ data: a }, { data: al }] = await Promise.all([
+          ids.length ? supabase.from('consejo_acuerdos').select('id, titulo, ministerio, fecha_consejo').in('id', ids) : Promise.resolve({ data: [] }),
+          alertIds.length ? supabase.from('sector_alerts').select('id, nombre').in('id', alertIds) : Promise.resolve({ data: [] }),
+        ]);
+        acuerdos = a || [];
+        alarmas = al || [];
+      }
+      const porId = new Map(acuerdos.map((a) => [a.id, a]));
+      const nombreAlarma = new Map(alarmas.map((a) => [a.id, a.nombre]));
+      const vistos = new Set();
+      const lista = [];
+      for (const x of m || []) {
+        if (vistos.has(x.ref_id)) continue;
+        vistos.add(x.ref_id);
+        const a = porId.get(x.ref_id);
+        lista.push({
+          id: x.ref_id,
+          titulo: x.titulo || a?.titulo || 'Acuerdo del Consejo de Ministros',
+          ministerio: a?.ministerio || null,
+          alarma: nombreAlarma.get(x.alert_id) || null,
+          fecha: a?.fecha_consejo || x.created_at,
+          ruta: x.ruta || `/regulatorio/consejo/${encodeURIComponent(x.ref_id)}`,
+        });
+      }
+      lista.sort((p, q) => String(q.fecha).localeCompare(String(p.fecha)));
+      if (cancelado) return;
       setItems(f || []);
+      setConsejo(lista);
     })();
     return () => {
-      cancelled = true;
+      cancelado = true;
     };
-  }, []);
-
-  const nuevas = useMemo(() => (items || []).filter((i) => i.n_novedades > 0), [items]);
-
-  const filtrados = useMemo(() => {
-    let l = items || [];
-    if (filtro === 'novedades') l = l.filter((i) => i.n_novedades > 0);
-    else if (filtro === 'normativa') l = l.filter((i) => !i.es_actor);
-    else if (filtro === 'actores') l = l.filter((i) => i.es_actor);
-    else if (filtro && filtro !== 'todo') l = l.filter((i) => i.fuente === filtro);
-    return l;
-  }, [items, filtro]);
-
-  // Agrupada por tipo: veinte elementos en una lista plana obligan a
-  // desplazarse mucho; agrupados se ven todos de un vistazo.
-  const grupos = useMemo(() => {
-    const m = new Map();
-    for (const i of filtrados) {
-      if (!m.has(i.kind)) m.set(i.kind, []);
-      m.get(i.kind).push(i);
-    }
-    return [...m.entries()].sort((a, b) => (TIPOS[a[0]]?.orden || 99) - (TIPOS[b[0]]?.orden || 99));
-  }, [filtrados]);
-
-  // Las fuentes que el usuario tiene de verdad: un filtro que no
-  // devuelve nada es peor que no tenerlo.
-  const fuentes = useMemo(() => {
-    const c = new Map();
-    for (const i of items || []) if (i.fuente) c.set(i.fuente, (c.get(i.fuente) || 0) + 1);
-    return [...c.entries()].sort((a, b) => b[1] - a[1]);
-  }, [items]);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   async function dejarDeSeguir(item) {
     setItems((prev) => (prev || []).filter((i) => i.id !== item.id));
@@ -150,20 +304,41 @@ function Seguimiento() {
     toast.info('Has dejado de seguirlo');
   }
 
-  const chip = (activo) => ({
-    padding: '6px 12px',
-    borderRadius: 7,
-    fontSize: 12.5,
-    cursor: 'pointer',
-    border: 'none',
-    background: activo ? '#f0eefe' : 'transparent',
-    color: activo ? '#6d5aef' : '#8b8780',
-    whiteSpace: 'nowrap',
-  });
+  const todos = items || [];
+  const conCambios = useMemo(
+    () => todos.filter((i) => i.n_novedades > 0).sort((a, b) => String(b.ultima_novedad).localeCompare(String(a.ultima_novedad))),
+    [todos]
+  );
+
+  // Bloques: uno por fuente para lo que se tramita, uno para personas e
+  // instituciones y el del Consejo.
+  const bloques = useMemo(() => {
+    const m = new Map();
+    for (const i of todos) {
+      const k = i.es_actor ? PERSONAS : i.fuente || 'Otros';
+      if (!m.has(k)) m.set(k, []);
+      m.get(k).push(i);
+    }
+    const orden = (k) => {
+      if (k === PERSONAS) return 100;
+      const n = ORDEN_FUENTES.indexOf(k);
+      return n === -1 ? 50 : n;
+    };
+    return [...m.entries()].sort((a, b) => orden(a[0]) - orden(b[0]));
+  }, [todos]);
+
+  const opcionesFuente = useMemo(() => {
+    const l = bloques.map(([k, v]) => ({ v: k, label: `${k} (${v.length})` }));
+    l.push({ v: CONSEJO, label: CONSEJO });
+    return l;
+  }, [bloques]);
+
+  const ver = (k) => !fuente || fuente === k;
+  const pasaFiltro = (i) => !soloNovedades || i.n_novedades > 0;
 
   if (sinSesion) {
     return (
-      <div className="sec" style={{ maxWidth: 780 }}>
+      <div className="sec" style={{ maxWidth: 880 }}>
         <div className="card">
           <div className="empty-state">
             <i className="ti ti-bell"></i>
@@ -174,219 +349,141 @@ function Seguimiento() {
     );
   }
 
+  const segmento = (on) => ({
+    font: 'inherit',
+    fontSize: 12.5,
+    padding: '6px 12px',
+    borderRadius: 7,
+    border: 'none',
+    cursor: 'pointer',
+    background: on ? '#fff' : 'transparent',
+    boxShadow: on ? '0 1px 2px rgba(0,0,0,.08)' : 'none',
+    color: '#1a1a18',
+    whiteSpace: 'nowrap',
+  });
+
   return (
-    <div className="sec" style={{ maxWidth: 780 }}>
-      <div style={{ marginBottom: 20 }}>
-        <h1 style={{ fontSize: 20, fontWeight: 600, margin: 0, letterSpacing: '-.2px' }}>Lo que sigo</h1>
-        <p style={{ fontSize: 12.5, color: '#8b8780', margin: '5px 0 0' }}>
-          {items === null
-            ? '—'
-            : items.length === 0
-              ? 'Aún no sigues nada.'
-              : `${items.length} ${items.length === 1 ? 'asunto' : 'asuntos'}. Lo que cambia en ellos te lo contamos en Alarmas.`}
-        </p>
+    <div className="sec" style={{ maxWidth: 880 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', gap: 16, flexWrap: 'wrap', marginBottom: 16 }}>
+        <div>
+          <h1 style={{ fontSize: 21, fontWeight: 600, margin: 0, letterSpacing: '-.3px' }}>Seguimiento</h1>
+          <p style={{ fontSize: 13, color: GRIS, margin: '4px 0 0' }}>
+            {items === null
+              ? '—'
+              : todos.length === 0
+                ? 'Aún no sigues nada.'
+                : `${todos.length} ${todos.length === 1 ? 'asunto' : 'asuntos'}${
+                    conCambios.length ? ` · ${conCambios.length} con cambios desde tu última visita` : ''
+                  }`}
+          </p>
+        </div>
+        {todos.length > 0 && (
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+            <div role="group" aria-label="Ver" style={{ display: 'flex', background: '#e6e4dc', borderRadius: 9, padding: 3 }}>
+              <button type="button" aria-pressed={!soloNovedades} onClick={() => setSoloNovedades(false)} style={segmento(!soloNovedades)}>
+                Todo
+              </button>
+              <button type="button" aria-pressed={soloNovedades} onClick={() => setSoloNovedades(true)} style={segmento(soloNovedades)}>
+                Con novedades{conCambios.length ? ` · ${conCambios.length}` : ''}
+              </button>
+            </div>
+            <div style={{ width: 230 }}>
+              <Desplegable value={fuente} onChange={setFuente} opciones={opcionesFuente} vacio="Todas las fuentes" placeholder="Todas las fuentes" />
+            </div>
+          </div>
+        )}
       </div>
 
       {items === null ? (
         <div className="spinner"></div>
-      ) : items.length === 0 ? (
-        <div style={{ background: '#fff', borderRadius: 10, padding: 22, boxShadow: '0 1px 2px rgba(0,0,0,.04)' }}>
-          <div style={{ display: 'flex', gap: 14, alignItems: 'flex-start' }}>
-            <span
-              style={{
-                width: 36,
-                height: 36,
-                borderRadius: 9,
-                background: '#f0eefe',
-                color: '#6d5aef',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                flexShrink: 0,
-              }}
-            >
-              <i className="ti ti-bell" style={{ fontSize: 17 }}></i>
-            </span>
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ fontSize: 14, fontWeight: 500 }}>Sigue lo que te importa</div>
-              <div style={{ fontSize: 12.5, color: '#8b8780', lineHeight: 1.6, margin: '6px 0 15px' }}>
-                Pulsa <span style={{ color: '#6d5aef' }}>Seguir</span> en cualquier ley, comisión o diputado y te
-                avisaremos cuando cambie de fase, se designen ponentes o se acerque un plazo.
-              </div>
-              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                <Link
-                  href="/congreso"
-                  style={{
-                    fontSize: 12.5,
-                    color: '#6d5aef',
-                    background: '#f0eefe',
-                    padding: '7px 13px',
-                    borderRadius: 7,
-                    textDecoration: 'none',
-                  }}
-                >
-                  Ver leyes en trámite
-                </Link>
-                <Link
-                  href="/institutions/comisiones"
-                  style={{
-                    fontSize: 12.5,
-                    color: '#57534e',
-                    background: '#f5f4f1',
-                    padding: '7px 13px',
-                    borderRadius: 7,
-                    textDecoration: 'none',
-                  }}
-                >
-                  Explorar comisiones
-                </Link>
-              </div>
-            </div>
+      ) : todos.length === 0 ? (
+        <div style={{ ...CARD, padding: 22 }}>
+          <div style={{ fontSize: 14, fontWeight: 600 }}>Sigue lo que te importa</div>
+          <div style={{ fontSize: 13, color: GRIS, lineHeight: 1.6, margin: '6px 0 14px' }}>
+            Pulsa <span style={{ color: MORADO }}>Seguir</span> en cualquier ley, comisión o persona y te avisaremos cuando cambie de fase, se
+            designen ponentes o se acerque un plazo.
+          </div>
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+            <Link href="/congreso" style={{ fontSize: 13, color: '#4b3bc4', background: '#f0eefe', padding: '8px 13px', borderRadius: 8, textDecoration: 'none' }}>
+              Ver leyes en trámite
+            </Link>
+            <Link href="/institutions" style={{ fontSize: 13, color: '#3a3a36', background: '#f5f4f1', padding: '8px 13px', borderRadius: 8, textDecoration: 'none' }}>
+              Explorar instituciones
+            </Link>
           </div>
         </div>
       ) : (
-        <>
-          <div style={{ display: 'flex', gap: 2, marginBottom: 14, flexWrap: 'wrap', alignItems: 'center' }}>
-            <button type="button" onClick={() => setFiltro('todo')} style={chip(filtro === 'todo')}>
-              Todo ({items.length})
-            </button>
-            {nuevas.length > 0 && (
-              <button type="button" onClick={() => setFiltro('novedades')} style={chip(filtro === 'novedades')}>
-                Con novedades
-              </button>
-            )}
-            <button type="button" onClick={() => setFiltro('normativa')} style={chip(filtro === 'normativa')}>
-              Normativa
-            </button>
-            <button type="button" onClick={() => setFiltro('actores')} style={chip(filtro === 'actores')}>
-              Actores
-            </button>
-            {fuentes.length > 1 && <span style={{ width: 1, height: 18, background: '#f2f0ec', margin: '0 6px' }}></span>}
-            {fuentes.length > 1 &&
-              fuentes.map(([f, n]) => (
-                <button key={f} type="button" onClick={() => setFiltro(f)} style={chip(filtro === f)}>
-                  {f} ({n})
-                </button>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+          {!fuente && conCambios.length > 0 && (
+            <Bloque titulo="Con cambios" derecha={`${conCambios.length}`}>
+              {conCambios.map((i) => (
+                <Fila key={i.id} item={i} conCambio conFoto={i.es_actor} onDejar={() => dejarDeSeguir(i)} />
               ))}
-          </div>
-
-          {filtrados.length === 0 ? (
-            <div style={{ ...CARD, padding: 22, fontSize: 12.5, color: '#8b8780', textAlign: 'center' }}>
-              Nada con este filtro.
-            </div>
-          ) : (
-            grupos.map(([kind, lista]) => {
-              const t = TIPOS[kind] || TIPOS.ley;
-              const nuevasAqui = lista.filter((i) => i.n_novedades > 0).length;
-              return (
-                <div key={kind} style={{ marginBottom: 14 }}>
-                  <div
-                    style={{
-                      display: 'flex',
-                      alignItems: 'baseline',
-                      gap: 9,
-                      marginBottom: 8,
-                      paddingLeft: 2,
-                    }}
-                  >
-                    <span style={{ fontSize: 11, color: '#a8a49c', letterSpacing: '.4px' }}>
-                      {(t.plural || t.label).toUpperCase()}
-                    </span>
-                    <span style={{ fontSize: 11, color: '#c4c0b8' }}>{lista.length}</span>
-                    {nuevasAqui > 0 && (
-                      <span style={{ fontSize: 10.5, color: '#6d5aef' }}>
-                        {nuevasAqui} con novedades
-                      </span>
-                    )}
-                  </div>
-
-                  <div style={{ ...CARD, overflow: 'hidden' }}>
-                    {lista.map((i, idx) => (
-                      <div
-                        key={i.id}
-                        style={{
-                          display: 'flex',
-                          gap: 12,
-                          padding: '12px 16px',
-                          alignItems: 'center',
-                          borderTop: idx === 0 ? 'none' : '.5px solid #f2f0ec',
-                        }}
-                      >
-                        {i.ruta ? (
-                          <Link
-                            href={i.ruta}
-                            style={{
-                              display: 'flex',
-                              gap: 12,
-                              alignItems: 'center',
-                              flex: 1,
-                              minWidth: 0,
-                              textDecoration: 'none',
-                              color: 'inherit',
-                            }}
-                          >
-                            <div style={{ flex: 1, minWidth: 0 }}>
-                              <div style={{ fontSize: 13, lineHeight: 1.4, letterSpacing: '-.1px' }}>{i.label}</div>
-                              {/* El contexto: el grupo de un diputado, la
-                                  comisión de una ley, la cámara de una
-                                  comisión. Sin esto hay que abrir para saber
-                                  qué es. */}
-                              <div style={{ fontSize: 11, color: '#a8a49c', marginTop: 3 }}>
-                                {[i.estado, i.activo === false ? 'concluido' : null].filter(Boolean).join(' · ')}
-                              </div>
-                            </div>
-                          </Link>
-                        ) : (
-                          <div style={{ flex: 1, minWidth: 0 }}>
-                            <div style={{ fontSize: 13, lineHeight: 1.4 }}>{i.label}</div>
-                            <div style={{ fontSize: 11, color: '#a8a49c', marginTop: 3 }}>{i.estado}</div>
-                          </div>
-                        )}
-
-                        {i.n_novedades > 0 && (
-                          <span
-                            style={{
-                              fontSize: 11,
-                              background: '#f0eefe',
-                              color: '#6d5aef',
-                              padding: '3px 8px',
-                              borderRadius: 10,
-                              whiteSpace: 'nowrap',
-                              flexShrink: 0,
-                            }}
-                          >
-                            {i.n_novedades}
-                          </span>
-                        )}
-
-                        <button
-                          type="button"
-                          onClick={() => dejarDeSeguir(i)}
-                          aria-label="Dejar de seguir"
-                          title="Dejar de seguir"
-                          style={{
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            padding: 5,
-                            borderRadius: 6,
-                            border: 'none',
-                            background: 'transparent',
-                            color: '#c4c0b8',
-                            cursor: 'pointer',
-                            flexShrink: 0,
-                          }}
-                        >
-                          <i className="ti ti-bell-off" style={{ fontSize: 15 }}></i>
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              );
-            })
+            </Bloque>
           )}
-        </>
+
+          {bloques.map(([k, lista]) => {
+            if (!ver(k)) return null;
+            // Lo que ya sale arriba, en «Con cambios», no se repite aquí
+            // salvo que se esté mirando una sola fuente.
+            const base = lista.filter(pasaFiltro).filter((i) => fuente || soloNovedades || !(i.n_novedades > 0));
+            if (!base.length) return null;
+            const abierto = abiertos.has(k) || !!fuente;
+            const visibles = abierto ? base : base.slice(0, POR_BLOQUE);
+            const esPersonas = k === PERSONAS;
+            return (
+              <Bloque key={k} titulo={k} derecha={lista.length}>
+                {visibles.map((i) => (
+                  <Fila key={i.id} item={i} conCambio={esPersonas || soloNovedades} conFoto={esPersonas} onDejar={() => dejarDeSeguir(i)} />
+                ))}
+                {base.length > POR_BLOQUE && !fuente && (
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setAbiertos((s) => {
+                        const n = new Set(s);
+                        if (n.has(k)) n.delete(k);
+                        else n.add(k);
+                        return n;
+                      })
+                    }
+                    style={VER_MAS}
+                  >
+                    {abierto ? 'Ver menos' : `Ver ${base.length - POR_BLOQUE} más`}
+                  </button>
+                )}
+              </Bloque>
+            );
+          })}
+
+          {ver(CONSEJO) && !soloNovedades && (
+            <Bloque titulo={CONSEJO} derecha="lo que te afecta">
+              {consejo.length === 0 ? (
+                <div style={{ padding: '12px 18px 16px', borderTop: LINEA, fontSize: 13, color: GRIS }}>
+                  Ningún acuerdo reciente coincide con tus alarmas.{' '}
+                  <Link href="/alarmas" style={{ color: '#4b3bc4', textDecoration: 'none' }}>
+                    Revisar alarmas
+                  </Link>
+                </div>
+              ) : (
+                (fuente === CONSEJO ? consejo : consejo.slice(0, 5)).map((a) => (
+                  <div key={a.id} style={{ display: 'flex', gap: 14, padding: '12px 18px', borderTop: LINEA, alignItems: 'flex-start' }}>
+                    <Link href={a.ruta} style={{ flex: 1, minWidth: 0, color: '#1a1a18', textDecoration: 'none' }}>
+                      <span style={{ display: 'block', fontWeight: 500, lineHeight: 1.4 }}>{a.titulo}</span>
+                      <span style={{ display: 'block', fontSize: 12, color: GRIS, marginTop: 3 }}>
+                        {[a.ministerio, a.alarma ? `Coincide con tu alarma «${a.alarma}»` : null].filter(Boolean).join(' · ')}
+                      </span>
+                    </Link>
+                    <span style={{ fontSize: 12.5, color: GRIS, whiteSpace: 'nowrap', paddingTop: 2 }}>{cuando(a.fecha)}</span>
+                  </div>
+                ))
+              )}
+              <Link href="/regulatorio" style={{ ...VER_MAS, textDecoration: 'none' }}>
+                Ver todas las referencias del Consejo en Regulatorio
+              </Link>
+            </Bloque>
+          )}
+        </div>
       )}
     </div>
   );
