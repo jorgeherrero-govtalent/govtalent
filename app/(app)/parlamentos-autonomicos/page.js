@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
+import MultiSelectFilter from '@/components/MultiSelectFilter';
 import { FASE1 } from '@/lib/parlamentosAutonomicos';
 import {
   VERDE, MORADO, GRIS, CCAA, PROXIMAMENTE, FASES, NOMBRE_FASE, ETIQUETA_TIPO,
@@ -15,11 +16,17 @@ import {
  * Diseño elegido el 04-10-2026 (opción C con la tabla de la A):
  *   1. Franja de presupuestos del año que se tramita, por comunidad.
  *   2. «Esta semana»: los últimos movimientos.
- *   3. Filtros por parlamento y dos vistas: Tabla (por defecto) y Por fase.
+ *   3. Filtros por parlamento y por sector, y dos vistas: Tabla (por
+ *      defecto, paginada como el Congreso) y Por fase.
+ *
+ * Los sectores son los del directorio del BOE; los asigna la IA a cada
+ * expediente desde el sync (lib/ccaa/sectores.js, sql/66).
  *
  * Los datos salen de las vistas ccaa_resumen y ccaa_movimientos (sql/65),
  * que llena el sync de parlamentos autonómicos tres veces al día.
  */
+
+const PAGE_SIZES = [20, 50, 100, 200];
 
 const CARD = { background: '#fff', borderRadius: 16, boxShadow: '0 1px 2px rgba(0,0,0,.04)' };
 const CHIP = (on) => ({
@@ -77,6 +84,29 @@ export default function ParlamentosAutonomicosPage() {
   const [vista, setVista] = useState('tabla');
   const [conCerradas, setConCerradas] = useState(false);
   const [busca, setBusca] = useState('');
+  const [sectorFilter, setSectorFilter] = useState(new Set());
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(20);
+
+  // Filas por página: la misma preferencia que el resto de listados.
+  useEffect(() => {
+    try {
+      const n = parseInt(window.localStorage.getItem('gt_page_size') || '20', 10);
+      if (PAGE_SIZES.includes(n)) setPageSize(n);
+    } catch {
+      // Sin almacenamiento: se queda en 20.
+    }
+  }, []);
+
+  function changePageSize(n) {
+    setPageSize(n);
+    setPage(1);
+    try {
+      window.localStorage.setItem('gt_page_size', String(n));
+    } catch {
+      // Sin almacenamiento: vale solo para esta visita.
+    }
+  }
 
   useEffect(() => {
     const hace7 = new Date(Date.now() - 7 * 86400000).toISOString().slice(0, 10);
@@ -109,9 +139,43 @@ export default function ParlamentosAutonomicosPage() {
       (e) =>
         (conCerradas || !e.is_closed) &&
         (parlamento === 'todos' || e.parlamento === parlamento) &&
+        // Varios sectores a la vez suman: energía o medio ambiente.
+        (sectorFilter.size === 0 || (e.sectores || []).some((s) => sectorFilter.has(s))) &&
         (!q || `${e.titulo} ${e.titulo_es || ''} ${e.num_expediente}`.toLowerCase().includes(q)),
     );
-  }, [expedientes, parlamento, conCerradas, busca]);
+  }, [expedientes, parlamento, conCerradas, busca, sectorFilter]);
+
+  // Sectores con el recuento de lo que se ve con el resto de filtros, para
+  // que el número diga de antemano cuánto vas a encontrar. Solo aparecen
+  // los que tienen alguna ley.
+  const sectorOptions = useMemo(() => {
+    const n = new Map();
+    for (const e of expedientes || []) {
+      if (!conCerradas && e.is_closed) continue;
+      if (parlamento !== 'todos' && e.parlamento !== parlamento) continue;
+      for (const s of e.sectores || []) n.set(s, (n.get(s) || 0) + 1);
+    }
+    for (const s of sectorFilter) if (!n.has(s)) n.set(s, 0);
+    return [...n.entries()]
+      .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0], 'es'))
+      .map(([s, c]) => ({ value: s, label: `${s} (${c})` }));
+  }, [expedientes, conCerradas, parlamento, sectorFilter]);
+
+  useEffect(() => {
+    setPage(1);
+  }, [parlamento, conCerradas, busca, sectorFilter]);
+
+  const totalPages = Math.max(1, Math.ceil(visibles.length / pageSize));
+  const current = Math.min(page, totalPages);
+  const pagina = visibles.slice((current - 1) * pageSize, current * pageSize);
+  const from = visibles.length ? (current - 1) * pageSize + 1 : 0;
+  const to = Math.min(current * pageSize, visibles.length);
+  const pageNumbers = useMemo(() => {
+    if (totalPages <= 5) return Array.from({ length: totalPages }, (_, i) => i + 1);
+    if (current <= 3) return [1, 2, 3, '…', totalPages];
+    if (current >= totalPages - 2) return [1, '…', totalPages - 2, totalPages - 1, totalPages];
+    return [1, '…', current, '…', totalPages];
+  }, [current, totalPages]);
 
   // Presupuestos del año en tramitación: registrados o no, por comunidad.
   const anio = anioPresupuestos();
@@ -201,7 +265,10 @@ export default function ParlamentosAutonomicosPage() {
             </button>
           ))}
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+          {sectorOptions.length > 0 && (
+            <MultiSelectFilter label="Sector" values={sectorOptions} selected={sectorFilter} onApply={setSectorFilter} />
+          )}
           <label style={{ fontSize: 12.5, color: GRIS, display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer' }}>
             <input type="checkbox" checked={conCerradas} onChange={(ev) => setConCerradas(ev.target.checked)} />
             Incluir cerradas
@@ -237,7 +304,17 @@ export default function ParlamentosAutonomicosPage() {
       {expedientes === null ? (
         <div style={{ ...CARD, padding: 24, fontSize: 13, color: GRIS }}>Cargando…</div>
       ) : visibles.length === 0 ? (
-        <div style={{ ...CARD, padding: 24, fontSize: 13, color: GRIS }}>No hay leyes que coincidan.</div>
+        <div style={{ ...CARD, padding: 24, fontSize: 13, color: GRIS }}>
+          No hay leyes que coincidan.
+          {sectorFilter.size > 0 && (
+            <>
+              {' '}
+              <button type="button" onClick={() => setSectorFilter(new Set())} style={{ font: 'inherit', fontSize: 13, color: MORADO, background: 'none', border: 'none', padding: 0, cursor: 'pointer' }}>
+                Quitar el filtro de sector
+              </button>
+            </>
+          )}
+        </div>
       ) : vista === 'tabla' ? (
         <div style={{ ...CARD, overflowX: 'auto' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13, minWidth: 820 }}>
@@ -250,7 +327,7 @@ export default function ParlamentosAutonomicosPage() {
               </tr>
             </thead>
             <tbody>
-              {visibles.map((e) => (
+              {pagina.map((e) => (
                 <tr key={e.id} style={{ borderTop: '1px solid #efeee8' }}>
                   <td style={{ padding: '14px 20px', color: GRIS, whiteSpace: 'nowrap', verticalAlign: 'top' }}>{CCAA[e.parlamento]}</td>
                   <td style={{ padding: '14px 12px', verticalAlign: 'top' }}>
@@ -258,6 +335,9 @@ export default function ParlamentosAutonomicosPage() {
                       {tituloLegible(e.titulo_es || e.titulo)}
                     </Link>
                     <Subtitulo e={e} />
+                    {e.sectores?.length > 0 && (
+                      <div style={{ fontSize: 11.5, color: GRIS, marginTop: 3 }}>{e.sectores.join(' · ')}</div>
+                    )}
                   </td>
                   <td style={{ padding: '14px 12px', verticalAlign: 'top' }}>
                     <Fase e={e} />
@@ -270,6 +350,65 @@ export default function ParlamentosAutonomicosPage() {
               ))}
             </tbody>
           </table>
+
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '11px 16px', background: '#fcfbf8', borderTop: '1px solid #efeee8', flexWrap: 'wrap', gap: 10, minWidth: 820 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 9 }}>
+              <span style={{ fontSize: 11.5, color: '#888' }}>Filas</span>
+              <div style={{ display: 'flex', gap: 2, background: '#fff', border: '.5px solid #e0dfd8', borderRadius: 7, padding: 2 }}>
+                {PAGE_SIZES.map((n) => (
+                  <button
+                    key={n}
+                    type="button"
+                    onClick={() => changePageSize(n)}
+                    style={{ font: 'inherit', fontSize: 11, padding: '3px 8px', borderRadius: 5, border: 'none', cursor: 'pointer', background: pageSize === n ? '#6d5aef' : 'transparent', color: pageSize === n ? '#fff' : '#666' }}
+                  >
+                    {n}
+                  </button>
+                ))}
+              </div>
+              <span style={{ fontSize: 11.5, color: '#888' }}>
+                {from}–{to} de {visibles.length}
+              </span>
+            </div>
+
+            {totalPages > 1 && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                <button
+                  type="button"
+                  aria-label="Página anterior"
+                  disabled={current === 1}
+                  onClick={() => setPage(Math.max(1, current - 1))}
+                  style={{ font: 'inherit', background: 'transparent', border: '.5px solid #e0dfd8', borderRadius: 6, padding: '4px 8px', cursor: current === 1 ? 'default' : 'pointer', color: current === 1 ? '#ccc' : '#555' }}
+                >
+                  <i className="ti ti-chevron-left" style={{ fontSize: 13 }}></i>
+                </button>
+                {pageNumbers.map((n, idx) =>
+                  n === '…' ? (
+                    <span key={`e${idx}`} style={{ fontSize: 11.5, color: '#aaa', padding: '0 3px' }}>…</span>
+                  ) : (
+                    <button
+                      key={n}
+                      type="button"
+                      aria-current={n === current ? 'page' : undefined}
+                      onClick={() => setPage(n)}
+                      style={{ font: 'inherit', borderRadius: 6, padding: '4px 10px', fontSize: 11.5, cursor: 'pointer', background: n === current ? '#6d5aef' : 'transparent', color: n === current ? '#fff' : '#555', border: n === current ? 'none' : '.5px solid #e0dfd8' }}
+                    >
+                      {n}
+                    </button>
+                  )
+                )}
+                <button
+                  type="button"
+                  aria-label="Página siguiente"
+                  disabled={current === totalPages}
+                  onClick={() => setPage(Math.min(totalPages, current + 1))}
+                  style={{ font: 'inherit', background: 'transparent', border: '.5px solid #e0dfd8', borderRadius: 6, padding: '4px 8px', cursor: current === totalPages ? 'default' : 'pointer', color: current === totalPages ? '#ccc' : '#555' }}
+                >
+                  <i className="ti ti-chevron-right" style={{ fontSize: 13 }}></i>
+                </button>
+              </div>
+            )}
+          </div>
         </div>
       ) : (
         <div style={{ ...CARD, padding: '18px 20px' }}>
@@ -297,7 +436,11 @@ export default function ParlamentosAutonomicosPage() {
                       </Link>
                     );
                   })}
-                  {lista.length > 12 && <div style={{ fontSize: 12, color: GRIS }}>y {lista.length - 12} más</div>}
+                  {lista.length > 12 && (
+                    <button type="button" onClick={() => setVista('tabla')} style={{ font: 'inherit', fontSize: 12, color: MORADO, background: 'none', border: 'none', padding: 0, cursor: 'pointer', textAlign: 'left' }}>
+                      y {lista.length - 12} más · ver en tabla
+                    </button>
+                  )}
                 </div>
               );
             })}
