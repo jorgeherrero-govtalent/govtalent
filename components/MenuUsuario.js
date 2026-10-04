@@ -299,49 +299,11 @@ export default function MenuUsuario({
               })}
 
 
-              {/* Tres estados y ninguno se solapa:
-                  sin organización → crear la página publicando algo;
-                  con organización y sin ofertas → publicar la primera;
-                  con ofertas ya publicadas → no aparece, ya lo hiciste. */}
-              {!tieneOfertas && (
-                <div
-                  style={{
-                    borderTop: `.5px solid ${BORDE}`,
-                    marginTop: 6,
-                    padding: '11px 10px 4px',
-                  }}
-                >
-                  {/* Sin botón sólido: quien es Free y no tiene
-                      organización vería dos ofertas seguidas, cada una con
-                      el suyo, y se anularían entre sí. La de Pro se queda
-                      con el botón; esta, con un enlace. */}
-                  <div style={{ fontSize: 12.5, fontWeight: 600, marginBottom: 3 }}>
-                    Anuncia un empleo gratis
-                  </div>
-                  <div style={{ fontSize: 11.5, color: '#555', lineHeight: 1.5, marginBottom: 7 }}>
-                    {organizaciones.length
-                      ? 'Publica tu primera oferta y recibe candidaturas sin coste.'
-                      : 'Crea la página de tu organización y publica sin coste.'}
-                  </div>
-                  {/* /organizations es el directorio público de
-                      organizaciones, no el alta: quien pulsaba "Crear mi
-                      página" acababa mirando un listado. El formulario
-                      está en /organizations/new. */}
-                  <Link
-                    href={organizaciones.length ? '/organizations/admin/jobs' : '/organizations/new'}
-                    onClick={() => setAbierto(false)}
-                    style={{ fontSize: 11.5, color: VERDE, textDecoration: 'none' }}
-                  >
-                    {organizaciones.length ? 'Publicar oferta →' : 'Crear mi página →'}
-                  </Link>
-                </div>
-              )}
+              {/* «Anuncia un empleo gratis» y «Ver mi perfil» están ocultos
+                  desde el 04-10-2026, con Empleos y Organizaciones (ver
+                  RUTAS_OCULTAS en middleware.js). */}
 
               <div style={{ borderTop: `.5px solid ${BORDE}`, marginTop: 6, paddingTop: 5 }}>
-                <Link href="/profile" onClick={() => setAbierto(false)} style={fila}>
-                  <i className="ti ti-user" style={{ fontSize: 15, width: 24, textAlign: 'center' }}></i>
-                  Ver mi perfil
-                </Link>
                 <Link href="/account" onClick={() => setAbierto(false)} style={fila}>
                   <i className="ti ti-settings" style={{ fontSize: 15, width: 24, textAlign: 'center' }}></i>
                   Mi cuenta
