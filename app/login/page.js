@@ -2,8 +2,37 @@
 
 import { useEffect, useState } from 'react';
 import { createClient } from '@/lib/supabase/client';
-import LoginPanel from '@/components/LoginPanel';
 import Logo from '@/components/Logo';
+
+/**
+ * Login y registro.
+ *
+ * Diseño del 04-10-2026 (propuesta A, «Solo lo esencial»): una sola
+ * columna sobre el fondo de la app, sin tarjeta ni panel lateral. Antes
+ * había una tarjeta partida en dos con una réplica de la aplicación a la
+ * izquierda (components/LoginPanel.js, que ya no se usa aquí): pesaba
+ * más que el propio formulario.
+ */
+
+const VERDE = '#1d6f5c';
+const GRIS = '#5f5b54';
+const BORDE = '#d9d7cf';
+
+const CAMPO = {
+  height: 44,
+  borderRadius: 10,
+  border: `1px solid ${BORDE}`,
+  background: '#fff',
+  padding: '0 14px',
+  font: 'inherit',
+  fontSize: 14,
+  color: '#1a1a18',
+  boxSizing: 'border-box',
+  width: '100%',
+  outline: 'none',
+};
+
+const ETIQUETA = { display: 'flex', flexDirection: 'column', gap: 6, fontSize: 13, fontWeight: 500 };
 
 export default function LoginPage() {
   const initialParams = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : null;
@@ -92,12 +121,188 @@ export default function LoginPage() {
 
   return (
     <div>
-      <div className="login-bar">
-        <div className="logo">
-          <Logo height={24} />
+      {/* La barra con el logo solo en las pantallas de paso (correo
+          enviado, recuperar contraseña): en el login el logo va dentro de
+          la columna. */}
+      {(view === 'confirm' || view === 'sent' || view === 'reset') && (
+        <div className="login-bar">
+          <div className="logo">
+            <Logo height={24} />
+          </div>
         </div>
-      </div>
+      )}
 
+      {view === 'login' || view === 'signup' ? (
+        <div style={{ minHeight: '100vh', display: 'flex', justifyContent: 'center', padding: '0 16px', boxSizing: 'border-box' }}>
+          <main
+            className="login-col"
+            style={{ width: '100%', maxWidth: 360, display: 'flex', flexDirection: 'column', gap: 22, padding: '120px 0 48px' }}
+          >
+            <div style={{ alignSelf: 'flex-start' }}>
+              <Logo height={26} />
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+              <h1 style={{ margin: 0, fontSize: 26, fontWeight: 600, letterSpacing: '-.4px' }}>
+                {view === 'signup' ? 'Crear cuenta' : 'Iniciar sesión'}
+              </h1>
+              <p style={{ margin: 0, fontSize: 14, color: GRIS }}>
+                {view === 'signup'
+                  ? 'Únete gratis a GovTalent.'
+                  : 'Accede a tu cuenta para continuar donde lo dejaste.'}
+              </p>
+            </div>
+
+            <button
+              type="button"
+              onClick={handleGoogle}
+              style={{
+                height: 46,
+                borderRadius: 10,
+                border: `1px solid ${BORDE}`,
+                background: '#fff',
+                font: 'inherit',
+                fontSize: 14,
+                fontWeight: 500,
+                color: '#1a1a18',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: 10,
+              }}
+            >
+              <svg width="18" height="18" viewBox="0 0 18 18" aria-hidden="true">
+                <path fill="#4285F4" d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844c-.209 1.125-.843 2.078-1.796 2.717v2.258h2.908c1.702-1.567 2.684-3.874 2.684-6.615z" />
+                <path fill="#34A853" d="M9 18c2.43 0 4.467-.806 5.956-2.184l-2.908-2.258c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332A8.997 8.997 0 0 0 9 18z" />
+                <path fill="#FBBC05" d="M3.964 10.707A5.41 5.41 0 0 1 3.682 9c0-.593.102-1.17.282-1.707V4.961H.957A8.996 8.996 0 0 0 0 9c0 1.452.348 2.827.957 4.039l3.007-2.332z" />
+                <path fill="#EA4335" d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0A8.997 8.997 0 0 0 .957 4.961L3.964 6.293C4.672 4.166 6.656 3.58 9 3.58z" />
+              </svg>
+              Continuar con Google
+            </button>
+
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12, fontSize: 12, color: '#8b8780' }}>
+              <span style={{ flexGrow: 1, height: 1, background: BORDE }}></span>o
+              <span style={{ flexGrow: 1, height: 1, background: BORDE }}></span>
+            </div>
+
+            {error && (
+              <div className="err-msg" style={{ margin: 0 }}>
+                {error}
+              </div>
+            )}
+
+            <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+              <label style={ETIQUETA}>
+                Email
+                <input
+                  type="email"
+                  required
+                  autoComplete="email"
+                  placeholder="nombre@email.com"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  className="login-input"
+                  style={CAMPO}
+                />
+              </label>
+              <div style={ETIQUETA}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
+                  <label htmlFor="login-pw">Contraseña</label>
+                  {view === 'login' && (
+                    <button
+                      type="button"
+                      onClick={() => setView('reset')}
+                      style={{ background: 'none', border: 'none', padding: 0, font: 'inherit', fontSize: 13, fontWeight: 400, color: VERDE }}
+                    >
+                      ¿La has olvidado?
+                    </button>
+                  )}
+                </div>
+                <div style={{ position: 'relative' }}>
+                  <input
+                    id="login-pw"
+                    type={showPw ? 'text' : 'password'}
+                    required
+                    minLength={6}
+                    autoComplete={view === 'signup' ? 'new-password' : 'current-password'}
+                    placeholder="••••••••"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    className="login-input"
+                    style={{ ...CAMPO, paddingRight: 42 }}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPw(!showPw)}
+                    aria-label={showPw ? 'Ocultar contraseña' : 'Mostrar contraseña'}
+                    style={{
+                      position: 'absolute',
+                      right: 6,
+                      top: '50%',
+                      transform: 'translateY(-50%)',
+                      background: 'none',
+                      border: 'none',
+                      padding: 6,
+                      color: '#a8a49c',
+                      display: 'flex',
+                    }}
+                  >
+                    <i className={`ti ${showPw ? 'ti-eye-off' : 'ti-eye'}`} style={{ fontSize: 17 }} aria-hidden="true"></i>
+                  </button>
+                </div>
+              </div>
+              <button
+                className="mbtn mbtn-morado"
+                disabled={loading}
+                style={{ height: 46, padding: 0, marginTop: 4 }}
+              >
+                {loading ? 'Un momento…' : view === 'signup' ? 'Crear cuenta' : 'Entrar'}
+              </button>
+            </form>
+
+            <p style={{ margin: 0, fontSize: 13, color: GRIS }}>
+              {view === 'login' ? '¿Aún no tienes cuenta? ' : '¿Ya tienes cuenta? '}
+              <button
+                type="button"
+                onClick={() => {
+                  setError('');
+                  setView(view === 'login' ? 'signup' : 'login');
+                }}
+                style={{ background: 'none', border: 'none', padding: 0, font: 'inherit', fontSize: 13, fontWeight: 600, color: VERDE }}
+              >
+                {view === 'login' ? 'Crear cuenta gratis' : 'Iniciar sesión'}
+              </button>
+            </p>
+
+            {/* El aviso legal va en las dos vistas: desde iniciar sesión
+                también se puede crear cuenta con Google. */}
+            <p style={{ margin: '18px 0 0', fontSize: 11.5, lineHeight: 1.6, color: '#6f6b64' }}>
+              Al continuar, aceptas las{' '}
+              <a href="/condiciones" target="_blank" rel="noopener noreferrer" style={{ color: '#6f6b64' }}>
+                Condiciones de contratación
+              </a>{' '}
+              y el{' '}
+              <a href="/legal" target="_blank" rel="noopener noreferrer" style={{ color: '#6f6b64' }}>
+                Aviso legal
+              </a>
+              , y confirmas que has leído la{' '}
+              <a href="/privacidad" target="_blank" rel="noopener noreferrer" style={{ color: '#6f6b64' }}>
+                Política de privacidad
+              </a>{' '}
+              y la{' '}
+              <a href="/cookies" target="_blank" rel="noopener noreferrer" style={{ color: '#6f6b64' }}>
+                Política de cookies
+              </a>
+              .
+            </p>
+          </main>
+          <style>{`
+            .login-input:focus { border-color: ${VERDE} !important; }
+            .login-input::placeholder { color: #a8a49c; }
+            @media (max-width: 720px) { .login-col { padding-top: 56px !important; } }
+          `}</style>
+        </div>
+      ) : (
       <div className="login-body">
         {view === 'confirm' ? (
           <div className="ob-card" style={{ maxWidth: 420, textAlign: 'center' }}>
@@ -244,129 +449,9 @@ export default function LoginPage() {
               </button>
             </form>
           </div>
-        ) : (
-          <div className="split">
-            <div className="sl-left">
-              <h2>
-                La plataforma <em>all in one</em> para profesionales de los asuntos públicos
-              </h2>
-              <div className="sl-tagline">Todo lo que necesitas para crecer, en un único lugar.</div>
-              <LoginPanel />
-            </div>
-
-            <div className="sl-right">
-              <h1>{view === 'signup' ? 'Registrarme' : 'Iniciar sesión'}</h1>
-              <p>
-                {view === 'signup'
-                  ? 'Únete gratis a GovTalent.'
-                  : 'Accede a tu cuenta para continuar donde lo dejaste.'}
-              </p>
-
-              <button className="sbtn" onClick={handleGoogle} type="button">
-                <svg width="18" height="18" viewBox="0 0 18 18">
-                  <path
-                    fill="#4285F4"
-                    d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844c-.209 1.125-.843 2.078-1.796 2.717v2.258h2.908c1.702-1.567 2.684-3.874 2.684-6.615z"
-                  />
-                  <path
-                    fill="#34A853"
-                    d="M9 18c2.43 0 4.467-.806 5.956-2.184l-2.908-2.258c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332A8.997 8.997 0 0 0 9 18z"
-                  />
-                  <path
-                    fill="#FBBC05"
-                    d="M3.964 10.707A5.41 5.41 0 0 1 3.682 9c0-.593.102-1.17.282-1.707V4.961H.957A8.996 8.996 0 0 0 0 9c0 1.452.348 2.827.957 4.039l3.007-2.332z"
-                  />
-                  <path
-                    fill="#EA4335"
-                    d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0A8.997 8.997 0 0 0 .957 4.961L3.964 6.293C4.672 4.166 6.656 3.58 9 3.58z"
-                  />
-                </svg>
-                Continuar con Google
-              </button>
-
-              <div className="dvd">o con tu email</div>
-
-              {error && <div className="err-msg">{error}</div>}
-
-              <form onSubmit={handleSubmit}>
-                <div className="field">
-                  <label>Email</label>
-                  <input
-                    type="email"
-                    required
-                    placeholder="nombre@email.com"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                  />
-                </div>
-                <div className="field">
-                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
-                    <label>Contraseña</label>
-                    {view === 'login' && (
-                      <a
-                        style={{ fontSize: 12, color: '#1d6f5c', cursor: 'pointer' }}
-                        onClick={() => setView('reset')}
-                      >
-                        ¿Olvidaste tu contraseña?
-                      </a>
-                    )}
-                  </div>
-                  <div style={{ position: 'relative' }}>
-                    <input
-                      type={showPw ? 'text' : 'password'}
-                      required
-                      minLength={6}
-                      placeholder="••••••••"
-                      style={{ paddingRight: 38 }}
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                    />
-                    <i
-                      className={`ti ${showPw ? 'ti-eye-off' : 'ti-eye'}`}
-                      style={{
-                        position: 'absolute',
-                        right: 11,
-                        top: '50%',
-                        transform: 'translateY(-50%)',
-                        cursor: 'pointer',
-                        color: '#bbb',
-                        fontSize: 17,
-                      }}
-                      onClick={() => setShowPw(!showPw)}
-                    ></i>
-                  </div>
-                </div>
-                <button className="mbtn mbtn-morado" disabled={loading}>
-                  {loading ? 'Un momento...' : view === 'signup' ? 'Crear cuenta' : 'Entrar'}
-                </button>
-              </form>
-
-              {view === 'login' ? (
-                <div className="ftxt">
-                  ¿Aún no tienes cuenta?{' '}
-                  <a onClick={() => setView('signup')}>Crear cuenta gratis</a>
-                </div>
-              ) : (
-                <div className="ftxt">
-                  Ya tengo cuenta <a onClick={() => setView('login')}>Iniciar sesión</a>
-                </div>
-              )}
-
-              {/* El aviso legal, debajo del enlace de registro. Va en las
-                  dos vistas: desde iniciar sesión también se puede crear
-                  cuenta con Google, así que ahí también hace falta. */}
-              <div className="login-legal">
-                Al continuar, aceptas las{' '}
-                <a href="/condiciones" target="_blank" rel="noopener noreferrer">Condiciones de contratación</a>{' '}
-                y el <a href="/legal" target="_blank" rel="noopener noreferrer">Aviso legal</a>, y confirmas que has
-                leído la{' '}
-                <a href="/privacidad" target="_blank" rel="noopener noreferrer">Política de privacidad</a> y la{' '}
-                <a href="/cookies" target="_blank" rel="noopener noreferrer">Política de cookies</a>.
-              </div>
-            </div>
-          </div>
-        )}
+        ) : null}
       </div>
+      )}
     </div>
   );
 }
