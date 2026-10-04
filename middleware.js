@@ -8,7 +8,30 @@ import { NextResponse } from 'next/server';
 // abrirla cualquiera, sin cuenta.
 const PUBLIC_LEGAL_PATHS = ['/legal', '/privacidad', '/cookies', '/condiciones', '/bot'];
 
+// Secciones ocultas desde el 04-10-2026: Organizaciones (el directorio y
+// sus páginas públicas), Empleos (listado, ofertas públicas y candidatos)
+// y el perfil. Quien llegue por un enlace antiguo va a la portada. El
+// panel de la propia organización (/organizations/admin) y el alta
+// (/organizations/new) siguen, porque de ahí cuelgan el plan y la factura.
+// Para volver a enseñarlas, basta con quitarlas de esta lista (y devolver
+// sus entradas a MenuLateral, BarraMovil, MenuUsuario y BuscadorGlobal).
+function estaOculta(path) {
+  if (path === '/jobs' || path.startsWith('/jobs/')) return true;
+  if (path.startsWith('/empleo/') || path.startsWith('/candidates')) return true;
+  if (path === '/profile' || path.startsWith('/profile/')) return true;
+  if (path === '/organizations' || path === '/organizations/') return true;
+  if (path.startsWith('/organizations/') && !path.startsWith('/organizations/admin') && !path.startsWith('/organizations/new')) return true;
+  return false;
+}
+
 export async function middleware(request) {
+  if (estaOculta(request.nextUrl.pathname)) {
+    const url = request.nextUrl.clone();
+    url.pathname = '/';
+    url.search = '';
+    return NextResponse.redirect(url);
+  }
+
   // El webhook de Stripe entra sin cookies de sesión: se autentica con la
   // firma criptográfica que se verifica dentro de la propia ruta. Si pasa por
   // la comprobación de sesión de abajo, el middleware lo redirige a /login con
