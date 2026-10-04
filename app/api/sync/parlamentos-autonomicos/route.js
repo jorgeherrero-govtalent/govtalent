@@ -189,8 +189,13 @@ async function guardarLectura(db, p, r) {
     }
     if (typeof e.is_closed === 'boolean') fila.is_closed = e.is_closed;
 
-    const { data: previo } = await db.from('ccaa_expedientes').select('id').eq('id', id).maybeSingle();
+    const { data: previo } = await db.from('ccaa_expedientes').select('id, raw').eq('id', id).maybeSingle();
     if (!previo) fila.fuente = 'ficha';
+    // Si el número era provisional y la IA ya puso el impreso, no se pisa.
+    if (previo?.raw && previo.raw.num_provisional === false) {
+      delete fila.num_expediente;
+      delete fila.raw;
+    }
     const { error } = await db.from('ccaa_expedientes').upsert(fila, { onConflict: 'id' });
     if (error) { res.errores.push(`${e.num_expediente}: ${error.message}`.slice(0, 200)); continue; }
     if (previo) res.actualizados += 1; else res.nuevos += 1;
