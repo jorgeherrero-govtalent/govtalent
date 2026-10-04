@@ -38,7 +38,7 @@ const enRegulatorio = (p) =>
 const PRINCIPALES = [
   { href: '/', etiqueta: 'Asistente', icono: 'ti-sparkles', activo: (p) => p === '/' },
   { href: '/novedades', etiqueta: 'Novedades', icono: 'ti-inbox', activo: (p) => p.startsWith('/novedades'), contador: true },
-  { href: '/alarmas', etiqueta: 'Alarmas', icono: 'ti-bell', activo: (p) => p.startsWith('/alarmas'), morado: true },
+  { href: '/alarmas', etiqueta: 'Alarmas', icono: 'ti-bell', activo: (p) => p.startsWith('/alarmas') },
   { href: '/seguimiento', etiqueta: 'Seguimiento', icono: 'ti-eye', activo: (p) => p.startsWith('/seguimiento') },
 ];
 
