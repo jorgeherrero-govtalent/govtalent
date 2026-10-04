@@ -660,6 +660,16 @@ export default function AlarmasTab({ seccion = 'alarmas' }) {
     // Solo en Novedades: abrir Alarmas para editar una no es haber visto
     // lo encontrado.
     if (!enNovedades) return;
+    // ?alarma=<id>: se llega desde «Ver en Novedades» de una alarma, y la
+    // bandeja se abre ya filtrada por ella.
+    try {
+      const pedida = new URLSearchParams(window.location.search).get('alarma');
+      if (pedida && (al || []).some((x) => String(x.id) === pedida)) {
+        const a = (al || []).find((x) => String(x.id) === pedida);
+        setFiltroAlarma(a.id);
+        setCondiciones((prev) => (prev.includes('alarma') ? prev : [...prev, 'alarma']));
+      }
+    } catch {}
     const pendientes = (ev || []).filter((x) => x.es_nueva).length;
     const avisar = () => {
       try {
@@ -1588,7 +1598,11 @@ export default function AlarmasTab({ seccion = 'alarmas' }) {
           <p style={{ fontSize: 13, color: GRIS, margin: '5px 0 0', lineHeight: 1.5 }}>
             {enNovedades
               ? 'Revisa lo nuevo y decide: seguirlo o descartarlo. Lo revisado sale de la bandeja.'
-              : 'Lo que el agente vigila por ti y cómo te avisa.'}
+              : alarmas.length === 0
+                ? 'Lo que el agente vigila por ti y cómo te avisa.'
+                : `${activas.length} de ${limites.alarmas} ${limites.alarmas === 1 ? 'activa' : 'activas'} · ${
+                    correos ? `avisos a ${email}` : 'correos desactivados'
+                  }${esPro ? '' : ' · en Free, los lunes'}`}
             {enNovedades && revisada ? ` Revisado ${haceCuanto(revisada)}.` : ''}
           </p>
         </div>
@@ -1639,7 +1653,7 @@ export default function AlarmasTab({ seccion = 'alarmas' }) {
               ¿Qué quieres que vigile?
             </h2>
             <p style={{ fontSize: 13, color: GRIS, textAlign: 'center', margin: '0 0 20px', lineHeight: 1.6 }}>
-              Cuéntame a qué se dedica tu organización o qué te preocupa. Yo me encargo de buscar y de avisarte.
+              Cuéntame a qué se dedica tu organización o qué normativa te preocupa. Yo me encargo de buscar y de avisarte.
             </p>
             <div style={{ ...CARD, borderRadius: 20, padding: '16px 18px 12px', boxShadow: '0 1px 2px rgba(0,0,0,.03), 0 10px 30px rgba(26,26,24,.05)' }}>
               <TextoCreciente
@@ -1706,6 +1720,13 @@ export default function AlarmasTab({ seccion = 'alarmas' }) {
                   </button>
                 ))}
               </div>
+            )}
+            {alarmas.length > 0 && !trabajando && !progreso && (
+              <p style={{ fontSize: 12.5, color: GRIS, textAlign: 'center', margin: '16px 0 0' }}>
+                {limites.alarmas - activas.length === 1
+                  ? `Te queda 1 de ${limites.alarmas} alarmas en tu plan.`
+                  : `Te quedan ${Math.max(0, limites.alarmas - activas.length)} de ${limites.alarmas} alarmas en tu plan.`}
+              </p>
             )}
           </>
         ) : !esPro ? (
@@ -2005,93 +2026,120 @@ export default function AlarmasTab({ seccion = 'alarmas' }) {
         </>
       )}
 
-      {/* Alarmas: la gestión. Lo que hay por revisar se queda en
-          Novedades; aquí solo se enlaza con su cifra. */}
-      {!enNovedades && (alarmas.length > 0 || nSeguidos > 0) && (
-        <div className="alarmas-rejilla">
-          <div style={{ minWidth: 0 }}>
-                <div style={{ ...CARD, padding: '15px 18px 8px' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10 }}>
-                    <span style={ETIQUETA}>{limites.alarmas === 1 ? 'Tu alarma' : 'Tus alarmas'}</span>
-                    <Contador usadas={activas.length} limite={limites.alarmas} esPro={esPro} />
-                  </div>
-                  {alarmas.length === 0 ? (
-                    <div style={{ fontSize: 12.5, color: GRIS, lineHeight: 1.55, padding: '10px 0 8px' }}>
-                      Aún no tienes ninguna. Descríbele al agente tu organización y empieza a vigilar.
+      {/* Alarmas: la gestión (diseño del 05-10-2026, propuesta B). Cada
+          alarma enseña lo último que ha encontrado y enlaza a Novedades
+          filtrada por ella. Lo que se repetía con el menú (el contador de
+          Novedades, «Lo que sigo») ya no está aquí, y el aviso por correo
+          va en el subtítulo, con su interruptor al pie.
+          Mientras se crea una alarma la lista no se enseña: era la misma
+          lista repetida debajo de la caja. */}
+      {!enNovedades && !mostrarCaja && alarmas.length > 0 && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+          {alarmas.map((a) => {
+            const freq = esPro ? a.frecuencia : 'semanal';
+            const suyos = encaja
+              .filter((m) => m.alert_id === a.id && !m.descartado)
+              .sort((x, y) => new Date(y.created_at).getTime() - new Date(x.created_at).getTime());
+            const delMes = suyos.filter((m) => Date.now() - new Date(m.created_at).getTime() <= 30 * DIA);
+            const ultimos = suyos.slice(0, 2);
+            return (
+              <section key={a.id} style={{ ...CARD, padding: 0 }}>
+                <div style={{ display: 'flex', gap: 14, alignItems: 'center', padding: '16px 18px' }}>
+                  <button
+                    type="button"
+                    onClick={() => abrirEdicion(a)}
+                    style={{ flex: 1, minWidth: 0, textAlign: 'left', background: 'none', border: 'none', padding: 0, cursor: 'pointer', fontFamily: 'inherit' }}
+                  >
+                    <div style={{ fontSize: 14, fontWeight: 600, color: a.activa ? TINTA : GRIS }}>{a.nombre}</div>
+                    <div style={{ fontSize: 12.5, color: GRIS, marginTop: 3 }}>
+                      {a.activa
+                        ? `${FRASE_FRECUENCIA[freq] || 'Los lunes'}${esPro && a.recordar_plazos !== false ? ' · plazos recordados' : ''}`
+                        : a.pausada_por_plan
+                          ? 'En pausa por tu plan'
+                          : 'En pausa'}
                     </div>
-                  ) : (
-                    alarmas.map((a) => {
-                      const freq = esPro ? a.frecuencia : 'semanal';
-                      return (
-                        <div key={a.id} style={{ display: 'flex', gap: 10, alignItems: 'flex-start', padding: '11px 0', borderTop: `1px solid ${LINEA2}`, marginTop: 8 }}>
-                          <span
-                            aria-hidden="true"
-                            style={{ width: 7, height: 7, borderRadius: '50%', marginTop: 6, flexShrink: 0, background: a.activa ? MORADO : '#c9c6bd', boxShadow: `0 0 0 3px ${a.activa ? MORADO_S : '#efede7'}` }}
-                          />
-                          <button
-                            type="button"
-                            onClick={() => abrirEdicion(a)}
-                            style={{ flex: 1, minWidth: 0, textAlign: 'left', background: 'none', border: 'none', padding: 0, cursor: 'pointer', fontFamily: 'inherit' }}
-                          >
-                            <div style={{ fontSize: 13, fontWeight: 500, color: TINTA }}>{a.nombre}</div>
-                            <div style={{ fontSize: 11.5, color: GRIS, marginTop: 2 }}>
-                              {a.activa
-                                ? `${FRASE_FRECUENCIA[freq] || 'Los lunes'}${esPro && a.recordar_plazos !== false ? ' · plazos recordados' : ''}`
-                                : a.pausada_por_plan
-                                  ? 'En pausa por tu plan'
-                                  : 'En pausa'}
-                            </div>
-                          </button>
-                          <Interruptor activo={a.activa} onChange={() => alternar(a)} size="pequeno" etiqueta={`Alarma ${a.nombre}`} />
-                        </div>
-                      );
-                    })
-                  )}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => abrirEdicion(a)}
+                    style={{ background: 'none', border: 'none', padding: 0, fontSize: 12.5, color: '#4b3bc4', cursor: 'pointer', fontFamily: 'inherit' }}
+                  >
+                    Editar
+                  </button>
+                  <Interruptor activo={a.activa} onChange={() => alternar(a)} etiqueta={`Alarma ${a.nombre}`} />
                 </div>
-          </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 12, minWidth: 0 }}>
-                <Link href="/novedades" style={{ display: 'block', background: MORADO_S, borderRadius: 16, padding: '15px 18px', textDecoration: 'none' }}>
-                  <div style={{ fontSize: 26, fontWeight: 600, color: MORADO, lineHeight: 1 }}>{nRevisar}</div>
-                  <div style={{ fontSize: 12.5, color: MORADO_O, marginTop: 5, lineHeight: 1.5 }}>
-                    {nRevisar === 1 ? 'asunto por revisar en Novedades →' : 'asuntos por revisar en Novedades →'}
-                  </div>
-                </Link>
-
-                <div style={{ ...CARD, padding: '15px 18px 12px' }}>
-                  <div style={{ ...ETIQUETA, marginBottom: 8 }}>Cómo te aviso</div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12 }}>
-                    <div>
-                      <div style={{ fontSize: 12.5, fontWeight: 500 }}>Correos</div>
-                      <div style={{ fontSize: 11.5, color: GRIS, marginTop: 2, lineHeight: 1.45 }}>
-                        {correos ? `A ${email}` : 'Desactivados. Todo sigue apareciendo aquí.'}
+                {a.activa && (
+                  <div style={{ padding: '0 18px 14px', display: 'flex', flexDirection: 'column', gap: 2 }}>
+                    {ultimos.length === 0 ? (
+                      <div style={{ fontSize: 12.5, color: GRIS, padding: '2px 12px 4px' }}>
+                        Aún no ha encontrado nada. Te avisaré en cuanto aparezca algo.
                       </div>
-                    </div>
-                    <Interruptor activo={correos} onChange={cambiarCorreos} size="pequeno" etiqueta="Recibir correos de las alarmas y de lo que sigues" />
-                  </div>
-                  <div style={{ fontSize: 11.5, color: GRIS, lineHeight: 1.5, marginTop: 10, paddingTop: 10, borderTop: `1px solid ${LINEA2}` }}>
-                    {esPro
-                      ? 'La frecuencia y los recordatorios de plazo se eligen en cada alarma.'
-                      : 'En Free te escribo los lunes con el resumen de la semana.'}
-                    {!esPro && (
-                      <>
-                        {' '}
-                        <Link href="/precios" style={{ color: MORADO, textDecoration: 'none' }}>
-                          Con Pro, al momento
-                        </Link>
-                      </>
+                    ) : (
+                      ultimos.map((m, i) => {
+                        const plazo = m.plazo ? etiquetaPlazo(m.plazo) : null;
+                        const cuando = new Date(m.created_at);
+                        const lado = [
+                          fuenteCorta(m.fuente, m.kind),
+                          plazo || `${cuando.getDate()} ${['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'][cuando.getMonth()]}`,
+                        ]
+                          .filter(Boolean)
+                          .join(' · ');
+                        const fila = (
+                          <>
+                            <span style={{ flex: 1, minWidth: 0, fontSize: 13, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{m.titulo}</span>
+                            <span style={{ fontSize: 12, color: GRIS, whiteSpace: 'nowrap' }}>{lado}</span>
+                          </>
+                        );
+                        const estilo = {
+                          display: 'flex',
+                          gap: 12,
+                          alignItems: 'baseline',
+                          padding: '9px 12px',
+                          borderRadius: 9,
+                          background: i === 0 ? '#f7f6f2' : 'transparent',
+                          color: TINTA,
+                          textDecoration: 'none',
+                        };
+                        return m.ruta ? (
+                          <Link key={m.id} href={m.ruta} style={estilo}>
+                            {fila}
+                          </Link>
+                        ) : (
+                          <div key={m.id} style={estilo}>
+                            {fila}
+                          </div>
+                        );
+                      })
+                    )}
+                    {delMes.length > 0 && (
+                      <Link href={`/novedades?alarma=${encodeURIComponent(a.id)}`} style={{ fontSize: 12.5, color: '#4b3bc4', textDecoration: 'none', padding: '6px 12px 0' }}>
+                        {delMes.length === 1 ? 'Ver el de este mes en Novedades' : `Ver los ${delMes.length} de este mes en Novedades`}
+                      </Link>
                     )}
                   </div>
-                </div>
+                )}
+              </section>
+            );
+          })}
 
-                <Link
-                  href="/seguimiento"
-                  style={{ ...CARD, padding: '13px 18px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', textDecoration: 'none', color: TINTA }}
-                >
-                  <span style={{ fontSize: 13, fontWeight: 500 }}>Lo que sigo</span>
-                  <span style={{ fontSize: 12.5, color: GRIS }}>
-                    {nSeguidos} {nSeguidos === 1 ? 'asunto' : 'asuntos'} →
-                  </span>
-                </Link>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap', fontSize: 12.5, color: GRIS, padding: '2px 4px' }}>
+            <span>
+              {esPro
+                ? 'La frecuencia y los recordatorios de plazo se eligen en cada alarma.'
+                : 'En Free te escribo los lunes con el resumen de la semana.'}
+              {!esPro && (
+                <>
+                  {' '}
+                  <Link href="/precios" style={{ color: MORADO, textDecoration: 'none' }}>
+                    Con Pro, al momento
+                  </Link>
+                </>
+              )}
+            </span>
+            <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              Avisos por correo
+              <Interruptor activo={correos} onChange={cambiarCorreos} size="pequeno" etiqueta="Recibir correos de las alarmas y de lo que sigues" />
+            </span>
           </div>
         </div>
       )}
