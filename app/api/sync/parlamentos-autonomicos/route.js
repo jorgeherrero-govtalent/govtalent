@@ -53,8 +53,8 @@ const FIN_LECTURA_MS = 150000;
 const FIN_TOTAL_MS = 270000;
 // Parlamentos cuyos expedientes solo aparecen al leer el boletín con IA.
 const SOLO_BOLETIN = new Set(['valencia', 'asturias']);
-// La clasificación por sectores tarda hasta ~60 s: solo se lanza si queda
-// tiempo; si no, la hace la ejecución siguiente.
+// La clasificación por sectores va en lotes de ~20-40 s: solo se lanza si
+// queda tiempo, y lo que no dé tiempo lo hace la ejecución siguiente.
 const FIN_SECTORES_MS = 200000;
 const IA_POR_DEFECTO = 4;
 
@@ -158,7 +158,7 @@ async function handler(request) {
   //     tienen todavía)
   // -------------------------------------------------------------------
   if (!dry && sp.get('sectores') !== '0' && Date.now() - t0 < FIN_SECTORES_MS) {
-    salida.sectores = await clasificarSectores(db);
+    salida.sectores = await clasificarSectores(db, { hasta: t0 + FIN_TOTAL_MS - 60000 });
   }
 
   if (!dry && nuevos.length) salida.seguimiento = await eventosDeSeguimiento(db, nuevos);
