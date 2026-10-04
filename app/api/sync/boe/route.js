@@ -23,6 +23,9 @@
 //   ?key=<DEBUG_KEY>&dry=1                prueba sin escribir
 //   ?key=<DEBUG_KEY>&fecha=20260817       un día concreto
 //   ?key=<DEBUG_KEY>&dias=7               los últimos N días
+//   ?key=<DEBUG_KEY>&desde=20260903&hasta=20261003&solo2a=1
+//                                         recuperar SOLO los nombramientos
+//                                         de un rango (ver más abajo)
 //   ?key=<DEBUG_KEY>                      el día de ayer
 // =====================================================================
 
@@ -31,10 +34,13 @@ import { createClient } from '@supabase/supabase-js';
 import { conRegistro } from '@/lib/syncLog';
 
 export const dynamic = 'force-dynamic';
-export const maxDuration = 60;
+// 300 y no 60: una recuperación de un mes entero (?desde=…) necesita más
+// de un minuto. El cron diario sigue usando su presupuesto de 40 s.
+export const maxDuration = 300;
 
 const BASE = 'https://www.boe.es';
 const PRESUPUESTO_MS = 40000;
+const PRESUPUESTO_RANGO_MS = 240000;
 const PARALELO = 5;
 const PAUSA_MS = 200;
 
@@ -47,13 +53,34 @@ const SECCIONES = new Set(['1', '2A', '3']);
 // oposiciones y 17 concursos de personal, que no aportan nada a asuntos
 // públicos y dominaban el selector de sector.
 //
-// El rango no sirve para distinguirlos: los Reales Decretos de esa
-// sección son ascensos militares y las Órdenes mezclan altos cargos con
-// funcionarios de cuerpo. El único criterio fiable es la alerta.
+// HASTA EL 04-10-2026 el criterio era solo la alerta «Nombramientos y
+// ceses de altos cargos» del XML de cada documento. Desde mediados de
+// septiembre el BOE sirve casi todos los documentos SIN alertas ni
+// materias el día de su publicación, así que se descartaban todos los
+// nombramientos sin dar error: del 03-09 al 03-10 no entró ninguno (ni
+// los diez del Consejo del 29-09).
+//
+// Ahora decide el TÍTULO, que viene siempre en el sumario: los altos
+// cargos se nombran y cesan por Real Decreto, y el título lo dice
+// («Real Decreto 768/2026, de 29 de septiembre, por el que se dispone
+// el cese de…»). Los ascensos militares, que también son Reales
+// Decretos de esta sección, dicen «se promueve» y quedan fuera. La
+// alerta, cuando viene, sigue valiendo.
+//
+// Ventaja añadida: se decide antes de pedir el XML, así que los cientos
+// de documentos de personal que no interesan ya no se piden.
 const ALERTA_ALTOS_CARGOS = 'Nombramientos y ceses de altos cargos';
+const TITULO_ALTO_CARGO =
+  /^real decreto\b.*\bpor el que se (nombra|dispone el cese|declara el cese|designa|dispone el nombramiento)\b/i;
 
-function interesa(seccion, alertas) {
+function esAltoCargoPorTitulo(titulo) {
+  const t = String(titulo || '');
+  return TITULO_ALTO_CARGO.test(t) && !/\bse promueve\b/i.test(t);
+}
+
+function interesa(seccion, alertas, titulo) {
   if (seccion !== '2A') return true;
+  if (esAltoCargoPorTitulo(titulo)) return true;
   return (alertas || []).some((a) => a.valor === ALERTA_ALTOS_CARGOS);
 }
 
@@ -253,6 +280,7 @@ async function handler(request) {
   }
 
   const dry = sp.get('dry') === '1';
+  const presupuesto = sp.get('desde') ? PRESUPUESTO_RANGO_MS : PRESUPUESTO_MS;
   const supabase = admin();
 
   // El organigrama, para atribuir cada disposición a quien la publica.
@@ -277,7 +305,22 @@ async function handler(request) {
 
   // Qué días hay que pedir
   const fechas = [];
-  if (sp.get('fecha')) {
+  // Recuperación: solo la sección II-A de un rango de días, aunque ya
+  // estén cargados. Para rellenar los nombramientos que se perdieron.
+  const solo2a = sp.get('solo2a') === '1';
+  if (sp.get('desde')) {
+    const a = sp.get('desde');
+    const b = sp.get('hasta') || fechaCompacta(new Date());
+    if (!/^\d{8}$/.test(a) || !/^\d{8}$/.test(b)) {
+      return NextResponse.json({ error: 'desde y hasta deben ser AAAAMMDD' }, { status: 400 });
+    }
+    const d = new Date(Date.UTC(+a.slice(0, 4), +a.slice(4, 6) - 1, +a.slice(6, 8), 12));
+    const fin = new Date(Date.UTC(+b.slice(0, 4), +b.slice(4, 6) - 1, +b.slice(6, 8), 12));
+    while (d <= fin && fechas.length < 45) {
+      fechas.push(`${d.getUTCFullYear()}${String(d.getUTCMonth() + 1).padStart(2, '0')}${String(d.getUTCDate()).padStart(2, '0')}`);
+      d.setUTCDate(d.getUTCDate() + 1);
+    }
+  } else if (sp.get('fecha')) {
     fechas.push(sp.get('fecha'));
   } else {
     // Desde hoy hacia atrás, no desde ayer. El bucle empezaba en i=1
@@ -321,11 +364,11 @@ async function handler(request) {
     const registros = [];
 
     for (const f of fechas) {
-      if (Date.now() - t0 > PRESUPUESTO_MS) {
+      if (Date.now() - t0 > presupuesto) {
         informe.cortado_por_tiempo = true;
         break;
       }
-      if (!sp.get('fecha') && hechos.has(aFecha(f))) {
+      if (!sp.get('fecha') && !sp.get('desde') && hechos.has(aFecha(f))) {
         informe.dias.push({ fecha: f, estado: 'ya cargado' });
         continue;
       }
@@ -342,13 +385,17 @@ async function handler(request) {
       try {
         json = JSON.parse(sum.texto);
       } catch {}
-      const items = json ? itemsDelSumario(json) : [];
+      const todos = json ? itemsDelSumario(json) : [];
+      // En la sección de personal se decide por el título antes de pedir
+      // el XML: lo que no es un alto cargo ni se pide.
+      const items = todos.filter((it) => (!solo2a || it.seccion === '2A') && (it.seccion !== '2A' || esAltoCargoPorTitulo(it.titulo)));
+      const previos = todos.length - items.length;
 
       // Cada documento aparte, para sus materias y referencias
       let cargados = 0;
-      let descartados = 0;
+      let descartados = solo2a ? 0 : previos;
       for (let i = 0; i < items.length; i += PARALELO) {
-        if (Date.now() - t0 > PRESUPUESTO_MS) break;
+        if (Date.now() - t0 > presupuesto) break;
         const grupo = items.slice(i, i + PARALELO);
         const res = await Promise.all(grupo.map((it) => pedir(`${BASE}/diario_boe/xml.php?id=${it.id}`, 'application/xml')));
 
@@ -360,7 +407,7 @@ async function handler(request) {
           // Los documentos de personal que no son de altos cargos se
           // descartan aquí: hay que pedirlos igual para ver su alerta,
           // pero no se guardan.
-          if (!interesa(it.seccion, d.alertas)) {
+          if (!interesa(it.seccion, d.alertas, it.titulo)) {
             descartados += 1;
             return;
           }
@@ -414,9 +461,10 @@ async function handler(request) {
       // medias para siempre.
       // El día está completo si se revisaron todos, aunque algunos se
       // descartaran por no ser de interés.
-      const completo = cargados + descartados === items.length;
-      informe.dias.push({ fecha: f, items: items.length, cargados, descartados, completo });
-      if (completo) {
+      const completo = cargados + (solo2a ? 0 : descartados - previos) === items.length;
+      informe.dias.push({ fecha: f, items: todos.length, revisados: items.length, cargados, descartados, completo });
+      // Una recuperación de la II-A no marca el día: no lo ha cargado entero.
+      if (completo && !solo2a) {
         registros.push({ fecha: aFecha(f), n_items: items.length, n_cargados: cargados, estado: 'ok' });
       }
     }
