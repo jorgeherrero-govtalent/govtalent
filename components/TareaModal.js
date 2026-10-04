@@ -3,7 +3,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import Desplegable from '@/components/Desplegable';
-import SelectorFecha from '@/components/SelectorFecha';
 import { toast } from '@/lib/toast';
 
 /**
@@ -12,6 +11,9 @@ import { toast } from '@/lib/toast';
  * Diseño del 04-10-2026, calcado de Enginy en blanco y gris con el morado
  * de la marca donde Enginy usa negro. Campos: título, asignada a,
  * vinculada a, tipo, fecha límite con hora, prioridad y notas.
+ *
+ * La fecha y la hora van en un solo campo, como en Enginy: el desplegable
+ * lleva el calendario y debajo la hora.
  *
  * «Vinculada a» es el «Contacto» de Enginy, ampliado: un único buscador
  * sobre lo mismo que el buscador de arriba (buscar_global: personas,
@@ -111,6 +113,164 @@ const CAMPO = {
   outline: 'none',
 };
 
+const MESES_LARGOS = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
+const MESES_CORTOS = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
+const DIAS = ['L', 'M', 'X', 'J', 'V', 'S', 'D'];
+
+function isoDia(a, m, d) {
+  return `${a}-${String(m + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+}
+
+/**
+ * Fecha y hora en un solo campo: «5 oct 2026, 09:00». Al pulsarlo se
+ * abre el calendario del mes (la semana empieza en lunes) y, debajo, la
+ * hora.
+ */
+function FechaHora({ fecha, hora, onFecha, onHora }) {
+  const [abierto, setAbierto] = useState(false);
+  const base = fecha ? new Date(`${fecha}T00:00`) : new Date();
+  const [mes, setMes] = useState(base.getMonth());
+  const [anio, setAnio] = useState(base.getFullYear());
+  const caja = useRef(null);
+
+  useEffect(() => {
+    if (!abierto) return;
+    function fuera(e) {
+      if (!caja.current?.contains(e.target)) setAbierto(false);
+    }
+    function tecla(e) {
+      if (e.key === 'Escape') setAbierto(false);
+    }
+    const t = setTimeout(() => window.addEventListener('mousedown', fuera), 0);
+    window.addEventListener('keydown', tecla);
+    return () => {
+      clearTimeout(t);
+      window.removeEventListener('mousedown', fuera);
+      window.removeEventListener('keydown', tecla);
+    };
+  }, [abierto]);
+
+  const hoy = new Date();
+  const hoyIso = isoDia(hoy.getFullYear(), hoy.getMonth(), hoy.getDate());
+  // Huecos antes del día 1: getDay() da 0 al domingo, y aquí va al final.
+  const hueco = (new Date(anio, mes, 1).getDay() + 6) % 7;
+  const diasMes = new Date(anio, mes + 1, 0).getDate();
+  const celdas = [...Array(hueco).fill(null), ...Array.from({ length: diasMes }, (_, i) => i + 1)];
+
+  function mover(n) {
+    const d = new Date(anio, mes + n, 1);
+    setMes(d.getMonth());
+    setAnio(d.getFullYear());
+  }
+
+  let texto = 'Sin fecha';
+  if (fecha) {
+    const d = new Date(`${fecha}T00:00`);
+    texto = `${d.getDate()} ${MESES_CORTOS[d.getMonth()]} ${d.getFullYear()}, ${hora || '09:00'}`;
+  }
+
+  const flecha = { width: 30, height: 30, borderRadius: 7, border: 'none', background: '#f4f3ee', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#3a3a36' };
+
+  return (
+    <div ref={caja} style={{ position: 'relative' }}>
+      <button
+        type="button"
+        onClick={() => setAbierto((v) => !v)}
+        aria-haspopup="dialog"
+        aria-expanded={abierto}
+        style={{ ...CAMPO, display: 'flex', alignItems: 'center', gap: 8, textAlign: 'left', borderColor: abierto ? MORADO : BORDE, color: fecha ? '#1a1a18' : '#a8a49c', cursor: 'pointer' }}
+      >
+        <i className="ti ti-calendar" style={{ fontSize: 15, color: GRIS }} aria-hidden="true"></i>
+        <span style={{ flexGrow: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{texto}</span>
+        <i className="ti ti-selector" style={{ fontSize: 14, color: '#a8a49c' }} aria-hidden="true"></i>
+      </button>
+
+      {abierto && (
+        <div
+          data-popover
+          role="dialog"
+          aria-label="Elegir fecha y hora"
+          style={{ position: 'absolute', left: 0, top: 46, width: 272, background: '#fff', border: `.5px solid ${BORDE}`, borderRadius: 12, boxShadow: '0 12px 30px rgba(0,0,0,.14)', zIndex: 10 }}
+        >
+          <div style={{ padding: 12 }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+              <button type="button" onClick={() => mover(-1)} aria-label="Mes anterior" style={flecha}>
+                <i className="ti ti-chevron-left" aria-hidden="true"></i>
+              </button>
+              <span style={{ fontSize: 13.5, fontWeight: 600 }}>
+                {MESES_LARGOS[mes].replace(/^./, (c) => c.toUpperCase())} {anio}
+              </span>
+              <button type="button" onClick={() => mover(1)} aria-label="Mes siguiente" style={flecha}>
+                <i className="ti ti-chevron-right" aria-hidden="true"></i>
+              </button>
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, minmax(0, 1fr))', gap: 2, textAlign: 'center' }}>
+              {DIAS.map((d) => (
+                <span key={d} style={{ fontSize: 11.5, color: GRIS, padding: '4px 0' }}>
+                  {d}
+                </span>
+              ))}
+              {celdas.map((d, i) => {
+                if (!d) return <span key={`h${i}`}></span>;
+                const iso = isoDia(anio, mes, d);
+                const elegido = iso === fecha;
+                const esHoy = iso === hoyIso;
+                return (
+                  <button
+                    key={iso}
+                    type="button"
+                    onClick={() => onFecha(iso)}
+                    aria-pressed={elegido}
+                    aria-label={`${d} de ${MESES_LARGOS[mes]}`}
+                    style={{
+                      height: 32,
+                      borderRadius: 7,
+                      border: esHoy && !elegido ? `.5px solid ${BORDE}` : 'none',
+                      background: elegido ? MORADO : 'transparent',
+                      color: elegido ? '#fff' : '#1a1a18',
+                      font: 'inherit',
+                      fontSize: 12.5,
+                      fontWeight: elegido ? 600 : 400,
+                      cursor: 'pointer',
+                    }}
+                  >
+                    {d}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+          <div style={{ borderTop: '1px solid #efeee8', padding: 12, display: 'flex', flexDirection: 'column', gap: 6 }}>
+            <label style={{ display: 'flex', flexDirection: 'column', gap: 6, fontSize: 12.5, fontWeight: 500 }}>
+              Hora
+              <input type="time" value={hora} onChange={(e) => onHora(e.target.value)} style={{ ...CAMPO, height: 36 }} />
+            </label>
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 4 }}>
+              <button
+                type="button"
+                onClick={() => {
+                  onFecha(null);
+                  setAbierto(false);
+                }}
+                style={{ background: 'none', border: 'none', padding: 0, font: 'inherit', fontSize: 12.5, color: GRIS }}
+              >
+                Quitar fecha
+              </button>
+              <button
+                type="button"
+                onClick={() => setAbierto(false)}
+                style={{ background: 'none', border: 'none', padding: 0, font: 'inherit', fontSize: 12.5, fontWeight: 600, color: MORADO }}
+              >
+                Listo
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function TareaModal({ tarea, miembros = [], yo, orgId, onClose, onGuardada }) {
   const supabase = createClient();
   const editando = !!tarea?.id;
@@ -145,7 +305,7 @@ export default function TareaModal({ tarea, miembros = [], yo, orgId, onClose, o
     function tecla(e) {
       // Escape cierra, salvo que esté abierto un desplegable: esos se
       // cierran con su propio Escape y se quedan dentro del formulario.
-      if (e.key === 'Escape' && !document.querySelector('[role="listbox"]')) onClose();
+      if (e.key === 'Escape' && !document.querySelector('[role="listbox"], [data-popover]')) onClose();
     }
     window.addEventListener('keydown', tecla);
     return () => window.removeEventListener('keydown', tecla);
@@ -374,19 +534,7 @@ export default function TareaModal({ tarea, miembros = [], yo, orgId, onClose, o
             <div className="tarea-dos" style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 14 }}>
               <div style={ETIQUETA}>
                 Fecha límite
-                <div style={{ display: 'flex', gap: 6 }}>
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <SelectorFecha value={fecha} onChange={setFecha} placeholder="Sin fecha" />
-                  </div>
-                  <input
-                    type="time"
-                    value={hora}
-                    onChange={(e) => setHora(e.target.value)}
-                    aria-label="Hora"
-                    disabled={!fecha}
-                    style={{ ...CAMPO, width: 104, height: 35, padding: '0 8px', flexShrink: 0 }}
-                  />
-                </div>
+                <FechaHora fecha={fecha} hora={hora} onFecha={setFecha} onHora={setHora} />
               </div>
               <div style={ETIQUETA}>
                 Prioridad
