@@ -10,10 +10,9 @@ import { canAccessDatabase } from '@/lib/plan';
 
 const PAGE_SIZE_OPTIONS = [25, 50, 100, 200];
 
-// PostgREST devuelve 1.000 filas como máximo por petición. La vista tiene
-// unas 12.000, así que hay que pedirlas por tramos hasta agotarlas.
-const CHUNK = 1000;
-const MAX_FILAS = 20000;
+// La vista tiene unas 12.400 filas.
+// Hasta 20.000 filas en 4 bloques de 5.000 (ver /api/instituciones/directorio/data).
+const BLOQUES = 4;
 
 const JURISDICCIONES = [
   { value: 'todas', label: 'Todas' },
@@ -335,30 +334,33 @@ export default function DirectorioInstitucionalPage() {
   useEffect(() => {
     if (!planChecked || !planAllowed) return;
 
+    // Los 4 bloques de 5.000 filas a la vez (sql/67). Cada bloque llega
+    // compacto —las columnas una vez y cada fila como lista— y aquí se
+    // vuelve a montar como objetos, que es lo que usa el resto de la
+    // página. Antes eran 13 peticiones de 1.000, una detrás de otra.
     async function cargar() {
-      const acumulado = [];
-      for (let desde = 0; desde < MAX_FILAS; desde += CHUNK) {
-        // La vista ya no se lee desde el navegador: la ruta comprueba el
-        // plan en el servidor y filtra las objeciones en origen.
-        let data = null;
-        let error = null;
-        try {
-          const res = await fetch(`/api/instituciones/directorio/data?desde=${desde}`, { cache: 'no-store' });
-          const json = await res.json().catch(() => ({}));
-          if (res.ok) data = json.filas || [];
-          else error = { message: json.error || 'No se pudo cargar el directorio' };
-        } catch {
-          error = { message: 'No se pudo cargar el directorio' };
+      try {
+        const bloques = await Promise.all(
+          Array.from({ length: BLOQUES }, async (_, i) => {
+            const res = await fetch(`/api/instituciones/directorio/data?bloque=${i}`);
+            const json = await res.json().catch(() => ({}));
+            if (!res.ok) throw new Error(json.error || 'No se pudo cargar el directorio');
+            return json;
+          })
+        );
+        const acumulado = [];
+        for (const { c = [], f = [] } of bloques) {
+          for (const valores of f) {
+            const fila = {};
+            for (let k = 0; k < c.length; k += 1) fila[c[k]] = valores[k];
+            acumulado.push(fila);
+          }
         }
-        if (error) {
-          setLoadError(error.message);
-          setFilas([]);
-          return;
-        }
-        acumulado.push(...(data || []));
-        if (!data || data.length < CHUNK) break;
+        setFilas(acumulado);
+      } catch (e) {
+        setLoadError(e.message || 'No se pudo cargar el directorio');
+        setFilas([]);
       }
-      setFilas(acumulado);
     }
     cargar();
   }, [planChecked, planAllowed]); // eslint-disable-line react-hooks/exhaustive-deps
