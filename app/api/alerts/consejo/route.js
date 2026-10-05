@@ -350,6 +350,8 @@ async function queTeAfecta(db, acuerdos, resumen, pro) {
       .select('id, alert_id, user_id, ref_id, motivo, relevancia')
       .eq('kind', 'consejo')
       .eq('descartado', false)
+      // Relevancia 1 no entra en los correos (se ve en Novedades).
+      .gte('relevancia', 2)
       .in('ref_id', idsAcuerdos)
       .in('user_id', pro.slice(i, i + 100));
     matches.push(...(data || []));

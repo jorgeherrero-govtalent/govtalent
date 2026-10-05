@@ -332,6 +332,8 @@ async function handler(request) {
           .select('id, alert_id, user_id, kind, ref_id, titulo, fuente, ruta, plazo, created_at, avisado_at')
           .in('alert_id', idsR.slice(i, i + 100))
           .eq('descartado', false)
+          // Relevancia 1 («contexto útil») no avisa: se ve en Novedades.
+          .gte('relevancia', 2)
           .not('plazo', 'is', null);
         encontrados.push(...(data || []));
       }
@@ -403,7 +405,11 @@ async function handler(request) {
           .select('id, alert_id, user_id, kind, ref_id, titulo, fuente, ruta, motivo, plazo, relevancia')
           .in('alert_id', ids.slice(i, i + 100))
           .is('avisado_at', null)
-          .eq('descartado', false);
+          .eq('descartado', false)
+          // Relevancia 1 («contexto útil») no genera aviso ni entra en el
+          // correo: el modelo no es constante al ponerla y metía ruido. Se
+          // guarda y se ve en Novedades.
+          .gte('relevancia', 2);
         pendientes.push(...(data || []));
       }
       pendientes = pendientes.filter((m) => !soloConsejo(porId.get(m.alert_id)) || m.kind === 'consejo');
