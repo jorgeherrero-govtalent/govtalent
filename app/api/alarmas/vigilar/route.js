@@ -67,10 +67,12 @@ import { limitesDe } from '@/lib/alarmas';
 import { alarmasEmail } from '@/lib/email/templates';
 
 export const dynamic = 'force-dynamic';
-export const maxDuration = 300;
+// Con la lista partida en bloques, una pasada con mucho pendiente hace
+// más llamadas. Vercel Pro permite hasta 800 s.
+export const maxDuration = 600;
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://govtalent.app';
-const PRESUPUESTO_MS = 240000;
+const PRESUPUESTO_MS = 540000;
 const EN_PARALELO = 4;
 const MAX_POR_CORREO = 8;
 
@@ -111,11 +113,6 @@ async function enviar({ to, subject, html }) {
   return res.json();
 }
 
-const normalizar = (t) =>
-  String(t || '')
-    .normalize('NFD')
-    .replace(/[̀-ͯ]/g, '')
-    .toLowerCase();
 
 /** Reparte trabajo en N hilos a la vez. */
 async function enParalelo(items, n, fn) {
@@ -213,54 +210,89 @@ async function handler(request) {
     let nuevas = 0;
     const errores = [];
 
+    // Lo reciente, siempre en el mismo orden: es lo que hace que la lista
+    // sea idéntica para todas las alarmas y se pueda compartir la caché.
+    const recienteOrdenado = ordenar(reciente || []);
+
+    // 1a. Lo pendiente de cada alarma.
+    const tareas = [];
     await enParalelo(aEvaluar, EN_PARALELO, async (a) => {
-      if (Date.now() - t0 > PRESUPUESTO_MS) {
-        informe.cortado_por_tiempo = true;
-        return;
-      }
       try {
-        const { data: vistos } = await db.from('sector_alert_seen').select('kind, ref_id').eq('alert_id', a.id);
+        const { data: vistos, error } = await db.from('sector_alert_seen').select('kind, ref_id').eq('alert_id', a.id);
+        if (error) throw new Error(error.message);
         const yaVisto = new Set((vistos || []).map((v) => `${v.kind}|${v.ref_id}`));
-        let pendientes = reevaluar ? [...(reciente || [])] : (reciente || []).filter((r) => !yaVisto.has(`${r.kind}|${r.ref_id}`));
+        const pendientes = reevaluar ? recienteOrdenado : recienteOrdenado.filter((r) => !yaVisto.has(`${r.kind}|${r.ref_id}`));
         evaluadas += 1;
-        if (pendientes.length === 0) return;
+        if (pendientes.length > 0) tareas.push({ a, pendientes, encaja: [], vistos: [], error: null });
+      } catch (e) {
+        errores.push(`${a.id}: ${e.message}`);
+      }
+    });
 
-        // Con el volumen de hoy (~30 asuntos al día) todo pasa por la IA.
-        // Si un día entra mucho más, primero lo que toca las palabras
-        // clave y luego lo más reciente, hasta el tope.
-        if (pendientes.length > MAX_CANDIDATOS) {
-          const claves = (a.keywords || []).map(normalizar).filter((k) => k.length >= 3);
-          const toca = (r) => claves.some((k) => normalizar(r.titulo).includes(k));
-          // La agenda del Gobierno, detrás de la normativa en cada grupo:
-          // son muchos actos al día y no deben dejar fuera una norma.
-          const agenda = (r) => r.kind === 'agenda';
-          pendientes = [
-            ...ordenar(pendientes.filter((r) => toca(r) && !agenda(r))),
-            ...ordenar(pendientes.filter((r) => toca(r) && agenda(r))),
-            ...ordenar(pendientes.filter((r) => !toca(r) && !agenda(r))),
-            ...ordenar(pendientes.filter((r) => !toca(r) && agenda(r))),
-          ].slice(0, MAX_CANDIDATOS);
+    // 1b. Evaluar, compartiendo la caché. Las alarmas con lo mismo
+    // pendiente (lo normal: todo lo nuevo desde la pasada anterior) forman
+    // un grupo y reciben exactamente la misma lista. Si pasa de
+    // MAX_CANDIDATOS, se parte en bloques fijos, iguales para todo el
+    // grupo: así cada alarma revisa TODO lo pendiente, no solo los
+    // primeros 120. En cada bloque, la primera alarma va sola y guarda la
+    // lista en la caché; las demás la leen después, a un 10 % del precio.
+    const clave = (lista) => lista.map((r) => `${r.kind}|${r.ref_id}`).join(',');
+    const grupos = new Map();
+    for (const t of tareas) {
+      const k = clave(t.pendientes);
+      if (!grupos.has(k)) grupos.set(k, []);
+      grupos.get(k).push(t);
+    }
+    informe.grupos = grupos.size;
+
+    for (const grupo of grupos.values()) {
+      const lista = grupo[0].pendientes;
+      for (let i = 0; i < lista.length; i += MAX_CANDIDATOS) {
+        if (Date.now() - t0 > PRESUPUESTO_MS) {
+          informe.cortado_por_tiempo = true;
+          break;
         }
+        const bloque = lista.slice(i, i + MAX_CANDIDATOS);
+        const evaluarUna = async (t) => {
+          if (t.error) return;
+          try {
+            const encaja = await evaluar(
+              { descripcion: t.a.descripcion || (t.a.keywords || []).join(', '), criterios: t.a.criterios || {} },
+              bloque,
+              { modelo: modeloPrueba, onUso: sumarUso }
+            );
+            llamadas += 1;
+            t.encaja.push(...encaja);
+            t.vistos.push(...bloque);
+          } catch (e) {
+            t.error = e.message;
+          }
+        };
+        await evaluarUna(grupo[0]);
+        await enParalelo(grupo.slice(1), EN_PARALELO, evaluarUna);
+      }
+    }
 
-        const encaja = await evaluar(
-          { descripcion: a.descripcion || (a.keywords || []).join(', '), criterios: a.criterios || {} },
-          pendientes,
-          { modelo: modeloPrueba, onUso: sumarUso }
-        );
-        llamadas += 1;
-        nuevas += encaja.length;
-        if (conDetalle) {
-          detalle.push({
-            alarma: a.nombre,
-            candidatos: pendientes.length,
-            elegidos: encaja.map((m) => `[${m.relevancia}] ${m.titulo}`.slice(0, 160)),
-          });
-        }
-        if (dry) return;
-
-        if (encaja.length > 0) {
+    // 1c. Guardar lo encontrado y marcar como visto solo lo evaluado (si
+    // la pasada se corta o falla un bloque, lo demás se reintenta en la
+    // siguiente).
+    await enParalelo(tareas, EN_PARALELO, async (t) => {
+      const { a } = t;
+      nuevas += t.encaja.length;
+      if (t.error) errores.push(`${a.id}: ${t.error}`);
+      if (conDetalle) {
+        detalle.push({
+          alarma: a.nombre,
+          candidatos: t.pendientes.length,
+          evaluados: t.vistos.length,
+          elegidos: t.encaja.map((m) => `[${m.relevancia}] ${m.titulo}`.slice(0, 160)),
+        });
+      }
+      if (dry || t.vistos.length === 0) return;
+      try {
+        if (t.encaja.length > 0) {
           const { error } = await db.from('sector_alert_matches').upsert(
-            encaja.map((m) => ({ ...m, alert_id: a.id, user_id: a.user_id })),
+            t.encaja.map((m) => ({ ...m, alert_id: a.id, user_id: a.user_id })),
             { onConflict: 'alert_id,kind,ref_id', ignoreDuplicates: true }
           );
           if (error) throw new Error(error.message);
@@ -268,7 +300,7 @@ async function handler(request) {
         await db
           .from('sector_alert_seen')
           .upsert(
-            pendientes.map((r) => ({ alert_id: a.id, kind: r.kind, ref_id: r.ref_id })),
+            t.vistos.map((r) => ({ alert_id: a.id, kind: r.kind, ref_id: r.ref_id })),
             { onConflict: 'alert_id,kind,ref_id', ignoreDuplicates: true }
           );
         await db.from('sector_alerts').update({ evaluada_at: new Date().toISOString() }).eq('id', a.id);
