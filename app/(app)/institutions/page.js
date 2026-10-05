@@ -1,10 +1,12 @@
 import Link from 'next/link';
+import DirectorioPestanasMovil from '@/components/DirectorioPestanasMovil';
 
 /**
  * Directorio institucional.
  *
  * Mismo lenguaje que el regulatorio: rejilla de dos columnas, todas las
- * piezas del mismo tamaño, la negra primero.
+ * piezas del mismo tamaño. (La tarjeta negra de la Base de datos pasó al
+ * menú el 05-10-2026.)
  *
  * Dos cambios respecto a la lista anterior.
  *
@@ -24,10 +26,6 @@ import Link from 'next/link';
  */
 
 const MORADO = '#6d5aef';
-
-// La demo del directorio. Si la ruta cambia, se cambia aquí y en ningún
-// sitio más.
-const RUTA_DIRECTORIO = '/instituciones/directorio';
 
 /**
  * CIFRAS FIJAS. HAY QUE MANTENERLAS A MANO.
@@ -68,6 +66,9 @@ const CIFRAS = {
   // que tocarla aquí también.
   congreso: { n: 350, etiqueta: 'diputados · 321 asesores' },
   organismos: { n: 77, etiqueta: 'organismos' },
+  // Gobierno, Parlamento y TSJ de cada una, de la Agenda de la Comunicación
+  // 2026-2027 (sql/69). Ceuta y Melilla van dentro, pero no son comunidades.
+  comunidades: { n: 17, etiqueta: 'comunidades · Gobierno, Parlamento y TSJ' },
   parlamentoUe: { n: 720, etiqueta: 'eurodiputados · 22 comisiones' },
   comisionUe: { n: 27, etiqueta: 'comisarios · 2.096 cargos y funcionarios en DG' },
 };
@@ -140,6 +141,7 @@ function Modulo({ href, pais, titulo, descripcion, cifra, etiqueta }) {
 export default function InstitutionsPage() {
   return (
     <div className="sec" style={{ maxWidth: 1080 }}>
+      <DirectorioPestanasMovil activa="instituciones" />
       <div style={{ marginBottom: 18 }}>
         <h1 style={{ fontSize: 21, fontWeight: 600, margin: 0, letterSpacing: '-.3px' }}>Instituciones</h1>
         <p style={{ fontSize: 13, color: '#8b8780', margin: '4px 0 0' }}>
@@ -148,52 +150,9 @@ export default function InstitutionsPage() {
       </div>
 
       <div className="reg-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 14 }}>
-        {/* La tarjeta negra, como en el regulatorio: es lo que la
-            plataforma añade por encima de las fuentes, no una sección
-            más. Aquí es además la única de pago, y lo dice antes de que
-            nadie pulse: un CTA que lleva a un muro sin avisar quema más
-            confianza de la que convierte. */}
-        {/* Lleva a la demo, no a un modal.
+        {/* La tarjeta negra de la Base de datos salió de aquí el 05-10-2026:
+            ahora es una entrada propia del menú (Directorio > Base de datos). */}
 
-            El muro no va aquí: la demo enseña la tabla con su forma real
-            y es allí, al intentar usarla, donde aparece el modal de
-            Teams. Enseñar antes de pedir convierte mejor que pedir antes
-            de enseñar. */}
-        <Link
-          href={RUTA_DIRECTORIO}
-          className="bento"
-          style={{
-            background: '#15140f',
-            borderRadius: 16,
-            padding: '22px 24px',
-            minHeight: 150,
-            textDecoration: 'none',
-            display: 'flex',
-            flexDirection: 'column',
-            justifyContent: 'space-between',
-          }}
-        >
-          <div>
-            <div style={{ fontSize: 11.5, color: '#8f7ff5', letterSpacing: '.3px', marginBottom: 10 }}>
-              BASE DE DATOS DE CARGOS
-            </div>
-            <div style={{ fontSize: 14.5, color: '#fff', lineHeight: 1.5 }}>
-              Todos los cargos de la administración en España y la UE en una sola tabla.
-            </div>
-          </div>
-          <div style={{ fontSize: 12.5, color: '#8f7ff5', fontWeight: 600, paddingTop: 18 }}>
-            Ver base de datos →
-          </div>
-        </Link>
-
-        <Modulo
-          href="/institutions/ministries"
-          pais="es"
-          titulo="Ministerios"
-          descripcion="Ministros, secretarios de Estado, direcciones generales y gabinetes."
-          cifra={CIFRAS.ministerios.n}
-          etiqueta={CIFRAS.ministerios.etiqueta}
-        />
         {/* Una sola tarjeta para el Congreso, con sus cuatro vistas
             dentro. Diputados y Grupos tuvieron entrada propia y eso
             enseñaba una jerarquía falsa: parecían módulos hermanos
@@ -206,6 +165,14 @@ export default function InstitutionsPage() {
           cifra={CIFRAS.congreso.n}
           etiqueta={CIFRAS.congreso.etiqueta}
         />
+        <Modulo
+          href="/institutions/ministries"
+          pais="es"
+          titulo="Ministerios"
+          descripcion="Ministros, secretarios de Estado, direcciones generales y gabinetes."
+          cifra={CIFRAS.ministerios.n}
+          etiqueta={CIFRAS.ministerios.etiqueta}
+        />
         {/* Los organismos van aparte de Ministerios: no son parte de un
             ministerio sino entes con personalidad jurídica propia, y
             varios —CNMC, AEPD— son autoridades independientes. */}
@@ -216,6 +183,17 @@ export default function InstitutionsPage() {
           descripcion="CNMC, AEPD, agencias estatales y organismos autónomos que regulan tu sector."
           cifra={CIFRAS.organismos.n}
           etiqueta={CIFRAS.organismos.etiqueta}
+        />
+        {/* Las comunidades, con sus tres instituciones (Gobierno, Parlamento y
+            TSJ). También cuadra la rejilla: sin la tarjeta negra quedaban
+            cinco. */}
+        <Modulo
+          href="/institutions/comunidades"
+          pais="es"
+          titulo="Comunidades autónomas"
+          descripcion="Gobierno, Parlamento y Tribunal Superior de Justicia de las 17 comunidades, Ceuta y Melilla."
+          cifra={CIFRAS.comunidades.n}
+          etiqueta={CIFRAS.comunidades.etiqueta}
         />
         <Modulo
           href="/institutions/eu-parliament"
