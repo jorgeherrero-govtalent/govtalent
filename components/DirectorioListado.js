@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import BackLink from '@/components/BackLink';
+import UpgradeModal from '@/components/UpgradeModal';
 import { seccionPorSlug, FUENTE_AGENDA } from '@/lib/directorio';
 import { SECTOR_LABELS } from '@/lib/orgTaxonomy';
 
@@ -10,9 +11,12 @@ import { SECTOR_LABELS } from '@/lib/orgTaxonomy';
  * Comunicación (prensa, partidos, comunidades autónomas…) o de las
  * asociaciones ya cargadas.
  *
- * Una ficha plegable por organización con sus unidades y las personas,
- * solo nombre y cargo. Los correos y teléfonos no se enseñan aquí: son
- * la Base de datos, que es de pago.
+ * Una ficha plegable por organización con sus unidades y las personas.
+ *
+ * Correos y teléfonos (05-10-2026): se enseñan solo si la organización
+ * tiene el plan que incluye la Base de datos. Lo decide la ruta
+ * /api/directorio en el servidor (`contacto: true`); sin ese plan la
+ * respuesta no trae ningún correo y aquí sale el aviso de Teams.
  *
  * Todo se filtra en el navegador: la sección más grande (prensa) son
  * ~600 organizaciones y ~2.200 personas, y así la búsqueda es inmediata.
@@ -50,16 +54,77 @@ function agruparPorComunidad(items) {
     if (!porCcaa.has(k)) porCcaa.set(k, { organizacion: k, subcategoria: null, web: null, unidades: [] });
     const g = porCcaa.get(k);
     if (!g.web && it.subcategoria === 'Gobierno' && it.web) g.web = it.web;
+    const conGeneral = it.unidades.find((u) => u.email || u.telefono) || {};
     g.unidades.push({
       nombre: it.organizacion,
       personas: it.unidades.flatMap((u) => u.personas),
       etiqueta: it.subcategoria,
+      email: conGeneral.email || null,
+      telefono: conGeneral.telefono || null,
     });
   }
   return [...porCcaa.values()];
 }
 
-function Ficha({ item }) {
+function separar(v) {
+  return String(v || '')
+    .split(';')
+    .map((x) => x.trim())
+    .filter(Boolean);
+}
+
+// Correos (enlace mailto) y teléfono en una línea, separados por puntos.
+function LineaContacto({ email, telefono, pequena }) {
+  const correos = separar(email);
+  const tels = separar(telefono);
+  if (!correos.length && !tels.length) return null;
+  return (
+    <span style={{ fontSize: pequena ? 12.5 : 13, color: '#6f6b64', display: 'inline-flex', flexWrap: 'wrap', gap: '2px 10px' }}>
+      {correos.map((c) => (
+        <a key={c} href={`mailto:${c}`} style={{ color: '#3a3a36', textDecoration: 'none', borderBottom: `1px solid ${BORDE}` }}>
+          {c}
+        </a>
+      ))}
+      {tels.map((t) => (
+        <span key={t} style={{ whiteSpace: 'nowrap' }}>
+          {t}
+        </span>
+      ))}
+    </span>
+  );
+}
+
+function AvisoContacto({ onUpsell }) {
+  return (
+    <button
+      type="button"
+      onClick={onUpsell}
+      style={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: 8,
+        width: '100%',
+        marginTop: 10,
+        padding: '9px 12px',
+        border: `.5px solid ${BORDE}`,
+        borderRadius: 9,
+        background: '#faf9f6',
+        fontFamily: 'inherit',
+        fontSize: 12.5,
+        color: '#3a3a36',
+        cursor: 'pointer',
+        textAlign: 'left',
+      }}
+    >
+      <i className="ti ti-lock" aria-hidden="true" style={{ fontSize: 15, color: MORADO }}></i>
+      <span>
+        Correos y teléfonos de cada persona, en el plan Teams. <span style={{ color: MORADO, fontWeight: 600 }}>Ver planes</span>
+      </span>
+    </button>
+  );
+}
+
+function Ficha({ item, contacto, onUpsell }) {
   const personas = item.unidades.reduce((n, u) => n + u.personas.length, 0);
   const web = urlWeb(item.web);
   const meta = [item.subcategoria, item.unidades.length > 1 ? `${item.unidades.length} unidades` : null, personas ? `${personas} ${personas === 1 ? 'persona' : 'personas'}` : null]
@@ -100,6 +165,7 @@ function Ficha({ item }) {
         </span>
       </summary>
       <div style={{ borderTop: `.5px solid ${BORDE}`, padding: '6px 18px 14px' }}>
+        {!contacto ? <AvisoContacto onUpsell={onUpsell} /> : null}
         {item.unidades.length === 0 ? (
           <div style={{ fontSize: 13, color: '#8b8780', padding: '8px 0' }}>La Agenda no recoge personas para esta organización.</div>
         ) : (
@@ -111,13 +177,34 @@ function Ficha({ item }) {
                   {u.etiqueta && u.etiqueta !== u.nombre ? <span style={{ fontWeight: 400 }}> · {u.etiqueta}</span> : null}
                 </div>
               ) : null}
+              {contacto && (u.email || u.telefono) ? (
+                <div style={{ marginBottom: 6 }}>
+                  <span style={{ fontSize: 12, color: '#8b8780', marginRight: 8 }}>General</span>
+                  <LineaContacto email={u.email} telefono={u.telefono} pequena />
+                </div>
+              ) : null}
               {u.personas.length === 0 ? (
                 <div style={{ fontSize: 13, color: '#a8a49c' }}>Sin personas en la Agenda</div>
               ) : (
                 u.personas.map((p, j) => (
-                  <div key={j} style={{ fontSize: 13, lineHeight: 1.6, color: '#1a1a18' }}>
-                    {p.nombre}
-                    {p.cargo ? <span style={{ color: '#6f6b64' }}> · {p.cargo}</span> : null}
+                  <div
+                    key={j}
+                    style={{
+                      fontSize: 13,
+                      lineHeight: 1.6,
+                      color: '#1a1a18',
+                      display: 'flex',
+                      flexWrap: 'wrap',
+                      justifyContent: 'space-between',
+                      gap: '0 16px',
+                      padding: contacto ? '3px 0' : 0,
+                    }}
+                  >
+                    <span style={{ minWidth: 0 }}>
+                      {p.nombre}
+                      {p.cargo ? <span style={{ color: '#6f6b64' }}> · {p.cargo}</span> : null}
+                    </span>
+                    {contacto ? <LineaContacto email={p.email} telefono={p.telefono} pequena /> : null}
                   </div>
                 ))
               )}
@@ -171,6 +258,8 @@ export default function DirectorioListado({ slug, volverA, volverEtiqueta }) {
   const [busqueda, setBusqueda] = useState('');
   const [filtro, setFiltro] = useState('');
   const [pagina, setPagina] = useState(1);
+  const [contacto, setContacto] = useState(false);
+  const [modalUpsell, setModalUpsell] = useState(false);
 
   useEffect(() => {
     let vivo = true;
@@ -181,6 +270,7 @@ export default function DirectorioListado({ slug, volverA, volverEtiqueta }) {
         if (!vivo) return;
         const lista = d.items || [];
         setItems(slug === 'comunidades' ? agruparPorComunidad(lista) : lista);
+        setContacto(!!d.contacto);
         setEstado('listo');
       })
       .catch(() => {
@@ -302,7 +392,11 @@ export default function DirectorioListado({ slug, volverA, volverEtiqueta }) {
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
           {visibles.map((it, i) =>
-            esAsociaciones ? <FilaAsociacion key={i} item={it} /> : <Ficha key={`${pagina}-${i}`} item={it} />
+            esAsociaciones ? (
+              <FilaAsociacion key={i} item={it} />
+            ) : (
+              <Ficha key={`${pagina}-${i}`} item={it} contacto={contacto} onUpsell={() => setModalUpsell(true)} />
+            )
           )}
         </div>
       )}
@@ -336,6 +430,16 @@ export default function DirectorioListado({ slug, volverA, volverEtiqueta }) {
       <div style={{ fontSize: 11.5, color: '#a8a49c', paddingTop: 18 }}>
         Fuente: {esAsociaciones ? 'directorio de organizaciones de GovTalent' : FUENTE_AGENDA}.
       </div>
+
+      {/* Mismo aviso que la Base de datos: es la misma función de Teams. */}
+      {modalUpsell ? (
+        <UpgradeModal
+          title="Los contactos son una función Teams"
+          message="Correo y teléfono de cada persona de medios, partidos, sindicatos, patronales, ONG, organismos internacionales y comunidades autónomas, además de la Base de datos de cargos de la administración."
+          href="/precios?para=organizaciones"
+          onClose={() => setModalUpsell(false)}
+        />
+      ) : null}
     </div>
   );
 }
