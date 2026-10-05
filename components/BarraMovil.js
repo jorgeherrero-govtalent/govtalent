@@ -47,7 +47,9 @@ const MODULOS = [
     href: '/institutions',
     etiqueta: 'Instituciones',
     icono: 'ti-building-bank',
-    activo: (p) => p.startsWith('/institutions') || p.startsWith('/instituciones'),
+    // En el móvil una sola entrada para todo el Directorio: Instituciones,
+    // Organizaciones y Base de datos se alcanzan desde ahí.
+    activo: (p) => p.startsWith('/institutions') || p.startsWith('/instituciones') || p.startsWith('/directorio'),
   },
   { href: '/tareas', etiqueta: 'Tareas', icono: 'ti-checkbox', activo: (p) => p.startsWith('/tareas') },
   { href: '/projects', etiqueta: 'Proyectos', icono: 'ti-folder', activo: (p) => p.startsWith('/projects') },
