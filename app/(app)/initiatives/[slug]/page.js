@@ -419,8 +419,8 @@ export default function InitiativeDetailPage() {
         <BackLink fallbackHref="/initiatives" fallbackLabel="Expedientes" />
         <span style={{ fontSize: 11.5, color: '#ddd' }}>|</span>
         <span style={{ fontSize: 11.5, color: '#999' }}>
-          <Link href="/regulatorio" style={{ color: '#999', textDecoration: 'none' }}>
-            Regulatorio
+          <Link href="/regulatorio/union-europea" style={{ color: '#999', textDecoration: 'none' }}>
+            Unión Europea
           </Link>
           {' › '}
           <Link href="/initiatives" style={{ color: '#999', textDecoration: 'none' }}>

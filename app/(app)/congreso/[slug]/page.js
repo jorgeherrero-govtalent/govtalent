@@ -252,8 +252,8 @@ export default function CongresoDetailPage() {
         <BackLink fallbackHref="/congreso" fallbackLabel="Congreso" />
         <span style={{ fontSize: 11.5, color: '#ddd' }}>|</span>
         <span style={{ fontSize: 11.5, color: '#999' }}>
-          <Link href="/regulatorio" style={{ color: '#999', textDecoration: 'none' }}>
-            Regulatorio
+          <Link href="/regulatorio/espana" style={{ color: '#999', textDecoration: 'none' }}>
+            España
           </Link>
           {' › '}
           <Link href="/congreso" style={{ color: '#999', textDecoration: 'none' }}>
