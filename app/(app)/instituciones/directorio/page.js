@@ -10,9 +10,10 @@ import { canAccessDatabase } from '@/lib/plan';
 
 const PAGE_SIZE_OPTIONS = [25, 50, 100, 200];
 
-// La vista tiene unas 12.400 filas.
-// Hasta 20.000 filas en 4 bloques de 5.000 (ver /api/instituciones/directorio/data).
-const BLOQUES = 4;
+// La vista tiene unas 18.200 filas desde que entró la Agenda de la
+// Comunicación (sql/70, 05-10-2026).
+// Hasta 25.000 filas en 5 bloques de 5.000 (ver /api/instituciones/directorio/data).
+const BLOQUES = 5;
 
 const JURISDICCIONES = [
   { value: 'todas', label: 'Todas' },
@@ -334,7 +335,7 @@ export default function DirectorioInstitucionalPage() {
   useEffect(() => {
     if (!planChecked || !planAllowed) return;
 
-    // Los 4 bloques de 5.000 filas a la vez (sql/67). Cada bloque llega
+    // Los 5 bloques de 5.000 filas a la vez (sql/67 y sql/70). Cada bloque llega
     // compacto —las columnas una vez y cada fila como lista— y aquí se
     // vuelve a montar como objetos, que es lo que usa el resto de la
     // página. Antes eran 13 peticiones de 1.000, una detrás de otra.
@@ -622,7 +623,7 @@ export default function DirectorioInstitucionalPage() {
         {modalUpsell && (
           <UpgradeModal
             title="El directorio institucional es una función Teams"
-            message="Más de doce mil cargos y asesores de la Administración General del Estado, el Congreso, la Comisión Europea y el Parlamento Europeo, con su correo, su unidad y su dirección postal. Filtra por institución o área y expórtalo a Excel cuando lo necesites."
+            message="Más de dieciocho mil cargos y contactos de la Administración General del Estado, las comunidades autónomas, el Congreso, la Comisión Europea, el Parlamento Europeo, los medios de comunicación, los partidos, los sindicatos y las patronales, con su correo, su unidad y su dirección postal. Filtra por institución o área y expórtalo a Excel cuando lo necesites."
             href="/precios?para=organizaciones"
             onClose={() => setModalUpsell(false)}
           />
