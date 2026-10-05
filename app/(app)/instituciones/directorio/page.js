@@ -13,13 +13,72 @@ const PAGE_SIZE_OPTIONS = [25, 50, 100, 200];
 // La vista tiene unas 18.200 filas desde que entró la Agenda de la
 // Comunicación (sql/70, 05-10-2026).
 // Hasta 25.000 filas en 5 bloques de 5.000 (ver /api/instituciones/directorio/data).
-const BLOQUES = 5;
+const BLOQUES_CARGA = 5;
 
-const JURISDICCIONES = [
-  { value: 'todas', label: 'Todas' },
-  { value: 'España', label: 'España' },
-  { value: 'UE', label: 'UE' },
+// Tres bloques, como el menú del Directorio (05-10-2026). Sustituyen a las
+// pestañas España / UE: desde que entraron los medios y los ayuntamientos,
+// tenerlo todo bajo «instituciones» mezclaba alcaldes con periodistas. La
+// jurisdicción ya la dice el nivel (Comisión y Parlamento Europeo son la UE).
+const BLOQUES = [
+  { value: 'todas', label: 'Todo', entidad: 'Institución u organización' },
+  { value: 'instituciones', label: 'Instituciones', nivel: 'Nivel', entidad: 'Institución' },
+  { value: 'organizaciones', label: 'Organizaciones', nivel: 'Tipo de organización', entidad: 'Organización' },
+  { value: 'medios', label: 'Medios y actores sociales', nivel: 'Tipo de medio', entidad: 'Medio u organización' },
 ];
+
+// Orden de los niveles dentro de cada bloque en el filtro.
+const NIVELES = {
+  instituciones: [
+    'Administración General del Estado',
+    'Congreso de los Diputados',
+    'Comunidades autónomas',
+    'Administración local',
+    'Altas instituciones del Estado',
+    'Otros organismos públicos',
+    'Comisión Europea',
+    'Parlamento Europeo',
+  ],
+  organizaciones: ['Patronales', 'Sociedades estatales'],
+  medios: ['Prensa', 'Radio y televisión', 'Partidos políticos', 'Sindicatos', 'ONG', 'Organismos internacionales'],
+};
+
+// Las filas de la Agenda de la Comunicación (sql/69-71) traen su categoría de
+// origen en categoria_unidad.
+const POR_CATEGORIA = {
+  ministerio: ['instituciones', 'Administración General del Estado'],
+  organismo_age: ['instituciones', 'Administración General del Estado'],
+  delegacion_gobierno: ['instituciones', 'Administración General del Estado'],
+  ccaa: ['instituciones', 'Comunidades autónomas'],
+  local: ['instituciones', 'Administración local'],
+  alta_institucion: ['instituciones', 'Altas instituciones del Estado'],
+  entidad_publica: ['instituciones', 'Otros organismos públicos'],
+  investigacion: ['instituciones', 'Otros organismos públicos'],
+  universidad: ['instituciones', 'Otros organismos públicos'],
+  camara_comercio: ['instituciones', 'Otros organismos públicos'],
+  consejo_audiovisual: ['instituciones', 'Otros organismos públicos'],
+  patronal: ['organizaciones', 'Patronales'],
+  sociedad_estatal: ['organizaciones', 'Sociedades estatales'],
+  prensa: ['medios', 'Prensa'],
+  radio_tv: ['medios', 'Radio y televisión'],
+  partido: ['medios', 'Partidos políticos'],
+  sindicato: ['medios', 'Sindicatos'],
+  ong: ['medios', 'ONG'],
+  religiosa: ['medios', 'ONG'],
+  organismo_internacional: ['medios', 'Organismos internacionales'],
+};
+
+/** Bloque y nivel de una fila de directorio_pro. */
+function clasificar(f) {
+  if (f.jurisdiccion === 'UE') {
+    return ['instituciones', f.tipo_institucion === 'legislativo' ? 'Parlamento Europeo' : 'Comisión Europea'];
+  }
+  const id = String(f.id || '');
+  if (id.startsWith('agenda:')) {
+    return POR_CATEGORIA[f.categoria_unidad] || ['instituciones', 'Otros organismos públicos'];
+  }
+  if (id.startsWith('es-legislativo')) return ['instituciones', 'Congreso de los Diputados'];
+  return ['instituciones', 'Administración General del Estado'];
+}
 
 // Solo los que hacen falta para el filtro de nacionalidad del
 // Parlamento Europeo. El resto se muestra con su codigo ISO.
@@ -283,7 +342,8 @@ export default function DirectorioInstitucionalPage() {
   const [planAllowed, setPlanAllowed] = useState(true);
 
   const [search, setSearch] = useState('');
-  const [jurisdiccion, setJurisdiccion] = useState('todas');
+  const [bloque, setBloque] = useState('todas');
+  const [nivelFilter, setNivelFilter] = useState(new Set());
   const [institucionFilter, setInstitucionFilter] = useState(new Set());
   const [areaFilter, setAreaFilter] = useState(new Set());
   const [paisFilter, setPaisFilter] = useState(new Set());
@@ -342,7 +402,7 @@ export default function DirectorioInstitucionalPage() {
     async function cargar() {
       try {
         const bloques = await Promise.all(
-          Array.from({ length: BLOQUES }, async (_, i) => {
+          Array.from({ length: BLOQUES_CARGA }, async (_, i) => {
             const res = await fetch(`/api/instituciones/directorio/data?bloque=${i}`);
             const json = await res.json().catch(() => ({}));
             if (!res.ok) throw new Error(json.error || 'No se pudo cargar el directorio');
@@ -354,6 +414,7 @@ export default function DirectorioInstitucionalPage() {
           for (const valores of f) {
             const fila = {};
             for (let k = 0; k < c.length; k += 1) fila[c[k]] = valores[k];
+            [fila.bloque, fila.nivel] = clasificar(fila);
             acumulado.push(fila);
           }
         }
@@ -368,20 +429,44 @@ export default function DirectorioInstitucionalPage() {
 
   useEffect(() => {
     setPage(0);
-  }, [search, jurisdiccion, institucionFilter, areaFilter, paisFilter, bandaFilter, contactoFilter, pageSize]);
+  }, [search, bloque, nivelFilter, institucionFilter, areaFilter, paisFilter, bandaFilter, contactoFilter, pageSize]);
 
   const base = filas || [];
 
-  // Las opciones de institución dependen de la jurisdicción elegida: no
-  // tiene sentido ofrecer los 23 ministerios cuando estás mirando la UE.
+  const enBloque = (f) => bloque === 'todas' || f.bloque === bloque;
+  const enNivel = (f) => nivelFilter.size === 0 || nivelFilter.has(f.nivel);
+
+  // Cuántas personas hay en cada bloque: van en las pestañas.
+  const cuentaBloques = useMemo(() => {
+    const n = { todas: base.length, instituciones: 0, organizaciones: 0, medios: 0 };
+    base.forEach((f) => {
+      n[f.bloque] = (n[f.bloque] || 0) + 1;
+    });
+    return n;
+  }, [base]);
+
+  // Los niveles del bloque elegido, en su orden y con su cifra.
+  const nivelValues = useMemo(() => {
+    if (bloque === 'todas') return [];
+    const n = {};
+    base.forEach((f) => {
+      if (f.bloque === bloque) n[f.nivel] = (n[f.nivel] || 0) + 1;
+    });
+    return (NIVELES[bloque] || [])
+      .filter((v) => n[v])
+      .map((v) => ({ value: v, label: `${v} (${n[v].toLocaleString('es-ES')})` }));
+  }, [base, bloque]);
+
+  // Las instituciones u organizaciones del bloque y los niveles elegidos: no
+  // tiene sentido ofrecer los medios cuando estás mirando ministerios.
   const institucionValues = useMemo(() => {
     const set = new Set();
     base.forEach((f) => {
-      if (jurisdiccion !== 'todas' && f.jurisdiccion !== jurisdiccion) return;
+      if (!enBloque(f) || !enNivel(f)) return;
       if (f.institucion) set.add(f.institucion);
     });
-    return [...set].sort().map((v) => ({ value: v, label: v }));
-  }, [base, jurisdiccion]);
+    return [...set].sort((a, b) => a.localeCompare(b, 'es')).map((v) => ({ value: v, label: v }));
+  }, [base, bloque, nivelFilter]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const areaValues = useMemo(() => {
     const set = new Set();
@@ -400,13 +485,13 @@ export default function DirectorioInstitucionalPage() {
   const paisValues = useMemo(() => {
     const set = new Set();
     base.forEach((f) => {
-      if (jurisdiccion !== 'todas' && f.jurisdiccion !== jurisdiccion) return;
+      if (!enBloque(f) || !enNivel(f)) return;
       if (f.pais && f.tipo_institucion === 'legislativo' && f.jurisdiccion === 'UE') set.add(f.pais);
     });
     return [...set]
       .sort((a, b) => (PAISES[a] || a).localeCompare(PAISES[b] || b, 'es'))
       .map((v) => ({ value: v, label: PAISES[v] || v }));
-  }, [base, jurisdiccion]);
+  }, [base, bloque, nivelFilter]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const contactoValues = [
     { value: 'alta', label: 'Alta' },
@@ -417,7 +502,8 @@ export default function DirectorioInstitucionalPage() {
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
     const out = base
-      .filter((f) => jurisdiccion === 'todas' || f.jurisdiccion === jurisdiccion)
+      .filter(enBloque)
+      .filter(enNivel)
       .filter((f) => institucionFilter.size === 0 || institucionFilter.has(f.institucion))
       .filter((f) => areaFilter.size === 0 || areaFilter.has(f.area))
       .filter((f) => paisFilter.size === 0 || paisFilter.has(f.pais))
@@ -484,7 +570,7 @@ export default function DirectorioInstitucionalPage() {
       });
     }
     return out;
-  }, [base, search, jurisdiccion, institucionFilter, areaFilter, paisFilter, bandaFilter, contactoFilter, sortConfig]);
+  }, [base, search, bloque, nivelFilter, institucionFilter, areaFilter, paisFilter, bandaFilter, contactoFilter, sortConfig]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
   const currentPage = Math.min(page, totalPages - 1);
@@ -542,7 +628,8 @@ export default function DirectorioInstitucionalPage() {
           rowCount: exportRows.length,
           filters: {
             search: search || null,
-            jurisdiccion,
+            bloque,
+            nivel: [...nivelFilter],
             institucion: [...institucionFilter],
             area: [...areaFilter],
             pais: [...paisFilter],
@@ -567,6 +654,8 @@ export default function DirectorioInstitucionalPage() {
         Unidad: f.unidad || '',
         Institución: f.institucion || '',
         Jurisdicción: f.jurisdiccion || '',
+        Bloque: (BLOQUES.find((b) => b.value === f.bloque) || {}).label || '',
+        Nivel: f.nivel || '',
         País: PAISES[f.pais] || f.pais || '',
         Poder: f.tipo_institucion || '',
         Área: f.area || '',
@@ -656,6 +745,50 @@ export default function DirectorioInstitucionalPage() {
         </div>
       )}
 
+      {/* Bloques: Instituciones, Organizaciones y Medios y actores sociales,
+          con su cifra. Al cambiar de bloque se vacían Nivel e Institución,
+          que dependen de él. */}
+      <div
+        role="tablist"
+        aria-label="Bloque"
+        style={{ display: 'inline-flex', flexWrap: 'wrap', background: '#fff', border: '1px solid #e2dcf8', borderRadius: 10, padding: 3, marginBottom: 12 }}
+      >
+        {BLOQUES.map((b) => {
+          const activo = bloque === b.value;
+          return (
+            <button
+              key={b.value}
+              type="button"
+              role="tab"
+              aria-selected={activo}
+              onClick={() => {
+                setBloque(b.value);
+                setNivelFilter(new Set());
+                setInstitucionFilter(new Set());
+                setPaisFilter(new Set());
+              }}
+              style={{
+                border: 'none',
+                padding: '6px 14px',
+                borderRadius: 7,
+                fontSize: 12,
+                fontWeight: 600,
+                cursor: 'pointer',
+                background: activo ? '#f0edfe' : 'transparent',
+                color: activo ? '#6d5aef' : '#8a897f',
+              }}
+            >
+              {b.label}
+              {filas ? (
+                <span style={{ fontWeight: 500, opacity: 0.8, marginLeft: 6 }}>
+                  {(cuentaBloques[b.value] || 0).toLocaleString('es-ES')}
+                </span>
+              ) : null}
+            </button>
+          );
+        })}
+      </div>
+
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14, flexWrap: 'wrap' }}>
         <div
           style={{
@@ -687,34 +820,24 @@ export default function DirectorioInstitucionalPage() {
           )}
         </div>
 
-        <div style={{ display: 'inline-flex', background: '#fff', border: '1px solid #e2dcf8', borderRadius: 10, padding: 3 }}>
-          {JURISDICCIONES.map((j) => (
-            <button
-              key={j.value}
-              type="button"
-              onClick={() => {
-                setJurisdiccion(j.value);
-                setInstitucionFilter(new Set());
-              }}
-              style={{
-                border: 'none',
-                padding: '6px 14px',
-                borderRadius: 7,
-                fontSize: 12,
-                fontWeight: 600,
-                cursor: 'pointer',
-                background: jurisdiccion === j.value ? '#f0edfe' : 'transparent',
-                color: jurisdiccion === j.value ? '#6d5aef' : '#8a897f',
-              }}
-            >
-              {j.label}
-            </button>
-          ))}
-        </div>
 
+        {bloque !== 'todas' && nivelValues.length > 1 && (
+          <FiltroBarra
+            key={`nivel-${bloque}`}
+            icono="ti-stack-2"
+            label={BLOQUES.find((b) => b.value === bloque).nivel}
+            values={nivelValues}
+            selected={nivelFilter}
+            onApply={(sel) => {
+              setNivelFilter(sel);
+              setInstitucionFilter(new Set());
+            }}
+          />
+        )}
         <FiltroBarra
+          key={`inst-${bloque}`}
           icono="ti-building-bank"
-          label="Institución"
+          label={BLOQUES.find((b) => b.value === bloque).entidad || 'Institución'}
           values={institucionValues}
           selected={institucionFilter}
           onApply={setInstitucionFilter}
@@ -915,7 +1038,7 @@ export default function DirectorioInstitucionalPage() {
                 <td style={{ padding: '11px 18px', color: '#555' }}>
                   {f.institucion || '—'}
                   <div style={{ fontSize: 11, color: '#a8a79c', marginTop: 2 }}>
-                    {f.jurisdiccion} · {f.tipo_institucion}
+                    {f.nivel}
                     {f.pais && f.jurisdiccion === 'UE' && (
                       <span style={{ color: f.pais === 'ES' ? '#6d5aef' : '#a8a79c' }}>
                         {' · '}{PAISES[f.pais] || f.pais}
