@@ -31,7 +31,8 @@ const MODULOS = [
       p.startsWith('/parlamentos-autonomicos') ||
       p.startsWith('/initiatives') ||
       p.startsWith('/procedures') ||
-      p.startsWith('/congreso'),
+      p.startsWith('/congreso') ||
+      p.startsWith('/boe'),
   },
   // Novedades lleva el contador, como en el menú lateral. Alarmas y
   // Seguimiento se alcanzan desde su cabecera y la marcan activa.

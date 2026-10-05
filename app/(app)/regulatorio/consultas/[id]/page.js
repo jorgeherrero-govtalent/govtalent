@@ -274,8 +274,8 @@ export default function ConsultaDetallePage() {
         <BackLink fallbackHref="/regulatorio/consultas" fallbackLabel="Consultas públicas" />
         <span style={{ fontSize: 11.5, color: '#ddd' }}>|</span>
         <span style={{ fontSize: 11.5, color: '#999' }}>
-          <Link href="/regulatorio" style={{ color: '#999', textDecoration: 'none' }}>
-            Regulatorio
+          <Link href="/regulatorio/espana" style={{ color: '#999', textDecoration: 'none' }}>
+            España
           </Link>
           {' › '}
           <Link href="/regulatorio/consultas" style={{ color: '#999', textDecoration: 'none' }}>

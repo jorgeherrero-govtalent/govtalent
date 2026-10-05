@@ -26,14 +26,16 @@ const CLAVE_PLEGADO = 'govtalent.menu.plegado';
 
 // Qué rutas encienden cada entrada. Las fichas hijas también, para que el
 // menú no se apague al entrar en un expediente.
-// Las consultas públicas ya no tienen entrada propia en el menú (04-10-2026):
-// se llega desde la portada de Regulatorio, así que encienden Regulatorio.
-const enRegulatorio = (p) =>
-  p.startsWith('/regulatorio') ||
-  p.startsWith('/initiatives') ||
-  p.startsWith('/procedures') ||
+// Regulatorio se divide en Unión Europea y España (05-10-2026). Lo que no
+// es de Bruselas (consultas, búsqueda, el propio /regulatorio) cuelga de
+// España.
+const enUnionEuropea = (p) =>
+  p.startsWith('/regulatorio/union-europea') || p.startsWith('/initiatives') || p.startsWith('/procedures');
+const enEspana = (p) =>
+  (p.startsWith('/regulatorio') && !p.startsWith('/regulatorio/union-europea')) ||
   p.startsWith('/congreso') ||
-  p.startsWith('/boe');
+  p.startsWith('/boe') ||
+  p.startsWith('/parlamentos-autonomicos');
 
 const PRINCIPALES = [
   { href: '/', etiqueta: 'Asistente', icono: 'ti-sparkles', activo: (p) => p === '/' },
@@ -46,15 +48,10 @@ const PRINCIPALES = [
 // redirigen a la portada: ver RUTAS_OCULTAS en middleware.js).
 const SECCIONES = [
   {
-    titulo: 'Vigilar',
+    titulo: 'Regulatorio',
     items: [
-      { href: '/regulatorio', etiqueta: 'Regulatorio', icono: 'ti-timeline-event', activo: enRegulatorio },
-      {
-        href: '/parlamentos-autonomicos',
-        etiqueta: 'Parlamentos autonómicos',
-        icono: 'ti-building-community',
-        activo: (p) => p.startsWith('/parlamentos-autonomicos'),
-      },
+      { href: '/regulatorio/union-europea', etiqueta: 'Unión Europea', icono: 'ti-world', activo: enUnionEuropea },
+      { href: '/regulatorio/espana', etiqueta: 'España', icono: 'ti-building-community', activo: enEspana },
     ],
   },
   {

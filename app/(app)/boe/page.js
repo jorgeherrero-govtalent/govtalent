@@ -165,8 +165,8 @@ function Boe() {
   return (
     <div className="sec" style={{ maxWidth: 1000 }}>
       <div style={{ fontSize: 11.5, color: '#a8a49c', marginBottom: 10 }}>
-        <Link href="/regulatorio" style={{ color: '#a8a49c', textDecoration: 'none' }}>
-          Regulatorio
+        <Link href="/regulatorio/espana" style={{ color: '#a8a49c', textDecoration: 'none' }}>
+          España
         </Link>
         {' › '}
         <span style={{ color: '#8b8780' }}>BOE</span>

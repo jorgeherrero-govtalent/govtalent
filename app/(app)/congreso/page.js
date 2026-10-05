@@ -106,8 +106,8 @@ function Actividad() {
   return (
     <div className="sec" style={{ maxWidth: 1000 }}>
       <div style={{ fontSize: 11.5, color: '#999', marginBottom: 10 }}>
-        <Link href="/regulatorio" style={{ color: '#999', textDecoration: 'none' }}>
-          Regulatorio
+        <Link href="/regulatorio/espana" style={{ color: '#999', textDecoration: 'none' }}>
+          España
         </Link>
         {' › '}
         <span style={{ color: '#666' }}>Actividad parlamentaria</span>

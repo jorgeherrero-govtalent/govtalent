@@ -133,8 +133,8 @@ export default function BoeDetailPage() {
         <BackLink fallbackHref="/boe" fallbackLabel="BOE" />
         <span style={{ fontSize: 11.5, color: '#e0dfd8' }}>|</span>
         <span style={{ fontSize: 11.5, color: '#a8a49c' }}>
-          <Link href="/regulatorio" style={{ color: '#a8a49c', textDecoration: 'none' }}>
-            Regulatorio
+          <Link href="/regulatorio/espana" style={{ color: '#a8a49c', textDecoration: 'none' }}>
+            España
           </Link>
           {' › '}
           <Link href="/boe" style={{ color: '#a8a49c', textDecoration: 'none' }}>
