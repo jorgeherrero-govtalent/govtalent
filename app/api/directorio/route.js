@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { canAccessDatabase } from '@/lib/plan';
 import { SECCIONES_DIRECTORIO, SECCION_CCAA, seccionPorSlug } from '@/lib/directorio';
 
 // Datos de las secciones del directorio que salen de la Agenda de la
@@ -11,9 +12,14 @@ import { SECCIONES_DIRECTORIO, SECCION_CCAA, seccionPorSlug } from '@/lib/direct
 //                           y las personas (solo nombre y cargo)
 //
 // Las tablas tienen RLS sin políticas: el navegador no puede leerlas y
-// todo pasa por aquí. Esta ruta NUNCA devuelve correos ni teléfonos de
-// personas: eso es la Base de datos, que es de pago. Sí devuelve la web
-// de cada organización, que es pública.
+// todo pasa por aquí.
+//
+// CORREOS Y TELÉFONOS (05-10-2026): solo para organizaciones con el plan
+// que incluye la Base de datos (canAccessDatabase, el mismo criterio que
+// /api/instituciones/directorio/data). El plan se comprueba AQUÍ, en el
+// servidor: sin él la respuesta no lleva ni un correo, y `contacto: false`
+// le dice a la página que enseñe el aviso de Teams. La web de cada
+// organización sí va siempre, porque es pública.
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -89,11 +95,11 @@ async function listadoAsociaciones(admin) {
     }));
 }
 
-async function listadoAgenda(admin, cat) {
+async function listadoAgenda(admin, cat, conContacto) {
   const entidades = await todas(() =>
     admin
       .from('directorio_entidades')
-      .select('id, organizacion, unidad, grupo, subcategoria, ccaa, web, orden')
+      .select('id, organizacion, unidad, grupo, subcategoria, ccaa, web, email_general, telefono, orden')
       .eq('categoria', cat)
       .eq('activo', true)
       .order('orden', { ascending: true })
@@ -107,7 +113,7 @@ async function listadoAgenda(admin, cat) {
       ...(await todas(() =>
         admin
           .from('directorio_contactos')
-          .select('entidad_id, nombre, cargo, orden')
+          .select(conContacto ? 'entidad_id, nombre, cargo, email, telefono, orden' : 'entidad_id, nombre, cargo, orden')
           .in('entidad_id', tanda)
           .eq('activo', true)
           .eq('objecion', false)
@@ -119,7 +125,11 @@ async function listadoAgenda(admin, cat) {
   for (const c of contactos) {
     if (!c.nombre) continue;
     if (!porEntidad.has(c.entidad_id)) porEntidad.set(c.entidad_id, []);
-    porEntidad.get(c.entidad_id).push({ nombre: c.nombre, cargo: c.cargo || '' });
+    porEntidad.get(c.entidad_id).push(
+      conContacto
+        ? { nombre: c.nombre, cargo: c.cargo || '', email: c.email || null, telefono: c.telefono || null }
+        : { nombre: c.nombre, cargo: c.cargo || '' }
+    );
   }
 
   // Una ficha por organización, con sus unidades en el orden de la Agenda.
@@ -139,8 +149,9 @@ async function listadoAgenda(admin, cat) {
     const g = grupos.get(k);
     if (!g.web && e.web) g.web = e.web.split(';')[0].trim();
     const personas = porEntidad.get(e.id) || [];
-    if (personas.length || e.unidad) {
-      g.unidades.push({ nombre: e.unidad || null, personas });
+    const general = conContacto ? { email: e.email_general || null, telefono: e.telefono || null } : {};
+    if (personas.length || e.unidad || general.email || general.telefono) {
+      g.unidades.push({ nombre: e.unidad || null, personas, ...general });
     }
   }
   return [...grupos.values()];
@@ -157,6 +168,14 @@ export async function GET(request) {
   const vista = params.get('vista');
   const admin = createAdminClient();
 
+  const { data: membership } = await admin
+    .from('organization_members')
+    .select('organizations(id, plan, plan_status, claimed, verified)')
+    .eq('user_id', authData.user.id)
+    .limit(1)
+    .maybeSingle();
+  const conContacto = !!membership?.organizations && canAccessDatabase(membership.organizations);
+
   try {
     if (vista === 'resumen') {
       return NextResponse.json({ cifras: await resumen(admin) }, { headers: CABECERAS });
@@ -164,8 +183,8 @@ export async function GET(request) {
     if (vista === 'listado') {
       const seccion = seccionPorSlug(params.get('s'));
       if (!seccion) return NextResponse.json({ error: 'Sección desconocida' }, { status: 404 });
-      const items = seccion.cat ? await listadoAgenda(admin, seccion.cat) : await listadoAsociaciones(admin);
-      return NextResponse.json({ items }, { headers: CABECERAS });
+      const items = seccion.cat ? await listadoAgenda(admin, seccion.cat, conContacto) : await listadoAsociaciones(admin);
+      return NextResponse.json({ items, contacto: conContacto }, { headers: CABECERAS });
     }
     return NextResponse.json({ error: 'Vista desconocida' }, { status: 400 });
   } catch (e) {
