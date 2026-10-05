@@ -7,19 +7,21 @@ import { SECCIONES_DIRECTORIO, SECCION_CCAA, seccionPorSlug } from '@/lib/direct
 // Datos de las secciones del directorio que salen de la Agenda de la
 // Comunicación (sql/69) y de las asociaciones ya cargadas.
 //
-//   ?vista=resumen          cifras de cada tarjeta
-//   ?vista=listado&s=<slug> organizaciones de una sección, con sus unidades
-//                           y las personas (solo nombre y cargo)
+//   ?vista=resumen               cifras de cada tarjeta
+//   ?vista=listado&s=<slug>      una fila por organización (lista como
+//                                Organismos: nombre, tipo, ciudad, titular)
+//   ?vista=ficha&s=<slug>&id=<n> la ficha de una organización: sus datos
+//                                generales, sus unidades y sus personas
 //
 // Las tablas tienen RLS sin políticas: el navegador no puede leerlas y
 // todo pasa por aquí.
 //
-// CORREOS Y TELÉFONOS (05-10-2026): solo para organizaciones con el plan
-// que incluye la Base de datos (canAccessDatabase, el mismo criterio que
-// /api/instituciones/directorio/data). El plan se comprueba AQUÍ, en el
-// servidor: sin él la respuesta no lleva ni un correo, y `contacto: false`
-// le dice a la página que enseñe el aviso de Teams. La web de cada
-// organización sí va siempre, porque es pública.
+// CORREOS Y TELÉFONOS: solo para organizaciones con el plan que incluye
+// la Base de datos (canAccessDatabase, el mismo criterio que
+// /api/instituciones/directorio/data). Se decide AQUÍ, en el servidor:
+// sin ese plan la ficha no lleva ni un correo ni un teléfono, y
+// `contacto: false` le dice a la página que enseñe el aviso de Teams.
+// La web de cada organización va siempre, porque es pública.
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -46,6 +48,34 @@ function clave(texto) {
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, ' ')
     .trim();
+}
+
+// "Josefa Valcárcel, 40 BIS. 28027 MADRID"            -> ciudad Madrid, provincia Madrid
+// "Corredera, 46. 14550 MONTILLA (CORDOBA)"             -> ciudad Montilla, provincia Cordoba
+// "Navarra, 2. 01007 VITORIA-GASTEIZ (ARABA/ÁLAVA)"     -> ciudad Vitoria-Gasteiz, provincia Araba/Álava
+const MINUSCULAS = new Set(['de', 'del', 'la', 'las', 'los', 'el', 'y', 'i', 'd']);
+function capitalizar(t) {
+  return String(t)
+    .toLowerCase()
+    .trim()
+    .split(/\s+/)
+    .map((w, i) =>
+      i > 0 && MINUSCULAS.has(w) ? w : w.replace(/(^|[-/])(\p{L})/gu, (_, sep, l) => sep + l.toUpperCase())
+    )
+    .join(' ');
+}
+function lugar(direccion) {
+  const m = String(direccion || '').match(/\b\d{5}\s+([^()]+?)\s*(?:\(([^()]+)\))?\s*$/);
+  if (!m) return { ciudad: null, provincia: null };
+  const ciudad = capitalizar(m[1]);
+  return { ciudad, provincia: m[2] ? capitalizar(m[2]) : ciudad };
+}
+function ciudad(direccion) {
+  return lugar(direccion).ciudad;
+}
+
+function primeraWeb(w) {
+  return w ? String(w).split(';')[0].trim() || null : null;
 }
 
 const CABECERAS = { 'Cache-Control': 'private, max-age=600' };
@@ -88,23 +118,15 @@ async function listadoAsociaciones(admin) {
   return orgs
     .filter((o) => !yaEnPatronales.has(clave(o.name)))
     .map((o) => ({
+      id: o.id,
       organizacion: o.name,
       sector: o.sector,
-      lugar: o.location,
+      ciudad: o.location,
       web: o.website_url,
     }));
 }
 
-async function listadoAgenda(admin, cat, conContacto) {
-  const entidades = await todas(() =>
-    admin
-      .from('directorio_entidades')
-      .select('id, organizacion, unidad, grupo, subcategoria, ccaa, web, email_general, telefono, orden')
-      .eq('categoria', cat)
-      .eq('activo', true)
-      .order('orden', { ascending: true })
-  );
-  const ids = entidades.map((e) => e.id);
+async function contactosDe(admin, ids, columnas) {
   const contactos = [];
   // .in() viaja en la URL: en tandas para no pasarse de longitud.
   for (let i = 0; i < ids.length; i += 300) {
@@ -113,7 +135,7 @@ async function listadoAgenda(admin, cat, conContacto) {
       ...(await todas(() =>
         admin
           .from('directorio_contactos')
-          .select(conContacto ? 'entidad_id, nombre, cargo, email, telefono, orden' : 'entidad_id, nombre, cargo, orden')
+          .select(columnas)
           .in('entidad_id', tanda)
           .eq('activo', true)
           .eq('objecion', false)
@@ -121,9 +143,83 @@ async function listadoAgenda(admin, cat, conContacto) {
       ))
     );
   }
+  return contactos.filter((c) => c.nombre);
+}
+
+// Una fila por organización. El id de la fila es el de su primer bloque en
+// la Agenda: es lo que lleva la URL de la ficha.
+async function listadoAgenda(admin, cat) {
+  const entidades = await todas(() =>
+    admin
+      .from('directorio_entidades')
+      .select('id, organizacion, subcategoria, ccaa, direccion, orden')
+      .eq('categoria', cat)
+      .eq('activo', true)
+      .order('orden', { ascending: true })
+  );
+  const contactos = await contactosDe(
+    admin,
+    entidades.map((e) => e.id),
+    'entidad_id, nombre, cargo, orden'
+  );
   const porEntidad = new Map();
   for (const c of contactos) {
-    if (!c.nombre) continue;
+    if (!porEntidad.has(c.entidad_id)) porEntidad.set(c.entidad_id, []);
+    porEntidad.get(c.entidad_id).push(c);
+  }
+
+  const filas = new Map();
+  for (const e of entidades) {
+    const k = clave(e.organizacion);
+    if (!filas.has(k)) {
+      filas.set(k, {
+        id: e.id,
+        organizacion: e.organizacion,
+        tipo: e.subcategoria || null,
+        ccaa: e.ccaa || null,
+        ciudad: lugar(e.direccion).ciudad,
+        provincia: lugar(e.direccion).provincia,
+        unidades: 0,
+        personas: 0,
+        titular: null,
+      });
+    }
+    const f = filas.get(k);
+    f.unidades += 1;
+    if (!f.ciudad) Object.assign(f, lugar(e.direccion));
+    const ps = porEntidad.get(e.id) || [];
+    f.personas += ps.length;
+    if (!f.titular && ps[0]) f.titular = { nombre: ps[0].nombre, cargo: ps[0].cargo || '' };
+  }
+  return [...filas.values()];
+}
+
+async function ficha(admin, cat, id, conContacto) {
+  const { data: base, error } = await admin
+    .from('directorio_entidades')
+    .select('organizacion')
+    .eq('id', id)
+    .eq('categoria', cat)
+    .maybeSingle();
+  if (error) throw new Error(error.message);
+  if (!base) return null;
+
+  const entidades = await todas(() =>
+    admin
+      .from('directorio_entidades')
+      .select('id, organizacion, unidad, grupo, subcategoria, ccaa, web, email_general, telefono, direccion, orden')
+      .eq('categoria', cat)
+      .eq('organizacion', base.organizacion)
+      .eq('activo', true)
+      .order('orden', { ascending: true })
+  );
+  const contactos = await contactosDe(
+    admin,
+    entidades.map((e) => e.id),
+    conContacto ? 'entidad_id, nombre, cargo, email, telefono, orden' : 'entidad_id, nombre, cargo, orden'
+  );
+  const porEntidad = new Map();
+  for (const c of contactos) {
     if (!porEntidad.has(c.entidad_id)) porEntidad.set(c.entidad_id, []);
     porEntidad.get(c.entidad_id).push(
       conContacto
@@ -132,29 +228,29 @@ async function listadoAgenda(admin, cat, conContacto) {
     );
   }
 
-  // Una ficha por organización, con sus unidades en el orden de la Agenda.
-  const grupos = new Map();
-  for (const e of entidades) {
-    const k = `${e.ccaa || ''}|${e.organizacion}`;
-    if (!grupos.has(k)) {
-      grupos.set(k, {
-        organizacion: e.organizacion,
-        subcategoria: e.subcategoria || null,
-        ccaa: e.ccaa || null,
-        grupo: e.grupo || null,
-        web: null,
-        unidades: [],
-      });
-    }
-    const g = grupos.get(k);
-    if (!g.web && e.web) g.web = e.web.split(';')[0].trim();
-    const personas = porEntidad.get(e.id) || [];
-    const general = conContacto ? { email: e.email_general || null, telefono: e.telefono || null } : {};
-    if (personas.length || e.unidad || general.email || general.telefono) {
-      g.unidades.push({ nombre: e.unidad || null, personas, ...general });
-    }
-  }
-  return [...grupos.values()];
+  const principal = entidades[0];
+  return {
+    id,
+    organizacion: base.organizacion,
+    tipo: principal.subcategoria || null,
+    ccaa: principal.ccaa || null,
+    grupo: principal.grupo || null,
+    ciudad: ciudad(principal.direccion),
+    web: primeraWeb(entidades.find((e) => e.web)?.web),
+    // Dirección, correo y teléfono generales: los del primer bloque. La
+    // dirección es pública; correo y teléfono, solo con el plan.
+    direccion: principal.direccion || null,
+    email: conContacto ? principal.email_general || null : null,
+    telefono: conContacto ? principal.telefono || null : null,
+    unidades: entidades.map((e) => ({
+      nombre: e.unidad || null,
+      ciudad: ciudad(e.direccion),
+      direccion: e.direccion || null,
+      email: conContacto ? e.email_general || null : null,
+      telefono: conContacto ? e.telefono || null : null,
+      personas: porEntidad.get(e.id) || [],
+    })),
+  };
 }
 
 export async function GET(request) {
@@ -168,24 +264,36 @@ export async function GET(request) {
   const vista = params.get('vista');
   const admin = createAdminClient();
 
-  const { data: membership } = await admin
-    .from('organization_members')
-    .select('organizations(id, plan, plan_status, claimed, verified)')
-    .eq('user_id', authData.user.id)
-    .limit(1)
-    .maybeSingle();
-  const conContacto = !!membership?.organizations && canAccessDatabase(membership.organizations);
-
   try {
     if (vista === 'resumen') {
       return NextResponse.json({ cifras: await resumen(admin) }, { headers: CABECERAS });
     }
+
+    const seccion = seccionPorSlug(params.get('s'));
+    if (!seccion) return NextResponse.json({ error: 'Sección desconocida' }, { status: 404 });
+
     if (vista === 'listado') {
-      const seccion = seccionPorSlug(params.get('s'));
-      if (!seccion) return NextResponse.json({ error: 'Sección desconocida' }, { status: 404 });
-      const items = seccion.cat ? await listadoAgenda(admin, seccion.cat, conContacto) : await listadoAsociaciones(admin);
-      return NextResponse.json({ items, contacto: conContacto }, { headers: CABECERAS });
+      const items = seccion.cat ? await listadoAgenda(admin, seccion.cat) : await listadoAsociaciones(admin);
+      return NextResponse.json({ items }, { headers: CABECERAS });
     }
+
+    if (vista === 'ficha') {
+      const id = Math.floor(Number(params.get('id')));
+      if (!seccion.cat || !(id > 0)) return NextResponse.json({ error: 'Ficha desconocida' }, { status: 404 });
+
+      const { data: membership } = await admin
+        .from('organization_members')
+        .select('organizations(id, plan, plan_status, claimed, verified)')
+        .eq('user_id', authData.user.id)
+        .limit(1)
+        .maybeSingle();
+      const conContacto = !!membership?.organizations && canAccessDatabase(membership.organizations);
+
+      const datos = await ficha(admin, seccion.cat, id, conContacto);
+      if (!datos) return NextResponse.json({ error: 'Ficha desconocida' }, { status: 404 });
+      return NextResponse.json({ ficha: datos, contacto: conContacto }, { headers: CABECERAS });
+    }
+
     return NextResponse.json({ error: 'Vista desconocida' }, { status: 400 });
   } catch (e) {
     console.error('[api/directorio]', e.message);

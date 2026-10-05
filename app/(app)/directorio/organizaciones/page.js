@@ -115,10 +115,6 @@ export default function OrganizacionesPage() {
         </section>
       ))}
 
-      <div style={{ fontSize: 11.5, color: '#a8a49c', paddingTop: 16 }}>
-        Fuente: Agenda de la Comunicación 2026-2027, Secretaría de Estado de Comunicación. Asociaciones: directorio de
-        organizaciones de GovTalent.
-      </div>
     </div>
   );
 }

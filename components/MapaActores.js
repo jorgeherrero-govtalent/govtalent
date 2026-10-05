@@ -902,7 +902,7 @@ function iniciales(nombre) {
 const FAMILIAS = {
   todos: { label: 'Todos', kinds: [] },
   personas: { label: 'Personas', kinds: ['diputado', 'eurodiputado', 'comisario', 'cargo', 'asesor'] },
-  organizaciones: { label: 'Organizaciones', kinds: ['organizacion'] },
+  organizaciones: { label: 'Organizaciones', kinds: ['organizacion', 'entidad'] },
   organos: { label: 'Órganos', kinds: ['comision', 'comision-eu', 'grupo', 'direccion'] },
 };
 

@@ -102,6 +102,52 @@ function EnElBody({ children }) {
   return createPortal(children, document.body);
 }
 
+/**
+ * Solo el botón de proyecto, sin Seguir. Para fichas de cosas que se
+ * pueden llevar a un proyecto pero de las que no hay avisos que dar: las
+ * organizaciones del directorio (medios, partidos, patronales…), que no
+ * tienen un motor que vigile sus cambios (05-10-2026).
+ */
+export function BotonSoloProyecto({ kind, refId, label }) {
+  const [selector, setSelector] = useState(false);
+  const [hover, setHover] = useState(false);
+  // Con texto, como el botón de Seguir de las demás fichas: solo el icono
+  // en la cabecera no se entendería. Gris y sin morado, como la ficha.
+  return (
+    <span style={{ display: 'inline-flex', alignItems: 'center', flexShrink: 0 }}>
+      <button
+        type="button"
+        onClick={() => setSelector(true)}
+        onMouseEnter={() => setHover(true)}
+        onMouseLeave={() => setHover(false)}
+        style={{
+          display: 'inline-flex',
+          alignItems: 'center',
+          gap: 6,
+          padding: '6px 10px',
+          borderRadius: 7,
+          border: 'none',
+          fontSize: 12.5,
+          fontFamily: 'inherit',
+          cursor: 'pointer',
+          whiteSpace: 'nowrap',
+          background: hover ? '#ebeae4' : '#f5f4f1',
+          color: '#57534e',
+          transition: 'background .15s ease',
+        }}
+      >
+        <i className="ti ti-folder-plus" style={{ fontSize: 15 }} aria-hidden="true"></i>
+        Añadir a proyecto
+      </button>
+      {selector && (
+        <EnElBody>
+          <SelectorProyecto kind={kind} refId={refId} label={label} onClose={() => setSelector(false)} />
+        </EnElBody>
+      )}
+    </span>
+  );
+}
+
 export default function FollowButton({ kind, refId, label, variant = 'button', className, conProyecto = true, conIconoProyecto = false }) {
   const supabase = createClient();
   const [siguiendo, setSiguiendo] = useState(false);
