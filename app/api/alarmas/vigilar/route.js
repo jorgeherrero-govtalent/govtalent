@@ -36,6 +36,9 @@
 //   ?key=<DEBUG_KEY>&manana=1       fuerza que cuente como pasada de la mañana
 //   ?key=<DEBUG_KEY>&lunes=1        fuerza que cuente como lunes
 //   ?key=<DEBUG_KEY>&sinenvio=1     evalúa y guarda, pero no envía
+//   ?key=<DEBUG_KEY>&dry=1&detalle=1   devuelve qué eligió cada alarma
+//   ?key=<DEBUG_KEY>&dry=1&todo=1   reevalúa lo reciente aunque ya esté visto
+//   ?key=<DEBUG_KEY>&modelo=sonnet  evalúa con Sonnet (para comparar)
 //   ?urgente=consejo                pasada urgente del Consejo (ver abajo)
 //   ?urgente=agenda                 pasada urgente de la agenda (ver abajo)
 //
@@ -143,6 +146,8 @@ async function handler(request) {
   // evaluación para comparar, y ver en la respuesta qué eligió cada alarma.
   const modeloPrueba = isManual && sp.get('modelo') === 'sonnet' ? MODELO : null;
   const conDetalle = isManual && dry && sp.get('detalle') === '1';
+  // Prueba: reevaluar lo reciente aunque la alarma ya lo haya visto.
+  const reevaluar = isManual && dry && sp.get('todo') === '1';
   const ahora = new Date();
   // La primera pasada del día es la de las 06:30 UTC. Con margen: si el
   // cron se retrasa, sigue contando como la de la mañana.
@@ -216,7 +221,7 @@ async function handler(request) {
       try {
         const { data: vistos } = await db.from('sector_alert_seen').select('kind, ref_id').eq('alert_id', a.id);
         const yaVisto = new Set((vistos || []).map((v) => `${v.kind}|${v.ref_id}`));
-        let pendientes = (reciente || []).filter((r) => !yaVisto.has(`${r.kind}|${r.ref_id}`));
+        let pendientes = reevaluar ? [...(reciente || [])] : (reciente || []).filter((r) => !yaVisto.has(`${r.kind}|${r.ref_id}`));
         evaluadas += 1;
         if (pendientes.length === 0) return;
 
