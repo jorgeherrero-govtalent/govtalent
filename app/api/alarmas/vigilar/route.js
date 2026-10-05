@@ -61,10 +61,10 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { conRegistro } from '@/lib/syncLog';
-import { evaluar, ordenar, MAX_CANDIDATOS, MODELO, MODELO_EVALUACION } from '@/lib/agenteAlarmas';
+import { evaluar, ordenar, costeUsd, MAX_CANDIDATOS, MODELO, MODELO_EVALUACION } from '@/lib/agenteAlarmas';
 import { nivelesAvisos } from '@/lib/nivelAvisos';
 import { limitesDe } from '@/lib/alarmas';
-import { alarmasEmail } from '@/lib/email/templates';
+import { alarmasEmail, alarmaPausadaEmail } from '@/lib/email/templates';
 
 export const dynamic = 'force-dynamic';
 // Con la lista partida en bloques, una pasada con mucho pendiente hace
@@ -205,6 +205,8 @@ async function handler(request) {
       uso.output += u.output_tokens || 0;
     };
     const detalle = [];
+    // Coste por alarma y usuario, para ver lo que cuesta cada cliente.
+    const costes = [];
     let evaluadas = 0;
     let llamadas = 0;
     let nuevas = 0;
@@ -259,7 +261,23 @@ async function handler(request) {
             const encaja = await evaluar(
               { descripcion: t.a.descripcion || (t.a.keywords || []).join(', '), criterios: t.a.criterios || {} },
               bloque,
-              { modelo: modeloPrueba, onUso: sumarUso }
+              {
+                modelo: modeloPrueba,
+                onUso: (u) => {
+                  sumarUso(u);
+                  costes.push({
+                    origen: 'vigilancia',
+                    user_id: t.a.user_id,
+                    alert_id: t.a.id,
+                    modelo: u.modelo,
+                    input_tokens: u.input_tokens || 0,
+                    cache_escritura: u.cache_creation_input_tokens || 0,
+                    cache_lectura: u.cache_read_input_tokens || 0,
+                    output_tokens: u.output_tokens || 0,
+                    coste_usd: Number(costeUsd(u).toFixed(6)),
+                  });
+                },
+              }
             );
             llamadas += 1;
             t.encaja.push(...encaja);
@@ -314,6 +332,73 @@ async function handler(request) {
     informe.coincidencias_nuevas = nuevas;
     informe.modelo_evaluacion = modeloPrueba || MODELO_EVALUACION;
     informe.tokens = uso;
+    informe.coste_usd = Number(costes.reduce((s, c) => s + c.coste_usd, 0).toFixed(4));
+    if (!dry && costes.length > 0) {
+      for (let i = 0; i < costes.length; i += 500) {
+        const { error } = await db.from('ai_costes').insert(costes.slice(i, i + 500));
+        if (error) console.error('ai_costes:', error.message);
+      }
+    }
+
+    // --- 1d. Pausar las alarmas sin uso -----------------------------------
+    // En la pasada de la mañana: una alarma con más de 60 días que no ha
+    // encontrado nada de relevancia 2 o 3 en los últimos 60 días se pausa
+    // y se avisa a su dueño. No se paga vigilancia que nadie aprovecha, y
+    // el cliente puede reactivarla o afinarla cuando quiera.
+    if (esManana && !dry) {
+      const hace60 = new Date(Date.now() - 60 * 86400000).toISOString();
+      const viejas = vigentes.filter((a) => a.created_at && a.created_at < hace60);
+      const conAlgo = new Set();
+      for (let i = 0; i < viejas.length; i += 100) {
+        const { data } = await db
+          .from('sector_alert_matches')
+          .select('alert_id')
+          .in('alert_id', viejas.slice(i, i + 100).map((a) => a.id))
+          .gte('relevancia', 2)
+          .gte('created_at', hace60);
+        for (const m of data || []) conAlgo.add(m.alert_id);
+      }
+      const pausar = viejas.filter((a) => !conAlgo.has(a.id));
+      if (pausar.length > 0) {
+        const ahoraIso = new Date().toISOString();
+        const { error } = await db
+          .from('sector_alerts')
+          .update({ activa: false, pausada_inactividad_at: ahoraIso })
+          .in('id', pausar.map((a) => a.id));
+        if (error) {
+          errores.push(`pausar: ${error.message}`);
+        } else {
+          informe.pausadas_sin_uso = pausar.length;
+          const porDueno = new Map();
+          for (const a of pausar) {
+            if (!porDueno.has(a.user_id)) porDueno.set(a.user_id, []);
+            porDueno.get(a.user_id).push(a.nombre);
+          }
+          const idsU = [...porDueno.keys()];
+          const [{ data: us }, { data: pr }] = await Promise.all([
+            db.from('users').select('id, email, first_name').in('id', idsU),
+            db.from('alert_preferences').select('user_id, email').in('user_id', idsU),
+          ]);
+          const sinCorreoP = new Set((pr || []).filter((p) => p.email === false).map((p) => p.user_id));
+          for (const u of us || []) {
+            if (!u.email || sinCorreoP.has(u.id)) continue;
+            try {
+              const { subject, html } = alarmaPausadaEmail({
+                firstName: u.first_name || '',
+                alarmas: porDueno.get(u.id) || [],
+                url: `${SITE_URL}/alarmas`,
+              });
+              await enviar({ to: u.email, subject, html });
+            } catch (e) {
+              errores.push(`aviso de pausa ${u.id}: ${e.message}`);
+            }
+          }
+        }
+        // Las pausadas ya no reciben avisos en esta pasada.
+        const idsPausadas = new Set(pausar.map((a) => a.id));
+        for (let i = vigentes.length - 1; i >= 0; i--) if (idsPausadas.has(vigentes[i].id)) vigentes.splice(i, 1);
+      }
+    }
     if (conDetalle) informe.detalle = detalle;
     if (errores.length) informe.errores_evaluacion = errores.slice(0, 5);
 
