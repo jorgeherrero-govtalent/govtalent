@@ -15,9 +15,10 @@ import { toast } from '@/lib/toast';
  * morado de la marca donde Enginy usa negro.
  *
  * Lee la vista tareas_todas (sql/68): las tareas sueltas y las acciones de
- * Proyectos, así no hay dos sitios con tareas. Las de proyecto se abren en
- * su proyecto; las sueltas, en la ventana de editar. Al completar o
- * ignorar se escribe en la tabla de cada una.
+ * Proyectos, así no hay dos sitios con tareas. Las dos se abren en la
+ * ventana de editar (las de proyecto también desde el 05-10-2026, sin ir
+ * al proyecto). Al guardar, completar o ignorar se escribe en la tabla de
+ * cada una.
  */
 
 const MORADO = '#6d5aef';
@@ -396,28 +397,20 @@ export default function TareasPage() {
                 <tbody>
                   {pagina.map((t) => {
                     const vencida = pestana === 'vencidas';
-                    const abrir = () => {
-                      if (t.origen === 'tarea') setModal(t);
-                    };
+                    const abrir = () => setModal(t);
                     return (
                       <tr key={clave(t)} style={{ borderTop: '1px solid #efeee8', background: seleccion.has(clave(t)) ? '#faf9ff' : 'transparent' }}>
                         <td style={{ padding: '13px 16px', verticalAlign: 'top' }}>
                           <input type="checkbox" checked={seleccion.has(clave(t))} onChange={() => marcar(t)} aria-label={`Seleccionar «${t.titulo}»`} />
                         </td>
                         <td style={{ padding: '13px 8px', verticalAlign: 'top' }}>
-                          {t.origen === 'tarea' ? (
-                            <button
-                              type="button"
-                              onClick={abrir}
-                              style={{ background: 'none', border: 'none', padding: 0, font: 'inherit', fontWeight: 600, color: '#1a1a18', textAlign: 'left', cursor: 'pointer' }}
-                            >
-                              {t.titulo}
-                            </button>
-                          ) : (
-                            <Link href={t.vinculo_ruta} style={{ fontWeight: 600, color: '#1a1a18', textDecoration: 'none' }}>
-                              {t.titulo}
-                            </Link>
-                          )}
+                          <button
+                            type="button"
+                            onClick={abrir}
+                            style={{ background: 'none', border: 'none', padding: 0, font: 'inherit', fontWeight: 600, color: '#1a1a18', textAlign: 'left', cursor: 'pointer' }}
+                          >
+                            {t.titulo}
+                          </button>
                           <div style={{ fontSize: 12, color: GRIS, marginTop: 3, display: 'flex', alignItems: 'center', gap: 8 }}>
                             {t.prioridad && <Barras prioridad={t.prioridad} tam={12} />}
                             {[t.origen === 'proyecto' ? 'Acción de proyecto' : NOMBRE_TIPO[t.tipo], t.prioridad && `Prioridad ${t.prioridad}`]

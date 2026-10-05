@@ -126,7 +126,7 @@ function isoDia(a, m, d) {
  * abre el calendario del mes (la semana empieza en lunes) y, debajo, la
  * hora.
  */
-function FechaHora({ fecha, hora, onFecha, onHora }) {
+function FechaHora({ fecha, hora, onFecha, onHora, sinHora = false }) {
   const [abierto, setAbierto] = useState(false);
   const base = fecha ? new Date(`${fecha}T00:00`) : new Date();
   const [mes, setMes] = useState(base.getMonth());
@@ -166,7 +166,7 @@ function FechaHora({ fecha, hora, onFecha, onHora }) {
   let texto = 'Sin fecha';
   if (fecha) {
     const d = new Date(`${fecha}T00:00`);
-    texto = `${d.getDate()} ${MESES_CORTOS[d.getMonth()]} ${d.getFullYear()}, ${hora || '09:00'}`;
+    texto = `${d.getDate()} ${MESES_CORTOS[d.getMonth()]} ${d.getFullYear()}${sinHora ? '' : `, ${hora || '09:00'}`}`;
   }
 
   const flecha = { width: 30, height: 30, borderRadius: 7, border: 'none', background: '#f4f3ee', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#3a3a36' };
@@ -241,10 +241,12 @@ function FechaHora({ fecha, hora, onFecha, onHora }) {
             </div>
           </div>
           <div style={{ borderTop: '1px solid #efeee8', padding: 12, display: 'flex', flexDirection: 'column', gap: 6 }}>
-            <label style={{ display: 'flex', flexDirection: 'column', gap: 6, fontSize: 12.5, fontWeight: 500 }}>
-              Hora
-              <input type="time" value={hora} onChange={(e) => onHora(e.target.value)} style={{ ...CAMPO, height: 36 }} />
-            </label>
+            {!sinHora && (
+              <label style={{ display: 'flex', flexDirection: 'column', gap: 6, fontSize: 12.5, fontWeight: 500 }}>
+                Hora
+                <input type="time" value={hora} onChange={(e) => onHora(e.target.value)} style={{ ...CAMPO, height: 36 }} />
+              </label>
+            )}
             <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 4 }}>
               <button
                 type="button"
@@ -274,6 +276,11 @@ function FechaHora({ fecha, hora, onFecha, onHora }) {
 export default function TareaModal({ tarea, miembros = [], yo, orgId, onClose, onGuardada }) {
   const supabase = createClient();
   const editando = !!tarea?.id;
+  // Las acciones de Proyectos también se editan aquí, sin ir al proyecto
+  // (05-10-2026). Viven en project_actions, que solo tiene título, notas
+  // (detalle), fecha sin hora y responsable: tipo, prioridad y hora no se
+  // enseñan, y el vínculo es su proyecto, que no se cambia desde aquí.
+  const esAccion = tarea?.origen === 'proyecto';
   const inicio = partes(tarea?.vence_at);
 
   const [titulo, setTitulo] = useState(tarea?.titulo || '');
@@ -348,6 +355,34 @@ export default function TareaModal({ tarea, miembros = [], yo, orgId, onClose, o
     }
     setError('');
     setGuardando(true);
+    if (esAccion) {
+      // Solo el dueño del proyecto puede cambiar sus acciones (RLS de
+      // project_actions). Si no lo es, la base no da error: no actualiza
+      // ninguna fila. Por eso se pide la fila de vuelta y se comprueba.
+      const { data: cambiadas, error: errAccion } = await supabase
+        .from('project_actions')
+        .update({
+          titulo: titulo.trim(),
+          detalle: notas.trim() || null,
+          fecha: fecha || null,
+          responsable_id: asignada || null,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', tarea.id)
+        .select('id');
+      setGuardando(false);
+      if (errAccion) {
+        setError('No se pudo guardar la acción. Inténtalo de nuevo.');
+        return;
+      }
+      if (!cambiadas || cambiadas.length === 0) {
+        setError('Solo quien creó el proyecto puede editar sus acciones.');
+        return;
+      }
+      toast('Acción guardada');
+      onGuardada();
+      return;
+    }
     const fila = {
       titulo: titulo.trim(),
       asignada_a: asignada || null,
@@ -374,13 +409,13 @@ export default function TareaModal({ tarea, miembros = [], yo, orgId, onClose, o
   }
 
   async function borrar() {
-    if (!window.confirm('¿Borrar esta tarea? No se puede deshacer.')) return;
-    const { error: err } = await supabase.from('tareas').delete().eq('id', tarea.id);
+    if (!window.confirm(esAccion ? '¿Borrar esta acción del proyecto? No se puede deshacer.' : '¿Borrar esta tarea? No se puede deshacer.')) return;
+    const { error: err } = await supabase.from(esAccion ? 'project_actions' : 'tareas').delete().eq('id', tarea.id);
     if (err) {
       setError('No se pudo borrar la tarea.');
       return;
     }
-    toast('Tarea borrada');
+    toast(esAccion ? 'Acción borrada' : 'Tarea borrada');
     onGuardada();
   }
 
@@ -404,11 +439,11 @@ export default function TareaModal({ tarea, miembros = [], yo, orgId, onClose, o
       <div
         role="dialog"
         aria-modal="true"
-        aria-label={editando ? 'Editar tarea' : 'Crear tarea'}
+        aria-label={esAccion ? 'Editar acción de proyecto' : editando ? 'Editar tarea' : 'Crear tarea'}
         style={{ width: '100%', maxWidth: 560, background: '#fff', borderRadius: 14, boxShadow: '0 20px 50px rgba(0,0,0,.25)' }}
       >
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px 20px', borderBottom: '1px solid #efeee8' }}>
-          <h2 style={{ margin: 0, fontSize: 15, fontWeight: 600 }}>{editando ? 'Editar tarea' : 'Crear tarea'}</h2>
+          <h2 style={{ margin: 0, fontSize: 15, fontWeight: 600 }}>{esAccion ? 'Editar acción de proyecto' : editando ? 'Editar tarea' : 'Crear tarea'}</h2>
           <button
             type="button"
             onClick={onClose}
@@ -447,7 +482,19 @@ export default function TareaModal({ tarea, miembros = [], yo, orgId, onClose, o
 
             <div style={ETIQUETA}>
               Vinculada a
-              {vinculo ? (
+              {esAccion && vinculo ? (
+                <div style={{ ...CAMPO, display: 'flex', alignItems: 'center', gap: 8, justifyContent: 'space-between' }}>
+                  <span style={{ minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    {vinculo.titulo}
+                    {vinculo.contexto && <span style={{ color: GRIS }}> · {vinculo.contexto}</span>}
+                  </span>
+                  {vinculo.ruta && (
+                    <a href={vinculo.ruta} style={{ fontSize: 12.5, color: GRIS, whiteSpace: 'nowrap', textDecoration: 'none' }}>
+                      Abrir proyecto
+                    </a>
+                  )}
+                </div>
+              ) : vinculo ? (
                 <div style={{ ...CAMPO, display: 'flex', alignItems: 'center', gap: 8, justifyContent: 'space-between' }}>
                   <span style={{ minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                     {vinculo.titulo}
@@ -526,16 +573,19 @@ export default function TareaModal({ tarea, miembros = [], yo, orgId, onClose, o
               )}
             </div>
 
-            <div style={ETIQUETA}>
-              Tipo
-              <Desplegable value={tipo} onChange={setTipo} opciones={TIPOS} placeholder="Seleccionar tipo" vacio="Sin tipo" />
-            </div>
+            {!esAccion && (
+              <div style={ETIQUETA}>
+                Tipo
+                <Desplegable value={tipo} onChange={setTipo} opciones={TIPOS} placeholder="Seleccionar tipo" vacio="Sin tipo" />
+              </div>
+            )}
 
-            <div className="tarea-dos" style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 14 }}>
+            <div className="tarea-dos" style={{ display: 'grid', gridTemplateColumns: esAccion ? 'minmax(0, 1fr)' : 'repeat(2, minmax(0, 1fr))', gap: 14 }}>
               <div style={ETIQUETA}>
                 Fecha límite
-                <FechaHora fecha={fecha} hora={hora} onFecha={setFecha} onHora={setHora} />
+                <FechaHora fecha={fecha} hora={hora} onFecha={setFecha} onHora={setHora} sinHora={esAccion} />
               </div>
+              {!esAccion && (
               <div style={ETIQUETA}>
                 Prioridad
                 <Desplegable
@@ -546,6 +596,7 @@ export default function TareaModal({ tarea, miembros = [], yo, orgId, onClose, o
                   placeholder={<Etiq p={null} texto="Sin prioridad" />}
                 />
               </div>
+              )}
             </div>
 
             <label style={ETIQUETA}>
