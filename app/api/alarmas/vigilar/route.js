@@ -58,7 +58,7 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { conRegistro } from '@/lib/syncLog';
-import { evaluar, ordenar, MAX_CANDIDATOS } from '@/lib/agenteAlarmas';
+import { evaluar, ordenar, MAX_CANDIDATOS, MODELO, MODELO_EVALUACION } from '@/lib/agenteAlarmas';
 import { nivelesAvisos } from '@/lib/nivelAvisos';
 import { limitesDe } from '@/lib/alarmas';
 import { alarmasEmail } from '@/lib/email/templates';
@@ -139,6 +139,10 @@ async function handler(request) {
   const dry = sp.get('dry') === '1';
   const sinEnvio = dry || sp.get('sinenvio') === '1';
   const soloUsuario = sp.get('user');
+  // Solo para pruebas a mano (clave de depuración): forzar Sonnet en la
+  // evaluación para comparar, y ver en la respuesta qué eligió cada alarma.
+  const modeloPrueba = isManual && sp.get('modelo') === 'sonnet' ? MODELO : null;
+  const conDetalle = isManual && dry && sp.get('detalle') === '1';
   const ahora = new Date();
   // La primera pasada del día es la de las 06:30 UTC. Con margen: si el
   // cron se retrasa, sigue contando como la de la mañana.
@@ -189,6 +193,16 @@ async function handler(request) {
     if (errR) throw new Error(`No se pudo leer lo reciente: ${errR.message}`);
     informe.recientes = (reciente || []).length;
 
+    // Consumo real de tokens de la evaluación, para ver el coste y si la
+    // caché de la lista funciona (lectura de caché > 0 desde la 2.ª alarma).
+    const uso = { input: 0, cache_escritura: 0, cache_lectura: 0, output: 0 };
+    const sumarUso = (u) => {
+      uso.input += u.input_tokens || 0;
+      uso.cache_escritura += u.cache_creation_input_tokens || 0;
+      uso.cache_lectura += u.cache_read_input_tokens || 0;
+      uso.output += u.output_tokens || 0;
+    };
+    const detalle = [];
     let evaluadas = 0;
     let llamadas = 0;
     let nuevas = 0;
@@ -223,9 +237,20 @@ async function handler(request) {
           ].slice(0, MAX_CANDIDATOS);
         }
 
-        const encaja = await evaluar({ descripcion: a.descripcion || (a.keywords || []).join(', '), criterios: a.criterios || {} }, pendientes);
+        const encaja = await evaluar(
+          { descripcion: a.descripcion || (a.keywords || []).join(', '), criterios: a.criterios || {} },
+          pendientes,
+          { modelo: modeloPrueba, onUso: sumarUso }
+        );
         llamadas += 1;
         nuevas += encaja.length;
+        if (conDetalle) {
+          detalle.push({
+            alarma: a.nombre,
+            candidatos: pendientes.length,
+            elegidos: encaja.map((m) => `[${m.relevancia}] ${m.titulo}`.slice(0, 160)),
+          });
+        }
         if (dry) return;
 
         if (encaja.length > 0) {
@@ -250,6 +275,9 @@ async function handler(request) {
     informe.evaluadas = evaluadas;
     informe.llamadas_ia = llamadas;
     informe.coincidencias_nuevas = nuevas;
+    informe.modelo_evaluacion = modeloPrueba || MODELO_EVALUACION;
+    informe.tokens = uso;
+    if (conDetalle) informe.detalle = detalle;
     if (errores.length) informe.errores_evaluacion = errores.slice(0, 5);
 
 
