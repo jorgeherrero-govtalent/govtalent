@@ -305,6 +305,9 @@ export default function TareaModal({ tarea, miembros = [], yo, orgId, onClose, o
   const [resultados, setResultados] = useState([]);
   const [guardando, setGuardando] = useState(false);
   const [error, setError] = useState('');
+  // Confirmación de borrado con el modal de la plataforma (el mismo que al
+  // eliminar un proyecto), no con window.confirm.
+  const [confirmarBorrado, setConfirmarBorrado] = useState(false);
   const tituloRef = useRef(null);
 
   useEffect(() => {
@@ -312,7 +315,7 @@ export default function TareaModal({ tarea, miembros = [], yo, orgId, onClose, o
     function tecla(e) {
       // Escape cierra, salvo que esté abierto un desplegable: esos se
       // cierran con su propio Escape y se quedan dentro del formulario.
-      if (e.key === 'Escape' && !document.querySelector('[role="listbox"], [data-popover]')) onClose();
+      if (e.key === 'Escape' && !document.querySelector('[role="listbox"], [data-popover], .modal-ov')) onClose();
     }
     window.addEventListener('keydown', tecla);
     return () => window.removeEventListener('keydown', tecla);
@@ -409,7 +412,7 @@ export default function TareaModal({ tarea, miembros = [], yo, orgId, onClose, o
   }
 
   async function borrar() {
-    if (!window.confirm(esAccion ? '¿Borrar esta acción del proyecto? No se puede deshacer.' : '¿Borrar esta tarea? No se puede deshacer.')) return;
+    setConfirmarBorrado(false);
     const { error: err } = await supabase.from(esAccion ? 'project_actions' : 'tareas').delete().eq('id', tarea.id);
     if (err) {
       setError('No se pudo borrar la tarea.');
@@ -616,8 +619,8 @@ export default function TareaModal({ tarea, miembros = [], yo, orgId, onClose, o
             {editando && tarea.created_by === yo && (
               <button
                 type="button"
-                onClick={borrar}
-                style={{ background: 'none', border: 'none', padding: 0, font: 'inherit', fontSize: 13, color: '#b3261e' }}
+                onClick={() => setConfirmarBorrado(true)}
+                style={{ background: 'none', border: 'none', padding: 0, font: 'inherit', fontSize: 13, color: '#3a3a36' }}
               >
                 Borrar
               </button>
@@ -636,6 +639,30 @@ export default function TareaModal({ tarea, miembros = [], yo, orgId, onClose, o
           </div>
         </form>
       </div>
+      {confirmarBorrado && (
+        <div className="modal-ov on" onClick={(e) => e.target === e.currentTarget && setConfirmarBorrado(false)}>
+          <div className="modal-box" style={{ maxWidth: 420 }}>
+            <div className="modal-head">
+              <h2>{esAccion ? 'Borrar la acción' : 'Borrar la tarea'}</h2>
+              <div className="modal-x" onClick={() => setConfirmarBorrado(false)}>
+                <i className="ti ti-x"></i>
+              </div>
+            </div>
+            <p style={{ fontSize: 13, color: '#555', lineHeight: 1.65 }}>
+              Se borra «{tarea?.titulo}»
+              {esAccion ? ' del proyecto' : ''}. No se puede deshacer.
+            </p>
+            <div style={{ display: 'flex', gap: 8, marginTop: 16 }}>
+              <button type="button" className="btn-o" onClick={() => setConfirmarBorrado(false)}>
+                Cancelar
+              </button>
+              <button type="button" className="btn-ai" onClick={borrar}>
+                Borrar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       <style>{`@media (max-width: 560px) { .tarea-dos { grid-template-columns: minmax(0, 1fr) !important; } }`}</style>
     </div>
   );
