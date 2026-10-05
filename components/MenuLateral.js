@@ -60,11 +60,28 @@ const SECCIONES = [
   {
     titulo: 'Directorio',
     items: [
+      // Tres entradas desde el 05-10-2026: Instituciones, Organizaciones
+      // (patronales, asociaciones, empresa pública, medios y actores
+      // sociales) y la Base de datos de cargos, que antes era la tarjeta
+      // negra de Instituciones.
       {
         href: '/institutions',
         etiqueta: 'Instituciones',
         icono: 'ti-building-bank',
-        activo: (p) => p.startsWith('/institutions') || p.startsWith('/instituciones'),
+        activo: (p) =>
+          p.startsWith('/institutions') || (p.startsWith('/instituciones') && !p.startsWith('/instituciones/directorio')),
+      },
+      {
+        href: '/directorio/organizaciones',
+        etiqueta: 'Organizaciones',
+        icono: 'ti-users',
+        activo: (p) => p.startsWith('/directorio/organizaciones'),
+      },
+      {
+        href: '/instituciones/directorio',
+        etiqueta: 'Base de datos',
+        icono: 'ti-database',
+        activo: (p) => p.startsWith('/instituciones/directorio'),
       },
     ],
   },
