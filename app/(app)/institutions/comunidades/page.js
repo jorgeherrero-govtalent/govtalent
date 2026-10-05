@@ -2,8 +2,9 @@
 
 import DirectorioListado from '@/components/DirectorioListado';
 
-// Comunidades autónomas: Gobierno, Parlamento y TSJ de cada una, con los
-// cargos de la Agenda de la Comunicación 2026-2027.
+// Comunidades autónomas: Gobierno, Parlamento y TSJ de cada una.
 export default function ComunidadesPage() {
-  return <DirectorioListado slug="comunidades" volverA="/institutions" volverEtiqueta="Instituciones" />;
+  return (
+    <DirectorioListado slug="comunidades" base="/institutions/comunidades" volverA="/institutions" volverEtiqueta="Instituciones" />
+  );
 }
