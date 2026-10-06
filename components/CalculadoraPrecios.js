@@ -107,7 +107,7 @@ export default function CalculadoraPrecios({ autenticado = false }) {
       titulo: 'Pago mensual',
       importe: euros(mes),
       periodo: 'al mes',
-      detalle: `${equipo ? `${euros(mes / usuarios)} por usuario · ` : ''}Sin permanencia`,
+      detalle: equipo ? `${euros(mes / usuarios)} por usuario` : 'Pago cada mes',
       ahorro: null,
     },
     {
@@ -247,7 +247,6 @@ export default function CalculadoraPrecios({ autenticado = false }) {
               Alarmas con IA sobre el BOE, el Consejo de Ministros, la Agenda del Gobierno, el Congreso, las consultas
               públicas, los parlamentos autonómicos, el Parlamento Europeo y la Comisión Europea
             </Linea>
-            <Linea>Lo del Consejo de Ministros, el mismo día y antes de que salga en el BOE</Linea>
             <Linea>Avisos al momento, cada mañana o los lunes, según elijas</Linea>
             <Linea>Avisos de plazo a 30, 14, 7, 3 y 1 días</Linea>
             <Linea>Seguimiento de normas, instituciones y personas, con aviso de sus cambios</Linea>
