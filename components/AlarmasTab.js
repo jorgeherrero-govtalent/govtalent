@@ -302,6 +302,28 @@ function Contador({ usadas, limite, esPro }) {
   );
 }
 
+// Los 8 primeros y un botón para ver el resto: la propuesta puede traer
+// hasta 40 y el resumen dice cuántos encajan.
+function EncajaPlegable({ items, onDescartar, inicial = 8 }) {
+  const [todos, setTodos] = useState(false);
+  const lista = items || [];
+  const resto = lista.length - inicial;
+  return (
+    <>
+      <Encaja items={todos ? lista : lista.slice(0, inicial)} onDescartar={onDescartar} />
+      {resto > 0 && (
+        <button
+          type="button"
+          onClick={() => setTodos(!todos)}
+          style={{ marginTop: 8, background: 'none', border: 'none', padding: 0, cursor: 'pointer', fontSize: 13, fontWeight: 600, color: MORADO_O, fontFamily: 'inherit' }}
+        >
+          {todos ? 'Ver menos' : `Ver los ${lista.length}`}
+        </button>
+      )}
+    </>
+  );
+}
+
 function Encaja({ items, onDescartar, vacio = 'Nada abierto encaja ahora mismo. Te avisaré cuando aparezca algo.' }) {
   if (!items || items.length === 0) {
     return <div style={{ fontSize: 12.5, color: GRIS, lineHeight: 1.55 }}>{vacio}</div>;
@@ -1174,7 +1196,7 @@ export default function AlarmasTab({ seccion = 'alarmas' }) {
           )}
           <div style={{ padding: '12px 16px', borderBottom: `1px solid ${LINEA2}` }}>
             <div style={{ ...ETIQUETA, marginBottom: 8 }}>Ya abierto ahora</div>
-            <Encaja items={b.encaja.slice(0, 8)} onDescartar={(m) => setB({ encaja: b.encaja.filter((x) => x !== m) })} />
+            <EncajaPlegable items={b.encaja} onDescartar={(m) => setB({ encaja: b.encaja.filter((x) => x !== m) })} />
           </div>
           <div style={{ padding: '12px 16px' }}>
             <div style={{ ...ETIQUETA, marginBottom: 8 }}>Cuándo te aviso</div>
