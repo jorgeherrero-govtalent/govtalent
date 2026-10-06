@@ -58,7 +58,7 @@ export async function POST(request) {
     keywords: textos(a?.keywords, 15, 60).map((k) => k.toLowerCase()),
     sectores: textos(a?.sectores, 6, 60),
     criterios: {
-      resumen: String(criterios.resumen || '').trim().slice(0, 240),
+      resumen: String(criterios.resumen || '').trim().slice(0, 400),
       temas: textos(criterios.temas, 8, 60),
       normativa: textos(criterios.normativa, 8),
       territorios: textos(criterios.territorios, 10, 60),
