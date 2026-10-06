@@ -212,6 +212,7 @@ export default function CalculadoraPrecios({ autenticado = false }) {
             })}
           </div>
 
+          <div style={{ flex: 1 }} />
           {autenticado ? (
             <button type="button" style={botonPrincipal} onClick={() => contratar('vigilancia')} disabled={!!cargando}>
               {cargando === 'vigilancia' ? 'Abriendo el pago…' : textoCta}
@@ -241,13 +242,25 @@ export default function CalculadoraPrecios({ autenticado = false }) {
               </div>
             </div>
           </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 9, fontSize: 13.5, color: '#3a3a36', lineHeight: 1.4 }}>
+          <Grupo titulo="Vigilancia normativa">
+            <Linea>
+              Alarmas con IA sobre el BOE, el Consejo de Ministros, la Agenda del Gobierno, el Congreso, las consultas
+              públicas, los parlamentos autonómicos, el Parlamento Europeo y la Comisión Europea
+            </Linea>
+            <Linea>Lo del Consejo de Ministros, el mismo día y antes de que salga en el BOE</Linea>
+            <Linea>Avisos al momento, cada mañana o los lunes, según elijas</Linea>
             <Linea>Avisos de plazo a 30, 14, 7, 3 y 1 días</Linea>
+            <Linea>Seguimiento de normas, instituciones y personas, con aviso de sus cambios</Linea>
+          </Grupo>
+          <Grupo titulo="Trabajo">
             <Linea>Proyectos y Tareas</Linea>
-            <Linea>Asistente y conexión con Claude y ChatGPT</Linea>
-            {equipo && <Linea>Alarmas y créditos compartidos por todo el equipo</Linea>}
             {equipo && <Linea>Proyectos y tareas compartidos, con roles</Linea>}
-          </div>
+            {equipo && <Linea>Alarmas y créditos compartidos por todo el equipo</Linea>}
+          </Grupo>
+          <Grupo titulo="Inteligencia artificial">
+            <Linea>Asistente para crear y afinar alarmas</Linea>
+            <Linea>MCP: conexión con ChatGPT y Claude</Linea>
+          </Grupo>
         </div>
       </div>
 
@@ -264,8 +277,8 @@ export default function CalculadoraPrecios({ autenticado = false }) {
               </span>
             </h3>
             <p style={{ margin: 0, fontSize: 13, color: '#6f6c64', lineHeight: 1.45 }}>
-              Instituciones, organizaciones, medios y actores sociales, con los correos y teléfonos de altos cargos,
-              asesores y funcionarios. 1 alarma semanal y 100 créditos al mes.
+              Más de 18.000 contactos de instituciones, organizaciones, medios y actores sociales: altos cargos,
+              asesores y funcionarios, más de 15.000 con correo o teléfono. 1 alarma semanal y 100 créditos al mes.
             </p>
           </div>
           <div style={{ display: 'flex', alignItems: 'baseline', gap: 4, whiteSpace: 'nowrap' }}>
@@ -294,6 +307,17 @@ export default function CalculadoraPrecios({ autenticado = false }) {
         </div>
       </div>
     </>
+  );
+}
+
+function Grupo({ titulo, children }) {
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 9, fontSize: 13.5, color: '#3a3a36', lineHeight: 1.4 }}>
+      <span style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: '.4px', color: '#a8a49c', fontWeight: 600 }}>
+        {titulo}
+      </span>
+      {children}
+    </div>
   );
 }
 
