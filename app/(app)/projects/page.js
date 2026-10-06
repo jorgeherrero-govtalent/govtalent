@@ -2,7 +2,6 @@
 
 import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
 import { toast } from '@/lib/toast';
 import UpgradeModal from '@/components/UpgradeModal';
@@ -500,12 +499,6 @@ function Proyectos() {
                 fecha, participantes, asuntos tratados y documentos.
               </div>
             </div>
-            <Link
-              href="/organizations/admin/registro"
-              style={{ fontSize: 11.5, color: MORADO, flexShrink: 0, whiteSpace: 'nowrap', textDecoration: 'none' }}
-            >
-              Cómo funciona
-            </Link>
             <i
               className="ti ti-x"
               onClick={cerrarAviso}

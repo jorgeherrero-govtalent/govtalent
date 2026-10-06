@@ -37,7 +37,7 @@ export async function POST(request) {
   // la pestaña Plan de la organización su propio panel. Antes apuntaban a
   // /cuenta/suscripcion y /organizaciones/<slug>/suscripcion, que no
   // existen, así que volver del portal daba un 404.
-  let returnUrl = `${APP_URL}/account`;
+  let returnUrl = `${APP_URL}/account?tab=plan`;
 
   if (organizationId) {
     const { data: membership } = await admin
@@ -66,7 +66,7 @@ export async function POST(request) {
     }
 
     customerId = org.stripe_customer_id;
-    returnUrl = `${APP_URL}/organizations/admin/plan`;
+    returnUrl = `${APP_URL}/account?tab=plan`;
   } else {
     const { data: profile } = await admin
       .from('users')

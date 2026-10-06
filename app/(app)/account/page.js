@@ -1,27 +1,49 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import Link from 'next/link';
+import { useEffect, useRef, useState } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { toast } from '@/lib/toast';
-import SelectorFecha from '@/components/SelectorFecha';
 import BloquePlanCuenta from '@/components/BloquePlanCuenta';
 import BloqueSeguridad from '@/components/BloqueSeguridad';
+import SelectorFecha from '@/components/SelectorFecha';
+
+/**
+ * Configuración (/account).
+ *
+ * Al estilo de la de Enginy (06-10-2026): pestañas arriba y, dentro,
+ * secciones de filas con el dato a la izquierda y la acción a la derecha.
+ *
+ *   General     la organización (logo, nombre, datos legales, registro) y
+ *               el usuario (foto, nombre, correo, novedades).
+ *   Seguridad   contraseña y eliminar la cuenta.
+ *   Equipo      los miembros de la organización.
+ *   Plan        Vigilancia, Directorio y la suscripción.
+ *
+ * Absorbe lo que quedaba útil de /organizations/admin/settings, que ahora
+ * redirige aquí. Lo de empleo (teléfono para candidaturas, información
+ * personal, desactivar la página pública) sale de la pantalla porque
+ * Empleo está escondido; los datos siguen en la base.
+ *
+ * Los datos de la organización solo los edita quien la administra: salen
+ * en las actas, que tienen valor probatorio.
+ */
+
+const MORADO = '#6d5aef';
+const BORDE = '#e8e6df';
 
 const CARD = { background: '#fff', borderRadius: 10, boxShadow: '0 1px 2px rgba(0,0,0,.04)' };
 const LABEL = { fontSize: 11, color: '#a8a49c', letterSpacing: '.4px', marginBottom: 14 };
 
-// Los botones del resto de la plataforma: morado para la acción
-// principal, gris para la secundaria. Sin bordes ni verde.
 const BOTON = {
-  background: '#6d5aef',
+  background: MORADO,
   color: '#fff',
   border: 'none',
   borderRadius: 8,
-  padding: '9px 16px',
+  padding: '8px 14px',
   fontSize: 12.5,
   fontWeight: 500,
   cursor: 'pointer',
+  fontFamily: 'inherit',
 };
 const BOTON_SEC = {
   background: '#f5f4f1',
@@ -31,7 +53,47 @@ const BOTON_SEC = {
   padding: '9px 16px',
   fontSize: 12.5,
   cursor: 'pointer',
+  fontFamily: 'inherit',
 };
+// El botón de las filas, como en Enginy: blanco con borde fino.
+const BOTON_FILA = {
+  background: '#fff',
+  color: '#1a1a18',
+  border: `1px solid ${BORDE}`,
+  borderRadius: 8,
+  padding: '7px 13px',
+  fontSize: 12.5,
+  fontWeight: 500,
+  cursor: 'pointer',
+  whiteSpace: 'nowrap',
+  fontFamily: 'inherit',
+  flexShrink: 0,
+};
+
+const TIPOS_ORG = [
+  { v: 'empresa', label: 'Empresa' },
+  { v: 'consultora', label: 'Consultora de asuntos públicos' },
+  { v: 'patronal', label: 'Patronal o asociación empresarial' },
+  { v: 'asociacion', label: 'Asociación o federación' },
+  { v: 'fundacion', label: 'Fundación o think tank' },
+  { v: 'despacho', label: 'Despacho profesional' },
+  { v: 'sindicato', label: 'Sindicato' },
+  { v: 'otra', label: 'Otra' },
+];
+
+const PESTANAS = [
+  { id: 'general', label: 'General' },
+  { id: 'seguridad', label: 'Seguridad' },
+  { id: 'equipo', label: 'Equipo' },
+  { id: 'plan', label: 'Plan' },
+];
+
+const ROLES = { admin: 'Administrador', editor: 'Miembro' };
+
+function iniciales(texto) {
+  const partes = String(texto || '?').trim().split(/\s+/);
+  return ((partes[0]?.[0] || '') + (partes[1]?.[0] || '')).toUpperCase() || '?';
+}
 
 function Interruptor({ activo, onChange, disabled }) {
   return (
@@ -44,7 +106,7 @@ function Interruptor({ activo, onChange, disabled }) {
         width: 38,
         height: 22,
         borderRadius: 11,
-        background: activo ? '#6d5aef' : '#e0dfd8',
+        background: activo ? MORADO : '#e0dfd8',
         border: 'none',
         padding: 0,
         cursor: disabled ? 'default' : 'pointer',
@@ -70,50 +132,85 @@ function Interruptor({ activo, onChange, disabled }) {
   );
 }
 
-const GENDER_OPTIONS = [
-  ['', 'Prefiero no decirlo'],
-  ['mujer', 'Mujer'],
-  ['hombre', 'Hombre'],
-  ['no_binario', 'No binario'],
-  ['otro', 'Otro'],
-];
-
-// Sin tono de peligro: el rojo no aporta nada aquí, porque esta fila
-// solo abre una pantalla donde se explica todo antes de decidir.
-function Row({ icon, label, description, onClick, href }) {
-  const content = (
-    <>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 11 }}>
-        <i className={`ti ${icon}`} style={{ fontSize: 16, color: '#8b8780', flexShrink: 0 }}></i>
-        <div>
-          <div style={{ fontSize: 13, fontWeight: 500 }}>{label}</div>
-          {description && <div style={{ fontSize: 11.5, color: '#a8a49c', marginTop: 2 }}>{description}</div>}
-        </div>
-      </div>
-      <i className="ti ti-chevron-right" style={{ fontSize: 14, color: '#d6d2ca', flexShrink: 0 }}></i>
-    </>
+/** Una sección: rótulo gris y una caja con filas separadas por línea. */
+function Seccion({ titulo, children }) {
+  return (
+    <div style={{ marginBottom: 22 }}>
+      <div style={{ fontSize: 13, color: '#8b8780', margin: '0 0 7px 4px' }}>{titulo}</div>
+      <div style={{ ...CARD, border: `1px solid ${BORDE}`, boxShadow: 'none', overflow: 'hidden' }}>{children}</div>
+    </div>
   );
-  const style = {
+}
+
+/** Una fila: título y detalle a la izquierda, acción a la derecha. */
+function Fila({ titulo, detalle, accion, primera, children }) {
+  return (
+    <div style={{ padding: '14px 18px', borderTop: primera ? 'none' : `1px solid ${BORDE}` }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ fontSize: 14, fontWeight: 600, color: '#1a1a18' }}>{titulo}</div>
+          {detalle ? (
+            <div style={{ fontSize: 13, color: '#6f6c64', marginTop: 3, lineHeight: 1.5, overflowWrap: 'anywhere' }}>
+              {detalle}
+            </div>
+          ) : null}
+        </div>
+        {accion}
+      </div>
+      {children}
+    </div>
+  );
+}
+
+/** Círculo con imagen o iniciales que, si se puede, abre el selector de archivo. */
+function Circulo({ url, texto, onArchivo, subiendo, etiqueta, cuadrado }) {
+  const ref = useRef(null);
+  const forma = cuadrado ? 9 : '50%';
+  const contenido = url ? (
+    <img src={url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+  ) : (
+    iniciales(texto)
+  );
+  const estilo = {
+    width: 40,
+    height: 40,
+    borderRadius: forma,
+    background: '#f0eefe',
+    color: '#3c3489',
     display: 'flex',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: 12,
-    padding: '13px 4px',
-    cursor: 'pointer',
-    textDecoration: 'none',
-    color: 'inherit',
+    justifyContent: 'center',
+    fontSize: 14,
+    fontWeight: 600,
+    overflow: 'hidden',
+    flexShrink: 0,
+    border: `1px solid ${BORDE}`,
+    padding: 0,
+    opacity: subiendo ? 0.5 : 1,
   };
-  if (href) {
-    return (
-      <Link href={href} style={style}>
-        {content}
-      </Link>
-    );
-  }
+  if (!onArchivo) return <div style={estilo}>{contenido}</div>;
   return (
-    <div onClick={onClick} style={style}>
-      {content}
-    </div>
+    <>
+      <button
+        type="button"
+        aria-label={etiqueta}
+        title={etiqueta}
+        onClick={() => ref.current?.click()}
+        style={{ ...estilo, cursor: 'pointer', fontFamily: 'inherit' }}
+      >
+        {contenido}
+      </button>
+      <input
+        ref={ref}
+        type="file"
+        accept="image/png,image/jpeg,image/webp,image/svg+xml"
+        style={{ display: 'none' }}
+        onChange={(e) => {
+          onArchivo(e);
+          e.target.value = '';
+        }}
+      />
+    </>
   );
 }
 
@@ -121,99 +218,175 @@ export default function AccountPage() {
   const supabase = createClient();
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [firstName, setFirstName] = useState('');
-  const [lastName, setLastName] = useState('');
-  const [savingName, setSavingName] = useState(false);
-  const [savingGender, setSavingGender] = useState(false);
-  const [savingBirthDate, setSavingBirthDate] = useState(false);
-  const [savingPhone, setSavingPhone] = useState(false);
-  const [phone, setPhone] = useState('');
-  const [savingPrefs, setSavingPrefs] = useState(false);
+  const [tab, setTab] = useState('general');
   const [view, setView] = useState('main'); // 'main' | 'delete-confirm' | 'delete-done'
   const [deleting, setDeleting] = useState(false);
 
+  // Organización: la fila, el rol y los datos legales en edición.
+  const [org, setOrg] = useState(null);
+  const [esAdmin, setEsAdmin] = useState(false);
+  const [miembros, setMiembros] = useState(null);
+
+  // Qué fila se está editando: 'nombre' | 'org-nombre' | 'legal' | 'registro' | null
+  const [editando, setEditando] = useState(null);
+  const [borrador, setBorrador] = useState({});
+  const [guardando, setGuardando] = useState(false);
+  const [subiendo, setSubiendo] = useState(null); // 'avatar' | 'logo' | null
+  const [savingPrefs, setSavingPrefs] = useState(false);
+
   useEffect(() => {
+    // La pestaña va en la URL (?tab=plan) para poder enlazarla, pero se lee
+    // aquí y no con useSearchParams, que obliga a envolver la página en
+    // Suspense.
+    const inicial = new URLSearchParams(window.location.search).get('tab');
+    if (PESTANAS.some((p) => p.id === inicial)) setTab(inicial);
     load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  function cambiarTab(id) {
+    setTab(id);
+    setEditando(null);
+    const url = new URL(window.location.href);
+    if (id === 'general') url.searchParams.delete('tab');
+    else url.searchParams.set('tab', id);
+    window.history.replaceState(null, '', url.toString());
+  }
 
   async function load() {
     const { data: authData } = await supabase.auth.getUser();
     if (!authData.user) return setLoading(false);
-    const { data: profile } = await supabase.from('users').select('*').eq('id', authData.user.id).single();
+    const [{ data: profile }, { data: membresia }] = await Promise.all([
+      supabase.from('users').select('*').eq('id', authData.user.id).single(),
+      supabase
+        .from('organization_members')
+        .select(
+          'role, organizations(id, name, slug, logo_url, plan, plan_status, legal_name, tax_id, org_type, registered_address, cbtg_registry_number, cbtg_registered_at)'
+        )
+        .eq('user_id', authData.user.id)
+        .limit(1)
+        .maybeSingle(),
+    ]);
     setUser(profile);
-    setFirstName(profile?.first_name || '');
-    setLastName(profile?.last_name || '');
-    setPhone(profile?.phone || '');
     if (profile?.deletion_requested_at) setView('delete-done');
+    const o = membresia?.organizations || null;
+    setOrg(o);
+    setEsAdmin(membresia?.role === 'admin');
     setLoading(false);
+
+    if (o?.id) {
+      const { data } = await supabase
+        .from('organization_members')
+        .select('user_id, role, users(first_name, last_name, email, avatar_url)')
+        .eq('organization_id', o.id);
+      setMiembros(data || []);
+    }
   }
 
-  async function saveName() {
-    if (!firstName.trim() || !lastName.trim()) {
+  function editar(fila, valores) {
+    setEditando(fila);
+    setBorrador(valores);
+  }
+
+  async function guardarUsuario(cambios, mensaje = 'Guardado') {
+    setGuardando(true);
+    const { error } = await supabase.from('users').update(cambios).eq('id', user.id);
+    setGuardando(false);
+    if (error) {
+      toast.error('No se ha podido guardar');
+      return false;
+    }
+    setUser({ ...user, ...cambios });
+    toast(mensaje);
+    return true;
+  }
+
+  async function guardarOrg(cambios, mensaje = 'Guardado') {
+    setGuardando(true);
+    const { error } = await supabase.from('organizations').update(cambios).eq('id', org.id);
+    setGuardando(false);
+    if (error) {
+      toast.error('No se ha podido guardar');
+      return false;
+    }
+    setOrg({ ...org, ...cambios });
+    toast(mensaje);
+    return true;
+  }
+
+  async function guardarNombre() {
+    const nombre = (borrador.first_name || '').trim();
+    const apellidos = (borrador.last_name || '').trim();
+    if (!nombre || !apellidos) {
       toast.info('El nombre y los apellidos no pueden quedar vacíos');
       return;
     }
-    setSavingName(true);
-    const { error } = await supabase
-      .from('users')
-      .update({ first_name: firstName.trim(), last_name: lastName.trim() })
-      .eq('id', user.id);
-    setSavingName(false);
-    if (error) {
-      toast.error('No se ha podido guardar');
-      return;
-    }
-    setUser({ ...user, first_name: firstName.trim(), last_name: lastName.trim() });
-    toast('Guardado');
+    if (await guardarUsuario({ first_name: nombre, last_name: apellidos })) setEditando(null);
   }
 
-  async function saveGender(value) {
-    setSavingGender(true);
-    const { error } = await supabase.from('users').update({ gender_identity: value || null }).eq('id', user.id);
-    setSavingGender(false);
-    if (error) {
-      toast.error('No se ha podido guardar');
+  async function guardarNombreOrg() {
+    const nombre = (borrador.name || '').trim();
+    if (!nombre) {
+      toast.info('El nombre no puede quedar vacío');
       return;
     }
-    setUser({ ...user, gender_identity: value || null });
-    toast('Guardado');
+    if (await guardarOrg({ name: nombre })) setEditando(null);
   }
 
-  async function saveBirthDate(value) {
-    setSavingBirthDate(true);
-    const { error } = await supabase.from('users').update({ birth_date: value || null }).eq('id', user.id);
-    setSavingBirthDate(false);
-    if (error) {
-      toast.error('No se ha podido guardar');
-      return;
-    }
-    setUser({ ...user, birth_date: value || null });
-    toast('Guardado');
+  async function guardarLegal() {
+    const ok = await guardarOrg(
+      {
+        legal_name: (borrador.legal_name || '').trim() || null,
+        tax_id: (borrador.tax_id || '').trim() || null,
+        org_type: borrador.org_type || null,
+        registered_address: (borrador.registered_address || '').trim() || null,
+      },
+      'Datos guardados'
+    );
+    if (ok) setEditando(null);
   }
 
-  async function savePhone() {
-    setSavingPhone(true);
-    const { error } = await supabase.from('users').update({ phone: phone.trim() || null }).eq('id', user.id);
-    setSavingPhone(false);
-    if (error) {
-      toast.error('No se ha podido guardar');
+  async function guardarRegistro() {
+    const ok = await guardarOrg(
+      {
+        cbtg_registry_number: (borrador.cbtg_registry_number || '').trim() || null,
+        cbtg_registered_at: borrador.cbtg_registered_at || null,
+      },
+      'Datos guardados'
+    );
+    if (ok) setEditando(null);
+  }
+
+  // Misma subida que tenían la página de empresa y el perfil: buckets
+  // públicos `logos` y `avatars`, una ruta fija por dueño.
+  async function subirImagen(e, tipo) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 5 * 1024 * 1024) {
+      toast.info('La imagen no puede pasar de 5 MB');
       return;
     }
-    setUser({ ...user, phone: phone.trim() || null });
-    toast('Guardado');
+    setSubiendo(tipo);
+    const ext = (file.name.split('.').pop() || 'png').toLowerCase();
+    const bucket = tipo === 'logo' ? 'logos' : 'avatars';
+    const ruta = tipo === 'logo' ? `${org.id}/logo.${ext}` : `${user.id}/avatar.${ext}`;
+    const { error } = await supabase.storage.from(bucket).upload(ruta, file, { upsert: true });
+    if (error) {
+      setSubiendo(null);
+      toast.error('No se ha podido subir la imagen');
+      return;
+    }
+    const { data } = supabase.storage.from(bucket).getPublicUrl(ruta);
+    const url = `${data.publicUrl}?t=${Date.now()}`;
+    if (tipo === 'logo') await guardarOrg({ logo_url: url }, 'Logo actualizado');
+    else await guardarUsuario({ avatar_url: url }, 'Foto actualizada');
+    setSubiendo(null);
   }
 
   async function toggleMarketingEmails() {
     setSavingPrefs(true);
-    const newValue = !user.marketing_emails_enabled;
-    const { error } = await supabase.from('users').update({ marketing_emails_enabled: newValue }).eq('id', user.id);
+    await guardarUsuario({ marketing_emails_enabled: !user.marketing_emails_enabled });
     setSavingPrefs(false);
-    if (error) {
-      toast.error('No se ha podido guardar');
-      return;
-    }
-    setUser({ ...user, marketing_emails_enabled: newValue });
-    toast('Guardado');
   }
 
   async function requestDeletion() {
@@ -254,7 +427,7 @@ export default function AccountPage() {
             marginBottom: 14,
           }}
         >
-          <i className="ti ti-arrow-left" style={{ fontSize: 14 }}></i> Mi cuenta
+          <i className="ti ti-arrow-left" style={{ fontSize: 14 }}></i> Configuración
         </button>
 
         <div style={{ ...CARD, padding: 24 }}>
@@ -328,120 +501,370 @@ export default function AccountPage() {
     );
   }
 
+  const nombreCompleto = [user.first_name, user.last_name].filter(Boolean).join(' ');
+  const tipoOrg = TIPOS_ORG.find((x) => x.v === org?.org_type)?.label;
+  const legalResumen = org
+    ? [org.legal_name, org.tax_id, tipoOrg].filter(Boolean).join(' · ') || 'Sin completar'
+    : null;
+  const usuariosPlan = Number(user.plan_usuarios) || 1;
+
+  const acciones = (onGuardar) => (
+    <div style={{ display: 'flex', gap: 8, marginTop: 4 }}>
+      <button type="button" style={BOTON} disabled={guardando} onClick={onGuardar}>
+        {guardando ? 'Guardando…' : 'Guardar'}
+      </button>
+      <button type="button" style={BOTON_SEC} disabled={guardando} onClick={() => setEditando(null)}>
+        Cancelar
+      </button>
+    </div>
+  );
+
+  const campo = (k, etiqueta, placeholder, extra = {}) => (
+    <div className="field" style={{ flex: 1, minWidth: 180, marginBottom: 10, ...extra }}>
+      <label>{etiqueta}</label>
+      <input
+        value={borrador[k] ?? ''}
+        onChange={(e) => setBorrador({ ...borrador, [k]: e.target.value })}
+        placeholder={placeholder}
+      />
+    </div>
+  );
+
   return (
-    <div className="sec" style={{ maxWidth: 560 }}>
-      <div style={{ marginBottom: 18 }}>
-        <h1 style={{ fontSize: 20, fontWeight: 600, margin: 0, letterSpacing: '-.2px' }}>Mi cuenta</h1>
-        <p style={{ fontSize: 12.5, color: '#8b8780', margin: '5px 0 0' }}>
-          Tus datos, tus preferencias y la gestión de tu cuenta.
-        </p>
+    <div className="sec" style={{ maxWidth: 880 }}>
+      <style>{`
+        .cfg-tabs { display: flex; gap: 6px; border-bottom: 1px solid ${BORDE}; margin: 18px 0 22px; overflow-x: auto; scrollbar-width: none; }
+        .cfg-tabs::-webkit-scrollbar { display: none; }
+        .cfg-tab { background: none; border: none; border-bottom: 2px solid transparent; margin-bottom: -1px; padding: 10px 14px; font-size: 14px; color: #8b8780; cursor: pointer; font-family: inherit; display: inline-flex; align-items: center; gap: 7px; white-space: nowrap; }
+        .cfg-tab:hover { color: #1a1a18; }
+        .cfg-tab.on { color: #1a1a18; font-weight: 600; border-bottom-color: #1a1a18; }
+        .cfg-edit { display: flex; flex-wrap: wrap; gap: 0 10px; margin-top: 14px; }
+      `}</style>
+
+      <h1 style={{ fontSize: 24, fontWeight: 600, margin: 0, letterSpacing: '-.3px' }}>Configuración</h1>
+
+      <div className="cfg-tabs" role="tablist">
+        {PESTANAS.map((p) => (
+          <button
+            key={p.id}
+            type="button"
+            role="tab"
+            aria-selected={tab === p.id}
+            className={`cfg-tab${tab === p.id ? ' on' : ''}`}
+            onClick={() => cambiarTab(p.id)}
+          >
+            {p.label}
+            {p.id === 'equipo' && esAdmin && (
+              <span
+                style={{
+                  fontSize: 11,
+                  fontWeight: 500,
+                  color: '#3c3489',
+                  background: '#f0eefe',
+                  borderRadius: 6,
+                  padding: '2px 7px',
+                }}
+              >
+                Admin
+              </span>
+            )}
+          </button>
+        ))}
       </div>
 
-      <div style={{ ...CARD, padding: 20, marginBottom: 14 }}>
-        <div style={LABEL}>DATOS DE LA CUENTA</div>
-        <div style={{ display: 'flex', gap: 10 }}>
-          <div className="field" style={{ flex: 1 }}>
-            <label>Nombre</label>
-            <input value={firstName} onChange={(e) => setFirstName(e.target.value)} />
-          </div>
-          <div className="field" style={{ flex: 1 }}>
-            <label>Apellidos</label>
-            <input value={lastName} onChange={(e) => setLastName(e.target.value)} />
-          </div>
-        </div>
-        {(firstName !== user.first_name || lastName !== user.last_name) && (
-          <button style={{ ...BOTON, marginBottom: 13 }} disabled={savingName} onClick={saveName}>
-            {savingName ? 'Guardando…' : 'Guardar cambios'}
-          </button>
-        )}
-        <div style={{ display: 'flex', gap: 10 }}>
-          <div className="field" style={{ flex: 1, marginBottom: 0 }}>
-            <label>Email</label>
-            <input value={user.email} disabled />
-          </div>
-          <div className="field" style={{ flex: 1, marginBottom: phone !== (user.phone || '') ? 8 : 0 }}>
-            <label>Teléfono de contacto para candidaturas</label>
-            <input value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="Ej: +34 600 000 000" />
-          </div>
-        </div>
-        {phone !== (user.phone || '') && (
-          <button style={{ ...BOTON, marginTop: 4 }} disabled={savingPhone} onClick={savePhone}>
-            {savingPhone ? 'Guardando…' : 'Guardar cambios'}
-          </button>
-        )}
-      </div>
+      {/* --- General ------------------------------------------------------ */}
+      {tab === 'general' && (
+        <>
+          {org && (
+            <Seccion titulo="Organización">
+              <Fila
+                primera
+                titulo="Logo de la organización"
+                detalle={esAdmin ? 'Cambia el logo de la organización.' : 'Solo la administración puede cambiarlo.'}
+                accion={
+                  <Circulo
+                    url={org.logo_url}
+                    texto={org.name}
+                    cuadrado
+                    subiendo={subiendo === 'logo'}
+                    etiqueta="Cambiar el logo"
+                    onArchivo={esAdmin ? (e) => subirImagen(e, 'logo') : null}
+                  />
+                }
+              />
+              <Fila
+                titulo="Nombre para mostrar"
+                detalle={editando === 'org-nombre' ? null : org.name}
+                accion={
+                  esAdmin && editando !== 'org-nombre' ? (
+                    <button type="button" style={BOTON_FILA} onClick={() => editar('org-nombre', { name: org.name || '' })}>
+                      Editar nombre
+                    </button>
+                  ) : null
+                }
+              >
+                {editando === 'org-nombre' && (
+                  <>
+                    <div className="cfg-edit">{campo('name', 'Nombre', 'Nombre comercial')}</div>
+                    {acciones(guardarNombreOrg)}
+                  </>
+                )}
+              </Fila>
+              <Fila
+                titulo="Datos legales"
+                detalle={
+                  editando === 'legal'
+                    ? 'Identifican a tu organización en las actas de actividad institucional.'
+                    : legalResumen
+                }
+                accion={
+                  esAdmin && editando !== 'legal' ? (
+                    <button
+                      type="button"
+                      style={BOTON_FILA}
+                      onClick={() =>
+                        editar('legal', {
+                          legal_name: org.legal_name || '',
+                          tax_id: org.tax_id || '',
+                          org_type: org.org_type || '',
+                          registered_address: org.registered_address || '',
+                        })
+                      }
+                    >
+                      Editar datos
+                    </button>
+                  ) : null
+                }
+              >
+                {editando === 'legal' && (
+                  <>
+                    <div className="cfg-edit">
+                      {campo('legal_name', 'Denominación legal', org.name ? `Ej: ${org.name}, S.L.` : 'Razón social completa', {
+                        flexBasis: '100%',
+                      })}
+                      {campo('tax_id', 'CIF, o NIF si ejerces como persona física', 'Ej: B12345678')}
+                      <div className="field" style={{ flex: 1, minWidth: 180, marginBottom: 10 }}>
+                        <label>Tipo de organización</label>
+                        <select
+                          value={borrador.org_type || ''}
+                          onChange={(e) => setBorrador({ ...borrador, org_type: e.target.value })}
+                        >
+                          <option value="">Sin especificar</option>
+                          {TIPOS_ORG.map((x) => (
+                            <option key={x.v} value={x.v}>
+                              {x.label}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                      {campo('registered_address', 'Domicilio o sede social', 'Calle, número, código postal y ciudad', {
+                        flexBasis: '100%',
+                      })}
+                    </div>
+                    {acciones(guardarLegal)}
+                  </>
+                )}
+              </Fila>
+              <Fila
+                titulo="Registro de grupos de interés"
+                detalle={
+                  editando === 'registro'
+                    ? 'Si tu organización está inscrita, el número aparecerá en todas las actas.'
+                    : org.cbtg_registry_number
+                    ? `Nº ${org.cbtg_registry_number}${
+                        org.cbtg_registered_at
+                          ? ` · inscrita el ${new Date(org.cbtg_registered_at).toLocaleDateString('es-ES')}`
+                          : ''
+                      }`
+                    : 'Sin número de inscripción'
+                }
+                accion={
+                  esAdmin && editando !== 'registro' ? (
+                    <button
+                      type="button"
+                      style={BOTON_FILA}
+                      onClick={() =>
+                        editar('registro', {
+                          cbtg_registry_number: org.cbtg_registry_number || '',
+                          cbtg_registered_at: org.cbtg_registered_at || null,
+                        })
+                      }
+                    >
+                      {org.cbtg_registry_number ? 'Editar' : 'Añadir'}
+                    </button>
+                  ) : null
+                }
+              >
+                {editando === 'registro' && (
+                  <>
+                    <div className="cfg-edit">
+                      {campo('cbtg_registry_number', 'Nº de inscripción', 'Aún sin asignar')}
+                      <div className="field" style={{ flex: 1, minWidth: 180, marginBottom: 10 }}>
+                        <label>Fecha de inscripción</label>
+                        <SelectorFecha
+                          value={borrador.cbtg_registered_at || null}
+                          onChange={(v) => setBorrador({ ...borrador, cbtg_registered_at: v || null })}
+                          placeholder="Sin indicar"
+                          desdeAno={2026}
+                          hastaAno={new Date().getFullYear() + 1}
+                        />
+                      </div>
+                    </div>
+                    {acciones(guardarRegistro)}
+                  </>
+                )}
+              </Fila>
+            </Seccion>
+          )}
 
-      <div style={{ ...CARD, padding: 20, marginBottom: 14 }}>
-        <div style={{ ...LABEL, marginBottom: 4 }}>INFORMACIÓN PERSONAL</div>
-        <p style={{ fontSize: 12, color: '#999', marginBottom: 14 }}>
-          Opcional. Esta información nunca se muestra en tu perfil — solo la usamos para estadísticas internas
-          agregadas.
-        </p>
-        <div style={{ display: 'flex', gap: 10 }}>
-          <div className="field" style={{ flex: 1, marginBottom: 0 }}>
-            <label>Identidad de género</label>
-            <select value={user.gender_identity || ''} disabled={savingGender} onChange={(e) => saveGender(e.target.value)}>
-              {GENDER_OPTIONS.map(([value, label]) => (
-                <option key={value} value={value}>
-                  {label}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div className="field" style={{ flex: 1, marginBottom: 0 }}>
-            <label>Fecha de nacimiento</label>
-            {/* Calendario propio en vez del nativo: el del navegador
-                cambia de aspecto en cada uno y no se puede vestir. El mes
-                y el año van como desplegables, que para una fecha de
-                nacimiento es la diferencia entre dos clics y cuatrocientos. */}
-            <SelectorFecha
-              value={user.birth_date || null}
-              onChange={(v) => saveBirthDate(v || '')}
-              placeholder="Sin indicar"
-              desdeAno={new Date().getFullYear() - 100}
-              hastaAno={new Date().getFullYear() - 14}
+          <Seccion titulo="Usuario">
+            <Fila
+              primera
+              titulo="Foto de perfil"
+              detalle="Se muestra en toda la plataforma, por ejemplo en tu menú de cuenta."
+              accion={
+                <Circulo
+                  url={user.avatar_url}
+                  texto={nombreCompleto || user.email}
+                  subiendo={subiendo === 'avatar'}
+                  etiqueta="Cambiar la foto"
+                  onArchivo={(e) => subirImagen(e, 'avatar')}
+                />
+              }
             />
-          </div>
-        </div>
-      </div>
+            <Fila
+              titulo="Nombre de usuario"
+              detalle={editando === 'nombre' ? null : nombreCompleto || 'Sin indicar'}
+              accion={
+                editando !== 'nombre' ? (
+                  <button
+                    type="button"
+                    style={BOTON_FILA}
+                    onClick={() => editar('nombre', { first_name: user.first_name || '', last_name: user.last_name || '' })}
+                  >
+                    Editar nombre
+                  </button>
+                ) : null
+              }
+            >
+              {editando === 'nombre' && (
+                <>
+                  <div className="cfg-edit">
+                    {campo('first_name', 'Nombre', '')}
+                    {campo('last_name', 'Apellidos', '')}
+                  </div>
+                  {acciones(guardarNombre)}
+                </>
+              )}
+            </Fila>
+            <Fila titulo="Correo electrónico" detalle={user.email} />
+            <Fila
+              titulo="Novedades de GovTalent"
+              detalle="De vez en cuando, lo que vamos añadiendo a la plataforma. Tus alarmas y avisos llegan igual."
+              accion={
+                <Interruptor
+                  activo={!!user.marketing_emails_enabled}
+                  disabled={savingPrefs}
+                  onChange={toggleMarketingEmails}
+                />
+              }
+            />
+          </Seccion>
+        </>
+      )}
 
-      <div style={{ ...CARD, padding: 20, marginBottom: 14 }}>
-        <div style={{ ...LABEL, marginBottom: 4 }}>CORREOS DE GOVTALENT</div>
-        <p style={{ fontSize: 12, color: '#8b8780', marginBottom: 14, lineHeight: 1.6 }}>
-          No afecta a los correos que hayas pedido tú: confirmaciones de candidatura, alertas de empleo y avisos de
-          seguimiento siguen llegando.{' '}
-          <Link href="/alarmas" style={{ color: '#6d5aef', textDecoration: 'none' }}>
-            Gestionar mis avisos
-          </Link>
-        </p>
-        <div style={{ display: 'flex', alignItems: 'flex-start', gap: 14, paddingTop: 4 }}>
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ fontSize: 13.5, fontWeight: 500 }}>Novedades y consejos</div>
-            <div style={{ fontSize: 12, color: '#8b8780', lineHeight: 1.55, marginTop: 3 }}>
-              De vez en cuando, lo que vamos añadiendo a la plataforma.
+      {/* --- Seguridad ---------------------------------------------------- */}
+      {tab === 'seguridad' && (
+        <>
+          <BloqueSeguridad />
+          <Seccion titulo="Cuenta">
+            <Fila
+              primera
+              titulo="Eliminar cuenta"
+              detalle="Solicita el borrado de tu cuenta y tus datos. Antes te explicamos qué se pierde."
+              accion={
+                <button type="button" style={BOTON_FILA} onClick={() => setView('delete-confirm')}>
+                  Eliminar cuenta
+                </button>
+              }
+            />
+          </Seccion>
+        </>
+      )}
+
+      {/* --- Equipo ------------------------------------------------------- */}
+      {tab === 'equipo' &&
+        (org ? (
+          <Seccion titulo={`Miembros de ${org.name}`}>
+            {miembros === null ? (
+              <div style={{ padding: 18 }}>
+                <div className="spinner"></div>
+              </div>
+            ) : (
+              miembros.map((m, i) => {
+                const p = m.users || {};
+                const nombre = `${p.first_name || ''} ${p.last_name || ''}`.trim();
+                return (
+                  <Fila
+                    key={m.user_id}
+                    primera={i === 0}
+                    titulo={
+                      <span style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                        <Circulo url={p.avatar_url} texto={nombre || p.email} />
+                        <span style={{ minWidth: 0 }}>
+                          <span style={{ display: 'block' }}>{nombre || p.email}</span>
+                          {nombre && (
+                            <span style={{ display: 'block', fontSize: 12.5, fontWeight: 400, color: '#8b8780' }}>
+                              {p.email}
+                            </span>
+                          )}
+                        </span>
+                      </span>
+                    }
+                    accion={
+                      <span
+                        style={{
+                          fontSize: 12,
+                          background: '#f5f4f1',
+                          color: '#57534e',
+                          borderRadius: 6,
+                          padding: '5px 10px',
+                          whiteSpace: 'nowrap',
+                        }}
+                      >
+                        {ROLES[m.role] || m.role}
+                      </span>
+                    }
+                  />
+                );
+              })
+            )}
+            <div style={{ padding: '14px 18px', borderTop: `1px solid ${BORDE}`, fontSize: 12.5, color: '#6f6c64', lineHeight: 1.6 }}>
+              {usuariosPlan > 1 ? `Tu suscripción incluye ${usuariosPlan} usuarios. ` : ''}
+              Para añadir a alguien a tu equipo, escríbenos a{' '}
+              <a href="mailto:hola@govtalent.app" style={{ color: MORADO, textDecoration: 'none' }}>
+                hola@govtalent.app
+              </a>{' '}
+              con su correo y le damos de alta.
             </div>
-          </div>
-          <Interruptor
-            activo={!!user.marketing_emails_enabled}
-            disabled={savingPrefs}
-            onChange={toggleMarketingEmails}
-          />
-        </div>
-      </div>
+          </Seccion>
+        ) : (
+          <Seccion titulo="Equipo">
+            <Fila
+              primera
+              titulo="Trabaja con tu equipo"
+              detalle="Con la suscripción de 2 a 50 usuarios, tu equipo comparte alarmas, créditos, proyectos y tareas. Para darlos de alta, escríbenos a hola@govtalent.app."
+              accion={
+                <a href="/precios" target="_blank" rel="noreferrer" style={{ ...BOTON_FILA, textDecoration: 'none' }}>
+                  Ver planes
+                </a>
+              }
+            />
+          </Seccion>
+        ))}
 
-      <BloquePlanCuenta user={user} />
-
-      <BloqueSeguridad />
-
-      <div style={{ ...CARD, padding: '6px 18px' }}>
-        <div style={{ ...LABEL, padding: '12px 4px 4px', marginBottom: 0 }}>GESTIÓN DE LA CUENTA</div>
-        <Row
-          icon="ti-trash"
-          label="Eliminar cuenta"
-          description="Solicita el borrado de tu cuenta y tus datos"
-          onClick={() => setView('delete-confirm')}
-        />
-      </div>
+      {/* --- Plan --------------------------------------------------------- */}
+      {tab === 'plan' && <BloquePlanCuenta user={user} />}
     </div>
   );
 }
