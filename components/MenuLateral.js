@@ -243,7 +243,7 @@ export default function MenuLateral({
             <Link
               href="/alarmas"
               className="gt-lat-anillo"
-              title={`${alarmas.usadas} de ${alarmas.limite} ${alarmas.limite === 1 ? 'alarma' : 'alarmas'} · Plan ${esPro ? 'Pro' : 'Free'}`}
+              title={`${alarmas.usadas} de ${alarmas.limite} ${alarmas.limite === 1 ? 'alarma' : 'alarmas'} · Plan ${esPro ? 'Vigilancia' : 'Free'}`}
             >
               <Anillo usadas={alarmas.usadas} limite={alarmas.limite} tam={34} />
             </Link>
@@ -254,7 +254,7 @@ export default function MenuLateral({
                   <b>
                     {alarmas.usadas} de {alarmas.limite} {alarmas.limite === 1 ? 'alarma' : 'alarmas'}
                   </b>
-                  <small>{esPro ? 'Plan Pro' : 'Plan Free · resumen los lunes'}</small>
+                  <small>{esPro ? 'Plan Vigilancia' : 'Plan Free · resumen los lunes'}</small>
                 </div>
                 <Anillo usadas={alarmas.usadas} limite={alarmas.limite} />
               </div>
