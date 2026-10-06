@@ -206,6 +206,7 @@ export async function POST(request) {
 
         // --- 2. Lo que ya está abierto -----------------------------------
         const filas = await candidatos(db, propuesta.keywords, {
+          territorios: propuesta.criterios.territorios,
           alBuscar: (p) => emitir({ fase: 'buscando', ...p }),
         });
         emitir({ fase: 'candidatos', n: filas.length });
