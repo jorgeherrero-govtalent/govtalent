@@ -1,16 +1,17 @@
 // =====================================================================
-// CORREO — completa tu perfil
+// CORREO — crea tu primera alarma
 // app/api/cron/profile-reminder/route.js
 //
-// Una vez al día. Escribe a los profesionales que terminaron el registro
-// hace entre 3 y 7 días y siguen con el perfil vacío.
+// Una vez al día. Escribe a quien terminó el registro hace entre 3 y 7
+// días y todavía no ha creado ninguna alarma (sector_alerts).
 //
-// PERFIL VACÍO: sin experiencia, sin formación y sin CV. Con cualquiera
-// de las tres cosas, no se envía.
+// Hasta el 06-10-2026 este cron mandaba «Completa tu perfil»; con Empleo
+// y Mi perfil escondidos, el paso que importa es la primera alarma. La
+// ruta conserva su nombre para no tocar vercel.json.
 //
-// NO SE ENVÍA a quien administra una organización, a quien ha pedido
-// borrar su cuenta ni dos veces a la misma persona
-// (users.profile_reminder_sent_at).
+// NO SE ENVÍA a quien ha pedido borrar su cuenta ni dos veces a la misma
+// persona (users.profile_reminder_sent_at, que se reutiliza: quien ya
+// recibió el recordatorio antiguo no recibe este).
 //
 // Uso:
 //   ?key=<DEBUG_KEY>&dry=1   prueba sin enviar
@@ -20,7 +21,7 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { resend, EMAIL_FROM } from '@/lib/resend';
-import { completeProfileEmail } from '@/lib/email/templates';
+import { primeraAlarmaEmail } from '@/lib/email/templates';
 import { conRegistro } from '@/lib/syncLog';
 
 export const dynamic = 'force-dynamic';
@@ -57,7 +58,6 @@ async function handler(request) {
     const { data: candidatos, error } = await supabase
       .from('users')
       .select('id, first_name, email')
-      .eq('role', 'candidate')
       .eq('onboarding_completed', true)
       .gte('created_at', desde)
       .lte('created_at', hasta)
@@ -72,22 +72,12 @@ async function handler(request) {
       return NextResponse.json({ ...informe, nota: 'Nadie en la ventana.', ms_total: Date.now() - t0 });
     }
 
-    const [{ data: exp }, { data: edu }, { data: perfiles }, { data: miembros }] = await Promise.all([
-      supabase.from('experiences').select('user_id').in('user_id', ids),
-      supabase.from('education').select('user_id').in('user_id', ids),
-      supabase.from('candidate_profiles').select('user_id, cv_url').in('user_id', ids),
-      supabase.from('organization_members').select('user_id').in('user_id', ids),
-    ]);
+    const { data: alarmas, error: errAl } = await supabase.from('sector_alerts').select('user_id').in('user_id', ids);
+    if (errAl) throw new Error(`No se pudieron leer las alarmas: ${errAl.message}`);
+    const conAlarma = new Set((alarmas || []).map((r) => r.user_id));
 
-    const conAlgo = new Set([
-      ...(exp || []).map((r) => r.user_id),
-      ...(edu || []).map((r) => r.user_id),
-      ...(perfiles || []).filter((p) => p.cv_url).map((p) => p.user_id),
-      ...(miembros || []).map((r) => r.user_id),
-    ]);
-
-    const destinatarios = (candidatos || []).filter((u) => u.email && !conAlgo.has(u.id));
-    informe.perfil_vacio = destinatarios.length;
+    const destinatarios = (candidatos || []).filter((u) => u.email && !conAlarma.has(u.id));
+    informe.sin_alarmas = destinatarios.length;
 
     if (dry) {
       informe.muestra = destinatarios.slice(0, 5).map((u) => u.email);
@@ -102,7 +92,7 @@ async function handler(request) {
         informe.cortado_por_tiempo = true;
         break;
       }
-      const { subject, html } = completeProfileEmail({ firstName: u.first_name || '' });
+      const { subject, html } = primeraAlarmaEmail({ firstName: u.first_name || '' });
       const { error: errEnvio } = await resend.emails.send({ from: EMAIL_FROM, to: u.email, subject, html });
       if (errEnvio) fallos.push({ user_id: u.id, error: errEnvio.message });
       else enviados.push(u.id);
