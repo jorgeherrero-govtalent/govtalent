@@ -6,6 +6,7 @@ import { createClient } from '@/lib/supabase/client';
 import MultiSelectFilter from '@/components/MultiSelectFilter';
 import UpgradeModal from '@/components/UpgradeModal';
 import usePlanPro from '@/lib/usePlanPro';
+import useDirectorio from '@/lib/useDirectorio';
 
 const PAGE_SIZES = [20, 50, 100, 200];
 
@@ -373,7 +374,7 @@ function Celda({ valor, relleno, esPro, onUpsell, atenuado, partirPalabra }) {
         filter: 'blur(3.5px)',
         userSelect: 'none',
       }}
-      aria-label="Ver este dato con suscripción"
+      aria-label="Ver este dato con el Directorio"
     >
       {relleno}
     </button>
@@ -382,13 +383,15 @@ function Celda({ valor, relleno, esPro, onUpsell, atenuado, partirPalabra }) {
 
 function PersonasTab({ people, bodies, bodyFilter, setBodyFilter }) {
   const esPro = usePlanPro();
+  // Cargo, unidad y correo de las personas son del Directorio (sql/73).
+  const conDirectorio = useDirectorio();
   const [upsell, setUpsell] = useState(null);
 
   function abrirUpsellFila() {
     setUpsell({
       title: 'Cargo, unidad y correo',
       message:
-        'Quién hace qué dentro de cada dirección general y cómo escribirle, sin buscar a nadie uno a uno. Disponible con suscripción.',
+        'Quién hace qué dentro de cada dirección general y cómo escribirle, sin buscar a nadie uno a uno. Disponible con el Directorio.',
     });
   }
   const [search, setSearch] = useState('');
@@ -609,18 +612,18 @@ function PersonasTab({ people, bodies, bodyFilter, setBodyFilter }) {
                   Lo borroso es texto de relleno, no el dato real tapado:
                   un blur de CSS deja el original legible en el
                   inspector. */}
-              <Celda valor={p.role} relleno="Head of Unit" esPro={esPro} onUpsell={abrirUpsellFila} />
+              <Celda valor={p.role} relleno="Head of Unit" esPro={conDirectorio} onUpsell={abrirUpsellFila} />
               <Celda
                 valor={p.unit || p.directorate}
                 relleno="Unidad A.1 — Coordinación"
-                esPro={esPro}
+                esPro={conDirectorio}
                 onUpsell={abrirUpsellFila}
                 atenuado
               />
               <Celda
                 valor={p.email}
                 relleno="nombre.apellido@ec.europa.eu"
-                esPro={esPro}
+                esPro={conDirectorio}
                 onUpsell={abrirUpsellFila}
                 atenuado
                 partirPalabra

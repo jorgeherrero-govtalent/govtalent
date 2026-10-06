@@ -9,7 +9,7 @@ import BackLink from '@/components/BackLink';
 import FollowButton from '@/components/FollowButton';
 import PanelBloqueado, { FILAS_CONTACTO_UNIDAD } from '@/components/PanelBloqueado';
 import UpgradeModal from '@/components/UpgradeModal';
-import usePlanPro from '@/lib/usePlanPro';
+import useDirectorio from '@/lib/useDirectorio';
 
 function initials(fullName) {
   const parts = (fullName || '').replace(',', '').trim().split(' ');
@@ -32,7 +32,8 @@ const CARD_LABEL = {
 };
 
 export default function GovernmentOfficialProfilePage() {
-  const esPro = usePlanPro();
+  // El contacto es del Directorio, que se contrata aparte (sql/73).
+  const esPro = useDirectorio();
   const [upsell, setUpsell] = useState(false);
   const { slug } = useParams();
   const supabase = createClient();
@@ -360,7 +361,7 @@ export default function GovernmentOfficialProfilePage() {
       {upsell && (
         <UpgradeModal
           title="El contacto de la unidad"
-          message="El correo, el teléfono y la web de la unidad, para escribir al sitio correcto a la primera. Disponible con suscripción."
+          message="El correo, el teléfono y la web de la unidad, para escribir al sitio correcto a la primera. Disponible con el Directorio."
           onClose={() => setUpsell(false)}
         />
       )}

@@ -115,10 +115,12 @@ export default function ComisarioDetailPage() {
       // El plan decide qué se pide, así que se resuelve antes que el
       // resto de consultas.
       const { data: auth } = await supabase.auth.getUser();
+      // Nombres, cargos y correos de las personas: son del Directorio,
+      // que se contrata aparte (sql/73).
       let pro = false;
       if (auth?.user?.id) {
-        const { data: perfil } = await supabase.from('users').select('plan').eq('id', auth.user.id).single();
-        pro = perfil?.plan === 'pro';
+        const { data: dir } = await supabase.rpc('tiene_directorio');
+        pro = dir === true;
       }
       if (cancelled) return;
       setEsPro(pro);
@@ -421,7 +423,7 @@ export default function ComisarioDetailPage() {
       {upsell && (
         <UpgradeModal
           title="El gabinete del comisario"
-          message="Quién lleva su agenda y prepara sus decisiones, con nombre, cargo y correo. Disponible con suscripción."
+          message="Quién lleva su agenda y prepara sus decisiones, con nombre, cargo y correo. Disponible con el Directorio."
           onClose={() => setUpsell(false)}
         />
       )}

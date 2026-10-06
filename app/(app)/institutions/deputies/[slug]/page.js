@@ -291,10 +291,9 @@ export default function DeputyProfilePage() {
       setNColegas((colegasData || []).length);
     }
 
-    // El correo va aparte y por el servidor. Solo se pide si el plan da
-    // acceso: pedirlo siempre para descartarlo en el cliente sería
-    // volver a mandar el dato a quien no lo tiene.
-    if (pro) {
+    // El correo va aparte y por el servidor, que solo lo devuelve con el
+    // Directorio (sql/73): sin él responde 403 y se enseña el candado.
+    if (authData?.user?.id) {
       try {
         const res = await fetch(`/api/instituciones/diputados/contacto?slug=${encodeURIComponent(slug)}`, {
           cache: 'no-store',
@@ -479,7 +478,7 @@ export default function DeputyProfilePage() {
                           setUpsell({
                             title: 'El correo de cada diputado',
                             message:
-                              'El correo institucional que publica el Congreso, en la ficha de los 350 diputados. Disponible con suscripción.',
+                              'El correo institucional que publica el Congreso, en la ficha de los 350 diputados. Disponible con el Directorio.',
                           })
                         }
                         className="btn-ai"

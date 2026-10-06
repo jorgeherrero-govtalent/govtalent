@@ -22,10 +22,9 @@ const MORADO_SUAVE = '#f6f4ff';
  * mensual o anual. El cliente nunca ve los tramos, solo el resultado: el
  * total, el precio por usuario y lo que incluye.
  *
- * Contratar abre el checkout con el plan, los usuarios y la forma de pago.
- * Mientras no estén los productos nuevos en Stripe, la ruta responde con
- * un error y el botón lo muestra; sin sesión, lleva al alta recordando la
- * elección.
+ * Contratar abre el checkout con el plan, los usuarios y la forma de pago
+ * (precios vigilancia_mensual, vigilancia_anual y directorio_anual en
+ * Stripe). Sin sesión, lleva al alta recordando la elección.
  */
 export default function CalculadoraPrecios({ autenticado = false }) {
   const [usuarios, setUsuarios] = useState(1);
@@ -60,8 +59,9 @@ export default function CalculadoraPrecios({ autenticado = false }) {
     setCargando(null);
   }
 
-  const urlAlta = (plan) =>
-    plan === 'directorio' ? '/signup?plan=directorio' : `/signup?plan=vigilancia&usuarios=${usuarios}&pago=${pago}`;
+  // Sin sesión: crear la cuenta y volver a /precios para pagar con ella.
+  // (/signup no existe: el middleware lo mandaba a «Iniciar sesión».)
+  const urlAlta = () => '/login?view=signup&redirect=%2Fprecios';
 
   const textoCta = anual
     ? `Contratar con pago anual · ${euros(ano)}`
@@ -294,7 +294,7 @@ export default function CalculadoraPrecios({ autenticado = false }) {
         <div style={{ flex: '2 1 300px', display: 'flex', flexDirection: 'column', gap: 6, padding: '0 8px', fontSize: 13.5, color: '#55524b', lineHeight: 1.5 }}>
           <span>
             ¿Quieres probar primero?{' '}
-            <Link href="/signup" style={{ fontWeight: 600, color: MORADO, textDecoration: 'none', whiteSpace: 'nowrap' }}>
+            <Link href="/login?view=signup" style={{ fontWeight: 600, color: MORADO, textDecoration: 'none', whiteSpace: 'nowrap' }}>
               Crear una cuenta →
             </Link>
           </span>

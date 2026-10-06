@@ -6,7 +6,7 @@ import {
   getSubscriptionIdFromInvoice,
 } from '@/lib/stripe';
 import { resend, EMAIL_FROM } from '@/lib/resend';
-import { proActivatedEmail, orgPlanActivatedEmail } from '@/lib/email/templates';
+import { proActivatedEmail, orgPlanActivatedEmail, directorioActivatedEmail } from '@/lib/email/templates';
 
 // runtime nodejs es obligatorio: la verificación de firma usa crypto.
 export const runtime = 'nodejs';
@@ -51,6 +51,15 @@ async function applySubscription(admin, subscription, extra = {}) {
   let userId = meta.user_id || null;
   let organizationId = meta.organization_id || null;
 
+  // El producto también se deduce del precio, por si la suscripción llega
+  // sin metadatos (creada o cambiada a mano en el Dashboard).
+  const item = subscription.items?.data?.[0];
+  const lookup = item?.price?.lookup_key || '';
+  if (!planKey) {
+    if (lookup === 'directorio_anual') planKey = 'directorio';
+    else if (lookup.startsWith('vigilancia_')) planKey = 'vigilancia';
+  }
+
   // Plan B: si la suscripción llega sin metadatos (creada a mano en el
   // Dashboard, por ejemplo), localizamos la fila por el id de suscripción.
   if (!scope) {
@@ -66,7 +75,8 @@ async function applySubscription(admin, subscription, extra = {}) {
       const { data: userRow } = await admin
         .from('users')
         .select('id')
-        .eq('stripe_subscription_id', subscription.id)
+        .or(`stripe_subscription_id.eq.${subscription.id},directorio_subscription_id.eq.${subscription.id}`)
+        .limit(1)
         .maybeSingle();
       if (userRow) {
         scope = 'user';
@@ -86,6 +96,24 @@ async function applySubscription(admin, subscription, extra = {}) {
   const renewsAt = getPeriodEnd(subscription);
   const cancelAtPeriodEnd = Boolean(subscription.cancel_at_period_end);
 
+  // El Directorio es una suscripción aparte: solo toca sus columnas
+  // (sql/73) y nunca el plan de vigilancia.
+  if (scope === 'user' && planKey === 'directorio') {
+    if (!userId) return;
+    const patch = {
+      directorio_status: mapStatus(subscription.status, 'user'),
+      directorio_subscription_id: subscription.id,
+      directorio_renews_at: renewsAt,
+      directorio_cancel_at_period_end: cancelAtPeriodEnd,
+    };
+    if (typeof subscription.customer === 'string') {
+      patch.stripe_customer_id = subscription.customer;
+    }
+    const { error } = await admin.from('users').update(patch).eq('id', userId);
+    if (error) throw error;
+    return;
+  }
+
   if (scope === 'user') {
     if (!userId) return;
     const plan = serving ? 'pro' : 'free';
@@ -101,6 +129,10 @@ async function applySubscription(admin, subscription, extra = {}) {
       premium_source: serving ? 'paid' : null,
     };
     if (serving) patch.plan_started_at = new Date().toISOString();
+    // Usuarios contratados en Vigilancia: la cantidad de la suscripción.
+    if (serving && item?.quantity) {
+      patch.plan_usuarios = Math.max(1, Math.min(50, Number(item.quantity) || 1));
+    }
     if (extra.foundingMember) patch.is_founding_member = true;
     if (typeof subscription.customer === 'string') {
       patch.stripe_customer_id = subscription.customer;
@@ -169,8 +201,11 @@ async function enviarCorreoActivacion(admin, session, subscription, foundingMemb
     if (!to) return;
 
     let correo;
-    if (meta.scope === 'user') {
-      correo = proActivatedEmail({ firstName: comprador?.first_name || '', foundingMember });
+    if (meta.scope === 'user' && meta.plan_key === 'directorio') {
+      correo = directorioActivatedEmail({ firstName: comprador?.first_name || '' });
+    } else if (meta.scope === 'user') {
+      const usuarios = Number(subscription.items?.data?.[0]?.quantity) || 1;
+      correo = proActivatedEmail({ firstName: comprador?.first_name || '', foundingMember, usuarios });
     } else if (meta.scope === 'org' && meta.organization_id && ['recruiter', 'teams'].includes(meta.plan_key)) {
       const { data: org } = await admin
         .from('organizations')

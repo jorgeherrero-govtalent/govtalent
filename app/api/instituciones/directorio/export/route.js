@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { canAccessDatabase } from '@/lib/plan';
+import { createAdminClient } from '@/lib/supabase/admin';
+import { puedeVerContactos } from '@/lib/accesoContactos';
 import {
   getExportUsageThisMonth,
   checkAndLogExport,
@@ -12,10 +14,17 @@ import {
 // ámbito "institucional": las dos cuotas son independientes.
 const AMBITO = 'institucional';
 
+// Quién exporta: hace falta el Directorio (propio o por una organización
+// Teams). La cuota es de la organización si la hay; si no, de la persona.
 async function getOrgForUser() {
   const supabase = createClient();
   const { data: authData } = await supabase.auth.getUser();
   if (!authData.user) return { error: 'No autenticado', status: 401 };
+
+  const admin = createAdminClient();
+  if (!(await puedeVerContactos(admin, authData.user.id))) {
+    return { error: 'El directorio institucional se contrata aparte', status: 403 };
+  }
 
   const { data: membership } = await supabase
     .from('organization_members')
@@ -25,11 +34,8 @@ async function getOrgForUser() {
     .maybeSingle();
 
   const org = membership?.organizations;
-  if (!org) return { error: 'No perteneces a ninguna organización', status: 403 };
-  if (!canAccessDatabase(org)) {
-    return { error: 'El directorio institucional requiere suscripción', status: 403 };
-  }
-  return { org, userId: authData.user.id };
+  const orgId = org && canAccessDatabase(org) ? org.id : null;
+  return { org: { id: orgId }, userId: authData.user.id };
 }
 
 // Cuota consumida en lo que va de mes, para la barra del modal. No registra.
@@ -37,7 +43,7 @@ export async function GET() {
   const result = await getOrgForUser();
   if (result.error) return NextResponse.json({ error: result.error }, { status: result.status });
 
-  const { usedThisMonth } = await getExportUsageThisMonth(result.org.id, AMBITO);
+  const { usedThisMonth } = await getExportUsageThisMonth(result.org.id, AMBITO, result.userId);
   return NextResponse.json({
     usedThisMonth,
     limit: exportMonthlyRowLimit(AMBITO),
