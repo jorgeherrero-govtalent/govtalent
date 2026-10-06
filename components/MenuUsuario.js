@@ -246,7 +246,7 @@ export default function MenuUsuario({
                 return (
                   <Link
                     key={o.slug}
-                    href="/organizations/admin"
+                    href="/account"
                     onClick={() => setAbierto(false)}
                     style={{ ...fila, background: activa ? '#e8f4f0' : 'none' }}
                   >
@@ -306,7 +306,7 @@ export default function MenuUsuario({
               <div style={{ borderTop: `.5px solid ${BORDE}`, marginTop: 6, paddingTop: 5 }}>
                 <Link href="/account" onClick={() => setAbierto(false)} style={fila}>
                   <i className="ti ti-settings" style={{ fontSize: 15, width: 24, textAlign: 'center' }}></i>
-                  Mi cuenta
+                  Configuración
                 </Link>
                 {user?.role === 'platform_admin' && (
                   <Link href="/backoffice" onClick={() => setAbierto(false)} style={fila}>
