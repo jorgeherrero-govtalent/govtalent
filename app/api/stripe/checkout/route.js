@@ -40,6 +40,19 @@ export async function POST(request) {
   const founding = body.founding === true;
   const scope = PLAN_SCOPE[plan];
 
+  // Planes nuevos de /precios (vigilancia por usuarios y directorio): la
+  // página ya los enseña, pero sus productos aún no están en Stripe. Hasta
+  // entonces, un mensaje claro en lugar de «Plan no válido».
+  if (plan === 'vigilancia' || plan === 'directorio') {
+    return NextResponse.json(
+      {
+        error:
+          'La contratación online de este plan estará disponible en unos días. Escríbenos a hola@govtalent.app y te damos de alta.',
+      },
+      { status: 503 }
+    );
+  }
+
   if (!scope) {
     return NextResponse.json({ error: 'Plan no válido' }, { status: 400 });
   }

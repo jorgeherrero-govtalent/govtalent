@@ -1,34 +1,24 @@
-import Link from 'next/link';
 import { createClient } from '@/lib/supabase/server';
-import { createClient as createSupabaseClient } from '@supabase/supabase-js';
 import PublicHeader from '@/components/PublicHeader';
-import BotonPlan from '@/components/BotonPlan';
+import CalculadoraPrecios from '@/components/CalculadoraPrecios';
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://govtalent.app';
 
-// Plazas de lanzamiento, según el documento de pricing. Cuando se agoten,
-// el banner desaparece solo.
-const PLAZAS_PRO = 20;
-const PLAZAS_TEAMS = 10;
-
-// Sin offset: el contador antiguo sumaba 3 fijos al recuento real, así que
-// con tres organizaciones marcadas la página decía seis. Ahora sale del
-// dato y sube solo.
-
-// Los contadores tienen que ser del momento: sin esto, la caché de datos de
-// Next puede congelar el recuento aunque la página sea dinámica.
+// La sesión decide qué hace el botón de contratar (alta o pago), así que la
+// página no se puede servir en caché.
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 export const fetchCache = 'force-no-store';
 
+const DESCRIPCION =
+  'Un solo plan de vigilancia normativa para una persona o para todo tu equipo, de 1 a 50 usuarios, con pago mensual o anual. El directorio, aparte.';
+
 export const metadata = {
   title: 'Precios · GovTalent',
-  description:
-    'Planes para profesionales y organizaciones de asuntos públicos: seguimiento regulatorio, directorio institucional, proyectos y registro de actividad.',
+  description: DESCRIPCION,
   openGraph: {
     title: 'Precios · GovTalent',
-    description:
-      'Planes para profesionales y organizaciones de asuntos públicos: seguimiento regulatorio, directorio institucional, proyectos y registro de actividad.',
+    description: DESCRIPCION,
     url: `${SITE_URL}/precios`,
     siteName: 'GovTalent',
     locale: 'es_ES',
@@ -36,443 +26,29 @@ export const metadata = {
   },
 };
 
-/**
- * Cliente con service role SOLO para los dos recuentos de plazas.
- *
- * /precios es pública y las políticas RLS de `users` no dejan leer filas de
- * otros usuarios, así que con el cliente de sesión el recuento de Pro salía a
- * 0 para cualquier visitante. Con service role el recuento es el real, y como
- * se pide con `head: true` solo viaja el número: ninguna fila llega a la página.
- * El fetch sin caché evita que Next sirva un recuento antiguo.
- */
-function createCountClient() {
-  return createSupabaseClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL,
-    process.env.SUPABASE_SERVICE_ROLE_KEY,
-    {
-      auth: { persistSession: false, autoRefreshToken: false },
-      global: { fetch: (input, init) => fetch(input, { ...init, cache: 'no-store' }) },
-    }
-  );
-}
-
-async function getData() {
+export default async function PricingPage() {
   const supabase = createClient();
-  const counts = createCountClient();
-
-  // Los dos contadores miden lo mismo: quién entró con la oferta de fundador,
-  // que es lo que marca el webhook en `is_founding_member`. Antes el de Pro
-  // contaba cualquier usuario con plan 'pro', también los de precio completo.
-  const [orgsRes, prosRes, { data: authData }] = await Promise.all([
-    counts.from('organizations').select('id', { count: 'exact', head: true }).eq('is_founding_member', true),
-    counts.from('users').select('id', { count: 'exact', head: true }).eq('is_founding_member', true),
-    supabase.auth.getUser(),
-  ]);
-
-  if (orgsRes.error) console.error('Recuento de organizaciones fundadoras:', orgsRes.error.message);
-  if (prosRes.error) console.error('Recuento de Pro fundadores:', prosRes.error.message);
-
-  const orgs = orgsRes.count;
-  const pros = prosRes.count;
-
-  const user = authData?.user || null;
-
-  // Los planes de organización solo los puede contratar un administrador.
-  // Si el usuario no lo es de ninguna, el botón le lleva a crear una en vez
-  // de a un checkout que la ruta rechazaría igualmente.
-  let organizationId = null;
-  if (user) {
-    const { data: membership } = await supabase
-      .from('organization_members')
-      .select('organization_id')
-      .eq('user_id', user.id)
-      .eq('role', 'admin')
-      .limit(1)
-      .maybeSingle();
-    organizationId = membership?.organization_id || null;
-  }
-
-  return {
-    orgsFundadoras: orgs || 0,
-    prosFundadores: pros || 0,
-    autenticado: Boolean(user),
-    organizationId,
-  };
-}
-
-function Check({ children }) {
-  return (
-    <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8, fontSize: 13, color: '#3a3a36', marginBottom: 9 }}>
-      <i className="ti ti-check" style={{ color: '#1d6f5c', fontSize: 15, marginTop: 1, flexShrink: 0 }}></i>
-      <span>{children}</span>
-    </div>
-  );
-}
-
-function Etiqueta({ children }) {
-  return (
-    <div
-      style={{
-        fontSize: 10,
-        textTransform: 'uppercase',
-        letterSpacing: '.4px',
-        color: '#a8a49c',
-        marginBottom: 9,
-      }}
-    >
-      {children}
-    </div>
-  );
-}
-
-function Plan({
-  nombre,
-  precio,
-  periodo,
-  resumen,
-  etiqueta,
-  destacado,
-  distintivo,
-  children,
-  cta,
-  plan,
-  autenticado,
-  organizationId,
-}) {
-  return (
-    <div
-      className="bento"
-      style={{
-        // El destacado sube sobre el resto: fondo más cálido, sin borde,
-        // sombra propia y un halo morado arriba. Antes solo se
-        // diferenciaba por un filete verde, que a un metro no se ve.
-        background: destacado ? 'linear-gradient(180deg,#fbfaff 0%,#fff 42%)' : '#fff',
-        borderRadius: 16,
-        padding: destacado ? '26px 22px 22px' : 22,
-        position: 'relative',
-        overflow: 'hidden',
-        border: destacado ? 'none' : '.5px solid #e6e4dd',
-        boxShadow: destacado
-          ? '0 12px 34px rgba(109,90,239,.18), 0 0 0 1.5px #6d5aef'
-          : '0 1px 2px rgba(0,0,0,.04)',
-        display: 'flex',
-        flexDirection: 'column',
-        zIndex: destacado ? 1 : 0,
-      }}
-    >
-      {destacado && (
-        <span
-          aria-hidden="true"
-          style={{
-            position: 'absolute',
-            top: 0,
-            left: 0,
-            right: 0,
-            height: 3,
-            background: 'linear-gradient(90deg,#6d5aef,#8f7ff5,#1d6f5c)',
-          }}
-        ></span>
-      )}
-      {distintivo && (
-        <span
-          style={{
-            position: 'absolute',
-            top: destacado ? 26 : 22,
-            right: 22,
-            fontSize: 9.5,
-            fontWeight: 700,
-            letterSpacing: '.3px',
-            padding: '3px 9px',
-            borderRadius: 11,
-            background: destacado ? '#6d5aef' : '#e8f4f0',
-            color: destacado ? '#fff' : '#1d6f5c',
-          }}
-        >
-          {distintivo}
-        </span>
-      )}
-      <div style={{ fontSize: 14.5, fontWeight: 700, color: '#1a1a18' }}>{nombre}</div>
-      <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, margin: '8px 0 4px' }}>
-        <span style={{ fontSize: 30, fontWeight: 700, color: '#1a1a18' }}>{precio}</span>
-        <span style={{ fontSize: 13, color: '#8b8780' }}>{periodo}</span>
-      </div>
-      <p style={{ fontSize: 12.5, color: '#77746e', margin: '0 0 16px', lineHeight: 1.5 }}>{resumen}</p>
-      <Etiqueta>{etiqueta}</Etiqueta>
-      <div style={{ flex: 1 }}>{children}</div>
-      <BotonPlan
-        plan={plan}
-        cta={cta}
-        destacado={destacado}
-        autenticado={autenticado}
-        organizationId={organizationId}
-      />
-    </div>
-  );
-}
-
-/**
- * El banner de lanzamiento.
- *
- * El descuento es del primer año y así se dice: la versión anterior
- * prometía "precio para siempre", que no es lo acordado.
- *
- * Y el contador sale del dato, sin sumar nada: no es lo mismo enseñar
- * cuántos hay que aparentar que hay más.
- */
-function BannerFundadores({
-  titulo,
-  detalle,
-  ocupadas,
-  plazas,
-  icono,
-  plan,
-  cta,
-  autenticado,
-  organizationId,
-}) {
-  const libres = Math.max(0, plazas - ocupadas);
-  if (libres === 0) return null;
-  const pct = Math.min(100, Math.round((ocupadas / plazas) * 100));
-
-  return (
-    <div
-      className="bento"
-      style={{
-        background: 'linear-gradient(100deg, #6d5aef 0%, #2f2266 100%)',
-        borderRadius: 16,
-        padding: '18px 22px',
-        marginBottom: 20,
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        gap: 18,
-        flexWrap: 'wrap',
-      }}
-    >
-      <div style={{ minWidth: 0 }}>
-        <div style={{ fontSize: 14.5, fontWeight: 700, color: '#fff' }}>{titulo}</div>
-        <div style={{ fontSize: 12.5, color: 'rgba(255,255,255,.75)', marginTop: 3, lineHeight: 1.5 }}>{detalle}</div>
-        {ocupadas > 0 && (
-          <div
-            style={{
-              fontSize: 11.5,
-              color: 'rgba(255,255,255,.75)',
-              marginTop: 10,
-              display: 'flex',
-              alignItems: 'center',
-              gap: 6,
-            }}
-          >
-            <i className={`ti ti-${icono}`} style={{ fontSize: 13 }}></i>
-            {ocupadas} {ocupadas === 1 ? 'ya se ha unido' : 'ya se han unido'} — quedan {libres} de {plazas} plazas
-          </div>
-        )}
-        <div
-          style={{
-            height: 4,
-            background: 'rgba(255,255,255,.25)',
-            borderRadius: 3,
-            marginTop: 8,
-            width: 230,
-            maxWidth: '100%',
-            overflow: 'hidden',
-          }}
-        >
-          <div style={{ width: `${pct}%`, height: '100%', background: '#fff' }}></div>
-        </div>
-      </div>
-      <div>
-        <BotonPlan
-          plan={plan}
-          cta={cta}
-          variante="banner"
-          founding
-          autenticado={autenticado}
-          organizationId={organizationId}
-        />
-      </div>
-    </div>
-  );
-}
-
-export default async function PricingPage({ searchParams }) {
-  const { orgsFundadoras, prosFundadores, autenticado, organizationId } = await getData();
-
-  // La pestaña va en la URL y no en estado: así la página sigue siendo un
-  // componente de servidor, se puede enlazar directamente a la de
-  // organizaciones y cada una es indexable por separado.
-  const paraOrgs = searchParams?.para === 'organizaciones';
-
-  const pestana = (activa) => ({
-    fontSize: 13,
-    padding: '8px 18px',
-    borderRadius: 9,
-    textDecoration: 'none',
-    fontWeight: activa ? 700 : 400,
-    background: activa ? '#f0eefe' : 'transparent',
-    color: activa ? '#6d5aef' : '#8b8780',
-  });
+  const { data } = await supabase.auth.getUser();
+  const autenticado = Boolean(data?.user);
 
   return (
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', background: '#f4f3ee' }}>
-      <PublicHeader maxWidth={960} />
+      <PublicHeader maxWidth={1040} />
 
-      <div className="pricing-wrap" style={{ flex: 1, maxWidth: 960, margin: '0 auto', width: '100%' }}>
-        <div style={{ textAlign: 'center', marginBottom: 24 }}>
-          <h1 className="pricing-h1" style={{ fontWeight: 700, color: '#1a1a18', marginBottom: 10 }}>
-            Precios
+      <div className="pricing-wrap" style={{ flex: 1, maxWidth: 1040, margin: '0 auto', width: '100%', boxSizing: 'border-box' }}>
+        <div style={{ textAlign: 'center', marginBottom: 32 }}>
+          <h1 className="pricing-h1" style={{ fontWeight: 700, color: '#1a1a18', margin: '0 0 10px' }}>
+            Un solo plan, para una persona o para todo tu equipo
           </h1>
-          <p style={{ fontSize: 14.5, color: '#666', maxWidth: 560, margin: '0 auto', lineHeight: 1.6 }}>
-            Todo lo que necesitas para crecer en el sector de los asuntos públicos.
-            <br />
-            En un único lugar.
+          <p style={{ fontSize: 15, color: '#55524b', maxWidth: 600, margin: '0 auto', lineHeight: 1.6 }}>
+            Todo lo que necesitas para crecer, en un único lugar. Suscripción mensual y anual. Precios sin IVA.
           </p>
         </div>
 
-        <div style={{ display: 'flex', justifyContent: 'center', gap: 4, marginBottom: 24 }}>
-          <Link href="/precios" style={pestana(!paraOrgs)}>
-            Para profesionales
-          </Link>
-          <Link href="/precios?para=organizaciones" style={pestana(paraOrgs)}>
-            Para organizaciones
-          </Link>
-        </div>
+        <CalculadoraPrecios autenticado={autenticado} />
 
-        {paraOrgs ? (
-          <>
-            <BannerFundadores
-              titulo="Founding Member — 215 €/año"
-              detalle="Todo el potencial de GovTalent al 50 % con Teams. Después se renueva a 429 €/año."
-              ocupadas={orgsFundadoras}
-              plazas={PLAZAS_TEAMS}
-              icono="building"
-              plan="teams"
-              cta="Reservar mi plaza"
-              autenticado={autenticado}
-              organizationId={organizationId}
-            />
-
-            <div className="pricing-grid-3" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: 14 }}>
-              <Plan
-                nombre="Free"
-                precio="0 €"
-                periodo="/ siempre"
-                resumen="Atrae talento especializado sin compromiso."
-                etiqueta="1 usuario"
-                cta="Continuar gratis"
-                plan="free"
-                autenticado={autenticado}
-                organizationId={organizationId}
-              >
-                <Check>Ficha de organización verificada y página propia</Check>
-                <Check>1 oferta activa</Check>
-                <Check>Hasta 15 candidaturas por oferta</Check>
-                <Check>ATS de candidatos integrado</Check>
-              </Plan>
-
-              <Plan
-                nombre="Recruiter"
-                precio="149 €"
-                periodo="/ año"
-                resumen="Atrae y gestiona el mejor talento especializado del sector."
-                etiqueta="1 usuario · todo lo de Free, y además"
-                cta="Elegir Recruiter"
-                plan="recruiter"
-                autenticado={autenticado}
-                organizationId={organizationId}
-              >
-                <Check>Ofertas y candidaturas ilimitadas</Check>
-                <Check>Descripción de ofertas con IA</Check>
-                <Check>Matching y scoring de candidatos</Check>
-                <Check>Resumen de candidatos con IA</Check>
-              </Plan>
-
-              <Plan
-                nombre="Teams"
-                precio="429 €"
-                periodo="/ año"
-                resumen="Todas las herramientas que necesita tu equipo para crecer en el sector."
-                etiqueta="Hasta 4 usuarios · todo Recruiter, y además"
-                destacado
-                distintivo="MÁS COMPLETO"
-                cta="Elegir Teams"
-                plan="teams"
-                autenticado={autenticado}
-                organizationId={organizationId}
-              >
-                <Check>Licencia de GovTalent Pro</Check>
-                <Check>Proyectos compartidos y colaborativos</Check>
-                <Check>Seguimiento normativo y alertas regulatorias</Check>
-                <Check>Agenda y notas compartidas</Check>
-                <Check>Registro de actividad y automatización de actas</Check>
-                <Check>Base de datos completa y exportable para AGE y UE</Check>
-                <Check>Dashboard de organización</Check>
-                <Check>Roles diferenciados</Check>
-                <Check>Onboarding personalizado</Check>
-              </Plan>
-            </div>
-          </>
-        ) : (
-          <>
-            <BannerFundadores
-              titulo="Founding Member — 30 €/año"
-              detalle="Sé de los primeros profesionales en usar GovTalent Pro. Después se renueva a 59 €/año."
-              ocupadas={prosFundadores}
-              plazas={PLAZAS_PRO}
-              icono="user"
-              plan="pro"
-              cta="Reservar mi plaza"
-              autenticado={autenticado}
-              organizationId={organizationId}
-            />
-
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 14, maxWidth: 700, margin: '0 auto' }}>
-              <Plan
-                nombre="Free"
-                precio="0 €"
-                periodo="/ siempre"
-                resumen="Descubre la plataforma sin compromiso."
-                etiqueta="Incluye"
-                cta="Continuar gratis"
-                plan="free"
-                autenticado={autenticado}
-                organizationId={organizationId}
-              >
-                <Check>Ofertas de empleo y candidaturas</Check>
-                <Check>Perfil profesional y recomendaciones</Check>
-                <Check>Directorio institucional en España y Bruselas</Check>
-                <Check>Consulta de proyectos normativos en España y la UE</Check>
-              </Plan>
-
-              <Plan
-                nombre="Pro"
-                precio="59 €"
-                periodo="/ año"
-                resumen="Monitoriza regulación y actores, y gestiona tus proyectos en un único espacio."
-                etiqueta="Todo lo de Free, y además"
-                destacado
-                distintivo="RECOMENDADO"
-                cta="Empezar con Pro"
-                plan="pro"
-                autenticado={autenticado}
-                organizationId={organizationId}
-              >
-                <Check>Búsqueda avanzada e información ampliada</Check>
-                <Check>Seguimiento normativo y regulatorio</Check>
-                <Check>Alertas e histórico completo</Check>
-                <Check>Creación y gestión de proyectos</Check>
-                <Check>Diagrama interactivo para visualizar tus proyectos</Check>
-                <Check>Planificación de agenda con fechas y tareas</Check>
-                {/* El acta se compone sola a partir del registro: nadie la
-                    redacta. Lo manual es la captura, no el documento. */}
-                <Check>Registro de actividad y automatización de actas</Check>
-              </Plan>
-            </div>
-          </>
-        )}
-
-        <p style={{ fontSize: 12, color: '#a8a49c', textAlign: 'center', marginTop: 26, lineHeight: 1.6 }}>
-          Al contratar cualquier plan aceptas las{' '}
+        <p style={{ fontSize: 12, color: '#a8a49c', textAlign: 'center', marginTop: 32, lineHeight: 1.6 }}>
+          Al contratar aceptas las{' '}
           <a href="/condiciones" style={{ color: '#77746e', textDecoration: 'underline' }}>
             condiciones de contratación
           </a>{' '}

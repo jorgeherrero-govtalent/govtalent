@@ -404,6 +404,11 @@ a{color:inherit}
 .org-cta-banner{padding:32px 28px}
 .org-cta-headline{font-size:20px}
 .pricing-wrap{padding:48px 20px 64px}
+/* /precios: calculadora de un solo plan */
+.precios-fila{display:flex;flex-wrap:wrap;gap:20px;align-items:stretch}
+.precios-caja{background:#fff;border:.5px solid #e6e4dd;border-radius:16px;padding:30px;display:flex;flex-direction:column;gap:22px;box-sizing:border-box;min-width:0;box-shadow:0 1px 2px rgba(0,0,0,.04)}
+.precios-pagos{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.precios-directorio{flex-direction:row;flex-wrap:wrap;align-items:center;gap:20px;padding:22px 26px}
 .pricing-h1{font-size:28px}
 @media (max-width: 640px){
   .org-layout-grid{grid-template-columns:1fr}
@@ -413,6 +418,8 @@ a{color:inherit}
   .co-logo{width:64px;height:64px;bottom:-32px;left:16px;font-size:22px}
   .co-info{padding:40px 16px 16px}
   .pricing-wrap{padding:28px 16px 44px}
+  .precios-caja{padding:22px}
+  .precios-pagos{grid-template-columns:1fr}
   .pricing-h1{font-size:22px}
   .plan-card-head{flex-direction:column;align-items:stretch}
   .plan-card-cta{width:100%;justify-content:center}
