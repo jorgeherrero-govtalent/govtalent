@@ -185,7 +185,7 @@ function CeldaCorreo({ tiene, correo, onUpsell }) {
       }}
     >
       <i className="ti ti-bolt" style={{ fontSize: 11 }}></i>
-      Correo con Pro
+      Correo con suscripción
     </span>
   );
 }
@@ -900,7 +900,7 @@ export default function GroupDetailPage() {
                       setUpsell({
                         title: 'El correo de los asesores',
                         message:
-                          'La dirección de cada asesor del grupo, para escribir a quien prepara el expediente y no solo a quien lo defiende. Disponible en el plan Pro.',
+                          'La dirección de cada asesor del grupo, para escribir a quien prepara el expediente y no solo a quien lo defiende. Disponible con suscripción.',
                       })
                     }
                   />

@@ -564,7 +564,7 @@ function DeputiesDirectoryInner() {
       {upsell && (
         <UpgradeModal
           title="Filtrar por comisión"
-          message="Quédate con los diputados de las comisiones que deciden sobre lo tuyo. Disponible en el plan Pro."
+          message="Quédate con los diputados de las comisiones que deciden sobre lo tuyo. Disponible con suscripción."
           onClose={() => setUpsell(false)}
         />
       )}

@@ -27,7 +27,7 @@ async function getOrgForUser() {
   const org = membership?.organizations;
   if (!org) return { error: 'No perteneces a ninguna organización', status: 403 };
   if (!canAccessDatabase(org)) {
-    return { error: 'El directorio institucional es una función del plan Pro', status: 403 };
+    return { error: 'El directorio institucional requiere suscripción', status: 403 };
   }
   return { org, userId: authData.user.id };
 }

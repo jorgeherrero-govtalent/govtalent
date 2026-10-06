@@ -565,7 +565,7 @@ function Proyectos() {
                   padding: '2px 8px',
                 }}
               >
-                Teams
+                Equipo
               </span>
             </button>
 
@@ -960,7 +960,7 @@ function Proyectos() {
             una puerta que no puede abrir. */}
         {modalCompartidos && (
           <UpgradeModal
-            title="Los proyectos compartidos llegan con Teams"
+            title="Los proyectos compartidos llegan con la suscripción de equipo"
             message={
               tieneOrganizacion
                 ? 'Todo el equipo sobre el mismo asunto: un responsable por cada actor y registro de contactos con trazabilidad.'
@@ -1117,12 +1117,12 @@ function Proyectos() {
                   está trabajando en un proyecto no debería perderlo por
                   consultar un plan. */}
               <a
-                href="/precios?para=organizaciones"
+                href="/precios"
                 target="_blank"
                 rel="noopener noreferrer"
                 style={{ fontSize: 11.5, color: MORADO, display: 'inline-block', marginTop: 6 }}
               >
-                Ver Teams →
+                Ver planes →
               </a>
             </div>
             <button

@@ -165,7 +165,7 @@ export default function OrganizationPlanPage() {
                 </div>
               ) : (
                 <Link
-                  href="/precios?para=organizaciones"
+                  href="/precios"
                   target="_blank"
                   rel="noreferrer"
                   style={{
@@ -274,7 +274,7 @@ export default function OrganizationPlanPage() {
             El cambio de plan se gestiona desde la página de precios.
           </span>
           <Link
-            href="/precios?para=organizaciones"
+            href="/precios"
             target="_blank"
             rel="noreferrer"
             className="btn-ai"

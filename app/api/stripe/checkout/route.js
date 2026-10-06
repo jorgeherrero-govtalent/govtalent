@@ -122,7 +122,7 @@ export async function POST(request) {
     }
     if (profile.plan === 'pro' && profile.plan_status === 'active') {
       return NextResponse.json(
-        { error: 'Ya tienes una suscripción Pro activa' },
+        { error: 'Ya tienes una suscripción activa' },
         { status: 409 }
       );
     }

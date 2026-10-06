@@ -393,7 +393,7 @@ export default function ActividadList({ kind }) {
       {upsell && (
         <UpgradeModal
           title="Filtrar por situación"
-          message="Separa lo que sigue vivo de lo que ya caducó o se retiró, sin recorrer la lista entera. Disponible en el plan Pro."
+          message="Separa lo que sigue vivo de lo que ya caducó o se retiró, sin recorrer la lista entera. Disponible con suscripción."
           onClose={() => setUpsell(false)}
         />
       )}

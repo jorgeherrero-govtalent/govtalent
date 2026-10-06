@@ -295,7 +295,7 @@ export default function EuCommitteeDetailPage() {
                 onClick={() =>
                   setUpsell({
                     title: 'Los españoles de esta comisión',
-                    message: 'Quiénes son, de qué grupo vienen y cómo escribirles. Disponible en el plan Pro.',
+                    message: 'Quiénes son, de qué grupo vienen y cómo escribirles. Disponible con suscripción.',
                   })
                 }
                 style={{
@@ -346,7 +346,7 @@ export default function EuCommitteeDetailPage() {
               setUpsell({
                 title: 'La mesa de la comisión',
                 message:
-                  'Quién preside y quién ocupa las vicepresidencias, con su grupo político y su contacto. Disponible en el plan Pro.',
+                  'Quién preside y quién ocupa las vicepresidencias, con su grupo político y su contacto. Disponible con suscripción.',
               })
             }
           />

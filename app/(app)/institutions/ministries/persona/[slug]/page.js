@@ -360,7 +360,7 @@ export default function GovernmentOfficialProfilePage() {
       {upsell && (
         <UpgradeModal
           title="El contacto de la unidad"
-          message="El correo, el teléfono y la web de la unidad, para escribir al sitio correcto a la primera. Disponible en el plan Pro."
+          message="El correo, el teléfono y la web de la unidad, para escribir al sitio correcto a la primera. Disponible con suscripción."
           onClose={() => setUpsell(false)}
         />
       )}

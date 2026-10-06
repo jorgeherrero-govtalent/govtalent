@@ -1364,7 +1364,7 @@ function FichaActor({ actor, categorias, onClose, onChange, onDelete, onLinks })
               flexShrink: 0,
             }}
           >
-            Teams
+            Equipo
           </span>
         </div>
 

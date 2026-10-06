@@ -479,7 +479,7 @@ export default function DeputyProfilePage() {
                           setUpsell({
                             title: 'El correo de cada diputado',
                             message:
-                              'El correo institucional que publica el Congreso, en la ficha de los 350 diputados. Disponible en el plan Pro.',
+                              'El correo institucional que publica el Congreso, en la ficha de los 350 diputados. Disponible con suscripción.',
                           })
                         }
                         className="btn-ai"
@@ -492,7 +492,7 @@ export default function DeputyProfilePage() {
                           gap: 6,
                         }}
                       >
-                        <i className="ti ti-bolt"></i> Ver con Pro
+                        <i className="ti ti-bolt"></i> Ver planes
                       </button>
                     </>
                   )}
@@ -626,7 +626,7 @@ export default function DeputyProfilePage() {
                   setUpsell({
                     title: 'Con quién coincide en ponencia',
                     message:
-                      'Los diputados con los que comparte ponencia de forma recurrente, y en cuántas. Disponible en el plan Pro.',
+                      'Los diputados con los que comparte ponencia de forma recurrente, y en cuántas. Disponible con suscripción.',
                   })
                 }
               />

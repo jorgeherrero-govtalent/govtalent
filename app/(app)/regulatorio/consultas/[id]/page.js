@@ -608,7 +608,7 @@ export default function ConsultaDetallePage() {
       {upsell && (
         <UpgradeModal
           title="Los actores de este trámite"
-          message="Qué órgano lo tramita, qué subdirecciones redactan el texto y quién responde políticamente, con la cadena de mando del ministerio. Disponible en el plan Pro."
+          message="Qué órgano lo tramita, qué subdirecciones redactan el texto y quién responde políticamente, con la cadena de mando del ministerio. Disponible con suscripción."
           onClose={() => setUpsell(false)}
         />
       )}

@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { toast } from '@/lib/toast';
+import { euros, precioMensual } from '@/lib/precios';
 
 const CARD = { background: '#fff', borderRadius: 10, boxShadow: '0 1px 2px rgba(0,0,0,.04)' };
 const LABEL = { fontSize: 11, color: '#a8a49c', letterSpacing: '.4px', marginBottom: 14 };
@@ -35,10 +36,10 @@ const SIRVIENDO = new Set(['active', 'trialing', 'past_due']);
 // Los verbos hacen el trabajo: Free consulta, Pro busca y sigue. La
 // diferencia entre mirar y vigilar es lo que se está vendiendo aquí.
 const BENEFICIOS_PRO = [
-  ['Busca', ' en el directorio con filtros y ficha ampliada'],
-  ['Sigue', ' proyectos y actores, con alertas ante cada actualización'],
-  [null, 'Proyectos con diagrama y agenda'],
-  [null, 'Registro de actividad y actas automáticas'],
+  ['Vigila', ' el BOE, el Congreso, el Consejo de Ministros y más, con hasta 50 alarmas'],
+  ['Sigue', ' normas, instituciones y personas, con aviso de sus cambios'],
+  [null, 'Avisos de plazo a 30, 14, 7, 3 y 1 días'],
+  [null, 'Proyectos y Tareas'],
 ];
 
 function fecha(valor) {
@@ -136,33 +137,12 @@ export default function BloquePlanCuenta({ user }) {
     setOcupado(false);
   }
 
-  async function contratarPro() {
-    if (ocupado) return;
-    setOcupado(true);
-    try {
-      const res = await fetch('/api/stripe/checkout', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ plan: 'pro' }),
-      });
-      const data = await res.json();
-      if (data?.url) {
-        window.location.href = data.url;
-        return;
-      }
-      toast.error(data?.error || 'No hemos podido iniciar el pago');
-    } catch {
-      toast.error('No hemos podido conectar. Inténtalo de nuevo.');
-    }
-    setOcupado(false);
-  }
-
   return (
     <div style={{ ...CARD, padding: 20, marginBottom: 14 }}>
       <div style={LABEL}>TU PLAN</div>
 
       <div style={{ display: 'flex', alignItems: 'baseline', gap: 9, marginBottom: esPro ? 4 : 14 }}>
-        <span style={{ fontSize: 16, fontWeight: 600 }}>{esPro ? 'GovTalent Pro' : 'Free'}</span>
+        <span style={{ fontSize: 16, fontWeight: 600 }}>{esPro ? 'Vigilancia normativa' : 'Free'}</span>
         {esPro && user?.is_founding_member && (
           <span
             style={{
@@ -194,7 +174,7 @@ export default function BloquePlanCuenta({ user }) {
             </p>
           ) : (
             <p style={{ fontSize: 12.5, color: '#8b8780', lineHeight: 1.6, margin: '0 0 16px' }}>
-              Suscripción anual activa.
+              Suscripción activa.
               {renovacion && ` Se renueva el ${renovacion}.`}
             </p>
           )}
@@ -205,15 +185,15 @@ export default function BloquePlanCuenta({ user }) {
 
           <div style={SEPARADOR}>
             <p style={{ fontSize: 13, color: '#3a3a36', lineHeight: 1.6, margin: '0 0 10px' }}>
-              <strong style={{ fontWeight: 600 }}>Para equipos de hasta 4 personas</strong>, Teams
-              incluye la licencia Pro para todos y añade la base de datos completa y exportable de
-              la AGE y la UE.
+              <strong style={{ fontWeight: 600 }}>Para equipos</strong>, la suscripción admite de 2 a
+              50 usuarios, con alarmas, créditos y proyectos compartidos. El directorio se contrata
+              aparte.
             </p>
             <a
-              href="/precios?para=organizaciones"
+              href="/precios"
               style={{ ...BOTON_SEC, textDecoration: 'none', display: 'inline-block' }}
             >
-              Ver Teams
+              Ver planes
             </a>
           </div>
         </>
@@ -223,7 +203,7 @@ export default function BloquePlanCuenta({ user }) {
       {!esPro && !cargandoOrg && orgConTeams && (
         <>
           <p style={{ fontSize: 12.5, color: '#8b8780', lineHeight: 1.6, margin: '0 0 6px' }}>
-            Tienes todas las funciones de GovTalent Pro incluidas en el plan Teams de{' '}
+            Tienes todas las funciones de la suscripción incluidas en el plan de{' '}
             <strong style={{ fontWeight: 600, color: '#3f3d39' }}>{orgConTeams.name}</strong>. No
             necesitas contratar nada.
           </p>
@@ -237,8 +217,8 @@ export default function BloquePlanCuenta({ user }) {
       {!esPro && !cargandoOrg && !orgConTeams && (
         <div style={{ borderTop: '.5px solid #f2f0ec', paddingTop: 14 }}>
           <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 11 }}>
-            <span style={{ fontSize: 14, fontWeight: 600, color: '#1a1a18' }}>GovTalent Pro</span>
-            <span style={{ fontSize: 12.5, color: '#8b8780' }}>59 € / año</span>
+            <span style={{ fontSize: 14, fontWeight: 600, color: '#1a1a18' }}>Vigilancia normativa</span>
+            <span style={{ fontSize: 12.5, color: '#8b8780' }}>desde {euros(precioMensual(1))} / mes</span>
           </div>
 
           {BENEFICIOS_PRO.map(([verbo, texto]) => (
@@ -246,11 +226,8 @@ export default function BloquePlanCuenta({ user }) {
           ))}
 
           <div style={{ display: 'flex', gap: 9, flexWrap: 'wrap', marginTop: 16 }}>
-            <button type="button" style={BOTON} disabled={ocupado} onClick={contratarPro}>
-              {ocupado ? 'Abriendo el pago…' : 'Empezar con Pro'}
-            </button>
-            <a href="/precios" style={{ ...BOTON_SEC, textDecoration: 'none', display: 'inline-block' }}>
-              Ver los planes
+            <a href="/precios" style={{ ...BOTON, textDecoration: 'none', display: 'inline-block' }}>
+              Ver planes
             </a>
           </div>
         </div>

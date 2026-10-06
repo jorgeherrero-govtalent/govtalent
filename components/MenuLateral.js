@@ -227,18 +227,6 @@ export default function MenuLateral({
       </nav>
 
       <div className="gt-lat-pie">
-        {/* La oferta solo a quien no es Pro: a quien ya paga, una
-            pastilla pidiendo dinero no le dice nada. */}
-        {alarmas && !esPro && !plegado && (
-          <Link href="/precios" target="_blank" rel="noreferrer" className="gt-lat-promo">
-            <span className="gt-lat-promo-ic">
-              <i className="ti ti-gift" aria-hidden="true"></i>
-            </span>
-            <span className="gt-lat-promo-txt">Founding Member: Pro a 30 €/año</span>
-            <i className="ti ti-chevron-right" aria-hidden="true"></i>
-          </Link>
-        )}
-
         {alarmas &&
           (plegado ? (
             <Link

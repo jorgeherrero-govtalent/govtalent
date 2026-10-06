@@ -157,7 +157,7 @@ function AvisoContacto({ onUpsell }) {
     >
       <i className="ti ti-lock" aria-hidden="true" style={{ fontSize: 14, color: '#8b8780' }}></i>
       <span>
-        Correos y teléfonos de cada persona, en el plan Teams. <span style={{ fontWeight: 600, textDecoration: 'underline' }}>Ver planes</span>
+        Correos y teléfonos de cada persona, con el Directorio. <span style={{ fontWeight: 600, textDecoration: 'underline' }}>Ver planes</span>
       </span>
     </button>
   );
@@ -337,9 +337,9 @@ export default function DirectorioFicha({ slug, id, volverA, volverEtiqueta }) {
       {buscando ? <BuscarCorreoModal persona={buscando} onClose={() => setBuscando(null)} /> : null}
       {upsell ? (
         <UpgradeModal
-          title="Los contactos son una función Teams"
+          title="Los contactos van con el Directorio"
           message="Correo y teléfono de cada persona de medios, partidos, sindicatos, patronales, ONG, organismos internacionales y comunidades autónomas, además de la Base de datos de cargos de la administración."
-          href="/precios?para=organizaciones"
+          href="/precios"
           onClose={() => setUpsell(false)}
         />
       ) : null}

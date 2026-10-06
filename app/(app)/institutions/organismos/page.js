@@ -331,7 +331,7 @@ export default function OrganismosPage() {
             setUpsell({
               title: 'Filtrar por tipo',
               message:
-                'Separa a los reguladores y supervisores del resto de organismos de la Administración. Disponible en el plan Pro.',
+                'Separa a los reguladores y supervisores del resto de organismos de la Administración. Disponible con suscripción.',
             })
           }
         />
@@ -344,7 +344,7 @@ export default function OrganismosPage() {
           onBloqueado={() =>
             setUpsell({
               title: 'Filtrar por ministerio',
-              message: 'Quédate con los organismos que dependen de los ministerios que te tocan. Disponible en el plan Pro.',
+              message: 'Quédate con los organismos que dependen de los ministerios que te tocan. Disponible con suscripción.',
             })
           }
         />

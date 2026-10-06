@@ -215,7 +215,7 @@ export default function OrganizationsDirectory() {
                   setUpgradeModal({
                     title: 'Filtros avanzados',
                     message:
-                      'Cruza filtros de actividad, tamaño y más para encontrar exactamente lo que buscas. Disponible en el plan Pro.',
+                      'Cruza filtros de actividad, tamaño y más para encontrar exactamente lo que buscas. Disponible con suscripción.',
                   })
                 }
                 style={{ fontSize: 11.5, color: '#6d5aef', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 5 }}
@@ -226,7 +226,7 @@ export default function OrganizationsDirectory() {
                 onClick={() =>
                   setUpgradeModal({
                     title: 'Exportar datos',
-                    message: 'Descarga el directorio completo en Excel, con filtros aplicados. Disponible en el plan Pro.',
+                    message: 'Descarga el directorio completo en Excel, con filtros aplicados. Disponible con suscripción.',
                   })
                 }
                 style={{ fontSize: 11.5, color: '#6d5aef', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 5 }}
