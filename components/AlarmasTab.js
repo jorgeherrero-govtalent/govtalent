@@ -1301,7 +1301,7 @@ export default function AlarmasTab({ seccion = 'alarmas' }) {
 
             <div style={{ ...CARD, padding: '14px 18px', marginTop: 16 }}>
               <div style={{ ...ETIQUETA, marginBottom: 10 }}>Lo que ha encontrado</div>
-              <Encaja items={suyas.slice(0, 20)} onDescartar={descartar} vacio="Todavía no ha encontrado nada. Te avisaré en cuanto aparezca." />
+              <Encaja items={suyas.slice(0, 50)} onDescartar={descartar} vacio="Todavía no ha encontrado nada. Te avisaré en cuanto aparezca." />
             </div>
           </div>
 

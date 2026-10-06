@@ -102,7 +102,7 @@ export async function POST(request) {
   }
 
   // --- Lo ya encontrado ------------------------------------------------
-  const encaja = Array.isArray(a?.encaja) ? a.encaja.slice(0, 20) : [];
+  const encaja = Array.isArray(a?.encaja) ? a.encaja.slice(0, 40) : [];
   if (guardada && encaja.length > 0) {
     const ahora = new Date().toISOString();
     const filas = encaja

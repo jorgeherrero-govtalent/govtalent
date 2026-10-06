@@ -218,7 +218,7 @@ export async function POST(request) {
         const descripcion =
           texto || [dominio ? `Organización: ${dominio}.` : '', propuesta.criterios.resumen].filter(Boolean).join(' ');
         emitir({ fase: 'evaluando', n: filas.length });
-        const encaja = await evaluar({ descripcion, criterios: propuesta.criterios }, filas);
+        const encaja = await evaluar({ descripcion, criterios: propuesta.criterios }, filas, { maxResultados: 40 });
 
         emitir({
           fase: 'fin',
