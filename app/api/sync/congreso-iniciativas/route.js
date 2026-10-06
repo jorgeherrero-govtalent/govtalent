@@ -274,8 +274,9 @@ function transformar(row, kind) {
       tipo_tramitacion: row.TIPOTRAMITACION || null,
       fecha_presentacion: fechaEs(row.FECHAPRESENTACION),
       fecha_calificacion: fechaEs(row.FECHACALIFICACION),
-      situacion: caducada ? 'Caducada por la disolución de las Cortes' : situacion,
-      // La fase se conserva: dice en qué punto se quedó.
+      // En las caducadas, situación y fase se conservan: dicen dónde se
+      // quedó. Lo que la marca como caducada es el resultado.
+      situacion,
       fase,
       // Las proposiciones no traen COMISIONCOMPETENTE: se deriva de dónde
       // está ahora, que en la mayoría de casos es la comisión.

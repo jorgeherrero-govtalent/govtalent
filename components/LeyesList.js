@@ -41,6 +41,12 @@ function fechaLarga(iso) {
 // opción más del filtro para que esas 123 se puedan encontrar.
 const SIN_COMISION = 'Sin comisión asignada';
 
+// Caducada con la disolución de las Cortes: el resultado viene como
+// «Caducado 06/10/2026». No confundir con «Decaído», que es otra cosa.
+function esCaducada(i) {
+  return !!i.is_closed && /^caducad/i.test(i.resultado || '');
+}
+
 export default function LeyesList() {
   const esPro = usePlanPro();
   const [upsell, setUpsell] = useState(false);
@@ -52,7 +58,7 @@ export default function LeyesList() {
   // aquí para que la búsqueda continúe donde el usuario la dejó.
   const sp = useSearchParams();
   const [search, setSearch] = useState(sp?.get('q') || '');
-  const [estado, setEstado] = useState('progreso'); // progreso | bloqueadas | todas
+  const [estado, setEstado] = useState('progreso'); // progreso | bloqueadas | caducadas | todas
   const [comisionFilter, setComisionFilter] = useState(new Set());
   const [tipoFilter, setTipoFilter] = useState(new Set());
   const [page, setPage] = useState(1);
@@ -133,6 +139,9 @@ export default function LeyesList() {
   const vivas = useMemo(() => (items || []).filter((i) => !i.is_closed), [items]);
   const enProgreso = vivas.filter((i) => !i.is_blocked).length;
   const bloqueadas = vivas.filter((i) => i.is_blocked).length;
+  // Caducadas con la disolución de las Cortes (art. 207 RC). Van aparte de
+  // las concluidas: no se aprobaron ni se rechazaron.
+  const caducadas = useMemo(() => (items || []).filter(esCaducada), [items]);
 
   // El filtro va por `comision` y no por `situacion`.
   //
@@ -150,14 +159,16 @@ export default function LeyesList() {
   // que antes hacía '(sin situación)'.
   const comisionOptions = useMemo(() => {
     const cuenta = new Map();
-    for (const i of vivas) {
+    // En la pestaña de caducadas, las opciones salen de ellas: con las
+    // Cortes disueltas casi no quedan vivas y el filtro se quedaba vacío.
+    for (const i of estado === 'caducadas' ? caducadas : vivas) {
       const c = i.comision || SIN_COMISION;
       cuenta.set(c, (cuenta.get(c) || 0) + 1);
     }
     return [...cuenta.entries()]
       .sort((a, b) => b[1] - a[1])
       .map(([v, n]) => ({ value: v, label: `${v} (${n})` }));
-  }, [vivas]);
+  }, [vivas, caducadas, estado]);
 
   const tipoOptions = [
     { value: 'proyecto', label: 'Proyecto de ley' },
@@ -171,6 +182,7 @@ export default function LeyesList() {
     // sin esto no aparecerían nunca.
     if (estado === 'progreso') l = l.filter((i) => !i.is_closed && !i.is_blocked);
     else if (estado === 'bloqueadas') l = l.filter((i) => i.is_blocked);
+    else if (estado === 'caducadas') l = l.filter(esCaducada);
 
     if (search) {
       const q = normalize(search);
@@ -244,6 +256,7 @@ export default function LeyesList() {
           {[
             { id: 'progreso', label: `En progreso (${enProgreso})` },
             { id: 'bloqueadas', label: `Bloqueadas (${bloqueadas})` },
+            ...(caducadas.length > 0 ? [{ id: 'caducadas', label: `Caducadas (${caducadas.length})` }] : []),
             { id: 'todas', label: `Todas (${(items || []).length})` },
           ].map((e) => (
             <span
@@ -309,6 +322,20 @@ export default function LeyesList() {
         </div>
       )}
 
+      {/* Tras la disolución, «En progreso» se queda casi vacía. Sin esta
+          línea parecía un fallo de la lista. */}
+      {estado === 'progreso' && caducadas.length > 0 && (
+        <div style={{ fontSize: 11.5, color: '#888', marginBottom: 12, lineHeight: 1.6 }}>
+          Con la disolución de las Cortes caducaron {caducadas.length} iniciativas que estaban en tramitación.{' '}
+          <span
+            onClick={() => setEstado('caducadas')}
+            style={{ color: '#3C3489', textDecoration: 'underline', cursor: 'pointer' }}
+          >
+            Ver caducadas
+          </span>
+        </div>
+      )}
+
       {items === null ? (
         <div className="spinner"></div>
       ) : filtered.length === 0 ? (
@@ -340,7 +367,7 @@ export default function LeyesList() {
                 style={{
                   width: 3,
                   alignSelf: 'stretch',
-                  background: i.is_blocked ? '#d5d3c9' : '#6d5aef',
+                  background: i.is_blocked || esCaducada(i) ? '#d5d3c9' : '#6d5aef',
                   borderRadius: 2,
                   flexShrink: 0,
                 }}
@@ -351,14 +378,27 @@ export default function LeyesList() {
                   <span
                     style={{
                       fontSize: 9.5,
-                      background: i.is_blocked ? '#f0efe9' : '#EEEDFE',
-                      color: i.is_blocked ? '#8d8b83' : '#3C3489',
+                      background: i.is_blocked || esCaducada(i) ? '#f0efe9' : '#EEEDFE',
+                      color: i.is_blocked || esCaducada(i) ? '#8d8b83' : '#3C3489',
                       padding: '2px 8px',
                       borderRadius: 9,
                     }}
                   >
                     {i.kind_label}
                   </span>
+                  {esCaducada(i) && (
+                    <span
+                      style={{
+                        fontSize: 9.5,
+                        border: '.5px solid #d5d3c9',
+                        color: '#8d8b83',
+                        padding: '2px 8px',
+                        borderRadius: 9,
+                      }}
+                    >
+                      Caducada
+                    </span>
+                  )}
                   {i.is_blocked && (
                     <span
                       style={{
@@ -372,7 +412,7 @@ export default function LeyesList() {
                       Bloqueada
                     </span>
                   )}
-                  {i.tipo_tramitacion === 'Urgente' && !i.is_blocked && (
+                  {i.tipo_tramitacion === 'Urgente' && !i.is_blocked && !i.is_closed && (
                     <span style={{ fontSize: 9.5, color: '#6d5aef' }}>Urgente</span>
                   )}
                 </div>
@@ -382,7 +422,7 @@ export default function LeyesList() {
                     fontSize: 12.5,
                     fontWeight: 600,
                     lineHeight: 1.4,
-                    color: i.is_blocked ? '#666' : '#1a1a1a',
+                    color: i.is_blocked || esCaducada(i) ? '#666' : '#1a1a1a',
                   }}
                 >
                   {i.title}
@@ -391,8 +431,8 @@ export default function LeyesList() {
                 {/* "En" delante de la situación evita que se confunda con
                     el autor: "Gobierno · Contestación" a secas parecía que
                     lo presentaba el Gobierno, cuando es dónde está. */}
-                <div style={{ fontSize: 10.5, color: i.is_blocked ? '#aaa' : '#999', marginTop: 4 }}>
-                  {i.situacion && <span style={{ color: '#bbb' }}>En </span>}
+                <div style={{ fontSize: 10.5, color: i.is_blocked || esCaducada(i) ? '#aaa' : '#999', marginTop: 4 }}>
+                  {i.situacion && <span style={{ color: '#bbb' }}>{esCaducada(i) ? 'Se quedó en ' : 'En '}</span>}
                   {[i.situacion, i.fase, i.n_ponentes > 0 ? `${i.n_ponentes} ponentes` : null]
                     .filter(Boolean)
                     .join(' · ')}

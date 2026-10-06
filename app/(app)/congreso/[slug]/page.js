@@ -246,6 +246,11 @@ export default function CongresoDetailPage() {
     );
   }
 
+  // El resultado viene como «Caducado 06/10/2026», igual que el resto
+  // («Retirado …», «Decaído …»). Decaído es otra cosa y no se mezcla.
+  const caducada = item.is_closed && /^caducad/i.test(item.resultado || '');
+  const fechaCaducidad = caducada ? (item.resultado.match(/\d{2}\/\d{2}\/\d{4}/) || [null])[0] : null;
+
   return (
     <div className="sec" style={{ maxWidth: 900 }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 10, flexWrap: 'wrap' }}>
@@ -315,11 +320,24 @@ export default function CongresoDetailPage() {
                 color: item.is_closed ? '#666' : item.is_blocked ? '#8d8b83' : '#3C3489',
               }}
             >
-              {item.is_closed ? 'Concluida' : item.is_blocked ? 'Bloqueada' : 'En progreso'}
+              {caducada ? (
+                <>
+                  Caducada
+                  {fechaCaducidad && (
+                    <span style={{ fontSize: 10.5, color: '#aaa', fontWeight: 400 }}> · {fechaCaducidad}</span>
+                  )}
+                </>
+              ) : item.is_closed ? (
+                'Concluida'
+              ) : item.is_blocked ? (
+                'Bloqueada'
+              ) : (
+                'En progreso'
+              )}
             </div>
           </div>
           <div style={{ minWidth: 0 }}>
-            <div style={{ fontSize: 10, color: '#999', marginBottom: 3 }}>Dónde está</div>
+            <div style={{ fontSize: 10, color: '#999', marginBottom: 3 }}>{caducada ? 'Dónde se quedó' : 'Dónde está'}</div>
             <div style={{ fontSize: 13, fontWeight: 600, lineHeight: 1.3 }}>
               {item.situacion || '—'}
               {item.fase && <span style={{ fontSize: 10.5, color: '#aaa', fontWeight: 400 }}> · {item.fase}</span>}
@@ -343,6 +361,28 @@ export default function CongresoDetailPage() {
             </div>
           )}
         </div>
+
+        {/* Una caducada no se aprobó ni se rechazó: decayó con la
+            disolución (art. 207 del Reglamento del Congreso). Se explica
+            porque «Caducada» a secas no dice qué pasa ahora. */}
+        {caducada && (
+          <div
+            style={{
+              display: 'flex',
+              gap: 10,
+              alignItems: 'flex-start',
+              marginTop: 14,
+              paddingTop: 13,
+              borderTop: '.5px solid #f0f0eb',
+            }}
+          >
+            <i className="ti ti-archive" style={{ fontSize: 15, color: '#b0aea6', flexShrink: 0, marginTop: 1 }}></i>
+            <div style={{ fontSize: 11.5, color: '#888', lineHeight: 1.6 }}>
+              Caducó con la disolución de las Cortes, como todo lo que estaba en tramitación. Para seguir adelante
+              tendría que volver a presentarse en la nueva legislatura.
+            </div>
+          </div>
+        )}
 
         {/* El motivo del bloqueo se explica, no se deja como etiqueta
             suelta: es una lectura nuestra y hay que justificarla. */}
