@@ -28,6 +28,16 @@ export const maxDuration = 60;
 const BASE = 'https://www.congreso.es';
 const PORTAL = `${BASE}/es/opendata/iniciativas`;
 
+// Legislaturas disueltas y fecha de la disolución (BOE). Todo lo que siga
+// en tramitación en ellas se da por caducado.
+const DISOLUCIONES = {
+  'Leg.15': '06/10/2026',
+};
+
+// No caducan con la disolución, o hay que confirmarlo antes de marcarlas:
+// las proposiciones de las comunidades autónomas y las de iniciativa popular.
+const NO_CADUCAN = /Comunidades y Ciudades Autónomas|popular/i;
+
 // Sin cabeceras de navegador el portal responde 403.
 const HEADERS = {
   'User-Agent':
@@ -239,7 +249,18 @@ function transformar(row, kind) {
   const fase = sitLineas[1] || null;
 
   const { plazo, prorrogas } = parsearPlazos(row.PLAZOS);
-  const cerrado = /^cerrado|^concluido/i.test(situacion || '');
+  const cerradoFuente = /^cerrado|^concluido/i.test(situacion || '');
+
+  // Con la disolución de las Cortes caduca lo que estaba en tramitación,
+  // pero los datos abiertos pueden tardar días en reflejarlo. Sin esto,
+  // cada sync reabría las iniciativas y volvían los avisos de plazo.
+  // Cuando la fuente las dé por cerradas, manda lo que diga la fuente.
+  const disolucion = DISOLUCIONES[row.LEGISLATURA];
+  const caducada = !cerradoFuente && !!disolucion && !NO_CADUCAN.test(row.TIPO || '');
+  const cerrado = cerradoFuente || caducada;
+  const resultadoFuente = row.RESULTADOTRAMITACION
+    ? String(row.RESULTADOTRAMITACION).replace(/\s*\n\s*/g, ' ').trim()
+    : null;
 
   return {
     fila: {
@@ -253,12 +274,13 @@ function transformar(row, kind) {
       tipo_tramitacion: row.TIPOTRAMITACION || null,
       fecha_presentacion: fechaEs(row.FECHAPRESENTACION),
       fecha_calificacion: fechaEs(row.FECHACALIFICACION),
-      situacion,
+      situacion: caducada ? 'Caducada por la disolución de las Cortes' : situacion,
+      // La fase se conserva: dice en qué punto se quedó.
       fase,
       // Las proposiciones no traen COMISIONCOMPETENTE: se deriva de dónde
       // está ahora, que en la mayoría de casos es la comisión.
       comision: row.COMISIONCOMPETENTE || (/^Comisión/i.test(situacion || '') ? situacion : null),
-      resultado: row.RESULTADOTRAMITACION ? String(row.RESULTADOTRAMITACION).replace(/\s*\n\s*/g, ' ').trim() : null,
+      resultado: resultadoFuente || (caducada ? `Caducado ${disolucion}` : null),
       is_closed: cerrado,
       // Un plazo ya vencido no es una ventana abierta.
       plazo_enmiendas: plazo && !cerrado ? plazo : null,
