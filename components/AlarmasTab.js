@@ -8,6 +8,8 @@ import { toast } from '@/lib/toast';
 import Interruptor from '@/components/Interruptor';
 import TextoCreciente from '@/components/TextoCreciente';
 import UpgradeModal from '@/components/UpgradeModal';
+import CalendarioElectoral from '@/components/CalendarioElectoral';
+import AvisoCaducadas from '@/components/AvisoCaducadas';
 import { FRECUENCIAS, limitesDe, mensajeError } from '@/lib/alarmas';
 import { cifraPlazo } from '@/lib/plazos';
 
@@ -1656,6 +1658,15 @@ export default function AlarmasTab({ seccion = 'alarmas' }) {
           </button>
         )}
       </div>
+
+      {/* Disolución de las Cortes (06-10-2026): el calendario electoral y
+          el aviso de leyes caducadas. Cada uno decide si se enseña. */}
+      {enNovedades && (
+        <>
+          <CalendarioElectoral />
+          <AvisoCaducadas />
+        </>
+      )}
 
       {!enNovedades && mostrarCaja && (
       <div style={{ maxWidth: 680, margin: '0 auto 28px', padding: '6px 0 0' }}>

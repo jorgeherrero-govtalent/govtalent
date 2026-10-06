@@ -31,6 +31,7 @@
 //   ?key=<DEBUG_KEY>              envío real
 // =====================================================================
 
+import { hitoParaCorreo } from '@/lib/calendarioElectoral';
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { weeklyDigestEmail } from '@/lib/email/templates';
@@ -269,6 +270,9 @@ async function handler(request) {
     let sinNada = 0;
     const entregas = [];
 
+    // Mientras dure el proceso electoral, una línea con el próximo hito.
+    const hitoElectoral = hitoParaCorreo();
+
     for (const u of todosLosUsuarios || []) {
       if (Date.now() - t0 > PRESUPUESTO_MS) {
         informe.cortado_por_tiempo = true;
@@ -372,6 +376,7 @@ async function handler(request) {
         totalSeguidos: sigue.length,
         sinTemas: palabras.length === 0,
         unsubscribeUrl: `${SITE_URL}/alarmas`,
+        hitoElectoral,
       });
 
       resultados.push({

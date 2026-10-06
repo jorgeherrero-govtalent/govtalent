@@ -77,6 +77,9 @@ export async function middleware(request) {
   const isPublicUnsubscribe = path.startsWith('/api/alerts/unsubscribe');
   const isPublicPricing = path === '/precios';
   const isPublicLegal = PUBLIC_LEGAL_PATHS.includes(path);
+  // Los calendarios de suscripción (.ics) los piden Google, Apple y
+  // Outlook sin sesión cada pocas horas. Sin esto recibían el login.
+  const isPublicCalendar = path.startsWith('/calendario/');
   // Rutas de sincronización que llama Vercel Cron directamente (sin sesión
   // de usuario) — se autentican con su propio secreto dentro de la propia
   // ruta, no con el login normal de la app.
@@ -93,6 +96,8 @@ export async function middleware(request) {
     path.startsWith('/api/alerts/daily') ||
     // El correo del Consejo de Ministros, igual (cron cada 15 minutos).
     path.startsWith('/api/alerts/consejo') ||
+    // El correo único de leyes caducadas con la disolución (manual).
+    path.startsWith('/api/alerts/caducadas') ||
     path.startsWith('/api/alarmas/vigilar') ||
     path.startsWith('/api/cron/');
 
@@ -104,6 +109,7 @@ export async function middleware(request) {
     !isPublicUnsubscribe &&
     !isPublicPricing &&
     !isPublicLegal &&
+    !isPublicCalendar &&
     !isInternalSync &&
     !isScheduledEmail
   ) {

@@ -58,6 +58,7 @@
 // «Los lunes» reciben esos actos en su resumen.
 // =====================================================================
 
+import { hitoParaCorreo } from '@/lib/calendarioElectoral';
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { conRegistro } from '@/lib/syncLog';
@@ -571,6 +572,9 @@ async function handler(request) {
           tipo,
           esFree: (niveles.get(userId) || 'free') !== 'pro',
           ajustesUrl: `${SITE_URL}/alarmas`,
+          // Solo en el resumen semanal: el de los lunes de Free y las
+          // alarmas semanales. En los diarios sería repetirlo cada día.
+          hitoElectoral: tipo === 'semanal' ? hitoParaCorreo() : null,
         });
         try {
           await enviar({ to: u.email, subject, html });
