@@ -125,12 +125,7 @@ export default function CalculadoraPrecios({ autenticado = false }) {
       <div className="precios-fila">
         {/* --- Calculadora --- */}
         <div className="bento precios-caja" style={{ flex: '3 1 420px' }}>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-            <span style={{ fontSize: 11.5, textTransform: 'uppercase', letterSpacing: '.5px', color: MORADO, fontWeight: 700 }}>
-              GovTalent
-            </span>
-            <h2 style={{ margin: 0, fontSize: 21, color: '#1a1a18' }}>Vigilancia normativa y trabajo en equipo</h2>
-          </div>
+          <h2 style={{ margin: 0, fontSize: 21, color: '#1a1a18' }}>Vigilancia normativa y trabajo en equipo</h2>
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
             <label
@@ -244,7 +239,7 @@ export default function CalculadoraPrecios({ autenticado = false }) {
           </div>
           <Grupo titulo="Vigilancia normativa">
             <Linea>
-              Alarmas con IA sobre el BOE, el Consejo de Ministros, la Agenda del Gobierno, el Congreso, las consultas
+              Alarmas sobre el BOE, el Consejo de Ministros, la Agenda del Gobierno, el Congreso, las consultas
               públicas, los parlamentos autonómicos, el Parlamento Europeo y la Comisión Europea
             </Linea>
             <Linea>Avisos al momento, cada mañana o los lunes, según elijas</Linea>
@@ -297,12 +292,13 @@ export default function CalculadoraPrecios({ autenticado = false }) {
 
         {/* --- Cuenta gratuita --- */}
         <div style={{ flex: '2 1 300px', display: 'flex', flexDirection: 'column', gap: 6, padding: '0 8px', fontSize: 13.5, color: '#55524b', lineHeight: 1.5 }}>
-          <span>¿Quieres probar primero? Cuenta gratuita con el directorio sin contactos y una alarma semanal.</span>
-          {!autenticado && (
-            <Link href="/signup" style={{ fontWeight: 600, color: MORADO, textDecoration: 'none' }}>
-              Crear cuenta gratis →
+          <span>
+            ¿Quieres probar primero?{' '}
+            <Link href="/signup" style={{ fontWeight: 600, color: MORADO, textDecoration: 'none', whiteSpace: 'nowrap' }}>
+              Crear una cuenta →
             </Link>
-          )}
+          </span>
+          <span>Cuenta gratuita con el directorio sin contactos y una alarma semanal.</span>
         </div>
       </div>
     </>
