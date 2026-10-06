@@ -511,7 +511,7 @@ export default function MepDetailPage() {
                       alignItems: 'center',
                       gap: 7,
                     }}
-                    aria-label="Ver el correo con el plan Pro"
+                    aria-label="Ver el correo con suscripción"
                   >
                     <span
                       style={{ fontSize: 11.5, color: '#555', filter: 'blur(3.5px)', userSelect: 'none' }}
@@ -584,7 +584,7 @@ export default function MepDetailPage() {
       {upsell && (
         <UpgradeModal
           title="El correo de contacto"
-          message="Escribe directamente a los eurodiputados que tramitan tu proyecto, sin buscarlos uno a uno. Disponible en el plan Pro."
+          message="Escribe directamente a los eurodiputados que tramitan tu proyecto, sin buscarlos uno a uno. Disponible con suscripción."
           onClose={() => setUpsell(false)}
         />
       )}

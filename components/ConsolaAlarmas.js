@@ -293,8 +293,8 @@ export default function ConsolaAlarmas() {
           </Link>
         </div>
         <div style={{ background: '#24231d', border: '1px solid #34332c', borderRadius: 14, padding: 14, display: 'flex', flexDirection: 'column', gap: 7 }}>
-          <div style={{ fontSize: 13.5, fontWeight: 600, color: '#fff' }}>Con Pro, no esperes al lunes</div>
-          {['Hasta 3 alarmas', 'Aviso el mismo día en que se abre un plazo', 'Recordatorios a 30, 14, 7, 3 y 1 días'].map((t) => (
+          <div style={{ fontSize: 13.5, fontWeight: 600, color: '#fff' }}>Con suscripción, no esperes al lunes</div>
+          {['Hasta 50 alarmas', 'Aviso el mismo día en que se abre un plazo', 'Recordatorios a 30, 14, 7, 3 y 1 días'].map((t) => (
             <div key={t} style={{ display: 'flex', gap: 8, fontSize: 12.5, color: '#d6d3cb', lineHeight: 1.45 }}>
               <i className="ti ti-check" style={{ fontSize: 14, color: MORADO_C }} aria-hidden="true"></i>
               {t}
@@ -304,7 +304,7 @@ export default function ConsolaAlarmas() {
             href="/precios"
             style={{ alignSelf: 'flex-start', marginTop: 4, background: VERDE, color: '#fff', borderRadius: 9, padding: '9px 14px', fontSize: 12.5, fontWeight: 600, textDecoration: 'none' }}
           >
-            Pasar a Pro
+            Ver planes
           </Link>
         </div>
         <style>{consolaCss}</style>

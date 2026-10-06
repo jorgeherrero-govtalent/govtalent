@@ -177,7 +177,7 @@ export default function MenuUsuario({
                   >
                     {[user?.first_name, user?.last_name].filter(Boolean).join(' ') || user?.email}
                   </div>
-                  <div style={{ fontSize: 11, color: '#888', marginTop: 1 }}>Plan {esPro ? 'Pro' : 'Free'}</div>
+                  <div style={{ fontSize: 11, color: '#888', marginTop: 1 }}>{esPro ? 'Con suscripción' : 'Plan Free'}</div>
                 </div>
                 {!enOrganizacion && (
                   <i className="ti ti-check" style={{ fontSize: 14, color: VERDE, flexShrink: 0 }}></i>
@@ -197,7 +197,7 @@ export default function MenuUsuario({
                     margin: '4px 2px 8px',
                   }}
                 >
-                  <div style={{ fontSize: 12, fontWeight: 600, marginBottom: 3 }}>Hazte Pro</div>
+                  <div style={{ fontSize: 12, fontWeight: 600, marginBottom: 3 }}>Vigilancia normativa</div>
                   <div style={{ fontSize: 11.5, color: '#555', lineHeight: 1.5, marginBottom: 9 }}>
                     Seguimiento, alertas y proyectos.
                   </div>

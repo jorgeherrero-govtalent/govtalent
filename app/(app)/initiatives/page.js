@@ -467,7 +467,7 @@ export default function InitiativesDirectoryPage() {
       {upsell && (
         <UpgradeModal
           title="Filtrar por materia"
-          message="Cruza los expedientes de la Comisión por materia para quedarte solo con los de tu sector. Disponible en el plan Pro."
+          message="Cruza los expedientes de la Comisión por materia para quedarte solo con los de tu sector. Disponible con suscripción."
           onClose={() => setUpsell(false)}
         />
       )}

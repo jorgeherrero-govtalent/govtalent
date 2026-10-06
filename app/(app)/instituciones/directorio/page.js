@@ -711,9 +711,9 @@ export default function DirectorioInstitucionalPage() {
             página de precios abre por defecto en la de profesionales. */}
         {modalUpsell && (
           <UpgradeModal
-            title="El directorio institucional es una función Teams"
+            title="El directorio institucional se contrata aparte"
             message="Más de dieciocho mil cargos y contactos de la Administración General del Estado, las comunidades autónomas, el Congreso, la Comisión Europea, el Parlamento Europeo, los medios de comunicación, los partidos, los sindicatos y las patronales, con su correo, su unidad y su dirección postal. Filtra por institución o área y expórtalo a Excel cuando lo necesites."
-            href="/precios?para=organizaciones"
+            href="/precios"
             onClose={() => setModalUpsell(false)}
           />
         )}

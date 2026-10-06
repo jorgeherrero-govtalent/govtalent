@@ -409,7 +409,7 @@ export default function DgDetailPage() {
       {upsell && (
         <UpgradeModal
           title="Quién dirige esta dirección general"
-          message="El director general, sus adjuntos y los directores de área, con su cargo, su unidad y su correo. Disponible en el plan Pro."
+          message="El director general, sus adjuntos y los directores de área, con su cargo, su unidad y su correo. Disponible con suscripción."
           onClose={() => setUpsell(false)}
         />
       )}

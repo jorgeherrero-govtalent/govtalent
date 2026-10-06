@@ -421,7 +421,7 @@ export default function ComisarioDetailPage() {
       {upsell && (
         <UpgradeModal
           title="El gabinete del comisario"
-          message="Quién lleva su agenda y prepara sus decisiones, con nombre, cargo y correo. Disponible en el plan Pro."
+          message="Quién lleva su agenda y prepara sus decisiones, con nombre, cargo y correo. Disponible con suscripción."
           onClose={() => setUpsell(false)}
         />
       )}

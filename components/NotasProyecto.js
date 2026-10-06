@@ -275,7 +275,7 @@ export default function NotasProyecto({ projectId, userId }) {
       )}
 
       <div style={{ fontSize: 11.5, color: '#999', marginTop: 18, lineHeight: 1.6 }}>
-        Mencionar con @ a compañeros llega con Teams.
+        Mencionar con @ a compañeros llega con la suscripción de equipo.
       </div>
     </div>
   );

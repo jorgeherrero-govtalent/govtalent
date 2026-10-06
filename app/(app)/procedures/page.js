@@ -250,7 +250,7 @@ export default function ProceduresDirectoryPage() {
               setUpsell({
                 title: 'Filtrar por eurodiputados españoles',
                 message:
-                  'Quédate solo con los procedimientos en los que participa algún eurodiputado español. Disponible en el plan Pro.',
+                  'Quédate solo con los procedimientos en los que participa algún eurodiputado español. Disponible con suscripción.',
               });
               return;
             }
@@ -280,7 +280,7 @@ export default function ProceduresDirectoryPage() {
             setUpsell({
               title: 'Filtrar por comisión',
               message:
-                'Quédate con los procedimientos de las comisiones que te tocan, sin recorrer los 221. Disponible en el plan Pro.',
+                'Quédate con los procedimientos de las comisiones que te tocan, sin recorrer los 221. Disponible con suscripción.',
             })
           }
         />

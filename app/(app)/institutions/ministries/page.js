@@ -478,7 +478,7 @@ function OrganigramaTab({ members, officials }) {
           onBloqueado={() =>
             setUpsell({
               title: 'Filtrar por ministerio',
-              message: 'Quédate con el organigrama de los ministerios que te tocan. Disponible en el plan Pro.',
+              message: 'Quédate con el organigrama de los ministerios que te tocan. Disponible con suscripción.',
             })
           }
         />
@@ -492,7 +492,7 @@ function OrganigramaTab({ members, officials }) {
             setUpsell({
               title: 'Filtrar por tipo de cargo',
               message:
-                'Separa a los secretarios de Estado de los directores generales y del resto del organigrama. Disponible en el plan Pro.',
+                'Separa a los secretarios de Estado de los directores generales y del resto del organigrama. Disponible con suscripción.',
             })
           }
         />
@@ -563,7 +563,7 @@ function CeldaContacto({ valor, esPro, onUpsell }) {
         userSelect: 'none',
         width: '100%',
       }}
-      aria-label="Ver el contacto con el plan Pro"
+      aria-label="Ver el contacto con suscripción"
     >
       buzon.unidad@ministerio.gob.es
     </button>
@@ -719,7 +719,7 @@ function BuscarTab({ members, officials }) {
             setUpsell({
               title: 'Filtrar por tipo de cargo',
               message:
-                'Separa a los secretarios de Estado de los directores generales y del resto del organigrama. Disponible en el plan Pro.',
+                'Separa a los secretarios de Estado de los directores generales y del resto del organigrama. Disponible con suscripción.',
             })
           }
         />
@@ -815,7 +815,7 @@ function BuscarTab({ members, officials }) {
                   setUpsell({
                     title: 'El contacto de la unidad',
                     message:
-                      'El correo y el teléfono de la unidad que dirige cada persona, para escribir al sitio correcto a la primera. Disponible en el plan Pro.',
+                      'El correo y el teléfono de la unidad que dirige cada persona, para escribir al sitio correcto a la primera. Disponible con suscripción.',
                   })
                 }
               />

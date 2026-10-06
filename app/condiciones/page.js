@@ -1,4 +1,14 @@
 import LegalPageShell from '@/components/LegalPageShell';
+import {
+  MAX_USUARIOS,
+  TRAMOS_MENSUAL,
+  TRAMOS_ANUAL,
+  DIRECTORIO_ANUAL,
+  ALARMAS_POR_USUARIO,
+  ALARMAS_A_PARTIR_DEL_SEXTO,
+  CREDITOS_POR_USUARIO,
+  euros,
+} from '@/lib/precios';
 
 export const metadata = {
   title: 'Condiciones generales de contratación y uso · GovTalent',
@@ -84,83 +94,86 @@ export default function CondicionesPage() {
       Cliente como consumidor o empresario. Esta condición dependerá de la finalidad con la que contrate el
       Servicio.</p>
 
-      <h3>4. Planes para Profesionales</h3>
-
-      <h4 style={sub}>4.1. Plan Free</h4>
+      <h3>4. Plan Free</h3>
       <p>El plan Free tiene un precio de 0 € y permite acceder, con los límites indicados en la Plataforma, a:</p>
       <ul>
-        <li>Ofertas de empleo y presentación de candidaturas.</li>
-        <li>Creación y gestión del perfil profesional.</li>
-        <li>Recomendaciones profesionales.</li>
-        <li>Consulta del directorio institucional en España y Bruselas.</li>
-        <li>Consulta de proyectos normativos en España y la Unión Europea.</li>
+        <li>Consulta de la actividad normativa y regulatoria en España y la Unión Europea.</li>
+        <li>Consulta del directorio institucional, sin los datos de contacto de las personas.</li>
+        <li>Una alarma, con resumen semanal.</li>
+        <li>Las demás funcionalidades identificadas como gratuitas en la Plataforma.</li>
       </ul>
       <p>GovTalent podrá establecer límites razonables de uso para proteger la estabilidad de la Plataforma y
       evitar usos automatizados, abusivos o contrarios a estas Condiciones.</p>
 
-      <h4 style={sub}>4.2. Plan Pro</h4>
-      <p>El plan Pro tiene un precio ordinario de 59 € al año e incluye las funcionalidades del plan Free y,
-      adicionalmente:</p>
+      <h3>5. Plan Vigilancia</h3>
+      <p>El plan Vigilancia es una suscripción para una persona o para un equipo de entre 1 y {MAX_USUARIOS}{' '}
+      Usuarios, con pago mensual o anual. Incluye las funcionalidades del plan Free y, adicionalmente:</p>
       <ul>
-        <li>Búsqueda avanzada e información ampliada.</li>
-        <li>Seguimiento normativo y regulatorio.</li>
-        <li>Alertas e histórico completo.</li>
-        <li>Creación y gestión de proyectos.</li>
-        <li>Diagramas interactivos para visualizar proyectos.</li>
-        <li>Planificación de agenda, fechas y tareas.</li>
-        <li>Registro de actividad y automatización de actas.</li>
-        <li>Las demás funcionalidades identificadas como Pro en la Plataforma.</li>
-      </ul>
-      <p>La suscripción Pro es personal. No puede compartirse con otras personas ni utilizarse simultáneamente por
-      varios Usuarios, salvo autorización expresa de GovTalent.</p>
-
-      <h3>5. Planes para Organizaciones</h3>
-
-      <h4 style={sub}>5.1. Plan Free</h4>
-      <p>El plan Free para Organizaciones tiene un precio de 0 € e incluye:</p>
-      <ul>
-        <li>Una cuenta de Usuario.</li>
-        <li>Ficha de Organización verificada y página propia.</li>
-        <li>Una oferta de empleo activa.</li>
-        <li>Hasta 15 candidaturas por oferta.</li>
-        <li>Acceso al sistema de gestión de candidatos o ATS integrado.</li>
-        <li>Las demás funcionalidades identificadas como Free en la Plataforma.</li>
+        <li>Alarmas de vigilancia normativa sobre las fuentes indicadas en la Plataforma, entre otras el Boletín
+        Oficial del Estado, el Consejo de Ministros, la agenda del Gobierno, el Congreso de los Diputados, las
+        consultas públicas, los parlamentos autonómicos, el Parlamento Europeo y la Comisión Europea.</li>
+        <li>Avisos al momento, diarios o semanales, a elección del Usuario.</li>
+        <li>Avisos de plazo y seguimiento de normas, instituciones y personas, con aviso de sus cambios.</li>
+        <li>Proyectos y Tareas y, cuando la suscripción incluya varios Usuarios, proyectos y tareas compartidos con
+        roles.</li>
+        <li>Asistente para crear y afinar alarmas y conexión mediante MCP con asistentes de inteligencia artificial
+        de terceros.</li>
+        <li>Las demás funcionalidades identificadas como incluidas en la suscripción en la Plataforma.</li>
       </ul>
 
-      <h4 style={sub}>5.2. Plan Recruiter</h4>
-      <p>El plan Recruiter tiene un precio ordinario de 149 € al año e incluye una cuenta de Usuario, las
-      funcionalidades del plan Free y, adicionalmente:</p>
-      <ul>
-        <li>Publicación de ofertas y recepción de candidaturas sin los límites del plan Free, sujeto a una política
-        de uso razonable.</li>
-        <li>Generación asistida por inteligencia artificial de descripciones de ofertas.</li>
-        <li>Herramientas de matching y scoring de candidatos.</li>
-        <li>Generación de resúmenes de candidaturas mediante inteligencia artificial.</li>
-        <li>Las demás funcionalidades identificadas como Recruiter en la Plataforma.</li>
-      </ul>
+      <h4 style={sub}>5.1. Precio</h4>
+      <p>El precio se calcula por tramos según el número de Usuarios: cada Usuario paga el precio del tramo en el
+      que se encuentra. Los precios ordinarios vigentes, sin IVA, son:</p>
+      <table style={tableStyle}>
+        <thead>
+          <tr>
+            <td style={tdLabel}>Usuarios</td>
+            <td style={tdLabel}>Pago mensual, por Usuario y mes</td>
+            <td style={tdLabel}>Pago anual, por Usuario y año</td>
+          </tr>
+        </thead>
+        <tbody>
+          {TRAMOS_MENSUAL.map(([hasta, mensual], i) => {
+            const desde = i === 0 ? 1 : TRAMOS_MENSUAL[i - 1][0] + 1;
+            return (
+              <tr key={hasta}>
+                <td style={tdVal}>{desde === hasta ? `${hasta}.º` : `Del ${desde}.º al ${hasta}.º`}</td>
+                <td style={tdVal}>{euros(mensual)}</td>
+                <td style={tdVal}>{euros(TRAMOS_ANUAL[i][1])}</td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+      <p>El importe total de cada suscripción se muestra en la <a href="/precios">página de precios</a> y antes de
+      completar el pago.</p>
 
-      <h4 style={sub}>5.3. Plan Teams</h4>
-      <p>El plan Teams tiene un precio ordinario de 429 € al año e incluye hasta cuatro Usuarios pertenecientes a
-      la misma Organización, las funcionalidades del plan Recruiter y, adicionalmente:</p>
-      <ul>
-        <li>Licencias GovTalent Pro para los Usuarios autorizados del equipo.</li>
-        <li>Proyectos compartidos y colaborativos.</li>
-        <li>Seguimiento normativo y alertas regulatorias.</li>
-        <li>Agenda y notas compartidas.</li>
-        <li>Registro de actividad y automatización de actas.</li>
-        <li>Acceso ampliado al directorio de organismos y cargos de la Administración General del Estado y la Unión
-        Europea.</li>
-        <li>Funcionalidades de consulta y exportación conforme a los límites del plan.</li>
-        <li>Dashboard de Organización.</li>
-        <li>Roles y permisos diferenciados.</li>
-        <li>Onboarding personalizado.</li>
-        <li>Las demás funcionalidades identificadas como Teams en la Plataforma.</li>
-      </ul>
-      <p>Las licencias de Teams solo pueden asignarse a personas que mantengan una relación profesional con la
-      Organización contratante.</p>
-      <p>La Organización será responsable de gestionar las altas, bajas, roles y permisos de sus Usuarios.</p>
+      <h4 style={sub}>5.2. Alarmas y créditos</h4>
+      <p>La suscripción incluye {ALARMAS_POR_USUARIO} alarmas activas por Usuario hasta el quinto Usuario y{' '}
+      {ALARMAS_A_PARTIR_DEL_SEXTO} por cada Usuario adicional, así como {CREDITOS_POR_USUARIO} créditos al mes
+      por Usuario. En las suscripciones de varios Usuarios, las alarmas y los créditos son compartidos por todo el
+      equipo.</p>
+      <p>Los créditos se consumen al utilizar las funcionalidades que así se indiquen en la Plataforma, se
+      renuevan al inicio de cada mes y los no utilizados no se acumulan para meses posteriores.</p>
+      <p>GovTalent podrá pausar automáticamente las alarmas que no se utilicen durante un periodo prolongado,
+      informando de ello al Usuario, que podrá reactivarlas.</p>
 
-      <h3>6. GovTalent Campus y servicios personalizados</h3>
+      <h4 style={sub}>5.3. Usuarios</h4>
+      <p>Cada Usuario dispone de credenciales individuales, que no pueden compartirse ni utilizarse
+      simultáneamente por varias personas. En las suscripciones de varios Usuarios, las licencias solo pueden
+      asignarse a personas que mantengan una relación profesional con el Cliente, que será responsable de
+      gestionar las altas, bajas, roles y permisos de sus Usuarios.</p>
+
+      <h3>6. Directorio</h3>
+      <p>El Directorio se contrata de forma independiente del plan Vigilancia, mediante una suscripción anual con
+      un precio ordinario de {euros(DIRECTORIO_ANUAL)} al año, sin IVA, y renovación automática.</p>
+      <p>La suscripción al Directorio da acceso a los datos de contacto de instituciones, organizaciones, medios
+      y actores sociales publicados en la Plataforma, e incluye además una alarma con resumen semanal y 100
+      créditos al mes.</p>
+      <p>El uso del Directorio se rige además por las cláusulas específicas sobre el Directorio de estas
+      Condiciones.</p>
+
+      <h3>7. GovTalent Campus, servicios personalizados y promociones</h3>
       <p>GovTalent puede ofrecer planes específicos para universidades, centros educativos, asociaciones y otras
       entidades formativas bajo la denominación GovTalent Campus.</p>
       <p>Las características, número de Usuarios, precio, duración y condiciones de estos servicios se establecerán
@@ -168,35 +181,18 @@ export default function CondicionesPage() {
       <p>También podrán contratarse servicios adicionales de onboarding, configuración, importación, soporte o
       desarrollo personalizado. Estos servicios se regirán por las condiciones particulares aceptadas por el
       Cliente.</p>
-
-      <h3>7. Promociones Founding Member</h3>
-      <p>GovTalent puede ofrecer promociones limitadas de lanzamiento.</p>
-      <p>En el momento de publicación de estas Condiciones se ofrecen:</p>
-      <ul>
-        <li><b>Founding Member Pro:</b> 30 € durante el primer año. Posteriormente, la suscripción se renovará por
-        el precio ordinario vigente, actualmente 59 € al año.</li>
-        <li><b>Founding Member Teams:</b> 215 € durante el primer año para las primeras Organizaciones admitidas en
-        la promoción. Posteriormente, la suscripción se renovará por el precio ordinario vigente, actualmente
-        429 € al año.</li>
-      </ul>
-      <p>Las promociones:</p>
-      <ul>
-        <li>Están sujetas a disponibilidad.</li>
-        <li>No son acumulables con otros descuentos salvo indicación expresa.</li>
-        <li>Se aplican únicamente al primer periodo anual.</li>
-        <li>No implican el mantenimiento indefinido del precio promocional.</li>
-        <li>Quedan vinculadas a la cuenta que realizó la contratación.</li>
-        <li>No pueden venderse, cederse o transferirse.</li>
-      </ul>
-      <p>La plaza promocional no se considerará confirmada hasta que el pago haya sido completado correctamente y
-      GovTalent haya confirmado la contratación.</p>
-      <p>Las condiciones concretas y el número de plazas disponibles serán los mostrados durante el proceso de
-      contratación.</p>
+      <p>GovTalent puede ofrecer promociones limitadas. Sus condiciones concretas serán las mostradas durante la
+      contratación; salvo indicación expresa, no son acumulables con otros descuentos, se aplican únicamente al
+      periodo indicado y no implican el mantenimiento indefinido del precio promocional.</p>
+      <p>Las suscripciones contratadas con planes anteriores, incluidas las promociones Founding Member, mantienen
+      sus condiciones hasta el final del periodo pagado. GovTalent informará al Cliente con antelación de las
+      condiciones aplicables a su renovación.</p>
 
       <h3>8. Precio e impuestos</h3>
       <p>Los precios aplicables serán los publicados en la Plataforma en el momento de la contratación.</p>
-      <p>Salvo que se indique expresamente lo contrario, los precios mostrados incluirán los impuestos indirectos
-      legalmente aplicables.</p>
+      <p>Los precios publicados en la página de precios se muestran sin IVA. El IVA y los demás impuestos
+      indirectos legalmente aplicables se añadirán al precio y se mostrarán desglosados antes de completar el
+      pago.</p>
       <p>Antes de completar el pago, el Cliente podrá consultar:</p>
       <ul>
         <li>El plan seleccionado.</li>
@@ -209,7 +205,7 @@ export default function CondicionesPage() {
       </ul>
       <p>GovTalent podrá modificar los precios para futuras contrataciones o renovaciones. Cualquier cambio que
       afecte a una suscripción vigente se comunicará antes de la siguiente renovación.</p>
-      <p>El nuevo precio no se aplicará al periodo anual ya pagado.</p>
+      <p>El nuevo precio no se aplicará al periodo ya pagado.</p>
 
       <h3>9. Pago y facturación</h3>
       <p>Los pagos se procesan mediante Stripe.</p>
@@ -231,8 +227,8 @@ export default function CondicionesPage() {
       <p>La suspensión por impago no libera al Cliente de las cantidades vencidas que resulten exigibles.</p>
 
       <h3>10. Duración y renovación</h3>
-      <p>Los planes de pago tienen una duración anual, salvo que durante la contratación se indique expresamente
-      otra periodicidad.</p>
+      <p>Las suscripciones de pago tienen una duración mensual o anual, según la modalidad elegida durante la
+      contratación. El Directorio tiene una duración anual.</p>
       <p>Las suscripciones se renovarán automáticamente por periodos de la misma duración utilizando el medio de
       pago registrado.</p>
       <p>Antes de contratar, el Cliente será informado del carácter renovable de la suscripción, su precio y la
@@ -283,7 +279,9 @@ export default function CondicionesPage() {
       reconozca expresamente una garantía comercial adicional.</p>
 
       <h3>12. Cambios de plan</h3>
-      <p>El Cliente puede solicitar el cambio de plan mediante las funcionalidades disponibles en su cuenta.</p>
+      <p>El Cliente puede solicitar el cambio de plan, de modalidad de pago o del número de Usuarios mediante las
+      funcionalidades disponibles en su cuenta o escribiendo a{' '}
+      <a href="mailto:hola@govtalent.app" style={aLink}>hola@govtalent.app</a>.</p>
       <p>En las mejoras a un plan superior, GovTalent podrá cobrar inmediatamente la diferencia proporcional o
       aplicar el cambio en la siguiente renovación, según se indique durante el proceso.</p>
       <p>En las reducciones a un plan inferior, el cambio se aplicará normalmente al finalizar el periodo
@@ -448,8 +446,8 @@ export default function CondicionesPage() {
       intransferible para consultar y utilizar el Directorio durante la vigencia de su cuenta o suscripción.</p>
       <p>La licencia se destina exclusivamente a la actividad profesional interna del Cliente y queda limitada al
       número de Usuarios incluido en el plan contratado.</p>
-      <p>En el plan Teams podrán acceder hasta cuatro Usuarios autorizados pertenecientes a la misma Organización.
-      Las credenciales serán individuales y no podrán compartirse.</p>
+      <p>Podrán acceder al Directorio los Usuarios incluidos en la suscripción contratada. Las credenciales serán
+      individuales y no podrán compartirse.</p>
       <p>La licencia no autoriza al Cliente a crear un repositorio independiente que sustituya funcionalmente al
       Directorio de GovTalent.</p>
 
@@ -727,7 +725,7 @@ export default function CondicionesPage() {
       <p>En los demás casos, las partes se someten a los juzgados y tribunales de Madrid, salvo que otra
       jurisdicción resulte legalmente imperativa.</p>
 
-      <p style={updated}>Última actualización: septiembre de 2026.</p>
+      <p style={updated}>Última actualización: octubre de 2026.</p>
 
       <h3>Anexo. Modelo de desistimiento</h3>
       <p>Este formulario solo debe cumplimentarse y enviarse si el Cliente tiene la condición legal de consumidor y

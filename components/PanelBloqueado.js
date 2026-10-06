@@ -158,7 +158,7 @@ export default function PanelBloqueado({
                 gap: 6,
               }}
             >
-              <i className="ti ti-bolt"></i> Ver con Pro
+              <i className="ti ti-bolt"></i> Ver planes
             </button>
           ) : (
             <Link
@@ -167,7 +167,7 @@ export default function PanelBloqueado({
               className="btn-ai"
               style={{ textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 6 }}
             >
-              <i className="ti ti-bolt"></i> Ver con Pro
+              <i className="ti ti-bolt"></i> Ver planes
             </Link>
           )}
         </div>

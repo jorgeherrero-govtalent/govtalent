@@ -443,7 +443,7 @@ export default function ConsultasPublicasPage() {
       {upsell && (
         <UpgradeModal
           title="Filtrar por ministerio"
-          message="Sigue solo los departamentos que te afectan y deja de revisar consultas que no van contigo. Disponible en el plan Pro."
+          message="Sigue solo los departamentos que te afectan y deja de revisar consultas que no van contigo. Disponible con suscripción."
           onClose={() => setUpsell(false)}
         />
       )}

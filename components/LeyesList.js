@@ -525,7 +525,7 @@ export default function LeyesList() {
       {upsell && (
         <UpgradeModal
           title="Filtrar por comisión"
-          message="Quédate con la actividad de las comisiones que te tocan. Disponible en el plan Pro."
+          message="Quédate con la actividad de las comisiones que te tocan. Disponible con suscripción."
           onClose={() => setUpsell(false)}
         />
       )}

@@ -310,7 +310,7 @@ export default function FollowButton({ kind, refId, label, variant = 'button', c
         {upsell && (
           <EnElBody>
             <UpgradeModal
-              title="Seguir es una función de Pro"
+              title="Seguir requiere suscripción"
               message="Sigue leyes, expedientes y personas, y recibe un aviso cuando se mueva algo. Con alertas, proyectos y el directorio completo."
               onClose={() => setUpsell(false)}
             />
@@ -356,7 +356,7 @@ export default function FollowButton({ kind, refId, label, variant = 'button', c
     {upsell && (
       <EnElBody>
         <UpgradeModal
-          title="Seguir es una función de Pro"
+          title="Seguir requiere suscripción"
           message="Sigue leyes, expedientes y personas, y recibe un aviso cuando se mueva algo. Con alertas, proyectos y el directorio completo."
           onClose={() => setUpsell(false)}
         />

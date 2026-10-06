@@ -102,7 +102,7 @@ export async function POST(request) {
         error:
           nivel === 'pro'
             ? `Has usado las ${limites.propuestas_mes} propuestas de este mes. Puedes seguir editando tus alarmas a mano.`
-            : `Has usado las ${limites.propuestas_mes} propuestas de este mes del plan Free. Con Pro tienes ${LIMITES.pro.propuestas_mes} al mes.`,
+            : `Has usado las ${limites.propuestas_mes} propuestas de este mes del plan Free. Con suscripción tienes ${LIMITES.pro.propuestas_mes} al mes.`,
         limite: true,
       },
       { status: 429 }

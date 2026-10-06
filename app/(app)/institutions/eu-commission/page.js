@@ -373,7 +373,7 @@ function Celda({ valor, relleno, esPro, onUpsell, atenuado, partirPalabra }) {
         filter: 'blur(3.5px)',
         userSelect: 'none',
       }}
-      aria-label="Ver este dato con el plan Pro"
+      aria-label="Ver este dato con suscripción"
     >
       {relleno}
     </button>
@@ -388,7 +388,7 @@ function PersonasTab({ people, bodies, bodyFilter, setBodyFilter }) {
     setUpsell({
       title: 'Cargo, unidad y correo',
       message:
-        'Quién hace qué dentro de cada dirección general y cómo escribirle, sin buscar a nadie uno a uno. Disponible en el plan Pro.',
+        'Quién hace qué dentro de cada dirección general y cómo escribirle, sin buscar a nadie uno a uno. Disponible con suscripción.',
     });
   }
   const [search, setSearch] = useState('');
@@ -492,7 +492,7 @@ function PersonasTab({ people, bodies, bodyFilter, setBodyFilter }) {
           onBloqueado={() =>
             setUpsell({
               title: 'Filtrar por dirección general',
-              message: 'Quédate con las personas de las direcciones que te tocan. Disponible en el plan Pro.',
+              message: 'Quédate con las personas de las direcciones que te tocan. Disponible con suscripción.',
             })
           }
         />
@@ -505,7 +505,7 @@ function PersonasTab({ people, bodies, bodyFilter, setBodyFilter }) {
           onBloqueado={() =>
             setUpsell({
               title: 'Filtrar por nivel',
-              message: 'Separa a la dirección de los jefes de unidad y del resto del equipo. Disponible en el plan Pro.',
+              message: 'Separa a la dirección de los jefes de unidad y del resto del equipo. Disponible con suscripción.',
             })
           }
         />

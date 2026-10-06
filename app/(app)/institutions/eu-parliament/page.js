@@ -396,7 +396,7 @@ function MepsTab({ meps }) {
       {upsell && (
         <UpgradeModal
           title="Filtrar por comisión"
-          message="Busca los eurodiputados por comisiones concretas. Disponible en el plan Pro."
+          message="Busca los eurodiputados por comisiones concretas. Disponible con suscripción."
           onClose={() => setUpsell(false)}
         />
       )}
