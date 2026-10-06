@@ -41,8 +41,8 @@ export default async function PricingPage() {
             Un solo plan, para una persona o para todo tu equipo
           </h1>
           <p style={{ fontSize: 15, color: '#55524b', maxWidth: 600, margin: '0 auto', lineHeight: 1.6 }}>
-            Elige cuántos sois y verás el precio al momento. Cuantos más usuarios, menos pagas por cada uno. Precios
-            sin IVA.
+            Indica el número de usuarios y consulta el precio al instante. A partir del segundo usuario, el precio por
+            persona se reduce. Precios sin IVA.
           </p>
         </div>
 
