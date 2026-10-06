@@ -6,7 +6,6 @@ import { createClient } from '@/lib/supabase/client';
 import FilterableHeader from '@/components/FilterableHeader';
 import UpgradeModal from '@/components/UpgradeModal';
 import DirectorioDemo from '@/components/DirectorioDemo';
-import { canAccessDatabase } from '@/lib/plan';
 
 const PAGE_SIZE_OPTIONS = [25, 50, 100, 200];
 
@@ -371,14 +370,9 @@ export default function DirectorioInstitucionalPage() {
         setPlanChecked(true);
         return;
       }
-      const { data: membership } = await supabase
-        .from('organization_members')
-        .select('organizations(id, plan, plan_status, claimed, verified)')
-        .eq('user_id', authData.user.id)
-        .limit(1)
-        .maybeSingle();
-      const org = membership?.organizations;
-      setPlanAllowed(org ? canAccessDatabase(org) : false);
+      // El Directorio, propio o por una organización Teams (sql/73).
+      const { data: tiene } = await supabase.rpc('tiene_directorio');
+      setPlanAllowed(tiene === true);
       setPlanChecked(true);
     }
     comprobarPlan();
@@ -706,9 +700,7 @@ export default function DirectorioInstitucionalPage() {
           <DirectorioDemo />
         </div>
 
-        {/* El directorio es una función de Teams, no de Pro, y por eso el
-            enlace de "Ver planes" va a la pestaña de organizaciones: la
-            página de precios abre por defecto en la de profesionales. */}
+        {/* El Directorio se contrata aparte del plan de vigilancia. */}
         {modalUpsell && (
           <UpgradeModal
             title="El directorio institucional se contrata aparte"

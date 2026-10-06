@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { toast } from '@/lib/toast';
-import { euros, precioMensual } from '@/lib/precios';
+import { euros, precioMensual, DIRECTORIO_ANUAL } from '@/lib/precios';
 
 const CARD = { background: '#fff', borderRadius: 10, boxShadow: '0 1px 2px rgba(0,0,0,.04)' };
 const LABEL = { fontSize: 11, color: '#a8a49c', letterSpacing: '.4px', marginBottom: 14 };
@@ -115,6 +115,33 @@ export default function BloquePlanCuenta({ user }) {
   const impagado = user?.plan_status === 'past_due';
   const cancelaAlFinal = !!user?.cancel_at_period_end;
   const renovacion = fecha(user?.plan_renews_at);
+  const usuarios = Number(user?.plan_usuarios) || 1;
+
+  // El Directorio va en su propia suscripción (sql/73). Teams lo incluía.
+  const conDirectorio = ['active', 'past_due'].includes(user?.directorio_status) || !!orgConTeams;
+  const directorioPropio = ['active', 'past_due'].includes(user?.directorio_status);
+  const directorioRenueva = fecha(user?.directorio_renews_at);
+
+  async function contratarDirectorio() {
+    if (ocupado) return;
+    setOcupado(true);
+    try {
+      const res = await fetch('/api/stripe/checkout', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ plan: 'directorio' }),
+      });
+      const data = await res.json();
+      if (data?.url) {
+        window.location.href = data.url;
+        return;
+      }
+      toast.error(data?.error || 'No hemos podido iniciar el pago');
+    } catch {
+      toast.error('No hemos podido conectar. Inténtalo de nuevo.');
+    }
+    setOcupado(false);
+  }
 
   async function abrirPortal() {
     if (ocupado) return;
@@ -174,7 +201,7 @@ export default function BloquePlanCuenta({ user }) {
             </p>
           ) : (
             <p style={{ fontSize: 12.5, color: '#8b8780', lineHeight: 1.6, margin: '0 0 16px' }}>
-              Suscripción activa.
+              Suscripción activa{usuarios > 1 ? ` · ${usuarios} usuarios` : ''}.
               {renovacion && ` Se renueva el ${renovacion}.`}
             </p>
           )}
@@ -230,6 +257,41 @@ export default function BloquePlanCuenta({ user }) {
               Ver planes
             </a>
           </div>
+        </div>
+      )}
+
+      {/* --- Directorio, aparte ------------------------------------------- */}
+      {!cargandoOrg && (
+        <div style={{ ...SEPARADOR }}>
+          <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 6 }}>
+            <span style={{ fontSize: 14, fontWeight: 600, color: '#1a1a18' }}>Directorio</span>
+            {!conDirectorio && (
+              <span style={{ fontSize: 12.5, color: '#8b8780' }}>{euros(DIRECTORIO_ANUAL)} / año</span>
+            )}
+          </div>
+          {directorioPropio ? (
+            <p style={{ fontSize: 12.5, color: '#8b8780', lineHeight: 1.6, margin: 0 }}>
+              {user?.directorio_status === 'past_due'
+                ? 'No hemos podido cobrar la última renovación. Revisa tu método de pago en Gestionar suscripción.'
+                : user?.directorio_cancel_at_period_end
+                ? `Cancelado: mantienes el acceso${directorioRenueva ? ` hasta el ${directorioRenueva}` : ''}.`
+                : `Activo.${directorioRenueva ? ` Se renueva el ${directorioRenueva}.` : ''}`}
+            </p>
+          ) : conDirectorio ? (
+            <p style={{ fontSize: 12.5, color: '#8b8780', lineHeight: 1.6, margin: 0 }}>
+              Incluido en el plan de {orgConTeams?.name}.
+            </p>
+          ) : (
+            <>
+              <p style={{ fontSize: 12.5, color: '#8b8780', lineHeight: 1.6, margin: '0 0 12px' }}>
+                El correo y el teléfono de cargos, unidades, diputados y asesores, y la Base de datos con más de
+                18.000 contactos para filtrar y exportar.
+              </p>
+              <button type="button" style={BOTON_SEC} disabled={ocupado} onClick={contratarDirectorio}>
+                {ocupado ? 'Abriendo el pago…' : 'Contratar el Directorio'}
+              </button>
+            </>
+          )}
         </div>
       )}
     </div>

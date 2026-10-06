@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
-import { canAccessDatabase } from '@/lib/plan';
+import { puedeVerContactos } from '@/lib/accesoContactos';
 import { SECCIONES_DIRECTORIO, SECCION_CCAA, seccionPorSlug } from '@/lib/directorio';
 
 // Datos de las secciones del directorio que salen de la Agenda de la
@@ -281,13 +281,7 @@ export async function GET(request) {
       const id = Math.floor(Number(params.get('id')));
       if (!seccion.cat || !(id > 0)) return NextResponse.json({ error: 'Ficha desconocida' }, { status: 404 });
 
-      const { data: membership } = await admin
-        .from('organization_members')
-        .select('organizations(id, plan, plan_status, claimed, verified)')
-        .eq('user_id', authData.user.id)
-        .limit(1)
-        .maybeSingle();
-      const conContacto = !!membership?.organizations && canAccessDatabase(membership.organizations);
+      const conContacto = await puedeVerContactos(admin, authData.user.id);
 
       const datos = await ficha(admin, seccion.cat, id, conContacto);
       if (!datos) return NextResponse.json({ error: 'Ficha desconocida' }, { status: 404 });

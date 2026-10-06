@@ -53,11 +53,14 @@ export async function GET(request) {
   if (scope === 'user') {
     const { data: profile } = await admin
       .from('users')
-      .select('plan, plan_status')
+      .select('plan, plan_status, directorio_status')
       .eq('id', authData.user.id)
       .single();
 
-    ready = profile?.plan === 'pro' && SERVING.has(profile?.plan_status);
+    ready =
+      planKey === 'directorio'
+        ? SERVING.has(profile?.directorio_status)
+        : profile?.plan === 'pro' && SERVING.has(profile?.plan_status);
   } else if (scope === 'org' && meta.organization_id) {
     const { data: org } = await admin
       .from('organizations')

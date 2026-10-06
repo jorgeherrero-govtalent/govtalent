@@ -7,7 +7,7 @@ import { createClient } from '@/lib/supabase/client';
 import BackLink from '@/components/BackLink';
 import FollowButton from '@/components/FollowButton';
 import UpgradeModal from '@/components/UpgradeModal';
-import usePlanPro from '@/lib/usePlanPro';
+import useDirectorio from '@/lib/useDirectorio';
 
 const GROUP_COLORS = {
   PPE: '#378ADD',
@@ -225,7 +225,8 @@ export default function MepDetailPage() {
   const params = useParams();
   const slug = params?.slug;
 
-  const esPro = usePlanPro();
+  // El correo es del Directorio (sql/73).
+  const esPro = useDirectorio();
   const [upsell, setUpsell] = useState(false);
   const [mep, setMep] = useState(undefined); // undefined = cargando, null = no existe
   const [memberships, setMemberships] = useState([]);
@@ -511,7 +512,7 @@ export default function MepDetailPage() {
                       alignItems: 'center',
                       gap: 7,
                     }}
-                    aria-label="Ver el correo con suscripción"
+                    aria-label="Ver el correo con el Directorio"
                   >
                     <span
                       style={{ fontSize: 11.5, color: '#555', filter: 'blur(3.5px)', userSelect: 'none' }}
@@ -584,7 +585,7 @@ export default function MepDetailPage() {
       {upsell && (
         <UpgradeModal
           title="El correo de contacto"
-          message="Escribe directamente a los eurodiputados que tramitan tu proyecto, sin buscarlos uno a uno. Disponible con suscripción."
+          message="Escribe directamente a los eurodiputados que tramitan tu proyecto, sin buscarlos uno a uno. Disponible con el Directorio."
           onClose={() => setUpsell(false)}
         />
       )}

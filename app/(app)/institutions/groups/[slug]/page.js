@@ -8,7 +8,7 @@ import { toast } from '@/lib/toast';
 import BackLink from '@/components/BackLink';
 import FollowButton from '@/components/FollowButton';
 import UpgradeModal from '@/components/UpgradeModal';
-import usePlanPro from '@/lib/usePlanPro';
+import useDirectorio from '@/lib/useDirectorio';
 import { groupColor, grupoCorto } from '@/lib/grupos';
 import LogoGrupo from '@/components/LogoGrupo';
 
@@ -185,7 +185,7 @@ function CeldaCorreo({ tiene, correo, onUpsell }) {
       }}
     >
       <i className="ti ti-bolt" style={{ fontSize: 11 }}></i>
-      Correo con suscripción
+      Correo con el Directorio
     </span>
   );
 }
@@ -212,7 +212,8 @@ export default function GroupDetailPage() {
   const [categoriaAsesor, setCategoriaAsesor] = useState('');
   const [correos, setCorreos] = useState(null);
   const [upsell, setUpsell] = useState(null);
-  const esPro = usePlanPro();
+  // Los correos de asesores son del Directorio (sql/73).
+  const esPro = useDirectorio();
 
   useEffect(() => {
     if (!slug) return;
@@ -900,7 +901,7 @@ export default function GroupDetailPage() {
                       setUpsell({
                         title: 'El correo de los asesores',
                         message:
-                          'La dirección de cada asesor del grupo, para escribir a quien prepara el expediente y no solo a quien lo defiende. Disponible con suscripción.',
+                          'La dirección de cada asesor del grupo, para escribir a quien prepara el expediente y no solo a quien lo defiende. Disponible con el Directorio.',
                       })
                     }
                   />

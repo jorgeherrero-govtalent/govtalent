@@ -3,6 +3,7 @@ import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { stripe } from '@/lib/stripe';
 import { PLAN_SCOPE, PRICE_LOOKUP_KEYS, FOUNDING_PROMO_CODES } from '@/lib/plans';
+import { MAX_USUARIOS } from '@/lib/precios';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -12,7 +13,9 @@ const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://govtalent.app';
 /**
  * POST /api/stripe/checkout
  * body: {
- *   plan: 'pro' | 'recruiter' | 'teams',
+ *   plan: 'vigilancia' | 'directorio' | 'pro' | 'recruiter' | 'teams',
+ *   usuarios?: number       // vigilancia: de 1 a 50 (cantidad en Stripe)
+ *   pago?: 'mensual' | 'anual'  // vigilancia
  *   organizationId?: string,
  *   founding?: boolean      // aplica el descuento de fundador de ese plan
  * }
@@ -40,17 +43,20 @@ export async function POST(request) {
   const founding = body.founding === true;
   const scope = PLAN_SCOPE[plan];
 
-  // Planes nuevos de /precios (vigilancia por usuarios y directorio): la
-  // página ya los enseña, pero sus productos aún no están en Stripe. Hasta
-  // entonces, un mensaje claro en lugar de «Plan no válido».
-  if (plan === 'vigilancia' || plan === 'directorio') {
-    return NextResponse.json(
-      {
-        error:
-          'La contratación online de este plan estará disponible en unos días. Escríbenos a hola@govtalent.app y te damos de alta.',
-      },
-      { status: 503 }
-    );
+  // Vigilancia: el número de usuarios es la cantidad de la suscripción y
+  // Stripe aplica los tramos del precio (lib/precios.js). El precio por
+  // tramos solo existe en mensual y anual.
+  let cantidad = 1;
+  let lookupKey = PRICE_LOOKUP_KEYS[plan];
+  if (plan === 'vigilancia') {
+    cantidad = Math.round(Number(body.usuarios) || 1);
+    if (!(cantidad >= 1 && cantidad <= MAX_USUARIOS)) {
+      return NextResponse.json(
+        { error: `El plan admite de 1 a ${MAX_USUARIOS} usuarios` },
+        { status: 400 }
+      );
+    }
+    lookupKey = body.pago === 'mensual' ? PRICE_LOOKUP_KEYS.vigilancia_mensual : PRICE_LOOKUP_KEYS.vigilancia_anual;
   }
 
   if (!scope) {
@@ -61,7 +67,6 @@ export async function POST(request) {
 
   // El precio se resuelve por lookup_key, nunca por price_id fijo en el código:
   // así puedes subir precios en Stripe sin tocar ni desplegar nada.
-  const lookupKey = PRICE_LOOKUP_KEYS[plan];
   const prices = await stripe.prices.list({
     lookup_keys: [lookupKey],
     active: true,
@@ -113,16 +118,28 @@ export async function POST(request) {
   if (scope === 'user') {
     const { data: profile } = await admin
       .from('users')
-      .select('id, email, first_name, last_name, plan, plan_status, stripe_customer_id')
+      .select('id, email, first_name, last_name, plan, plan_status, stripe_customer_id, directorio_status')
       .eq('id', authData.user.id)
       .single();
 
     if (!profile) {
       return NextResponse.json({ error: 'Usuario no encontrado' }, { status: 404 });
     }
-    if (profile.plan === 'pro' && profile.plan_status === 'active') {
+    // El Directorio va en su propia suscripción: tener Vigilancia no impide
+    // contratarlo, ni al revés.
+    if (plan === 'directorio') {
+      if (['active', 'past_due'].includes(profile.directorio_status)) {
+        return NextResponse.json(
+          { error: 'Ya tienes el Directorio activo' },
+          { status: 409 }
+        );
+      }
+    } else if (profile.plan === 'pro' && profile.plan_status === 'active') {
       return NextResponse.json(
-        { error: 'Ya tienes una suscripción activa' },
+        {
+          error:
+            'Ya tienes una suscripción activa. Para cambiar el número de usuarios, escríbenos a hola@govtalent.app.',
+        },
         { status: 409 }
       );
     }
@@ -143,6 +160,7 @@ export async function POST(request) {
 
     clientReferenceId = profile.id;
     metadata = { scope: 'user', plan_key: plan, user_id: profile.id };
+    if (plan === 'vigilancia') metadata.usuarios = String(cantidad);
   } else {
     if (!organizationId) {
       return NextResponse.json(
@@ -224,7 +242,7 @@ export async function POST(request) {
   const parametros = {
     mode: 'subscription',
     customer: customerId,
-    line_items: [{ price: price.id, quantity: 1 }],
+    line_items: [{ price: price.id, quantity: cantidad }],
     // Stripe Tax: 21% en España, inversión del sujeto pasivo con NIF-IVA
     // válido en VIES, y tipo del país del cliente para particulares de la UE.
     automatic_tax: { enabled: true },

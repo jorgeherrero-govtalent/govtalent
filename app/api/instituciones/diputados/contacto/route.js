@@ -1,9 +1,9 @@
 // =====================================================================
-// CONTACTO DE UN DIPUTADO — solo para Pro
+// CONTACTO DE UN DIPUTADO — solo con el Directorio
 // app/api/instituciones/diputados/contacto/route.js
 //
 // El correo institucional de los diputados lo publica el Congreso en su
-// ficha oficial, y lo tienen 319 de los 350. Es dato de Pro.
+// ficha oficial, y lo tienen 319 de los 350. Es dato del Directorio.
 //
 // POR QUÉ UNA RUTA Y NO UN CAMPO MÁS DE LA FICHA. Si la página lo pide
 // junto al resto y lo tapa en el cliente, el correo ya ha llegado al
@@ -20,6 +20,7 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { puedeVerContactos } from '@/lib/accesoContactos';
 
 export const dynamic = 'force-dynamic';
 
@@ -37,14 +38,7 @@ export async function GET(request) {
 
   const admin = createAdminClient();
 
-  const { data: perfil } = await admin
-    .from('users')
-    .select('plan')
-    .eq('id', authData.user.id)
-    .limit(1)
-    .maybeSingle();
-
-  if (perfil?.plan !== 'pro') {
+  if (!(await puedeVerContactos(admin, authData.user.id))) {
     return NextResponse.json({ error: 'Tu plan no incluye el contacto de los diputados' }, { status: 403 });
   }
 

@@ -6,6 +6,7 @@ import { createClient } from '@/lib/supabase/client';
 import MultiSelectFilter from '@/components/MultiSelectFilter';
 import UpgradeModal from '@/components/UpgradeModal';
 import usePlanPro from '@/lib/usePlanPro';
+import useDirectorio from '@/lib/useDirectorio';
 
 // Deriva un "tipo de cargo" a partir del texto libre del cargo, para poder
 // filtrar sin depender de una lista cerrada mantenida a mano.
@@ -563,7 +564,7 @@ function CeldaContacto({ valor, esPro, onUpsell }) {
         userSelect: 'none',
         width: '100%',
       }}
-      aria-label="Ver el contacto con suscripción"
+      aria-label="Ver el contacto con el Directorio"
     >
       buzon.unidad@ministerio.gob.es
     </button>
@@ -572,6 +573,8 @@ function CeldaContacto({ valor, esPro, onUpsell }) {
 
 function BuscarTab({ members, officials }) {
   const esPro = usePlanPro();
+  // Los contactos son del Directorio, que se contrata aparte (sql/73).
+  const conDirectorio = useDirectorio();
   // Contactos por slug. Con plan llega el dato; sin plan solo `true` donde
   // hay algo que desbloquear. Las columnas ya no se piden a la tabla desde
   // el navegador: antes llegaban para todos y el candado solo las tapaba.
@@ -810,12 +813,12 @@ function BuscarTab({ members, officials }) {
                     ? contactos[p.slug].unit_email || contactos[p.slug].unit_phone
                     : contactos[p.slug] || null
                 }
-                esPro={esPro}
+                esPro={conDirectorio}
                 onUpsell={() =>
                   setUpsell({
                     title: 'El contacto de la unidad',
                     message:
-                      'El correo y el teléfono de la unidad que dirige cada persona, para escribir al sitio correcto a la primera. Disponible con suscripción.',
+                      'El correo y el teléfono de la unidad que dirige cada persona, para escribir al sitio correcto a la primera. Disponible con el Directorio.',
                   })
                 }
               />

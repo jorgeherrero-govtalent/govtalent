@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
-import { canAccessDatabase } from '@/lib/plan';
+import { puedeVerContactos } from '@/lib/accesoContactos';
 
 // Datos del directorio institucional (vista directorio_pro), solo para
 // organizaciones con el plan que lo incluye.
@@ -40,15 +40,7 @@ export async function GET(request) {
   }
 
   const admin = createAdminClient();
-  const { data: membership } = await admin
-    .from('organization_members')
-    .select('organizations(id, plan, plan_status, claimed, verified)')
-    .eq('user_id', authData.user.id)
-    .limit(1)
-    .maybeSingle();
-
-  const org = membership?.organizations;
-  if (!org || !canAccessDatabase(org)) {
+  if (!(await puedeVerContactos(admin, authData.user.id))) {
     return NextResponse.json({ error: 'Tu plan no incluye el directorio institucional' }, { status: 403 });
   }
 
