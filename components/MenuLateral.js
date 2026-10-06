@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { creditosIncluidos, miles } from '@/lib/precios';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import BuscadorGlobal from '@/components/BuscadorGlobal';
@@ -243,7 +244,7 @@ export default function MenuLateral({
             <Link
               href="/alarmas"
               className="gt-lat-anillo"
-              title={`${alarmas.usadas} de ${alarmas.limite} ${alarmas.limite === 1 ? 'alarma' : 'alarmas'} · Plan ${esPro ? 'Vigilancia' : 'Free'}`}
+              title={`${alarmas.usadas} de ${alarmas.limite} ${alarmas.limite === 1 ? 'alarma' : 'alarmas'} · ${esPro ? `${miles(creditosIncluidos(1))} créditos al mes` : 'Plan Free'}`}
             >
               <Anillo usadas={alarmas.usadas} limite={alarmas.limite} tam={34} />
             </Link>
@@ -254,7 +255,7 @@ export default function MenuLateral({
                   <b>
                     {alarmas.usadas} de {alarmas.limite} {alarmas.limite === 1 ? 'alarma' : 'alarmas'}
                   </b>
-                  <small>{esPro ? 'Plan Vigilancia' : 'Plan Free · resumen los lunes'}</small>
+                  <small>{esPro ? `${miles(creditosIncluidos(1))} créditos de IA al mes` : 'Plan Free · resumen los lunes'}</small>
                 </div>
                 <Anillo usadas={alarmas.usadas} limite={alarmas.limite} />
               </div>
