@@ -85,11 +85,11 @@ export default function CalendarioElectoral() {
     }
   }
 
-  const { proximo, estadoProximo, diasParaElecciones, hitos } = situacion;
+  const { proximo, estadoProximo, diasParaElecciones, votaHoy, hitos } = situacion;
   const nombre = proximo ? <b style={{ color: TINTA, fontWeight: 600 }}>{proximo.frase}</b> : null;
 
   let siguiente;
-  if (diasParaElecciones === 0) siguiente = <>Hoy se vota</>;
+  if (votaHoy) siguiente = <>Hoy se vota</>;
   else if (proximo && estadoProximo === 'hoy') siguiente = <>Hoy: {nombre}</>;
   else if (proximo && estadoProximo === 'en_curso')
     siguiente = (

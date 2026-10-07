@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
+import { APERTURA_COLEGIOS } from '@/lib/calendarioElectoral';
 
 /**
  * Portadas de Regulatorio: España y Unión Europea (05-10-2026).
@@ -185,7 +186,8 @@ const AMBITOS = {
 // generales el 29-11-2026. Hasta la apertura de los colegios (9:00, hora
 // peninsular) la tarjeta del Congreso es una cuenta atrás; después vuelve
 // a contar leyes en tramitación.
-const ELECCIONES = new Date('2026-11-29T09:00:00+01:00').getTime();
+// Misma cifra que el calendario electoral de Novedades (lib/calendarioElectoral.js).
+const ELECCIONES = APERTURA_COLEGIOS;
 
 function partes(ms) {
   const min = Math.floor(ms / 60000);
