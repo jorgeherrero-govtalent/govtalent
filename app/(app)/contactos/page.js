@@ -51,8 +51,8 @@ const IDEAS = [
     filtros: { tipos: ['diplomático'] },
   },
   {
-    texto: 'Eurodiputados españoles',
-    resumen: 'Diputados al Parlamento Europeo elegidos en España.',
+    texto: 'Eurodiputados españoles y sus asistentes',
+    resumen: 'Los 60 eurodiputados elegidos en España y los asistentes de sus equipos.',
     filtros: { jurisdiccion: 'UE', tipos: ['legislativo'], paises: ['ES'] },
   },
 ];
