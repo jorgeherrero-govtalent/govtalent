@@ -21,6 +21,7 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { conRegistro } from '@/lib/syncLog';
+import { LEGISLATURA, CODIGO_DATOS_ABIERTOS } from '@/lib/legislatura';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
@@ -32,6 +33,7 @@ const PORTAL = `${BASE}/es/opendata/iniciativas`;
 // en tramitación en ellas se da por caducado.
 const DISOLUCIONES = {
   'Leg.15': '06/10/2026',
+  ...(LEGISLATURA.disuelta ? { [CODIGO_DATOS_ABIERTOS]: LEGISLATURA.disuelta.split('-').reverse().join('/') } : {}),
 };
 
 // No caducan con la disolución, o hay que confirmarlo antes de marcarlas:

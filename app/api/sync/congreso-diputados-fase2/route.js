@@ -51,13 +51,14 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { conRegistro } from '@/lib/syncLog';
+import { LEGISLATURA, AVISO_DISOLUCION } from '@/lib/legislatura';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 300;
 
 // Único sitio donde se cambia de legislatura. El buscador la quiere en
 // cifra y la ficha en romano — no es un descuido, es así en el portal.
-const LEGISLATURA = { numero: '15', romana: 'XV' };
+// La legislatura vive en lib/legislatura.js (único sitio donde se cambia).
 
 const BASE = 'https://www.congreso.es';
 const BUSQUEDA = `${BASE}/es/busqueda-de-diputados`;
@@ -334,6 +335,9 @@ async function handler(request) {
 
       // Si casan muy pocos, algo cambió en el portal: mejor no tocar
       // nada que dejar los 350 a medias.
+      if (filas.length < MINIMO_ESPERADO && LEGISLATURA.disuelta) {
+        return NextResponse.json({ ...informe, n_leidos: 0, pausado: AVISO_DISOLUCION, publicados_ahora: filas.length, ms_total: Date.now() - t0 });
+      }
       if (filas.length < MINIMO_ESPERADO) {
         return NextResponse.json(
           {

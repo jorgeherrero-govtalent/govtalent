@@ -19,6 +19,7 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { conRegistro } from '@/lib/syncLog';
+import { LEGISLATURA, AVISO_DISOLUCION } from '@/lib/legislatura';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
@@ -93,7 +94,7 @@ const espera = (ms) => new Promise((r) => setTimeout(r, ms));
 // La página HTML de la comisión. El endpoint de datos no trae el
 // nombre —solo data, fechaConstitucion y fechaDisolucion— así que hay
 // que sacarlo del título de la página.
-function urlPagina(suborgano, legislatura = 'XV') {
+function urlPagina(suborgano, legislatura = LEGISLATURA.romana) {
   const p = new URLSearchParams({
     p_p_id: 'organos',
     p_p_lifecycle: '0',
@@ -157,7 +158,7 @@ function nombreDelHtml(html) {
   return null;
 }
 
-function urlComision(suborgano, legislatura = 'XV') {
+function urlComision(suborgano, legislatura = LEGISLATURA.romana) {
   // searchOrgano, no opendataExport: el segundo devuelve HTTP 400.
   // Verificado en el panel de red, que es lo que usa la propia página.
   // Tampoco lleva statusOpenData.
@@ -215,7 +216,7 @@ async function pedirComision(suborgano) {
 // selectedLegislatura es obligatorio aunque parezca opcional: sin él el
 // endpoint no da error, devuelve la legislatura 0 —la Constituyente,
 // con la Mesa de Álvarez de Miranda de 1977— como si fuera la actual.
-function urlOrganoGobierno(ruta, legislatura = 'XV') {
+function urlOrganoGobierno(ruta, legislatura = LEGISLATURA.romana) {
   const p = new URLSearchParams({
     p_p_id: 'organos',
     p_p_lifecycle: '2',
@@ -231,7 +232,7 @@ function urlOrganoGobierno(ruta, legislatura = 'XV') {
 // Devuelve la misma forma que pedirComision() para poder mezclarlos en
 // la misma lista. El nombre ya viene dado, así que se ahorra la segunda
 // petición al HTML.
-async function pedirOrganoGobierno(org, legislatura = 'XV') {
+async function pedirOrganoGobierno(org, legislatura = LEGISLATURA.romana) {
   try {
     const res = await fetch(urlOrganoGobierno(org.ruta, legislatura), { headers: HEADERS, cache: 'no-store' });
     if (!res.ok) return { suborgano: org.suborgano_id, ok: false, motivo: `HTTP ${res.status}` };
@@ -443,6 +444,10 @@ async function handler(request) {
       }
     }
 
+    if (encontradas.length === 0 && LEGISLATURA.disuelta) {
+      // Disueltas las Cortes no hay comisiones: se conservan las cargadas.
+      return NextResponse.json({ ...informe, pausado: AVISO_DISOLUCION });
+    }
     if (encontradas.length === 0) {
       return NextResponse.json({ ...informe, error: 'No se encontró ninguna comisión en el rango' }, { status: 502 });
     }
@@ -458,7 +463,7 @@ async function handler(request) {
 
       comisiones.push({
         suborgano_id: c.suborgano,
-        legislature_code: 'XV',
+        legislature_code: LEGISLATURA.romana,
         name: nombre,
         slug: slugify(nombre),
         kind: tipoComision(nombre),
