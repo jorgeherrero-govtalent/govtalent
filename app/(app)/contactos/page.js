@@ -46,9 +46,9 @@ import {
 // 07-10-2026; si cambia una fuente, revisar que sigan devolviendo gente.
 const IDEAS = [
   {
-    texto: 'Asesores de los grupos parlamentarios del Congreso',
-    resumen: 'Personal de los grupos parlamentarios del Congreso de los Diputados.',
-    filtros: { jurisdiccion: 'España', tipos: ['legislativo'], unidades: ['grupo parlamentario'] },
+    texto: 'Embajadores y cuerpo diplomático en España',
+    resumen: 'Personal de las embajadas extranjeras acreditadas en España (Lista del Cuerpo Diplomático).',
+    filtros: { tipos: ['diplomático'] },
   },
   {
     texto: 'Eurodiputados españoles',
@@ -446,8 +446,8 @@ function ContactosPagina() {
         {pestanas}
         {comunes}
         <section className="gt-ct-portada">
-          <h2>Describe los contactos que estás buscando</h2>
-          <p>La IA convierte tu descripción en filtros que puedes ajustar.</p>
+          <h2>¿A quién estás buscando?</h2>
+          <p>Crea una lista de contactos en minutos.</p>
           <form
             className="gt-ct-caja"
             onSubmit={(e) => {
