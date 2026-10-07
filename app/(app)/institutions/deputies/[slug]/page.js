@@ -467,11 +467,6 @@ export default function DeputyProfilePage() {
                     </>
                   )}
 
-                  {contacto.estado === 'sin-correo' && !encontrados[idPro] && (
-                    <span style={{ fontSize: 12.5, color: '#a8a79c' }}>
-                      El Congreso no publica su correo institucional.
-                    </span>
-                  )}
                   {contacto.estado === 'sin-correo' && (
                     <BuscarCorreo
                       persona={{ id: idPro, nombre: deputy.full_name, cargo: `Diputado/a por ${deputy.constituency}` }}

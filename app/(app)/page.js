@@ -136,15 +136,9 @@ export default function Home() {
       `}</style>
 
       <div className="gt-acciones">
-        <Link href="/projects?nuevo=1" className="gt-accion">
-          <i className="ti ti-folder-plus" aria-hidden="true"></i>
-          Nuevo proyecto
-        </Link>
-        <Link href="/alarmas" className="gt-accion morado">
+        <Link href="/alarmas" className="gt-accion-ic" title="Tus alarmas" aria-label="Tus alarmas">
           <i className="ti ti-bell" aria-hidden="true"></i>
-          Tus alarmas
         </Link>
-        <span className="gt-accion-sep" aria-hidden="true"></span>
         <Link href="/novedades" className="gt-accion-ic" title="Novedades" aria-label="Novedades">
           <i className="ti ti-clock" aria-hidden="true"></i>
         </Link>
