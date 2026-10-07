@@ -5,11 +5,11 @@ import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import TextoCreciente, { enviarConIntro } from '@/components/TextoCreciente';
 import Paginacion, { usePaginacion } from '@/components/Paginacion';
+import UpgradeModal from '@/components/UpgradeModal';
 import { BANDAS, TIPOS_INSTITUCION, FILTROS_VACIOS } from '@/lib/contactosFiltros';
 import {
   ESTILOS_CONTACTOS,
   MORADO,
-  BORDE,
   GRIS,
   miles,
   fecha,
@@ -183,6 +183,8 @@ function ContactosPagina() {
   const [saldo, setSaldo] = useState(null);
   const [packs, setPacks] = useState([]);
   const [modalComprar, setModalComprar] = useState(false);
+  // Sin Directorio se ve la misma pantalla; al usarla sale el aviso.
+  const [upsell, setUpsell] = useState(false);
   const [avisoCompra, setAvisoCompra] = useState(params.get('compra') === 'ok');
 
   const [texto, setTexto] = useState('');
@@ -269,6 +271,10 @@ function ContactosPagina() {
   }, [claveFiltros, pag.desde, pag.pageSize]); // eslint-disable-line react-hooks/exhaustive-deps
 
   async function enviar(t = texto) {
+    if (acceso === false) {
+      setUpsell(true);
+      return;
+    }
     const q = String(t || '').trim();
     if (!q) {
       cajaRef.current?.focus();
@@ -299,6 +305,10 @@ function ContactosPagina() {
 
   // Una búsqueda recomendada: filtros fijos, sin pasar por la IA.
   function usarIdea(idea) {
+    if (acceso === false) {
+      setUpsell(true);
+      return;
+    }
     setTexto(idea.texto);
     setConsulta(idea.texto);
     setAviso('');
@@ -385,40 +395,13 @@ function ContactosPagina() {
     </nav>
   );
 
-  if (acceso === false) {
-    return (
-      <div className="gt-ct">
-        <style>{ESTILOS_CONTACTOS}</style>
-        <div className="gt-ct-cab">
-          <div>
-            <h1>Contactos</h1>
-            <p>Encuentra a quién contactar en las instituciones de España y la UE, los medios y las organizaciones.</p>
-          </div>
-        </div>
-        <div style={{ maxWidth: 560, margin: '48px auto 0', border: `1px solid ${BORDE}`, borderRadius: 16, padding: 24, background: '#fff', display: 'flex', flexDirection: 'column', gap: 12 }}>
-          <span style={{ fontSize: 16, fontWeight: 600 }}>
-            <i className="ti ti-lock" style={{ color: MORADO, marginRight: 6 }} aria-hidden="true"></i>
-            Disponible con el Directorio
-          </span>
-          <p style={{ margin: 0, fontSize: 13.5, color: '#555', lineHeight: 1.6 }}>
-            Describe a quién buscas y GovTalent lo encuentra entre más de dieciocho mil cargos y contactos, con su correo, su teléfono y
-            la fuente de cada dato. Guarda listas que te avisan de los cambios. Incluye 50 créditos al mes para enriquecer contactos.
-          </p>
-          <Link href="/precios" className="btn-ai" style={{ textDecoration: 'none', alignSelf: 'flex-start' }}>
-            Ver planes
-          </Link>
-        </div>
-      </div>
-    );
-  }
-
   const cabecera = (
     <div className="gt-ct-cab">
       <div>
         <h1>Contactos</h1>
         <p>Busca en el directorio de GovTalent y en las fuentes oficiales cargadas. Buscar no consume créditos.</p>
       </div>
-      <TarjetaCreditos saldo={saldo} onComprar={() => setModalComprar(true)} />
+      {acceso && <TarjetaCreditos saldo={saldo} onComprar={() => setModalComprar(true)} />}
     </div>
   );
 
@@ -433,6 +416,14 @@ function ContactosPagina() {
         </div>
       )}
       {modalComprar && <ModalComprar packs={packs} onClose={() => setModalComprar(false)} />}
+      {upsell && (
+        <UpgradeModal
+          title="Disponible con suscripción"
+          message="El buscador de contactos es del Directorio: más de veintiún mil cargos y contactos de las instituciones de España y la UE, el cuerpo diplomático, los medios y las organizaciones, con su correo, su teléfono y la fuente de cada dato. Guarda listas que te avisan de los cambios e incluye 50 créditos al mes para enriquecer contactos."
+          href="/precios"
+          onClose={() => setUpsell(false)}
+        />
+      )}
     </>
   );
 
@@ -450,6 +441,7 @@ function ContactosPagina() {
           <p>Crea una lista de contactos en minutos.</p>
           <form
             className="gt-ct-caja"
+            onClick={() => acceso === false && setUpsell(true)}
             onSubmit={(e) => {
               e.preventDefault();
               enviar();

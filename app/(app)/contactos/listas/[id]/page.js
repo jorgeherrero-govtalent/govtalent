@@ -48,6 +48,7 @@ export default function ListaPage() {
   const [ocupado, setOcupado] = useState(null); // persona_id en curso
   const [confirmarEnr, setConfirmarEnr] = useState(null);
   const [exportError, setExportError] = useState('');
+  const [sel, setSel] = useState(() => new Set());
 
   const { estado: enr, enMarcha, enriquecer, enriquecerVarios } = useEnriquecer({ onSaldo: setSaldo });
 
@@ -131,10 +132,48 @@ export default function ListaPage() {
     if (res.ok) router.push('/contactos/listas');
   }
 
-  async function exportar() {
+  const todasMarcadas = pagina.length > 0 && pagina.every((f) => sel.has(f.id));
+  function marcar(fid) {
+    setSel((prev) => {
+      const n = new Set(prev);
+      if (n.has(fid)) n.delete(fid);
+      else n.add(fid);
+      return n;
+    });
+  }
+  function marcarPagina() {
+    setSel((prev) => {
+      const n = new Set(prev);
+      if (todasMarcadas) pagina.forEach((f) => n.delete(f.id));
+      else pagina.forEach((f) => n.add(f.id));
+      return n;
+    });
+  }
+  const seleccionadas = filas.filter((f) => sel.has(f.id));
+  const enriqueciblesSel = seleccionadas.filter((f) => !f._salida && enriquecible(f, enr)).map((f) => f.id);
+
+  async function quitarSeleccion() {
+    const ids = [...sel];
+    if (!ids.length) return;
+    try {
+      const res = await fetch(`/api/contactos/listas/${id}/miembros`, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ids }),
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(json.error || 'No se pudieron quitar');
+      setSel(new Set());
+      await cargar();
+    } catch (e) {
+      setError(e.message);
+    }
+  }
+
+  async function exportar(soloSeleccion = false) {
     setExportError('');
     try {
-      const vivas = filas.filter((f) => !f._salida);
+      const vivas = (soloSeleccion ? seleccionadas : filas).filter((f) => !f._salida);
       await registrarExportacion(vivas.length, { lista: id });
       exportarExcel(vivas, `lista-${(datos?.lista?.nombre || 'contactos').toLowerCase().replace(/[^a-z0-9]+/g, '-').slice(0, 40)}`, enr);
     } catch (e) {
@@ -211,13 +250,35 @@ export default function ListaPage() {
         )}
         {enMarcha > 0 && <span style={{ fontSize: 12.5, color: '#5443d6' }}>Enriqueciendo {miles(enMarcha)}…</span>}
         <span style={{ flexGrow: 1 }}></span>
-        <button type="button" className="btn-g" onClick={exportar} disabled={filas.length === 0}>
-          Exportar
+        <button type="button" className="btn-g" onClick={() => exportar(false)} disabled={filas.length === 0}>
+          Exportar todo
         </button>
         <button type="button" className="btn-g" onClick={() => setBorrar(true)}>
           Borrar lista
         </button>
       </div>
+      {sel.size > 0 && (
+        <div className="gt-ct-sel" style={{ marginBottom: 12 }}>
+          <span style={{ fontSize: 13, fontWeight: 600 }}>
+            {miles(sel.size)} {sel.size === 1 ? 'seleccionada' : 'seleccionadas'}
+          </span>
+          <span style={{ flexGrow: 1 }}></span>
+          <button type="button" className="btn-g" onClick={() => setSel(new Set())}>
+            Quitar selección
+          </button>
+          <button type="button" className="btn-g" onClick={quitarSeleccion}>
+            Quitar de la lista
+          </button>
+          <button type="button" className="btn-g" onClick={() => exportar(true)}>
+            Exportar
+          </button>
+          {enriqueciblesSel.length > 0 && (
+            <button type="button" className="btn-ai" onClick={() => setConfirmarEnr(enriqueciblesSel)}>
+              Enriquecer · hasta {miles(enriqueciblesSel.length)} créditos
+            </button>
+          )}
+        </div>
+      )}
       {exportError && <div className="gt-ct-aviso" style={{ marginBottom: 12 }}>{exportError}</div>}
       {error && <div className="gt-ct-aviso" style={{ marginBottom: 12 }}>{error}</div>}
 
@@ -232,6 +293,9 @@ export default function ListaPage() {
               <table>
                 <thead>
                   <tr>
+                    <th style={{ width: 28 }}>
+                      <input type="checkbox" checked={todasMarcadas} onChange={marcarPagina} aria-label="Seleccionar esta página" />
+                    </th>
                     <th>Nombre</th>
                     <th>Cargo</th>
                     <th>Institución</th>
@@ -244,6 +308,9 @@ export default function ListaPage() {
                 <tbody>
                   {pagina.map((f) => (
                     <tr key={f.id} style={f._cambio ? { background: '#faf9ff' } : undefined}>
+                      <td>
+                        <input type="checkbox" checked={sel.has(f.id)} onChange={() => marcar(f.id)} aria-label={`Seleccionar a ${f.nombre}`} />
+                      </td>
                       <td style={{ fontWeight: 500, color: f._salida ? GRIS : undefined }}>
                         {f.nombre}
                         {f._cambio && (

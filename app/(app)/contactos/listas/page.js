@@ -3,7 +3,8 @@
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import Paginacion, { usePaginacion } from '@/components/Paginacion';
-import { ESTILOS_CONTACTOS, MORADO, BORDE, GRIS, miles } from '@/components/ContactosUI';
+import UpgradeModal from '@/components/UpgradeModal';
+import { ESTILOS_CONTACTOS, MORADO, GRIS, miles } from '@/components/ContactosUI';
 
 /**
  * Listas (Buscar y enriquecer, sql/76). Las listas que ve el usuario —las
@@ -26,7 +27,9 @@ function haceCuanto(v) {
 
 export default function ListasPage() {
   const [listas, setListas] = useState(null);
+  // Sin Directorio se ve la misma pantalla (vacía); al usarla sale el aviso.
   const [bloqueado, setBloqueado] = useState(false);
+  const [upsell, setUpsell] = useState(false);
   const [error, setError] = useState('');
   const [q, setQ] = useState('');
   const [soloCambios, setSoloCambios] = useState(false);
@@ -73,7 +76,11 @@ export default function ListasPage() {
           <h1>Listas</h1>
           <p>Tus listas y las de tu equipo. Te avisan cuando alguien cambia de cargo, deja de figurar o aparece alguien nuevo.</p>
         </div>
-        {!bloqueado && (
+        {bloqueado ? (
+          <button type="button" className="btn-ai" onClick={() => setUpsell(true)}>
+            <i className="ti ti-plus" aria-hidden="true"></i> Nueva lista
+          </button>
+        ) : (
           <Link href="/contactos" className="btn-ai" style={{ textDecoration: 'none' }}>
             <i className="ti ti-plus" aria-hidden="true"></i> Nueva lista
           </Link>
@@ -88,24 +95,18 @@ export default function ListasPage() {
 
       {listas === null && <div className="spinner"></div>}
 
-      {bloqueado && (
-        <div style={{ maxWidth: 560, margin: '32px auto 0', border: `1px solid ${BORDE}`, borderRadius: 16, padding: 24, background: '#fff', display: 'flex', flexDirection: 'column', gap: 12 }}>
-          <span style={{ fontSize: 16, fontWeight: 600 }}>
-            <i className="ti ti-lock" style={{ color: MORADO, marginRight: 6 }} aria-hidden="true"></i>
-            Disponible con el Directorio
-          </span>
-          <p style={{ margin: 0, fontSize: 13.5, color: '#555', lineHeight: 1.6 }}>
-            Guarda listas de contactos que se mantienen al día: te avisan de los nombramientos, ceses y cambios de cargo.
-          </p>
-          <Link href="/precios" className="btn-ai" style={{ textDecoration: 'none', alignSelf: 'flex-start' }}>
-            Ver planes
-          </Link>
-        </div>
+      {upsell && (
+        <UpgradeModal
+          title="Disponible con suscripción"
+          message="Las listas son del Directorio: guarda listas de contactos que se mantienen al día y te avisan de los nombramientos, ceses y cambios de cargo."
+          href="/precios"
+          onClose={() => setUpsell(false)}
+        />
       )}
 
       {error && <div className="gt-ct-aviso">{error}</div>}
 
-      {listas && !bloqueado && listas.length === 0 && !error && (
+      {listas && listas.length === 0 && !error && (
         <div style={{ maxWidth: 560, margin: '32px auto 0', textAlign: 'center', display: 'flex', flexDirection: 'column', gap: 10, alignItems: 'center' }}>
           <span style={{ fontSize: 15, fontWeight: 600 }}>Todavía no tienes listas</span>
           <p style={{ margin: 0, fontSize: 13.5, color: GRIS, lineHeight: 1.6 }}>
