@@ -92,7 +92,7 @@ const SECCIONES = [
       {
         href: '/contactos',
         etiqueta: 'Contactos',
-        icono: 'ti-address-book',
+        icono: 'ti-user-search',
         activo: (p) => p.startsWith('/contactos') && !p.startsWith('/contactos/listas'),
       },
       { href: '/contactos/listas', etiqueta: 'Listas', icono: 'ti-list-details', activo: (p) => p.startsWith('/contactos/listas') },
