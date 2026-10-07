@@ -41,11 +41,35 @@ import {
  * Maquetas aprobadas: canvas «Buscador de contactos — maquetas».
  */
 
+// Búsquedas recomendadas: con filtros fijos (no pasan por la IA), así que
+// siempre dan el mismo resultado. Comprobadas contra los datos el
+// 07-10-2026; si cambia una fuente, revisar que sigan devolviendo gente.
 const IDEAS = [
-  'Jefes de gabinete de comisarios con cartera de energía',
-  'Subsecretarios de los ministerios económicos',
-  'Asesores de los grupos parlamentarios del Congreso',
-  'Directores de comunicación de los principales periódicos',
+  {
+    texto: 'Jefes de gabinete de los comisarios europeos',
+    resumen: 'Jefes y jefes adjuntos de gabinete de la Comisión Europea.',
+    filtros: { jurisdiccion: 'UE', cargos: ['head of cabinet'] },
+  },
+  {
+    texto: 'Subsecretarios de los ministerios económicos',
+    resumen: 'Subsecretarios titulares de Economía, Hacienda, Industria, Trabajo y Transformación Digital.',
+    filtros: {
+      jurisdiccion: 'España',
+      cargos: ['subsecretari'],
+      instituciones: ['Economía', 'Hacienda', 'Industria', 'Trabajo', 'Transformación Digital'],
+      solo_titulares: true,
+    },
+  },
+  {
+    texto: 'Asesores de los grupos parlamentarios del Congreso',
+    resumen: 'Personal de los grupos parlamentarios del Congreso de los Diputados.',
+    filtros: { jurisdiccion: 'España', tipos: ['legislativo'], unidades: ['grupo parlamentario'] },
+  },
+  {
+    texto: 'Responsables de comunicación de los partidos políticos',
+    resumen: 'Directores y responsables de comunicación y prensa de los partidos.',
+    filtros: { tipos: ['partidos'], cargos: ['comunicaci', 'prensa'] },
+  },
 ];
 
 const TIPO_LABEL = {
@@ -285,6 +309,17 @@ function ContactosPagina() {
     setInterpretando(false);
   }
 
+  // Una búsqueda recomendada: filtros fijos, sin pasar por la IA.
+  function usarIdea(idea) {
+    setTexto(idea.texto);
+    setConsulta(idea.texto);
+    setAviso('');
+    setError('');
+    setSeleccion(new Map());
+    setResumen(idea.resumen);
+    setFiltros({ ...FILTROS_VACIOS, ...idea.filtros });
+  }
+
   function volverAPortada() {
     setFiltros(null);
     setFilas([]);
@@ -423,8 +458,8 @@ function ContactosPagina() {
         {pestanas}
         {comunes}
         <section className="gt-ct-portada">
-          <h2>¿A quién necesitas contactar?</h2>
-          <p>Describe a quién buscas. La IA lo convierte en filtros que puedes ajustar.</p>
+          <h2>Describe los contactos que estás buscando</h2>
+          <p>La IA convierte tu descripción en filtros que puedes ajustar.</p>
           <form
             className="gt-ct-caja"
             onSubmit={(e) => {
@@ -441,7 +476,7 @@ function ContactosPagina() {
                 onChange={(e) => setTexto(e.target.value)}
                 onKeyDown={enviarConIntro(() => enviar())}
                 placeholder="Subdirectores generales del Ministerio de Industria con correo"
-                aria-label="Describe a quién buscas"
+                aria-label="Describe los contactos que estás buscando"
                 rows={2}
                 maxAltura={200}
               />
@@ -455,17 +490,9 @@ function ContactosPagina() {
           </form>
           <div className="gt-ct-ideas">
             {IDEAS.map((idea) => (
-              <button
-                key={idea}
-                type="button"
-                className="gt-ct-idea"
-                onClick={() => {
-                  setTexto(idea);
-                  enviar(idea);
-                }}
-              >
+              <button key={idea.texto} type="button" className="gt-ct-idea" onClick={() => usarIdea(idea)}>
                 <i className="ti ti-sparkles" aria-hidden="true"></i>
-                {idea}
+                {idea.texto}
               </button>
             ))}
           </div>
