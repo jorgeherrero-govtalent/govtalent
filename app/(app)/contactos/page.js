@@ -27,6 +27,7 @@ import {
   OrdenColumna,
   TextoColumna,
   OPCION_COLUMNA,
+  ValoresColumna,
 } from '@/components/ContactosUI';
 
 /**
@@ -615,12 +616,18 @@ function ContactosPagina() {
                       </CabeceraFiltro>
                     </th>
                     <th>
-                      <CabeceraFiltro etiqueta="Cargo" activo={filtros.cargos.length > 0 || /^cargo_/.test(filtros.orden || '')}>
+                      <CabeceraFiltro etiqueta="Cargo" activo={filtros.cargos.length > 0 || filtros.cargos_exactos.length > 0 || /^cargo_/.test(filtros.orden || '')}>
                         {(cerrar) => (
                           <>
                             <OrdenColumna campo="cargo" orden={filtros.orden} onOrden={(o) => setFiltros({ ...filtros, orden: o })} cerrar={cerrar} />
+                            <ValoresColumna
+                              campo="cargo"
+                              filtros={filtros}
+                              seleccion={filtros.cargos_exactos}
+                              onCambiar={(v) => setFiltros({ ...filtros, cargos_exactos: v })}
+                            />
                             <TextoColumna
-                              placeholder="El cargo contiene… (p. ej. asistente)"
+                              placeholder="O escribe: el cargo contiene…"
                               onAplicar={(v) => v && !filtros.cargos.includes(v) && setFiltros({ ...filtros, cargos: [...filtros.cargos, v] })}
                               cerrar={cerrar}
                             />
@@ -634,10 +641,17 @@ function ContactosPagina() {
                       </CabeceraFiltro>
                     </th>
                     <th>
-                      <CabeceraFiltro etiqueta="Institución" activo={filtros.instituciones.length > 0 || /^institucion_/.test(filtros.orden || '')}>
+                      <CabeceraFiltro etiqueta="Institución" activo={filtros.instituciones.length > 0 || filtros.grupos.length > 0 || /^institucion_/.test(filtros.orden || '')}>
                         {(cerrar) => (
                           <>
                             <OrdenColumna campo="institucion" orden={filtros.orden} onOrden={(o) => setFiltros({ ...filtros, orden: o })} cerrar={cerrar} />
+                            <ValoresColumna
+                              campo="grupo"
+                              titulo="Grupo del Parlamento Europeo"
+                              filtros={filtros}
+                              seleccion={filtros.grupos}
+                              onCambiar={(v) => setFiltros({ ...filtros, grupos: v })}
+                            />
                             <TextoColumna
                               placeholder="La institución contiene…"
                               onAplicar={(v) => v && !filtros.instituciones.includes(v) && setFiltros({ ...filtros, instituciones: [...filtros.instituciones, v] })}

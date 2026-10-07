@@ -673,3 +673,58 @@ export function TextoColumna({ placeholder, inicial = '', onAplicar, cerrar }) {
 }
 
 export const OPCION_COLUMNA = OPCION;
+
+/**
+ * Valores de una columna con su recuento (sql/82), para marcar varios.
+ * campo: 'cargo' | 'grupo' | 'institucion'. seleccion: array de valores.
+ */
+export function ValoresColumna({ campo, filtros, titulo, seleccion, onCambiar }) {
+  const [valores, setValores] = useState(null);
+  const [q, setQ] = useState('');
+  useEffect(() => {
+    let vivo = true;
+    fetch('/api/contactos/facetas', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ filtros, campo }),
+    })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((j) => vivo && setValores(j?.valores || []))
+      .catch(() => vivo && setValores([]));
+    return () => {
+      vivo = false;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [campo]);
+
+  if (valores === null) return <span style={{ fontSize: 12, color: GRIS }}>Cargando…</span>;
+  if (valores.length === 0) return null;
+  const t = q.trim().toLowerCase();
+  const visibles = t ? valores.filter((x) => x.v.toLowerCase().includes(t)) : valores;
+  const marcar = (v) => onCambiar(seleccion.includes(v) ? seleccion.filter((x) => x !== v) : [...seleccion, v]);
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+      {titulo ? <span style={{ fontSize: 11.5, color: GRIS }}>{titulo}</span> : null}
+      {valores.length > 8 ? (
+        <input className="gt-ct-in" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Buscar" aria-label={`Buscar en ${titulo || campo}`} />
+      ) : null}
+      <div style={{ maxHeight: 220, overflowY: 'auto', display: 'flex', flexDirection: 'column' }}>
+        {visibles.map((x) => (
+          <label key={x.v} className="gt-ct-chk" style={{ justifyContent: 'space-between', padding: '4px 2px', cursor: 'pointer' }}>
+            <span style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
+              <input type="checkbox" checked={seleccion.includes(x.v)} onChange={() => marcar(x.v)} />
+              <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>{x.v}</span>
+            </span>
+            <span style={{ fontSize: 11.5, color: GRIS, flexShrink: 0 }}>{miles(x.n)}</span>
+          </label>
+        ))}
+      </div>
+      {seleccion.length > 0 ? (
+        <button type="button" style={OPCION(false)} onClick={() => onCambiar([])}>
+          <i className="ti ti-x" style={{ fontSize: 14 }} aria-hidden="true"></i> Quitar selección
+        </button>
+      ) : null}
+    </div>
+  );
+}
