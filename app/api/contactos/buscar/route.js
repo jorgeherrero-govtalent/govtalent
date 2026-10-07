@@ -42,5 +42,21 @@ export async function POST(request) {
   }
 
   const filas = (data?.filas || []).map((f) => Object.fromEntries(COLUMNAS.map((c) => [c, f[c] ?? null])));
+
+  // Lo que ya se haya enriquecido (caché compartida, sql/76): se ve gratis.
+  const ids = filas.map((f) => f.id);
+  const enriquecidos = new Map();
+  for (let i = 0; i < ids.length; i += 300) {
+    const { data: enr } = await admin
+      .from('contactos_enriquecidos')
+      .select('persona_id, estado, email, telefono, tipo, fuente_url, verificado, notas, created_at')
+      .in('persona_id', ids.slice(i, i + 300));
+    for (const e of enr || []) enriquecidos.set(e.persona_id, e);
+  }
+  for (const f of filas) {
+    const e = enriquecidos.get(f.id);
+    f.enriquecido = e ? { ...e, persona_id: undefined } : null;
+  }
+
   return NextResponse.json({ total: Number(data?.total) || 0, filas }, { headers: { 'Cache-Control': 'no-store' } });
 }

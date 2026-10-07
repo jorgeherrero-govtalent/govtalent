@@ -62,14 +62,6 @@ const SECCIONES = [
       // (patronales, asociaciones, empresa pública, medios y actores
       // sociales) y la Base de datos de cargos, que antes era la tarjeta
       // negra de Instituciones.
-      // Contactos (07-10-2026, sql/75): el buscador en lenguaje natural del
-      // Directorio, con créditos para enriquecer.
-      {
-        href: '/contactos',
-        etiqueta: 'Contactos',
-        icono: 'ti-address-book',
-        activo: (p) => p.startsWith('/contactos'),
-      },
       {
         href: '/institutions',
         etiqueta: 'Instituciones',
@@ -89,6 +81,21 @@ const SECCIONES = [
         icono: 'ti-database',
         activo: (p) => p.startsWith('/instituciones/directorio'),
       },
+    ],
+  },
+  // Buscar y enriquecer (07-10-2026, sql/75-76): el buscador de contactos
+  // en lenguaje natural, con créditos para enriquecer, y las listas que
+  // avisan de los cambios.
+  {
+    titulo: 'Buscar y enriquecer',
+    items: [
+      {
+        href: '/contactos',
+        etiqueta: 'Contactos',
+        icono: 'ti-address-book',
+        activo: (p) => p.startsWith('/contactos') && !p.startsWith('/contactos/listas'),
+      },
+      { href: '/contactos/listas', etiqueta: 'Listas', icono: 'ti-list-details', activo: (p) => p.startsWith('/contactos/listas') },
     ],
   },
   {
