@@ -267,6 +267,21 @@ export default function MepDetailPage() {
     [equipo]
   );
   const { encontrados, apuntar } = useCorreosEncontrados(idsEquipo, esPro === true && tab === 'equipo');
+  // Correos que ya tenemos (sql/80), solo con el Directorio.
+  const [correosEquipo, setCorreosEquipo] = useState({});
+  useEffect(() => {
+    if (esPro !== true || tab !== 'equipo' || !mep?.id) return;
+    let vivo = true;
+    fetch(`/api/instituciones/asistentes-contacto?mep=${encodeURIComponent(mep.id)}`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((j) => {
+        if (vivo && j?.correos) setCorreosEquipo(j.correos);
+      })
+      .catch(() => {});
+    return () => {
+      vivo = false;
+    };
+  }, [esPro, tab, mep?.id]);
 
   useEffect(() => {
     if (!slug) return;
@@ -293,7 +308,7 @@ export default function MepDetailPage() {
           .select('id, role, start_date, end_date, is_current, eu_bodies(id, code, name_es, name_en, short_name_es, body_type)')
           .eq('mep_id', m.id),
         supabase.auth.getUser(),
-        supabase.from('eu_asistentes_meps').select('tipo, eu_asistentes(id, nombre, activo)').eq('mep_id', m.id),
+        supabase.from('eu_asistentes_meps').select('tipo, eu_asistentes(id, nombre, activo, linkedin_url)').eq('mep_id', m.id),
       ]);
 
       if (cancelled) return;
@@ -301,7 +316,7 @@ export default function MepDetailPage() {
       setEquipo(
         (eq || [])
           .filter((x) => x.eu_asistentes?.activo)
-          .map((x) => ({ id: x.eu_asistentes.id, nombre: x.eu_asistentes.nombre, tipo: x.tipo }))
+          .map((x) => ({ id: x.eu_asistentes.id, nombre: x.eu_asistentes.nombre, linkedin: x.eu_asistentes.linkedin_url, tipo: x.tipo }))
           .sort((a, b) => a.nombre.localeCompare(b.nombre, 'es'))
       );
 
@@ -509,8 +524,28 @@ export default function MepDetailPage() {
                       key={`${g.tipo}-${e.id}`}
                       style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 0', borderTop: '.5px solid #f2f0ec', flexWrap: 'wrap' }}
                     >
-                      <div style={{ flex: 1, minWidth: 0, fontSize: 12.5, fontWeight: 600 }}>{e.nombre}</div>
-                      {esPro === true && BUSCABLE.has(e.tipo) ? (
+                      <div style={{ flex: 1, minWidth: 0, fontSize: 12.5, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 7 }}>
+                        {e.nombre}
+                        {e.linkedin ? (
+                          <a
+                            href={e.linkedin}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            aria-label={`LinkedIn de ${e.nombre}`}
+                            style={{ color: '#a8a49c', display: 'flex' }}
+                          >
+                            <i className="ti ti-brand-linkedin" style={{ fontSize: 15 }} aria-hidden="true"></i>
+                          </a>
+                        ) : null}
+                      </div>
+                      {esPro === true && correosEquipo[e.id] ? (
+                        <a
+                          href={`mailto:${correosEquipo[e.id]}`}
+                          style={{ fontSize: 12, color: '#3d3a35', textDecoration: 'none', borderBottom: '1px solid #e0dfd8', overflowWrap: 'anywhere' }}
+                        >
+                          {correosEquipo[e.id]}
+                        </a>
+                      ) : esPro === true && BUSCABLE.has(e.tipo) ? (
                         <BuscarCorreo
                           persona={{ id: idPro, nombre: e.nombre, cargo: `${g.singular} de ${mep.full_name}` }}
                           encontrado={encontrados[idPro]}
