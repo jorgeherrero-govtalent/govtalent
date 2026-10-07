@@ -1,5 +1,6 @@
 'use client';
 
+import BuscarCorreo, { useCorreosEncontrados } from '@/components/BuscarCorreo';
 import { useEffect, useMemo, useState } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
@@ -214,6 +215,8 @@ export default function GroupDetailPage() {
   const [upsell, setUpsell] = useState(null);
   // Los correos de asesores son del Directorio (sql/73).
   const esPro = useDirectorio();
+  const idsSinCorreo = useMemo(() => asesores.filter((a) => !a.tiene_email).map((a) => `es-legislativo-asesor:${a.id}`), [asesores]);
+  const { encontrados, apuntar } = useCorreosEncontrados(idsSinCorreo, esPro === true && tab === 'equipo');
 
   useEffect(() => {
     if (!slug) return;
@@ -894,6 +897,13 @@ export default function GroupDetailPage() {
                       <i className="ti ti-brand-linkedin" style={{ fontSize: 15 }}></i>
                     </a>
                   )}
+                  {esPro === true && !a.tiene_email ? (
+                    <BuscarCorreo
+                      persona={{ id: `es-legislativo-asesor:${a.id}`, nombre: a.full_name, cargo: [a.cargo || a.categoria, grupo?.name].filter(Boolean).join(' · ') }}
+                      encontrado={encontrados[`es-legislativo-asesor:${a.id}`]}
+                      onResultado={(r) => apuntar(`es-legislativo-asesor:${a.id}`, r)}
+                    />
+                  ) : (
                   <CeldaCorreo
                     tiene={a.tiene_email}
                     correo={correos?.[a.slug]}
@@ -905,6 +915,7 @@ export default function GroupDetailPage() {
                       })
                     }
                   />
+                  )}
                 </div>
               ))
             )}

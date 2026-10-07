@@ -1,5 +1,6 @@
 'use client';
 
+import BuscarCorreo, { useCorreosEncontrados } from '@/components/BuscarCorreo';
 import { useEffect, useMemo, useState } from 'react';
 import * as XLSX from 'xlsx';
 import { createClient } from '@/lib/supabase/client';
@@ -588,6 +589,10 @@ export default function DirectorioInstitucionalPage() {
   const pageEnd = Math.min(filtered.length, (currentPage + 1) * pageSize);
   const paginated = filtered.slice(currentPage * pageSize, currentPage * pageSize + pageSize);
 
+  // «Buscar correo» en las filas de esta página que no traen ningún correo.
+  const idsSinCorreo = paginated.filter((f) => !limpiarEmail(f.email) && !limpiarEmail(f.email_unidad)).map((f) => f.id);
+  const { encontrados, apuntar } = useCorreosEncontrados(idsSinCorreo, planAllowed);
+
   const allPageSelected = paginated.length > 0 && paginated.every((f) => selectedIds.has(f.id));
 
   function toggleSelected(id) {
@@ -1073,7 +1078,12 @@ export default function DirectorioInstitucionalPage() {
                       {limpiarEmail(f.email_unidad)}
                     </a>
                   ) : (
-                    <span style={{ color: '#c9c8bf' }}>—</span>
+                    <BuscarCorreo
+                      persona={{ id: f.id, nombre: f.nombre, cargo: [f.cargo, f.institucion].filter(Boolean).join(' · ') }}
+                      encontrado={encontrados[f.id]}
+                      onResultado={(r) => apuntar(f.id, r)}
+                      alinear="left"
+                    />
                   )}
                 </td>
               </tr>

@@ -1,5 +1,6 @@
 'use client';
 
+import BuscarCorreo, { useCorreosEncontrados } from '@/components/BuscarCorreo';
 import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
@@ -92,6 +93,11 @@ export default function ComisarioDetailPage() {
   const [nGabinete, setNGabinete] = useState(0);
   const [direcciones, setDirecciones] = useState([]);
   const [expedientes, setExpedientes] = useState([]);
+
+  const { encontrados, apuntar } = useCorreosEncontrados(
+    gabinete.filter((p) => !(p.email && !p.email_dubious)).map((p) => `ue-ejecutivo:${p.id}`),
+    esPro === true
+  );
 
   useEffect(() => {
     if (!slug) return;
@@ -285,13 +291,19 @@ export default function ComisarioDetailPage() {
                 <div style={{ fontSize: 12.5, fontWeight: 600 }}>{p.full_name}</div>
                 <div style={{ fontSize: 10.5, color: '#a8a49c', marginTop: 2 }}>{p.role}</div>
               </div>
-              {p.email && !p.email_dubious && (
+              {p.email && !p.email_dubious ? (
                 <a
                   href={`mailto:${p.email}`}
                   style={{ fontSize: 11, color: '#8b8780', flexShrink: 0, textDecoration: 'none' }}
                 >
                   {p.email}
                 </a>
+              ) : (
+                <BuscarCorreo
+                  persona={{ id: `ue-ejecutivo:${p.id}`, nombre: p.full_name, cargo: p.role }}
+                  encontrado={encontrados[`ue-ejecutivo:${p.id}`]}
+                  onResultado={(r) => apuntar(`ue-ejecutivo:${p.id}`, r)}
+                />
               )}
             </div>
           ))}

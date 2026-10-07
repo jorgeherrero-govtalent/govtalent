@@ -1,5 +1,6 @@
 'use client';
 
+import BuscarCorreo, { useCorreosEncontrados } from '@/components/BuscarCorreo';
 import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
@@ -206,6 +207,10 @@ export default function DeputyProfilePage() {
   const [photoFailed, setPhotoFailed] = useState(false);
   // 'cargando' | 'ok' | 'sin-correo' | 'sin-plan'
   const [contacto, setContacto] = useState({ estado: 'cargando', email: null });
+  // Sin correo publicado, «Buscar correo» (solo con el Directorio: sin él
+  // el estado es 'sin-plan').
+  const idPro = deputy?.id ? `es-legislativo:${deputy.id}` : null;
+  const { encontrados, apuntar } = useCorreosEncontrados([idPro], contacto.estado === 'sin-correo' && !!idPro);
 
   useEffect(() => {
     load();
@@ -462,10 +467,18 @@ export default function DeputyProfilePage() {
                     </>
                   )}
 
-                  {contacto.estado === 'sin-correo' && (
+                  {contacto.estado === 'sin-correo' && !encontrados[idPro] && (
                     <span style={{ fontSize: 12.5, color: '#a8a79c' }}>
                       El Congreso no publica su correo institucional.
                     </span>
+                  )}
+                  {contacto.estado === 'sin-correo' && (
+                    <BuscarCorreo
+                      persona={{ id: idPro, nombre: deputy.full_name, cargo: `Diputado/a por ${deputy.constituency}` }}
+                      encontrado={encontrados[idPro]}
+                      onResultado={(r) => apuntar(idPro, r)}
+                      alinear="left"
+                    />
                   )}
 
                   {contacto.estado === 'sin-plan' && (

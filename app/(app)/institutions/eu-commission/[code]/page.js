@@ -1,5 +1,6 @@
 'use client';
 
+import BuscarCorreo, { useCorreosEncontrados } from '@/components/BuscarCorreo';
 import { useEffect, useMemo, useState } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
@@ -159,6 +160,11 @@ export default function DgDetailPage() {
   // grande son seis o siete y obligaban a desplazar mucho.
   const direccion = useMemo(() => personas.filter((p) => p.orden_cargo <= 3), [personas]);
   const resto = useMemo(() => personas.filter((p) => p.orden_cargo > 3), [personas]);
+  const idsSinCorreo = useMemo(
+    () => personas.filter((p) => !(p.email && !p.email_dubious)).map((p) => `ue-ejecutivo:${p.id}`),
+    [personas]
+  );
+  const { encontrados, apuntar } = useCorreosEncontrados(idsSinCorreo, esPro === true);
 
   if (dg === undefined) {
     return (
@@ -326,13 +332,19 @@ export default function DgDetailPage() {
                   {[p.role, p.directorate || p.unit].filter(Boolean).join(' · ')}
                 </div>
               </div>
-              {p.email && !p.email_dubious && (
+              {p.email && !p.email_dubious ? (
                 <a
                   href={`mailto:${p.email}`}
                   style={{ fontSize: 11, color: '#8b8780', flexShrink: 0, textDecoration: 'none' }}
                 >
                   {p.email}
                 </a>
+              ) : (
+                <BuscarCorreo
+                  persona={{ id: `ue-ejecutivo:${p.id}`, nombre: p.full_name, cargo: [p.role, dg.code].filter(Boolean).join(' · ') }}
+                  encontrado={encontrados[`ue-ejecutivo:${p.id}`]}
+                  onResultado={(r) => apuntar(`ue-ejecutivo:${p.id}`, r)}
+                />
               )}
             </div>
           ))}

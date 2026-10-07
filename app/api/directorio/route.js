@@ -216,14 +216,14 @@ async function ficha(admin, cat, id, conContacto) {
   const contactos = await contactosDe(
     admin,
     entidades.map((e) => e.id),
-    conContacto ? 'entidad_id, nombre, cargo, email, telefono, orden' : 'entidad_id, nombre, cargo, orden'
+    conContacto ? 'id, entidad_id, nombre, cargo, email, telefono, orden' : 'entidad_id, nombre, cargo, orden'
   );
   const porEntidad = new Map();
   for (const c of contactos) {
     if (!porEntidad.has(c.entidad_id)) porEntidad.set(c.entidad_id, []);
     porEntidad.get(c.entidad_id).push(
       conContacto
-        ? { nombre: c.nombre, cargo: c.cargo || '', email: c.email || null, telefono: c.telefono || null }
+        ? { id: `agenda:${c.id}`, nombre: c.nombre, cargo: c.cargo || '', email: c.email || null, telefono: c.telefono || null }
         : { nombre: c.nombre, cargo: c.cargo || '' }
     );
   }

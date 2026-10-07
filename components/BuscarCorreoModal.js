@@ -1,142 +1,176 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
+import { ModalComprar, TIPO_CONTACTO, dominio, limpiarEmail, miles } from '@/components/ContactosUI';
 
 /**
- * Buscar el correo de una persona que la fuente no trae. PRÓXIMAMENTE.
+ * Buscar el correo de una persona que la fuente no trae (Directorio).
  *
- * Se abre desde el botón de «play» de cada persona sin correo en las
- * fichas del directorio. Enseña ya cómo funcionará —dos modos, rápido y
- * profundo, con su coste— pero el botón de buscar está desactivado: no
- * hay motor detrás todavía. Formato tomado del modal «Enriquecer email»
- * de Enginy (05-10-2026).
+ * Usa el mismo motor que «Enriquecer» en Contactos (/api/contactos/enriquecer):
+ * Claude busca en fuentes oficiales y cita de dónde sale el dato. Cuesta
+ * 1 crédito y solo se descuenta si lo encuentra; si alguien ya lo había
+ * buscado, sale al momento y gratis (caché compartida, sql/76).
  *
- * Sin morado: es una acción del usuario, no una función de plataforma
- * activa, y la ficha va en grises.
+ * persona: { id (de directorio_pro), nombre, cargo }
+ * onResultado(resultado): cuando hay respuesta, para pintarla en la ficha.
  */
 
 const BORDE = '#e0dfd8';
+const GRIS = '#6b6b70';
 
-const MODOS = [
-  {
-    id: 'profundo',
-    icono: 'ti-database-search',
-    titulo: 'Profundo, con mayor tasa de acierto',
-    texto: 'Consultaremos más fuentes de datos, pero puede tardar más.',
-  },
-  {
-    id: 'rapido',
-    icono: 'ti-bolt',
-    titulo: 'Rápido',
-    texto: 'Solo consultaremos las fuentes de datos más rápidas.',
-  },
-];
+export default function BuscarCorreoModal({ persona, onClose, onResultado }) {
+  const [saldo, setSaldo] = useState(null);
+  const [packs, setPacks] = useState([]);
+  const [fase, setFase] = useState('inicio'); // inicio | buscando | hecho | error
+  const [resultado, setResultado] = useState(null);
+  const [cobrado, setCobrado] = useState(false);
+  const [error, setError] = useState('');
+  const [comprar, setComprar] = useState(false);
 
-export default function BuscarCorreoModal({ persona, onClose }) {
-  const [modo, setModo] = useState('rapido');
+  useEffect(() => {
+    let vivo = true;
+    fetch('/api/creditos', { cache: 'no-store' })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((j) => {
+        if (!vivo || !j) return;
+        setSaldo(j.saldo || null);
+        setPacks(j.packs || []);
+      })
+      .catch(() => {});
+    return () => {
+      vivo = false;
+    };
+  }, []);
+
+  async function buscar() {
+    setFase('buscando');
+    setError('');
+    try {
+      const res = await fetch('/api/contactos/enriquecer', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: persona.id }),
+      });
+      const json = await res.json().catch(() => ({}));
+      if (json.saldo) setSaldo(json.saldo);
+      if (!res.ok) {
+        setError(json.error || 'No se pudo completar la búsqueda. No se ha descontado ningún crédito.');
+        setFase('error');
+        return;
+      }
+      setResultado(json.resultado);
+      setCobrado(!!json.cobrado);
+      setFase('hecho');
+      if (onResultado) onResultado(json.resultado);
+    } catch {
+      setError('No se pudo completar la búsqueda. No se ha descontado ningún crédito.');
+      setFase('error');
+    }
+  }
+
   if (typeof document === 'undefined') return null;
 
+  if (comprar) {
+    return createPortal(<ModalComprar packs={packs} onClose={() => setComprar(false)} />, document.body);
+  }
+
+  const disponibles = saldo?.disponibles ?? null;
+  const sinCreditos = disponibles !== null && disponibles < 1;
+  const email = resultado?.estado === 'encontrado' ? limpiarEmail(resultado.email) : null;
+  const buscando = fase === 'buscando';
+
   return createPortal(
-    <div className="modal-ov on" onClick={(e) => e.target === e.currentTarget && onClose()}>
+    <div className="modal-ov on" onClick={(e) => e.target === e.currentTarget && !buscando && onClose()}>
       <div className="modal-box" role="dialog" aria-modal="true" aria-labelledby="buscar-correo-titulo" style={{ maxWidth: 460 }}>
         <div className="modal-head" style={{ borderBottom: 'none', paddingBottom: 6, marginBottom: 6 }}>
-          <h2 id="buscar-correo-titulo" style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 17 }}>
+          <h2 id="buscar-correo-titulo" style={{ fontSize: 17 }}>
             Buscar correo
-            <span
-              style={{
-                fontSize: 11,
-                fontWeight: 600,
-                padding: '3px 9px',
-                borderRadius: 20,
-                background: '#f5f4f1',
-                color: '#57534e',
-              }}
-            >
-              Próximamente
-            </span>
           </h2>
-          <button type="button" className="modal-x" onClick={onClose} aria-label="Cerrar">
+          <button type="button" className="modal-x" onClick={() => !buscando && onClose()} aria-label="Cerrar">
             <i className="ti ti-x" aria-hidden="true"></i>
           </button>
         </div>
 
-        {persona ? (
-          <p style={{ fontSize: 13, color: '#666', margin: '0 0 16px', lineHeight: 1.55 }}>
-            {persona.nombre}
-            {persona.cargo ? ` · ${persona.cargo}` : ''}
+        <div style={{ fontSize: 13, color: '#1a1a18', fontWeight: 600 }}>{persona.nombre}</div>
+        {persona.cargo ? <div style={{ fontSize: 12, color: GRIS, marginTop: 2 }}>{persona.cargo}</div> : null}
+
+        {fase === 'hecho' ? (
+          <div style={{ marginTop: 16, border: `.5px solid ${BORDE}`, borderRadius: 10, padding: 14, display: 'flex', flexDirection: 'column', gap: 6 }}>
+            {resultado?.estado === 'encontrado' && (email || resultado.telefono) ? (
+              <>
+                {email ? (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                    <i className="ti ti-mail" style={{ fontSize: 15, color: '#6d5aef' }} aria-hidden="true"></i>
+                    <a href={`mailto:${email}`} style={{ fontSize: 13.5, color: '#1a1a18', textDecoration: 'none', fontWeight: 600, overflowWrap: 'anywhere' }}>
+                      {email}
+                    </a>
+                    <span style={{ fontSize: 10.5, fontWeight: 600, color: '#3d2fb3', background: '#efedfd', borderRadius: 999, padding: '1px 7px' }}>
+                      {TIPO_CONTACTO[resultado.tipo] || 'Contacto'}
+                    </span>
+                  </div>
+                ) : null}
+                {resultado.telefono ? (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: '#444' }}>
+                    <i className="ti ti-phone" style={{ fontSize: 15, color: '#6d5aef' }} aria-hidden="true"></i>
+                    {resultado.telefono}
+                  </div>
+                ) : null}
+                {resultado.fuente_url ? (
+                  <div style={{ fontSize: 12, color: GRIS }}>
+                    Según{' '}
+                    <a href={resultado.fuente_url} target="_blank" rel="noopener noreferrer" style={{ color: '#5443d6', textDecoration: 'none' }}>
+                      {dominio(resultado.fuente_url)} ↗
+                    </a>
+                    {resultado.verificado === false ? ' · sin verificar' : ''}
+                  </div>
+                ) : null}
+                <div style={{ fontSize: 11.5, color: GRIS }}>{cobrado ? 'Se ha descontado 1 crédito.' : 'Ya lo habíamos encontrado antes: sin coste.'}</div>
+              </>
+            ) : (
+              <div style={{ fontSize: 13, color: '#3a3a3d', lineHeight: 1.55 }}>
+                No hemos encontrado un correo publicado en fuentes oficiales. No se ha descontado ningún crédito.
+              </div>
+            )}
+          </div>
+        ) : (
+          <p style={{ fontSize: 13, color: '#555', margin: '14px 0 0', lineHeight: 1.6 }}>
+            Buscamos su correo en fuentes oficiales y te decimos de dónde sale. Cuesta 1 crédito y solo se descuenta si lo
+            encontramos.
           </p>
-        ) : null}
+        )}
 
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }} role="radiogroup" aria-label="Modo de búsqueda">
-          {MODOS.map((m) => {
-            const activo = modo === m.id;
-            return (
-              <button
-                key={m.id}
-                type="button"
-                role="radio"
-                aria-checked={activo}
-                onClick={() => setModo(m.id)}
-                style={{
-                  textAlign: 'left',
-                  fontFamily: 'inherit',
-                  cursor: 'pointer',
-                  border: `1px solid ${activo ? '#1a1a18' : BORDE}`,
-                  background: activo ? '#f5f4f1' : '#fff',
-                  borderRadius: 12,
-                  padding: '14px 16px',
-                }}
-              >
-                <span style={{ display: 'flex', alignItems: 'center', gap: 9, fontSize: 14, fontWeight: 600, color: '#1a1a18' }}>
-                  <i className={`ti ${m.icono}`} style={{ fontSize: 17, color: '#767670' }} aria-hidden="true"></i>
-                  {m.titulo}
-                </span>
-                <span style={{ display: 'block', fontSize: 12.5, color: '#767670', marginTop: 6, lineHeight: 1.5 }}>{m.texto}</span>
+        {fase === 'error' ? <p style={{ fontSize: 12.5, color: '#3a3a3d', margin: '12px 0 0' }}>{error}</p> : null}
+
+        {fase !== 'hecho' ? (
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, marginTop: 18, flexWrap: 'wrap' }}>
+            <span style={{ fontSize: 12, color: GRIS }}>
+              {disponibles === null ? '' : sinCreditos ? 'No te quedan créditos' : `Te quedan ${miles(disponibles)} ${disponibles === 1 ? 'crédito' : 'créditos'}`}
+            </span>
+            {sinCreditos ? (
+              <button type="button" className="btn-ai" onClick={() => setComprar(true)}>
+                Comprar créditos
               </button>
-            );
-          })}
-        </div>
-
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            gap: 12,
-            marginTop: 20,
-            flexWrap: 'wrap',
-          }}
-        >
-          <span style={{ fontSize: 12.5, color: '#767670' }}>Esta función estará disponible muy pronto.</span>
-          <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <button
-              type="button"
-              onClick={onClose}
-              style={{ border: 'none', background: 'none', fontFamily: 'inherit', fontSize: 13, color: '#57534e', cursor: 'pointer', padding: '9px 10px' }}
-            >
-              Cancelar
+            ) : (
+              <button type="button" className="btn-ai" onClick={buscar} disabled={buscando} style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                {buscando ? (
+                  'Buscando en fuentes oficiales…'
+                ) : (
+                  <>
+                    <i className="ti ti-search" aria-hidden="true"></i> Buscar correo · 1 crédito
+                  </>
+                )}
+              </button>
+            )}
+          </div>
+        ) : (
+          <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 16 }}>
+            <button type="button" className="btn-ai-o" onClick={onClose}>
+              Cerrar
             </button>
-            <button
-              type="button"
-              disabled
-              title="Próximamente"
-              style={{
-                border: 'none',
-                borderRadius: 9,
-                padding: '9px 16px',
-                fontFamily: 'inherit',
-                fontSize: 13,
-                fontWeight: 600,
-                background: '#f0efe9',
-                color: '#8b8780',
-                cursor: 'not-allowed',
-              }}
-            >
-              Buscar correo
-            </button>
-          </span>
-        </div>
+          </div>
+        )}
+        {buscando ? <div style={{ fontSize: 11.5, color: GRIS, marginTop: 8, textAlign: 'right' }}>Puede tardar hasta un minuto.</div> : null}
       </div>
     </div>,
     document.body

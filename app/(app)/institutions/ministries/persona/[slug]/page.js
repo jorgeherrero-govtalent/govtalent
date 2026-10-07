@@ -1,5 +1,6 @@
 'use client';
 
+import BuscarCorreo, { useCorreosEncontrados } from '@/components/BuscarCorreo';
 import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
@@ -44,6 +45,11 @@ export default function GovernmentOfficialProfilePage() {
   const [userId, setUserId] = useState(null);
   const [tab, setTab] = useState('contacto');
   const [radarNote, setRadarNote] = useState(false);
+  // Sin ningún correo (ni suyo ni de la unidad), «Buscar correo» con el
+  // Directorio.
+  const idPro = official?.id ? `es-ejecutivo:${official.id}` : null;
+  const sinCorreo = !!official && !official.email && !official.unit_email;
+  const { encontrados, apuntar } = useCorreosEncontrados([idPro], esPro === true && sinCorreo && !!idPro);
 
   useEffect(() => {
     // .limit(1) antes de .maybeSingle(): sin él la consulta falla en silencio
@@ -56,7 +62,7 @@ export default function GovernmentOfficialProfilePage() {
     Promise.all([
       supabase
         .from('government_officials')
-        .select('full_name, slug, role, ministry_name, unit_name')
+        .select('id, full_name, slug, role, ministry_name, unit_name')
         .eq('slug', slug)
         .limit(1)
         .maybeSingle(),
@@ -270,6 +276,14 @@ export default function GovernmentOfficialProfilePage() {
                   {official.unit_phone}
                 </div>
               )}
+              {official.email && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: 9 }}>
+                  <i className="ti ti-mail" style={{ color: '#6d5aef', fontSize: 14 }}></i>
+                  <a href={`mailto:${official.email}`} style={{ color: '#555', textDecoration: 'none', wordBreak: 'break-all' }}>
+                    {official.email}
+                  </a>
+                </div>
+              )}
               {official.unit_email && (
                 <div style={{ display: 'flex', alignItems: 'center', gap: 9 }}>
                   <i className="ti ti-mail" style={{ color: '#6d5aef', fontSize: 14 }}></i>
@@ -294,6 +308,18 @@ export default function GovernmentOfficialProfilePage() {
                   </a>
                 </div>
               )}
+            </div>
+          )}
+          {esPro === true && sinCorreo && idPro && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 9, marginTop: 12, paddingTop: 12, borderTop: '.5px solid #f0f0eb', flexWrap: 'wrap' }}>
+              <i className="ti ti-mail" style={{ color: '#a8a49c', fontSize: 14 }} aria-hidden="true"></i>
+              {!encontrados[idPro] && <span style={{ fontSize: 12.5, color: '#a8a79c' }}>No tenemos su correo.</span>}
+              <BuscarCorreo
+                persona={{ id: idPro, nombre: displayName, cargo: [official.role, official.ministry_name].filter(Boolean).join(' · ') }}
+                encontrado={encontrados[idPro]}
+                onResultado={(r) => apuntar(idPro, r)}
+                alinear="left"
+              />
             </div>
           )}
         </div>

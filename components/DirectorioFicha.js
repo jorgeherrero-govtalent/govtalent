@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import BackLink from '@/components/BackLink';
 import { BotonSoloProyecto } from '@/components/FollowButton';
 import UpgradeModal from '@/components/UpgradeModal';
-import BuscarCorreoModal from '@/components/BuscarCorreoModal';
+import BuscarCorreo, { useCorreosEncontrados } from '@/components/BuscarCorreo';
 import Paginacion, { usePaginacion } from '@/components/Paginacion';
 import { seccionPorSlug } from '@/lib/directorio';
 
@@ -16,8 +16,8 @@ import { seccionPorSlug } from '@/lib/directorio';
  *
  * Maqueta A con los ajustes del 05-10-2026: sin morado, sin fuentes, solo
  * con el botón de proyecto (sin Seguir: no hay avisos que dar de ellas) y,
- * en las personas sin correo, un botón para buscarlo que por ahora abre
- * un «Próximamente».
+ * en las personas sin correo, «Buscar correo» (1 crédito, solo si lo
+ * encuentra; components/BuscarCorreo).
  *
  * Correos y teléfonos solo llegan si el plan incluye la Base de datos: lo
  * decide /api/directorio en el servidor.
@@ -72,7 +72,7 @@ function Dato({ titulo, children }) {
   );
 }
 
-function Persona({ p, contacto, ultima, onBuscar }) {
+function Persona({ p, contacto, ultima, encontrados, apuntar }) {
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 11, padding: '9px 0', borderBottom: ultima ? 'none' : LINEA, flexWrap: 'wrap' }}>
       <div
@@ -103,28 +103,7 @@ function Persona({ p, contacto, ultima, onBuscar }) {
               <Correos valor={p.email} />
             </div>
           ) : (
-            <button
-              type="button"
-              onClick={() => onBuscar(p)}
-              title="Buscar correo"
-              aria-label={`Buscar el correo de ${p.nombre}`}
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: 5,
-                border: `.5px solid ${BORDE}`,
-                background: '#fff',
-                borderRadius: 7,
-                padding: '4px 9px',
-                fontFamily: 'inherit',
-                fontSize: 11.5,
-                color: '#57534e',
-                cursor: 'pointer',
-              }}
-            >
-              <i className="ti ti-player-play" style={{ fontSize: 13 }} aria-hidden="true"></i>
-              Buscar correo
-            </button>
+            <BuscarCorreo persona={p} encontrado={encontrados[p.id]} onResultado={(r) => apuntar(p.id, r)} />
           )}
           {p.telefono ? <div style={{ color: '#888' }}>{separar(p.telefono).join(', ')}</div> : null}
         </div>
@@ -165,7 +144,7 @@ function AvisoContacto({ onUpsell }) {
 
 // Delegaciones, emisoras o instituciones dentro de la organización. Una
 // cadena de radio puede tener casi doscientas: van paginadas.
-function Unidades({ unidades, contacto, onBuscar }) {
+function Unidades({ unidades, contacto, encontrados, apuntar }) {
   const pag = usePaginacion(unidades.length);
   const slice = unidades.slice(pag.desde, pag.hasta);
   return (
@@ -196,7 +175,7 @@ function Unidades({ unidades, contacto, onBuscar }) {
           {u.personas.length > 0 ? (
             <div style={{ marginTop: 4 }}>
               {u.personas.map((p, j) => (
-                <Persona key={j} p={p} contacto={contacto} ultima={j === u.personas.length - 1} onBuscar={onBuscar} />
+                <Persona key={j} p={p} contacto={contacto} ultima={j === u.personas.length - 1} encontrados={encontrados} apuntar={apuntar} />
               ))}
             </div>
           ) : null}
@@ -213,7 +192,8 @@ export default function DirectorioFicha({ slug, id, volverA, volverEtiqueta }) {
   const [contacto, setContacto] = useState(false);
   const [estado, setEstado] = useState('cargando');
   const [upsell, setUpsell] = useState(false);
-  const [buscando, setBuscando] = useState(null);
+  const sinCorreo = contacto && ficha ? ficha.unidades.flatMap((u) => u.personas).filter((p) => !p.email && p.id).map((p) => p.id) : [];
+  const { encontrados, apuntar } = useCorreosEncontrados(sinCorreo, contacto);
 
   useEffect(() => {
     let vivo = true;
@@ -327,14 +307,13 @@ export default function DirectorioFicha({ slug, id, volverA, volverEtiqueta }) {
           <div style={{ fontSize: 12.5, color: '#999', lineHeight: 1.6 }}>No tenemos todavía las personas de esta sede.</div>
         ) : (
           equipo.map((p, i) => (
-            <Persona key={i} p={p} contacto={contacto} ultima={i === equipo.length - 1} onBuscar={setBuscando} />
+            <Persona key={i} p={p} contacto={contacto} ultima={i === equipo.length - 1} encontrados={encontrados} apuntar={apuntar} />
           ))
         )}
       </div>
 
-      {resto.length > 0 ? <Unidades unidades={resto} contacto={contacto} onBuscar={setBuscando} /> : null}
+      {resto.length > 0 ? <Unidades unidades={resto} contacto={contacto} encontrados={encontrados} apuntar={apuntar} /> : null}
 
-      {buscando ? <BuscarCorreoModal persona={buscando} onClose={() => setBuscando(null)} /> : null}
       {upsell ? (
         <UpgradeModal
           title="Los contactos van con el Directorio"
