@@ -181,6 +181,19 @@ const AMBITOS = {
   },
 };
 
+// Cortes disueltas (Real Decreto en el BOE del 06-10-2026) y elecciones
+// generales el 29-11-2026. Hasta ese día la tarjeta del Congreso cuenta
+// los días que faltan; después vuelve a contar leyes en tramitación.
+const ELECCIONES = { fecha: '2026-11-29', texto: '29 de noviembre' };
+
+function diasParaElecciones() {
+  const hoy = new Date();
+  hoy.setHours(0, 0, 0, 0);
+  const dia = new Date(`${ELECCIONES.fecha}T00:00:00`);
+  const dias = Math.round((dia.getTime() - hoy.getTime()) / 86400000);
+  return dias >= 0 ? dias : null;
+}
+
 function cuentas(supabase, ambito) {
   if (ambito === 'ue') {
     return {
@@ -190,7 +203,14 @@ function cuentas(supabase, ambito) {
     };
   }
   return {
-    esVivas: supabase.from('es_initiatives').select('num_expediente', { count: 'exact', head: true }).eq('is_closed', false),
+    // Sin las proposiciones de ley de los parlamentos autonómicos: no
+    // caducan con la disolución y, con las Cortes disueltas, eran las
+    // únicas «vivas» (y ya salen en Parlamentos Autonómicos).
+    esVivas: supabase
+      .from('es_initiatives')
+      .select('num_expediente', { count: 'exact', head: true })
+      .eq('is_closed', false)
+      .neq('tipo', 'Proposición de ley de Comunidades y Ciudades Autónomas'),
     // Sobre la vista y no sobre la tabla: el estado se calcula allí a
     // partir de fecha_fin.
     consultasAbiertas: supabase.from('consultas_estado').select('id', { count: 'exact', head: true }).in('estado', ['abierta', 'urgente']),
@@ -212,6 +232,7 @@ export default function RegulatorioPortada({ ambito }) {
   const a = AMBITOS[ambito];
   const [cifras, setCifras] = useState({});
   const [afectan, setAfectan] = useState({});
+  const diasElecciones = diasParaElecciones();
 
   useEffect(() => {
     const q = cuentas(supabase, ambito);
@@ -262,15 +283,30 @@ export default function RegulatorioPortada({ ambito }) {
           </>
         ) : (
           <>
-            <Institucion
-              href="/congreso"
-              titulo="Congreso"
-              descripcion="Leyes, comparecencias y preguntas, con sus plazos."
-              trazo="congreso"
-              cifra={cifras.esVivas}
-              etiqueta="leyes en tramitación"
-              afectan={afectan.ley || 0}
-            />
+            {diasElecciones !== null ? (
+              <Institucion
+                href="/congreso"
+                titulo="Congreso"
+                descripcion="Cortes disueltas. Las leyes que no llegaron a aprobarse decaen y la actividad vuelve con la nueva legislatura."
+                trazo="congreso"
+                cifra={diasElecciones}
+                etiqueta={
+                  diasElecciones === 0
+                    ? `hoy, elecciones generales`
+                    : `${diasElecciones === 1 ? 'día' : 'días'} para las elecciones generales del ${ELECCIONES.texto}`
+                }
+              />
+            ) : (
+              <Institucion
+                href="/congreso"
+                titulo="Congreso"
+                descripcion="Leyes, comparecencias y preguntas, con sus plazos."
+                trazo="congreso"
+                cifra={cifras.esVivas}
+                etiqueta="leyes en tramitación"
+                afectan={afectan.ley || 0}
+              />
+            )}
             <Institucion
               href="/regulatorio/consultas"
               titulo="Consultas Públicas"
