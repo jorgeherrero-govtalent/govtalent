@@ -14,8 +14,8 @@ import { enriquecerPersona } from '@/lib/enriquecer';
 //    devuelve gratis.
 // 2. Si no, hace falta al menos 1 crédito disponible.
 // 3. Claude busca en fuentes oficiales (lib/enriquecer.js).
-// 4. Se guarda en la caché y, solo si ha encontrado algo, se descuenta
-//    1 crédito.
+// 4. Se guarda en la caché y, solo si ha encontrado un correo, se
+//    descuenta 1 crédito.
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 120;
@@ -96,8 +96,10 @@ export async function POST(request) {
     .single();
   if (errGuardar) console.error('[contactos/enriquecer] guardar:', errGuardar.message);
 
+  // Solo se cobra si hay correo: un teléfono suelto (casi siempre la
+  // centralita) se enseña, pero no cuesta un crédito.
   let cobrado = false;
-  if (r.estado === 'encontrado') {
+  if (r.estado === 'encontrado' && r.email) {
     const c = await consumirCreditos(admin, userId, 1, `Enriquecer: ${persona.nombre || id}`, `enr:${id}:${userId}:${Date.now()}`);
     cobrado = c?.ok === true;
   }

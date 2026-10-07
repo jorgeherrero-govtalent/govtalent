@@ -97,7 +97,7 @@ export default function BuscarCorreoModal({ persona, onClose, onResultado }) {
 
         {fase === 'hecho' ? (
           <div style={{ marginTop: 16, border: `.5px solid ${BORDE}`, borderRadius: 10, padding: 14, display: 'flex', flexDirection: 'column', gap: 6 }}>
-            {resultado?.estado === 'encontrado' && (email || resultado.telefono) ? (
+            {email ? (
               <>
                 {email ? (
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
@@ -130,6 +130,19 @@ export default function BuscarCorreoModal({ persona, onClose, onResultado }) {
             ) : (
               <div style={{ fontSize: 13, color: '#3a3a3d', lineHeight: 1.55 }}>
                 No hemos encontrado un correo publicado en fuentes oficiales. No se ha descontado ningún crédito.
+                {resultado?.telefono ? (
+                  <div style={{ fontSize: 12.5, color: GRIS, marginTop: 6 }}>
+                    Teléfono publicado: {resultado.telefono}
+                    {resultado.fuente_url ? (
+                      <>
+                        {' · '}
+                        <a href={resultado.fuente_url} target="_blank" rel="noopener noreferrer" style={{ color: '#5443d6', textDecoration: 'none' }}>
+                          {dominio(resultado.fuente_url)} ↗
+                        </a>
+                      </>
+                    ) : null}
+                  </div>
+                ) : null}
               </div>
             )}
           </div>

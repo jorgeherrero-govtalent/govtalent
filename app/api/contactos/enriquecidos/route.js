@@ -35,6 +35,7 @@ export async function POST(request) {
       .select('persona_id, estado, email, telefono, tipo, fuente_url, verificado, created_at')
       .in('persona_id', ids.slice(i, i + 500))
       .eq('estado', 'encontrado')
+      .not('email', 'is', null)
       .gte('created_at', desde);
     if (error) {
       console.error('[contactos/enriquecidos]', error.message);

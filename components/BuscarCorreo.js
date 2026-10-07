@@ -39,7 +39,7 @@ export function useCorreosEncontrados(ids, activo = true) {
   }, [clave]);
 
   function apuntar(id, r) {
-    if (r?.estado === 'encontrado') setEncontrados((prev) => ({ ...prev, [id]: r }));
+    if (r?.estado === 'encontrado' && r.email) setEncontrados((prev) => ({ ...prev, [id]: r }));
   }
 
   return { encontrados, apuntar };

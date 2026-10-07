@@ -178,7 +178,7 @@ export function ModalComprar({ packs, onClose }) {
   return (
     <Modal titulo="Comprar créditos" onClose={onClose} ancho={520}>
       <p style={{ fontSize: 13, color: '#666', margin: '4px 0 16px', lineHeight: 1.6 }}>
-        Un crédito enriquece una persona y solo se descuenta si encontramos un contacto publicado en fuentes oficiales. Los
+        Un crédito enriquece una persona y solo se descuenta si encontramos su correo publicado en fuentes oficiales. Los
         créditos comprados no caducan y se usan después de los del mes.
       </p>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 10 }}>
