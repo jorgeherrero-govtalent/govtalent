@@ -48,16 +48,12 @@ export function useCorreosEncontrados(ids, activo = true) {
 /** El correo encontrado, con su fuente. */
 export function CorreoEncontrado({ r, alinear = 'right' }) {
   const email = limpiarEmail(r?.email);
-  if (!email && !r?.telefono) return null;
+  if (!email) return null;
   return (
     <span style={{ display: 'inline-flex', flexDirection: 'column', alignItems: alinear === 'right' ? 'flex-end' : 'flex-start', gap: 1, minWidth: 0 }}>
-      {email ? (
-        <a href={`mailto:${email}`} style={{ fontSize: 12, color: '#3d3a35', textDecoration: 'none', borderBottom: '1px solid #e0dfd8', overflowWrap: 'anywhere' }}>
-          {email}
-        </a>
-      ) : (
-        <span style={{ fontSize: 12, color: '#3d3a35' }}>{r.telefono}</span>
-      )}
+      <a href={`mailto:${email}`} style={{ fontSize: 12, color: '#3d3a35', textDecoration: 'none', borderBottom: '1px solid #e0dfd8', overflowWrap: 'anywhere' }}>
+        {email}
+      </a>
       {r.fuente_url ? (
         <span style={{ fontSize: 10.5, color: '#a8a49c' }}>
           Según{' '}

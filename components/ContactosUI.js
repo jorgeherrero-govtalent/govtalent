@@ -304,10 +304,10 @@ export function CeldaContacto({ f, estado, onEnriquecer, puedeEnriquecer = true 
           <span className="gt-ct-tipo">Directo</span>
         </span>
       )}
-      {enr?.estado === 'encontrado' && (enrEmail || enr.telefono) && enrEmail !== email && (
+      {enr?.estado === 'encontrado' && enrEmail && enrEmail !== email && (
         <span style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
           <span className="gt-ct-cto">
-            {enrEmail ? <a href={`mailto:${enrEmail}`}>{enrEmail}</a> : <span>{enr.telefono}</span>}
+            <a href={`mailto:${enrEmail}`}>{enrEmail}</a>
             <span className="gt-ct-tipo" style={{ background: '#efedfd', color: '#3d2fb3' }}>
               {TIPO_CONTACTO[enr.tipo] || 'Contacto'}
             </span>
@@ -335,7 +335,9 @@ export function CeldaContacto({ f, estado, onEnriquecer, puedeEnriquecer = true 
 
       {enCurso?.fase === 'buscando' && <span style={{ fontSize: 12, fontWeight: 600, color: '#5443d6' }}>Buscando en fuentes oficiales…</span>}
       {enCurso?.fase === 'error' && <span style={{ fontSize: 12, color: GRIS }}>{enCurso.error}</span>}
-      {enr?.estado === 'no_encontrado' && <span style={{ fontSize: 12, color: GRIS }}>Sin contacto directo publicado · sin coste</span>}
+      {(enr?.estado === 'no_encontrado' || (enr?.estado === 'encontrado' && !enrEmail)) && (
+        <span style={{ fontSize: 12, color: GRIS }}>Sin correo publicado · sin coste</span>
+      )}
       {puedeEnriquecer && onEnriquecer && enriquecible(f, estado) && enCurso?.fase !== 'buscando' && (
         <button type="button" className="gt-ct-enr" onClick={() => onEnriquecer(f.id)}>
           Enriquecer · 1 crédito
@@ -473,7 +475,7 @@ export function exportarExcel(filas, nombreArchivo = 'contactos', estado = null)
   const ws = XLSX.utils.json_to_sheet(
     filas.map((f) => {
       const enr = enriquecimientoDe(f, estado);
-      const ok = enr?.estado === 'encontrado';
+      const ok = enr?.estado === 'encontrado' && !!limpiarEmail(enr.email);
       return {
         Nombre: f.nombre || '',
         Cargo: f.cargo || '',

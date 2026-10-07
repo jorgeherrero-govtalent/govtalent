@@ -130,17 +130,6 @@ export default function BuscarCorreoModal({ persona, onClose, onResultado }) {
             ) : (
               <div style={{ fontSize: 13, color: '#3a3a3d', lineHeight: 1.55 }}>
                 No hemos encontrado un correo publicado en fuentes oficiales. No se ha descontado ningún crédito.
-                {resultado?.telefono ? (
-                  <div style={{ fontSize: 12.5, color: GRIS, marginTop: 6 }}>
-                    Teléfono publicado: {resultado.telefono}
-                    {resultado.fuente_url ? (
-                      <>
-                        {' · '}
-                        <a href={resultado.fuente_url} target="_blank" rel="noopener noreferrer" style={{ color: '#5443d6', textDecoration: 'none' }}>
-                          {dominio(resultado.fuente_url)} ↗
-                        </a>
-                      </>
-                    ) : null}
                   </div>
                 ) : null}
               </div>
