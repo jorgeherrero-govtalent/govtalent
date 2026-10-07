@@ -28,7 +28,7 @@ const GRIS = '#6b6b70';
 const IDEAS = [
   'Jefes de gabinete de comisarios con cartera de energía',
   'Subsecretarios de los ministerios económicos',
-  'Portavoces de Sanidad en el Congreso',
+  'Asesores de los grupos parlamentarios del Congreso',
   'Directores de comunicación de los principales periódicos',
 ];
 
