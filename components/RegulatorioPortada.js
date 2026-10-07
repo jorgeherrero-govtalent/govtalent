@@ -182,16 +182,61 @@ const AMBITOS = {
 };
 
 // Cortes disueltas (Real Decreto en el BOE del 06-10-2026) y elecciones
-// generales el 29-11-2026. Hasta ese día la tarjeta del Congreso cuenta
-// los días que faltan; después vuelve a contar leyes en tramitación.
-const ELECCIONES = { fecha: '2026-11-29', texto: '29 de noviembre' };
+// generales el 29-11-2026. Hasta la apertura de los colegios (9:00, hora
+// peninsular) la tarjeta del Congreso es una cuenta atrás; después vuelve
+// a contar leyes en tramitación.
+const ELECCIONES = new Date('2026-11-29T09:00:00+01:00').getTime();
 
-function diasParaElecciones() {
-  const hoy = new Date();
-  hoy.setHours(0, 0, 0, 0);
-  const dia = new Date(`${ELECCIONES.fecha}T00:00:00`);
-  const dias = Math.round((dia.getTime() - hoy.getTime()) / 86400000);
-  return dias >= 0 ? dias : null;
+function partes(ms) {
+  const min = Math.floor(ms / 60000);
+  return { dias: Math.floor(min / 1440), horas: Math.floor((min % 1440) / 60), minutos: min % 60 };
+}
+
+/** Milisegundos hasta las elecciones (null si ya han pasado). Solo en el
+ *  navegador, para que no haya desajuste con el render del servidor. */
+function useCuentaAtras() {
+  const [quedan, setQuedan] = useState(undefined);
+  useEffect(() => {
+    const tic = () => {
+      const ms = ELECCIONES - Date.now();
+      setQuedan(ms > 0 ? ms : null);
+    };
+    tic();
+    const t = setInterval(tic, 15000);
+    return () => clearInterval(t);
+  }, []);
+  return quedan;
+}
+
+function CuentaAtras({ ms }) {
+  const p = ms ? partes(ms) : null;
+  const casilla = (n, etiqueta) => (
+    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4, minWidth: 0, flex: 1, background: '#f7f6fe', borderRadius: 10, padding: '10px 6px' }}>
+      <span style={{ fontSize: 24, fontWeight: 600, color: MORADO, lineHeight: 1, fontVariantNumeric: 'tabular-nums' }}>
+        {p ? String(n).padStart(2, '0') : '—'}
+      </span>
+      <span style={{ fontSize: 11.5, color: '#8b8780' }}>{etiqueta}</span>
+    </div>
+  );
+  return (
+    <Link
+      href="/congreso"
+      className="bento"
+      style={{ ...CARD, display: 'flex', flexDirection: 'column', justifyContent: 'space-between', gap: 14 }}
+      aria-label={p ? `Congreso: faltan ${p.dias} días, ${p.horas} horas y ${p.minutos} minutos para las elecciones generales del 29 de noviembre` : 'Congreso: elecciones generales del 29 de noviembre'}
+    >
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 10 }}>
+        <div style={{ fontSize: 15.5, fontWeight: 600, letterSpacing: '-.2px' }}>Congreso</div>
+        <span style={{ fontSize: 12, color: '#8b8780' }}>Elecciones generales</span>
+      </div>
+      <div style={{ fontSize: 44, fontWeight: 700, letterSpacing: '-1.5px', color: '#1a1a18', lineHeight: 1 }}>29N</div>
+      <div style={{ display: 'flex', gap: 8 }} aria-hidden="true">
+        {casilla(p?.dias, p?.dias === 1 ? 'día' : 'días')}
+        {casilla(p?.horas, p?.horas === 1 ? 'hora' : 'horas')}
+        {casilla(p?.minutos, p?.minutos === 1 ? 'minuto' : 'minutos')}
+      </div>
+    </Link>
+  );
 }
 
 function cuentas(supabase, ambito) {
@@ -232,7 +277,7 @@ export default function RegulatorioPortada({ ambito }) {
   const a = AMBITOS[ambito];
   const [cifras, setCifras] = useState({});
   const [afectan, setAfectan] = useState({});
-  const diasElecciones = diasParaElecciones();
+  const quedan = useCuentaAtras();
 
   useEffect(() => {
     const q = cuentas(supabase, ambito);
@@ -283,19 +328,8 @@ export default function RegulatorioPortada({ ambito }) {
           </>
         ) : (
           <>
-            {diasElecciones !== null ? (
-              <Institucion
-                href="/congreso"
-                titulo="Congreso"
-                descripcion="Cortes disueltas. Las leyes que no llegaron a aprobarse decaen y la actividad vuelve con la nueva legislatura."
-                trazo="congreso"
-                cifra={diasElecciones}
-                etiqueta={
-                  diasElecciones === 0
-                    ? `hoy, elecciones generales`
-                    : `${diasElecciones === 1 ? 'día' : 'días'} para las elecciones generales del ${ELECCIONES.texto}`
-                }
-              />
+            {quedan !== null ? (
+              <CuentaAtras ms={quedan} />
             ) : (
               <Institucion
                 href="/congreso"
