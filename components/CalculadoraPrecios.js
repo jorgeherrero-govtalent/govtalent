@@ -272,7 +272,7 @@ export default function CalculadoraPrecios({ autenticado = false }) {
             </h3>
             <p style={{ margin: 0, fontSize: 13, color: '#6f6c64', lineHeight: 1.45 }}>
               Más de 18.000 contactos de instituciones, organizaciones, medios y actores sociales: altos cargos,
-              asesores y funcionarios, más de 15.000 con correo o teléfono. 1 alarma semanal y 100 créditos al mes.
+              asesores y funcionarios, más de 15.000 con correo o teléfono. 1 alarma semanal y 50 créditos al mes.
             </p>
           </div>
           <div style={{ display: 'flex', alignItems: 'baseline', gap: 4, whiteSpace: 'nowrap' }}>
