@@ -112,30 +112,5 @@ $rama$;
 end;
 $$;
 
--- Tras importar el Whoiswho: quitar a quien ya está en ec_people
--- (Comisión) o en eu_meps (eurodiputados), por correo.
-create or replace function public.fuentes_personas_deduplicar()
-returns jsonb
-language plpgsql
-security definer
-set search_path to 'public'
-as $function$
-declare
-  v_com integer;
-  v_ep integer;
-begin
-  delete from fuentes_personas f
-   where f.fuente_clave like 'wiw-com:%'
-     and f.email is not null
-     and exists (select 1 from ec_people p where lower(p.email) = lower(f.email));
-  get diagnostics v_com = row_count;
-  delete from fuentes_personas f
-   where f.fuente_clave like 'wiw-ep:%'
-     and f.email is not null
-     and exists (select 1 from eu_meps m where lower(m.email) = lower(f.email));
-  get diagnostics v_ep = row_count;
-  return jsonb_build_object('comision_ya_cargada', v_com, 'eurodiputados', v_ep);
-end;
-$function$;
-revoke all on function public.fuentes_personas_deduplicar() from public, anon, authenticated;
-grant execute on function public.fuentes_personas_deduplicar() to service_role;
+-- Los duplicados con ec_people (Comisión) y eu_meps (eurodiputados) se
+-- quitan por correo en la ruta de carga, antes de importar.
