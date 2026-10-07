@@ -109,6 +109,10 @@
       "schedule": "5,20,35,50 7-20 * * 1-5"
     },
     {
+      "path": "/api/sync/ep-asistentes",
+      "schedule": "40 6 * * 1"
+    },
+    {
       "path": "/api/sync/parlamentos-autonomicos",
       "schedule": "20 7,12,18 * * 1-5"
     }

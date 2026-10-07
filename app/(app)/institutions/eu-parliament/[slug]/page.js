@@ -8,6 +8,7 @@ import BackLink from '@/components/BackLink';
 import FollowButton from '@/components/FollowButton';
 import UpgradeModal from '@/components/UpgradeModal';
 import useDirectorio from '@/lib/useDirectorio';
+import BuscarCorreo, { useCorreosEncontrados } from '@/components/BuscarCorreo';
 
 const GROUP_COLORS = {
   PPE: '#378ADD',
@@ -220,6 +221,28 @@ const LABEL = {
   marginBottom: 14,
 };
 
+// Tipos de asistente, en el orden en que importan para contactar.
+const GRUPOS_EQUIPO = [
+  { tipo: 'acreditado', titulo: 'Asistentes acreditados', singular: 'Asistente acreditado' },
+  { tipo: 'local', titulo: 'Asistentes locales', singular: 'Asistente local' },
+  { tipo: 'becario', titulo: 'Becarios', singular: 'Becario' },
+  {
+    tipo: 'acreditado_agrupacion',
+    titulo: 'Asistentes acreditados en agrupación',
+    singular: 'Asistente acreditado (agrupación)',
+    nota: 'Compartidos con otros eurodiputados de su delegación.',
+  },
+  {
+    tipo: 'local_agrupacion',
+    titulo: 'Asistentes locales en agrupación',
+    singular: 'Asistente local (agrupación)',
+    nota: 'Compartidos con otros eurodiputados de su delegación.',
+  },
+  { tipo: 'prestador', titulo: 'Prestadores de servicios', singular: 'Prestador de servicios' },
+  { tipo: 'agente_pagador', titulo: 'Agentes pagadores', singular: 'Agente pagador' },
+];
+const BUSCABLE = new Set(['acreditado', 'local', 'becario', 'acreditado_agrupacion', 'local_agrupacion']);
+
 export default function MepDetailPage() {
   const supabase = createClient();
   const params = useParams();
@@ -234,6 +257,16 @@ export default function MepDetailPage() {
   const [userId, setUserId] = useState(null);
   const [showAllPast, setShowAllPast] = useState(false);
   const [radarNote, setRadarNote] = useState(false);
+  // Asistentes (sql/79): los publica el Parlamento en la ficha de cada
+  // eurodiputado. Los nombres los ve cualquiera; «Buscar correo», con el
+  // Directorio.
+  const [equipo, setEquipo] = useState([]);
+  const [verAgrupacion, setVerAgrupacion] = useState({});
+  const idsEquipo = useMemo(
+    () => equipo.filter((e) => BUSCABLE.has(e.tipo)).map((e) => `ue-legislativo-asistente:${e.id}`),
+    [equipo]
+  );
+  const { encontrados, apuntar } = useCorreosEncontrados(idsEquipo, esPro === true && tab === 'equipo');
 
   useEffect(() => {
     if (!slug) return;
@@ -254,16 +287,23 @@ export default function MepDetailPage() {
       }
       setMep(m);
 
-      const [{ data: mm }, { data: auth }] = await Promise.all([
+      const [{ data: mm }, { data: auth }, { data: eq }] = await Promise.all([
         supabase
           .from('eu_mep_memberships')
           .select('id, role, start_date, end_date, is_current, eu_bodies(id, code, name_es, name_en, short_name_es, body_type)')
           .eq('mep_id', m.id),
         supabase.auth.getUser(),
+        supabase.from('eu_asistentes_meps').select('tipo, eu_asistentes(id, nombre, activo)').eq('mep_id', m.id),
       ]);
 
       if (cancelled) return;
       setMemberships(mm || []);
+      setEquipo(
+        (eq || [])
+          .filter((x) => x.eu_asistentes?.activo)
+          .map((x) => ({ id: x.eu_asistentes.id, nombre: x.eu_asistentes.nombre, tipo: x.tipo }))
+          .sort((a, b) => a.nombre.localeCompare(b.nombre, 'es'))
+      );
 
       const uid = auth?.user?.id || null;
       setUserId(uid);
@@ -341,6 +381,7 @@ export default function MepDetailPage() {
   const tabs = [
     { id: 'actividad', label: 'Actividad' },
     { id: 'trayectoria', label: `Trayectoria${past.length ? ` (${past.length})` : ''}` },
+    ...(equipo.length ? [{ id: 'equipo', label: `Equipo (${equipo.length})` }] : []),
     { id: 'contacto', label: 'Contacto' },
   ];
 
@@ -445,6 +486,53 @@ export default function MepDetailPage() {
               )}
             </>
           )}
+        </div>
+      )}
+
+      {tab === 'equipo' && (
+        <div style={{ ...CARD, marginBottom: 12 }}>
+          {GRUPOS_EQUIPO.map((g) => {
+            const gente = equipo.filter((e) => e.tipo === g.tipo);
+            if (gente.length === 0) return null;
+            const plegable = gente.length > 8;
+            const visibles = plegable && !verAgrupacion[g.tipo] ? gente.slice(0, 8) : gente;
+            return (
+              <div key={g.tipo} style={{ marginBottom: 18 }}>
+                <div style={LABEL}>
+                  {g.titulo} · {gente.length}
+                </div>
+                {g.nota ? <div style={{ fontSize: 11.5, color: '#a8a49c', margin: '-6px 0 8px' }}>{g.nota}</div> : null}
+                {visibles.map((e) => {
+                  const idPro = `ue-legislativo-asistente:${e.id}`;
+                  return (
+                    <div
+                      key={`${g.tipo}-${e.id}`}
+                      style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 0', borderTop: '.5px solid #f2f0ec', flexWrap: 'wrap' }}
+                    >
+                      <div style={{ flex: 1, minWidth: 0, fontSize: 12.5, fontWeight: 600 }}>{e.nombre}</div>
+                      {esPro === true && BUSCABLE.has(e.tipo) ? (
+                        <BuscarCorreo
+                          persona={{ id: idPro, nombre: e.nombre, cargo: `${g.singular} de ${mep.full_name}` }}
+                          encontrado={encontrados[idPro]}
+                          onResultado={(r) => apuntar(idPro, r)}
+                        />
+                      ) : null}
+                    </div>
+                  );
+                })}
+                {plegable ? (
+                  <button
+                    type="button"
+                    onClick={() => setVerAgrupacion((v) => ({ ...v, [g.tipo]: !v[g.tipo] }))}
+                    style={{ fontSize: 12, color: '#8b8780', background: 'none', border: 'none', cursor: 'pointer', padding: '8px 0 0' }}
+                  >
+                    {verAgrupacion[g.tipo] ? 'Ver menos' : `Ver los ${gente.length}`}
+                  </button>
+                ) : null}
+              </div>
+            );
+          })}
+          <div style={{ fontSize: 11, color: '#a8a49c' }}>Fuente: ficha del eurodiputado en europarl.europa.eu.</div>
         </div>
       )}
 
