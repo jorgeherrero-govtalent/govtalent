@@ -111,7 +111,7 @@ export default function ListasPage() {
           <p style={{ margin: 0, fontSize: 13.5, color: GRIS, lineHeight: 1.6 }}>
             Busca en Contactos y pulsa «Guardar como lista», o selecciona personas y «Añadir a lista».
           </p>
-          <Link href="/contactos" className="btn-p" style={{ textDecoration: 'none' }}>
+          <Link href="/contactos" className="btn-ai" style={{ textDecoration: 'none' }}>
             Ir al buscador
           </Link>
         </div>

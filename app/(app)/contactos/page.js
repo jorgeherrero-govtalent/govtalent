@@ -46,29 +46,14 @@ import {
 // 07-10-2026; si cambia una fuente, revisar que sigan devolviendo gente.
 const IDEAS = [
   {
-    texto: 'Jefes de gabinete de los comisarios europeos',
-    resumen: 'Jefes y jefes adjuntos de gabinete de la Comisión Europea.',
-    filtros: { jurisdiccion: 'UE', cargos: ['head of cabinet'] },
-  },
-  {
-    texto: 'Subsecretarios de los ministerios económicos',
-    resumen: 'Subsecretarios titulares de Economía, Hacienda, Industria, Trabajo y Transformación Digital.',
-    filtros: {
-      jurisdiccion: 'España',
-      cargos: ['subsecretari'],
-      instituciones: ['Economía', 'Hacienda', 'Industria', 'Trabajo', 'Transformación Digital'],
-      solo_titulares: true,
-    },
-  },
-  {
     texto: 'Asesores de los grupos parlamentarios del Congreso',
     resumen: 'Personal de los grupos parlamentarios del Congreso de los Diputados.',
     filtros: { jurisdiccion: 'España', tipos: ['legislativo'], unidades: ['grupo parlamentario'] },
   },
   {
-    texto: 'Responsables de comunicación de los partidos políticos',
-    resumen: 'Directores y responsables de comunicación y prensa de los partidos.',
-    filtros: { tipos: ['partidos'], cargos: ['comunicaci', 'prensa'] },
+    texto: 'Eurodiputados españoles',
+    resumen: 'Diputados al Parlamento Europeo elegidos en España.',
+    filtros: { jurisdiccion: 'UE', tipos: ['legislativo'], paises: ['ES'] },
   },
 ];
 
@@ -141,6 +126,7 @@ function PanelFiltros({ filtros, setFiltros, resumen }) {
       <Chips titulo="Institución" placeholder="Añadir institución" {...lista('instituciones')} />
       <Chips titulo="Unidad" placeholder="Añadir unidad" {...lista('unidades')} />
       <Chips titulo="Palabras clave" placeholder="Tienen que aparecer todas" {...lista('terminos')} />
+      <Chips titulo="País" placeholder="Código de dos letras, p. ej. ES" {...lista('paises')} />
 
       <div className="gt-ct-flt">
         <span className="gt-ct-flt-t">Ámbito</span>
@@ -549,7 +535,7 @@ function ContactosPagina() {
         <button type="button" className="btn-g" onClick={() => abrirExportacion(false)} disabled={total === 0}>
           Exportar
         </button>
-        <button type="button" className="btn-p" onClick={() => setGuardarLista('busqueda')} disabled={total === 0}>
+        <button type="button" className="btn-ai" onClick={() => setGuardarLista('busqueda')} disabled={total === 0}>
           Guardar como lista
         </button>
       </div>
@@ -692,7 +678,7 @@ function ContactosPagina() {
             <button type="button" className="btn-g" onClick={() => setExportando(null)} disabled={exportBusy}>
               Cancelar
             </button>
-            <button type="button" className="btn-p" onClick={confirmarExportacion} disabled={exportBusy}>
+            <button type="button" className="btn-ai" onClick={confirmarExportacion} disabled={exportBusy}>
               {exportBusy ? 'Exportando…' : 'Exportar'}
             </button>
           </div>

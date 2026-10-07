@@ -48,6 +48,7 @@ export function dominio(url) {
 
 export const ESTILOS_CONTACTOS = `
   .gt-ct { padding: 24px 28px 48px; max-width: 1320px; margin: 0 auto; }
+  .gt-ct .btn-g:hover { background: #f3f2ff; border-color: #d8d3f5; color: #5443d6; }
   .gt-ct-cab { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; flex-wrap: wrap; margin-bottom: 18px; }
   .gt-ct-cab h1 { font-size: 19px; font-weight: 700; margin: 0; }
   .gt-ct-cab p { font-size: 12.5px; color: #888; margin: 4px 0 0; }
@@ -457,7 +458,7 @@ export function ModalGuardarLista({ modo, cuantos, filtros, consulta, ids, onClo
         <button type="button" className="btn-g" onClick={onClose} disabled={busy}>
           Cancelar
         </button>
-        <button type="button" className="btn-p" onClick={guardar} disabled={busy || (destino === 'nueva' && !nombre.trim())}>
+        <button type="button" className="btn-ai" onClick={guardar} disabled={busy || (destino === 'nueva' && !nombre.trim())}>
           {busy ? 'Guardando…' : 'Guardar'}
         </button>
       </div>

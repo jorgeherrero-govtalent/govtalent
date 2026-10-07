@@ -177,7 +177,7 @@ export default function ListaPage() {
               style={{ display: 'flex', gap: 8, alignItems: 'center' }}
             >
               <input className="gt-ct-in" value={nombre} onChange={(e) => setNombre(e.target.value)} maxLength={120} autoFocus style={{ fontSize: 16, padding: '6px 10px', minWidth: 280 }} aria-label="Nombre de la lista" />
-              <button type="submit" className="btn-p" style={{ padding: '7px 12px' }}>
+              <button type="submit" className="btn-ai" style={{ padding: '7px 12px' }}>
                 Guardar
               </button>
               <button type="button" className="btn-g" onClick={() => setRenombrando(false)}>
@@ -409,7 +409,7 @@ export default function ListaPage() {
             <button type="button" className="btn-g" onClick={() => setBorrar(false)}>
               Cancelar
             </button>
-            <button type="button" className="btn-p" onClick={borrarLista}>
+            <button type="button" className="btn-ai" onClick={borrarLista}>
               Borrar
             </button>
           </div>
