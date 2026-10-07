@@ -36,6 +36,8 @@ const NIVELES = {
     'Otros organismos públicos',
     'Comisión Europea',
     'Parlamento Europeo',
+    'Agencias y órganos de la UE',
+    'Cuerpo diplomático',
   ],
   organizaciones: ['Patronales', 'Sociedades estatales'],
   medios: ['Prensa', 'Radio y televisión', 'Partidos políticos', 'Sindicatos', 'ONG', 'Organismos internacionales'],
@@ -67,7 +69,21 @@ const POR_CATEGORIA = {
 };
 
 /** Bloque y nivel de una fila de directorio_pro. */
+// Fuentes cargadas en bloque (sql/78): Lista del Cuerpo Diplomático,
+// embajadores de España y EU Whoiswho. Se clasifican por su categoría.
+const POR_FUENTE = {
+  embajada: ['instituciones', 'Cuerpo diplomático'],
+  organismo_internacional: ['medios', 'Organismos internacionales'],
+  embajada_espana: ['instituciones', 'Administración General del Estado'],
+  parlamento_europeo: ['instituciones', 'Parlamento Europeo'],
+  comision_europea: ['instituciones', 'Comisión Europea'],
+  organo_ue: ['instituciones', 'Agencias y órganos de la UE'],
+};
+
 function clasificar(f) {
+  if (String(f.id || '').startsWith('fuente:')) {
+    return POR_FUENTE[f.categoria_unidad] || ['instituciones', 'Otros organismos públicos'];
+  }
   if (f.jurisdiccion === 'UE') {
     return ['instituciones', f.tipo_institucion === 'legislativo' ? 'Parlamento Europeo' : 'Comisión Europea'];
   }

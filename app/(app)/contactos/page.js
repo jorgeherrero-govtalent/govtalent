@@ -69,6 +69,8 @@ const TIPO_LABEL = {
   'agentes sociales': 'Sindicatos y patronales',
   'tercer sector': 'Tercer sector',
   internacional: 'Organismos internacionales',
+  diplomático: 'Embajadas en España',
+  'órganos UE': 'Agencias y órganos de la UE',
 };
 
 // ---------------------------------------------------------------------------
@@ -492,11 +494,11 @@ function ContactosPagina() {
             </div>
             <div className="gt-ct-fuente">
               <b>Unión Europea</b>
-              <span>Comisión Europea y Parlamento Europeo</span>
+              <span>Comisión, Parlamento, agencias, CESE, Tribunal de Cuentas y Consejo Europeo (EU Whoiswho)</span>
             </div>
             <div className="gt-ct-fuente">
-              <b>Organizaciones y medios</b>
-              <span>Agenda de la Comunicación: medios, partidos, sindicatos, patronales y más</span>
+              <b>Diplomacia, organizaciones y medios</b>
+              <span>Cuerpo Diplomático, embajadores de España y Agenda de la Comunicación</span>
             </div>
             <div className="gt-ct-fuente ia">
               <b>Enriquecer con IA</b>
