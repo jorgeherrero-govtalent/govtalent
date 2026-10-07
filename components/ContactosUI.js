@@ -518,3 +518,158 @@ export async function registrarExportacion(rowCount, filters) {
   }
   return gj;
 }
+
+// ---------------------------------------------------------------------------
+// Filtros en las cabeceras de la tabla (sql/81): orden y filtro de cada
+// columna, en un panel que sale debajo del título. Va con posición fija
+// para que no lo recorte el contenedor con scroll horizontal.
+
+export function CabeceraFiltro({ etiqueta, activo, children }) {
+  const [abierto, setAbierto] = useState(false);
+  const [pos, setPos] = useState({ top: 0, left: 0 });
+  const btn = useRef(null);
+  const panel = useRef(null);
+
+  useEffect(() => {
+    if (!abierto) return;
+    function colocar() {
+      const r = btn.current?.getBoundingClientRect();
+      if (!r) return;
+      const ancho = 260;
+      setPos({ top: r.bottom + 6, left: Math.max(12, Math.min(r.left, window.innerWidth - ancho - 12)) });
+    }
+    colocar();
+    function fuera(e) {
+      if (panel.current?.contains(e.target) || btn.current?.contains(e.target)) return;
+      setAbierto(false);
+    }
+    function tecla(e) {
+      if (e.key === 'Escape') setAbierto(false);
+    }
+    window.addEventListener('scroll', colocar, true);
+    window.addEventListener('resize', colocar);
+    document.addEventListener('mousedown', fuera);
+    document.addEventListener('keydown', tecla);
+    return () => {
+      window.removeEventListener('scroll', colocar, true);
+      window.removeEventListener('resize', colocar);
+      document.removeEventListener('mousedown', fuera);
+      document.removeEventListener('keydown', tecla);
+    };
+  }, [abierto]);
+
+  return (
+    <>
+      <button
+        ref={btn}
+        type="button"
+        onClick={() => setAbierto((v) => !v)}
+        aria-expanded={abierto}
+        style={{
+          display: 'inline-flex',
+          alignItems: 'center',
+          gap: 4,
+          border: 'none',
+          background: 'transparent',
+          padding: 0,
+          font: 'inherit',
+          color: activo ? '#5443d6' : 'inherit',
+          fontWeight: activo ? 600 : 'inherit',
+          cursor: 'pointer',
+        }}
+      >
+        {etiqueta}
+        <i className={`ti ${activo ? 'ti-filter' : 'ti-chevron-down'}`} style={{ fontSize: 13 }} aria-hidden="true"></i>
+      </button>
+      {abierto ? (
+        <div
+          ref={panel}
+          role="dialog"
+          aria-label={`Filtrar ${etiqueta}`}
+          style={{
+            position: 'fixed',
+            top: pos.top,
+            left: pos.left,
+            width: 260,
+            zIndex: 1000,
+            background: '#fff',
+            border: `1px solid ${BORDE}`,
+            borderRadius: 10,
+            boxShadow: '0 10px 30px rgba(26,26,24,.12)',
+            padding: 12,
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 10,
+            fontWeight: 400,
+            whiteSpace: 'normal',
+          }}
+        >
+          {children(() => setAbierto(false))}
+        </div>
+      ) : null}
+    </>
+  );
+}
+
+const OPCION = (on) => ({
+  display: 'flex',
+  alignItems: 'center',
+  gap: 8,
+  width: '100%',
+  border: 'none',
+  background: on ? '#f1effe' : 'transparent',
+  color: on ? '#3d2fb3' : '#1a1a18',
+  borderRadius: 7,
+  padding: '6px 8px',
+  fontFamily: 'inherit',
+  fontSize: 12.5,
+  textAlign: 'left',
+  cursor: 'pointer',
+});
+
+/** Orden A-Z / Z-A de una columna. */
+export function OrdenColumna({ campo, orden, onOrden, cerrar }) {
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+      {[
+        [`${campo}_asc`, 'ti-sort-ascending-letters', 'Ordenar de la A a la Z'],
+        [`${campo}_desc`, 'ti-sort-descending-letters', 'Ordenar de la Z a la A'],
+      ].map(([v, icono, texto]) => (
+        <button
+          key={v}
+          type="button"
+          style={OPCION(orden === v)}
+          onClick={() => {
+            onOrden(orden === v ? null : v);
+            cerrar();
+          }}
+        >
+          <i className={`ti ${icono}`} style={{ fontSize: 15 }} aria-hidden="true"></i>
+          {texto}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+/** Campo «contiene…» con Aplicar. */
+export function TextoColumna({ placeholder, inicial = '', onAplicar, cerrar }) {
+  const [v, setV] = useState(inicial);
+  return (
+    <form
+      onSubmit={(e) => {
+        e.preventDefault();
+        onAplicar(v.trim());
+        cerrar();
+      }}
+      style={{ display: 'flex', flexDirection: 'column', gap: 8 }}
+    >
+      <input className="gt-ct-in" autoFocus value={v} onChange={(e) => setV(e.target.value)} placeholder={placeholder} aria-label={placeholder} />
+      <button type="submit" className="gt-ct-mini p" style={{ alignSelf: 'flex-end' }}>
+        Aplicar
+      </button>
+    </form>
+  );
+}
+
+export const OPCION_COLUMNA = OPCION;

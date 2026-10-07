@@ -23,6 +23,10 @@ import {
   ModalGuardarLista,
   exportarExcel,
   registrarExportacion,
+  CabeceraFiltro,
+  OrdenColumna,
+  TextoColumna,
+  OPCION_COLUMNA,
 } from '@/components/ContactosUI';
 
 /**
@@ -595,10 +599,85 @@ function ContactosPagina() {
                     <th style={{ width: 28 }}>
                       <input type="checkbox" checked={todasMarcadas} onChange={marcarPagina} aria-label="Seleccionar esta página" />
                     </th>
-                    <th>Nombre</th>
-                    <th>Cargo</th>
-                    <th>Institución</th>
-                    <th>Contacto</th>
+                    <th>
+                      <CabeceraFiltro etiqueta="Nombre" activo={!!filtros.nombre || /^nombre_/.test(filtros.orden || '')}>
+                        {(cerrar) => (
+                          <>
+                            <OrdenColumna campo="nombre" orden={filtros.orden} onOrden={(o) => setFiltros({ ...filtros, orden: o })} cerrar={cerrar} />
+                            <TextoColumna
+                              placeholder="El nombre contiene…"
+                              inicial={filtros.nombre || ''}
+                              onAplicar={(v) => setFiltros({ ...filtros, nombre: v })}
+                              cerrar={cerrar}
+                            />
+                          </>
+                        )}
+                      </CabeceraFiltro>
+                    </th>
+                    <th>
+                      <CabeceraFiltro etiqueta="Cargo" activo={filtros.cargos.length > 0 || /^cargo_/.test(filtros.orden || '')}>
+                        {(cerrar) => (
+                          <>
+                            <OrdenColumna campo="cargo" orden={filtros.orden} onOrden={(o) => setFiltros({ ...filtros, orden: o })} cerrar={cerrar} />
+                            <TextoColumna
+                              placeholder="El cargo contiene… (p. ej. asistente)"
+                              onAplicar={(v) => v && !filtros.cargos.includes(v) && setFiltros({ ...filtros, cargos: [...filtros.cargos, v] })}
+                              cerrar={cerrar}
+                            />
+                            {filtros.cargos.length > 0 && (
+                              <button type="button" style={OPCION_COLUMNA(false)} onClick={() => { setFiltros({ ...filtros, cargos: [] }); cerrar(); }}>
+                                <i className="ti ti-x" style={{ fontSize: 14 }} aria-hidden="true"></i> Quitar filtros de cargo
+                              </button>
+                            )}
+                          </>
+                        )}
+                      </CabeceraFiltro>
+                    </th>
+                    <th>
+                      <CabeceraFiltro etiqueta="Institución" activo={filtros.instituciones.length > 0 || /^institucion_/.test(filtros.orden || '')}>
+                        {(cerrar) => (
+                          <>
+                            <OrdenColumna campo="institucion" orden={filtros.orden} onOrden={(o) => setFiltros({ ...filtros, orden: o })} cerrar={cerrar} />
+                            <TextoColumna
+                              placeholder="La institución contiene…"
+                              onAplicar={(v) => v && !filtros.instituciones.includes(v) && setFiltros({ ...filtros, instituciones: [...filtros.instituciones, v] })}
+                              cerrar={cerrar}
+                            />
+                            {filtros.instituciones.length > 0 && (
+                              <button type="button" style={OPCION_COLUMNA(false)} onClick={() => { setFiltros({ ...filtros, instituciones: [] }); cerrar(); }}>
+                                <i className="ti ti-x" style={{ fontSize: 14 }} aria-hidden="true"></i> Quitar filtros de institución
+                              </button>
+                            )}
+                          </>
+                        )}
+                      </CabeceraFiltro>
+                    </th>
+                    <th>
+                      <CabeceraFiltro etiqueta="Contacto" activo={!!filtros.correo || filtros.con_telefono}>
+                        {(cerrar) => (
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                            {[
+                              [null, 'Todos'],
+                              ['con', 'Con correo'],
+                              ['sin', 'Sin correo'],
+                            ].map(([v, t]) => (
+                              <button
+                                key={t}
+                                type="button"
+                                style={OPCION_COLUMNA((filtros.correo || null) === v)}
+                                onClick={() => { setFiltros({ ...filtros, correo: v }); cerrar(); }}
+                              >
+                                {t}
+                              </button>
+                            ))}
+                            <label className="gt-ct-chk" style={{ padding: '6px 8px' }}>
+                              <input type="checkbox" checked={!!filtros.con_telefono} onChange={(e) => setFiltros({ ...filtros, con_telefono: e.target.checked })} />
+                              Con teléfono
+                            </label>
+                          </div>
+                        )}
+                      </CabeceraFiltro>
+                    </th>
                     <th>Fuente</th>
                   </tr>
                 </thead>
