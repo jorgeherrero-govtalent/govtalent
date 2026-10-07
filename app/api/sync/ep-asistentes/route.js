@@ -113,35 +113,60 @@ function leerAsistentes(html) {
   return out;
 }
 
-function urlFicha(mep) {
-  // El tramo del nombre no lo valida el Parlamento, pero se pone igual.
-  const nombre = String(mep.full_name || 'x')
+// La URL de la ficha lleva el nombre como lo escribe el Parlamento
+// (ALICIA_HOMS+GINEL). En vez de adivinarlo, se pide /meps/es/<id>, que
+// redirige a la ficha buena, y a esa se le añade /assistants. Si no
+// redirige, se prueba con el nombre construido a mano.
+const CABECERAS = {
+  'User-Agent':
+    'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0 Safari/537.36 GovTalent',
+  Accept: 'text/html,application/xhtml+xml',
+  'Accept-Language': 'es-ES,es;q=0.9',
+};
+
+function nombreUrl(fullName) {
+  const sin = String(fullName || '')
     .normalize('NFD')
     .replace(/[̀-ͯ]/g, '')
-    .replace(/[^A-Za-z ]/g, '')
+    .replace(/[^A-Za-z\- ]/g, '')
     .trim()
-    .replace(/\s+/g, '_')
-    .toUpperCase();
-  return `https://www.europarl.europa.eu/meps/es/${mep.id}/${nombre || 'X'}/assistants`;
+    .split(/\s+/);
+  const nombre = sin.filter((t) => t !== t.toUpperCase()).map((t) => t.toUpperCase());
+  const apellidos = sin.filter((t) => t === t.toUpperCase());
+  return `${nombre.join('_')}_${apellidos.join('+')}`;
 }
 
 async function pedir(url) {
   const ctrl = new AbortController();
   const reloj = setTimeout(() => ctrl.abort(), TIMEOUT_MS);
   try {
-    const res = await fetch(url, {
-      signal: ctrl.signal,
-      cache: 'no-store',
-      redirect: 'follow',
-      headers: { 'User-Agent': 'GovTalent/1.0 (+https://govtalent.app)', 'Accept-Language': 'es' },
-    });
-    if (!res.ok) return { ok: false, status: res.status };
-    return { ok: true, html: await res.text() };
+    const res = await fetch(url, { signal: ctrl.signal, cache: 'no-store', redirect: 'follow', headers: CABECERAS });
+    const html = res.ok ? await res.text() : '';
+    return { ok: res.ok && html.length > 500, status: res.status, final: res.url, html, bytes: html.length };
   } catch (e) {
-    return { ok: false, status: null, motivo: e.name === 'AbortError' ? 'timeout' : e.message };
+    return { ok: false, status: null, motivo: e.name === 'AbortError' ? 'timeout' : e.message, html: '' };
   } finally {
     clearTimeout(reloj);
   }
+}
+
+/** Página de asistentes de un eurodiputado: { ok, html, intentos[] } */
+async function paginaAsistentes(mep) {
+  const intentos = [];
+  const base = `https://www.europarl.europa.eu/meps/es/${mep.id}`;
+  const home = await pedir(base);
+  intentos.push({ url: base, status: home.status, final: home.final, bytes: home.bytes, motivo: home.motivo });
+  const candidatas = [];
+  if (home.final && /\/meps\/es\/\d+\/[^/]+/.test(home.final)) {
+    candidatas.push(home.final.replace(/\/(home|cv|declarations|assistants)?\/?(\?.*)?$/, '') + '/assistants');
+  }
+  candidatas.push(`${base}/${nombreUrl(mep.full_name)}/assistants`);
+  for (const url of [...new Set(candidatas)]) {
+    const r = await pedir(url);
+    intentos.push({ url, status: r.status, final: r.final, bytes: r.bytes, motivo: r.motivo });
+    if (r.ok) return { ok: true, html: r.html, intentos };
+  }
+  return { ok: false, html: '', intentos };
 }
 
 async function enParalelo(items, n, fn) {
@@ -177,14 +202,11 @@ async function handler(request) {
   const debug = sp.get('debug');
   if (debug) {
     const { data: mep } = await supabase.from('eu_meps').select('id, full_name').eq('id', debug).maybeSingle();
-    const url = urlFicha(mep || { id: debug });
-    const r = await pedir(url);
-    if (!r.ok) return Response.json({ url, ...r });
+    const r = await paginaAsistentes(mep || { id: debug, full_name: '' });
     const i = r.html.search(/<h4/i);
     return Response.json({
-      url,
-      bytes: r.html.length,
-      leido: leerAsistentes(r.html),
+      intentos: r.intentos,
+      leido: r.ok ? leerAsistentes(r.html) : [],
       html: i >= 0 ? r.html.slice(Math.max(0, i - 500), i + 6000) : r.html.slice(0, 3000),
     });
   }
@@ -198,8 +220,8 @@ async function handler(request) {
 
   const inicio = new Date().toISOString();
   const leidas = await enParalelo(meps || [], CONCURRENCIA, async (mep) => {
-    const r = await pedir(urlFicha(mep));
-    if (!r.ok) return { mep, ok: false, motivo: r.status || r.motivo };
+    const r = await paginaAsistentes(mep);
+    if (!r.ok) return { mep, ok: false, motivo: r.intentos.map((x) => x.status || x.motivo).join(' / ') };
     const secciones = leerAsistentes(r.html);
     return { mep, ok: secciones.length > 0, secciones, motivo: secciones.length ? null : 'sin categorías' };
   });
