@@ -62,6 +62,14 @@ const SECCIONES = [
       // (patronales, asociaciones, empresa pública, medios y actores
       // sociales) y la Base de datos de cargos, que antes era la tarjeta
       // negra de Instituciones.
+      // Contactos (07-10-2026, sql/75): el buscador en lenguaje natural del
+      // Directorio, con créditos para enriquecer.
+      {
+        href: '/contactos',
+        etiqueta: 'Contactos',
+        icono: 'ti-address-book',
+        activo: (p) => p.startsWith('/contactos'),
+      },
       {
         href: '/institutions',
         etiqueta: 'Instituciones',

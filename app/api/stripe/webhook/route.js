@@ -7,6 +7,7 @@ import {
 } from '@/lib/stripe';
 import { resend, EMAIL_FROM } from '@/lib/resend';
 import { proActivatedEmail, orgPlanActivatedEmail, directorioActivatedEmail } from '@/lib/email/templates';
+import { sumarCompraCreditos } from '@/lib/creditos';
 
 // runtime nodejs es obligatorio: la verificación de firma usa crypto.
 export const runtime = 'nodejs';
@@ -226,6 +227,34 @@ async function enviarCorreoActivacion(admin, session, subscription, foundingMemb
   }
 }
 
+/**
+ * Suma a la bolsa del comprador los créditos de un pack (sql/75).
+ *
+ * El número sale del precio en Stripe (metadata.creditos de la línea
+ * comprada), no de los metadatos de la sesión, que los escribe nuestro
+ * servidor pero conviene contrastar con lo realmente cobrado. Solo con el
+ * pago hecho: un pago aplazado llega después por async_payment_succeeded.
+ * Idempotente: la referencia es el id de la sesión.
+ */
+async function aplicarCompraCreditos(admin, session) {
+  if (session.payment_status !== 'paid') return;
+  const userId = session.metadata?.user_id;
+  if (!userId) {
+    console.error(`Compra de créditos ${session.id} sin user_id: no se aplica`);
+    return;
+  }
+  const items = await stripe.checkout.sessions.listLineItems(session.id, { limit: 10, expand: ['data.price'] });
+  const creditos = (items.data || []).reduce(
+    (s, li) => s + (Number(li.price?.metadata?.creditos) || 0) * (li.quantity || 1),
+    0
+  );
+  if (!(creditos > 0)) {
+    console.error(`Compra de créditos ${session.id} sin créditos en el precio: no se aplica`);
+    return;
+  }
+  await sumarCompraCreditos(admin, userId, creditos, session.id, `Pack de ${creditos} créditos`);
+}
+
 export async function POST(request) {
   // Cuerpo en CRUDO. Si dejas que Next parsee el JSON, la firma nunca valida.
   const body = await request.text();
@@ -265,8 +294,23 @@ export async function POST(request) {
 
   try {
     switch (event.type) {
+      // Pago aplazado (p. ej. SEPA) de un pack de créditos: llega aquí
+      // cuando por fin se cobra.
+      case 'checkout.session.async_payment_succeeded': {
+        const session = event.data.object;
+        if (session.mode === 'payment' && session.metadata?.plan_key === 'creditos') {
+          await aplicarCompraCreditos(admin, session);
+        }
+        break;
+      }
+
       case 'checkout.session.completed': {
         const session = event.data.object;
+        // Pack de créditos (pago único, sql/75).
+        if (session.mode === 'payment' && session.metadata?.plan_key === 'creditos') {
+          await aplicarCompraCreditos(admin, session);
+          break;
+        }
         if (session.mode !== 'subscription' || !session.subscription) break;
 
         const subscriptionId =
