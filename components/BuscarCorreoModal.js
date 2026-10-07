@@ -130,8 +130,6 @@ export default function BuscarCorreoModal({ persona, onClose, onResultado }) {
             ) : (
               <div style={{ fontSize: 13, color: '#3a3a3d', lineHeight: 1.55 }}>
                 No hemos encontrado un correo publicado en fuentes oficiales. No se ha descontado ningún crédito.
-                  </div>
-                ) : null}
               </div>
             )}
           </div>
