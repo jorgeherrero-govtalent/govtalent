@@ -8,6 +8,7 @@ import MultiSelectFilter from '@/components/MultiSelectFilter';
 import UpgradeModal from '@/components/UpgradeModal';
 import usePlanPro from '@/lib/usePlanPro';
 import PestanasCongreso from '@/components/PestanasCongreso';
+import { DISUELTA, useDiputacionPermanente, EstadoDiputado } from '@/components/EstadoLegislatura';
 
 // Color por grupo. Con 9 grupos la sigla sola no basta para reconocerlos
 // de un vistazo; el cuadrito de color sí. Mismo criterio que en el
@@ -187,6 +188,10 @@ function DeputiesDirectoryInner() {
   const [groupFilter, setGroupFilter] = useState(new Set());
   const [constituencyFilter, setConstituencyFilter] = useState(new Set());
   const [comisionFilter, setComisionFilter] = useState(new Set());
+  // Cortes disueltas: «Todos» o solo los que siguen en funciones
+  // (Diputación Permanente).
+  const [soloEnFunciones, setSoloEnFunciones] = useState(false);
+  const enFunciones = useDiputacionPermanente();
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
 
@@ -315,12 +320,13 @@ function DeputiesDirectoryInner() {
     if (comisionFilter.size > 0) {
       list = list.filter((d) => (comisionesPorDiputado[d.id] || []).some((c) => comisionFilter.has(c.nombre)));
     }
+    if (soloEnFunciones && enFunciones) list = list.filter((d) => enFunciones.has(d.id));
     return list;
-  }, [deputies, search, groupFilter, constituencyFilter, comisionFilter, comisionesPorDiputado, groupById, codeById]);
+  }, [deputies, search, groupFilter, constituencyFilter, comisionFilter, comisionesPorDiputado, groupById, codeById, soloEnFunciones, enFunciones]);
 
   useEffect(() => {
     setPage(1);
-  }, [search, groupFilter, constituencyFilter, comisionFilter]);
+  }, [search, groupFilter, constituencyFilter, comisionFilter, soloEnFunciones]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
   const current = Math.min(page, totalPages);
@@ -349,11 +355,39 @@ function DeputiesDirectoryInner() {
       <div style={{ marginBottom: 14 }}>
         <h1 style={{ fontSize: 18, fontWeight: 700, margin: 0 }}>Diputados</h1>
         <p style={{ fontSize: 12, color: '#888', margin: '3px 0 0' }}>
-          {deputies ? deputies.length : '—'} diputados · {groups.length} grupos · XV Legislatura
+          {deputies ? deputies.length : '—'} diputados · {groups.length} grupos · XV Legislatura{DISUELTA ? ' (Cortes disueltas)' : ''}
         </p>
       </div>
 
       <PestanasCongreso />
+
+      {DISUELTA && (
+        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 12 }} role="group" aria-label="Estado del mandato">
+          {[
+            [false, `Todos · ${deputies ? deputies.length : '—'}`],
+            [true, `En funciones (Diputación Permanente) · ${enFunciones ? enFunciones.size : '—'}`],
+          ].map(([v, texto]) => (
+            <button
+              key={String(v)}
+              type="button"
+              aria-pressed={soloEnFunciones === v}
+              onClick={() => setSoloEnFunciones(v)}
+              style={{
+                fontSize: 12,
+                padding: '5px 12px',
+                borderRadius: 999,
+                fontFamily: 'inherit',
+                cursor: 'pointer',
+                border: soloEnFunciones === v ? '.5px solid #6d5aef' : '.5px solid #e0dfd8',
+                background: soloEnFunciones === v ? '#f1effe' : '#fff',
+                color: soloEnFunciones === v ? '#3d2fb3' : '#3d3a35',
+              }}
+            >
+              {texto}
+            </button>
+          ))}
+        </div>
+      )}
 
       <div style={{ display: 'flex', gap: 8, marginBottom: 12, flexWrap: 'wrap' }}>
         <div
@@ -473,7 +507,10 @@ function DeputiesDirectoryInner() {
                 <Photo url={d.photo_url} name={fullNameDisplay(d.full_name)} />
                 <div style={{ minWidth: 0 }}>
                   <div style={{ fontSize: 12.5, fontWeight: 600 }}>{fullNameDisplay(d.full_name)}</div>
-                  <div style={{ fontSize: 11, color: '#999' }}>{d.constituency || '—'}</div>
+                  <div style={{ fontSize: 11, color: '#999', display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+                    {d.constituency || '—'}
+                    {enFunciones ? <EstadoDiputado enFunciones={enFunciones.has(d.id)} /> : null}
+                  </div>
                 </div>
               </div>
               <div>

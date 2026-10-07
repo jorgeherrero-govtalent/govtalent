@@ -1,6 +1,7 @@
 'use client';
 
 import BuscarCorreo, { useCorreosEncontrados } from '@/components/BuscarCorreo';
+import { useDiputacionPermanente, EstadoDiputado } from '@/components/EstadoLegislatura';
 import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
@@ -207,6 +208,7 @@ export default function DeputyProfilePage() {
   const [photoFailed, setPhotoFailed] = useState(false);
   // 'cargando' | 'ok' | 'sin-correo' | 'sin-plan'
   const [contacto, setContacto] = useState({ estado: 'cargando', email: null });
+  const enFunciones = useDiputacionPermanente();
   // Sin correo publicado, «Buscar correo» (solo con el Directorio: sin él
   // el estado es 'sin-plan').
   const idPro = deputy?.id ? `es-legislativo:${deputy.id}` : null;
@@ -429,6 +431,11 @@ export default function DeputyProfilePage() {
                 {legislature?.code ? ` · ${legislature.code} Legislatura` : ''}
                 {mandateYear ? ` · desde ${mandateYear}` : ''}
               </div>
+              {enFunciones && deputy?.id ? (
+                <div style={{ marginTop: 6 }}>
+                  <EstadoDiputado enFunciones={enFunciones.has(deputy.id)} largo />
+                </div>
+              ) : null}
 
               {/* El correo institucional, publicado por el Congreso en su
                   ficha oficial. Lo tienen 319 de los 350: los demás no lo

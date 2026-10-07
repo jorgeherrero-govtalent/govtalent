@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import EstadoLegislatura from '@/components/EstadoLegislatura';
 
 /**
  * Las pestañas del Congreso, en un solo sitio.
@@ -34,6 +35,9 @@ export default function PestanasCongreso() {
   const pathname = usePathname();
 
   return (
+    <>
+    {/* Cortes disueltas: el estado de la legislatura, en las cuatro pestañas. */}
+    <EstadoLegislatura />
     <div
       style={{
         display: 'flex',
@@ -77,5 +81,6 @@ export default function PestanasCongreso() {
         );
       })}
     </div>
+    </>
   );
 }
