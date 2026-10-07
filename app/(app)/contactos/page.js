@@ -493,8 +493,8 @@ function ContactosPagina() {
               <span>Cuerpo Diplomático, embajadores de España y Agenda de la Comunicación</span>
             </div>
             <div className="gt-ct-fuente ia">
-              <b>Enriquecer con IA</b>
-              <span>Si falta el contacto, la IA lo busca en fuentes oficiales y cita de dónde sale. 1 crédito por persona, solo si lo encuentra.</span>
+              <b>Enriquecer</b>
+              <span>Si falta el contacto, buscamos en fuentes oficiales y citamos de dónde sale. 1 crédito por persona, solo si lo encuentra.</span>
             </div>
           </div>
         </section>
