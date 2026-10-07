@@ -245,7 +245,7 @@ export default function GovernmentOfficialProfilePage() {
           <div style={CARD_LABEL}>Contacto de la unidad</div>
 
           {hasUnit && (
-            <div style={{ background: '#faf9f5', borderRadius: 9, padding: 13, marginBottom: hasContact ? 12 : 0 }}>
+            <div style={{ background: '#faf9f5', borderRadius: 9, padding: 13, marginBottom: hasContact || (esPro === true && sinCorreo) ? 12 : 0 }}>
               <div style={{ fontSize: 11, color: '#999', marginBottom: 4 }}>Unidad</div>
               <div style={{ fontSize: 12.5, fontWeight: 600 }}>{official.unit_name}</div>
             </div>
@@ -255,10 +255,12 @@ export default function GovernmentOfficialProfilePage() {
               tenemos, igual que con plan. Difuminar aquí prometería un
               teléfono que tampoco aparece pagando. */}
           {!hasContact ? (
+            esPro === true && sinCorreo && idPro ? null : (
             <div className="empty-state">
               <i className="ti ti-address-book-off"></i>
               No tenemos datos de contacto para esta unidad.
             </div>
+            )
           ) : esPro === false ? (
             <PanelBloqueado
               titulo="El contacto de la unidad"
@@ -311,7 +313,7 @@ export default function GovernmentOfficialProfilePage() {
             </div>
           )}
           {esPro === true && sinCorreo && idPro && (
-            <div style={{ display: 'flex', alignItems: 'center', gap: 9, marginTop: 12, paddingTop: 12, borderTop: '.5px solid #f0f0eb', flexWrap: 'wrap' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 9, flexWrap: 'wrap', ...(hasContact ? { marginTop: 12, paddingTop: 12, borderTop: '.5px solid #f0f0eb' } : {}) }}>
               <i className="ti ti-mail" style={{ color: '#a8a49c', fontSize: 14 }} aria-hidden="true"></i>
               <BuscarCorreo
                 persona={{ id: idPro, nombre: displayName, cargo: [official.role, official.ministry_name].filter(Boolean).join(' · ') }}
