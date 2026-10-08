@@ -377,7 +377,7 @@ function Diarios() {
 
       <div style={{ marginTop: 18, fontSize: 11, color: '#a8a49c', display: 'flex', alignItems: 'center', gap: 6 }}>
         <i className="ti ti-shield-check" style={{ fontSize: 13 }}></i>
-        Boletines oficiales de Aragón, Asturias, Cantabria, Castilla y León, Cataluña, Extremadura, Galicia, La Rioja, la Comunidad de Madrid, Navarra y el País Vasco. El resto de comunidades, próximamente.
+        Boletines oficiales de Aragón, Asturias, Cantabria, Castilla y León, Cataluña, la Comunitat Valenciana, Extremadura, Galicia, La Rioja, la Comunidad de Madrid, Navarra y el País Vasco. El resto de comunidades, próximamente.
       </div>
     </div>
   );
