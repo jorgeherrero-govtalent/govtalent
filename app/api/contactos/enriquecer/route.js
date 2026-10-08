@@ -146,6 +146,24 @@ export async function POST(request) {
     return NextResponse.json({ error: 'No se pudo completar la búsqueda. No se ha descontado ningún crédito.' }, { status: 502 });
   }
 
+  // La IA solo ha encontrado un correo genérico: con su dominio, se busca
+  // aún el nominativo en el servidor (comunicacion@correos.com → correos.com).
+  if (r && r.email && r.tipo !== 'personal') {
+    const dom = String(r.email).toLowerCase().split('@')[1];
+    const s2 = await correoPorServidor(admin, persona, { pistas: [dom] }).catch(() => null);
+    if (s2) {
+      r = {
+        ...r,
+        email: s2.email,
+        tipo: 'personal',
+        fuente_url: null,
+        verificado: true,
+        notas: `Comprobado en el servidor de correo de ${s2.dominio}`,
+        coste_usd: Number(((r.coste_usd || 0) + s2.probados.length * 0.002).toFixed(5)),
+      };
+    }
+  }
+
   if (!r) {
     if (cacheGenerico) return devolverCache();
     return NextResponse.json({ resultado: publico(cache), cobrado: false, cache: true, persona_id: id, saldo: await saldoCreditos(admin, userId) });
