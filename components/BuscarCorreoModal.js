@@ -2,7 +2,8 @@
 
 import { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { ModalComprar, TIPO_CONTACTO, dominio, limpiarEmail, miles, Buscando, ESTILOS_CONTACTOS } from '@/components/ContactosUI';
+import Link from 'next/link';
+import { ModalComprar, ModalGuardarLista, TIPO_CONTACTO, dominio, limpiarEmail, miles, Buscando, ESTILOS_CONTACTOS } from '@/components/ContactosUI';
 
 /**
  * Buscar el correo de una persona que la fuente no trae (Directorio).
@@ -28,6 +29,10 @@ export default function BuscarCorreoModal({ persona, onClose, onResultado }) {
   const [cobrado, setCobrado] = useState(false);
   const [error, setError] = useState('');
   const [comprar, setComprar] = useState(false);
+  // Añadir a una lista lo encontrado (también a quien no está en el directorio).
+  const [personaId, setPersonaId] = useState(persona.libre ? null : persona.id);
+  const [aLista, setALista] = useState(false);
+  const [listaHecha, setListaHecha] = useState(null);
 
   useEffect(() => {
     let vivo = true;
@@ -63,6 +68,7 @@ export default function BuscarCorreoModal({ persona, onClose, onResultado }) {
         return;
       }
       setResultado(json.resultado);
+      if (json.persona_id) setPersonaId(json.persona_id);
       setCobrado(!!json.cobrado);
       setFase('hecho');
       if (onResultado) onResultado(json.resultado);
@@ -76,6 +82,25 @@ export default function BuscarCorreoModal({ persona, onClose, onResultado }) {
 
   if (comprar) {
     return createPortal(<ModalComprar packs={packs} onClose={() => setComprar(false)} />, document.body);
+  }
+  if (aLista && personaId) {
+    return createPortal(
+      <>
+        <style>{ESTILOS_CONTACTOS}</style>
+        <ModalGuardarLista
+          modo="seleccion"
+          cuantos={1}
+          ids={[personaId]}
+          consulta={persona.nombre}
+          onClose={() => setALista(false)}
+          onHecho={(listaId) => {
+            setListaHecha(listaId);
+            setALista(false);
+          }}
+        />
+      </>,
+      document.body
+    );
   }
 
   const disponibles = saldo?.disponibles ?? null;
@@ -170,8 +195,19 @@ export default function BuscarCorreoModal({ persona, onClose, onResultado }) {
             )}
           </div>
         ) : (
-          <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 16 }}>
-            <button type="button" className="btn-ai-o" onClick={onClose}>
+          <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: 8, marginTop: 16, flexWrap: 'wrap' }}>
+            {email && personaId ? (
+              listaHecha ? (
+                <Link href={`/contactos/listas/${listaHecha}`} style={{ fontSize: 12.5, color: '#5443d6', textDecoration: 'none', marginRight: 'auto' }}>
+                  Añadido a la lista · Ver lista →
+                </Link>
+              ) : (
+                <button type="button" className="btn-ai-o" onClick={() => setALista(true)} style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                  <i className="ti ti-list-check" aria-hidden="true"></i> Añadir a una lista
+                </button>
+              )
+            ) : null}
+            <button type="button" className={email && personaId && !listaHecha ? 'btn-g' : 'btn-ai-o'} onClick={onClose}>
               Cerrar
             </button>
           </div>

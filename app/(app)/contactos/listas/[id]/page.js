@@ -85,7 +85,8 @@ export default function ListaPage() {
         id: m.persona_id,
         enriquecido: m.enriquecido || null,
         _cambio: m.cambio,
-        _salida: !m.actual,
+        // Las añadidas desde «Buscar correo» no están en el directorio: no «salen».
+        _salida: !m.actual && !m.snapshot?.libre,
       })),
     [datos]
   );
@@ -350,6 +351,8 @@ export default function ListaPage() {
           )}
         </section>
 
+        {/* Solo cuando hay algo que revisar: sin cambios, la tabla ocupa todo el ancho. */}
+        {nCambios > 0 && (
         <aside className="gt-ct-panel" aria-label="Cambios detectados">
           <div style={{ padding: '14px 16px', borderBottom: '1px solid #ececef', display: 'flex', flexDirection: 'column', gap: 3 }}>
             <span style={{ fontSize: 12, fontWeight: 600, color: nCambios ? MORADO : GRIS }}>
@@ -447,6 +450,7 @@ export default function ListaPage() {
             </div>
           )}
         </aside>
+        )}
       </div>
 
       {confirmarEnr && (

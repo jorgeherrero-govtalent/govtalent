@@ -79,7 +79,7 @@ export async function POST(request) {
   // servidor, que es barata y puede que entonces no se hiciera.
   const cacheSinCorreo = cache && vigente(cache) && !cache.email;
   if (cache && vigente(cache) && cache.email) {
-    return NextResponse.json({ resultado: publico(cache), cobrado: false, cache: true, saldo: await saldoCreditos(admin, userId) });
+    return NextResponse.json({ resultado: publico(cache), cobrado: false, cache: true, persona_id: id, saldo: await saldoCreditos(admin, userId) });
   }
 
   // 2. Saldo.
@@ -123,7 +123,7 @@ export async function POST(request) {
   }
 
   if (!r) {
-    return NextResponse.json({ resultado: publico(cache), cobrado: false, cache: true, saldo: await saldoCreditos(admin, userId) });
+    return NextResponse.json({ resultado: publico(cache), cobrado: false, cache: true, persona_id: id, saldo: await saldoCreditos(admin, userId) });
   }
 
   // 4. Caché y cobro.
@@ -154,6 +154,7 @@ export async function POST(request) {
     resultado: publico(guardada || fila),
     cobrado,
     cache: false,
+    persona_id: id,
     saldo: await saldoCreditos(admin, userId),
   });
 }
