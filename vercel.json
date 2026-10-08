@@ -115,6 +115,10 @@
     {
       "path": "/api/sync/parlamentos-autonomicos",
       "schedule": "20 7,12,18 * * 1-5"
+    },
+    {
+      "path": "/api/sync/diarios-autonomicos",
+      "schedule": "15 5-22 * * *"
     }
   ]
 }

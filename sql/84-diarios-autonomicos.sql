@@ -22,6 +22,15 @@
 -- /regulatorio/diarios/<id>, redirige de momento a la fuente oficial,
 -- hasta que exista la ficha (pendiente de maquetas).
 --
+-- RUIDO EN EL BOE (decisión del 08-10-2026, «que consuma lo menos posible
+-- y no aparezca ruido»): los documentos de la sección III que son actos
+-- individuales (convenios, autorizaciones, premios, emplazamientos…)
+-- siguen en boe_documents, con su ficha y en el buscador, pero dejan de
+-- estar activos, así que ya no entran en las alarmas. La función
+-- es_ruido_normativo() es la misma regla que lib/ruidoNormativo.js (la
+-- que filtra los diarios autonómicos): si se cambia una, cambiar la otra.
+-- Medido en 28 días: la sección III pasa de 738 documentos a unos 100.
+--
 -- La vista se sustituye con CREATE OR REPLACE: mismas columnas y una rama
 -- más al final, así que no se tocan las vistas que dependen de ella
 -- (regulatorio_reciente, search_index, my_follows, asuntos_de_mis_temas).
@@ -69,6 +78,33 @@ create table if not exists public.diarios_ccaa_vistos (
 create index if not exists diarios_ccaa_vistos_idx on public.diarios_ccaa_vistos (ccaa, visto_en desc);
 alter table public.diarios_ccaa_vistos enable row level security;
 grant all on public.diarios_ccaa_vistos to service_role;
+
+create or replace function public.es_ruido_normativo(titulo text)
+returns boolean
+language sql
+stable
+as $fn$
+  select case
+    when t is null or t = '' then false
+    -- Lo que se queda aunque case: bases reguladoras y lo que aprueba o regula
+    when t ~ 'bases reguladoras|por (el|la) que se (aprueba|regula|establece|desarrolla|modifica (el|la) (decreto|orden|reglamento))'
+         and t !~ '^extracto\y|\yconvenios?\y|\yadenda\y' then false
+    else (
+         t ~ '\yconvenios?\y|\yadenda\y|encomienda de gestion|protocolo general de actuacion|acuerdo de colaboracion'
+      or t ~ 'autorizacion administrativa|se autoriza\y|se otorga|modifica la autorizacion|autorizacion de apertura|autoriza la apertura|inscrib|registro de (fundaciones|asociaciones|cooperativas)|se clasifica|homologa|se acredita|acreditacion de|reconocimiento de (entidad|la condicion)|utilidad publica|extincion de la fundacion|ratifica el acuerdo de extincion'
+      or t ~ 'emplaza|recurso contencioso|se notifica|notificacion|archivo del expediente|se acuerda el archivo|declara desierta|deja sin efecto la convocatoria'
+      or t ~ '\ypremios?\y|\ybecas?\y|distincion|medalla|condecoracion'
+      or t ~ 'comision de valoracion|tribunal calificador|vocalia|se nombran las personas vocales'
+      or t ~ 'cuentas anuales|delegacion de (competencias|firma)|se delegan? (competencias|la firma)|rendicion de cuentas|estado de ejecucion|ejecucion del presupuesto|liquidacion (del |de la )?(consorcio|entidad|fundacion)'
+      or t ~ 'resuelve la convocatoria|se resuelve la concesion|se conceden?\y|relacion de (beneficiarios|titulares|personas)|beneficiari|amplia el plazo de (ejecucion|justificacion)|reintegro|perdida del derecho'
+      or t ~ '^extracto\y'
+      or t ~ 'plan(es)? de estudios|cambios del euro|real carta de sucesion|derecho de tanteo|vacante de academico|bien de interes cultural|estatutos de (la |el )?(mancomunidad|fundacion|asociacion|colegio|consorcio)|numero de identificacion fiscal|tipo de interes efectivo|efectos postales|\ysellos?\y|loteria|sorteo|listado definitivo'
+      or t ~ 'recurso interpuesto contra|nota de calificacion|calificacion (negativa|registral)|resultados de las subastas|subastas de (bonos|letras|obligaciones)|tipo de rendimiento|carta de servicios|(rehabilitacion|revocacion) de (los )?numeros? de identificacion|se aprueban y se anulan'
+      or t ~ '(declaracion|informe) de impacto ambiental|evaluacion ambiental (simplificada|ordinaria) del proyecto'
+    )
+  end
+  from (select unaccent(lower(titulo)) as t) x
+$fn$;
 
 create or replace view public.regulatorio_search as
  SELECT 'ley'::text AS kind,
@@ -123,7 +159,7 @@ UNION ALL
     '/boe/'::text || d.slug AS ruta,
     NULL::timestamp with time zone AS plazo,
     d.fecha_publicacion AS fecha,
-    NOT d.derogado AS activo
+    NOT d.derogado AND NOT (d.seccion = '3' AND public.es_ruido_normativo(d.titulo)) AS activo
    FROM boe_documents d
 UNION ALL
  SELECT 'consulta'::text AS kind,
