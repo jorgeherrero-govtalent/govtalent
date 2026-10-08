@@ -54,10 +54,13 @@ async function applySubscription(admin, subscription, extra = {}) {
 
   // El producto también se deduce del precio, por si la suscripción llega
   // sin metadatos (creada o cambiada a mano en el Dashboard).
-  const item = subscription.items?.data?.[0];
+  // La suscripción del Directorio puede llevar dos líneas (sql/85): la
+  // anual y la de usuarios adicionales. Se mira cualquiera de ellas.
+  const items = subscription.items?.data || [];
+  const item = items.find((i) => i?.price?.lookup_key === 'directorio_anual') || items[0];
   const lookup = item?.price?.lookup_key || '';
   if (!planKey) {
-    if (lookup === 'directorio_anual') planKey = 'directorio';
+    if (lookup === 'directorio_anual' || items.some((i) => i?.price?.lookup_key === 'directorio_usuario_extra')) planKey = 'directorio';
     else if (lookup.startsWith('vigilancia_')) planKey = 'vigilancia';
   }
 

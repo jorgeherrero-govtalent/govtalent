@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { toast } from '@/lib/toast';
 import { euros, precioMensual, DIRECTORIO_ANUAL } from '@/lib/precios';
+import UsuariosDirectorio from '@/components/UsuariosDirectorio';
 
 const CARD = { background: '#fff', borderRadius: 10, boxShadow: '0 1px 2px rgba(0,0,0,.04)' };
 const LABEL = { fontSize: 11, color: '#a8a49c', letterSpacing: '.4px', marginBottom: 14 };
@@ -75,6 +76,14 @@ function Beneficio({ verbo, texto }) {
  * incluida. A esa persona no se le ofrece comprarlo otra vez.
  */
 export default function BloquePlanCuenta({ user }) {
+  // Acceso al Directorio como usuario adicional de otra persona (sql/85).
+  const [accesoAdicional, setAccesoAdicional] = useState(false);
+  useEffect(() => {
+    createClient()
+      .rpc('tiene_directorio')
+      .then(({ data }) => setAccesoAdicional(data === true));
+  }, []);
+
   const supabase = createClient();
   const [orgConTeams, setOrgConTeams] = useState(null);
   const [cargandoOrg, setCargandoOrg] = useState(true);
@@ -118,7 +127,7 @@ export default function BloquePlanCuenta({ user }) {
   const usuarios = Number(user?.plan_usuarios) || 1;
 
   // El Directorio va en su propia suscripción (sql/73). Teams lo incluía.
-  const conDirectorio = ['active', 'past_due'].includes(user?.directorio_status) || !!orgConTeams;
+  const conDirectorio = ['active', 'past_due'].includes(user?.directorio_status) || !!orgConTeams || accesoAdicional;
   const directorioPropio = ['active', 'past_due'].includes(user?.directorio_status);
   const directorioRenueva = fecha(user?.directorio_renews_at);
 
@@ -277,9 +286,12 @@ export default function BloquePlanCuenta({ user }) {
                 ? `Cancelado: mantienes el acceso${directorioRenueva ? ` hasta el ${directorioRenueva}` : ''}.`
                 : `Activo.${directorioRenueva ? ` Se renueva el ${directorioRenueva}.` : ''}`}
             </p>
+          ) : null}
+          {directorioPropio ? (
+            <UsuariosDirectorio />
           ) : conDirectorio ? (
             <p style={{ fontSize: 12.5, color: '#8b8780', lineHeight: 1.6, margin: 0 }}>
-              Incluido en el plan de {orgConTeams?.name}.
+              {orgConTeams?.name ? `Incluido en el plan de ${orgConTeams.name}.` : 'Tienes acceso como usuario adicional del Directorio de otra persona.'}
             </p>
           ) : (
             <>
