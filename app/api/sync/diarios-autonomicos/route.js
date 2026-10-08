@@ -37,11 +37,13 @@ import * as extremadura from '@/lib/diarios/extremadura';
 import * as castillayleon from '@/lib/diarios/castillayleon';
 import * as navarra from '@/lib/diarios/navarra';
 import * as cataluna from '@/lib/diarios/cataluna';
+import * as aragon from '@/lib/diarios/aragon';
+import * as asturias from '@/lib/diarios/asturias';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 300;
 
-const LECTORES = { galicia, madrid, murcia, paisvasco, extremadura, castillayleon, navarra, cataluna };
+const LECTORES = { galicia, madrid, murcia, paisvasco, extremadura, castillayleon, navarra, cataluna, aragon, asturias };
 
 // Cliente de servicio sin caché de Next: si no, las lecturas de Supabase
 // pueden quedarse congeladas entre ejecuciones.

@@ -27,20 +27,19 @@ function hoy() {
 // Segunda ronda (08-10-2026): lo que faltaba para Aragón, Asturias,
 // Cantabria, Valencia y La Rioja. `js: true` descarga además los scripts
 // principales de la página y busca en ellos rutas de API.
+// Tercera ronda (08-10-2026): Cantabria, Valencia y La Rioja.
 function paginas() {
   const h = hoy();
   return {
-    aragon: [
-      { url: 'https://www.boa.aragon.es/', js: true },
-      `https://www.boa.aragon.es/cgi-bin/EBOA/BRSCGI?CMD=VERLST&BASE=BOLE&DOCS=1-50&SEC=OPENDATABOAJSONAPP&OUTPUTMODE=JSON&SEPARADOR=&PUBL-C=${h.a}${h.m}${h.d}`,
-      `https://www.boa.aragon.es/cgi-bin/EBOA/BRSCGI?CMD=VERLST&BASE=BOLE&DOCS=1-50&SEC=OPENDATABOAXML&OUTPUTMODE=XML&SEPARADOR=&PUBL-C=${h.a}${h.m}${h.d}`,
+    cantabria: [
+      'https://boc.cantabria.es/boces/boletines.do?boton=UltimoBOCPublicado',
+      `https://boc.cantabria.es/boces/boletines.do?boton=Fecha&boletinBean.fecBolString=${h.d}/${h.m}/${h.a}`,
     ],
-    asturias: [
-      `https://miprincipado.asturias.es/bopa-sumario?p_p_id=pa_sede_bopa_web_portlet_SedeBopaSummaryWeb&p_p_lifecycle=0&p_p_state=normal&p_p_mode=view&p_r_p_summaryDate=${h.d}%2F${h.m}%2F${h.a}&p_r_p_summaryIsSearch=false`,
+    valencia: [
+      { url: 'https://dogv.gva.es/dogv-portal-frontend/es/sumari', js: true, todo: true },
+      'https://dogv.gva.es/dogv-portal-frontend/assets/config.json',
     ],
-    cantabria: [{ url: 'https://boc.cantabria.es/boces/', formularios: true }],
-    valencia: [{ url: 'https://dogv.gva.es/dogv-portal-frontend/es/sumari', js: true }],
-    rioja: ['https://web.larioja.org/bor-portada/bor'],
+    rioja: [{ url: 'https://web.larioja.org/bor-portada/bor', js: true, todo: true }],
   };
 }
 
@@ -59,7 +58,7 @@ export async function GET(request) {
   const salida = await Promise.all(pedidos.map(async (clave) => {
     const res = [];
     for (const entrada of P[clave]) {
-      const { url, js, formularios } = typeof entrada === 'string' ? { url: entrada } : entrada;
+      const { url, js, formularios, todo } = typeof entrada === 'string' ? { url: entrada } : entrada;
       try {
         const r = await web.binario(url);
         const tipo = r.tipo || '';
@@ -74,11 +73,16 @@ export async function GET(request) {
         let api_js;
         if (js) {
           api_js = [];
-          const srcs = scripts.filter((x) => !/googletagmanager|readspeaker|recaptcha|jquery|bootstrap|aui|frontend-js/i.test(x)).slice(0, 4);
+          const srcs = scripts
+            .filter((x) => !/googletagmanager|readspeaker|recaptcha|jquery|bootstrap|aui|frontend-js|vendor|polyfills|runtime|cookie|html5shiv|respond/i.test(x))
+            .slice(0, 5);
           for (const src of srcs) {
             try {
               const codigo = await web.texto(new URL(src.replace(/&amp;/g, '&'), url).toString());
-              api_js.push({ src, rutas: [...new Set([...codigo.matchAll(API_JS)].map((m) => m[1]))].slice(0, 60) });
+              const rutas = [...new Set([...codigo.matchAll(API_JS)].map((m) => m[1]))].slice(0, 60);
+              // «todo»: además, cualquier URL o ruta /algo/api… del código.
+              const urls = todo ? [...new Set([...codigo.matchAll(/(https?:\/\/[a-z0-9.\-]+(?:\/[^"'`\s)]*)?|\/[a-z0-9\-]+\/(?:api|rest|ws|v\d)[^"'`\s)]*)/gi)].map((m) => m[1]))].filter((u) => !/w3\.org|schema\.org|angular|github|mozilla|google/i.test(u)).slice(0, 80) : undefined;
+              api_js.push({ src, kb: Math.round(codigo.length / 1024), rutas, urls });
             } catch (e) {
               api_js.push({ src, error: String(e.message || e).slice(0, 120) });
             }
