@@ -232,7 +232,7 @@ export default function CalculadoraPrecios({ autenticado = false }) {
             </div>
             <div style={{ background: '#faf9f5', borderRadius: 10, padding: 14 }}>
               <b style={{ fontSize: 24, color: '#1a1a18' }}>{miles(creditosIncluidos(usuarios))}</b>
-              <div style={{ fontSize: 12.5, color: '#55524b' }}>créditos de IA al mes</div>
+              <div style={{ fontSize: 12.5, color: '#55524b' }}>créditos mensuales</div>
               <div style={{ fontSize: 11.5, color: '#8b8780', marginTop: 2 }}>
                 {equipo ? '300 por usuario, compartidos' : '300 por usuario'}
               </div>
