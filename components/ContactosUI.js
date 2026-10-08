@@ -442,14 +442,25 @@ export function CeldaContacto({ f, estado, onEnriquecer, puedeEnriquecer = true 
       )}
       {!email && !enrEmail && f.probable?.email && (
         <span style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-          <span className="gt-ct-cto" title={`Deducido del patrón de ${f.probable.dominio} (${f.probable.descripcion}). Sin verificar.`}>
-            <a href={`mailto:${f.probable.email}`} style={{ borderBottom: '1px dashed #cfc9f8' }}>
+          <span
+            className="gt-ct-cto"
+            title={
+              f.probable.verificado
+                ? `Deducido del patrón de ${f.probable.dominio} y comprobado en su servidor de correo: la dirección existe.`
+                : `Deducido del patrón de ${f.probable.dominio} (${f.probable.descripcion}). Sin verificar.`
+            }
+          >
+            <a href={`mailto:${f.probable.email}`} style={{ borderBottom: f.probable.verificado ? '1px solid #cfc9f8' : '1px dashed #cfc9f8' }}>
               {f.probable.email}
             </a>
-            <span className="gt-ct-tipo" style={{ background: '#efedfd', color: '#3d2fb3' }}>Probable</span>
+            <span className="gt-ct-tipo" style={{ background: '#efedfd', color: '#3d2fb3' }}>
+              {f.probable.verificado ? 'Verificado' : 'Probable'}
+            </span>
           </span>
           <span className="gt-ct-fte">
-            Patrón de {f.probable.dominio} · acierta en el {Math.round((f.probable.fiabilidad || 0) * 100)} % de {miles(f.probable.muestras)}
+            {f.probable.verificado
+              ? `Patrón de ${f.probable.dominio} · comprobado en su servidor`
+              : `Patrón de ${f.probable.dominio} · acierta en el ${Math.round((f.probable.fiabilidad || 0) * 100)} % de ${miles(f.probable.muestras)}`}
           </span>
         </span>
       )}
@@ -617,8 +628,12 @@ export function exportarExcel(filas, nombreArchivo = 'contactos', estado = null)
         'Email de la unidad': limpiarEmail(f.email_unidad) || '',
         Teléfono: f.telefono || '',
         'Email enriquecido': ok ? limpiarEmail(enr.email) || '' : '',
-        'Email probable (deducido, sin verificar)': !limpiarEmail(f.email) && !ok && f.probable?.email ? f.probable.email : '',
-        'Fiabilidad del patrón': !limpiarEmail(f.email) && !ok && f.probable?.email ? `${Math.round(f.probable.fiabilidad * 100)} %` : '',
+        'Email deducido': !limpiarEmail(f.email) && !ok && f.probable?.email ? f.probable.email : '',
+        'Estado del email deducido': !limpiarEmail(f.email) && !ok && f.probable?.email
+          ? f.probable.verificado
+            ? 'Verificado en el servidor'
+            : `Probable · el patrón acierta en el ${Math.round(f.probable.fiabilidad * 100)} %`
+          : '',
         'Teléfono enriquecido': ok ? enr.telefono || '' : '',
         'Tipo de contacto enriquecido': ok ? TIPO_CONTACTO[enr.tipo] || '' : '',
         'Fuente del enriquecido': ok ? enr.fuente_url || '' : '',
