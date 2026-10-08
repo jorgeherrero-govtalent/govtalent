@@ -7,8 +7,11 @@ import {
   ALARMAS_POR_USUARIO,
   ALARMAS_A_PARTIR_DEL_SEXTO,
   CREDITOS_POR_USUARIO,
+  DIRECTORIO_USUARIO_EXTRA,
+  CREDITOS_CONTACTO_MES,
   euros,
 } from '@/lib/precios';
+import { PACKS_CREDITOS } from '@/lib/creditos';
 
 export const metadata = {
   title: 'Condiciones generales de contratación y uso · GovTalent',
@@ -148,13 +151,15 @@ export default function CondicionesPage() {
       <p>El importe total de cada suscripción se muestra en la <a href="/precios">página de precios</a> y antes de
       completar el pago.</p>
 
-      <h4 style={sub}>5.2. Alarmas y créditos</h4>
+      <h4 style={sub}>5.2. Alarmas y créditos de IA</h4>
       <p>La suscripción incluye {ALARMAS_POR_USUARIO} alarmas activas por Usuario hasta el quinto Usuario y{' '}
-      {ALARMAS_A_PARTIR_DEL_SEXTO} por cada Usuario adicional, así como {CREDITOS_POR_USUARIO} créditos al mes
-      por Usuario. En las suscripciones de varios Usuarios, las alarmas y los créditos son compartidos por todo el
-      equipo.</p>
-      <p>Los créditos se consumen al utilizar las funcionalidades que así se indiquen en la Plataforma, se
-      renuevan al inicio de cada mes y los no utilizados no se acumulan para meses posteriores.</p>
+      {ALARMAS_A_PARTIR_DEL_SEXTO} por cada Usuario adicional, así como {CREDITOS_POR_USUARIO} créditos de IA al
+      mes por Usuario. En las suscripciones de varios Usuarios, las alarmas y los créditos de IA son compartidos
+      por todo el equipo.</p>
+      <p>Los créditos de IA se consumen al utilizar el Asistente y las demás funcionalidades de inteligencia
+      artificial que así se indiquen en la Plataforma, se renuevan al inicio de cada mes y los no utilizados no se
+      acumulan para meses posteriores. No pueden comprarse por separado ni utilizarse para buscar datos de
+      contacto, que se rigen por el apartado 6.2.</p>
       <p>GovTalent podrá pausar automáticamente las alarmas que no se utilicen durante un periodo prolongado,
       informando de ello al Usuario, que podrá reactivarlas.</p>
 
@@ -165,11 +170,30 @@ export default function CondicionesPage() {
       gestionar las altas, bajas, roles y permisos de sus Usuarios.</p>
 
       <h3>6. Directorio</h3>
+      <h4 style={sub}>6.1. Suscripción y Usuarios</h4>
       <p>El Directorio se contrata de forma independiente del plan Vigilancia, mediante una suscripción anual con
-      un precio ordinario de {euros(DIRECTORIO_ANUAL)} al año, sin IVA, y renovación automática.</p>
+      renovación automática. El precio ordinario es de {euros(DIRECTORIO_ANUAL)} al año, sin IVA, e incluye el
+      acceso de un Usuario. Cada Usuario adicional con acceso al Directorio tiene un precio de{' '}
+      {euros(DIRECTORIO_USUARIO_EXTRA)} al año, sin IVA. Los Usuarios adicionales que se añadan durante el periodo
+      de suscripción se facturarán por la parte proporcional del periodo restante.</p>
       <p>La suscripción al Directorio da acceso a los datos de contacto de instituciones, organizaciones, medios
-      y actores sociales publicados en la Plataforma, e incluye además una alarma con resumen semanal y 100
-      créditos al mes.</p>
+      y actores sociales publicados en la Plataforma, e incluye además una alarma con resumen semanal y{' '}
+      {CREDITOS_CONTACTO_MES} créditos de contacto al mes.</p>
+
+      <h4 style={sub}>6.2. Créditos de contacto</h4>
+      <p>Los créditos de contacto permiten buscar en fuentes públicas el dato de contacto de una persona que no
+      figura en el Directorio. Se consume un crédito por persona únicamente cuando la búsqueda encuentra una
+      dirección de correo electrónico; si no la encuentra, no se consume ningún crédito. Los resultados que ya
+      estén disponibles en la Plataforma se muestran sin coste. Buscar y filtrar en el Directorio no consume
+      créditos.</p>
+      <p>Los {CREDITOS_CONTACTO_MES} créditos de contacto mensuales corresponden a la suscripción, no a cada
+      Usuario, y son compartidos por todos los Usuarios con acceso al Directorio. Se renuevan al inicio de cada mes
+      y los no utilizados no se acumulan para meses posteriores.</p>
+      <p>El Cliente podrá adquirir paquetes adicionales de créditos de contacto mediante pago único
+      ({PACKS_CREDITOS.map((p, i) => `${i ? (i === PACKS_CREDITOS.length - 1 ? ' o ' : ', ') : ''}${p.creditos.toLocaleString('es-ES')} créditos por ${euros(p.precio)}`).join('')}, sin IVA). Los créditos adquiridos no caducan mientras se mantenga
+      activa la suscripción al Directorio y se consumen después de los créditos mensuales.</p>
+      <p>Los créditos de contacto y los créditos de IA del plan Vigilancia son independientes y no pueden
+      intercambiarse entre sí. Ningún tipo de crédito es canjeable por dinero ni transferible a otra cuenta.</p>
       <p>El uso del Directorio se rige además por las cláusulas específicas sobre el Directorio de estas
       Condiciones.</p>
 

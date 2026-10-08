@@ -425,7 +425,7 @@ function ContactosPagina() {
       {upsell && (
         <UpgradeModal
           title="Disponible con suscripción"
-          message="El buscador de contactos es del Directorio: más de veintiún mil cargos y contactos de las instituciones de España y la UE, el cuerpo diplomático, los medios y las organizaciones, con su correo, su teléfono y la fuente de cada dato. Guarda listas que te avisan de los cambios e incluye 50 créditos al mes para enriquecer contactos."
+          message="El buscador de contactos es del Directorio: más de veintiún mil cargos y contactos de las instituciones de España y la UE, el cuerpo diplomático, los medios y las organizaciones, con su correo, su teléfono y la fuente de cada dato. Guarda listas que te avisan de los cambios e incluye 25 créditos de contacto al mes para buscar los correos que falten."
           href="/precios"
           onClose={() => setUpsell(false)}
         />

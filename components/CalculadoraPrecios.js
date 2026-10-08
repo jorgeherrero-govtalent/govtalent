@@ -5,6 +5,7 @@ import Link from 'next/link';
 import {
   MAX_USUARIOS,
   DIRECTORIO_ANUAL,
+  DIRECTORIO_USUARIO_EXTRA,
   precioMensual,
   precioAnual,
   alarmasIncluidas,
@@ -231,7 +232,7 @@ export default function CalculadoraPrecios({ autenticado = false }) {
             </div>
             <div style={{ background: '#faf9f5', borderRadius: 10, padding: 14 }}>
               <b style={{ fontSize: 24, color: '#1a1a18' }}>{miles(creditosIncluidos(usuarios))}</b>
-              <div style={{ fontSize: 12.5, color: '#55524b' }}>créditos al mes</div>
+              <div style={{ fontSize: 12.5, color: '#55524b' }}>créditos de IA al mes</div>
               <div style={{ fontSize: 11.5, color: '#8b8780', marginTop: 2 }}>
                 {equipo ? '300 por usuario, compartidos' : '300 por usuario'}
               </div>
@@ -272,7 +273,7 @@ export default function CalculadoraPrecios({ autenticado = false }) {
             </h3>
             <p style={{ margin: 0, fontSize: 13, color: '#6f6c64', lineHeight: 1.45 }}>
               Más de 18.000 contactos de instituciones, organizaciones, medios y actores sociales: altos cargos,
-              asesores y funcionarios, más de 15.000 con correo o teléfono. 1 alarma semanal y 50 créditos al mes.
+              asesores y funcionarios, más de 15.000 con correo o teléfono. Incluye 1 usuario, 1 alarma semanal y 25 créditos de contacto al mes. Cada usuario adicional, {euros(DIRECTORIO_USUARIO_EXTRA)} al año.
             </p>
           </div>
           <div style={{ display: 'flex', alignItems: 'baseline', gap: 4, whiteSpace: 'nowrap' }}>
