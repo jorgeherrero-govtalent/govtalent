@@ -74,7 +74,11 @@ export async function POST(request) {
 
   // 1. Caché compartida.
   const { data: cache } = await admin.from('contactos_enriquecidos').select('*').eq('persona_id', id).maybeSingle();
-  if (cache && vigente(cache)) {
+  // Con correo: se devuelve gratis. Sin correo (búsqueda con IA reciente que
+  // no lo encontró): no se repite la IA, pero sí la comprobación en el
+  // servidor, que es barata y puede que entonces no se hiciera.
+  const cacheSinCorreo = cache && vigente(cache) && !cache.email;
+  if (cache && vigente(cache) && cache.email) {
     return NextResponse.json({ resultado: publico(cache), cobrado: false, cache: true, saldo: await saldoCreditos(admin, userId) });
   }
 
@@ -110,10 +114,16 @@ export async function POST(request) {
           notas: `Comprobado en el servidor de correo de ${s.dominio}`,
           coste_usd: Number((s.probados.length * 0.002).toFixed(5)),
         }
-      : await enriquecerPersona(persona);
+      : cacheSinCorreo
+        ? null
+        : await enriquecerPersona(persona);
   } catch (e) {
     console.error('[contactos/enriquecer]', id, e.message);
     return NextResponse.json({ error: 'No se pudo completar la búsqueda. No se ha descontado ningún crédito.' }, { status: 502 });
+  }
+
+  if (!r) {
+    return NextResponse.json({ resultado: publico(cache), cobrado: false, cache: true, saldo: await saldoCreditos(admin, userId) });
   }
 
   // 4. Caché y cobro.
