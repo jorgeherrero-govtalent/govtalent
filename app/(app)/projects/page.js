@@ -992,19 +992,13 @@ function Proyectos() {
         { id: 'documentos', label: 'Documentos' },
       ]
     : [
-        // Los ids tienen que existir en ProyectoDemo: AnclasProyecto
-        // hace getElementById y se calla si no encuentra nada, así que
-        // un id equivocado no da error, simplemente deja el ítem muerto.
-        // Aquí ponía 'actividad', que en la demo no existe —son dos
-        // tarjetas, 'registro' y 'agenda'— y por eso no se podía pinchar.
-        { id: 'norma', label: 'La norma' },
+        // Los mismos que en Pro, con los ids de ProyectoDemo:
+        // AnclasProyecto hace getElementById y se calla si no encuentra
+        // nada, así que un id equivocado deja el ítem muerto.
+        { id: 'resumen', label: 'Resumen' },
         { id: 'mapa', label: 'Mapa de actores' },
-        { id: 'notas', label: 'Objetivo' },
         { id: 'briefing', label: 'Briefing' },
-        // Registro va suelto y con distintivo: es lo único de la demo
-        // que responde a una obligación legal, y es lo que queremos que
-        // se mire.
-        { id: 'registro', label: 'Registro', distintivo: 'NUEVO' },
+        { id: 'registro', label: 'Registro' },
         { id: 'documentos', label: 'Documentos' },
       ];
 

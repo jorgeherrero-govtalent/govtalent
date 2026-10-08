@@ -80,6 +80,14 @@ const DEMO = {
       cerrada: false,
     },
   ],
+  // Los asuntos que se siguen en el proyecto, como AsuntosProyecto: de
+  // dónde vienen y cuánto queda de la fase actual. El primero abre la
+  // ficha de la norma.
+  asuntos: [
+    { titulo: 'Ley de gobernanza de la inteligencia artificial', origen: 'Congreso · proyecto de ley', estado: 'Quedan 13 días', comentarios: 2, ficha: true },
+    { titulo: 'Reglamento de IA: códigos de buenas prácticas', origen: 'Comisión Europea · expediente', estado: 'Consulta abierta' },
+    { titulo: 'Proyecto de real decreto del sandbox de IA', origen: 'Ministerios · consulta pública', estado: 'Quedan 6 días', comentarios: 1 },
+  ],
   documentos: [
     { nombre: 'posicion-interna-v3.pdf', cuando: 'hace 3 d' },
     { nombre: 'enmiendas-propuestas.docx', cuando: 'ayer' },
@@ -239,98 +247,71 @@ export default function ProyectoDemo() {
 
   return (
     <div>
-      {/* --- Cabecera con las acciones a la vista --- */}
-      <div className="bento" style={{ ...CARD, padding: '16px 18px', marginBottom: 10 }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 14, flexWrap: 'wrap' }}>
-          <div style={{ minWidth: 0 }}>
-            <div style={{ fontSize: 18, fontWeight: 600, lineHeight: 1.35 }}>{DEMO.norma.titulo}</div>
-            <div style={{ fontSize: 12, color: '#888', marginTop: 4 }}>{DEMO.norma.organo}</div>
-          </div>
-          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', flexShrink: 0 }}>
-            <span style={{ fontSize: 11.5, border: `1px solid ${MORADO}`, color: MORADO, borderRadius: 8, padding: '5px 11px' }}>
-              <i className="ti ti-plus" style={{ fontSize: 12, verticalAlign: -1, marginRight: 3 }}></i>Actor
-            </span>
-            {['Documento', 'Recordatorio', 'Nota'].map((t) => (
-              <span key={t} style={{ fontSize: 11.5, border: `.5px solid ${BORDE}`, color: '#555', borderRadius: 8, padding: '5px 11px' }}>
-                {t}
-              </span>
-            ))}
-          </div>
-        </div>
-      </div>
-
-      {/* --- La norma y su tramitación --- */}
-      <div className="bento" id="norma" style={{ ...CARD, padding: '15px 18px', marginBottom: 10, scrollMarginTop: 72 }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, marginBottom: 13, flexWrap: 'wrap' }}>
-          <span style={ETIQUETA}>LA NORMA Y SU TRAMITACIÓN</span>
-          {/* Abre un ejemplo, no lleva a Regulatorio. La norma de la
-              demo es inventada y no tiene ficha propia; mandar al
-              usuario a la sección real le sacaría de la demostración
-              para enseñarle otra cosa.
-
-              stopPropagation es obligatorio: el contenedor de la demo,
-              en projects/page.js, tiene un onClick que abre el modal de
-              venta, y sin frenarlo aquí saldrían los dos a la vez. */}
-          <button
-            type="button"
-            onClick={(e) => {
-              e.stopPropagation();
-              setFicha(true);
-            }}
+      {/* --- Objetivo y asuntos, como la cabecera del proyecto en Pro --- */}
+      <div
+        id="resumen"
+        style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: 24, alignItems: 'start', marginBottom: 22, scrollMarginTop: 72 }}
+      >
+        <div style={{ minWidth: 0 }}>
+          <div style={{ ...ETIQUETA, marginBottom: 7 }}>OBJETIVO</div>
+          <div
             style={{
-              fontSize: 11.5,
-              color: MORADO,
-              border: 'none',
-              background: 'none',
-              padding: 0,
-              cursor: 'pointer',
-              fontFamily: 'inherit',
+              padding: '10px 12px',
+              border: `.5px solid ${BORDE}`,
+              borderRadius: 9,
+              fontSize: 13,
+              lineHeight: 1.7,
+              background: '#fafaf7',
+              color: '#3a3a36',
+              minHeight: 96,
             }}
           >
-            Ver ficha completa →
-          </button>
+            Que la supervisión no imponga auditoría previa a los sistemas de riesgo limitado y que el umbral para pymes
+            se fije en 50 empleados.
+          </div>
         </div>
-        {/* Cinco fases en fila caben en escritorio, pero en un móvil
-            se reparten 66 píxeles cada una y "Toma en consideración" se
-            monta encima de la siguiente. En pantalla estrecha la línea
-            pasa a lista vertical: la barra se queda como marca a la
-            izquierda, el nombre a continuación y la fecha a la derecha.
-            Las reglas están en globals.css, bajo .gt-fases. */}
-        <div className="gt-fases" style={{ display: 'flex', gap: 6 }}>
-          {DEMO.norma.fases.map((f) => (
-            <div key={f.nombre} className="gt-fase" style={{ flex: 1, minWidth: 0, textAlign: 'center' }}>
-              <div
-                className="gt-fase-barra"
-                style={{
-                  height: 3,
-                  borderRadius: 2,
-                  marginBottom: 7,
-                  background: f.estado === 'futura' ? BORDE : MORADO,
-                }}
-              ></div>
-              <div
-                className="gt-fase-nombre"
-                style={{
-                  fontSize: 11,
-                  fontWeight: f.estado === 'futura' ? 400 : 600,
-                  color: f.estado === 'futura' ? '#a8a49c' : f.estado === 'actual' ? MORADO : '#1a1a18',
-                  lineHeight: 1.3,
-                }}
-              >
-                {f.nombre}
+
+        <div style={{ minWidth: 0 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8, marginBottom: 10 }}>
+            <span style={ETIQUETA}>ASUNTOS</span>
+            <span style={{ color: MORADO, fontSize: 11.5 }}>+ Añadir</span>
+          </div>
+          {DEMO.asuntos.map((x, i) => (
+            <button
+              key={x.titulo}
+              type="button"
+              onClick={(e) => {
+                // La ficha es un ejemplo; sin frenar el clic, el
+                // contenedor abriría también el modal de venta.
+                if (!x.ficha) return;
+                e.stopPropagation();
+                setFicha(true);
+              }}
+              style={{
+                display: 'block',
+                width: '100%',
+                textAlign: 'left',
+                background: 'none',
+                border: 'none',
+                borderTop: i === 0 ? `.5px solid ${BORDE}` : 'none',
+                borderBottom: `.5px solid ${BORDE}`,
+                padding: '10px 0',
+                cursor: 'pointer',
+                fontFamily: 'inherit',
+              }}
+            >
+              <div style={{ fontSize: 12.5, fontWeight: 500, lineHeight: 1.4, color: '#1a1a18' }}>{x.titulo}</div>
+              <div style={{ display: 'flex', gap: 8, alignItems: 'baseline', flexWrap: 'wrap', fontSize: 11, color: '#888', marginTop: 3 }}>
+                <span>{x.origen}</span>
+                <span style={{ color: '#1a1a18' }}>{x.estado}</span>
+                {x.comentarios ? (
+                  <span style={{ marginLeft: 'auto' }}>
+                    <i className="ti ti-message" style={{ fontSize: 12, verticalAlign: -1, marginRight: 3 }}></i>
+                    {x.comentarios}
+                  </span>
+                ) : null}
               </div>
-              <div
-                className="gt-fase-cuando"
-                style={{
-                  fontSize: 10.5,
-                  marginTop: 2,
-                  color: f.estado === 'futura' ? '#a8a49c' : '#888',
-                  fontWeight: f.estado === 'actual' ? 600 : 400,
-                }}
-              >
-                {f.cuando}
-              </div>
-            </div>
+            </button>
           ))}
         </div>
       </div>
@@ -480,115 +461,99 @@ export default function ProyectoDemo() {
         </div>
       </div>
 
-      {/* --- Objetivo y notas del equipo ---
-          Estas dos tarjetas vivían en ResumenDemo, que se pinta encima
-          de todo, y empujaban la norma y el mapa por debajo del
-          pliegue. Ahora van después de los dos.
-
-          Se cayeron las cifras que las acompañaban —seis actores, dos
-          asuntos, tres sin contactar— porque se cuentan solas mirando
-          el mapa que está justo encima. En su sitio manda la mención,
-          que dice algo que no se ve en ninguna otra parte: que aquí
-          dentro hay gente trabajando. */}
-      <div
-        id="notas"
-        style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 10, marginBottom: 10, scrollMarginTop: 72 }}
-      >
-<div className="bento" style={{ ...CARD, padding: '15px 18px', margin: 0 }}>
-          <div style={{ ...ETIQUETA, marginBottom: 7 }}>OBJETIVO</div>
-          <div style={{ fontSize: 13, color: '#555', lineHeight: 1.7 }}>
-            Que la supervisión no imponga auditoría previa a los sistemas de riesgo limitado.
+      {/* --- Briefing por actor: lista a la izquierda, detalle a la
+          derecha, como BriefingProyecto --- */}
+      <div id="briefing" style={{ marginBottom: 22, scrollMarginTop: 72 }}>
+        <div style={{ ...ETIQUETA, marginBottom: 12 }}>BRIEFING POR ACTOR</div>
+        <style>{`
+          .gt-demo-brief { display: grid; grid-template-columns: minmax(180px, 230px) minmax(0, 1fr); }
+          .gt-demo-brief > div:first-child { border-right: .5px solid ${BORDE}; }
+          @media (max-width: 640px) {
+            .gt-demo-brief { grid-template-columns: minmax(0, 1fr); }
+            .gt-demo-brief > div:first-child { border-right: none; border-bottom: .5px solid ${BORDE}; }
+          }
+        `}</style>
+        <div className="bento gt-demo-brief" style={{ ...CARD, overflow: 'hidden' }}>
+          <div style={{ padding: '8px 0', minWidth: 0 }}>
+            {actores.map((a, i) => (
+              <div
+                key={a.id}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 9,
+                  padding: '8px 14px',
+                  background: i === 0 ? '#f6f5fe' : 'transparent',
+                  borderLeft: `2px solid ${i === 0 ? MORADO : 'transparent'}`,
+                }}
+              >
+                <ActorAvatar actor={a} size={24} fondo={i === 0 ? '#eeedfe' : '#f0f0eb'} />
+                <div style={{ minWidth: 0 }}>
+                  <div style={{ fontSize: 12, fontWeight: i === 0 ? 600 : 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    {a.nombre}
+                  </div>
+                  <div style={{ fontSize: 10.5, color: '#888' }}>{a.relacion === 'sin_contactar' ? 'Sin contactar' : 'Relación iniciada'}</div>
+                </div>
+              </div>
+            ))}
           </div>
-        </div>
-<div className="bento" style={{ ...CARD, padding: '13px 16px', background: '#fafaff', boxShadow: '0 1px 2px rgba(109,90,239,.10)' }}>
-          <div style={{ display: 'flex', gap: 10 }}>
-            <span style={{ width: 26, height: 26, borderRadius: '50%', background: '#eeedfe', color: MORADO, fontSize: 10, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, fontWeight: 600 }}>
-              MR
-            </span>
-            <div style={{ minWidth: 0 }}>
-              <div style={{ fontSize: 12.5, lineHeight: 1.55 }}>
-                <span style={{ fontWeight: 600 }}>María te ha mencionado</span> en una nota sobre la Secretaría de Estado.
+
+          <div style={{ padding: '15px 18px', minWidth: 0 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
+              <ActorAvatar actor={actores[0]} size={34} fondo="#eeedfe" />
+              <div style={{ minWidth: 0 }}>
+                <div style={{ fontSize: 13, fontWeight: 600 }}>{actores[0].nombre}</div>
+                <div style={{ fontSize: 11, color: '#888' }}>Decisor · relación iniciada</div>
               </div>
-              <div style={{ fontSize: 12, color: '#555', lineHeight: 1.55, marginTop: 4 }}>
-                «Piden datos de impacto antes de fijar posición. <span style={{ color: MORADO }}>@Jorge</span> ¿tenemos el estudio?»
+            </div>
+            {/* Primero lo que defienden ELLOS, después lo nuestro: es el
+                orden con el que se prepara una reunión. */}
+            <div style={{ ...ETIQUETA, marginBottom: 5 }}>SU POSICIÓN</div>
+            <div style={{ fontSize: 12, color: '#555', lineHeight: 1.6, marginBottom: 11 }}>
+              Abierta al régimen simplificado, condicionada a datos de impacto en pymes.{' '}
+              <span style={{ color: MORADO }}>Comparecencia · 14 feb</span>
+            </div>
+            <div style={{ ...ETIQUETA, marginBottom: 5 }}>NUESTROS ARGUMENTOS</div>
+            <div style={{ fontSize: 12, color: '#555', lineHeight: 1.6 }}>
+              Coste de cumplimiento para empresas de menos de 50 empleados.
+            </div>
+            {/* Las notas van pegadas al actor, no sueltas en el proyecto:
+                es lo que convierte el briefing en memoria. */}
+            <div style={{ borderTop: `.5px solid ${BORDE}`, marginTop: 12, paddingTop: 11 }}>
+              <div style={{ ...ETIQUETA, marginBottom: 8 }}>NOTAS SOBRE ESTE ACTOR</div>
+              <div style={{ display: 'flex', gap: 9, marginBottom: 10 }}>
+                <span style={{ width: 22, height: 22, borderRadius: '50%', background: '#f0f0eb', color: '#7a736b', fontSize: 9, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                  MR
+                </span>
+                <div style={{ minWidth: 0 }}>
+                  <div style={{ fontSize: 12, color: '#555', lineHeight: 1.55 }}>
+                    En la comparecencia dejó la puerta abierta al umbral de 50 empleados.{' '}
+                    <span style={{ color: MORADO }}>@Jorge</span> ¿tenemos el estudio de impacto?
+                  </div>
+                  <div style={{ fontSize: 10.5, color: '#888', marginTop: 2 }}>hace 6 días</div>
+                </div>
               </div>
-              <div style={{ fontSize: 10.5, color: '#888', marginTop: 4 }}>hace 4 días</div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, border: `.5px solid ${BORDE}`, borderRadius: 9, padding: '8px 11px', background: '#fafaf7' }}>
+                <i className="ti ti-message-plus" style={{ fontSize: 14, color: '#a8a49c' }}></i>
+                <span style={{ fontSize: 12, color: '#a8a49c' }}>Añade una nota sobre este actor</span>
+              </div>
             </div>
           </div>
         </div>
       </div>
 
-      {/* --- Briefing y agenda --- */}
-      <div id="briefing" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(290px, 1fr))', gap: 10, marginBottom: 10, scrollMarginTop: 72 }}>
-        <div className="bento" style={{ ...CARD, padding: '15px 18px' }}>
-          <div style={{ ...ETIQUETA, marginBottom: 12 }}>BRIEFING DEL ACTOR</div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
-            <ActorAvatar actor={DEMO.actores[0]} size={34} fondo="#eeedfe" />
-            <div style={{ minWidth: 0 }}>
-              <div style={{ fontSize: 13, fontWeight: 600 }}>{DEMO.actores[0].nombre}</div>
-              <div style={{ fontSize: 11, color: '#888' }}>Decisor · relación iniciada</div>
-            </div>
-          </div>
-
-          {/* Primero lo que defienden ELLOS, después lo nuestro: es el
-              orden con el que se prepara una reunión. */}
-          <div style={{ ...ETIQUETA, marginBottom: 5 }}>SU POSICIÓN</div>
-          <div style={{ fontSize: 12, color: '#555', lineHeight: 1.6, marginBottom: 11 }}>
-            Abierta al régimen simplificado, condicionada a datos de impacto en pymes.{' '}
-            <span style={{ color: MORADO }}>Comparecencia · 14 feb</span>
-          </div>
-          <div style={{ ...ETIQUETA, marginBottom: 5 }}>NUESTROS ARGUMENTOS</div>
-          <div style={{ fontSize: 12, color: '#555', lineHeight: 1.6 }}>
-            Coste de cumplimiento para empresas de menos de 50 empleados.
-          </div>
-          {/* Las notas van pegadas al actor, no sueltas en el proyecto:
-              es lo que convierte el briefing en memoria. */}
-          <div style={{ borderTop: `.5px solid ${BORDE}`, marginTop: 12, paddingTop: 11 }}>
-            <div style={{ ...ETIQUETA, marginBottom: 8 }}>NOTAS SOBRE ESTE ACTOR</div>
-            <div style={{ display: 'flex', gap: 9, marginBottom: 10 }}>
-              <span style={{ width: 22, height: 22, borderRadius: '50%', background: '#f0f0eb', color: '#7a736b', fontSize: 9, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                MR
-              </span>
-              <div style={{ minWidth: 0 }}>
-                <div style={{ fontSize: 12, color: '#555', lineHeight: 1.55 }}>
-                  En la comparecencia dejó la puerta abierta al umbral de 50 empleados.
-                </div>
-                <div style={{ fontSize: 10.5, color: '#888', marginTop: 2 }}>hace 6 días</div>
-              </div>
-            </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, border: `.5px solid ${BORDE}`, borderRadius: 9, padding: '8px 11px', background: '#fafaf7' }}>
-              <i className="ti ti-message-plus" style={{ fontSize: 14, color: '#a8a49c' }}></i>
-              <span style={{ fontSize: 12, color: '#a8a49c' }}>Añade una nota o menciona con @</span>
-            </div>
-          </div>
-        </div>
-
-        {/* El registro va antes que la agenda y con distintivo: es lo
-            único de la demo que responde a una obligación legal, y lo que
-            distingue a GovTalent de una herramienta de proyectos. */}
-        <div className="bento" id="registro" style={{ ...CARD, padding: '15px 18px', scrollMarginTop: 72 }}>
+      {/* --- Registro y documentos, los dos paneles del final --- */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(290px, 1fr))', gap: 12, marginBottom: 12, alignItems: 'start' }}>
+        {/* El registro con distintivo: es lo único de la demo que
+            responde a una obligación legal, y lo que distingue a
+            GovTalent de una herramienta de proyectos. */}
+        <div className="bento" id="registro" style={{ ...CARD, padding: '16px 18px', scrollMarginTop: 72 }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
-            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 7 }}>
-              <span style={ETIQUETA}>REGISTRO</span>
-              <span
-                style={{
-                  fontSize: 9.5,
-                  fontWeight: 600,
-                  letterSpacing: '.3px',
-                  padding: '2px 7px',
-                  borderRadius: 10,
-                  background: '#f0eefe',
-                  color: MORADO,
-                }}
-              >
-                NUEVO
-              </span>
-            </span>
+            <span style={ETIQUETA}>REGISTRO</span>
             <span style={{ fontSize: 11.5, color: MORADO }}>+ Registrar</span>
           </div>
           <p style={{ fontSize: 11.5, color: '#888', margin: '0 0 12px', lineHeight: 1.5 }}>
-            Cada reunión con la Administración se registra automáticamente desde lo que ya tienes en el
-            proyecto: eliges la fecha, marcas con quién y el acta queda redactada.
+            Deja constancia de cada actividad con la Administración.
           </p>
           {DEMO.registro.map((r, i) => (
             <div
@@ -606,11 +571,7 @@ export default function ProyectoDemo() {
                 style={{ fontSize: 16, color: r.cerrada ? '#1d6f5c' : '#b8b4ac', flexShrink: 0 }}
               ></i>
               <div style={{ flex: 1, minWidth: 0 }}>
-                <div
-                  style={{ fontSize: 12.5, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
-                >
-                  {r.titulo}
-                </div>
+                <div style={{ fontSize: 12.5, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.titulo}</div>
                 <div style={{ fontSize: 10.5, color: '#888', marginTop: 2 }}>{r.pie}</div>
               </div>
               <button
@@ -639,37 +600,7 @@ export default function ProyectoDemo() {
           ))}
         </div>
 
-        <div className="bento" id="agenda" style={{ ...CARD, padding: '15px 18px', scrollMarginTop: 72 }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-            <span style={ETIQUETA}>AGENDA</span>
-            <span style={{ fontSize: 11.5, color: MORADO }}>+ Acción</span>
-          </div>
-          {DEMO.agenda.map((a, i) => (
-            <div
-              key={a.titulo}
-              style={{
-                display: 'flex',
-                gap: 11,
-                padding: i === 0 ? '0 0 10px' : '10px 0',
-                borderBottom: i < DEMO.agenda.length - 1 ? `.5px solid ${BORDE}` : 'none',
-              }}
-            >
-              <div style={{ textAlign: 'center', flexShrink: 0, width: 34 }}>
-                <div style={{ fontSize: 15, fontWeight: 600, lineHeight: 1.1 }}>{a.dia}</div>
-                <div style={{ fontSize: 10, color: '#888' }}>{a.mes}</div>
-              </div>
-              <div style={{ minWidth: 0 }}>
-                <div style={{ fontSize: 12.5, lineHeight: 1.45, fontWeight: a.oficial ? 600 : 400 }}>{a.titulo}</div>
-                <div style={{ fontSize: 10.5, color: '#888', marginTop: 2 }}>{a.pie}</div>
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* --- Documentos y notas --- */}
-      <div id="documentos" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(290px, 1fr))', gap: 10, marginBottom: 12, scrollMarginTop: 72 }}>
-        <div className="bento" style={{ ...CARD, padding: '15px 18px' }}>
+        <div className="bento" id="documentos" style={{ ...CARD, padding: '16px 18px', scrollMarginTop: 72 }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
             <span style={ETIQUETA}>DOCUMENTOS</span>
             <span style={{ fontSize: 11.5, color: MORADO }}>+ Subir</span>
@@ -691,32 +622,13 @@ export default function ProyectoDemo() {
             </div>
           ))}
         </div>
-
-        <div className="bento" style={{ ...CARD, padding: '15px 18px' }}>
-          <div style={{ ...ETIQUETA, marginBottom: 12 }}>NOTAS DEL EQUIPO</div>
-          <div style={{ display: 'flex', gap: 9, paddingBottom: 10, borderBottom: `.5px solid ${BORDE}` }}>
-            <span style={{ width: 24, height: 24, borderRadius: '50%', background: '#f0f0eb', color: '#7a736b', fontSize: 9.5, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-              MR
-            </span>
-            <div style={{ minWidth: 0 }}>
-              <div style={{ fontSize: 12, color: '#555', lineHeight: 1.55 }}>
-                Piden datos de impacto antes de fijar posición. <span style={{ color: MORADO }}>@Jorge</span> ¿tenemos el estudio?
-              </div>
-              <div style={{ fontSize: 10.5, color: '#888', marginTop: 2 }}>hace 4 días</div>
-            </div>
-          </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, paddingTop: 11, color: '#a8a49c' }}>
-            <span style={{ width: 24, height: 24, borderRadius: '50%', background: '#f0f0eb', flexShrink: 0 }}></span>
-            <span style={{ fontSize: 12 }}>Escribe una nota, menciona con @ o enlaza con /</span>
-          </div>
-        </div>
       </div>
 
       {/* --- Lo que llega con Teams, siempre visible --- */}
       <div className="bento" style={{ ...CARD, padding: '13px 18px', marginBottom: 14 }}>
         <div style={{ ...ETIQUETA, marginBottom: 10 }}>Y CUANDO SEÁIS UN EQUIPO · TEAMS</div>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 9, color: '#a8a49c', fontSize: 12 }}>
-          {['Responsable por actor', 'Menciones y comentarios', 'Registro de contactos', 'Agenda compartida'].map((t) => (
+          {['Responsable por actor', 'Menciones y comentarios', 'Registro compartido', 'Tareas del equipo'].map((t) => (
             <div key={t} style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
               <i className="ti ti-lock" style={{ fontSize: 13 }}></i>
               {t}
@@ -744,7 +656,7 @@ export default function ProyectoDemo() {
           Así se ve un proyecto en Pro.
         </div>
         <div style={{ fontSize: 11.5, color: '#888', marginBottom: 13, lineHeight: 1.5 }}>
-          Con seguimiento, alertas, el registro de actividades de influencia y el directorio completo.
+          Con los asuntos que sigues, su tramitación, el mapa de actores y el registro de actividades de influencia.
         </div>
         <Link
           href="/precios"
