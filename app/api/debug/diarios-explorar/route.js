@@ -40,12 +40,14 @@ function paginas() {
     // Quinta ronda: en el main.js salen las rutas del servicio
     // (/latest, /ultimasDisposiciones, /disposicionesPorTipoYFecha…) pero
     // no su base. Se mira el código alrededor y se prueban candidatas.
+    // Sexta ronda: server_url es https://dogv.gva.es/dogv-portal, pero
+    // /dogv/latest responde HTTP 440. Se busca qué cabeceras o token pone
+    // la aplicación (interceptor, reCAPTCHA) y se ve el cuerpo del error.
     valencia: [
-      { url: 'https://dogv.gva.es/dogv-portal-frontend/main.2de782d451d4153cb7a7.js', contexto: ['dogv-portal"', "dogv-portal'", 'apiUrl', 'baseUrl', '/latest', '/ultimasDisposiciones', '/disposicionesPorTipoYFecha', '/seccionesDogv', 'sumari?data='] },
+      { url: 'https://dogv.gva.es/dogv-portal-frontend/main.2de782d451d4153cb7a7.js', contexto: ['setHeaders', 'intercept(', 'HttpHeaders', 'recaptcha', 'grecaptcha', 'getDogvLatest(', '440', 'withCredentials'] },
       'https://dogv.gva.es/dogv-portal/dogv/latest',
-      'https://dogv.gva.es/dogv-portal/sumario/latest',
-      'https://dogv.gva.es/dogv-portal/disposicion/ultimasDisposiciones',
-      'https://dogv.gva.es/dogv-portal/dogv/ultimasDisposiciones',
+      'https://dogv.gva.es/dogv-portal/dogv/calendar',
+      'https://dogv.gva.es/robots.txt',
     ],
     rioja_ficha: ['https://web.larioja.org/bor-portada/boranuncio?n=anu-580109'],
     rioja: [{ url: 'https://web.larioja.org/bor-portada/bor', js: true, todo: true }],
@@ -139,7 +141,7 @@ export async function GET(request) {
           html_inicio_main: (cuerpo.match(/<main[\s\S]{0,3000}/i) || cuerpo.match(/<body[\s\S]{0,3000}/i) || [''])[0].replace(/\s+/g, ' '),
         });
       } catch (e) {
-        res.push({ url, error: String(e.message || e).slice(0, 200) });
+        res.push({ url, error: String(e.message || e).slice(0, 200), cuerpo: e.cuerpo });
       }
     }
     return [clave, res];
