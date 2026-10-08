@@ -435,7 +435,7 @@ function ContactosPagina() {
     <div className="gt-ct-cab">
       <div>
         <h1>Contactos</h1>
-        <p>Busca en el directorio de GovTalent y en las fuentes oficiales cargadas. Buscar no consume créditos.</p>
+        <p>Busca personas por cargo, institución o nombre, y encuentra su correo aunque no estén en el directorio. Buscar no consume créditos.</p>
       </div>
       {acceso && <TarjetaCreditos saldo={saldo} onComprar={() => setModalComprar(true)} />}
     </div>
@@ -474,7 +474,7 @@ function ContactosPagina() {
         {comunes}
         <section className="gt-ct-portada">
           <h2>¿A quién estás buscando?</h2>
-          <p>Crea una lista de contactos en minutos.</p>
+          <p>Crea una lista de contactos o encuentra el correo de una persona concreta.</p>
           <form
             className="gt-ct-caja"
             onClick={() => acceso === false && setUpsell(true)}
@@ -491,7 +491,7 @@ function ContactosPagina() {
                 value={texto}
                 onChange={(e) => setTexto(e.target.value)}
                 onKeyDown={enviarConIntro(() => enviar())}
-                placeholder="Subdirectores generales del Ministerio de Industria con correo"
+                placeholder="Subdirectores generales del Ministerio de Industria, o Ana López de la CNMC"
                 aria-label="Describe los contactos que estás buscando"
                 rows={2}
                 maxAltura={200}
@@ -529,8 +529,8 @@ function ContactosPagina() {
               <span>Cuerpo Diplomático, embajadores de España y Agenda de la Comunicación</span>
             </div>
             <div className="gt-ct-fuente ia">
-              <b>Enriquecer</b>
-              <span>Si falta el contacto, buscamos en fuentes oficiales y citamos de dónde sale. 1 crédito por persona, solo si lo encuentra.</span>
+              <b>Buscar correo</b>
+              <span>Encontramos el correo nominativo de cualquier persona, esté o no en el directorio, y lo comprobamos en el servidor de su organización. 1 crédito, solo si lo encontramos.</span>
             </div>
           </div>
         </section>
