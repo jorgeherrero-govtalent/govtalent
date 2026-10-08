@@ -55,11 +55,13 @@ async function handler(request) {
 
   // Muestras por dominio (correos personales) y dominios por institución.
   const porDominio = new Map();
+  const vistos = new Set(); // una persona sale en varias fuentes: cada correo cuenta una vez
   const instDom = new Map(); // institucion -> Map(dominio -> n)
   for (const f of filas) {
     for (const e of correos(f.email)) {
       const dom = e.split('@')[1];
-      if (DOMINIOS_GENERICOS.has(dom)) continue;
+      if (DOMINIOS_GENERICOS.has(dom) || vistos.has(e)) continue;
+      vistos.add(e);
       if (!porDominio.has(dom)) porDominio.set(dom, []);
       porDominio.get(dom).push({ nombre: f.nombre, email: e });
     }
@@ -102,12 +104,15 @@ async function handler(request) {
   const domPorInst = new Map(dominiosInst.filter((d) => d.cuota >= 0.6 && d.n >= 3).map((d) => [d.institucion, d.dominio]));
   const sinCorreo = filas.filter((f) => !correos(f.email).length);
   const ofrecibles = [];
+  const yaOfrecidos = new Set();
   for (const f of sinCorreo) {
     const dom = domPorInst.get(f.institucion);
     const p = dom && fiables.get(dom);
     if (!p) continue;
     const email = aplicarPatron(f.nombre, p.patron, dom);
-    if (email) ofrecibles.push({ nombre: f.nombre, institucion: f.institucion, email, fiabilidad: p.fiabilidad });
+    if (!email || yaOfrecidos.has(email)) continue;
+    yaOfrecidos.add(email);
+    ofrecibles.push({ nombre: f.nombre, institucion: f.institucion, email, fiabilidad: p.fiabilidad });
   }
 
   const informe = {
