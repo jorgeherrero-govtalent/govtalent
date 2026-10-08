@@ -32,8 +32,8 @@ export async function POST(request) {
   }
 
   try {
-    const { filtros, resumen } = await interpretarConsulta(q);
-    return NextResponse.json({ filtros, resumen });
+    const { filtros, resumen, persona } = await interpretarConsulta(q);
+    return NextResponse.json({ filtros, resumen, persona });
   } catch (e) {
     console.error('[contactos/interpretar]', e.message);
     return NextResponse.json({

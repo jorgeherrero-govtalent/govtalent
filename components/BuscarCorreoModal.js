@@ -13,6 +13,7 @@ import { ModalComprar, TIPO_CONTACTO, dominio, limpiarEmail, miles, Buscando, ES
  * buscado, sale al momento y gratis (caché compartida, sql/76).
  *
  * persona: { id (de directorio_pro), nombre, cargo }
+ *       o, si no está en el directorio: { libre: true, nombre, institucion }
  * onResultado(resultado): cuando hay respuesta, para pintarla en la ficha.
  */
 
@@ -50,7 +51,9 @@ export default function BuscarCorreoModal({ persona, onClose, onResultado }) {
       const res = await fetch('/api/contactos/enriquecer', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id: persona.id }),
+        body: JSON.stringify(
+          persona.libre ? { persona: { nombre: persona.nombre, institucion: persona.institucion } } : { id: persona.id }
+        ),
       });
       const json = await res.json().catch(() => ({}));
       if (json.saldo) setSaldo(json.saldo);
@@ -79,6 +82,8 @@ export default function BuscarCorreoModal({ persona, onClose, onResultado }) {
   const sinCreditos = disponibles !== null && disponibles < 1;
   const email = resultado?.estado === 'encontrado' ? limpiarEmail(resultado.email) : null;
   const buscando = fase === 'buscando';
+  // Confirmado en el servidor de correo de su organización (sin página fuente).
+  const comprobado = !!email && resultado?.verificado === true && !resultado?.fuente_url;
 
   return createPortal(
     <div className="modal-ov on" onClick={(e) => e.target === e.currentTarget && !buscando && onClose()}>
@@ -93,7 +98,9 @@ export default function BuscarCorreoModal({ persona, onClose, onResultado }) {
         </div>
 
         <div style={{ fontSize: 13, color: '#1a1a18', fontWeight: 600 }}>{persona.nombre}</div>
-        {persona.cargo ? <div style={{ fontSize: 12, color: GRIS, marginTop: 2 }}>{persona.cargo}</div> : null}
+        {persona.cargo || persona.libre ? (
+          <div style={{ fontSize: 12, color: GRIS, marginTop: 2 }}>{persona.libre ? persona.institucion : persona.cargo}</div>
+        ) : null}
 
         {fase === 'hecho' ? (
           <div style={{ marginTop: 16, border: `.5px solid ${BORDE}`, borderRadius: 10, padding: 14, display: 'flex', flexDirection: 'column', gap: 6 }}>
@@ -106,7 +113,7 @@ export default function BuscarCorreoModal({ persona, onClose, onResultado }) {
                       {email}
                     </a>
                     <span style={{ fontSize: 10.5, fontWeight: 600, color: '#3d2fb3', background: '#efedfd', borderRadius: 999, padding: '1px 7px' }}>
-                      {TIPO_CONTACTO[resultado.tipo] || 'Contacto'}
+                      {comprobado ? 'Verificado' : TIPO_CONTACTO[resultado.tipo] || 'Contacto'}
                     </span>
                   </div>
                 ) : null}
@@ -129,14 +136,13 @@ export default function BuscarCorreoModal({ persona, onClose, onResultado }) {
               </>
             ) : (
               <div style={{ fontSize: 13, color: '#3a3a3d', lineHeight: 1.55 }}>
-                No hemos encontrado un correo publicado en fuentes oficiales. No se ha descontado ningún crédito.
+                No hemos encontrado su correo. No se ha descontado ningún crédito.
               </div>
             )}
           </div>
         ) : (
           <p style={{ fontSize: 13, color: '#555', margin: '14px 0 0', lineHeight: 1.6 }}>
-            Buscamos su correo en fuentes oficiales y te decimos de dónde sale. Cuesta 1 crédito y solo se descuenta si lo
-            encontramos.
+            Buscamos su correo y lo comprobamos. Cuesta 1 crédito y solo se descuenta si lo encontramos.
           </p>
         )}
 

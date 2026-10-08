@@ -114,6 +114,9 @@ export const ESTILOS_CONTACTOS = `
   .gt-ct-fte a { color: #5443d6; text-decoration: none; }
   .gt-ct-sel { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; background: #faf9ff; border: 1px solid #e6e2fd; border-radius: 10px; padding: 8px 10px; }
   .gt-ct-aviso { font-size: 12.5px; color: #3a3a3d; background: #f7f6f2; border-radius: 8px; padding: 8px 12px; }
+  .gt-ct-fuera { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; border: 1px dashed #cfc9f8; background: #f6f4fe; border-radius: 10px; padding: 11px 14px; margin-bottom: 12px; }
+  .gt-ct-fuera b { display: block; font-size: 13.5px; font-weight: 600; color: #1a1a18; }
+  .gt-ct-fuera span { display: block; font-size: 12px; color: #6b6b70; margin-top: 2px; }
   .gt-ct-cambio { padding: 13px 16px; border-bottom: 1px solid #f1f1f3; display: flex; flex-direction: column; gap: 6px; }
   .gt-ct-cambio:last-child { border-bottom: none; }
   .gt-ct-cambio-t { font-size: 10.5px; font-weight: 600; color: #5443d6; text-transform: uppercase; letter-spacing: .05em; }

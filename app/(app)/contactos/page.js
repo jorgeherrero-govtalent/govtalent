@@ -6,6 +6,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import TextoCreciente, { enviarConIntro } from '@/components/TextoCreciente';
 import Paginacion, { usePaginacion } from '@/components/Paginacion';
 import UpgradeModal from '@/components/UpgradeModal';
+import BuscarCorreoModal from '@/components/BuscarCorreoModal';
 import { BANDAS, TIPOS_INSTITUCION, FILTROS_VACIOS } from '@/lib/contactosFiltros';
 import {
   ESTILOS_CONTACTOS,
@@ -199,6 +200,10 @@ function ContactosPagina() {
   const [resumen, setResumen] = useState('');
   const [aviso, setAviso] = useState('');
   const [interpretando, setInterpretando] = useState(false);
+  // La persona concreta que nombra la búsqueda (si la nombra), para ofrecer
+  // buscar su correo cuando no está en el directorio.
+  const [personaBuscada, setPersonaBuscada] = useState(null);
+  const [correoLibre, setCorreoLibre] = useState(false);
 
   const [total, setTotal] = useState(0);
   const [filas, setFilas] = useState([]);
@@ -276,6 +281,28 @@ function ContactosPagina() {
     };
   }, [claveFiltros, pag.desde, pag.pageSize]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Desde el buscador de arriba: /contactos?q=…
+  const qURL = params.get('q');
+  const qHecha = useRef('');
+  useEffect(() => {
+    if (!qURL || acceso !== true || qHecha.current === qURL) return;
+    qHecha.current = qURL;
+    enviar(qURL);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [acceso, qURL]);
+
+  // ¿Está ya en los resultados? Todas las palabras de su nombre en el de alguno.
+  const sinTildes = (t) => String(t || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+  const personaFuera = useMemo(() => {
+    if (!personaBuscada?.organizacion || buscando) return null;
+    const palabras = sinTildes(personaBuscada.nombre).split(/[^a-z]+/).filter((w) => w.length > 2);
+    const esta = filas.some((f) => {
+      const n = sinTildes(f.nombre);
+      return palabras.every((w) => n.includes(w));
+    });
+    return esta ? null : personaBuscada;
+  }, [personaBuscada, filas, buscando]);
+
   async function enviar(t = texto) {
     if (acceso === false) {
       setUpsell(true);
@@ -301,6 +328,7 @@ function ContactosPagina() {
       const json = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(json.error || 'No se pudo interpretar la búsqueda');
       setFiltros({ ...FILTROS_VACIOS, ...json.filtros });
+      setPersonaBuscada(json.persona || null);
       setResumen(json.resumen || '');
       if (json.aviso) setAviso(json.aviso);
     } catch (e) {
@@ -321,11 +349,13 @@ function ContactosPagina() {
     setError('');
     setSeleccion(new Map());
     setResumen(idea.resumen);
+    setPersonaBuscada(null);
     setFiltros({ ...FILTROS_VACIOS, ...idea.filtros });
   }
 
   function volverAPortada() {
     setFiltros(null);
+    setPersonaBuscada(null);
     setFilas([]);
     setTotal(0);
     setResumen('');
@@ -541,6 +571,27 @@ function ContactosPagina() {
       </div>
 
       {aviso && <div className="gt-ct-aviso" style={{ marginBottom: 12 }}>{aviso}</div>}
+
+      {personaFuera && (
+        <div className="gt-ct-fuera">
+          <div>
+            <b>{personaFuera.nombre} no está en el directorio</b>
+            <span>Buscamos su correo en {personaFuera.organizacion} y lo comprobamos. 1 crédito, solo si lo encontramos.</span>
+          </div>
+          <button type="button" className="btn-ai-o" onClick={() => setCorreoLibre(true)} style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+            <i className="ti ti-search" aria-hidden="true"></i> Buscar correo
+          </button>
+        </div>
+      )}
+      {correoLibre && personaFuera && (
+        <BuscarCorreoModal
+          persona={{ libre: true, id: 'libre', nombre: personaFuera.nombre, institucion: personaFuera.organizacion }}
+          onClose={() => {
+            setCorreoLibre(false);
+            cargarSaldo();
+          }}
+        />
+      )}
 
       <div className="gt-ct-res">
         <PanelFiltros filtros={filtros} setFiltros={setFiltros} resumen={resumen} />

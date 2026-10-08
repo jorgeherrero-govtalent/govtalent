@@ -291,6 +291,23 @@ export default function BuscadorGlobal({ variante = 'barra' }) {
     }
   }
 
+
+  // Nombre y apellido (y quizá la organización): buscar su correo en
+  // Contactos, esté o no en el directorio.
+  const consultaCorreo = q.trim();
+  const pieCorreo =
+    consultaCorreo.split(/\s+/).filter((w) => w.length > 1).length >= 2 ? (
+      <button
+        type="button"
+        className="gt-buscador-pie"
+        onClick={() => irA(`/contactos?q=${encodeURIComponent(consultaCorreo)}`)}
+        style={{ display: 'flex', alignItems: 'center', gap: 6, borderTop: '.5px solid #ecebe6' }}
+      >
+        <i className="ti ti-search" style={{ fontSize: 13 }} aria-hidden="true"></i>
+        Buscar el correo de «{consultaCorreo}»
+      </button>
+    ) : null;
+
   return (
     <>
       <style>{`
@@ -462,7 +479,10 @@ export default function BuscadorGlobal({ variante = 'barra' }) {
             {cargando && resultados.length === 0 ? (
               <div style={{ padding: 13, fontSize: 12, color: '#a8a49c' }}>Buscando…</div>
             ) : resultados.length === 0 ? (
-              <div style={{ padding: 13, fontSize: 12, color: '#a8a49c' }}>Nada para «{q.trim()}».</div>
+              <>
+                <div style={{ padding: 13, fontSize: 12, color: '#a8a49c' }}>Nada para «{q.trim()}».</div>
+                {pieCorreo}
+              </>
             ) : (
               <>
                 {resultados.map((r, i) => (
@@ -487,6 +507,7 @@ export default function BuscadorGlobal({ variante = 'barra' }) {
                 <button type="button" className="gt-buscador-pie" onClick={verTodos}>
                   Ver todos los resultados
                 </button>
+                {pieCorreo}
               </>
             )}
           </div>
