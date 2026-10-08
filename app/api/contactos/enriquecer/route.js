@@ -122,7 +122,8 @@ export async function POST(request) {
   // 3. Búsqueda: servidor de correo y, si no, IA.
   let r;
   try {
-    const s = await correoPorServidor(admin, persona).catch((e) => {
+    const pistas = cache?.email ? [String(cache.email).toLowerCase().split('@')[1]] : [];
+    const s = await correoPorServidor(admin, persona, { pistas }).catch((e) => {
       console.error('[contactos/enriquecer] servidor:', e.message);
       return null;
     });
