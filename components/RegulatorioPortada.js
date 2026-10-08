@@ -14,8 +14,10 @@ import { APERTURA_COLEGIOS } from '@/lib/calendarioElectoral';
  * las mismas tarjetas de siempre (trazo, cifra, «te afectan»), sin
  * banderas dentro: la bandera queda solo en el título de la página.
  *
- * España: Congreso, Consultas Públicas, Parlamentos Autonómicos y BOE, en
- * ese orden y de dos en dos. Senado y Ayuntamientos, próximamente.
+ * España (08-10-2026): a la izquierda lo estatal y a la derecha lo
+ * autonómico — Congreso | Parlamentos Autonómicos, BOE | Diarios
+ * Autonómicos — y Consultas Públicas a lo ancho. Senado y Ayuntamientos,
+ * próximamente.
  * Unión Europea: Comisión Europea y Parlamento Europeo.
  *
  * Cada portada pide solo los recuentos de sus fuentes.
@@ -117,6 +119,7 @@ const TRAZOS = {
   congreso: '0,30 30,26 60,28 90,20 120,24 150,14 180,18 210,10 240,16 270,8 300,6',
   boe: '0,16 30,22 60,10 90,24 120,12 150,26 180,14 210,22 240,10 270,20 300,15',
   parlamentos: '0,28 30,30 60,22 90,26 120,18 150,22 180,20 210,14 240,18 270,12 300,10',
+  diarios: '0,22 30,14 60,24 90,12 120,20 150,10 180,22 210,14 240,24 270,12 300,16',
 };
 
 function Trazo({ nombre, color }) {
@@ -136,12 +139,12 @@ function Trazo({ nombre, color }) {
   );
 }
 
-function Institucion({ href, titulo, descripcion, trazo, cifra, etiqueta, afectan, color = MORADO }) {
+function Institucion({ href, titulo, descripcion, trazo, cifra, etiqueta, afectan, color = MORADO, ancho = false }) {
   return (
     <Link
       href={href}
       className="bento"
-      style={{ ...CARD, display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}
+      style={{ ...CARD, display: 'flex', flexDirection: 'column', justifyContent: 'space-between', ...(ancho ? { gridColumn: '1 / -1' } : {}) }}
     >
       <div>
         <div style={{ fontSize: 15.5, fontWeight: 600, letterSpacing: '-.2px', marginBottom: 5 }}>{titulo}</div>
@@ -171,7 +174,7 @@ const AMBITOS = {
   espana: {
     pais: 'es',
     titulo: 'España',
-    subtitulo: 'Congreso, consultas públicas, parlamentos autonómicos y BOE.',
+    subtitulo: 'Congreso, parlamentos autonómicos, BOE, diarios autonómicos y consultas públicas.',
     proximamente: 'Senado y Ayuntamientos',
   },
   ue: {
@@ -271,6 +274,8 @@ function cuentas(supabase, ambito) {
       .from('boe_directory')
       .select('id', { count: 'exact', head: true })
       .gte('fecha_publicacion', lunesDeEstaSemana()),
+    // Diarios oficiales autonómicos (sql/84), misma semana natural.
+    diariosSemana: supabase.from('diarios_ccaa').select('id', { count: 'exact', head: true }).gte('fecha', lunesDeEstaSemana()),
   };
 }
 
@@ -344,6 +349,35 @@ export default function RegulatorioPortada({ ambito }) {
               />
             )}
             <Institucion
+              href="/parlamentos-autonomicos"
+              titulo="Parlamentos Autonómicos"
+              descripcion="Leyes en tramitación en los parlamentos de las comunidades autónomas."
+              trazo="parlamentos"
+              cifra={cifras.ccaaVivas}
+              etiqueta="leyes en tramitación"
+            />
+            {/* El BOE y los diarios autonómicos en verde: aquí ya no se
+                influye, se cumple. */}
+            <Institucion
+              href="/boe"
+              titulo="BOE"
+              descripcion="Lo ya aprobado y los nombramientos de altos cargos."
+              trazo="boe"
+              cifra={cifras.boeSemana}
+              etiqueta="esta semana"
+              color={VERDE}
+            />
+            <Institucion
+              href="/regulatorio/diarios"
+              titulo="Diarios Autonómicos"
+              descripcion="Lo aprobado por las comunidades autónomas y sus altos cargos."
+              trazo="diarios"
+              cifra={cifras.diariosSemana}
+              etiqueta="esta semana"
+              afectan={afectan.diario || 0}
+              color={VERDE}
+            />
+            <Institucion
               href="/regulatorio/consultas"
               titulo="Consultas Públicas"
               descripcion="Consultas previas y audiencias públicas, con su plazo para opinar."
@@ -355,24 +389,7 @@ export default function RegulatorioPortada({ ambito }) {
                   : 'abiertas'
               }
               afectan={afectan.consulta || 0}
-            />
-            <Institucion
-              href="/parlamentos-autonomicos"
-              titulo="Parlamentos Autonómicos"
-              descripcion="Leyes en tramitación en los parlamentos de las comunidades autónomas."
-              trazo="parlamentos"
-              cifra={cifras.ccaaVivas}
-              etiqueta="leyes en tramitación"
-            />
-            {/* El BOE en verde: aquí ya no se influye, se cumple. */}
-            <Institucion
-              href="/boe"
-              titulo="BOE"
-              descripcion="Lo ya aprobado y los nombramientos de altos cargos."
-              trazo="boe"
-              cifra={cifras.boeSemana}
-              etiqueta="esta semana"
-              color={VERDE}
+              ancho
             />
           </>
         )}
