@@ -14,9 +14,9 @@ import { APERTURA_COLEGIOS } from '@/lib/calendarioElectoral';
  * las mismas tarjetas de siempre (trazo, cifra, «te afectan»), sin
  * banderas dentro: la bandera queda solo en el título de la página.
  *
- * España (08-10-2026): Congreso, Parlamentos Autonómicos, Consultas
- * Públicas, BOE y Diarios Autonómicos, en ese orden y de dos en dos (la
- * última, sola y del mismo ancho). Senado y Ayuntamientos, próximamente.
+ * España (08-10-2026): Congreso, Consultas Públicas, Parlamentos
+ * Autonómicos, BOE y Boletines Autonómicos, en ese orden y de dos en dos
+ * (la última, sola y del mismo ancho). Senado y Ayuntamientos, próximamente.
  * Unión Europea: Comisión Europea y Parlamento Europeo.
  *
  * Cada portada pide solo los recuentos de sus fuentes.
@@ -173,7 +173,7 @@ const AMBITOS = {
   espana: {
     pais: 'es',
     titulo: 'España',
-    subtitulo: 'Congreso, parlamentos autonómicos, consultas públicas, BOE y diarios autonómicos.',
+    subtitulo: 'Congreso, consultas públicas, parlamentos autonómicos, BOE y boletines autonómicos.',
     proximamente: 'Senado y Ayuntamientos',
   },
   ue: {
@@ -348,14 +348,6 @@ export default function RegulatorioPortada({ ambito }) {
               />
             )}
             <Institucion
-              href="/parlamentos-autonomicos"
-              titulo="Parlamentos Autonómicos"
-              descripcion="Leyes en tramitación en los parlamentos de las comunidades autónomas."
-              trazo="parlamentos"
-              cifra={cifras.ccaaVivas}
-              etiqueta="leyes en tramitación"
-            />
-            <Institucion
               href="/regulatorio/consultas"
               titulo="Consultas Públicas"
               descripcion="Consultas previas y audiencias públicas, con su plazo para opinar."
@@ -368,7 +360,15 @@ export default function RegulatorioPortada({ ambito }) {
               }
               afectan={afectan.consulta || 0}
             />
-            {/* El BOE y los diarios autonómicos en verde: aquí ya no se
+            <Institucion
+              href="/parlamentos-autonomicos"
+              titulo="Parlamentos Autonómicos"
+              descripcion="Leyes en tramitación en los parlamentos de las comunidades autónomas."
+              trazo="parlamentos"
+              cifra={cifras.ccaaVivas}
+              etiqueta="leyes en tramitación"
+            />
+            {/* El BOE y los boletines autonómicos en verde: aquí ya no se
                 influye, se cumple. */}
             <Institucion
               href="/boe"
@@ -381,7 +381,7 @@ export default function RegulatorioPortada({ ambito }) {
             />
             <Institucion
               href="/regulatorio/diarios"
-              titulo="Diarios Autonómicos"
+              titulo="Boletines Autonómicos"
               descripcion="Lo aprobado por las comunidades autónomas y sus altos cargos."
               trazo="diarios"
               cifra={cifras.diariosSemana}

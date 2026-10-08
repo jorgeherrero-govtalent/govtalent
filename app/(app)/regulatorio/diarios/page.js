@@ -141,7 +141,7 @@ function Diarios() {
           España
         </Link>
         {' › '}
-        <span style={{ color: '#8b8780' }}>Diarios autonómicos</span>
+        <span style={{ color: '#8b8780' }}>Boletines autonómicos</span>
       </div>
 
       <div style={{ marginBottom: 18 }}>
@@ -164,7 +164,7 @@ function Diarios() {
             <span style={{ height: '25%', background: '#C60B1E' }} />
           </span>
           <h1 style={{ fontSize: 19, fontWeight: 500, margin: 0, letterSpacing: '-.3px' }}>
-            Diarios oficiales autonómicos
+            Boletines oficiales autonómicos
           </h1>
         </div>
         <p style={{ fontSize: 12.5, color: '#8b8780', margin: 0 }}>
@@ -192,7 +192,7 @@ function Diarios() {
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Buscar por título u organismo..."
-            aria-label="Buscar en los diarios autonómicos"
+            aria-label="Buscar en los boletines autonómicos"
             style={{ border: 'none', outline: 'none', background: 'transparent', fontSize: 12.5, width: '100%' }}
           />
         </div>
@@ -377,7 +377,7 @@ function Diarios() {
 
       <div style={{ marginTop: 18, fontSize: 11, color: '#a8a49c', display: 'flex', alignItems: 'center', gap: 6 }}>
         <i className="ti ti-shield-check" style={{ fontSize: 13 }}></i>
-        Diarios oficiales de Galicia, la Comunidad de Madrid, el País Vasco y Extremadura. El resto de comunidades, próximamente.
+        Boletines oficiales de Galicia, la Comunidad de Madrid, el País Vasco y Extremadura. El resto de comunidades, próximamente.
       </div>
     </div>
   );
