@@ -6,6 +6,7 @@ import { saldoCreditos, consumirCreditos } from '@/lib/creditos';
 import { enriquecerPersona } from '@/lib/enriquecer';
 import { correoPorServidor } from '@/lib/correoPorServidor';
 import { limpiar } from '@/lib/patronesCorreo';
+import { reveladosDe, revelar } from '@/lib/revelados';
 
 // POST /api/contactos/enriquecer
 //   body: { id }                                   (id de directorio_pro)
@@ -74,12 +75,27 @@ export async function POST(request) {
 
   // 1. Caché compartida.
   const { data: cache } = await admin.from('contactos_enriquecidos').select('*').eq('persona_id', id).maybeSingle();
-  // Con correo: se devuelve gratis. Sin correo (búsqueda con IA reciente que
-  // no lo encontró): no se repite la IA, pero sí la comprobación en el
-  // servidor, que es barata y puede que entonces no se hiciera.
+  // Con correo: sale al momento. Gratis si su equipo ya lo pagó; si no,
+  // 1 crédito (sql/88: cada equipo paga la primera vez que lo ve).
+  // Sin correo (búsqueda con IA reciente que no lo encontró): no se repite
+  // la IA, pero sí la comprobación en el servidor, que es barata.
   const cacheSinCorreo = cache && vigente(cache) && !cache.email;
   if (cache && vigente(cache) && cache.email) {
-    return NextResponse.json({ resultado: publico(cache), cobrado: false, cache: true, persona_id: id, saldo: await saldoCreditos(admin, userId) });
+    const pagado = (await reveladosDe(admin, userId, [id])).has(id);
+    let cobrado = false;
+    if (!pagado) {
+      const saldo0 = await saldoCreditos(admin, userId);
+      if (!(saldo0.disponibles >= 1)) {
+        return NextResponse.json({ error: 'No te quedan créditos este mes', sinCreditos: true, saldo: saldo0 }, { status: 402 });
+      }
+      const c = await consumirCreditos(admin, userId, 1, `Enriquecer: ${cache.nombre || id}`, `enr:${id}:${userId}:${Date.now()}`);
+      if (c?.ok !== true) {
+        return NextResponse.json({ error: 'No te quedan créditos este mes', sinCreditos: true, saldo: await saldoCreditos(admin, userId) }, { status: 402 });
+      }
+      cobrado = true;
+      await revelar(admin, userId, id);
+    }
+    return NextResponse.json({ resultado: publico(cache), cobrado, cache: true, persona_id: id, saldo: await saldoCreditos(admin, userId) });
   }
 
   // 2. Saldo.
@@ -148,6 +164,7 @@ export async function POST(request) {
   if (r.estado === 'encontrado' && r.email) {
     const c = await consumirCreditos(admin, userId, 1, `Enriquecer: ${persona.nombre || id}`, `enr:${id}:${userId}:${Date.now()}`);
     cobrado = c?.ok === true;
+    if (cobrado) await revelar(admin, userId, id);
   }
 
   return NextResponse.json({

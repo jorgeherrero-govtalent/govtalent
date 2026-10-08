@@ -157,7 +157,7 @@ export default function BuscarCorreoModal({ persona, onClose, onResultado }) {
                     {resultado.verificado === false ? ' · sin verificar' : ''}
                   </div>
                 ) : null}
-                <div style={{ fontSize: 11.5, color: GRIS }}>{cobrado ? 'Se ha descontado 1 crédito.' : 'Ya lo habíamos encontrado antes: sin coste.'}</div>
+                <div style={{ fontSize: 11.5, color: GRIS }}>{cobrado ? 'Se ha descontado 1 crédito.' : 'Tu equipo ya lo tenía: sin coste.'}</div>
               </>
             ) : (
               <div style={{ fontSize: 13, color: '#3a3a3d', lineHeight: 1.55 }}>

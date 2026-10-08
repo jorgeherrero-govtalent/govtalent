@@ -1,3 +1,4 @@
+import { reveladosDe } from '@/lib/revelados';
 import { NextResponse } from 'next/server';
 import { usuarioConDirectorio, listaAccesible } from '@/lib/listas';
 
@@ -28,6 +29,11 @@ export async function GET(_request, { params }) {
     console.error('[contactos/listas/id]', error?.message);
     return NextResponse.json({ error: 'No se pudo cargar la lista' }, { status: 500 });
   }
+  // Correos encontrados: solo los que el equipo ya ha pagado (sql/88).
+  const miembros = data.miembros || [];
+  const conCorreo = miembros.filter((m) => m.enriquecido?.email).map((m) => m.persona_id);
+  const pagados = await reveladosDe(u.admin, u.userId, conCorreo);
+  for (const m of miembros) if (m.enriquecido?.email && !pagados.has(m.persona_id)) m.enriquecido = null;
   return NextResponse.json(data, { headers: { 'Cache-Control': 'no-store' } });
 }
 

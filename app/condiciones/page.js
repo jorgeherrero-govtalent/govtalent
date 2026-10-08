@@ -183,9 +183,10 @@ export default function CondicionesPage() {
       <h4 style={sub}>6.2. Créditos de contacto</h4>
       <p>Los créditos de contacto permiten buscar en fuentes públicas el dato de contacto de una persona que no
       figura en el Directorio. Se consume un crédito por persona únicamente cuando la búsqueda encuentra una
-      dirección de correo electrónico; si no la encuentra, no se consume ningún crédito. Los resultados que ya
-      estén disponibles en la Plataforma se muestran sin coste. Buscar y filtrar en el Directorio no consume
-      créditos.</p>
+      dirección de correo electrónico; si no la encuentra, no se consume ningún crédito. El crédito se consume
+      también cuando el correo ya se había encontrado antes en la Plataforma, la primera vez que el Cliente lo
+      obtiene; después, volver a consultarlo no tiene coste para ninguno de sus Usuarios. Buscar y filtrar en el
+      Directorio no consume créditos.</p>
       <p>Los {CREDITOS_CONTACTO_MES} créditos de contacto mensuales corresponden a la suscripción, no a cada
       Usuario, y son compartidos por todos los Usuarios con acceso al Directorio. Se renuevan al inicio de cada mes
       y los no utilizados no se acumulan para meses posteriores.</p>

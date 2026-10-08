@@ -3,6 +3,7 @@ import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { puedeVerContactos } from '@/lib/accesoContactos';
 import { correosProbables, puedeVerProbables } from '@/lib/correosProbables';
+import { reveladosDe } from '@/lib/revelados';
 
 // POST /api/contactos/enriquecidos  body: { ids: [...] }  (ids de directorio_pro)
 //
@@ -47,6 +48,10 @@ export async function POST(request) {
       resultados[persona_id] = resto;
     }
   }
+  // Solo los que su equipo ya ha pagado (sql/88); el resto ve el botón.
+  const pagados = await reveladosDe(admin, authData.user.id, Object.keys(resultados));
+  for (const k of Object.keys(resultados)) if (!pagados.has(k)) delete resultados[k];
+
   // Correos probables (sql/86) de quienes no tienen uno encontrado.
   let probables = {};
   if (puedeVerProbables(authData.user.email)) {
