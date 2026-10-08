@@ -37,8 +37,15 @@ function paginas() {
     ],
     // Cuarta ronda: el main.js con ruta absoluta (relativo a /es/ devolvía
     // el index) y una ficha del BOR para ver dónde lleva fecha y órgano.
+    // Quinta ronda: en el main.js salen las rutas del servicio
+    // (/latest, /ultimasDisposiciones, /disposicionesPorTipoYFecha…) pero
+    // no su base. Se mira el código alrededor y se prueban candidatas.
     valencia: [
-      { url: 'https://dogv.gva.es/dogv-portal-frontend/main.2de782d451d4153cb7a7.js', codigo: true },
+      { url: 'https://dogv.gva.es/dogv-portal-frontend/main.2de782d451d4153cb7a7.js', contexto: ['dogv-portal"', "dogv-portal'", 'apiUrl', 'baseUrl', '/latest', '/ultimasDisposiciones', '/disposicionesPorTipoYFecha', '/seccionesDogv', 'sumari?data='] },
+      'https://dogv.gva.es/dogv-portal/dogv/latest',
+      'https://dogv.gva.es/dogv-portal/sumario/latest',
+      'https://dogv.gva.es/dogv-portal/disposicion/ultimasDisposiciones',
+      'https://dogv.gva.es/dogv-portal/dogv/ultimasDisposiciones',
     ],
     rioja_ficha: ['https://web.larioja.org/bor-portada/boranuncio?n=anu-580109'],
     rioja: [{ url: 'https://web.larioja.org/bor-portada/bor', js: true, todo: true }],
@@ -60,8 +67,22 @@ export async function GET(request) {
   const salida = await Promise.all(pedidos.map(async (clave) => {
     const res = [];
     for (const entrada of P[clave]) {
-      const { url, js, formularios, todo, codigo } = typeof entrada === 'string' ? { url: entrada } : entrada;
+      const { url, js, formularios, todo, codigo, contexto } = typeof entrada === 'string' ? { url: entrada } : entrada;
       try {
+        if (contexto) {
+          const c = await web.texto(url);
+          const trozos = {};
+          for (const k of contexto) {
+            trozos[k] = [];
+            let i = c.indexOf(k);
+            while (i >= 0 && trozos[k].length < 4) {
+              trozos[k].push(c.slice(Math.max(0, i - 250), i + 250));
+              i = c.indexOf(k, i + k.length);
+            }
+          }
+          res.push({ url, kb: Math.round(c.length / 1024), trozos });
+          continue;
+        }
         if (codigo) {
           const c = await web.texto(url);
           const urls = [...new Set([...c.matchAll(/["'`]((?:https?:\/\/|\/)[^"'`\s]{3,200})["'`]/g)].map((m) => m[1]))]
