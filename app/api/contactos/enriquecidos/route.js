@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { puedeVerContactos } from '@/lib/accesoContactos';
+import { correosProbables, puedeVerProbables } from '@/lib/correosProbables';
 
 // POST /api/contactos/enriquecidos  body: { ids: [...] }  (ids de directorio_pro)
 //
@@ -46,5 +47,14 @@ export async function POST(request) {
       resultados[persona_id] = resto;
     }
   }
-  return NextResponse.json({ resultados });
+  // Correos probables (sql/86) de quienes no tienen uno encontrado.
+  let probables = {};
+  if (puedeVerProbables(authData.user.email)) {
+    const faltan = ids.filter((id) => !resultados[id]);
+    if (faltan.length) {
+      const { data: filas } = await admin.rpc('contactos_por_ids', { p_ids: faltan.slice(0, 500) });
+      probables = await correosProbables(admin, filas || []).catch(() => ({}));
+    }
+  }
+  return NextResponse.json({ resultados, probables });
 }

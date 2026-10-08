@@ -216,7 +216,7 @@ export default function GroupDetailPage() {
   // Los correos de asesores son del Directorio (sql/73).
   const esPro = useDirectorio();
   const idsSinCorreo = useMemo(() => asesores.filter((a) => !a.tiene_email).map((a) => `es-legislativo-asesor:${a.id}`), [asesores]);
-  const { encontrados, apuntar } = useCorreosEncontrados(idsSinCorreo, esPro === true && tab === 'equipo');
+  const { encontrados, probables, apuntar } = useCorreosEncontrados(idsSinCorreo, esPro === true && tab === 'equipo');
 
   useEffect(() => {
     if (!slug) return;
@@ -901,6 +901,7 @@ export default function GroupDetailPage() {
                     <BuscarCorreo
                       persona={{ id: `es-legislativo-asesor:${a.id}`, nombre: a.full_name, cargo: [a.cargo || a.categoria, grupo?.name].filter(Boolean).join(' · ') }}
                       encontrado={encontrados[`es-legislativo-asesor:${a.id}`]}
+                      probable={probables[`es-legislativo-asesor:${a.id}`]}
                       onResultado={(r) => apuntar(`es-legislativo-asesor:${a.id}`, r)}
                     />
                   ) : (

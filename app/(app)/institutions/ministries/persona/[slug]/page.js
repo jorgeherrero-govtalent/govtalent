@@ -49,7 +49,7 @@ export default function GovernmentOfficialProfilePage() {
   // Directorio.
   const idPro = official?.id ? `es-ejecutivo:${official.id}` : null;
   const sinCorreo = !!official && !official.email && !official.unit_email;
-  const { encontrados, apuntar } = useCorreosEncontrados([idPro], esPro === true && sinCorreo && !!idPro);
+  const { encontrados, probables, apuntar } = useCorreosEncontrados([idPro], esPro === true && sinCorreo && !!idPro);
 
   useEffect(() => {
     // .limit(1) antes de .maybeSingle(): sin él la consulta falla en silencio
@@ -318,6 +318,7 @@ export default function GovernmentOfficialProfilePage() {
               <BuscarCorreo
                 persona={{ id: idPro, nombre: displayName, cargo: [official.role, official.ministry_name].filter(Boolean).join(' · ') }}
                 encontrado={encontrados[idPro]}
+                      probable={probables[idPro]}
                 onResultado={(r) => apuntar(idPro, r)}
                 alinear="left"
               />

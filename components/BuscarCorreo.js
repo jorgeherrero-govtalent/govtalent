@@ -18,6 +18,8 @@ import { dominio, limpiarEmail } from '@/components/ContactosUI';
 
 export function useCorreosEncontrados(ids, activo = true) {
   const [encontrados, setEncontrados] = useState({});
+  // Correos probables por el patrón del organismo (sql/86).
+  const [probables, setProbables] = useState({});
   const clave = activo ? (ids || []).filter(Boolean).join('|') : '';
 
   useEffect(() => {
@@ -31,6 +33,7 @@ export function useCorreosEncontrados(ids, activo = true) {
       .then((r) => (r.ok ? r.json() : null))
       .then((j) => {
         if (vivo && j?.resultados) setEncontrados((prev) => ({ ...prev, ...j.resultados }));
+        if (vivo && j?.probables) setProbables((prev) => ({ ...prev, ...j.probables }));
       })
       .catch(() => {});
     return () => {
@@ -42,7 +45,7 @@ export function useCorreosEncontrados(ids, activo = true) {
     if (r?.estado === 'encontrado' && r.email) setEncontrados((prev) => ({ ...prev, [id]: r }));
   }
 
-  return { encontrados, apuntar };
+  return { encontrados, probables, apuntar };
 }
 
 /** El correo encontrado, con su fuente. */
@@ -66,8 +69,30 @@ export function CorreoEncontrado({ r, alinear = 'right' }) {
   );
 }
 
+/** Un correo probable: deducido del patrón del organismo, sin verificar. */
+export function CorreoProbable({ p, alinear = 'right' }) {
+  if (!p?.email) return null;
+  const pct = Math.round((p.fiabilidad || 0) * 100);
+  return (
+    <span
+      style={{ display: 'inline-flex', flexDirection: 'column', alignItems: alinear === 'right' ? 'flex-end' : 'flex-start', gap: 1, minWidth: 0 }}
+      title={`Deducido del patrón de ${p.dominio} (${p.descripcion}): acierta en el ${pct} % de los ${p.muestras} correos que conocemos de ese dominio. Sin verificar.`}
+    >
+      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+        <a href={`mailto:${p.email}`} style={{ fontSize: 12, color: '#3d3a35', textDecoration: 'none', borderBottom: '1px dashed #cfc9f8', overflowWrap: 'anywhere' }}>
+          {p.email}
+        </a>
+        <span style={{ fontSize: 10, fontWeight: 600, color: '#3d2fb3', background: '#efedfd', borderRadius: 999, padding: '1px 7px' }}>Probable</span>
+      </span>
+      <span style={{ fontSize: 10.5, color: '#a8a49c' }}>
+        Patrón de {p.dominio} · acierta en el {pct} %
+      </span>
+    </span>
+  );
+}
+
 /** El botón (o el correo, si ya se encontró). */
-export default function BuscarCorreo({ persona, encontrado, onResultado, alinear = 'right' }) {
+export default function BuscarCorreo({ persona, encontrado, probable, onResultado, alinear = 'right' }) {
   const [abierto, setAbierto] = useState(false);
   // El resultado se pasa a la ficha al cerrar el modal: si se pasara al
   // llegar, el botón se cambiaría por el correo y el modal se cerraría solo.
@@ -75,7 +100,8 @@ export default function BuscarCorreo({ persona, encontrado, onResultado, alinear
   if (!persona?.id) return null;
   if (encontrado) return <CorreoEncontrado r={encontrado} alinear={alinear} />;
   return (
-    <>
+    <span style={{ display: 'inline-flex', flexDirection: 'column', alignItems: alinear === 'right' ? 'flex-end' : 'flex-start', gap: 6 }}>
+      {probable ? <CorreoProbable p={probable} alinear={alinear} /> : null}
       <button
         type="button"
         onClick={() => setAbierto(true)}
@@ -110,6 +136,6 @@ export default function BuscarCorreo({ persona, encontrado, onResultado, alinear
           onResultado={setPendiente}
         />
       ) : null}
-    </>
+    </span>
   );
 }

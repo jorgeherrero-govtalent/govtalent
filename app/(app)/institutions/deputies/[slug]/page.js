@@ -212,7 +212,7 @@ export default function DeputyProfilePage() {
   // Sin correo publicado, «Buscar correo» (solo con el Directorio: sin él
   // el estado es 'sin-plan').
   const idPro = deputy?.id ? `es-legislativo:${deputy.id}` : null;
-  const { encontrados, apuntar } = useCorreosEncontrados([idPro], contacto.estado === 'sin-correo' && !!idPro);
+  const { encontrados, probables, apuntar } = useCorreosEncontrados([idPro], contacto.estado === 'sin-correo' && !!idPro);
 
   useEffect(() => {
     load();
@@ -478,6 +478,7 @@ export default function DeputyProfilePage() {
                     <BuscarCorreo
                       persona={{ id: idPro, nombre: deputy.full_name, cargo: `Diputado/a por ${deputy.constituency}` }}
                       encontrado={encontrados[idPro]}
+                      probable={probables[idPro]}
                       onResultado={(r) => apuntar(idPro, r)}
                       alinear="left"
                     />

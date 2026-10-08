@@ -3,6 +3,7 @@ import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { puedeVerContactos } from '@/lib/accesoContactos';
 import { normalizarFiltros, filtrosVacios } from '@/lib/contactosFiltros';
+import { correosProbables, puedeVerProbables } from '@/lib/correosProbables';
 
 // POST /api/contactos/buscar  body: { filtros, desde?, cuantos? }
 // Ejecuta los filtros sobre directorio_pro (sql/75, buscar_contactos).
@@ -56,6 +57,14 @@ export async function POST(request) {
   for (const f of filas) {
     const e = enriquecidos.get(f.id);
     f.enriquecido = e ? { ...e, persona_id: undefined } : null;
+  }
+
+  // Correo probable (sql/86): el patrón del organismo, para quien no tiene
+  // correo ni enriquecido. De momento solo para las cuentas de prueba.
+  if (puedeVerProbables(authData.user.email)) {
+    const sin = filas.filter((f) => !f.email && !(f.enriquecido?.estado === 'encontrado' && f.enriquecido?.email));
+    const prob = await correosProbables(admin, sin).catch(() => ({}));
+    for (const f of filas) f.probable = prob[f.id] || null;
   }
 
   return NextResponse.json({ total: Number(data?.total) || 0, filas }, { headers: { 'Cache-Control': 'no-store' } });

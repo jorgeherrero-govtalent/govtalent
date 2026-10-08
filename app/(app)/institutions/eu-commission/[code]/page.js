@@ -164,7 +164,7 @@ export default function DgDetailPage() {
     () => personas.filter((p) => !(p.email && !p.email_dubious)).map((p) => `ue-ejecutivo:${p.id}`),
     [personas]
   );
-  const { encontrados, apuntar } = useCorreosEncontrados(idsSinCorreo, esPro === true);
+  const { encontrados, probables, apuntar } = useCorreosEncontrados(idsSinCorreo, esPro === true);
 
   if (dg === undefined) {
     return (
@@ -343,6 +343,7 @@ export default function DgDetailPage() {
                 <BuscarCorreo
                   persona={{ id: `ue-ejecutivo:${p.id}`, nombre: p.full_name, cargo: [p.role, dg.code].filter(Boolean).join(' · ') }}
                   encontrado={encontrados[`ue-ejecutivo:${p.id}`]}
+                      probable={probables[`ue-ejecutivo:${p.id}`]}
                   onResultado={(r) => apuntar(`ue-ejecutivo:${p.id}`, r)}
                 />
               )}

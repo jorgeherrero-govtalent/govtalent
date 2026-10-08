@@ -94,7 +94,7 @@ export default function ComisarioDetailPage() {
   const [direcciones, setDirecciones] = useState([]);
   const [expedientes, setExpedientes] = useState([]);
 
-  const { encontrados, apuntar } = useCorreosEncontrados(
+  const { encontrados, probables, apuntar } = useCorreosEncontrados(
     gabinete.filter((p) => !(p.email && !p.email_dubious)).map((p) => `ue-ejecutivo:${p.id}`),
     esPro === true
   );
@@ -302,6 +302,7 @@ export default function ComisarioDetailPage() {
                 <BuscarCorreo
                   persona={{ id: `ue-ejecutivo:${p.id}`, nombre: p.full_name, cargo: p.role }}
                   encontrado={encontrados[`ue-ejecutivo:${p.id}`]}
+                      probable={probables[`ue-ejecutivo:${p.id}`]}
                   onResultado={(r) => apuntar(`ue-ejecutivo:${p.id}`, r)}
                 />
               )}

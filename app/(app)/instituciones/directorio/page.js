@@ -591,7 +591,7 @@ export default function DirectorioInstitucionalPage() {
 
   // «Buscar correo» en las filas de esta página que no traen ningún correo.
   const idsSinCorreo = paginated.filter((f) => !limpiarEmail(f.email) && !limpiarEmail(f.email_unidad)).map((f) => f.id);
-  const { encontrados, apuntar } = useCorreosEncontrados(idsSinCorreo, planAllowed);
+  const { encontrados, probables, apuntar } = useCorreosEncontrados(idsSinCorreo, planAllowed);
 
   const allPageSelected = paginated.length > 0 && paginated.every((f) => selectedIds.has(f.id));
 
@@ -1081,6 +1081,7 @@ export default function DirectorioInstitucionalPage() {
                     <BuscarCorreo
                       persona={{ id: f.id, nombre: f.nombre, cargo: [f.cargo, f.institucion].filter(Boolean).join(' · ') }}
                       encontrado={encontrados[f.id]}
+                      probable={probables[f.id]}
                       onResultado={(r) => apuntar(f.id, r)}
                       alinear="left"
                     />

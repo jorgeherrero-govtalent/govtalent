@@ -266,7 +266,7 @@ export default function MepDetailPage() {
     () => equipo.filter((e) => BUSCABLE.has(e.tipo)).map((e) => `ue-legislativo-asistente:${e.id}`),
     [equipo]
   );
-  const { encontrados, apuntar } = useCorreosEncontrados(idsEquipo, esPro === true && tab === 'equipo');
+  const { encontrados, probables, apuntar } = useCorreosEncontrados(idsEquipo, esPro === true && tab === 'equipo');
   // Correos que ya tenemos (sql/80), solo con el Directorio.
   const [correosEquipo, setCorreosEquipo] = useState({});
   useEffect(() => {
@@ -549,6 +549,7 @@ export default function MepDetailPage() {
                         <BuscarCorreo
                           persona={{ id: idPro, nombre: e.nombre, cargo: `${g.singular} de ${mep.full_name}` }}
                           encontrado={encontrados[idPro]}
+                      probable={probables[idPro]}
                           onResultado={(r) => apuntar(idPro, r)}
                         />
                       ) : null}
