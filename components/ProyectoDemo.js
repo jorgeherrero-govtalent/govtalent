@@ -543,7 +543,8 @@ export default function ProyectoDemo() {
       </div>
 
       {/* --- Registro y documentos, los dos paneles del final --- */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(290px, 1fr))', gap: 12, marginBottom: 12, alignItems: 'start' }}>
+      {/* Misma altura las dos: se estiran a la más alta. */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(290px, 1fr))', gap: 12, marginBottom: 4, alignItems: 'stretch' }}>
         {/* El registro con distintivo: es lo único de la demo que
             responde a una obligación legal, y lo que distingue a
             GovTalent de una herramienta de proyectos. */}
@@ -624,50 +625,6 @@ export default function ProyectoDemo() {
         </div>
       </div>
 
-      {/* --- Lo que llega con Teams, siempre visible --- */}
-      <div className="bento" style={{ ...CARD, padding: '13px 18px', marginBottom: 14 }}>
-        <div style={{ ...ETIQUETA, marginBottom: 10 }}>Y CUANDO SEÁIS UN EQUIPO · TEAMS</div>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 9, color: '#a8a49c', fontSize: 12 }}>
-          {['Responsable por actor', 'Menciones y comentarios', 'Registro compartido', 'Tareas del equipo'].map((t) => (
-            <div key={t} style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
-              <i className="ti ti-lock" style={{ fontSize: 13 }}></i>
-              {t}
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* El cierre de la demo. Era un <span> con pinta de botón: el
-          único sitio de toda la página desde el que se puede comprar no
-          llevaba a ninguna parte.
-
-          La frase va antes del botón y no debajo: es la que da la razón
-          para pulsarlo, y detrás llegaba tarde. */}
-      <div
-        style={{
-          ...CARD,
-          padding: '20px 18px',
-          marginBottom: 4,
-          textAlign: 'center',
-          background: '#fbfbf9',
-        }}
-      >
-        <div style={{ fontSize: 13, color: '#555', marginBottom: 3, fontWeight: 500 }}>
-          Así se ve un proyecto en Pro.
-        </div>
-        <div style={{ fontSize: 11.5, color: '#888', marginBottom: 13, lineHeight: 1.5 }}>
-          Con los asuntos que sigues, su tramitación, el mapa de actores y el registro de actividades de influencia.
-        </div>
-        <Link
-          href="/precios"
-          target="_blank"
-          rel="noreferrer"
-          className="btn-ai"
-          style={{ display: 'inline-flex', alignItems: 'center', gap: 6, textDecoration: 'none' }}
-        >
-          <i className="ti ti-bolt"></i> Ver planes
-        </Link>
-      </div>
       {/* La ficha de la norma.
           Es lo primero que pulsa el usuario en la demo, así que carga
           con el peso de la primera impresión. Cuatro decisiones:
