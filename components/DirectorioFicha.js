@@ -104,7 +104,7 @@ function Persona({ p, contacto, ultima, encontrados, apuntar }) {
             </div>
           ) : (
             <BuscarCorreo persona={p} encontrado={encontrados[p.id]}
-                      probable={probables[p.id]} onResultado={(r) => apuntar(p.id, r)} />
+                      onResultado={(r) => apuntar(p.id, r)} />
           )}
           {p.telefono ? <div style={{ color: '#888' }}>{separar(p.telefono).join(', ')}</div> : null}
         </div>
@@ -194,7 +194,7 @@ export default function DirectorioFicha({ slug, id, volverA, volverEtiqueta }) {
   const [estado, setEstado] = useState('cargando');
   const [upsell, setUpsell] = useState(false);
   const sinCorreo = contacto && ficha ? ficha.unidades.flatMap((u) => u.personas).filter((p) => !p.email && p.id).map((p) => p.id) : [];
-  const { encontrados, probables, apuntar } = useCorreosEncontrados(sinCorreo, contacto);
+  const { encontrados, apuntar } = useCorreosEncontrados(sinCorreo, contacto);
 
   useEffect(() => {
     let vivo = true;
