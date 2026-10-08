@@ -56,7 +56,7 @@ const API_JS = /["'`]([^"'`\s]{0,120}(?:BRSCGI|\/api\/|\/rest\/|services|backend
 
 export async function GET(request) {
   const sp = new URL(request.url).searchParams;
-  if (!process.env.DEBUG_KEY || sp.get('key') !== process.env.DEBUG_KEY) {
+  if (!process.env.DEBUG_KEY || String(sp.get('key') || '').toLowerCase() !== process.env.DEBUG_KEY.toLowerCase()) {
     return Response.json({ error: 'no autorizado — usa ?key=<DEBUG_KEY>' }, { status: 401 });
   }
   const P = paginas();

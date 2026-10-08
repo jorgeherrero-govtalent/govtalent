@@ -62,7 +62,8 @@ async function handler(request) {
   const t0 = Date.now();
   const sp = new URL(request.url).searchParams;
   const isCron = request.headers.get('authorization') === `Bearer ${process.env.CRON_SECRET}`;
-  const isManual = !!process.env.DEBUG_KEY && sp.get('key') === process.env.DEBUG_KEY;
+  // Sin distinguir mayúsculas: el móvil pone la clave en mayúsculas al pegarla (08-10-2026).
+  const isManual = !!process.env.DEBUG_KEY && String(sp.get('key') || '').toLowerCase() === process.env.DEBUG_KEY.toLowerCase();
   if (!isCron && !isManual) return Response.json({ error: 'no autorizado' }, { status: 401 });
 
   const dry = sp.get('dry') === '1';
