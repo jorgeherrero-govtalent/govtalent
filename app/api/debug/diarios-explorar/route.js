@@ -24,27 +24,27 @@ function hoy() {
   return { a: p.year, m: p.month, d: p.day };
 }
 
+// Segunda ronda (08-10-2026): lo que faltaba para Aragón, Asturias,
+// Cantabria, Valencia y La Rioja. `js: true` descarga además los scripts
+// principales de la página y busca en ellos rutas de API.
 function paginas() {
   const h = hoy();
   return {
     aragon: [
-      'https://www.boa.aragon.es/',
-      'https://www.boa.aragon.es/cgi-bin/EBOA/BRSCGI?CMD=VERLST&BASE=BOLE&DOCS=1-20&SEC=FIRMA&SORT=-PUBL',
+      { url: 'https://www.boa.aragon.es/', js: true },
+      `https://www.boa.aragon.es/cgi-bin/EBOA/BRSCGI?CMD=VERLST&BASE=BOLE&DOCS=1-50&SEC=OPENDATABOAJSONAPP&OUTPUTMODE=JSON&SEPARADOR=&PUBL-C=${h.a}${h.m}${h.d}`,
+      `https://www.boa.aragon.es/cgi-bin/EBOA/BRSCGI?CMD=VERLST&BASE=BOLE&DOCS=1-50&SEC=OPENDATABOAXML&OUTPUTMODE=XML&SEPARADOR=&PUBL-C=${h.a}${h.m}${h.d}`,
     ],
     asturias: [
-      'https://miprincipado.asturias.es/bopa',
-      `https://www.asturias.es/bopa/${h.a}/${h.m}/${h.d}/${h.a}${h.m}${h.d}.pdf`,
+      `https://miprincipado.asturias.es/bopa-sumario?p_p_id=pa_sede_bopa_web_portlet_SedeBopaSummaryWeb&p_p_lifecycle=0&p_p_state=normal&p_p_mode=view&p_r_p_summaryDate=${h.d}%2F${h.m}%2F${h.a}&p_r_p_summaryIsSearch=false`,
     ],
-    cantabria: ['https://boc.cantabria.es/boces/'],
-    cataluna: [
-      'https://analisi.transparenciacatalunya.cat/resource/n6hn-rmy7.json?$limit=2',
-      'https://analisi.transparenciacatalunya.cat/api/views/n6hn-rmy7.json',
-    ],
-    valencia: ['https://dogv.gva.es/es/inici', 'https://dogv.gva.es/es/sumari'],
-    navarra: ['https://bon.navarra.es/es/'],
-    rioja: ['https://web.larioja.org/bor-portada'],
+    cantabria: [{ url: 'https://boc.cantabria.es/boces/', formularios: true }],
+    valencia: [{ url: 'https://dogv.gva.es/dogv-portal-frontend/es/sumari', js: true }],
+    rioja: ['https://web.larioja.org/bor-portada/bor'],
   };
 }
+
+const API_JS = /["'`]([^"'`\s]{0,120}(?:BRSCGI|\/api\/|\/rest\/|services|backend|SEC=|rss|sumari|boletin)[^"'`\s]{0,160})["'`]/gi;
 
 export async function GET(request) {
   const sp = new URL(request.url).searchParams;
@@ -58,7 +58,8 @@ export async function GET(request) {
 
   const salida = await Promise.all(pedidos.map(async (clave) => {
     const res = [];
-    for (const url of P[clave]) {
+    for (const entrada of P[clave]) {
+      const { url, js, formularios } = typeof entrada === 'string' ? { url: entrada } : entrada;
       try {
         const r = await web.binario(url);
         const tipo = r.tipo || '';
@@ -70,9 +71,30 @@ export async function GET(request) {
         const scripts = [...html.matchAll(/<script[^>]*src=["']([^"']+)/gi)].map((m) => m[1]).slice(0, 20);
         const apis = [...new Set([...html.matchAll(/["'](\/[a-z0-9_\-/]*(?:api|rest|services|json|rss|feed|sumari|boletin)[a-z0-9_\-/.]*)["']/gi)].map((m) => m[1]))].slice(0, 40);
         const cuerpo = html.replace(/<script[\s\S]*?<\/script>|<style[\s\S]*?<\/style>/gi, ' ');
+        let api_js;
+        if (js) {
+          api_js = [];
+          const srcs = scripts.filter((x) => !/googletagmanager|readspeaker|recaptcha|jquery|bootstrap|aui|frontend-js/i.test(x)).slice(0, 4);
+          for (const src of srcs) {
+            try {
+              const codigo = await web.texto(new URL(src.replace(/&amp;/g, '&'), url).toString());
+              api_js.push({ src, rutas: [...new Set([...codigo.matchAll(API_JS)].map((m) => m[1]))].slice(0, 60) });
+            } catch (e) {
+              api_js.push({ src, error: String(e.message || e).slice(0, 120) });
+            }
+          }
+        }
+        const forms = formularios
+          ? [...html.matchAll(/<form\b([^>]*)>([\s\S]*?)<\/form>/gi)].map((m) => ({
+              atributos: m[1].replace(/\s+/g, ' ').trim(),
+              campos: [...m[2].matchAll(/<(input|select)\b[^>]*name=["']([^"']+)["'][^>]*>/gi)].map((c) => `${c[1]}:${c[2]}${(c[0].match(/value=["']([^"']*)/i) || [])[1] ? `=${(c[0].match(/value=["']([^"']*)/i) || [])[1]}` : ''}`),
+            }))
+          : undefined;
         res.push({
           url,
           tipo,
+          api_js,
+          formularios: forms,
           final: r.url !== url ? r.url : undefined,
           kb: Math.round(r.buf.length / 1024),
           titulo,

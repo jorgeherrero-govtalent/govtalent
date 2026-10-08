@@ -35,11 +35,13 @@ import * as murcia from '@/lib/diarios/murcia';
 import * as paisvasco from '@/lib/diarios/paisvasco';
 import * as extremadura from '@/lib/diarios/extremadura';
 import * as castillayleon from '@/lib/diarios/castillayleon';
+import * as navarra from '@/lib/diarios/navarra';
+import * as cataluna from '@/lib/diarios/cataluna';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 300;
 
-const LECTORES = { galicia, madrid, murcia, paisvasco, extremadura, castillayleon };
+const LECTORES = { galicia, madrid, murcia, paisvasco, extremadura, castillayleon, navarra, cataluna };
 
 // Cliente de servicio sin caché de Next: si no, las lecturas de Supabase
 // pueden quedarse congeladas entre ejecuciones.
@@ -114,7 +116,7 @@ async function procesar(db, ccaa, entradas, { dry, debug }) {
       numero: e.numero || null,
       tipo,
       seccion: e.seccion || null,
-      rango: rangoDe(e.titulo),
+      rango: e.rango || rangoDe(e.titulo),
       organo: e.organo || null,
       titulo: String(e.titulo).replace(/\s+/g, ' ').trim().slice(0, 1000),
       url: https(e.url),
