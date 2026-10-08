@@ -19,6 +19,7 @@ import {
   ModalEnriquecerVarios,
   exportarExcel,
   registrarExportacion,
+  BarraSeleccion,
 } from '@/components/ContactosUI';
 
 /**
@@ -258,26 +259,20 @@ export default function ListaPage() {
         </button>
       </div>
       {sel.size > 0 && (
-        <div className="gt-ct-sel" style={{ marginBottom: 12 }}>
-          <span style={{ fontSize: 13, fontWeight: 600 }}>
-            {miles(sel.size)} {sel.size === 1 ? 'seleccionada' : 'seleccionadas'}
-          </span>
-          <span style={{ flexGrow: 1 }}></span>
-          <button type="button" className="btn-g" onClick={() => setSel(new Set())}>
-            Quitar selección
-          </button>
-          <button type="button" className="btn-g" onClick={quitarSeleccion}>
-            Quitar de la lista
-          </button>
-          <button type="button" className="btn-g" onClick={() => exportar(true)}>
-            Exportar
-          </button>
-          {enriqueciblesSel.length > 0 && (
-            <button type="button" className="btn-ai" onClick={() => setConfirmarEnr(enriqueciblesSel)}>
-              Enriquecer · hasta {miles(enriqueciblesSel.length)} créditos
-            </button>
+        <BarraSeleccion cuantas={sel.size} onQuitar={() => setSel(new Set())} onExportar={() => exportar(true)}>
+          {(sec) => (
+            <>
+              <button type="button" style={sec} onClick={quitarSeleccion}>
+                <i className="ti ti-trash" aria-hidden="true"></i> Quitar de la lista
+              </button>
+              {enriqueciblesSel.length > 0 && (
+                <button type="button" style={sec} onClick={() => setConfirmarEnr(enriqueciblesSel)}>
+                  <i className="ti ti-sparkles" aria-hidden="true"></i> Enriquecer · hasta {miles(enriqueciblesSel.length)} créditos
+                </button>
+              )}
+            </>
           )}
-        </div>
+        </BarraSeleccion>
       )}
       {exportError && <div className="gt-ct-aviso" style={{ marginBottom: 12 }}>{exportError}</div>}
       {error && <div className="gt-ct-aviso" style={{ marginBottom: 12 }}>{error}</div>}

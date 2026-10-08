@@ -77,7 +77,13 @@ export const ESTILOS_CONTACTOS = `
   .gt-ct-fuente.ia { border-style: dashed; border-color: #cfc9f8; background: #faf9ff; }
   .gt-ct-fuente.ia b { color: #5443d6; }
   .gt-ct-res { display: flex; gap: 20px; align-items: flex-start; flex-wrap: wrap; }
-  .gt-ct-aside { flex: 1 1 240px; max-width: 280px; display: flex; flex-direction: column; gap: 10px; }
+  .gt-ct-aside { flex: 1 1 240px; max-width: 280px; display: flex; flex-direction: column; gap: 10px; position: sticky; top: 16px; max-height: calc(100vh - 32px); overflow-y: auto; align-self: flex-start; padding-bottom: 8px; }
+  .gt-ct-buscando { display: inline-flex; align-items: center; gap: 8px; font-size: 12px; font-weight: 500; color: #8b8780; }
+  .gt-ct-anillo { width: 15px; height: 15px; border-radius: 50%; border: 2px solid #e6e2fd; border-top-color: ${MORADO}; animation: gt-ct-gira .8s linear infinite; flex-shrink: 0; }
+  .gt-ct-brillo { background: linear-gradient(90deg, #a8a49c 0%, #a8a49c 35%, ${MORADO} 50%, #a8a49c 65%, #a8a49c 100%); background-size: 220% 100%; -webkit-background-clip: text; background-clip: text; color: transparent; animation: gt-ct-brilla 1.8s linear infinite; }
+  @keyframes gt-ct-gira { to { transform: rotate(360deg); } }
+  @keyframes gt-ct-brilla { from { background-position: 120% 0; } to { background-position: -120% 0; } }
+  @media (prefers-reduced-motion: reduce) { .gt-ct-anillo, .gt-ct-brillo { animation: none; } .gt-ct-brillo { color: #8b8780; background: none; } }
   .gt-ct-main { flex: 999 1 560px; min-width: 0; display: flex; flex-direction: column; gap: 10px; }
   .gt-ct-panel { flex: 1 1 300px; max-width: 380px; display: flex; flex-direction: column; border: 1px solid #e6e2fd; border-radius: 12px; background: #fff; }
   .gt-ct-flt { display: flex; flex-direction: column; gap: 7px; border: 1px solid #ececef; border-radius: 10px; padding: 10px 12px; background: #fff; }
@@ -119,7 +125,7 @@ export const ESTILOS_CONTACTOS = `
   .gt-ct-tabs { display: flex; gap: 22px; font-size: 14px; border-bottom: 1px solid #ececef; margin-bottom: 18px; }
   .gt-ct-tabs a { color: ${GRIS}; text-decoration: none; padding-bottom: 10px; }
   .gt-ct-tabs a.on { color: #1a1a18; font-weight: 600; border-bottom: 2px solid ${MORADO}; }
-  @media (max-width: 900px) { .gt-ct-fuentes { grid-template-columns: repeat(2, minmax(0, 1fr)); } .gt-ct-aside, .gt-ct-panel { max-width: none; } }
+  @media (max-width: 900px) { .gt-ct-fuentes { grid-template-columns: repeat(2, minmax(0, 1fr)); } .gt-ct-aside, .gt-ct-panel { max-width: none; } .gt-ct-aside { position: static; max-height: none; overflow: visible; } }
   @media (max-width: 720px) { .gt-ct { padding: 18px 16px 96px; } .gt-ct-portada { margin-top: 20px; } .gt-ct-portada h2 { font-size: 21px; } }
 `;
 
@@ -288,6 +294,116 @@ export function enriquecible(f, estado) {
   return !e;
 }
 
+// Mientras busca: un anillo que gira y el paso en curso con un brillo
+// que lo recorre (estilo Enginy, 08-10-2026). Los pasos rotan solos.
+const PASOS_BUSQUEDA = ['Buscando en fuentes oficiales…', 'Revisando webs institucionales…', 'Comprobando el correo…'];
+
+export function Buscando({ pasos = PASOS_BUSQUEDA }) {
+  const [i, setI] = useState(0);
+  useEffect(() => {
+    const t = setInterval(() => setI((n) => (n + 1) % pasos.length), 2600);
+    return () => clearInterval(t);
+  }, [pasos.length]);
+  return (
+    <span className="gt-ct-buscando" role="status" aria-live="polite">
+      <span className="gt-ct-anillo" aria-hidden="true"></span>
+      <span className="gt-ct-brillo">{pasos[i]}</span>
+    </span>
+  );
+}
+
+/**
+ * La barra de selección, fija abajo y centrada, igual que la de la Base
+ * de datos: el contador con su aspa y la acción principal en morado.
+ */
+export function BarraSeleccion({ cuantas, onQuitar, onExportar, children }) {
+  if (!cuantas) return null;
+  const secundario = {
+    background: 'transparent',
+    color: '#fff',
+    border: '.5px solid rgba(255,255,255,.28)',
+    padding: '7px 12px',
+    borderRadius: 7,
+    fontSize: 12.5,
+    fontWeight: 500,
+    cursor: 'pointer',
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: 6,
+    fontFamily: 'inherit',
+  };
+  return (
+    <div
+      role="region"
+      aria-label="Selección"
+      style={{
+        position: 'fixed',
+        bottom: 24,
+        left: '50%',
+        transform: 'translateX(-50%)',
+        background: '#1a1a18',
+        borderRadius: 12,
+        padding: '10px 14px',
+        display: 'flex',
+        alignItems: 'center',
+        gap: 12,
+        color: '#fff',
+        fontSize: 13,
+        boxShadow: '0 8px 24px rgba(0,0,0,.25)',
+        zIndex: 40,
+        flexWrap: 'wrap',
+        justifyContent: 'center',
+        maxWidth: 'calc(100vw - 32px)',
+      }}
+    >
+      <span
+        style={{
+          background: '#1d6f5c',
+          color: '#fff',
+          padding: '4px 10px',
+          borderRadius: 20,
+          fontWeight: 600,
+          fontSize: 12,
+          display: 'inline-flex',
+          alignItems: 'center',
+          gap: 6,
+        }}
+      >
+        {miles(cuantas)} seleccionada{cuantas === 1 ? '' : 's'}
+        <button
+          type="button"
+          onClick={onQuitar}
+          aria-label="Quitar selección"
+          style={{ background: 'none', border: 'none', color: '#fff', padding: 0, cursor: 'pointer', display: 'flex' }}
+        >
+          <i className="ti ti-x" style={{ fontSize: 13 }} aria-hidden="true"></i>
+        </button>
+      </span>
+      {typeof children === 'function' ? children(secundario) : children}
+      <button
+        type="button"
+        onClick={onExportar}
+        style={{
+          background: '#6d5aef',
+          color: '#fff',
+          border: 'none',
+          padding: '7px 14px',
+          borderRadius: 7,
+          fontSize: 12.5,
+          fontWeight: 500,
+          cursor: 'pointer',
+          display: 'inline-flex',
+          alignItems: 'center',
+          gap: 6,
+          fontFamily: 'inherit',
+        }}
+      >
+        <i className="ti ti-download" aria-hidden="true"></i> Exportar seleccionadas
+      </button>
+    </div>
+  );
+}
+
 export function CeldaContacto({ f, estado, onEnriquecer, puedeEnriquecer = true }) {
   const email = limpiarEmail(f.email);
   const emailUnidad = limpiarEmail(f.email_unidad);
@@ -333,7 +449,7 @@ export function CeldaContacto({ f, estado, onEnriquecer, puedeEnriquecer = true 
       {f.telefono && <span style={{ fontSize: 12, color: '#444' }}>{f.telefono}</span>}
       {nada && !enr && !enCurso && <span style={{ fontSize: 12, color: GRIS }}>Sin contacto publicado</span>}
 
-      {enCurso?.fase === 'buscando' && <span style={{ fontSize: 12, fontWeight: 600, color: '#5443d6' }}>Buscando en fuentes oficiales…</span>}
+      {enCurso?.fase === 'buscando' && <Buscando />}
       {enCurso?.fase === 'error' && <span style={{ fontSize: 12, color: GRIS }}>{enCurso.error}</span>}
       {(enr?.estado === 'no_encontrado' || (enr?.estado === 'encontrado' && !enrEmail)) && (
         <span style={{ fontSize: 12, color: GRIS }}>Sin correo publicado · sin coste</span>

@@ -28,6 +28,7 @@ import {
   TextoColumna,
   OPCION_COLUMNA,
   ValoresColumna,
+  BarraSeleccion,
 } from '@/components/ContactosUI';
 
 /**
@@ -564,26 +565,20 @@ function ContactosPagina() {
           </div>
 
           {seleccion.size > 0 && (
-            <div className="gt-ct-sel">
-              <span style={{ fontSize: 13, fontWeight: 600 }}>
-                {seleccion.size} {seleccion.size === 1 ? 'seleccionada' : 'seleccionadas'}
-              </span>
-              <span style={{ flexGrow: 1 }}></span>
-              <button type="button" className="btn-g" onClick={() => setSeleccion(new Map())}>
-                Quitar selección
-              </button>
-              <button type="button" className="btn-g" onClick={() => abrirExportacion(true)}>
-                Exportar
-              </button>
-              <button type="button" className="btn-g" onClick={() => setGuardarLista('seleccion')}>
-                Añadir a lista
-              </button>
-              {enriqueciblesSeleccion.length > 0 && (
-                <button type="button" className="btn-ai" onClick={() => setConfirmarEnr(enriqueciblesSeleccion)}>
-                  Enriquecer · hasta {miles(enriqueciblesSeleccion.length)} créditos
-                </button>
+            <BarraSeleccion cuantas={seleccion.size} onQuitar={() => setSeleccion(new Map())} onExportar={() => abrirExportacion(true)}>
+              {(sec) => (
+                <>
+                  <button type="button" style={sec} onClick={() => setGuardarLista('seleccion')}>
+                    <i className="ti ti-list-details" aria-hidden="true"></i> Añadir a lista
+                  </button>
+                  {enriqueciblesSeleccion.length > 0 && (
+                    <button type="button" style={sec} onClick={() => setConfirmarEnr(enriqueciblesSeleccion)}>
+                      <i className="ti ti-sparkles" aria-hidden="true"></i> Enriquecer · hasta {miles(enriqueciblesSeleccion.length)} créditos
+                    </button>
+                  )}
+                </>
               )}
-            </div>
+            </BarraSeleccion>
           )}
 
           {error && <div className="gt-ct-aviso">{error}</div>}

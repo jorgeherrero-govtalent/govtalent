@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { ModalComprar, TIPO_CONTACTO, dominio, limpiarEmail, miles } from '@/components/ContactosUI';
+import { ModalComprar, TIPO_CONTACTO, dominio, limpiarEmail, miles, Buscando, ESTILOS_CONTACTOS } from '@/components/ContactosUI';
 
 /**
  * Buscar el correo de una persona que la fuente no trae (Directorio).
@@ -154,7 +154,7 @@ export default function BuscarCorreoModal({ persona, onClose, onResultado }) {
             ) : (
               <button type="button" className="btn-ai" onClick={buscar} disabled={buscando} style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
                 {buscando ? (
-                  'Buscando en fuentes oficiales…'
+                  'Buscando…'
                 ) : (
                   <>
                     <i className="ti ti-search" aria-hidden="true"></i> Buscar correo · 1 crédito
@@ -170,7 +170,13 @@ export default function BuscarCorreoModal({ persona, onClose, onResultado }) {
             </button>
           </div>
         )}
-        {buscando ? <div style={{ fontSize: 11.5, color: GRIS, marginTop: 8, textAlign: 'right' }}>Puede tardar hasta un minuto.</div> : null}
+        {buscando ? (
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, marginTop: 12, flexWrap: 'wrap' }}>
+            <style>{ESTILOS_CONTACTOS}</style>
+            <Buscando />
+            <span style={{ fontSize: 11.5, color: GRIS }}>Puede tardar hasta un minuto.</span>
+          </div>
+        ) : null}
       </div>
     </div>,
     document.body
