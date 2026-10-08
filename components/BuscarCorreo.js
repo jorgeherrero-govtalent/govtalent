@@ -102,9 +102,13 @@ export default function BuscarCorreo({ persona, encontrado, probable, onResultad
   // llegar, el botón se cambiaría por el correo y el modal se cerraría solo.
   const [pendiente, setPendiente] = useState(null);
   if (!persona?.id) return null;
-  if (encontrado) return <CorreoEncontrado r={encontrado} alinear={alinear} />;
+  // Un correo genérico (comunicacion@, prensa@…): se enseña y se ofrece
+  // buscar el nominativo.
+  const generico = !!encontrado && encontrado.tipo !== 'personal';
+  if (encontrado && !generico) return <CorreoEncontrado r={encontrado} alinear={alinear} />;
   return (
     <span style={{ display: 'inline-flex', flexDirection: 'column', alignItems: alinear === 'right' ? 'flex-end' : 'flex-start', gap: 6 }}>
+      {generico ? <CorreoEncontrado r={encontrado} alinear={alinear} /> : null}
       {probable ? <CorreoProbable p={probable} alinear={alinear} /> : null}
       <button
         type="button"
@@ -128,7 +132,7 @@ export default function BuscarCorreo({ persona, encontrado, probable, onResultad
         }}
       >
         <i className="ti ti-search" style={{ fontSize: 13 }} aria-hidden="true"></i>
-        Buscar correo
+        {generico ? 'Buscar su correo nominativo' : 'Buscar correo'}
       </button>
       {abierto ? (
         <BuscarCorreoModal

@@ -157,6 +157,9 @@ export default function BuscarCorreoModal({ persona, onClose, onResultado }) {
                     {resultado.verificado === false ? ' · sin verificar' : ''}
                   </div>
                 ) : null}
+                {resultado.tipo !== 'personal' ? (
+                  <div style={{ fontSize: 12, color: GRIS }}>No hemos encontrado su correo nominativo; este es el contacto publicado.</div>
+                ) : null}
                 <div style={{ fontSize: 11.5, color: GRIS }}>{cobrado ? 'Se ha descontado 1 crédito.' : 'Tu equipo ya lo tenía: sin coste.'}</div>
               </>
             ) : (

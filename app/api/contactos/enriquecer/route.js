@@ -75,12 +75,17 @@ export async function POST(request) {
 
   // 1. Caché compartida.
   const { data: cache } = await admin.from('contactos_enriquecidos').select('*').eq('persona_id', id).maybeSingle();
-  // Con correo: sale al momento. Gratis si su equipo ya lo pagó; si no,
-  // 1 crédito (sql/88: cada equipo paga la primera vez que lo ve).
-  // Sin correo (búsqueda con IA reciente que no lo encontró): no se repite
-  // la IA, pero sí la comprobación en el servidor, que es barata.
-  const cacheSinCorreo = cache && vigente(cache) && !cache.email;
-  if (cache && vigente(cache) && cache.email) {
+  // Con correo nominativo: sale al momento. Gratis si su equipo ya lo pagó;
+  // si no, 1 crédito (sql/88: cada equipo paga la primera vez que lo ve).
+  // Con un correo genérico (comunicacion@, prensa@…) o sin correo: no se
+  // repite la IA, pero sí se busca el nominativo en el servidor de correo,
+  // que es barato. Si no aparece, se devuelve lo que había.
+  const enVigor = cache && vigente(cache);
+  const cacheNominativo = enVigor && cache.email && cache.tipo === 'personal';
+  const cacheGenerico = enVigor && cache.email && cache.tipo !== 'personal';
+  const cacheSinCorreo = enVigor && !cache.email;
+
+  async function devolverCache() {
     const pagado = (await reveladosDe(admin, userId, [id])).has(id);
     let cobrado = false;
     if (!pagado) {
@@ -97,6 +102,8 @@ export async function POST(request) {
     }
     return NextResponse.json({ resultado: publico(cache), cobrado, cache: true, persona_id: id, saldo: await saldoCreditos(admin, userId) });
   }
+
+  if (cacheNominativo) return devolverCache();
 
   // 2. Saldo.
   const saldo = await saldoCreditos(admin, userId);
@@ -130,7 +137,7 @@ export async function POST(request) {
           notas: `Comprobado en el servidor de correo de ${s.dominio}`,
           coste_usd: Number((s.probados.length * 0.002).toFixed(5)),
         }
-      : cacheSinCorreo
+      : cacheSinCorreo || cacheGenerico
         ? null
         : await enriquecerPersona(persona);
   } catch (e) {
@@ -139,6 +146,7 @@ export async function POST(request) {
   }
 
   if (!r) {
+    if (cacheGenerico) return devolverCache();
     return NextResponse.json({ resultado: publico(cache), cobrado: false, cache: true, persona_id: id, saldo: await saldoCreditos(admin, userId) });
   }
 
