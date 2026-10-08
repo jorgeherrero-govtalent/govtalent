@@ -65,7 +65,7 @@ async function handler(request) {
   const db = dry ? null : admin();
 
   const resultados = await Promise.all(pedidos.map(async (ccaa) => {
-    const ctx = { debug, diagnostico: {} };
+    const ctx = { debug, diagnostico: {}, vistos: dry ? new Set() : await vistosDe(db, ccaa) };
     try {
       const entradas = await LECTORES[ccaa].leer(web, ctx);
       const r = await procesar(db, ccaa, entradas, { dry, debug });
@@ -79,6 +79,15 @@ async function handler(request) {
   return Response.json({ ok: true, dry, ms: Date.now() - t0, diarios: Object.fromEntries(resultados) });
 }
 
+// Lo ya evaluado en los últimos días (entrara o no), para no volver a
+// pedirlo.
+const DIAS_VISTOS = 15;
+async function vistosDe(db, ccaa) {
+  const desde = new Date(Date.now() - DIAS_VISTOS * 86400000).toISOString();
+  const { data } = await db.from('diarios_ccaa_vistos').select('id').eq('ccaa', ccaa).gte('visto_en', desde).limit(5000);
+  return new Set((data || []).map((r) => r.id));
+}
+
 // Algunos RSS enlazan por http; los diarios sirven todo por https.
 const https = (u) => (u ? String(u).replace(/^http:\/\//i, 'https://') : u);
 
@@ -88,9 +97,12 @@ async function procesar(db, ccaa, entradas, { dry, debug }) {
   const ahora = new Date().toISOString();
   const filas = [];
   const fuera = [];
+  const vistas = [];
   for (const e of entradas) {
-    const tipo = clasificar({ seccion: e.seccion, titulo: e.titulo });
+    const tipo = e.sinTitulo ? null : clasificar({ seccion: e.seccion, titulo: e.titulo });
     const id = idDiario(ccaa, e.ref);
+    // Sin título no se da por vista: se reintenta en la siguiente ejecución.
+    if (id && !e.sinTitulo) vistas.push({ id, ccaa, fecha: e.fecha || null, incluido: !!(tipo && e.fecha) });
     if (!tipo || !id || !e.fecha) { fuera.push(e); continue; }
     filas.push({
       id,
@@ -129,6 +141,10 @@ async function procesar(db, ccaa, entradas, { dry, debug }) {
     res.nuevas = ins?.length || 0;
   } else {
     res.nuevas = 0;
+  }
+  if (vistas.length) {
+    const { error } = await db.from('diarios_ccaa_vistos').upsert(vistas, { onConflict: 'id', ignoreDuplicates: true });
+    if (error) res.error_vistos = error.message.slice(0, 200);
   }
   return res;
 }

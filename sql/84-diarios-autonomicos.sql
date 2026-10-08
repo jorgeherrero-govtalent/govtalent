@@ -56,6 +56,20 @@ create policy diarios_ccaa_lectura on public.diarios_ccaa for select to anon, au
 grant select on public.diarios_ccaa to anon, authenticated;
 grant all on public.diarios_ccaa to service_role;
 
+-- Todo lo que el sync ya ha evaluado, haya entrado o no. Sirve para no
+-- volver a pedir lo mismo (en el BOCM, el título de cada disposición es
+-- una petición aparte con 10 s de pausa entre una y otra).
+create table if not exists public.diarios_ccaa_vistos (
+  id text primary key,                 -- el mismo id que en diarios_ccaa
+  ccaa text not null,
+  fecha date,
+  incluido boolean not null,
+  visto_en timestamptz not null default now()
+);
+create index if not exists diarios_ccaa_vistos_idx on public.diarios_ccaa_vistos (ccaa, visto_en desc);
+alter table public.diarios_ccaa_vistos enable row level security;
+grant all on public.diarios_ccaa_vistos to service_role;
+
 create or replace view public.regulatorio_search as
  SELECT 'ley'::text AS kind,
     i.num_expediente AS ref_id,
