@@ -35,10 +35,12 @@ function paginas() {
       'https://boc.cantabria.es/boces/boletines.do?boton=UltimoBOCPublicado',
       `https://boc.cantabria.es/boces/boletines.do?boton=Fecha&boletinBean.fecBolString=${h.d}/${h.m}/${h.a}`,
     ],
+    // Cuarta ronda: el main.js con ruta absoluta (relativo a /es/ devolvía
+    // el index) y una ficha del BOR para ver dónde lleva fecha y órgano.
     valencia: [
-      { url: 'https://dogv.gva.es/dogv-portal-frontend/es/sumari', js: true, todo: true },
-      'https://dogv.gva.es/dogv-portal-frontend/assets/config.json',
+      { url: 'https://dogv.gva.es/dogv-portal-frontend/main.2de782d451d4153cb7a7.js', codigo: true },
     ],
+    rioja_ficha: ['https://web.larioja.org/bor-portada/boranuncio?n=anu-580109'],
     rioja: [{ url: 'https://web.larioja.org/bor-portada/bor', js: true, todo: true }],
   };
 }
@@ -58,8 +60,15 @@ export async function GET(request) {
   const salida = await Promise.all(pedidos.map(async (clave) => {
     const res = [];
     for (const entrada of P[clave]) {
-      const { url, js, formularios, todo } = typeof entrada === 'string' ? { url: entrada } : entrada;
+      const { url, js, formularios, todo, codigo } = typeof entrada === 'string' ? { url: entrada } : entrada;
       try {
+        if (codigo) {
+          const c = await web.texto(url);
+          const urls = [...new Set([...c.matchAll(/["'`]((?:https?:\/\/|\/)[^"'`\s]{3,200})["'`]/g)].map((m) => m[1]))]
+            .filter((u) => !/w3\.org|angular|github|mozilla|gstatic|googleapis|\.(svg|png|woff2?|css)$/i.test(u));
+          res.push({ url, kb: Math.round(c.length / 1024), urls: urls.slice(0, 200), api: [...new Set([...c.matchAll(API_JS)].map((m) => m[1]))].slice(0, 80) });
+          continue;
+        }
         const r = await web.binario(url);
         const tipo = r.tipo || '';
         if (r.buf.subarray(0, 4).toString() === '%PDF') { res.push({ url, tipo, kb: Math.round(r.buf.length / 1024), pdf: true }); continue; }

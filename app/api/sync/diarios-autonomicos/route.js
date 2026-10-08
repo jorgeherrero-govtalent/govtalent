@@ -39,11 +39,13 @@ import * as navarra from '@/lib/diarios/navarra';
 import * as cataluna from '@/lib/diarios/cataluna';
 import * as aragon from '@/lib/diarios/aragon';
 import * as asturias from '@/lib/diarios/asturias';
+import * as cantabria from '@/lib/diarios/cantabria';
+import * as rioja from '@/lib/diarios/rioja';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 300;
 
-const LECTORES = { galicia, madrid, murcia, paisvasco, extremadura, castillayleon, navarra, cataluna, aragon, asturias };
+const LECTORES = { galicia, madrid, murcia, paisvasco, extremadura, castillayleon, navarra, cataluna, aragon, asturias, cantabria, rioja };
 
 // Cliente de servicio sin caché de Next: si no, las lecturas de Supabase
 // pueden quedarse congeladas entre ejecuciones.
@@ -104,7 +106,11 @@ async function procesar(db, ccaa, entradas, { dry, debug }) {
   const fuera = [];
   const vistas = [];
   for (const e of entradas) {
-    const tipo = e.sinTitulo ? null : clasificar({ seccion: e.seccion, titulo: e.titulo });
+    // Lo que firma un ayuntamiento u otra entidad local no es de la
+    // comunidad, aunque salga en una sección de la comunidad (en el BOC de
+    // Cantabria, los decretos de alcaldía van entre los nombramientos).
+    const local = /^(ayuntamiento|junta vecinal|mancomunidad|concejo|entidad local|diputaci[oó]n provincial|cabildo|consell insular)/i.test(String(e.organo || '').trim());
+    const tipo = e.sinTitulo || local ? null : clasificar({ seccion: e.seccion, titulo: e.titulo });
     const id = idDiario(ccaa, e.ref);
     // Sin título no se da por vista: se reintenta en la siguiente ejecución.
     if (id && !e.sinTitulo) vistas.push({ id, ccaa, fecha: e.fecha || null, incluido: !!(tipo && e.fecha) });
