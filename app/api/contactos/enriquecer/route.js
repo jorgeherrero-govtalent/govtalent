@@ -24,7 +24,7 @@ import { limpiar } from '@/lib/patronesCorreo';
 //    descuenta 1 crédito.
 
 export const dynamic = 'force-dynamic';
-export const maxDuration = 120;
+export const maxDuration = 180;
 
 const VIGENCIA_ENCONTRADO_DIAS = 180;
 const VIGENCIA_NO_ENCONTRADO_DIAS = 30;
