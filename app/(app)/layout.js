@@ -30,6 +30,26 @@ export default function AppLayout({ children }) {
   // Cuándo se marcó todo como visto en /alarmas. Si el recuento de la
   // barra salió antes y llega después, traería el número viejo.
   const vistasEn = useRef(0);
+  // El cajón del menú en el móvil.
+  const [menuMovil, setMenuMovil] = useState(false);
+
+  // Al navegar se cierra el cajón.
+  useEffect(() => {
+    setMenuMovil(false);
+  }, [pathname]);
+
+  // Con el cajón abierto: Escape lo cierra y la página de debajo no hace scroll.
+  useEffect(() => {
+    if (!menuMovil) return;
+    const tecla = (e) => e.key === 'Escape' && setMenuMovil(false);
+    const antes = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    window.addEventListener('keydown', tecla);
+    return () => {
+      document.body.style.overflow = antes;
+      window.removeEventListener('keydown', tecla);
+    };
+  }, [menuMovil]);
 
   useEffect(() => {
     let active = true;
@@ -153,14 +173,27 @@ export default function AppLayout({ children }) {
         novedades={novedades}
         alarmas={alarmas}
         onSignOut={signOut}
+        movilAbierto={menuMovil}
+        onCerrarMovil={() => setMenuMovil(false)}
       />
+      {menuMovil && <div className="gt-lat-velo" onClick={() => setMenuMovil(false)} aria-hidden="true"></div>}
 
       <div className="gt-lienzo">
-        {/* En móvil no hay menú lateral: arriba quedan el logotipo, el
-            buscador y el menú de usuario, y los módulos bajan a
-            BarraMovil. */}
+        {/* En móvil el menú lateral va en cajón: lo abre el botón de menú
+            de esta barra. Arriba quedan también el logotipo, el buscador y
+            el menú de usuario; los atajos, en BarraMovil. */}
         <nav className="nav gt-movil-top">
           <div className="nav-inner" style={{ padding: '0 14px', gap: 2, overflow: 'visible' }}>
+            <button
+              type="button"
+              className="gt-movil-menu"
+              onClick={() => setMenuMovil(true)}
+              aria-label="Abrir menú"
+              aria-expanded={menuMovil}
+              aria-controls="gt-menu-principal"
+            >
+              <i className="ti ti-menu-2" aria-hidden="true"></i>
+            </button>
             <Link href="/" className="nav-logo" aria-label="GovTalent, ir al inicio">
               <Logo height={24} />
             </Link>

@@ -16,8 +16,11 @@ import MenuUsuario from '@/components/MenuUsuario';
  * Alarmas y Seguimiento, y los módulos agrupados en secciones con título.
  * Abajo, la tarjeta del plan con las alarmas en uso y la ayuda.
  *
- * Solo en escritorio. En móvil siguen la barra superior reducida y
- * BarraMovil abajo (ver app/(app)/layout.js).
+ * En móvil (08-10-2026) es el mismo menú, en cajón: el botón de menú de
+ * la barra superior lo abre por encima de la página (movilAbierto) y se
+ * cierra al tocar un enlace, el fondo, la X o Escape. Así el móvil tiene
+ * todas las entradas sin mantener una segunda lista. BarraMovil sigue
+ * abajo como atajos.
  *
  * Plegado se recuerda en este navegador: es una comodidad de cada uno,
  * no un ajuste de la cuenta.
@@ -159,9 +162,13 @@ export default function MenuLateral({
   novedades = 0,
   alarmas = null, // { usadas, limite, esPro } o null mientras carga
   onSignOut,
+  movilAbierto = false,
+  onCerrarMovil,
 }) {
   const pathname = usePathname() || '/';
-  const [plegado, setPlegado] = useState(false);
+  const [plegadoGuardado, setPlegado] = useState(false);
+  // En el cajón del móvil siempre desplegado: plegado no cabe el texto.
+  const plegado = plegadoGuardado && !movilAbierto;
 
   useEffect(() => {
     try {
@@ -181,7 +188,16 @@ export default function MenuLateral({
   const esPro = !!alarmas?.esPro;
 
   return (
-    <aside className={`gt-lat${plegado ? ' plegado' : ''}`} aria-label="Menú principal">
+    <aside
+      id="gt-menu-principal"
+      className={`gt-lat${plegado ? ' plegado' : ''}${movilAbierto ? ' movil-abierto' : ''}`}
+      aria-label="Menú principal"
+      onClick={(e) => {
+        // Un enlace del cajón cierra el cajón, también si es la página en
+        // la que ya estás (ahí la ruta no cambia y no se cerraría solo).
+        if (movilAbierto && e.target.closest('a')) onCerrarMovil?.();
+      }}
+    >
       <div className="gt-lat-ws">
         <MenuUsuario
           variante="lateral"
@@ -201,6 +217,9 @@ export default function MenuLateral({
           aria-expanded={!plegado}
         >
           <i className={`ti ${plegado ? 'ti-layout-sidebar-left-expand' : 'ti-layout-sidebar'}`} aria-hidden="true"></i>
+        </button>
+        <button type="button" className="gt-lat-cerrar" onClick={() => onCerrarMovil?.()} aria-label="Cerrar menú">
+          <i className="ti ti-x" aria-hidden="true"></i>
         </button>
       </div>
 
