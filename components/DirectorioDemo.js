@@ -26,84 +26,92 @@ import { useTotalDirectorio, formatearTotal } from '@/lib/useTotalDirectorio';
 const MORADO = '#6d5aef';
 const BORDE = '#e0dfd8';
 
+// Una muestra de cada bloque, como la Base de datos de hoy: Gobierno,
+// Parlamento Europeo, cuerpo diplomático, medios, sociedades estatales y
+// organismos. La última no tiene correo publicado: enseña «Buscar correo».
+// Revisado el 09-10-2026.
 const FILAS = [
   {
     nombre: 'Xavier Martí Martí',
     cargo: 'Subsecretario de Asuntos Exteriores, Unión Europea y Cooperación',
     unidad: 'Subsecretaría de Asuntos Exteriores, Unión Europea y Cooperación',
     institucion: 'Ministerio de Asuntos Exteriores, Unión Europea y Cooperación',
-    contexto: 'España · ejecutivo',
+    nivel: 'Administración General del Estado',
     dominio: 'maec.es',
     scoring: 3,
-    otros: 1,
-  },
-  {
-    nombre: 'Blanca Breñosa Sáez de Ibarra',
-    cargo: 'Subsecretaria de Inclusión, Seguridad Social y Migraciones',
-    unidad: 'Subsecretaría de Inclusión, Seguridad Social y Migraciones',
-    institucion: 'Ministerio de Inclusión, Seguridad Social y Migraciones',
-    contexto: 'España · ejecutivo',
-    dominio: 'inclusion.gob.es',
-    scoring: 3,
+    otros: 2,
+    titular: true,
   },
   {
     nombre: 'Joan Groizard Payeras',
-    cargo: 'Presidente del Instituto para la Transición Justa, O.A.',
-    unidad: 'Instituto para la Transición Justa, O.A.',
+    cargo: 'Secretario de Estado de Energía',
+    unidad: 'Secretaría de Estado de Energía',
     institucion: 'Ministerio para la Transición Ecológica y el Reto Demográfico',
-    contexto: 'España · ejecutivo',
+    nivel: 'Administración General del Estado',
     dominio: 'miteco.es',
     scoring: 3,
     otros: 2,
+    titular: true,
   },
   {
     nombre: 'Miryam Álvarez Páez',
     cargo: 'Secretaria de Estado de Política Territorial',
     unidad: 'Secretaría de Estado de Política Territorial',
     institucion: 'Ministerio de Política Territorial y Memoria Democrática',
-    contexto: 'España · ejecutivo',
+    nivel: 'Administración General del Estado',
     dominio: 'correo.gob.es',
     scoring: 3,
+    titular: true,
   },
   {
     nombre: 'César LUENA',
     cargo: 'Eurodiputado',
     unidad: 'S&D',
     institucion: 'Parlamento Europeo',
-    contexto: 'UE · legislativo',
+    nivel: 'Parlamento Europeo',
     pais: 'España',
     dominio: 'europarl.europa.eu',
     scoring: 3,
+    titular: true,
   },
   {
-    nombre: 'Adrián VÁZQUEZ LÁZARA',
-    cargo: 'Eurodiputado',
-    unidad: 'PPE',
-    institucion: 'Parlamento Europeo',
-    contexto: 'UE · legislativo',
-    pais: 'España',
-    dominio: 'europarl.europa.eu',
-    scoring: 3,
+    nombre: 'Entela Gjika',
+    cargo: 'Embajadora Extraordinaria y Plenipotenciaria',
+    unidad: 'Embajada de la República de Albania',
+    institucion: 'Embajada de Albania',
+    nivel: 'Cuerpo diplomático',
+    dominio: 'mfa.gov.al',
+    scoring: 2,
+    titular: true,
   },
   {
-    nombre: 'Subdirección General de Relaciones Internacionales',
-    esUnidad: true,
-    cargo: 'Subdirector General de Relaciones Internacionales y Unión Europea',
-    unidad: 'S.G. de Relaciones Internacionales y Unión Europea',
-    institucion: 'Ministerio de Cultura',
-    contexto: 'España · ejecutivo',
-    dominio: 'cultura.gob.es',
+    nombre: 'Carlos Franganillo Hernández',
+    cargo: 'Director Informativos Telecinco',
+    unidad: '',
+    institucion: 'Informativos Mediaset España (Telecinco/Cuatro)',
+    nivel: 'Radio y televisión',
+    dominio: 'mediaset.es',
     scoring: 2,
   },
   {
-    nombre: 'Head of Unit — Competition Policy',
-    esUnidad: true,
-    cargo: 'Head of Unit',
-    unidad: 'DG COMP',
-    institucion: 'Comisión Europea',
-    contexto: 'UE · ejecutivo',
-    dominio: 'ec.europa.eu',
-    scoring: 3,
+    nombre: 'Juan José Ganuza Fernández',
+    cargo: 'Presidente',
+    unidad: 'Comisión Nacional de los Mercados y la Competencia',
+    institucion: 'CNMC Comisión Nacional de los Mercados y la Competencia',
+    nivel: 'Otros organismos públicos',
+    dominio: 'cnmc.es',
+    scoring: 2,
+    titular: true,
+  },
+  {
+    nombre: 'Pedro Saura García',
+    cargo: 'Presidente',
+    unidad: 'Sociedad Estatal de Participaciones Industriales (SEPI)',
+    institucion: 'Grupo Correos',
+    nivel: 'Sociedades estatales',
+    dominio: null,
+    scoring: 1,
+    titular: true,
   },
 ];
 
@@ -127,8 +135,9 @@ function Barras({ nivel }) {
   );
 }
 
-/** Barra superior, decorativa: enseña qué se puede filtrar sin filtrar. */
-function BarraFiltros() {
+/** Barra superior, decorativa: la misma que la Base de datos (bloques,
+ *  búsqueda y filtros), para enseñar qué se puede filtrar sin filtrar. */
+function BarraFiltros({ total }) {
   const boton = {
     display: 'inline-flex',
     alignItems: 'center',
@@ -141,30 +150,11 @@ function BarraFiltros() {
     color: '#3a3a36',
     fontWeight: 600,
   };
+  const bloques = ['Todo', 'Instituciones', 'Organizaciones', 'Medios y actores sociales'];
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14, flexWrap: 'wrap' }}>
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: 8,
-          border: `.5px solid ${BORDE}`,
-          background: '#fff',
-          borderRadius: 9,
-          padding: '8px 12px',
-          minWidth: 250,
-          flex: 1,
-          maxWidth: 340,
-          color: '#a8a79c',
-          fontSize: 13,
-        }}
-      >
-        <i className="ti ti-search" style={{ fontSize: 15 }}></i>
-        Buscar por nombre, cargo o unidad
-      </div>
-
-      <div style={{ display: 'inline-flex', background: '#fff', border: '1px solid #e2dcf8', borderRadius: 10, padding: 3 }}>
-        {['Todas', 'España', 'UE'].map((t, i) => (
+    <>
+      <div style={{ display: 'inline-flex', flexWrap: 'wrap', background: '#fff', border: '1px solid #e2dcf8', borderRadius: 10, padding: 3, marginBottom: 12 }}>
+        {bloques.map((t, i) => (
           <span
             key={t}
             style={{
@@ -177,27 +167,50 @@ function BarraFiltros() {
             }}
           >
             {t}
+            {i === 0 && total ? <span style={{ fontWeight: 500, opacity: 0.8, marginLeft: 6 }}>{total}</span> : null}
           </span>
         ))}
       </div>
 
-      <span style={boton}>
-        <i className="ti ti-building-bank" style={{ fontSize: 15, color: '#a8a79c' }}></i> Institución
-        <i className="ti ti-chevron-down" style={{ fontSize: 14, color: '#a8a79c' }}></i>
-      </span>
-      <span style={boton}>
-        <i className="ti ti-category-2" style={{ fontSize: 15, color: '#a8a79c' }}></i> Área
-        <i className="ti ti-chevron-down" style={{ fontSize: 14, color: '#a8a79c' }}></i>
-      </span>
-      <span style={boton}>
-        <i className="ti ti-world" style={{ fontSize: 15, color: '#a8a79c' }}></i> País
-        <i className="ti ti-chevron-down" style={{ fontSize: 14, color: '#a8a79c' }}></i>
-      </span>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14, flexWrap: 'wrap' }}>
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 8,
+            border: `.5px solid ${BORDE}`,
+            background: '#fff',
+            borderRadius: 9,
+            padding: '8px 12px',
+            minWidth: 250,
+            flex: 1,
+            maxWidth: 340,
+            color: '#a8a79c',
+            fontSize: 13,
+          }}
+        >
+          <i className="ti ti-search" style={{ fontSize: 15 }}></i>
+          Buscar por nombre, cargo o unidad
+        </div>
 
-      <span style={{ ...boton, marginLeft: 'auto', color: '#a8a79c' }}>
-        <i className="ti ti-file-spreadsheet" style={{ fontSize: 15, color: '#a8a79c' }}></i> Exportar
-      </span>
-    </div>
+        <span style={boton}>
+          <i className="ti ti-building-bank" style={{ fontSize: 15, color: '#a8a79c' }}></i> Institución u organización
+          <i className="ti ti-chevron-down" style={{ fontSize: 14, color: '#a8a79c' }}></i>
+        </span>
+        <span style={boton}>
+          <i className="ti ti-category-2" style={{ fontSize: 15, color: '#a8a79c' }}></i> Área
+          <i className="ti ti-chevron-down" style={{ fontSize: 14, color: '#a8a79c' }}></i>
+        </span>
+        <span style={boton}>
+          <i className="ti ti-world" style={{ fontSize: 15, color: '#a8a79c' }}></i> País
+          <i className="ti ti-chevron-down" style={{ fontSize: 14, color: '#a8a79c' }}></i>
+        </span>
+
+        <span style={{ ...boton, marginLeft: 'auto', color: '#a8a79c' }}>
+          <i className="ti ti-file-spreadsheet" style={{ fontSize: 15, color: '#a8a79c' }}></i> Exportar
+        </span>
+      </div>
+    </>
   );
 }
 
@@ -220,7 +233,7 @@ export default function DirectorioDemo() {
 
   return (
     <div>
-      <BarraFiltros />
+      <BarraFiltros total={total} />
 
       <div
         style={{
@@ -238,7 +251,7 @@ export default function DirectorioDemo() {
             lo que se compra, no una nota legal. */}
         <span style={{ fontSize: 11.5, color: '#8a897f', display: 'inline-flex', alignItems: 'center', gap: 6 }}>
           <i className="ti ti-circle-check" style={{ fontSize: 14, color: '#1d6f5c' }}></i>
-          Fuentes oficiales · DIR3, BOE, BOCG, congreso.es y portales de la UE · actualizado semanalmente
+          Fuentes oficiales · DIR3, BOE, BOCG, congreso.es, portales de la UE y Agenda de la Comunicación · actualizado semanalmente
         </span>
       </div>
 
@@ -278,8 +291,8 @@ export default function DirectorioDemo() {
                         width: 24,
                         height: 24,
                         borderRadius: '50%',
-                        background: '#eeecfd',
-                        color: MORADO,
+                        background: f.titular ? '#eeecfd' : '#f0efe9',
+                        color: f.titular ? MORADO : '#a8a79c',
                         display: 'inline-flex',
                         alignItems: 'center',
                         justifyContent: 'center',
@@ -307,29 +320,53 @@ export default function DirectorioDemo() {
                 <td style={{ padding: '11px 18px', color: '#555' }}>
                   {f.institucion}
                   <div style={{ fontSize: 11, color: '#a8a79c', marginTop: 2 }}>
-                    {f.contexto}
+                    {f.nivel}
                     {f.pais && <span style={{ color: MORADO }}>{' · '}{f.pais}</span>}
                   </div>
                 </td>
                 <td style={{ padding: '11px 18px', whiteSpace: 'nowrap' }}>
                   <Barras nivel={f.scoring} />
-                  <span style={{ color: '#3a3a36' }}>{f.scoring === 3 ? 'Alta' : 'Media'}</span>
+                  <span style={{ color: f.scoring === 1 ? '#8a897f' : '#3a3a36' }}>
+                    {f.scoring === 3 ? 'Alta' : f.scoring === 2 ? 'Media' : 'Baja'}
+                  </span>
                 </td>
                 {/* Lo único tapado. El dominio se deja a la vista: dice
-                    que el correo es institucional y real, no inventado. */}
+                    que el correo es institucional y real, no inventado.
+                    Sin correo publicado, el botón de la Base de datos. */}
                 <td style={{ padding: '11px 18px', whiteSpace: 'nowrap' }}>
-                  <span
-                    style={{
-                      display: 'inline-block',
-                      width: 74,
-                      height: 9,
-                      borderRadius: 3,
-                      background: 'linear-gradient(90deg, #e6e4f6, #efeef9)',
-                      verticalAlign: -1,
-                      marginRight: 4,
-                    }}
-                  ></span>
-                  <span style={{ color: '#a8a79c' }}>@{f.dominio}</span>
+                  {f.dominio ? (
+                    <>
+                      <span
+                        style={{
+                          display: 'inline-block',
+                          width: 74,
+                          height: 9,
+                          borderRadius: 3,
+                          background: 'linear-gradient(90deg, #e6e4f6, #efeef9)',
+                          verticalAlign: -1,
+                          marginRight: 4,
+                        }}
+                      ></span>
+                      <span style={{ color: '#a8a79c' }}>@{f.dominio}</span>
+                    </>
+                  ) : (
+                    <span
+                      style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: 5,
+                        border: '.5px solid #cfc9f8',
+                        background: '#fff',
+                        borderRadius: 7,
+                        padding: '4px 9px',
+                        fontSize: 11.5,
+                        color: '#5443d6',
+                      }}
+                    >
+                      <i className="ti ti-search" style={{ fontSize: 13 }} aria-hidden="true"></i>
+                      Buscar correo
+                    </span>
+                  )}
                 </td>
               </tr>
             ))}
@@ -358,13 +395,14 @@ export default function DirectorioDemo() {
             {total ? `Estás viendo 8 de ${total} personas.` : 'Estás viendo 8 personas del directorio.'}
           </div>
           <div style={{ fontSize: 12.5, color: '#a8a49c', marginTop: 4 }}>
-            Cargos y asesores de ministerios, organismos, Congreso, Comisión Europea y Parlamento
-            Europeo, con su correo, su unidad y su dirección postal. Filtrable y exportable a Excel.
+            Instituciones de España y la UE, cuerpo diplomático, medios y organizaciones, con su correo, su
+            teléfono y la fuente de cada dato. Filtra, guarda listas que te avisan de los cambios y exporta a
+            Excel. Si falta un correo, lo buscamos y lo comprobamos: 25 créditos de contacto al mes incluidos.
           </div>
           <div style={{ fontSize: 12, color: '#8a8680', marginTop: 8 }}>
-            Construido solo con fuentes oficiales: los cargos se contrastan con los nombramientos del
-            BOE y los asesores del Congreso salen del BOCG, Serie D. Cada ficha guarda de dónde sale
-            el dato y cuándo se capturó.
+            Construido con fuentes oficiales: los cargos se contrastan con los nombramientos del BOE y los
+            asesores del Congreso salen del BOCG, Serie D. Cada ficha guarda de dónde sale el dato y cuándo se
+            capturó.
           </div>
         </div>
         <span style={{ fontSize: 12.5, color: '#8f7ff5', fontWeight: 600, whiteSpace: 'nowrap' }}>

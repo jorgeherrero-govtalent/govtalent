@@ -7,6 +7,7 @@ import TextoCreciente, { enviarConIntro } from '@/components/TextoCreciente';
 import Paginacion, { usePaginacion } from '@/components/Paginacion';
 import UpgradeModal from '@/components/UpgradeModal';
 import BuscarCorreoModal from '@/components/BuscarCorreoModal';
+import { useTotalDirectorio, masDe } from '@/lib/useTotalDirectorio';
 import { BANDAS, TIPOS_INSTITUCION, FILTROS_VACIOS } from '@/lib/contactosFiltros';
 import {
   ESTILOS_CONTACTOS,
@@ -184,6 +185,7 @@ function PanelFiltros({ filtros, setFiltros, resumen }) {
 
 function ContactosPagina() {
   const params = useSearchParams();
+  const cuantosDirectorio = masDe(useTotalDirectorio());
   const router = useRouter();
   const cajaRef = useRef(null);
   const [acceso, setAcceso] = useState(null); // null cargando · true · false
@@ -455,7 +457,7 @@ function ContactosPagina() {
       {upsell && (
         <UpgradeModal
           title="Disponible con suscripción"
-          message="El buscador de contactos es del Directorio: más de veintiún mil cargos y contactos de las instituciones de España y la UE, el cuerpo diplomático, los medios y las organizaciones, con su correo, su teléfono y la fuente de cada dato. Guarda listas que te avisan de los cambios e incluye 25 créditos de contacto al mes para buscar los correos que falten."
+          message={`El buscador de contactos es del Directorio: ${cuantosDirectorio || 'miles de'} cargos y contactos de las instituciones de España y la UE, el cuerpo diplomático, los medios y las organizaciones, con su correo, su teléfono y la fuente de cada dato. Guarda listas que te avisan de los cambios e incluye 25 créditos de contacto al mes para buscar los correos que falten.`}
           href="/precios"
           onClose={() => setUpsell(false)}
         />
@@ -477,7 +479,6 @@ function ContactosPagina() {
           <p>Crea una lista de contactos o encuentra el correo de una persona concreta.</p>
           <form
             className="gt-ct-caja"
-            onClick={() => acceso === false && setUpsell(true)}
             onSubmit={(e) => {
               e.preventDefault();
               enviar();

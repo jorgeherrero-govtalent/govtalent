@@ -7,6 +7,7 @@ import { createClient } from '@/lib/supabase/client';
 import FilterableHeader from '@/components/FilterableHeader';
 import UpgradeModal from '@/components/UpgradeModal';
 import DirectorioDemo from '@/components/DirectorioDemo';
+import { useTotalDirectorio, masDe } from '@/lib/useTotalDirectorio';
 
 const PAGE_SIZE_OPTIONS = [25, 50, 100, 200];
 
@@ -373,6 +374,7 @@ export default function DirectorioInstitucionalPage() {
   const [selectedIds, setSelectedIds] = useState(new Set());
 
   const [modalUpsell, setModalUpsell] = useState(false);
+  const cuantosDirectorio = masDe(useTotalDirectorio());
   const [showExportConfirm, setShowExportConfirm] = useState(false);
   const [exportUsage, setExportUsage] = useState(null);
   const [exportBusy, setExportBusy] = useState(false);
@@ -713,7 +715,7 @@ export default function DirectorioInstitucionalPage() {
         <div style={{ marginBottom: 16 }}>
           <h1 style={{ fontSize: 19, fontWeight: 700, margin: 0 }}>Directorio institucional</h1>
           <p style={{ fontSize: 12.5, color: '#888', margin: '4px 0 0' }}>
-            Quién ocupa cada puesto en España y en la UE, con su contacto.
+            Personas de las instituciones de España y la UE, las organizaciones y los medios de comunicación, con su contacto.
           </p>
         </div>
 
@@ -725,7 +727,7 @@ export default function DirectorioInstitucionalPage() {
         {modalUpsell && (
           <UpgradeModal
             title="El directorio institucional se contrata aparte"
-            message="Más de dieciocho mil cargos y contactos de la Administración General del Estado, las comunidades autónomas, el Congreso, la Comisión Europea, el Parlamento Europeo, los medios de comunicación, los partidos, los sindicatos y las patronales, con su correo, su unidad y su dirección postal. Filtra por institución o área y expórtalo a Excel cuando lo necesites."
+            message={`${cuantosDirectorio ? cuantosDirectorio.replace(/^m/, 'M') : 'Miles de'} personas de las instituciones de España y la UE, el cuerpo diplomático, los medios y las organizaciones, con su correo, su teléfono y la fuente de cada dato. Filtra, guarda listas que te avisan de los cambios y exporta a Excel. Incluye 25 créditos de contacto al mes para buscar los correos que falten.`}
             href="/precios"
             onClose={() => setModalUpsell(false)}
           />
