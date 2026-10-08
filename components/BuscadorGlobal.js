@@ -301,7 +301,20 @@ export default function BuscadorGlobal({ variante = 'barra' }) {
         type="button"
         className="gt-buscador-pie"
         onClick={() => irA(`/contactos?q=${encodeURIComponent(consultaCorreo)}`)}
-        style={{ display: 'flex', alignItems: 'center', gap: 6, borderTop: '.5px solid #ecebe6' }}
+        // Fija abajo: con muchos resultados el panel tiene scroll y quedaba oculta.
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          gap: 6,
+          borderTop: '.5px solid #ecebe6',
+          position: 'sticky',
+          bottom: -5,
+          background: '#fff',
+          marginBottom: -5,
+          paddingBottom: 9,
+          color: '#5443d6',
+        }}
       >
         <i className="ti ti-search" style={{ fontSize: 13 }} aria-hidden="true"></i>
         Buscar el correo de «{consultaCorreo}»
