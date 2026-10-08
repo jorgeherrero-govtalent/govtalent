@@ -43,11 +43,15 @@ function paginas() {
     // Sexta ronda: server_url es https://dogv.gva.es/dogv-portal, pero
     // /dogv/latest responde HTTP 440. Se busca qué cabeceras o token pone
     // la aplicación (interceptor, reCAPTCHA) y se ve el cuerpo del error.
+    // Séptima ronda: el servicio solo pedía el parámetro «lang». Se pide el
+    // último DOGV y, con su id, el sumario completo (/dogv/{id}).
     valencia: [
-      { url: 'https://dogv.gva.es/dogv-portal-frontend/main.2de782d451d4153cb7a7.js', contexto: ['setHeaders', 'intercept(', 'HttpHeaders', 'recaptcha', 'grecaptcha', 'getDogvLatest(', '440', 'withCredentials'] },
-      'https://dogv.gva.es/dogv-portal/dogv/latest',
-      'https://dogv.gva.es/dogv-portal/dogv/calendar',
-      'https://dogv.gva.es/robots.txt',
+      'https://dogv.gva.es/dogv-portal/dogv/latest?lang=es',
+      { url: 'https://dogv.gva.es/dogv-portal/dogv/latest?lang=es', seguir: (t) => {
+        const id = (t.match(/"id"\s*:\s*"?(\d+)/) || t.match(/<id>(\d+)<\/id>/) || [])[1];
+        return id ? [`https://dogv.gva.es/dogv-portal/dogv/${id}?lang=es`] : [];
+      } },
+      'https://dogv.gva.es/dogv-portal/disposicion/ultimasDisposiciones?lang=es',
     ],
     rioja_ficha: ['https://web.larioja.org/bor-portada/boranuncio?n=anu-580109'],
     rioja: [{ url: 'https://web.larioja.org/bor-portada/bor', js: true, todo: true }],
@@ -69,8 +73,20 @@ export async function GET(request) {
   const salida = await Promise.all(pedidos.map(async (clave) => {
     const res = [];
     for (const entrada of P[clave]) {
-      const { url, js, formularios, todo, codigo, contexto } = typeof entrada === 'string' ? { url: entrada } : entrada;
+      const { url, js, formularios, todo, codigo, contexto, seguir } = typeof entrada === 'string' ? { url: entrada } : entrada;
       try {
+        if (seguir) {
+          const t0 = await web.texto(url);
+          for (const u of seguir(t0)) {
+            try {
+              const t1 = await web.texto(u);
+              res.push({ url: u, kb: Math.round(t1.length / 1024), cuerpo: t1.slice(0, 12000) });
+            } catch (e) {
+              res.push({ url: u, error: String(e.message || e).slice(0, 200), cuerpo: e.cuerpo });
+            }
+          }
+          continue;
+        }
         if (contexto) {
           const c = await web.texto(url);
           const trozos = {};
@@ -96,7 +112,7 @@ export async function GET(request) {
         const tipo = r.tipo || '';
         if (r.buf.subarray(0, 4).toString() === '%PDF') { res.push({ url, tipo, kb: Math.round(r.buf.length / 1024), pdf: true }); continue; }
         const html = await web.texto(url);
-        if (/json/.test(tipo) || /^\s*[[{]/.test(html)) { res.push({ url, tipo, json: html.slice(0, 6000) }); continue; }
+        if (/json|xml/.test(tipo) || /^\s*([[{]|<\?xml|<[A-Za-z]+DTO|<[A-Z][A-Za-z]*>)/.test(html)) { res.push({ url, tipo, json: html.slice(0, 8000) }); continue; }
         const titulo = textoPlano((html.match(/<title[^>]*>([\s\S]*?)<\/title>/i) || [])[1]);
         const enlaces = [...new Map(enlacesDe(html, url).map((e) => [e.href, `${e.texto.slice(0, 90)} | ${e.href}`])).values()];
         const scripts = [...html.matchAll(/<script[^>]*src=["']([^"']+)/gi)].map((m) => m[1]).slice(0, 20);
