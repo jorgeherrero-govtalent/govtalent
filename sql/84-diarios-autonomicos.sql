@@ -87,7 +87,7 @@ as $fn$
   select case
     when t is null or t = '' then false
     -- Lo que se queda aunque case: bases reguladoras y lo que aprueba o regula
-    when t ~ 'bases reguladoras|por (el|la) que se (aprueba|regula|establece|desarrolla|modifica (el|la) (decreto|orden|reglamento))'
+    when acto ~ 'bases reguladoras|por (el|la) que se (aprueba|regula|establece|desarrolla|modifica (el|la) (decreto|orden|reglamento))'
          and t !~ '^extracto\y|\yconvenios?\y|\yadenda\y' then false
     else (
          t ~ '\yconvenios?\y|\yadenda\y|encomienda de gestion|protocolo general de actuacion|acuerdo de colaboracion'
@@ -103,7 +103,12 @@ as $fn$
       or t ~ '(declaracion|informe) de impacto ambiental|evaluacion ambiental (simplificada|ordinaria) del proyecto'
     )
   end
-  from (select unaccent(lower(titulo)) as t) x
+  from (
+    select t,
+           -- El acto, sin las normas que cita («…contempladas en la Orden de…»)
+           substr(t, 1, 1) || regexp_replace(substr(t, 2), '\y(en|de|por|mediante|segun) (la |el )?(orden|resolucion|decreto|ley|acuerdo|real decreto)\y.*$', '') as acto
+    from (select unaccent(lower(titulo)) as t) y
+  ) x
 $fn$;
 
 create or replace view public.regulatorio_search as
