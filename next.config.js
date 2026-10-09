@@ -16,9 +16,9 @@ const nextConfig = {
       })),
     ];
   },
-  // pdf.js (lib/textoPdf.js) se carga tal cual en el servidor, sin empaquetar.
+  // MuPDF y pdf.js (lib/textoPdf.js) se cargan tal cual en el servidor, sin empaquetar.
   experimental: {
-    serverComponentsExternalPackages: ['pdfjs-dist'],
+    serverComponentsExternalPackages: ['pdfjs-dist', 'mupdf'],
   },
   images: {
     remotePatterns: [
