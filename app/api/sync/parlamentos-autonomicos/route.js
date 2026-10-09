@@ -36,6 +36,8 @@ import { mismoTitulo } from '@/lib/ccaa/comun';
 import { FASE1, PARLAMENTOS, idExpediente, slugExpediente, tipoNorm, claveExpediente } from '@/lib/parlamentosAutonomicos';
 import { leerBoletin, guardarActos, MAX_PDF_KB } from '@/lib/lectorBoletines';
 import { textoDePdf } from '@/lib/textoPdf';
+import { textoDeDocx, extractoTramitacion } from '@/lib/textoDocx';
+import { urlsDocx } from '@/lib/ccaa/madrid';
 import { eventosDeSeguimiento } from '@/lib/ccaa/eventos';
 import { clasificarSectores } from '@/lib/ccaa/sectores';
 import * as andalucia from '@/lib/ccaa/andalucia';
@@ -55,7 +57,7 @@ const LECTORES = { andalucia, aragon, asturias, cantabria, castillayleon, rioja,
 const FIN_LECTURA_MS = 150000;
 const FIN_TOTAL_MS = 270000;
 // Parlamentos cuyos expedientes solo aparecen al leer el boletín con IA.
-const SOLO_BOLETIN = new Set(['valencia', 'asturias', 'cataluna']);
+const SOLO_BOLETIN = new Set(['valencia', 'asturias', 'cataluna', 'madrid']);
 // La clasificación por sectores va en lotes de ~20-40 s: solo se lanza si
 // queda tiempo, y lo que no dé tiempo lo hace la ejecución siguiente.
 const FIN_SECTORES_MS = 200000;
@@ -301,6 +303,9 @@ async function guardarLectura(db, p, r, nuevos = []) {
 async function leerUno(db, web, b, nuevos = []) {
   const base = { id: b.id };
   try {
+    // Madrid: el PDF del BOAM viene cifrado; se lee su versión en texto
+    // (DOCX) de los datos abiertos de la Asamblea (lib/ccaa/madrid.js).
+    if (b.parlamento === 'madrid') return await leerBoamDocx(db, web, b, nuevos);
     const r = await web.binario(b.url_pdf || b.url);
     const kb = Math.round(r.buf.length / 1024);
     const esPdf = r.buf.subarray(0, 4).toString() === '%PDF';
@@ -369,4 +374,51 @@ async function complementar(db, p, complementos) {
     n += 1;
   }
   return n;
+}
+
+/**
+ * Madrid: el BOAM en DOCX (datos abiertos de la Asamblea), pasado a texto
+ * y reducido a lo que importa para la tramitación (el sumario y los
+ * párrafos de plazos y expedientes), con marcas de página para enlazar
+ * cada trámite a la página del PDF oficial.
+ */
+async function leerBoamDocx(db, web, b, nuevos = []) {
+  const base = { id: b.id };
+  const intentos = [];
+  let r = null;
+  for (const url of urlsDocx(b.numero)) {
+    try {
+      r = await web.binario(url);
+      if (r.buf.subarray(0, 2).toString() === 'PK') { r.url = url; break; }
+      intentos.push(`${url}: no es un DOCX (${r.tipo || '?'})`);
+      r = null;
+    } catch (e) {
+      intentos.push(`${url}: ${e.message}`);
+      if (e.robots) break;
+    }
+  }
+  if (!r) {
+    const error = `DOCX no disponible · ${intentos.join(' · ')}`.slice(0, 300);
+    await db.from('ccaa_boletines').update({ estado: 'error', error }).eq('id', b.id);
+    return { ...base, estado: 'error', error };
+  }
+  const kb = Math.round(r.buf.length / 1024);
+  try {
+    const { texto, paginas } = textoDeDocx(r.buf);
+    const extracto = extractoTramitacion(texto);
+    const { actos, modelo, fechaBoletin } = await leerBoletin({ parlamento: 'madrid', numero: b.numero, fecha: b.fecha, texto: extracto, conPaginas: true });
+    if (!b.fecha && fechaBoletin) {
+      b.fecha = fechaBoletin;
+      await db.from('ccaa_boletines').update({ fecha: fechaBoletin }).eq('id', b.id);
+    }
+    const g = await guardarActos(db, { parlamento: 'madrid', boletin: b, actos });
+    if (g.nuevos?.length) nuevos.push(...g.nuevos);
+    delete g.nuevos;
+    await db.from('ccaa_boletines').update({ estado: 'leido', modelo, n_actos: actos.length, kb, error: null, leido_at: new Date().toISOString() }).eq('id', b.id);
+    return { ...base, estado: 'leido', formato: 'docx', kb, paginas, extracto_kb: Math.round(extracto.length / 1024), actos: actos.length, ...g };
+  } catch (e) {
+    const msg = String(e.message || e).slice(0, 300);
+    await db.from('ccaa_boletines').update({ estado: 'error', error: msg, kb }).eq('id', b.id);
+    return { ...base, estado: 'error', error: msg };
+  }
 }
