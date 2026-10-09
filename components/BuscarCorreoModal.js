@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import Link from 'next/link';
-import { ModalComprar, ModalGuardarLista, TIPO_CONTACTO, dominio, limpiarEmail, miles, Buscando, ESTILOS_CONTACTOS } from '@/components/ContactosUI';
+import { ModalComprar, ModalGuardarLista, etiquetaEnriquecido, AYUDA_PROBABLE, limpiarEmail, miles, Buscando, ESTILOS_CONTACTOS } from '@/components/ContactosUI';
 
 /**
  * Buscar el correo de una persona que la fuente no trae (Directorio).
@@ -107,8 +107,6 @@ export default function BuscarCorreoModal({ persona, onClose, onResultado }) {
   const sinCreditos = disponibles !== null && disponibles < 1;
   const email = resultado?.estado === 'encontrado' ? limpiarEmail(resultado.email) : null;
   const buscando = fase === 'buscando';
-  // Confirmado en el servidor de correo de su organización (sin página fuente).
-  const comprobado = !!email && resultado?.verificado === true && !resultado?.fuente_url;
 
   return createPortal(
     <div className="modal-ov on" onClick={(e) => e.target === e.currentTarget && !buscando && onClose()}>
@@ -138,7 +136,7 @@ export default function BuscarCorreoModal({ persona, onClose, onResultado }) {
                       {email}
                     </a>
                     <span style={{ fontSize: 10.5, fontWeight: 600, color: '#3d2fb3', background: '#efedfd', borderRadius: 999, padding: '1px 7px' }}>
-                      {comprobado ? 'Verificado' : TIPO_CONTACTO[resultado.tipo] || 'Contacto'}
+                      {etiquetaEnriquecido(resultado)}
                     </span>
                   </div>
                 ) : null}
@@ -148,15 +146,7 @@ export default function BuscarCorreoModal({ persona, onClose, onResultado }) {
                     {resultado.telefono}
                   </div>
                 ) : null}
-                {resultado.fuente_url ? (
-                  <div style={{ fontSize: 12, color: GRIS }}>
-                    Según{' '}
-                    <a href={resultado.fuente_url} target="_blank" rel="noopener noreferrer" style={{ color: '#5443d6', textDecoration: 'none' }}>
-                      {dominio(resultado.fuente_url)} ↗
-                    </a>
-                    {resultado.verificado === false ? ' · sin verificar' : ''}
-                  </div>
-                ) : null}
+                {resultado.calidad === 'probable' ? <div style={{ fontSize: 12, color: GRIS }}>{AYUDA_PROBABLE}</div> : null}
                 {resultado.tipo !== 'personal' ? (
                   <div style={{ fontSize: 12, color: GRIS }}>No hemos encontrado su correo nominativo; este es el contacto publicado.</div>
                 ) : null}

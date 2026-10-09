@@ -3,7 +3,8 @@ import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { puedeVerContactos } from '@/lib/accesoContactos';
 import { saldoCreditos, consumirCreditos } from '@/lib/creditos';
-import { enriquecerPersona } from '@/lib/enriquecer';
+import { enriquecerPersona, buscarCorreoPublicado } from '@/lib/enriquecer';
+import { enriquecidoPublico } from '@/lib/enriquecidoPublico';
 import { correoPorServidor } from '@/lib/correoPorServidor';
 import { limpiar } from '@/lib/patronesCorreo';
 import { reveladosDe, revelar } from '@/lib/revelados';
@@ -35,16 +36,51 @@ function vigente(fila) {
   return dias < (fila.estado === 'encontrado' ? VIGENCIA_ENCONTRADO_DIAS : VIGENCIA_NO_ENCONTRADO_DIAS);
 }
 
-const publico = (f) => ({
-  estado: f.estado,
-  email: f.email,
-  telefono: f.telefono,
-  tipo: f.tipo,
-  fuente_url: f.fuente_url,
-  verificado: f.verificado,
-  notas: f.notas,
-  created_at: f.created_at,
-});
+// Sin enlace a la fuente ni notas (09-10-2026): ver lib/enriquecidoPublico.js.
+const publico = (f) =>
+  enriquecidoPublico({
+    estado: f.estado,
+    email: f.email,
+    telefono: f.telefono,
+    tipo: f.tipo,
+    verificado: f.verificado,
+    created_at: f.created_at,
+  });
+
+// Lo que devuelve el servidor de correo, como resultado. Si es un correo
+// deducido en un dominio que acepta cualquier dirección (s.probable), se
+// busca esa dirección exacta en fuentes públicas: si aparece, verificado;
+// si no, probable. Las dos cosas cobran 1 crédito (decisión de Jorge).
+async function desdeServidor(s, persona, costePrevio = 0) {
+  const costeServidor = costePrevio + s.probados.length * 0.002;
+  if (!s.probable) {
+    return {
+      estado: 'encontrado',
+      email: s.email,
+      tipo: 'personal',
+      fuente_url: null,
+      verificado: true,
+      notas: `Comprobado en el servidor de correo de ${s.dominio}`,
+      coste_usd: Number(costeServidor.toFixed(5)),
+    };
+  }
+  const pub = await buscarCorreoPublicado(s.email, persona).catch((e) => {
+    console.error('[contactos/enriquecer] publicado:', e.message);
+    return null;
+  });
+  return {
+    estado: 'encontrado',
+    email: s.email,
+    tipo: 'personal',
+    fuente_url: pub?.fuente_url || null,
+    verificado: pub?.publicado === true,
+    notas:
+      pub?.publicado === true
+        ? `Publicado en una fuente pública; sigue el patrón de ${s.dominio}`
+        : `Probable: sigue el patrón de ${s.dominio} (${s.patron}, ${s.muestras} correos reales); su servidor acepta cualquier dirección y no permite comprobarlo`,
+    coste_usd: Number((costeServidor + (pub?.coste_usd || 0)).toFixed(5)),
+  };
+}
 
 export async function POST(request) {
   const supabase = createClient();
@@ -128,16 +164,7 @@ export async function POST(request) {
       return null;
     });
     r = s
-      ? {
-          estado: 'encontrado',
-          email: s.email,
-          telefono: null,
-          tipo: 'personal',
-          fuente_url: null,
-          verificado: true,
-          notas: `Comprobado en el servidor de correo de ${s.dominio}`,
-          coste_usd: Number((s.probados.length * 0.002).toFixed(5)),
-        }
+      ? { ...(await desdeServidor(s, persona)), telefono: cache?.telefono || null }
       : cacheSinCorreo || cacheGenerico
         ? null
         : await enriquecerPersona(persona);
@@ -151,17 +178,7 @@ export async function POST(request) {
   if (r && r.email && r.tipo !== 'personal') {
     const dom = String(r.email).toLowerCase().split('@')[1];
     const s2 = await correoPorServidor(admin, persona, { pistas: [dom] }).catch(() => null);
-    if (s2) {
-      r = {
-        ...r,
-        email: s2.email,
-        tipo: 'personal',
-        fuente_url: null,
-        verificado: true,
-        notas: `Comprobado en el servidor de correo de ${s2.dominio}`,
-        coste_usd: Number(((r.coste_usd || 0) + s2.probados.length * 0.002).toFixed(5)),
-      };
-    }
+    if (s2) r = { ...r, ...(await desdeServidor(s2, persona, r.coste_usd || 0)) };
   }
 
   if (!r) {

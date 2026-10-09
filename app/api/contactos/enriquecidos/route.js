@@ -4,6 +4,7 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { puedeVerContactos } from '@/lib/accesoContactos';
 import { correosProbables, puedeVerProbables } from '@/lib/correosProbables';
 import { reveladosDe } from '@/lib/revelados';
+import { enriquecidoPublico } from '@/lib/enriquecidoPublico';
 
 // POST /api/contactos/enriquecidos  body: { ids: [...] }  (ids de directorio_pro)
 //
@@ -45,7 +46,7 @@ export async function POST(request) {
     }
     for (const f of data || []) {
       const { persona_id, ...resto } = f;
-      resultados[persona_id] = resto;
+      resultados[persona_id] = enriquecidoPublico(resto);
     }
   }
   // Solo los que su equipo ya ha pagado (sql/88); el resto ve el botón.

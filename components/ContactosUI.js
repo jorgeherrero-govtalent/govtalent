@@ -23,6 +23,16 @@ export const TIPO_CONTACTO = {
   generico: 'Institución',
 };
 
+/** Etiqueta de un contacto enriquecido: Verificado / Probable para un correo
+ * personal; si no, el tipo (Despacho del cargo, Unidad, Institución). */
+export function etiquetaEnriquecido(r) {
+  if (r?.calidad === 'verificado') return 'Verificado';
+  if (r?.calidad === 'probable') return 'Probable';
+  return TIPO_CONTACTO[r?.tipo] || 'Contacto';
+}
+
+export const AYUDA_PROBABLE = 'Sigue el patrón de su organismo; su servidor no permite comprobarlo.';
+
 export function limpiarEmail(v) {
   if (!v) return null;
   return String(v).split(',')[0].replace(/mailto:/gi, '').trim() || null;
@@ -428,19 +438,11 @@ export function CeldaContacto({ f, estado, onEnriquecer, puedeEnriquecer = true 
           <span className="gt-ct-cto">
             <a href={`mailto:${enrEmail}`}>{enrEmail}</a>
             <span className="gt-ct-tipo" style={{ background: '#efedfd', color: '#3d2fb3' }}>
-              {TIPO_CONTACTO[enr.tipo] || 'Contacto'}
+              {etiquetaEnriquecido(enr)}
             </span>
           </span>
           {enrEmail && enr.telefono && <span style={{ fontSize: 12, color: '#444' }}>{enr.telefono}</span>}
-          {enr.fuente_url && (
-            <span className="gt-ct-fte">
-              Según{' '}
-              <a href={enr.fuente_url} target="_blank" rel="noopener noreferrer">
-                {dominio(enr.fuente_url)} ↗
-              </a>
-              {enr.verificado === false && ' · sin verificar'}
-            </span>
-          )}
+          {enr.calidad === 'probable' && <span className="gt-ct-fte">{AYUDA_PROBABLE}</span>}
         </span>
       )}
       {!email && !enrEmail && f.probable?.email && (
@@ -638,8 +640,7 @@ export function exportarExcel(filas, nombreArchivo = 'contactos', estado = null)
             : `Probable · el patrón acierta en el ${Math.round(f.probable.fiabilidad * 100)} %`
           : '',
         'Teléfono enriquecido': ok ? enr.telefono || '' : '',
-        'Tipo de contacto enriquecido': ok ? TIPO_CONTACTO[enr.tipo] || '' : '',
-        'Fuente del enriquecido': ok ? enr.fuente_url || '' : '',
+        'Tipo de contacto enriquecido': ok ? etiquetaEnriquecido(enr) : '',
         'Dirección postal': f.direccion_postal || '',
         Fuente: f.fuente || '',
         'Fecha de la fuente': fecha(f.fuente_fecha) || '',

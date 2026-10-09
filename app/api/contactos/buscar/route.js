@@ -1,4 +1,5 @@
 import { reveladosDe } from '@/lib/revelados';
+import { enriquecidoPublico } from '@/lib/enriquecidoPublico';
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
@@ -60,7 +61,7 @@ export async function POST(request) {
   const pagados = await reveladosDe(admin, authData.user.id, conCorreo);
   for (const f of filas) {
     const e = enriquecidos.get(f.id);
-    f.enriquecido = e && (!e.email || pagados.has(e.persona_id)) ? { ...e, persona_id: undefined } : null;
+    f.enriquecido = e && (!e.email || pagados.has(e.persona_id)) ? enriquecidoPublico({ ...e, persona_id: undefined }) : null;
   }
 
   // Correo probable (sql/86): el patrón del organismo, para quien no tiene

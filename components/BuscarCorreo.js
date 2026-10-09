@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import BuscarCorreoModal from '@/components/BuscarCorreoModal';
-import { dominio, limpiarEmail } from '@/components/ContactosUI';
+import { limpiarEmail } from '@/components/ContactosUI';
 
 /**
  * «Buscar correo» en las fichas (Organizaciones, diputados, asesores,
@@ -57,13 +57,8 @@ export function CorreoEncontrado({ r, alinear = 'right' }) {
       <a href={`mailto:${email}`} style={{ fontSize: 12, color: '#3d3a35', textDecoration: 'none', borderBottom: '1px solid #e0dfd8', overflowWrap: 'anywhere' }}>
         {email}
       </a>
-      {r.fuente_url ? (
-        <span style={{ fontSize: 10.5, color: '#a8a49c' }}>
-          Según{' '}
-          <a href={r.fuente_url} target="_blank" rel="noopener noreferrer" style={{ color: '#5443d6', textDecoration: 'none' }}>
-            {dominio(r.fuente_url)} ↗
-          </a>
-        </span>
+      {r.calidad ? (
+        <span style={{ fontSize: 10.5, color: '#a8a49c' }}>{r.calidad === 'verificado' ? 'Verificado' : 'Probable · no verificable en su servidor'}</span>
       ) : null}
     </span>
   );
