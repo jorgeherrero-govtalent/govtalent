@@ -130,6 +130,7 @@ const FUENTES = {
     // 09-10-2026: el buscador de iniciativas y las fichas (HTML) en los
     // subdominios de las comisiones, como alternativa al BOAM cifrado.
     ['tramitacion', 'https://ctyp.asambleamadrid.es/es/web/guest/actividad/iniciativas'],
+    ['datos', 'https://ctyp.asambleamadrid.es/es/web/guest/servicios/datos-abiertos'],
     ['ficha', 'https://ctyp.asambleamadrid.es/actividad/iniciativa?iniciativa=490496'],
     ['tramitacion', 'https://presup-xiii.asambleamadrid.es/es/actividad/iniciativas'],
     ['ficha', 'https://presup-xiii.asambleamadrid.es/actividad/iniciativa?iniciativa=490496'],
