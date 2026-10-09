@@ -386,6 +386,23 @@ async function leerBoamDocx(db, web, b, nuevos = []) {
   const base = { id: b.id };
   const intentos = [];
   let r = null;
+  // 1. El PDF oficial: cifrado con la contraseña de usuario vacía (se abre
+  //    en cualquier navegador), con el diccionario incompleto que
+  //    lib/textoPdf.js completa para MuPDF.
+  try {
+    const pdf = await web.binario(b.url_pdf || b.url);
+    const { texto, paginas, motor } = await textoDePdf(pdf.buf, { maxPaginas: 1500 });
+    const extracto = extractoTramitacion(texto);
+    if (extracto.replace(/\[Página \d+\]/g, '').trim().length < 500) throw new Error(`PDF sin texto extraíble (${paginas} páginas)`);
+    return await leerTextoBoam(db, b, { extracto, paginas, kb: Math.round(pdf.buf.length / 1024), formato: `pdf/${motor}` }, nuevos);
+  } catch (e) {
+    intentos.push(`PDF: ${e.message}`.slice(0, 160));
+    if (e.robots) {
+      await db.from('ccaa_boletines').update({ estado: 'omitido', error: e.message }).eq('id', b.id);
+      return { ...base, estado: 'omitido', error: e.message };
+    }
+  }
+  // 2. La versión en texto (DOCX) de los datos abiertos, si se encuentra.
   for (const url of urlsDocx(b.numero)) {
     try {
       r = await web.binario(url);
@@ -405,7 +422,18 @@ async function leerBoamDocx(db, web, b, nuevos = []) {
   const kb = Math.round(r.buf.length / 1024);
   try {
     const { texto, paginas } = textoDeDocx(r.buf);
-    const extracto = extractoTramitacion(texto);
+    return await leerTextoBoam(db, b, { extracto: extractoTramitacion(texto), paginas, kb, formato: 'docx' }, nuevos);
+  } catch (e) {
+    const msg = String(e.message || e).slice(0, 300);
+    await db.from('ccaa_boletines').update({ estado: 'error', error: msg, kb }).eq('id', b.id);
+    return { ...base, estado: 'error', error: msg };
+  }
+}
+
+/** El extracto del BOAM, a la IA; y lo que salga, a la base de datos. */
+async function leerTextoBoam(db, b, { extracto, paginas, kb, formato }, nuevos = []) {
+  const base = { id: b.id };
+  try {
     const { actos, modelo, fechaBoletin } = await leerBoletin({ parlamento: 'madrid', numero: b.numero, fecha: b.fecha, texto: extracto, conPaginas: true });
     if (!b.fecha && fechaBoletin) {
       b.fecha = fechaBoletin;
@@ -415,7 +443,7 @@ async function leerBoamDocx(db, web, b, nuevos = []) {
     if (g.nuevos?.length) nuevos.push(...g.nuevos);
     delete g.nuevos;
     await db.from('ccaa_boletines').update({ estado: 'leido', modelo, n_actos: actos.length, kb, error: null, leido_at: new Date().toISOString() }).eq('id', b.id);
-    return { ...base, estado: 'leido', formato: 'docx', kb, paginas, extracto_kb: Math.round(extracto.length / 1024), actos: actos.length, ...g };
+    return { ...base, estado: 'leido', formato, kb, paginas, extracto_kb: Math.round(extracto.length / 1024), actos: actos.length, ...g };
   } catch (e) {
     const msg = String(e.message || e).slice(0, 300);
     await db.from('ccaa_boletines').update({ estado: 'error', error: msg, kb }).eq('id', b.id);
