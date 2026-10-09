@@ -126,8 +126,13 @@ const FUENTES = {
   // 09-10-2026: solo el subdominio ctyp (PDF del BOAM); la web principal
   // sigue detrás de Sucuri y no se usa.
   madrid: [
-    ['boletin', 'https://ctyp.asambleamadrid.es/static/doc/publicaciones/BOAM_13_00141.pdf'],
-    ['boletin', 'https://ctyp.asambleamadrid.es/static/doc/publicaciones/BOAM_13_00145.pdf'],
+    ['boletin', 'https://ctyp.asambleamadrid.es/static/doc/publicaciones/BOAM_13_00172.pdf'],
+    // 09-10-2026: el buscador de iniciativas y las fichas (HTML) en los
+    // subdominios de las comisiones, como alternativa al BOAM cifrado.
+    ['tramitacion', 'https://ctyp.asambleamadrid.es/es/web/guest/actividad/iniciativas'],
+    ['ficha', 'https://ctyp.asambleamadrid.es/actividad/iniciativa?iniciativa=490496'],
+    ['tramitacion', 'https://presup-xiii.asambleamadrid.es/es/actividad/iniciativas'],
+    ['ficha', 'https://presup-xiii.asambleamadrid.es/actividad/iniciativa?iniciativa=490496'],
   ],
   // 09-10-2026: listados, RSS y PDF del BOPC. /ext (SIAP) está prohibido.
   cataluna: [
