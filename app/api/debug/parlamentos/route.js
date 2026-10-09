@@ -22,7 +22,8 @@
 //
 // Desde el 04-10-2026 (segunda ronda) se identifica como GovTalentBot
 // (lib/govtalentBot.js) y aplica el grupo del robots.txt que corresponde
-// a ese nombre. Sin ?p= prueba solo los 7 de la fase 1.
+// a ese nombre. Sin ?p= prueba los de la fase 1 (desde el 09-10-2026,
+// también Madrid y Cataluña).
 //
 // Uso:
 //   ?key=<DEBUG_KEY>                    los 7 de la fase 1
@@ -49,7 +50,7 @@ const MUESTRA_MAX = 160;
 
 const HEADERS = HEADERS_BOT;
 
-const FASE1 = ['andalucia', 'aragon', 'asturias', 'cantabria', 'castillayleon', 'rioja', 'valencia'];
+const FASE1 = ['andalucia', 'aragon', 'asturias', 'cantabria', 'castillayleon', 'rioja', 'valencia', 'madrid', 'cataluna'];
 
 // ---------------------------------------------------------------------
 // Las fuentes, del inventario del 04-10-2026. Cada una con su capa:
@@ -122,11 +123,21 @@ const FUENTES = {
     ['tramitacion', 'https://www.parlamentodegalicia.gal/Buscador/Expedientes'],
     ['composicion', 'https://www.parlamentodegalicia.gal/Composicion'],
   ],
+  // 09-10-2026: solo el subdominio ctyp (PDF del BOAM); la web principal
+  // sigue detrás de Sucuri y no se usa.
   madrid: [
-    ['web', 'https://www.asambleamadrid.es/'],
-    ['boletin', 'https://www.asambleamadrid.es/static/doc/publicaciones/BOAM_13_00141.pdf'],
     ['boletin', 'https://ctyp.asambleamadrid.es/static/doc/publicaciones/BOAM_13_00141.pdf'],
-    ['agenda', 'https://www.asambleamadrid.es/actividad/sesiones'],
+    ['boletin', 'https://ctyp.asambleamadrid.es/static/doc/publicaciones/BOAM_13_00145.pdf'],
+  ],
+  // 09-10-2026: listados, RSS y PDF del BOPC. /ext (SIAP) está prohibido.
+  cataluna: [
+    ['tramitacion', 'https://www.parlament.cat/web/activitat-parlamentaria/iniciatives-legislatives/projectes-llei/index.html'],
+    ['tramitacion', 'https://www.parlament.cat/web/activitat-parlamentaria/iniciatives-legislatives/proposicions-llei/index.html'],
+    ['boletin', 'https://www.parlament.cat/rss/RSS5_0.XML'],
+    ['boletin', 'https://www.parlament.cat/rss/RSS1_PUB_BOPC.XML'],
+    ['boletin', 'https://www.parlament.cat/document/bopc/444236765.pdf'],
+    ['tramitacion', 'https://www.parlament.cat/rss/RSS1_EXP_PROJECTES_LLEI.XML'],
+    ['agenda', 'https://www.parlament.cat/rss/RSS1_AGENDA_SESS_ORGAN.XML'],
   ],
   murcia: [
     ['web', 'https://www.asambleamurcia.es/'],

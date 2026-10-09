@@ -44,15 +44,17 @@ import * as cantabria from '@/lib/ccaa/cantabria';
 import * as castillayleon from '@/lib/ccaa/castillayleon';
 import * as rioja from '@/lib/ccaa/rioja';
 import * as valencia from '@/lib/ccaa/valencia';
+import * as madrid from '@/lib/ccaa/madrid';
+import * as cataluna from '@/lib/ccaa/cataluna';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 300;
 
-const LECTORES = { andalucia, aragon, asturias, cantabria, castillayleon, rioja, valencia };
+const LECTORES = { andalucia, aragon, asturias, cantabria, castillayleon, rioja, valencia, madrid, cataluna };
 const FIN_LECTURA_MS = 150000;
 const FIN_TOTAL_MS = 270000;
 // Parlamentos cuyos expedientes solo aparecen al leer el boletín con IA.
-const SOLO_BOLETIN = new Set(['valencia', 'asturias']);
+const SOLO_BOLETIN = new Set(['valencia', 'asturias', 'madrid', 'cataluna']);
 // La clasificación por sectores va en lotes de ~20-40 s: solo se lanza si
 // queda tiempo, y lo que no dé tiempo lo hace la ejecución siguiente.
 const FIN_SECTORES_MS = 200000;
@@ -94,8 +96,18 @@ async function handler(request) {
     const { data: conocidos } = await db.from('ccaa_expedientes').select('id, is_closed').in('parlamento', pedidos);
     const cerrados = new Set((conocidos || []).filter((e) => e.is_closed).map((e) => e.id));
 
+    // Último número de boletín guardado por parlamento: Madrid no tiene
+    // índice y sigue la numeración del BOAM a partir de él.
+    const { data: nums } = await db.from('ccaa_boletines').select('parlamento, numero').in('parlamento', pedidos);
+    const ultimo = {};
+    for (const b of nums || []) {
+      const n = parseInt(String(b.numero || '').replace(/\D.*$/, ''), 10);
+      if (Number.isFinite(n) && n > (ultimo[b.parlamento] || 0)) ultimo[b.parlamento] = n;
+    }
+
     const resultados = await Promise.all(pedidos.map(async (p) => {
       const ctx = {
+        ultimoNumero: ultimo[p] || null,
         saltar: (num) => cerrados.has(idExpediente(p, num)),
         tiempoAgotado: () => Date.now() - t0 > FIN_LECTURA_MS,
         diagnostico: {},
