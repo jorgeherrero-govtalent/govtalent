@@ -30,6 +30,7 @@
 // =====================================================================
 
 import { createClient } from '@supabase/supabase-js';
+import { createHash } from 'node:crypto';
 import { conRegistro } from '@/lib/syncLog';
 import { crearWeb, textoPlano } from '@/lib/ccaa/web';
 import { mismoTitulo } from '@/lib/ccaa/comun';
@@ -389,14 +390,16 @@ async function leerBoamDocx(db, web, b, nuevos = []) {
   // 1. El PDF oficial: cifrado con la contraseña de usuario vacía (se abre
   //    en cualquier navegador), con el diccionario incompleto que
   //    lib/textoPdf.js completa para MuPDF.
+  let huella = '';
   try {
     const pdf = await web.binario(b.url_pdf || b.url);
+    huella = `${Math.round(pdf.buf.length / 1024)} KB, md5 ${createHash('md5').update(pdf.buf).digest('hex').slice(0, 12)}, ${pdf.tipo || '?'}, inicio ${JSON.stringify(pdf.buf.subarray(0, 12).toString('latin1'))}`;
     const { texto, paginas, motor } = await textoDePdf(pdf.buf, { maxPaginas: 1500 });
     const extracto = extractoTramitacion(texto);
     if (extracto.replace(/\[Página \d+\]/g, '').trim().length < 500) throw new Error(`PDF sin texto extraíble (${paginas} páginas)`);
     return await leerTextoBoam(db, b, { extracto, paginas, kb: Math.round(pdf.buf.length / 1024), formato: `pdf/${motor}` }, nuevos);
   } catch (e) {
-    intentos.push(`PDF: ${e.message}`.slice(0, 160));
+    intentos.push(`PDF (${huella}): ${e.message}`.slice(0, 260));
     if (e.robots) {
       await db.from('ccaa_boletines').update({ estado: 'omitido', error: e.message }).eq('id', b.id);
       return { ...base, estado: 'omitido', error: e.message };
@@ -415,7 +418,7 @@ async function leerBoamDocx(db, web, b, nuevos = []) {
     }
   }
   if (!r) {
-    const error = `DOCX no disponible · ${intentos.join(' · ')}`.slice(0, 300);
+    const error = `BOAM no legible · ${intentos.join(' · ')}`.slice(0, 600);
     await db.from('ccaa_boletines').update({ estado: 'error', error }).eq('id', b.id);
     return { ...base, estado: 'error', error };
   }
