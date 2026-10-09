@@ -55,7 +55,7 @@ const LECTORES = { andalucia, aragon, asturias, cantabria, castillayleon, rioja,
 const FIN_LECTURA_MS = 150000;
 const FIN_TOTAL_MS = 270000;
 // Parlamentos cuyos expedientes solo aparecen al leer el boletín con IA.
-const SOLO_BOLETIN = new Set(['valencia', 'asturias', 'madrid', 'cataluna']);
+const SOLO_BOLETIN = new Set(['valencia', 'asturias', 'cataluna']);
 // La clasificación por sectores va en lotes de ~20-40 s: solo se lanza si
 // queda tiempo, y lo que no dé tiempo lo hace la ejecución siguiente.
 const FIN_SECTORES_MS = 200000;
@@ -110,9 +110,19 @@ async function handler(request) {
       if (Number.isFinite(n) && n > (ultimo[b.parlamento] || 0)) ultimo[b.parlamento] = n;
     }
 
+    // Madrid lee un CSV grande de datos abiertos: solo se descarga si ha
+    // cambiado desde la última lectura (?forzar=1 para descargarlo igual).
+    let ultimaSyncMadrid = null;
+    if (pedidos.includes('madrid')) {
+      const { data: m } = await db.from('ccaa_expedientes').select('synced_at').eq('parlamento', 'madrid').order('synced_at', { ascending: false }).limit(1);
+      ultimaSyncMadrid = m?.[0]?.synced_at || null;
+    }
+
     const resultados = await Promise.all(pedidos.map(async (p) => {
       const ctx = {
         ultimoNumero: ultimo[p] || null,
+        ultimaSync: p === 'madrid' ? ultimaSyncMadrid : null,
+        forzar: sp.get('forzar') === '1',
         saltar: (num) => cerrados.has(idExpediente(p, num)),
         tiempoAgotado: () => Date.now() - t0 > FIN_LECTURA_MS,
         diagnostico: {},
