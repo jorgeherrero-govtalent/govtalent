@@ -315,7 +315,12 @@ async function leerUno(db, web, b, nuevos = []) {
       await db.from('ccaa_boletines').update({ estado: 'omitido', error: `PDF de ${kb} KB, por encima del límite`, kb }).eq('id', b.id);
       return { ...base, estado: 'omitido', kb };
     }
-    const { actos, modelo } = await leerBoletin({ parlamento: b.parlamento, numero: b.numero, fecha: b.fecha, pdf: r.buf });
+    const { actos, modelo, fechaBoletin } = await leerBoletin({ parlamento: b.parlamento, numero: b.numero, fecha: b.fecha, pdf: r.buf });
+    // Madrid: la fecha del BOAM solo se conoce al leerlo.
+    if (!b.fecha && fechaBoletin) {
+      b.fecha = fechaBoletin;
+      await db.from('ccaa_boletines').update({ fecha: fechaBoletin }).eq('id', b.id);
+    }
     const g = await guardarActos(db, { parlamento: b.parlamento, boletin: b, actos });
     if (g.nuevos?.length) nuevos.push(...g.nuevos);
     delete g.nuevos;
