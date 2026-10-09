@@ -46,7 +46,7 @@ export const maxDuration = 300;
 const TIMEOUT_MS = 20000;
 const PAUSA_MIN_MS = 1000;
 const PAUSA_MAX_MS = 10000;
-const MUESTRA_MAX = 160;
+const MUESTRA_MAX = 600;
 
 const HEADERS = HEADERS_BOT;
 
@@ -131,6 +131,9 @@ const FUENTES = {
     // subdominios de las comisiones, como alternativa al BOAM cifrado.
     ['tramitacion', 'https://ctyp.asambleamadrid.es/es/web/guest/actividad/iniciativas'],
     ['datos', 'https://ctyp.asambleamadrid.es/es/web/guest/servicios/datos-abiertos'],
+    // Ficheros del catálogo de datos abiertos de la Asamblea (CSV).
+    ['datos', 'https://ctyp.asambleamadrid.es/static/doc/opendata/ARCHIVO.F_PRINCIPALES_OPENDATA_VIEW.csv'],
+    ['datos', 'https://ctyp.asambleamadrid.es/static/doc/opendata/SGP_ADMIN.OPENDATA_BOAM_VIEW.csv'],
     ['ficha', 'https://ctyp.asambleamadrid.es/actividad/iniciativa?iniciativa=490496'],
     ['tramitacion', 'https://presup-xiii.asambleamadrid.es/es/actividad/iniciativas'],
     ['ficha', 'https://presup-xiii.asambleamadrid.es/actividad/iniciativa?iniciativa=490496'],
@@ -223,7 +226,9 @@ function muestra(texto, tipo) {
     return `RSS con ${n} elementos · ${primero.replace(/<!\[CDATA\[|\]\]>/g, '').replace(/\s+/g, ' ').trim()}`.slice(0, MUESTRA_MAX);
   }
   const titulo = (t.match(/<title[^>]*>([\s\S]*?)<\/title>/i) || [])[1];
-  if (titulo) return `HTML · ${titulo.replace(/\s+/g, ' ').trim()}`.slice(0, MUESTRA_MAX);
+  if (titulo) return `HTML · ${titulo.replace(/\s+/g, ' ').trim()}`.slice(0, 160);
+  // CSV: cabecera y dos filas, para ver las columnas.
+  if (/csv/i.test(tipo || '') || /;|,/.test(t.split('\n')[0] || '')) return `${tipo || 'desconocido'} · ${t.split(/\r?\n/).slice(0, 3).join(' ⏎ ')}`.slice(0, MUESTRA_MAX);
   return `${tipo || 'desconocido'} · ${t.replace(/\s+/g, ' ').slice(0, 100)}`.slice(0, MUESTRA_MAX);
 }
 
