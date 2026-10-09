@@ -35,6 +35,7 @@ import { crearWeb, textoPlano } from '@/lib/ccaa/web';
 import { mismoTitulo } from '@/lib/ccaa/comun';
 import { FASE1, PARLAMENTOS, idExpediente, slugExpediente, tipoNorm, claveExpediente } from '@/lib/parlamentosAutonomicos';
 import { leerBoletin, guardarActos, MAX_PDF_KB } from '@/lib/lectorBoletines';
+import { textoDePdf } from '@/lib/textoPdf';
 import { eventosDeSeguimiento } from '@/lib/ccaa/eventos';
 import { clasificarSectores } from '@/lib/ccaa/sectores';
 import * as andalucia from '@/lib/ccaa/andalucia';
@@ -61,6 +62,8 @@ const FIN_SECTORES_MS = 200000;
 const IA_POR_DEFECTO = 4;
 // Parlamentos cuyo boletín puede llegar en HTML en vez de PDF.
 const HTML_PERMITIDO = new Set(['cataluna']);
+// Parlamentos cuyo PDF se lee como texto extraído (lib/textoPdf.js).
+const TEXTO_DE_PDF = new Set(['madrid']);
 
 // Cliente de servicio sin caché de Next: si no, las lecturas de Supabase
 // pueden quedarse congeladas entre ejecuciones.
@@ -315,7 +318,17 @@ async function leerUno(db, web, b, nuevos = []) {
       await db.from('ccaa_boletines').update({ estado: 'omitido', error: `PDF de ${kb} KB, por encima del límite`, kb }).eq('id', b.id);
       return { ...base, estado: 'omitido', kb };
     }
-    const { actos, modelo, fechaBoletin } = await leerBoletin({ parlamento: b.parlamento, numero: b.numero, fecha: b.fecha, pdf: r.buf });
+    // Madrid: el BOAM viene con contraseña de propietario y la API no lo
+    // acepta como PDF; se le pasa el texto, con marcas de página
+    // (decisión de Jorge del 09-10-2026; el texto no se guarda).
+    const comoTexto = TEXTO_DE_PDF.has(b.parlamento) ? await textoDePdf(r.buf) : null;
+    if (comoTexto && comoTexto.texto.replace(/\[Página \d+\]/g, '').trim().length < 500) {
+      await db.from('ccaa_boletines').update({ estado: 'error', error: `PDF sin texto extraíble (${comoTexto.paginas} páginas)`, kb }).eq('id', b.id);
+      return { ...base, estado: 'error', error: 'PDF sin texto extraíble' };
+    }
+    const { actos, modelo, fechaBoletin } = comoTexto
+      ? await leerBoletin({ parlamento: b.parlamento, numero: b.numero, fecha: b.fecha, texto: comoTexto.texto.slice(0, 600000), conPaginas: true })
+      : await leerBoletin({ parlamento: b.parlamento, numero: b.numero, fecha: b.fecha, pdf: r.buf });
     // Madrid: la fecha del BOAM solo se conoce al leerlo.
     if (!b.fecha && fechaBoletin) {
       b.fecha = fechaBoletin;

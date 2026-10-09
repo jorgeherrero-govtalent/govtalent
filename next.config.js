@@ -16,6 +16,10 @@ const nextConfig = {
       })),
     ];
   },
+  // pdf.js (lib/textoPdf.js) se carga tal cual en el servidor, sin empaquetar.
+  experimental: {
+    serverComponentsExternalPackages: ['pdfjs-dist'],
+  },
   images: {
     remotePatterns: [
       { protocol: 'https', hostname: '**.supabase.co' },
