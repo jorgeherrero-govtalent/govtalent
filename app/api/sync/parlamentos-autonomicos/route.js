@@ -31,7 +31,7 @@
 
 import { createClient } from '@supabase/supabase-js';
 import { conRegistro } from '@/lib/syncLog';
-import { crearWeb } from '@/lib/ccaa/web';
+import { crearWeb, textoPlano } from '@/lib/ccaa/web';
 import { mismoTitulo } from '@/lib/ccaa/comun';
 import { FASE1, PARLAMENTOS, idExpediente, slugExpediente, tipoNorm, claveExpediente } from '@/lib/parlamentosAutonomicos';
 import { leerBoletin, guardarActos, MAX_PDF_KB } from '@/lib/lectorBoletines';
@@ -59,6 +59,8 @@ const SOLO_BOLETIN = new Set(['valencia', 'asturias', 'madrid', 'cataluna']);
 // queda tiempo, y lo que no dé tiempo lo hace la ejecución siguiente.
 const FIN_SECTORES_MS = 200000;
 const IA_POR_DEFECTO = 4;
+// Parlamentos cuyo boletín puede llegar en HTML en vez de PDF.
+const HTML_PERMITIDO = new Set(['cataluna']);
 
 // Cliente de servicio sin caché de Next: si no, las lecturas de Supabase
 // pueden quedarse congeladas entre ejecuciones.
@@ -288,7 +290,24 @@ async function leerUno(db, web, b, nuevos = []) {
   try {
     const r = await web.binario(b.url_pdf || b.url);
     const kb = Math.round(r.buf.length / 1024);
-    if (r.buf.subarray(0, 4).toString() !== '%PDF') {
+    const esPdf = r.buf.subarray(0, 4).toString() === '%PDF';
+    // El BOPC llega en HTML desde la API del Parlament: se pasa como texto.
+    if (!esPdf && HTML_PERMITIDO.has(b.parlamento) && /html|text/i.test(r.tipo || '')) {
+      const texto = textoPlano(new TextDecoder(/iso-8859-1|latin1/i.test(r.tipo || '') ? 'latin1' : 'utf-8').decode(r.buf)
+        .replace(/<(script|style)\b[\s\S]*?<\/\1>/gi, ' ')
+        .replace(/<\/(p|div|li|tr|h\d|table|section)>/gi, '\n'));
+      if (texto.length < 500) {
+        await db.from('ccaa_boletines').update({ estado: 'error', error: 'HTML sin contenido de boletín', kb }).eq('id', b.id);
+        return { ...base, estado: 'error', error: 'HTML sin contenido' };
+      }
+      const { actos, modelo } = await leerBoletin({ parlamento: b.parlamento, numero: b.numero, fecha: b.fecha, texto: texto.slice(0, 400000) });
+      const g = await guardarActos(db, { parlamento: b.parlamento, boletin: { ...b, url_pdf: null }, actos });
+      if (g.nuevos?.length) nuevos.push(...g.nuevos);
+      delete g.nuevos;
+      await db.from('ccaa_boletines').update({ estado: 'leido', modelo, n_actos: actos.length, kb, error: null, leido_at: new Date().toISOString() }).eq('id', b.id);
+      return { ...base, estado: 'leido', formato: 'html', kb, actos: actos.length, ...g };
+    }
+    if (!esPdf) {
       await db.from('ccaa_boletines').update({ estado: 'error', error: `No es un PDF (${r.tipo || 'tipo desconocido'})`, kb }).eq('id', b.id);
       return { ...base, estado: 'error', error: 'no es un PDF' };
     }
