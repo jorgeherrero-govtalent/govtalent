@@ -905,7 +905,7 @@ export default function AlarmasTab({ seccion = 'alarmas' }) {
     }
     if (enLimite) {
       if (!esPro) setUpsell(true);
-      else toast.info('Tienes 3 alarmas activas. Desactiva una para crear otra.');
+      else toast.info(`Tienes ${limites.alarmas} alarmas activas. Desactiva una para crear otra.`);
       return;
     }
     const r = await pedirPropuesta({ textoPedido: t, webPedida: w });
@@ -975,7 +975,7 @@ export default function AlarmasTab({ seccion = 'alarmas' }) {
   async function alternar(a) {
     if (!a.activa && enLimite) {
       if (!esPro) setUpsell(true);
-      else toast.info('Tienes 3 alarmas activas. Desactiva una para activar esta.');
+      else toast.info(`Tienes ${limites.alarmas} alarmas activas. Desactiva una para activar esta.`);
       return;
     }
     const activa = !a.activa;
@@ -1645,7 +1645,7 @@ export default function AlarmasTab({ seccion = 'alarmas' }) {
             onClick={() => {
               if (enLimite) {
                 if (!esPro) setUpsell(true);
-                else toast.info('Tienes las 3 alarmas activas de tu plan. Para crear otra, pon una en pausa.');
+                else toast.info(`Tienes las ${limites.alarmas} alarmas activas de tu plan. Para crear otra, pon una en pausa.`);
                 return;
               }
               setVista('nueva');
@@ -1781,7 +1781,7 @@ export default function AlarmasTab({ seccion = 'alarmas' }) {
           </div>
         ) : (
           <div style={{ fontSize: 12.5, color: GRIS, textAlign: 'center', padding: '6px 0', lineHeight: 1.6 }}>
-            Tienes las 3 alarmas activas de tu plan. Para crear otra, pon una en pausa.
+            Tienes las {limites.alarmas} alarmas activas de tu plan. Para crear otra, pon una en pausa.
           </div>
         )}
 
