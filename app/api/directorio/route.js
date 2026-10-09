@@ -285,7 +285,10 @@ export async function GET(request) {
 
       const datos = await ficha(admin, seccion.cat, id, conContacto);
       if (!datos) return NextResponse.json({ error: 'Ficha desconocida' }, { status: 404 });
-      return NextResponse.json({ ficha: datos, contacto: conContacto }, { headers: CABECERAS });
+      // Sin caché: la ficha cambia según quién la pida (con o sin correos).
+      // Con max-age, el navegador servía la de una cuenta con Directorio a
+      // la siguiente que entrara en ese mismo navegador.
+      return NextResponse.json({ ficha: datos, contacto: conContacto }, { headers: { 'Cache-Control': 'private, no-store' } });
     }
 
     return NextResponse.json({ error: 'Vista desconocida' }, { status: 400 });

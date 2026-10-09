@@ -53,10 +53,9 @@ export async function GET(request) {
       console.error('[directorio/data]', error.message);
       return NextResponse.json({ error: 'No se pudo cargar el directorio' }, { status: 500 });
     }
-    // private: solo en el navegador de quien lo ha pedido, nunca en una
-    // caché compartida. 10 minutos: volver al directorio es instantáneo y
-    // los datos cambian como mucho una vez al día.
-    return NextResponse.json(data || { c: [], f: [] }, { headers: { 'Cache-Control': 'private, max-age=600' } });
+    // Sin caché: con max-age, otra cuenta que entrara después en el mismo
+    // navegador recibía los contactos sin pasar por la comprobación.
+    return NextResponse.json(data || { c: [], f: [] }, { headers: { 'Cache-Control': 'private, no-store' } });
   }
 
   const desde = Math.max(0, Math.floor(Number(new URL(request.url).searchParams.get('desde')) || 0));
