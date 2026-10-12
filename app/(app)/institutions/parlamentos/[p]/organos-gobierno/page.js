@@ -51,7 +51,7 @@ export default function OrganosGobiernoAutonomicosPage() {
 
   const organos = useMemo(() => {
     if (!datos) return null;
-    const ORDEN = [/^mesa/i, /junta de portavoces/i, /diputaci[oó]n permanente/i];
+    const ORDEN = [/^mesa/i, /junta de portav(oces|eus)/i, /diputaci[oó]n? permanente?/i];
     const pos = (n) => { const i = ORDEN.findIndex((re) => re.test(n)); return i < 0 ? 9 : i; };
     const lista = datos.comisiones
       .filter((c) => c.tipo === 'organo')
@@ -66,8 +66,9 @@ export default function OrganosGobiernoAutonomicosPage() {
     // Primera» para un diputado). Al suplente se le dice suplente.
     const mesa = lista.find((o) => /^mesa/i.test(o.nombre));
     const enMesa = new Set((mesa?.miembros || []).map((m) => m.diputado_id));
-    const dp = lista.find((o) => /diputaci[oó]n permanente/i.test(o.nombre));
-    if (dp && enMesa.size) {
+    const dp = lista.find((o) => /diputaci[oó]n? permanente?/i.test(o.nombre));
+    // Solo en Madrid: en Cataluña la Diputació Permanent tiene Mesa propia.
+    if (p === 'madrid' && dp && enMesa.size) {
       dp.miembros = dp.miembros
         .map((m) =>
           ['presidencia', 'vicepresidencia', 'secretaria'].includes(m.cargo_norm) && !enMesa.has(m.diputado_id)
@@ -77,7 +78,7 @@ export default function OrganosGobiernoAutonomicosPage() {
         .sort((a, b) => pesoCargo(a.cargo_norm) - pesoCargo(b.cargo_norm));
     }
     return lista;
-  }, [datos]);
+  }, [datos, p]);
 
   // La más pequeña —la Mesa— abierta de entrada.
   useEffect(() => {

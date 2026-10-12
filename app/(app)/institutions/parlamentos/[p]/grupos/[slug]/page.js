@@ -69,7 +69,7 @@ export default function GrupoAutonomicoPage() {
       .sort((a, b) => a.com.nombre.localeCompare(b.com.nombre));
     // Portavoz y adjuntos del grupo: los que lo representan en la Junta de Portavoces.
     const cargosGrupo = datos.cargos
-      .filter((c) => ids.has(c.diputado_id) && /junta de portavoces/i.test(datos.comisionPorId[c.comision_id]?.nombre || '') && (c.cargo_norm === 'portavoz' || c.cargo_norm === 'portavoz_adjunto'))
+      .filter((c) => ids.has(c.diputado_id) && /junta de portav(oces|eus)/i.test(datos.comisionPorId[c.comision_id]?.nombre || '') && (c.cargo_norm === 'portavoz' || c.cargo_norm === 'portavoz_adjunto'))
       .map((c) => ({ ...c, d: datos.diputadoPorId[c.diputado_id] }))
       .sort((a, b) => (a.cargo_norm === 'portavoz' ? 0 : 1) - (b.cargo_norm === 'portavoz' ? 0 : 1) || a.cargo.localeCompare(b.cargo));
     return { diputados, portavoces, cargosGrupo, tecnicos: datos.tecnicos[grupo.id] || [] };
@@ -340,7 +340,7 @@ export default function GrupoAutonomicoPage() {
 
       <div style={{ marginTop: 20, fontSize: 11, color: '#999', display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
         <i className="ti ti-shield-check" style={{ fontSize: 13 }}></i>
-        {tab === 'equipo' ? `Datos abiertos de ${cfg.fuente} (ocupaciones).` : `Datos de ${cfg.fuente}.`}
+        {tab === 'equipo' ? `Datos abiertos ${cfg.deNombre} (ocupaciones).` : `Datos ${cfg.deNombre}.`}
         {grupo.id_fuente && (
           <a href={cfg.fichaGrupo(grupo.id_fuente)} target="_blank" rel="noreferrer" style={{ color: '#1d6f5c' }}>
             Ver la ficha oficial ↗

@@ -45,6 +45,7 @@ export default function DiputadosAutonomicosPage() {
 
   const [search, setSearch] = useState('');
   const [groupFilter, setGroupFilter] = useState(new Set());
+  const [constituencyFilter, setConstituencyFilter] = useState(new Set());
   const [comisionFilter, setComisionFilter] = useState(new Set());
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
@@ -82,6 +83,12 @@ export default function DiputadosAutonomicosPage() {
     return out;
   }, [datos]);
 
+  // Circunscripción solo donde hay más de una (Cataluña: cuatro; Madrid: una).
+  const constituencyOptions = useMemo(() => {
+    const u = [...new Set((datos?.diputados || []).map((d) => d.circunscripcion).filter(Boolean))];
+    return u.length > 1 ? u.sort((a, b) => a.localeCompare(b)).map((c) => ({ value: c, label: c })) : [];
+  }, [datos]);
+
   const groupOptions = useMemo(() => (datos?.grupos || []).map((g) => ({ value: g.id, label: g.sigla || g.nombre })), [datos]);
 
   const comisionOptions = useMemo(() => {
@@ -101,24 +108,26 @@ export default function DiputadosAutonomicosPage() {
       });
     }
     if (groupFilter.size > 0) list = list.filter((d) => groupFilter.has(d.grupo_id));
+    if (constituencyFilter.size > 0) list = list.filter((d) => constituencyFilter.has(d.circunscripcion));
     if (comisionFilter.size > 0) list = list.filter((d) => (comisionesPorDiputado[d.id] || []).some((c) => comisionFilter.has(c.nombre)));
     return list;
-  }, [datos, search, groupFilter, comisionFilter, comisionesPorDiputado]);
+  }, [datos, search, groupFilter, constituencyFilter, comisionFilter, comisionesPorDiputado]);
 
   useEffect(() => {
     setPage(1);
-  }, [search, groupFilter, comisionFilter]);
+  }, [search, groupFilter, constituencyFilter, comisionFilter]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
   const current = Math.min(page, totalPages);
   const slice = filtered.slice((current - 1) * pageSize, current * pageSize);
   const from = filtered.length === 0 ? 0 : (current - 1) * pageSize + 1;
   const to = Math.min(current * pageSize, filtered.length);
-  const activeCount = groupFilter.size + comisionFilter.size;
+  const activeCount = groupFilter.size + constituencyFilter.size + comisionFilter.size;
 
   function clearFilters() {
     setSearch('');
     setGroupFilter(new Set());
+    setConstituencyFilter(new Set());
     setComisionFilter(new Set());
   }
 
@@ -159,6 +168,9 @@ export default function DiputadosAutonomicosPage() {
           />
         </div>
         <MultiSelectFilter label="Grupo" values={groupOptions} selected={groupFilter} onApply={setGroupFilter} />
+        {constituencyOptions.length > 0 && (
+          <MultiSelectFilter label="Circunscripción" values={constituencyOptions} selected={constituencyFilter} onApply={setConstituencyFilter} />
+        )}
         <MultiSelectFilter
           label="Comisión"
           values={comisionOptions}
@@ -174,6 +186,11 @@ export default function DiputadosAutonomicosPage() {
           {[...groupFilter].map((v) => (
             <span key={`g${v}`} style={{ fontSize: 11, background: '#f0efe9', color: '#666', padding: '3px 10px', borderRadius: 14 }}>
               {datos?.grupoPorId[v]?.sigla || v}
+            </span>
+          ))}
+          {[...constituencyFilter].map((v) => (
+            <span key={`c${v}`} style={{ fontSize: 11, background: '#f0efe9', color: '#666', padding: '3px 10px', borderRadius: 14 }}>
+              {v}
             </span>
           ))}
           {[...comisionFilter].map((v) => (
@@ -192,7 +209,7 @@ export default function DiputadosAutonomicosPage() {
       ) : !datos ? (
         <div className="spinner"></div>
       ) : datos.diputados.length === 0 ? (
-        <Vacio icono="ti-user-off" texto={`Aún no hemos cargado los diputados de la ${cfg.nombre}.`} />
+        <Vacio icono="ti-user-off" texto={`Aún no hemos cargado los diputados ${cfg.deNombre}.`} />
       ) : filtered.length === 0 ? (
         <Vacio icono="ti-user-off" texto="No hay diputados con estos filtros.">
           <div style={{ marginTop: 10 }}>

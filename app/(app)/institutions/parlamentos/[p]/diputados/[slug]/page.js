@@ -129,11 +129,11 @@ export default function DiputadoAutonomicoPage() {
   const frase = (() => {
     const partes = [];
     const gob = fuera.find((c) => /^(gobierno|consejer)/i.test(c.com.nombre));
-    if (gob) partes.push(/^gobierno$/i.test(gob.com.nombre) ? `Es ${gob.cargo} de la ${cfg.ccaa}` : `Es ${gob.cargo} de ${gob.com.nombre.replace(/^Consejer[ií]a de\s*/i, '')}`);
-    const rol = organos.find((c) => /junta de portavoces/i.test(c.com.nombre) && (c.cargo_norm === 'portavoz' || c.cargo_norm === 'portavoz_adjunto'));
-    if (rol) partes.push(`${partes.length ? 'es' : 'Es'} ${rol.cargo.charAt(0).toLowerCase() + rol.cargo.slice(1)} de su grupo`);
+    if (gob) partes.push(/^gobierno$/i.test(gob.com.nombre) ? `Es ${gob.cargo} ${cfg.deCcaa}` : `Es ${gob.cargo} de ${gob.com.nombre.replace(/^Consejer[ií]a de\s*/i, '')}`);
+    const rol = organos.find((c) => /junta de portav(oces|eus)/i.test(c.com.nombre) && (c.cargo_norm === 'portavoz' || c.cargo_norm === 'portavoz_adjunto'));
+    if (rol) partes.push(`${partes.length ? 'es' : 'Es'} ${rol.cargo_norm === 'portavoz' ? 'portavoz' : /adjunta/i.test(rol.cargo) ? 'portavoz adjunta' : 'portavoz adjunto'} de su grupo`);
     const sen = fuera.find((c) => /^senado$/i.test(c.com.nombre));
-    if (sen) partes.push(`${partes.length ? 'es' : 'Es'} ${sen.cargo.toLowerCase()} por designación de la ${cfg.nombre}`);
+    if (sen) partes.push(`${partes.length ? 'es' : 'Es'} ${sen.cargo.toLowerCase()} por designación ${cfg.deNombre}`);
     const mesa = organos.find((c) => /^mesa/i.test(c.com.nombre));
     if (mesa) partes.push(`${partes.length ? 'forma' : 'Forma'} parte de la Mesa (${mesa.cargo})`);
     if (portavocias.length) partes.push(`${partes.length ? 'lleva' : 'Lleva'} la voz de su grupo en ${lista(portavocias.map((c) => limpiarComision(c.com.nombre)))}`);
@@ -194,7 +194,7 @@ export default function DiputadoAutonomicoPage() {
                 )}
               </div>
               <div style={{ fontSize: 11.5, color: '#999', marginTop: 4 }}>
-                {diputadoA} de la {cfg.nombre} · {cfg.legislatura} Legislatura
+                {diputadoA} {cfg.deNombre} · {cfg.legislatura} Legislatura
                 {desde ? ` · desde ${desde}` : ''}
               </div>
 
@@ -224,7 +224,7 @@ export default function DiputadoAutonomicoPage() {
 
                   {contacto.estado === 'sin-correo' && (
                     <BuscarCorreo
-                      persona={{ id: idPro, nombre: d.nombre, cargo: `${diputadoA} de la ${cfg.nombre}` }}
+                      persona={{ id: idPro, nombre: d.nombre, cargo: `${diputadoA} ${cfg.deNombre}` }}
                       encontrado={encontrados[idPro]}
                       probable={probables[idPro]}
                       onResultado={(r) => apuntar(idPro, r)}
@@ -241,7 +241,7 @@ export default function DiputadoAutonomicoPage() {
                         onClick={() =>
                           setUpsell({
                             title: 'El correo de cada diputado',
-                            message: `El correo institucional que publica la ${cfg.nombre}, en la ficha de cada diputado. Disponible con el Directorio.`,
+                            message: `El correo institucional que publica ${cfg.elNombre}, en la ficha de cada diputado. Disponible con el Directorio.`,
                           })
                         }
                         className="btn-ai"
@@ -441,7 +441,7 @@ export default function DiputadoAutonomicoPage() {
 
       <div style={{ marginTop: 20, fontSize: 11, color: '#999', display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
         <i className="ti ti-shield-check" style={{ fontSize: 13 }}></i>
-        Datos obtenidos de {cfg.fuente}. Última actualización: {fechaCorta(d.ficha_leida_at || d.fuente_fecha) || '—'}.{' '}
+        Datos obtenidos {cfg.deNombre}. Última actualización: {fechaCorta(d.ficha_leida_at || d.fuente_fecha) || '—'}.{' '}
         {d.url_ficha && (
           <a href={d.url_ficha.replace('ctyp.asambleamadrid.es/es/web/guest', 'www.asambleamadrid.es')} target="_blank" rel="noreferrer" style={{ color: '#1d6f5c' }}>
             Ver su ficha oficial ↗

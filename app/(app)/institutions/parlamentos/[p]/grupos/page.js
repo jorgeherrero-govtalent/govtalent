@@ -52,7 +52,7 @@ export default function GruposAutonomicosPage() {
       ) : grupos === null ? (
         <div className="spinner"></div>
       ) : filtered.length === 0 ? (
-        <Vacio icono="ti-flag-off" texto={grupos.length ? 'No hay grupos que coincidan con la búsqueda.' : `Aún no hemos cargado los grupos de la ${cfg.nombre}.`} />
+        <Vacio icono="ti-flag-off" texto={grupos.length ? 'No hay grupos que coincidan con la búsqueda.' : `Aún no hemos cargado los grupos ${cfg.deNombre}.`} />
       ) : (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: 12 }}>
           {filtered.map((g) => (

@@ -119,7 +119,7 @@ export default function ComisionesAutonomicasPage() {
       ) : items === null ? (
         <div className="spinner"></div>
       ) : items.length === 0 ? (
-        <Vacio icono="ti-users-off" texto={`Aún no hemos cargado las comisiones de la ${cfg.nombre}.`} />
+        <Vacio icono="ti-users-off" texto={`Aún no hemos cargado las comisiones ${cfg.deNombre}.`} />
       ) : filtered.length === 0 ? (
         <Vacio icono="ti-users-off" texto="No hay comisiones con estos filtros." />
       ) : (

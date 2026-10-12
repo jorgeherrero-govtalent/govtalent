@@ -24,6 +24,7 @@
 //   cron (CRON_SECRET)                       listado + fichas + equipo, hasta agotar el tiempo
 //   ?key=<DEBUG_KEY>&p=madrid                igual, a mano
 //   ?key=<DEBUG_KEY>&p=madrid&paso=fichas&n=40
+//   ?key=<DEBUG_KEY>&p=cataluna[&paso=listado|fichas|organos][&dry=1]  Parlament de Catalunya
 //   ?key=<DEBUG_KEY>&p=madrid&dry=1          lee el listado y 2 fichas, sin guardar
 // =====================================================================
 
@@ -32,6 +33,7 @@ import Papa from 'papaparse';
 import { conRegistro } from '@/lib/syncLog';
 import { crearWeb } from '@/lib/ccaa/web';
 import * as madrid from '@/lib/ccaa/composicion/madrid';
+import * as cataluna from '@/lib/ccaa/composicion/cataluna';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 300;
@@ -72,7 +74,23 @@ async function handler(request) {
   const isCron = request.headers.get('authorization') === `Bearer ${process.env.CRON_SECRET}`;
   const isManual = !!process.env.DEBUG_KEY && sp.get('key') === process.env.DEBUG_KEY;
   if (!isCron && !isManual) return Response.json({ error: 'no autorizado' }, { status: 401 });
-  if ((sp.get('p') || P) !== P) return Response.json({ error: 'por ahora solo p=madrid' }, { status: 400 });
+  const pedido = sp.get('p') || P;
+  if (pedido === 'cataluna') {
+    // Parlament de Catalunya: lector propio (lib/ccaa/composicion/cataluna.js).
+    try {
+      const r = await cataluna.sincronizar(admin(), crearWeb(), {
+        dry: sp.get('dry') === '1',
+        paso: sp.get('paso'),
+        n: parseInt(sp.get('n') || '0', 10) || 0,
+        soloId: sp.get('diputado'),
+        tiempo: () => Date.now() - t0 > FIN_MS,
+      });
+      return Response.json({ ok: true, p: 'cataluna', dry: sp.get('dry') === '1', ms: Date.now() - t0, ...r });
+    } catch (e) {
+      return Response.json({ ok: false, p: 'cataluna', error: String(e.message || e).slice(0, 500), ms: Date.now() - t0 }, { status: 500 });
+    }
+  }
+  if (pedido !== P) return Response.json({ error: 'p=madrid o p=cataluna' }, { status: 400 });
 
   const dry = sp.get('dry') === '1';
   const paso = sp.get('paso');

@@ -168,7 +168,7 @@ export default function ComisionAutonomicaPage() {
 
       <div style={{ marginTop: 20, fontSize: 11, color: '#999', display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
         <i className="ti ti-shield-check" style={{ fontSize: 13 }}></i>
-        Composición leída de las fichas de los diputados de {cfg.fuente}.
+        Composición leída de las fichas de los diputados {cfg.deNombre}.
       </div>
     </div>
   );
