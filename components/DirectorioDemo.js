@@ -29,9 +29,21 @@ const BORDE = '#e0dfd8';
 // Una muestra de cada bloque, como la Base de datos de hoy: Gobierno,
 // Parlamento Europeo, cuerpo diplomático, medios, sociedades estatales y
 // organismos. La última no tiene correo publicado: enseña «Buscar correo».
-// Revisado el 12-10-2026: fuera Xavier Martí Martí, que cesó como
-// Subsecretario de Exteriores (RD 770/2026, BOE-A-2026-20275).
+// Revisado el 12-10-2026: Xavier Martí Martí dejó la Subsecretaría de
+// Exteriores (RD 770/2026, BOE-A-2026-20275) y es Embajador de España en
+// Filipinas (RD 786/2026). Mismos datos que directorio_pro (fuente:1489):
+// sin correo publicado y contactabilidad 10 (Baja).
 const FILAS = [
+  {
+    nombre: 'Xavier Martí Martí',
+    cargo: 'Embajador de España en Filipinas',
+    unidad: 'Embajada de España en Filipinas',
+    institucion: 'Ministerio de Asuntos Exteriores, Unión Europea y Cooperación',
+    nivel: 'Administración General del Estado',
+    dominio: null,
+    scoring: 1,
+    titular: true,
+  },
   {
     nombre: 'Joan Groizard Payeras',
     cargo: 'Secretario de Estado de Energía',
