@@ -2,10 +2,12 @@
 // RUTA TEMPORAL DE DIAGNÓSTICO — composición de Valencia, La Rioja y Andalucía
 // app/api/debug/composicion-ccaa/route.js
 //
-// Para cada parlamento: la página de diputados (texto, enlaces de
-// composición, fotos, correos), la primera ficha de diputado que encuentre
-// y la primera página de comisión, Mesa, Junta de Portavoces y grupos
-// enlazadas. Como GovTalentBot y respetando el robots.txt.
+// Segunda ronda: páginas concretas de cada parlamento (Mesa, Junta,
+// Diputación Permanente, comisiones, ficha de diputado, personal de los
+// grupos). De cada una devuelve el texto, los correos, los enlaces que
+// interesan y un trozo del HTML alrededor de lo que se busca; y sigue el
+// primer enlace que case con `seguir`. Como GovTalentBot y respetando el
+// robots.txt.
 //
 // Uso: ?key=<DEBUG_KEY>[&p=valencia|rioja|andalucia]
 // BORRAR al terminar los lectores.
@@ -16,97 +18,55 @@ import { crearWeb, textoPlano, enlacesDe } from '@/lib/ccaa/web';
 export const dynamic = 'force-dynamic';
 export const maxDuration = 300;
 
+const V = 'https://www.cortsvalencianes.es/es/composicion';
+const R = 'https://www.parlamento-larioja.org/composicion-y-organos';
+const A = 'https://www.parlamentodeandalucia.es/webdinamica/portal-web-parlamento/composicionyfuncionamiento';
+
 const PARL = {
-  valencia: {
-    inicio: ['https://www.cortsvalencianes.es/es/composicion/diputados'],
-    ficha: /\/composicion\/diputados\/xi\/[^/]+\/[0-9a-f]{20,}/,
-    extra: /composicion\/(comisiones|organos|mesa|junta|grupos|diputacion)/i,
-  },
-  rioja: {
-    inicio: ['https://www.parlamento-larioja.org', 'https://www.parlamento-larioja.org/composicion', 'https://www.parlamento-larioja.org/composicion/diputados'],
-    ficha: /diputad[oa]s?\/[a-z0-9-]{6,}/i,
-    extra: /(comisi|mesa|junta|grupos-parlamentarios|diputacion-permanente|personal)/i,
-  },
-  andalucia: {
-    inicio: ['https://www.parlamentodeandalucia.es/webdinamica/portal-web-parlamento/composicionyfuncionamiento/diputadosysenadores.do'],
-    ficha: /diputadosysenadores\.do\?codmie=\d+/,
-    extra: /composicionyfuncionamiento\/(comisiones|mesa|juntadeportavoces|gruposparlamentarios|diputacionpermanente|organos)/i,
-  },
+  valencia: [
+    { url: `${V}/organos/mesa`, html: /diputad/i },
+    { url: `${V}/organos/junta-sindics`, html: /s[ií]ndic/i },
+    { url: `${V}/organos/diputacion-permanente`, html: /diputad/i },
+    { url: `${V}/organos/comisiones`, seguir: /organos\/comisiones\/[^/?#]+/, html: /comisi/i },
+    { url: `${V}/grupos-parlamentarios`, seguir: /grupos-parlamentarios\/[^/?#]+/ },
+  ],
+  rioja: [
+    { url: `${R}/diputados`, seguir: /legislatura-11\/diputados\/[a-z0-9-]+$/, html: /legislatura-11\/diputados\// },
+    { url: `${R}/legislatura-organos`, seguir: /legislatura-11\/organos\/[a-z0-9-]+/, html: /organos\// },
+    { url: `${R}/legislatura-11/grupos-parlamentarios/grupo-parlamentario-popular`, html: /diputad/i },
+    { url: 'https://transparencia.parlamento-larioja.org/informacion-institucional-y-organizativa/diputados-diputadas-y-personal-eventual', seguir: /personal-eventual|eventual/i, html: /eventual/i },
+  ],
+  andalucia: [
+    { url: `${A}/organosparlamentarios/pleno.do?modo=confoto`, html: /codmie=/ },
+    { url: `${A}/diputadosysenadores.do?codmie=569&nlegis=13&codorg=3&cirele=0&accion=Ver%20Diputados`, html: /Pertenencia a [oó]rganos/i, despues: 4000 },
+    { url: `${A}/organosparlamentarios/mesa.do?modo=confoto`, html: /codmie=/ },
+    { url: `${A}/organosparlamentarios/juntadeportavoces.do?modo=confoto`, html: /codmie=/ },
+    { url: `${A}/organosparlamentarios/diputacionpermanente.do?modo=confoto`, html: /codmie=/ },
+    { url: `${A}/organosparlamentarios/comisiones.do`, seguir: /comisiones\.do\?.*cod/i, html: /comisiones\.do\?/ },
+    { url: `${A}/gruposparlamentarios.do?nlegis=13&listado=portavocia`, html: /codmie=/ },
+  ],
 };
 
 const sinScripts = (h) => h.replace(/<(script|style|noscript)\b[\s\S]*?<\/\1>/gi, ' ');
-const imgs = (h) => [...new Set([...h.matchAll(/<img[^>]+src=["']([^"']+)["']/gi)].map((m) => m[1]))].slice(0, 10);
-const correos = (h) => [...new Set(h.match(/[\w.+-]+@[\w-]+\.[\w.]+/g) || [])].filter((e) => !/\.(png|jpe?g|gif|svg)$/i.test(e)).slice(0, 12);
+const correos = (h) => [...new Set(h.match(/[\w.+-]+@[\w-]+\.[\w.]+/g) || [])].filter((e) => !/\.(png|jpe?g|gif|svg)$/i.test(e)).slice(0, 15);
 
-function alrededor(html, re, antes = 600, despues = 1600) {
-  const m = html.match(re);
-  if (!m) return null;
-  return html.slice(Math.max(0, m.index - antes), m.index + despues);
-}
-
-async function uno(web, cfg) {
-  const out = { paginas: [] };
-  let enlaces = [];
-  let primeraFicha = null;
-  for (const url of cfg.inicio) {
-    try {
-      const h = await web.texto(url);
-      const ls = enlacesDe(h, url);
-      enlaces.push(...ls);
-      const fichas = [...new Set(ls.map((a) => a.href).filter((x) => cfg.ficha.test(x)))];
-      if (!primeraFicha && fichas[0]) primeraFicha = fichas[0];
-      out.paginas.push({
-        url,
-        kb: Math.round(h.length / 1024),
-        n_fichas: fichas.length,
-        fichas: fichas.slice(0, 4),
-        correos: correos(h),
-        imgs: imgs(h),
-        texto: textoPlano(sinScripts(h)).replace(/\s+/g, ' ').slice(0, 2500),
-        html_ficha: fichas[0] ? alrededor(h, new RegExp(fichas[0].replace(/^https?:\/\/[^/]+/, '').replace(/[.*+?^${}()|[\]\\]/g, '\\$&').slice(0, 60))) : null,
-        composicion: [...new Set(ls.filter((a) => cfg.extra.test(a.href) || /composici|diputad|comisi|grupo|mesa|junta/i.test(a.texto)).map((a) => `${a.texto.slice(0, 70)} | ${a.href}`))].slice(0, 40),
-      });
-    } catch (e) {
-      out.paginas.push({ url, error: String(e.message || e).slice(0, 200) });
-    }
-  }
-  if (primeraFicha) {
-    try {
-      const h = await web.texto(primeraFicha);
-      out.ficha = {
-        url: primeraFicha,
-        kb: Math.round(h.length / 1024),
-        correos: correos(h),
-        imgs: imgs(h),
-        texto: textoPlano(sinScripts(h)).replace(/\s+/g, ' ').slice(0, 5000),
-        html_cargos: alrededor(sinScripts(h), /comisi/i, 400, 2500),
-      };
-    } catch (e) {
-      out.ficha = { url: primeraFicha, error: String(e.message || e).slice(0, 200) };
-    }
-  }
-  // Una página de cada órgano enlazado (comisiones, mesa, junta, grupos).
-  const vistos = new Set();
-  out.organos = [];
-  for (const a of enlaces) {
-    if (!cfg.extra.test(a.href) || vistos.has(a.href) || out.organos.length >= 5) continue;
-    const tipo = (a.href.match(cfg.extra) || [])[1]?.toLowerCase();
-    if ([...vistos].some((v) => v.startsWith(`${tipo}:`))) continue;
-    vistos.add(`${tipo}:${a.href}`);
-    try {
-      const h = await web.texto(a.href);
-      const ls = enlacesDe(h, a.href);
-      out.organos.push({
-        url: a.href,
-        texto: textoPlano(sinScripts(h)).replace(/\s+/g, ' ').slice(0, 2500),
-        correos: correos(h),
-        enlaces: [...new Set(ls.filter((x) => /comisi|grupo|mesa|junta|diputad|organo/i.test(x.href + x.texto)).map((x) => `${x.texto.slice(0, 70)} | ${x.href}`))].slice(0, 30),
-      });
-    } catch (e) {
-      out.organos.push({ url: a.href, error: String(e.message || e).slice(0, 200) });
-    }
-  }
-  return out;
+async function leer(web, paso, despues = 2000) {
+  const h = await web.texto(paso.url);
+  const limpio = sinScripts(h);
+  const t = textoPlano(limpio).replace(/\s+/g, ' ');
+  // El texto útil suele ir después del menú: se corta desde la mitad del
+  // documento si es muy largo, guardando los 6.000 caracteres centrales.
+  const m = paso.html ? limpio.match(paso.html) : null;
+  const ls = enlacesDe(h, paso.url);
+  return {
+    url: paso.url,
+    kb: Math.round(h.length / 1024),
+    correos: correos(h),
+    texto: t.length > 7000 ? t.slice(Math.floor(t.length * 0.25), Math.floor(t.length * 0.25) + 6000) : t,
+    html: m ? limpio.slice(Math.max(0, m.index - 500), m.index + (paso.despues || despues)) : null,
+    enlaces: [...new Set(ls.filter((a) => (paso.seguir && paso.seguir.test(a.href)) || /diputad|comisi|organo|grupo|mesa|junta|sindic|eventual|personal/i.test(a.href)).map((a) => `${a.texto.slice(0, 60)} | ${a.href}`))].slice(0, 40),
+    siguiente: paso.seguir ? ls.map((a) => a.href).find((x) => paso.seguir.test(x) && x !== paso.url) || null : null,
+  };
 }
 
 export async function GET(request) {
@@ -119,10 +79,21 @@ export async function GET(request) {
   const salida = {};
   for (const p of pedidos) {
     if (!PARL[p]) continue;
-    try {
-      salida[p] = await uno(web, PARL[p]);
-    } catch (e) {
-      salida[p] = { error: String(e.message || e).slice(0, 300) };
+    salida[p] = [];
+    for (const paso of PARL[p]) {
+      try {
+        const r = await leer(web, paso);
+        salida[p].push(r);
+        if (r.siguiente) {
+          try {
+            salida[p].push({ seguido_de: paso.url, ...(await leer(web, { url: r.siguiente, html: /comisi|cargo|portavoz|diputad|eventual|correo|mailto/i }, 4000)) });
+          } catch (e) {
+            salida[p].push({ url: r.siguiente, error: String(e.message || e).slice(0, 200) });
+          }
+        }
+      } catch (e) {
+        salida[p].push({ url: paso.url, error: String(e.message || e).slice(0, 200) });
+      }
     }
   }
   return Response.json(salida);
