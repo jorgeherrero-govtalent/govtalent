@@ -93,6 +93,8 @@ function clasificar(f) {
   if (id.startsWith('agenda:')) {
     return POR_CATEGORIA[f.categoria_unidad] || ['instituciones', 'Otros organismos públicos'];
   }
+  // Parlamentos autonómicos (sql/92): diputados y técnicos de grupo.
+  if (id.startsWith('ccaa-legislativo')) return ['instituciones', 'Comunidades autónomas'];
   if (id.startsWith('es-legislativo')) return ['instituciones', 'Congreso de los Diputados'];
   return ['instituciones', 'Administración General del Estado'];
 }

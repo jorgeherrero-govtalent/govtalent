@@ -69,6 +69,8 @@ const CIFRAS = {
   // Gobierno, Parlamento y TSJ de cada una, de la Agenda de la Comunicación
   // 2026-2027 (sql/69). Ceuta y Melilla van dentro, pero no son comunidades.
   comunidades: { n: 17, etiqueta: 'comunidades · Gobierno, Parlamento y TSJ' },
+  // Primer parlamento autonómico con composición completa (sql/91).
+  asambleaMadrid: { n: 135, etiqueta: 'diputados · 4 grupos parlamentarios' },
   parlamentoUe: { n: 720, etiqueta: 'eurodiputados · 22 comisiones' },
   comisionUe: { n: 27, etiqueta: 'comisarios · 2.096 cargos y funcionarios en DG' },
 };
@@ -194,6 +196,14 @@ export default function InstitutionsPage() {
           descripcion="Gobierno, Parlamento y Tribunal Superior de Justicia de las 17 comunidades, Ceuta y Melilla."
           cifra={CIFRAS.comunidades.n}
           etiqueta={CIFRAS.comunidades.etiqueta}
+        />
+        <Modulo
+          href="/institutions/parlamentos/madrid/comisiones"
+          pais="es"
+          titulo="Asamblea de Madrid"
+          descripcion="Comisiones, diputados, órganos de gobierno, grupos parlamentarios y sus técnicos."
+          cifra={CIFRAS.asambleaMadrid.n}
+          etiqueta={CIFRAS.asambleaMadrid.etiqueta}
         />
         <Modulo
           href="/institutions/eu-parliament"

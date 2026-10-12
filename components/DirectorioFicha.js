@@ -2,6 +2,8 @@
 
 import { useEffect, useState } from 'react';
 import BackLink from '@/components/BackLink';
+import Link from 'next/link';
+import { PARLAMENTOS_UI } from '@/lib/ccaa/composicionUI';
 import { BotonSoloProyecto } from '@/components/FollowButton';
 import UpgradeModal from '@/components/UpgradeModal';
 import BuscarCorreo, { useCorreosEncontrados } from '@/components/BuscarCorreo';
@@ -187,6 +189,11 @@ function Unidades({ unidades, contacto, encontrados, apuntar }) {
   );
 }
 
+function parlamentoDe(nombre) {
+  const n = String(nombre || '').trim().toLowerCase();
+  return Object.entries(PARLAMENTOS_UI).find(([, c]) => c.nombre.toLowerCase() === n)?.[0] || null;
+}
+
 export default function DirectorioFicha({ slug, id, volverA, volverEtiqueta }) {
   const seccion = seccionPorSlug(slug);
   const [ficha, setFicha] = useState(null);
@@ -266,6 +273,17 @@ export default function DirectorioFicha({ slug, id, volverA, volverEtiqueta }) {
             <div style={{ fontSize: 10.5, color: '#a8a49c', letterSpacing: '.4px', marginBottom: 6 }}>{etiquetaSup}</div>
             <h1 style={{ fontSize: 19, fontWeight: 700, margin: 0 }}>{ficha.organizacion}</h1>
             {meta ? <div style={{ fontSize: 12.5, color: '#888', marginTop: 4 }}>{meta}</div> : null}
+            {/* Parlamentos con composición cargada (sql/91): diputados,
+                grupos y comisiones con las pantallas del Congreso. */}
+            {slug === 'comunidades' && parlamentoDe(ficha.organizacion) ? (
+              <Link
+                href={`/institutions/parlamentos/${parlamentoDe(ficha.organizacion)}/diputados`}
+                style={{ display: 'inline-flex', alignItems: 'center', gap: 6, marginTop: 10, fontSize: 12.5, fontWeight: 600, color: '#1d6f5c', textDecoration: 'none' }}
+              >
+                Diputados, grupos y comisiones
+                <i className="ti ti-arrow-right" style={{ fontSize: 14 }}></i>
+              </Link>
+            ) : null}
           </div>
           <div style={{ flexShrink: 0 }}>
             <BotonSoloProyecto kind="entidad" refId={String(ficha.id)} label={ficha.organizacion} />
