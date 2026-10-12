@@ -130,7 +130,7 @@ export default function DiputadoAutonomicoPage() {
     const partes = [];
     const gob = fuera.find((c) => /^(gobierno|consejer)/i.test(c.com.nombre));
     if (gob) partes.push(/^gobierno$/i.test(gob.com.nombre) ? `Es ${gob.cargo} ${cfg.deCcaa}` : `Es ${gob.cargo} de ${gob.com.nombre.replace(/^Consejer[ií]a de\s*/i, '')}`);
-    const rol = organos.find((c) => /junta de portav(oces|eus)/i.test(c.com.nombre) && (c.cargo_norm === 'portavoz' || c.cargo_norm === 'portavoz_adjunto'));
+    const rol = organos.find((c) => /junta de (portav(oces|eus)|s[ií]ndics)/i.test(c.com.nombre) && (c.cargo_norm === 'portavoz' || c.cargo_norm === 'portavoz_adjunto'));
     if (rol) partes.push(`${partes.length ? 'es' : 'Es'} ${rol.cargo_norm === 'portavoz' ? 'portavoz' : /adjunta/i.test(rol.cargo) ? 'portavoz adjunta' : 'portavoz adjunto'} de su grupo`);
     const sen = fuera.find((c) => /^senado$/i.test(c.com.nombre));
     if (sen) partes.push(`${partes.length ? 'es' : 'Es'} ${sen.cargo.toLowerCase()} por designación ${cfg.deNombre}`);

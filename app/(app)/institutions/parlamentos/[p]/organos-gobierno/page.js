@@ -51,7 +51,7 @@ export default function OrganosGobiernoAutonomicosPage() {
 
   const organos = useMemo(() => {
     if (!datos) return null;
-    const ORDEN = [/^mesa/i, /junta de portav(oces|eus)/i, /diputaci[oó]n? permanente?/i];
+    const ORDEN = [/^mesa/i, /junta de (portav(oces|eus)|s[ií]ndics)/i, /diputaci[oó]n? permanente?/i];
     const pos = (n) => { const i = ORDEN.findIndex((re) => re.test(n)); return i < 0 ? 9 : i; };
     const lista = datos.comisiones
       .filter((c) => c.tipo === 'organo')

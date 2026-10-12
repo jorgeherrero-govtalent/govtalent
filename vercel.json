@@ -131,6 +131,18 @@
     {
       "path": "/api/sync/composicion-autonomica?p=cataluna",
       "schedule": "50 3 * * *"
+    },
+    {
+      "path": "/api/sync/composicion-autonomica?p=valencia",
+      "schedule": "0 4 * * *"
+    },
+    {
+      "path": "/api/sync/composicion-autonomica?p=rioja",
+      "schedule": "10 4 * * *"
+    },
+    {
+      "path": "/api/sync/composicion-autonomica?p=andalucia",
+      "schedule": "20 4 * * *"
     }
   ]
 }

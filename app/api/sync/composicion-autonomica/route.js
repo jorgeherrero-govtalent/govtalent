@@ -34,6 +34,13 @@ import { conRegistro } from '@/lib/syncLog';
 import { crearWeb } from '@/lib/ccaa/web';
 import * as madrid from '@/lib/ccaa/composicion/madrid';
 import * as cataluna from '@/lib/ccaa/composicion/cataluna';
+import * as comun from '@/lib/ccaa/composicion/comun';
+import * as valencia from '@/lib/ccaa/composicion/valencia';
+import * as rioja from '@/lib/ccaa/composicion/rioja';
+import * as andalucia from '@/lib/ccaa/composicion/andalucia';
+
+// Lectores que se guardan con la sincronización común (lib/ccaa/composicion/comun.js).
+const LECTORES = { valencia, rioja, andalucia };
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 300;
@@ -91,7 +98,22 @@ async function handler(request) {
       return Response.json({ ok: false, p: 'cataluna', error: String(e.message || e).slice(0, 500), ms: Date.now() - t0 }, { status: 500 });
     }
   }
-  if (pedido !== P) return Response.json({ error: 'p=madrid o p=cataluna' }, { status: 400 });
+  if (LECTORES[pedido]) {
+    try {
+      const r = await comun.sincronizar(LECTORES[pedido], admin(), crearWeb(), {
+        dry: sp.get('dry') === '1',
+        paso: sp.get('paso'),
+        n: parseInt(sp.get('n') || '0', 10) || 0,
+        soloId: sp.get('diputado'),
+        forzar: sp.get('forzar') === '1',
+        tiempo: () => Date.now() - t0 > FIN_MS,
+      });
+      return Response.json({ ok: true, p: pedido, dry: sp.get('dry') === '1', ms: Date.now() - t0, ...r });
+    } catch (e) {
+      return Response.json({ ok: false, p: pedido, error: String(e.message || e).slice(0, 500), ms: Date.now() - t0 }, { status: 500 });
+    }
+  }
+  if (pedido !== P) return Response.json({ error: 'p=madrid, cataluna, valencia, rioja o andalucia' }, { status: 400 });
 
   const dry = sp.get('dry') === '1';
   const paso = sp.get('paso');
