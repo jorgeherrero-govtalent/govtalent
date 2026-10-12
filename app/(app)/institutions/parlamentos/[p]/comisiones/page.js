@@ -5,7 +5,7 @@ import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import MultiSelectFilter from '@/components/MultiSelectFilter';
 import { PestanasParlamento, CabeceraParlamento, Avatar, Vacio } from '@/components/ParlamentoAutonomico';
-import { PARLAMENTOS_UI, base, useComposicion, colorGrupo, normalizar, TIPOS_COMISION } from '@/lib/ccaa/composicionUI';
+import { PARLAMENTOS_UI, base, useComposicion, colorGrupo, normalizar, TIPOS_COMISION, esComision } from '@/lib/ccaa/composicionUI';
 
 /**
  * Comisiones de un parlamento autonómico. Copia de ComisionesTab del
@@ -24,7 +24,7 @@ export default function ComisionesAutonomicasPage() {
   const items = useMemo(() => {
     if (!datos) return null;
     return datos.comisiones
-      .filter((c) => c.tipo !== 'organo')
+      .filter(esComision)
       .map((c) => {
         const miembros = (datos.porComision[c.id] || []).map((m) => ({ ...m, d: datos.diputadoPorId[m.diputado_id] }));
         const reparto = new Map();

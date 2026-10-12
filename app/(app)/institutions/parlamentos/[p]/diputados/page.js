@@ -7,7 +7,7 @@ import MultiSelectFilter from '@/components/MultiSelectFilter';
 import UpgradeModal from '@/components/UpgradeModal';
 import usePlanPro from '@/lib/usePlanPro';
 import { PestanasParlamento, CabeceraParlamento, Photo, GroupTag, Vacio } from '@/components/ParlamentoAutonomico';
-import { PARLAMENTOS_UI, base, useComposicion, limpiarComision, etiquetaCargo, normalizar } from '@/lib/ccaa/composicionUI';
+import { PARLAMENTOS_UI, base, useComposicion, limpiarComision, etiquetaCargo, normalizar, esComision } from '@/lib/ccaa/composicionUI';
 
 /**
  * Diputados de un parlamento autonómico. Copia del directorio de
@@ -73,7 +73,7 @@ export default function DiputadosAutonomicosPage() {
       const vistos = new Map();
       for (const c of l) {
         const com = datos.comisionPorId[c.comision_id];
-        if (!com || com.tipo === 'organo') continue;
+        if (!esComision(com)) continue;
         const nombre = limpiarComision(com.nombre);
         if (!vistos.has(nombre)) vistos.set(nombre, { nombre, label: etiquetaCargo(c.cargo_norm) });
       }

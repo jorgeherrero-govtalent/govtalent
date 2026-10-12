@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { PARLAMENTOS_UI, base, colorGrupo } from '@/lib/ccaa/composicionUI';
+import { PARLAMENTOS_UI, base, colorGrupo, esComision } from '@/lib/ccaa/composicionUI';
 
 /**
  * Piezas comunes de las pantallas de un parlamento autonómico. Son copia
@@ -49,7 +49,7 @@ export function PestanasParlamento({ p }) {
 /** Cabecera de las cuatro pestañas: «Asamblea de Madrid · 135 diputados · 4 grupos · … · XIII Legislatura». */
 export function CabeceraParlamento({ p, titulo, datos }) {
   const cfg = PARLAMENTOS_UI[p];
-  const nCom = datos ? datos.comisiones.filter((c) => c.tipo !== 'organo').length : null;
+  const nCom = datos ? datos.comisiones.filter(esComision).length : null;
   return (
     <div style={{ marginBottom: 14 }}>
       <div style={{ fontSize: 11.5, color: '#999', marginBottom: 6 }}>

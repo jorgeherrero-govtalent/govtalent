@@ -51,13 +51,32 @@ export default function OrganosGobiernoAutonomicosPage() {
 
   const organos = useMemo(() => {
     if (!datos) return null;
-    return datos.comisiones
+    const ORDEN = [/^mesa/i, /junta de portavoces/i, /diputaci[oó]n permanente/i];
+    const pos = (n) => { const i = ORDEN.findIndex((re) => re.test(n)); return i < 0 ? 9 : i; };
+    const lista = datos.comisiones
       .filter((c) => c.tipo === 'organo')
       .map((o) => ({
         ...o,
         miembros: (datos.porComision[o.id] || []).map((m) => ({ ...m, d: datos.diputadoPorId[m.diputado_id] })).filter((m) => m.d),
       }))
-      .sort((a, b) => a.miembros.length - b.miembros.length);
+      .sort((a, b) => pos(a.nombre) - pos(b.nombre) || a.miembros.length - b.miembros.length);
+    // En la Diputación Permanente la Asamblea da dos personas por cada
+    // cargo de la Mesa: el titular, que es quien está en la Mesa, y su
+    // suplente, con el mismo nombre de cargo (de ahí «Vicepresidenta
+    // Primera» para un diputado). Al suplente se le dice suplente.
+    const mesa = lista.find((o) => /^mesa/i.test(o.nombre));
+    const enMesa = new Set((mesa?.miembros || []).map((m) => m.diputado_id));
+    const dp = lista.find((o) => /diputaci[oó]n permanente/i.test(o.nombre));
+    if (dp && enMesa.size) {
+      dp.miembros = dp.miembros
+        .map((m) =>
+          ['presidencia', 'vicepresidencia', 'secretaria'].includes(m.cargo_norm) && !enMesa.has(m.diputado_id)
+            ? { ...m, cargo: `Suplente · ${m.cargo.replace(/(Presidente|Presidenta)/, 'Presidencia').replace(/Vicepresident[ea]/, 'Vicepresidencia').replace(/Secretari[oa]/, 'Secretaría').replace(/Primer[oa]/, 'primera').replace(/Segund[oa]/, 'segunda').replace(/Tercer[oa]/, 'tercera')}`, cargo_norm: 'suplente' }
+            : m
+        )
+        .sort((a, b) => pesoCargo(a.cargo_norm) - pesoCargo(b.cargo_norm));
+    }
+    return lista;
   }, [datos]);
 
   // La más pequeña —la Mesa— abierta de entrada.

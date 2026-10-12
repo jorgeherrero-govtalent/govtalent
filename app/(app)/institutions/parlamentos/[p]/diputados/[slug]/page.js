@@ -9,7 +9,7 @@ import { toast } from '@/lib/toast';
 import BackLink from '@/components/BackLink';
 import UpgradeModal from '@/components/UpgradeModal';
 import { Vacio } from '@/components/ParlamentoAutonomico';
-import { PARLAMENTOS_UI, base, useComposicion, colorGrupo, limpiarComision, fechaCorta } from '@/lib/ccaa/composicionUI';
+import { PARLAMENTOS_UI, base, useComposicion, colorGrupo, limpiarComision, fechaCorta, esComision } from '@/lib/ccaa/composicionUI';
 
 /**
  * Ficha de un diputado autonómico. Copia de la del Congreso: cabecera con
@@ -110,8 +110,11 @@ export default function DiputadoAutonomicoPage() {
   }
 
   const cargos = (datos.porDiputado[d.id] || []).map((c) => ({ ...c, com: datos.comisionPorId[c.comision_id] })).filter((c) => c.com);
-  const comisiones = cargos.filter((c) => c.com.tipo !== 'organo');
+  const comisiones = cargos.filter((c) => esComision(c.com));
   const organos = cargos.filter((c) => c.com.tipo === 'organo');
+  // Fuera de la cámara: Gobierno, Consejerías, Senado y consejos donde la
+  // Asamblea designa vocales.
+  const fuera = cargos.filter((c) => c.com.tipo === 'otro');
   const portavocias = comisiones.filter((c) => c.cargo_norm === 'portavoz');
   const resto = comisiones.filter((c) => c.cargo_norm !== 'portavoz');
   const enGrupo = (datos.delGrupo[d.grupo_id] || []).filter((c) => c.diputado_id === d.id);
@@ -125,9 +128,13 @@ export default function DiputadoAutonomicoPage() {
   // comisiones e iniciativas. Sin nada, no hay bloque.
   const frase = (() => {
     const partes = [];
-    const rol = enGrupo.find((c) => c.cargo_norm === 'portavoz' || c.cargo_norm === 'portavoz_adjunto');
-    if (rol) partes.push(`${rol.cargo_norm === 'portavoz' ? 'Es portavoz' : 'Es portavoz adjunto/a'} de su grupo`);
-    const mesa = organos.find((c) => /mesa/i.test(c.com.nombre) && c.cargo_norm !== 'vocal');
+    const gob = fuera.find((c) => /^(gobierno|consejer)/i.test(c.com.nombre));
+    if (gob) partes.push(/^gobierno$/i.test(gob.com.nombre) ? `Es ${gob.cargo} de la ${cfg.ccaa}` : `Es ${gob.cargo} de ${gob.com.nombre.replace(/^Consejer[ií]a de\s*/i, '')}`);
+    const rol = organos.find((c) => /junta de portavoces/i.test(c.com.nombre) && (c.cargo_norm === 'portavoz' || c.cargo_norm === 'portavoz_adjunto'));
+    if (rol) partes.push(`${partes.length ? 'es' : 'Es'} ${rol.cargo.charAt(0).toLowerCase() + rol.cargo.slice(1)} de su grupo`);
+    const sen = fuera.find((c) => /^senado$/i.test(c.com.nombre));
+    if (sen) partes.push(`${partes.length ? 'es' : 'Es'} ${sen.cargo.toLowerCase()} por designación de la ${cfg.nombre}`);
+    const mesa = organos.find((c) => /^mesa/i.test(c.com.nombre));
     if (mesa) partes.push(`${partes.length ? 'forma' : 'Forma'} parte de la Mesa (${mesa.cargo})`);
     if (portavocias.length) partes.push(`${partes.length ? 'lleva' : 'Lleva'} la voz de su grupo en ${lista(portavocias.map((c) => limpiarComision(c.com.nombre)))}`);
     if (comisiones.length) partes.push(`${partes.length ? 'está' : 'Está'} en ${comisiones.length} ${comisiones.length === 1 ? 'comisión' : 'comisiones'}`);
@@ -319,9 +326,9 @@ export default function DiputadoAutonomicoPage() {
             </div>
           )}
 
-          {(organos.length > 0 || enGrupo.length > 0) && (
+          {(organos.length > 0 || enGrupo.length > 0 || fuera.length > 0) && (
             <div className="card" style={{ padding: 18 }}>
-              <div style={LABEL}>Cargos en la cámara</div>
+              <div style={LABEL}>Otros cargos</div>
               {enGrupo.map((c) => (
                 <Link key={c.id} href={`${base(p)}/grupos/${grupo?.slug || ''}`} style={FILA}>
                   <span style={ICONO_VERDE}>
@@ -350,10 +357,23 @@ export default function DiputadoAutonomicoPage() {
                   <i className="ti ti-chevron-right" style={{ color: '#ccc', fontSize: 14, flexShrink: 0 }}></i>
                 </Link>
               ))}
+              {fuera.map((c) => (
+                <div key={c.id} style={FILA}>
+                  <span style={ICONO_GRIS}>
+                    <i className={`ti ti-${/^(gobierno|consejer)/i.test(c.com.nombre) ? 'building-bank' : /^senado$/i.test(c.com.nombre) ? 'building-community' : 'users'}`} style={{ fontSize: 15 }} aria-hidden="true"></i>
+                  </span>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: 12.5 }}>{c.com.nombre}</div>
+                    <div style={{ fontSize: 10.5, color: '#999', marginTop: 1 }}>
+                      {[c.cargo, fechaCorta(c.fecha_inicio) ? `desde ${fechaCorta(c.fecha_inicio)}` : null].filter(Boolean).join(' · ')}
+                    </div>
+                  </div>
+                </div>
+              ))}
             </div>
           )}
 
-          {!frase && portavocias.length === 0 && organos.length === 0 && (
+          {!frase && portavocias.length === 0 && organos.length === 0 && fuera.length === 0 && (
             <Vacio icono="ti-file-off" texto="Aún no tenemos actividad parlamentaria registrada de este diputado." />
           )}
         </div>

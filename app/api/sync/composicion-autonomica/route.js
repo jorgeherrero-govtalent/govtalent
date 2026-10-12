@@ -15,6 +15,8 @@
 //                 Portavoces, Diputación Permanente), legislaturas y
 //                 recuentos de actividad. Por tandas: primero las que
 //                 nunca se leyeron y luego las de más de 6 días.
+//   4. mesa     · la Mesa, de los cargos de la Junta de Portavoces si las
+//                 fichas no la traen (`?paso=mesa`).
 //   3. equipo   · técnicos de los grupos parlamentarios vigentes, del CSV
 //                 de datos abiertos «OcupacionesDiputadosAsambleaMadrid».
 //
@@ -50,6 +52,7 @@ const L = madrid.LEGISLATURA;
 const { slugTexto, siglaGrupo } = madrid;
 const idGrupo = (nombre) => `${P}:${slugTexto(siglaGrupo(nombre) || nombre.replace(/^Grupo Parlamentario\s*/i, ''))}`;
 const idComision = (organo) => `${P}:${slugTexto(organo)}`;
+const MESA = 'Mesa de la Asamblea';
 const PARTICULAS = new Set(['de', 'del', 'la', 'las', 'los', 'y', 'san']);
 
 /** «María del Mar Espinar Mesa-Moles» → «Espinar Mesa-Moles, María del Mar» (dos apellidos al final). */
@@ -82,6 +85,7 @@ async function handler(request) {
     if (!paso || paso === 'listado') salida.listado = await pasoListado(db, web, { dry, tiempo });
     if (!paso || paso === 'fichas') salida.fichas = await pasoFichas(db, web, { dry, tiempo, n: parseInt(sp.get('n') || '0', 10) || (dry ? 2 : 200), soloId: sp.get('diputado') });
     if ((!paso && !tiempo()) || paso === 'equipo') salida.equipo = await pasoEquipo(db, web, { dry });
+    if ((!paso && !dry) || paso === 'mesa') salida.mesa = await pasoMesa(db);
     if (!dry) await recontar(db);
   } catch (e) {
     return Response.json({ ok: false, error: String(e.message || e).slice(0, 500), ms: Date.now() - t0, ...salida }, { status: 500 });
@@ -185,10 +189,12 @@ async function pasoFichas(db, web, { dry, tiempo, n, soloId }) {
     const comisiones = new Map();
     const cargos = [];
     let sexo = null;
-    for (const c of vigentes) {
+    for (let c of vigentes) {
       if (/^asamblea de madrid$/i.test(c.organo)) {
         sexo = /diputada/i.test(c.cargo) ? 'M' : /diputado/i.test(c.cargo) ? 'H' : sexo;
-        continue;
+        // «Presidente (Asamblea de Madrid)», «Secretaria Tercera (…)»: es la Mesa.
+        if (!['presidencia', 'vicepresidencia', 'secretaria'].includes(c.cargo_norm)) continue;
+        c = { ...c, organo: MESA };
       }
       const esGrupo = /^grupo parlamentario/i.test(c.organo);
       const comisionId = esGrupo ? null : idComision(c.organo);
@@ -277,6 +283,24 @@ async function pasoEquipo(db, web, { dry }) {
   const { error } = await db.from('ccaa_cargos').insert(filas);
   if (error) throw new Error(`equipo: ${error.message}`);
   return { tecnicos: filas.length, sin_grupo: filas.filter((f) => !f.grupo_id).length };
+}
+
+// La Mesa, por si alguna ficha no la trae como cargo «(Asamblea de Madrid)»:
+// sus siete miembros son los cargos de presidencia, vicepresidencia y
+// secretaría de la Junta de Portavoces (a la que asisten como Mesa).
+async function pasoMesa(db) {
+  const id = idComision(MESA);
+  await db.from('ccaa_cargos').delete().eq('comision_id', id).eq('fuente', 'mesa');
+  const { data: ya } = await db.from('ccaa_cargos').select('diputado_id').eq('comision_id', id).eq('activo', true);
+  const tiene = new Set((ya || []).map((r) => r.diputado_id));
+  const { data: junta } = await db.from('ccaa_cargos').select('*').eq('comision_id', idComision('Junta de Portavoces')).eq('activo', true)
+    .in('cargo_norm', ['presidencia', 'vicepresidencia', 'secretaria']);
+  const nuevos = (junta || []).filter((c) => !tiene.has(c.diputado_id)).map(({ id: _i, created_at: _c, ...c }) => ({ ...c, comision_id: id, organo: MESA, fuente: 'mesa' }));
+  if (!nuevos.length) return { mesa: tiene.size, anadidos: 0 };
+  await db.from('ccaa_comisiones').upsert([{ id, parlamento: P, legislatura: L, nombre: MESA, tipo: 'organo', slug: id.replace(':', '-'), activo: true }], { onConflict: 'id', ignoreDuplicates: true });
+  const { error } = await db.from('ccaa_cargos').insert(nuevos);
+  if (error) throw new Error(`mesa: ${error.message}`);
+  return { mesa: tiene.size + nuevos.length, anadidos: nuevos.length };
 }
 
 async function recontar(db) {

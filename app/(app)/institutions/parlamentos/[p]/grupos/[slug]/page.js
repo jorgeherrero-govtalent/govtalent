@@ -5,7 +5,7 @@ import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import BackLink from '@/components/BackLink';
 import { Avatar, LogoGrupoCcaa, Vacio } from '@/components/ParlamentoAutonomico';
-import { PARLAMENTOS_UI, base, useComposicion, limpiarComision, normalizar, fechaCorta } from '@/lib/ccaa/composicionUI';
+import { PARLAMENTOS_UI, base, useComposicion, limpiarComision, normalizar, fechaCorta, esComision } from '@/lib/ccaa/composicionUI';
 
 /**
  * Ficha de un grupo parlamentario autonómico. Copia de la del Congreso:
@@ -64,13 +64,14 @@ export default function GrupoAutonomicoPage() {
     const diputados = datos.diputados.filter((d) => d.grupo_id === grupo.id);
     const ids = new Set(diputados.map((d) => d.id));
     const portavoces = datos.cargos
-      .filter((c) => ids.has(c.diputado_id) && c.cargo_norm === 'portavoz' && c.comision_id && datos.comisionPorId[c.comision_id]?.tipo !== 'organo')
+      .filter((c) => ids.has(c.diputado_id) && c.cargo_norm === 'portavoz' && c.comision_id && esComision(datos.comisionPorId[c.comision_id]))
       .map((c) => ({ ...c, d: datos.diputadoPorId[c.diputado_id], com: datos.comisionPorId[c.comision_id] }))
       .sort((a, b) => a.com.nombre.localeCompare(b.com.nombre));
-    const cargosGrupo = (datos.delGrupo[grupo.id] || [])
+    // Portavoz y adjuntos del grupo: los que lo representan en la Junta de Portavoces.
+    const cargosGrupo = datos.cargos
+      .filter((c) => ids.has(c.diputado_id) && /junta de portavoces/i.test(datos.comisionPorId[c.comision_id]?.nombre || '') && (c.cargo_norm === 'portavoz' || c.cargo_norm === 'portavoz_adjunto'))
       .map((c) => ({ ...c, d: datos.diputadoPorId[c.diputado_id] }))
-      .filter((c) => c.d && c.cargo_norm !== 'diputado' && c.cargo_norm !== 'otro' && c.cargo_norm !== 'vocal')
-      .sort((a, b) => (a.cargo_norm === 'portavoz' ? 0 : 1) - (b.cargo_norm === 'portavoz' ? 0 : 1));
+      .sort((a, b) => (a.cargo_norm === 'portavoz' ? 0 : 1) - (b.cargo_norm === 'portavoz' ? 0 : 1) || a.cargo.localeCompare(b.cargo));
     return { diputados, portavoces, cargosGrupo, tecnicos: datos.tecnicos[grupo.id] || [] };
   }, [grupo, datos]);
 

@@ -4,7 +4,7 @@ import { useMemo, useState } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import { PestanasParlamento, CabeceraParlamento, LogoGrupoCcaa, Vacio } from '@/components/ParlamentoAutonomico';
-import { PARLAMENTOS_UI, base, useComposicion, normalizar, fechaCorta } from '@/lib/ccaa/composicionUI';
+import { PARLAMENTOS_UI, base, useComposicion, normalizar, fechaCorta, esComision } from '@/lib/ccaa/composicionUI';
 
 /**
  * Grupos parlamentarios de un parlamento autonómico. Copia de la de
@@ -22,7 +22,7 @@ export default function GruposAutonomicosPage() {
     return datos.grupos.map((g) => {
       const diputados = datos.diputados.filter((d) => d.grupo_id === g.id).length;
       const portavocias = datos.cargos.filter(
-        (c) => c.diputado_id && c.cargo_norm === 'portavoz' && c.comision_id && datos.diputadoPorId[c.diputado_id]?.grupo_id === g.id && datos.comisionPorId[c.comision_id]?.tipo !== 'organo'
+        (c) => c.diputado_id && c.cargo_norm === 'portavoz' && c.comision_id && datos.diputadoPorId[c.diputado_id]?.grupo_id === g.id && esComision(datos.comisionPorId[c.comision_id])
       ).length;
       return { ...g, diputados, portavocias, tecnicos: (datos.tecnicos[g.id] || []).length };
     }).sort((a, b) => b.diputados - a.diputados);
