@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import BackLink from '@/components/BackLink';
 import Link from 'next/link';
-import { PARLAMENTOS_UI } from '@/lib/ccaa/composicionUI';
+import { parlamentoPorNombre } from '@/lib/ccaa/composicionUI';
 import { BotonSoloProyecto } from '@/components/FollowButton';
 import UpgradeModal from '@/components/UpgradeModal';
 import BuscarCorreo, { useCorreosEncontrados } from '@/components/BuscarCorreo';
@@ -189,10 +189,7 @@ function Unidades({ unidades, contacto, encontrados, apuntar }) {
   );
 }
 
-function parlamentoDe(nombre) {
-  const n = String(nombre || '').trim().toLowerCase();
-  return Object.entries(PARLAMENTOS_UI).find(([, c]) => c.nombre.toLowerCase() === n)?.[0] || null;
-}
+const parlamentoDe = parlamentoPorNombre;
 
 export default function DirectorioFicha({ slug, id, volverA, volverEtiqueta }) {
   const seccion = seccionPorSlug(slug);

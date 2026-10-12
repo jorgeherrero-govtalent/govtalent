@@ -63,7 +63,14 @@ export function CabeceraParlamento({ p, titulo, datos }) {
         {' › '}
         <span style={{ color: '#666' }}>{cfg.nombre}</span>
       </div>
-      <h1 style={{ fontSize: 18, fontWeight: 700, margin: 0 }}>{titulo || cfg.nombre}</h1>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 12, flexWrap: 'wrap' }}>
+        <h1 style={{ fontSize: 18, fontWeight: 700, margin: 0 }}>{titulo || cfg.nombre}</h1>
+        {cfg.fichaComunidad ? (
+          <Link href={`/institutions/comunidades/${cfg.fichaComunidad}`} style={{ fontSize: 12, color: '#1d6f5c', textDecoration: 'none' }}>
+            Contacto institucional →
+          </Link>
+        ) : null}
+      </div>
       <p style={{ fontSize: 12, color: '#888', margin: '3px 0 0' }}>
         {datos ? datos.diputados.length : '—'} diputados · {datos ? datos.grupos.length : '—'} grupos · {nCom ?? '—'} comisiones ·{' '}
         {cfg.legislatura} Legislatura

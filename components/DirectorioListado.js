@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
+import { parlamentoPorNombre } from '@/lib/ccaa/composicionUI';
 import BackLink from '@/components/BackLink';
 import MultiSelectFilter from '@/components/MultiSelectFilter';
 import Paginacion, { usePaginacion } from '@/components/Paginacion';
@@ -62,7 +63,12 @@ function Icono({ nombre }) {
   );
 }
 
+// Parlamentos con composición cargada (sql/91): la fila abre sus pantallas
+// (Comisiones, Diputados, Órganos de gobierno, Grupos) como el Congreso.
+const parlamentoDe = parlamentoPorNombre;
+
 function Fila({ it, seccion, base, ultima }) {
+  const parl = base === '/institutions/comunidades' ? parlamentoDe(it.organizacion) : null;
   const meta = [
     it.tipo,
     it.ccaa && it.ccaa !== it.ciudad ? it.ccaa : null,
@@ -73,7 +79,7 @@ function Fila({ it, seccion, base, ultima }) {
     .join(' · ');
   return (
     <Link
-      href={`${base}/${it.id}`}
+      href={parl ? `/institutions/parlamentos/${parl}/comisiones` : `${base}/${it.id}`}
       style={{
         display: 'flex',
         alignItems: 'center',
@@ -86,7 +92,14 @@ function Fila({ it, seccion, base, ultima }) {
     >
       <Icono nombre={seccion.icono} />
       <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{ fontSize: 12.5, fontWeight: 600 }}>{it.organizacion}</div>
+        <div style={{ fontSize: 12.5, fontWeight: 600 }}>
+          {it.organizacion}
+          {parl ? (
+            <span style={{ fontSize: 10.5, fontWeight: 500, color: '#1d6f5c', background: '#e8f4f0', padding: '2px 8px', borderRadius: 10, marginLeft: 8 }}>
+              Diputados, grupos y comisiones
+            </span>
+          ) : null}
+        </div>
         {meta ? (
           <div
             style={{ fontSize: 11, color: '#a8a49c', marginTop: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}

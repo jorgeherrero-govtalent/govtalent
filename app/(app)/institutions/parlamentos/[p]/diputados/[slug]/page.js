@@ -154,6 +154,10 @@ export default function DiputadoAutonomicoPage() {
             Instituciones
           </Link>
           {' › '}
+          <Link href="/institutions/comunidades" style={{ color: '#999', textDecoration: 'none' }}>
+            Comunidades autónomas
+          </Link>
+          {' › '}
           <Link href={`${base(p)}/comisiones`} style={{ color: '#999', textDecoration: 'none' }}>
             {cfg.nombre}
           </Link>

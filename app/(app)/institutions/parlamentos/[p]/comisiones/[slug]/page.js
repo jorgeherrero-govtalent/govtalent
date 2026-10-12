@@ -89,6 +89,10 @@ export default function ComisionAutonomicaPage() {
             Instituciones
           </Link>
           {' › '}
+          <Link href="/institutions/comunidades" style={{ color: '#999', textDecoration: 'none' }}>
+            Comunidades autónomas
+          </Link>
+          {' › '}
           <Link href={`${base(p)}/${seccion[0]}`} style={{ color: '#999', textDecoration: 'none' }}>
             {cfg.nombre}
           </Link>
