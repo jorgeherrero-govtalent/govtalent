@@ -83,6 +83,7 @@ async function handler(request) {
         paso: sp.get('paso'),
         n: parseInt(sp.get('n') || '0', 10) || 0,
         soloId: sp.get('diputado'),
+        forzar: sp.get('forzar') === '1',
         tiempo: () => Date.now() - t0 > FIN_MS,
       });
       return Response.json({ ok: true, p: 'cataluna', dry: sp.get('dry') === '1', ms: Date.now() - t0, ...r });
