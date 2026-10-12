@@ -134,6 +134,11 @@ const FUENTES = {
     // Ficheros del catálogo de datos abiertos de la Asamblea (CSV).
     ['datos', 'https://ctyp.asambleamadrid.es/static/doc/opendata/ARCHIVO.F_PRINCIPALES_OPENDATA_VIEW.csv'],
     ['datos', 'https://ctyp.asambleamadrid.es/static/doc/opendata/SGP_ADMIN.OPENDATA_BOAM_VIEW.csv'],
+    // 12-10-2026: diputados y grupos (datos abiertos y la web de composición).
+    ['composicion', 'https://ctyp.asambleamadrid.es/static/doc/opendata/OAD.OPENDATA_DIPUTADOS_VIEW.csv'],
+    ['composicion', 'https://ctyp.asambleamadrid.es/static/doc/opendata/SGP_ADMIN.OPENDATA_OCUPACIONES_ASAMBLEA.csv'],
+    ['composicion', 'https://ctyp.asambleamadrid.es/composicion/diputados'],
+    ['composicion', 'https://ctyp.asambleamadrid.es/composicion/grupos-parlamentarios'],
     // Versión en texto del BOAM (columna FICHERO_TEXTO del índice): dónde está.
     ['boletin', 'https://ctyp.asambleamadrid.es/static/doc/opendata/BOAM_13_00172.docx'],
     ['boletin', 'https://ctyp.asambleamadrid.es/static/doc/publicaciones/BOAM_13_00172.docx'],
