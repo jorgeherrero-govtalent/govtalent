@@ -139,6 +139,7 @@ const FUENTES = {
     ['composicion', 'https://ctyp.asambleamadrid.es/static/doc/opendata/SGP_ADMIN.OPENDATA_OCUPACIONES_ASAMBLEA.csv'],
     ['composicion', 'https://ctyp.asambleamadrid.es/composicion/diputados'],
     ['composicion', 'https://ctyp.asambleamadrid.es/composicion/grupos-parlamentarios'],
+    ['ficha', 'https://ctyp.asambleamadrid.es/composicion/diputados/ficha-del-diputado?diputado=2026&legislatura=13'],
     // Versión en texto del BOAM (columna FICHERO_TEXTO del índice): dónde está.
     ['boletin', 'https://ctyp.asambleamadrid.es/static/doc/opendata/BOAM_13_00172.docx'],
     ['boletin', 'https://ctyp.asambleamadrid.es/static/doc/publicaciones/BOAM_13_00172.docx'],
