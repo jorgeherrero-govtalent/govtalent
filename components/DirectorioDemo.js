@@ -29,17 +29,19 @@ const BORDE = '#e0dfd8';
 // Una muestra de cada bloque, como la Base de datos de hoy: Gobierno,
 // Parlamento Europeo, cuerpo diplomático, medios, sociedades estatales y
 // organismos. La última no tiene correo publicado: enseña «Buscar correo».
-// Revisado el 09-10-2026.
+// Revisado el 12-10-2026: Xavier Martí Martí cesó como Subsecretario de
+// Exteriores (RD 770/2026, BOE-A-2026-20275); le sustituye Sergio Cuesta
+// Francisco (RD 781/2026, BOE-A-2026-20287). Correo de unidad publicado:
+// subsecretaria@maec.es.
 const FILAS = [
   {
-    nombre: 'Xavier Martí Martí',
+    nombre: 'Sergio Cuesta Francisco',
     cargo: 'Subsecretario de Asuntos Exteriores, Unión Europea y Cooperación',
     unidad: 'Subsecretaría de Asuntos Exteriores, Unión Europea y Cooperación',
     institucion: 'Ministerio de Asuntos Exteriores, Unión Europea y Cooperación',
     nivel: 'Administración General del Estado',
     dominio: 'maec.es',
     scoring: 3,
-    otros: 2,
     titular: true,
   },
   {
