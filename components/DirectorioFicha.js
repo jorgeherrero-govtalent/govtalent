@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import BackLink from '@/components/BackLink';
 import Link from 'next/link';
-import { parlamentoPorNombre } from '@/lib/ccaa/composicionUI';
+import { parlamentoPorNombre } from '@/lib/ccaa/parlamentosUI';
 import { BotonSoloProyecto } from '@/components/FollowButton';
 import UpgradeModal from '@/components/UpgradeModal';
 import BuscarCorreo, { useCorreosEncontrados } from '@/components/BuscarCorreo';

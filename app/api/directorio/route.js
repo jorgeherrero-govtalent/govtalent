@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { parlamentoPorNombre } from '@/lib/ccaa/parlamentosUI';
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { puedeVerContactos } from '@/lib/accesoContactos';
@@ -190,6 +191,21 @@ async function listadoAgenda(admin, cat) {
     const ps = porEntidad.get(e.id) || [];
     f.personas += ps.length;
     if (!f.titular && ps[0]) f.titular = { nombre: ps[0].nombre, cargo: ps[0].cargo || '' };
+  }
+  // Parlamentos con composición cargada (sql/91): suman sus diputados y los
+  // técnicos de los grupos, que están en la Base de datos con la misma
+  // institución (sql/93).
+  if (cat === 'ccaa') {
+    for (const f of filas.values()) {
+      const p = parlamentoPorNombre(f.organizacion);
+      if (!p) continue;
+      const [{ count: dip }, { count: tec }] = await Promise.all([
+        admin.from('ccaa_diputados').select('id', { count: 'exact', head: true }).eq('parlamento', p).eq('activo', true),
+        admin.from('ccaa_cargos').select('id', { count: 'exact', head: true }).eq('parlamento', p).eq('activo', true).is('diputado_id', null).eq('cargo_norm', 'tecnico'),
+      ]);
+      f.diputados = dip || 0;
+      f.personas += (dip || 0) + (tec || 0);
+    }
   }
   return [...filas.values()];
 }

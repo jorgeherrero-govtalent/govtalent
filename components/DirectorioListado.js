@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
-import { parlamentoPorNombre } from '@/lib/ccaa/composicionUI';
+import { parlamentoPorNombre } from '@/lib/ccaa/parlamentosUI';
 import BackLink from '@/components/BackLink';
 import MultiSelectFilter from '@/components/MultiSelectFilter';
 import Paginacion, { usePaginacion } from '@/components/Paginacion';
@@ -73,6 +73,7 @@ function Fila({ it, seccion, base, ultima }) {
     it.tipo,
     it.ccaa && it.ccaa !== it.ciudad ? it.ccaa : null,
     it.ciudad,
+    it.diputados ? `${it.diputados} diputados` : null,
     it.personas ? `${it.personas} ${it.personas === 1 ? 'persona' : 'personas'}` : null,
   ]
     .filter(Boolean)
