@@ -29,18 +29,20 @@ const BORDE = '#e0dfd8';
 // Una muestra de cada bloque, como la Base de datos de hoy: Gobierno,
 // Parlamento Europeo, cuerpo diplomático, medios, sociedades estatales y
 // organismos. La última no tiene correo publicado: enseña «Buscar correo».
-// Revisado el 09-10-2026.
+// Revisado el 12-10-2026: sale Xavier Martí Martí, que dejó la
+// Subsecretaría de Exteriores (RD 770/2026, BOE-A-2026-20275). Entra
+// Jesús M.ª Gabirondo Aramendi, con los datos de directorio_pro
+// (agenda:1175, Agenda de la Comunicación 2026-2027): correo en cnmc.es,
+// contactabilidad 80 (Alta).
 const FILAS = [
   {
-    nombre: 'Xavier Martí Martí',
-    cargo: 'Subsecretario de Asuntos Exteriores, Unión Europea y Cooperación',
-    unidad: 'Subsecretaría de Asuntos Exteriores, Unión Europea y Cooperación',
-    institucion: 'Ministerio de Asuntos Exteriores, Unión Europea y Cooperación',
-    nivel: 'Administración General del Estado',
-    dominio: 'maec.es',
+    nombre: 'Jesús M.ª Gabirondo Aramendi',
+    cargo: 'Director de Comunicación',
+    unidad: '',
+    institucion: 'CNMC Comisión Nacional de los Mercados y la Competencia',
+    nivel: 'Otros organismos públicos',
+    dominio: 'cnmc.es',
     scoring: 3,
-    otros: 2,
-    titular: true,
   },
   {
     nombre: 'Joan Groizard Payeras',
@@ -392,7 +394,7 @@ export default function DirectorioDemo() {
       >
         <div>
           <div style={{ fontSize: 14.5, color: '#fff', lineHeight: 1.5 }}>
-            {total ? `Estás viendo 8 de ${total} personas.` : 'Estás viendo 8 personas del directorio.'}
+            {total ? `Estás viendo ${FILAS.length} de ${total} personas.` : `Estás viendo ${FILAS.length} personas del directorio.`}
           </div>
           <div style={{ fontSize: 12.5, color: '#a8a49c', marginTop: 4 }}>
             Instituciones de España y la UE, cuerpo diplomático, medios y organizaciones, con su correo, su
