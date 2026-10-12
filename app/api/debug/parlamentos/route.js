@@ -137,9 +137,9 @@ const FUENTES = {
     // 12-10-2026: diputados y grupos (datos abiertos y la web de composición).
     ['composicion', 'https://ctyp.asambleamadrid.es/static/doc/opendata/OAD.OPENDATA_DIPUTADOS_VIEW.csv'],
     ['composicion', 'https://ctyp.asambleamadrid.es/static/doc/opendata/SGP_ADMIN.OPENDATA_OCUPACIONES_ASAMBLEA.csv'],
-    ['composicion', 'https://ctyp.asambleamadrid.es/composicion/diputados'],
-    ['composicion', 'https://ctyp.asambleamadrid.es/composicion/grupos-parlamentarios'],
-    ['ficha', 'https://ctyp.asambleamadrid.es/composicion/diputados/ficha-del-diputado?diputado=2026&legislatura=13'],
+    ['composicion', 'https://ctyp.asambleamadrid.es/es/web/guest/composicion/diputados'],
+    ['composicion', 'https://ctyp.asambleamadrid.es/es/web/guest/composicion/grupos-parlamentarios'],
+    ['ficha', 'https://ctyp.asambleamadrid.es/es/web/guest/composicion/diputados/ficha-del-diputado?diputado=2026&legislatura=13'],
     // Versión en texto del BOAM (columna FICHERO_TEXTO del índice): dónde está.
     ['boletin', 'https://ctyp.asambleamadrid.es/static/doc/opendata/BOAM_13_00172.docx'],
     ['boletin', 'https://ctyp.asambleamadrid.es/static/doc/publicaciones/BOAM_13_00172.docx'],
@@ -226,7 +226,7 @@ async function pedir(url) {
 }
 
 /** Qué es lo que ha llegado, en pocas palabras. */
-function muestra(texto, tipo) {
+function muestra(texto, tipo, url) {
   const t = String(texto || '');
   if (t.startsWith('%PDF')) return 'PDF';
   if (/<rss|<rdf:RDF|<feed/i.test(t.slice(0, 2000))) {
@@ -235,6 +235,15 @@ function muestra(texto, tipo) {
     return `RSS con ${n} elementos · ${primero.replace(/<!\[CDATA\[|\]\]>/g, '').replace(/\s+/g, ' ').trim()}`.slice(0, MUESTRA_MAX);
   }
   const titulo = (t.match(/<title[^>]*>([\s\S]*?)<\/title>/i) || [])[1];
+  // Composición de la Asamblea de Madrid (12-10-2026): qué hay de foto,
+  // correo y enlaces a fichas, para escribir el lector.
+  if (titulo && /composicion\/diputados/.test(url || '')) {
+    const mailtos = [...new Set((t.match(/mailto:[^"'<>\s]+/gi) || []))].slice(0, 5);
+    const imgs = [...new Set([...t.matchAll(/<img[^>]+src=["']([^"']+)["']/gi)].map((m) => m[1]).filter((x) => /diput|foto|imagen|image|documents/i.test(x)))].slice(0, 6);
+    const fichas = [...new Set((t.match(/ficha-del-diputado\?diputado=\d+[^"'<>\s]*/gi) || []).map((x) => x.split('&')[0]))];
+    const correoTexto = [...new Set((t.match(/[\w.+-]+@asambleamadrid\.es/gi) || []))].slice(0, 5);
+    return { titulo: titulo.replace(/\s+/g, ' ').trim(), fichas_n: fichas.length, fichas: fichas.slice(0, 5), mailtos, correos: correoTexto, imgs };
+  }
   if (titulo) return `HTML · ${titulo.replace(/\s+/g, ' ').trim()}`.slice(0, 160);
   // CSV: cabecera y dos filas, para ver las columnas.
   if (/csv/i.test(tipo || '') || /;|,/.test(t.split('\n')[0] || '')) return `${tipo || 'desconocido'} · ${t.split(/\r?\n/).slice(0, 3).join(' ⏎ ')}`.slice(0, MUESTRA_MAX);
@@ -287,7 +296,7 @@ async function probarSitio(origen, entradas) {
       kb: p.bytes != null ? Math.round(p.bytes / 1024) : undefined,
       ms: p.ms,
       redirige_a: p.final || undefined,
-      muestra: p.texto != null ? muestra(p.texto, p.tipo) : undefined,
+      muestra: p.texto != null ? muestra(p.texto, p.tipo, url) : undefined,
     });
   }
   return { origen, robots, urls: salida };
