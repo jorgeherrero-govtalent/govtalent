@@ -27,8 +27,10 @@ const MORADO = '#6d5aef';
 const BORDE = '#e0dfd8';
 
 // Una muestra de cada bloque, como la Base de datos de hoy: Gobierno,
-// Parlamento Europeo, cuerpo diplomático, medios, sociedades estatales y
-// organismos. La última no tiene correo publicado: enseña «Buscar correo».
+// Parlamento Europeo, cuerpo diplomático, medios y organismos.
+// 12-10-2026: sale Pedro Saura García; entra María Jesús Lamas Díaz,
+// directora de la AEMPS (directorio_pro agenda:299: correo en aemps.es,
+// contactabilidad 80, Alta).
 // Revisado el 12-10-2026: sale Xavier Martí Martí, que dejó la
 // Subsecretaría de Exteriores (RD 770/2026, BOE-A-2026-20275). Entra
 // Jesús M.ª Gabirondo Aramendi, con los datos de directorio_pro
@@ -106,13 +108,13 @@ const FILAS = [
     titular: true,
   },
   {
-    nombre: 'Pedro Saura García',
-    cargo: 'Presidente',
-    unidad: 'Sociedad Estatal de Participaciones Industriales (SEPI)',
-    institucion: 'Grupo Correos',
-    nivel: 'Sociedades estatales',
-    dominio: null,
-    scoring: 1,
+    nombre: 'María Jesús Lamas Díaz',
+    cargo: 'Directora',
+    unidad: 'Agencia Española de Medicamentos y Productos Sanitarios',
+    institucion: 'Ministerio de Sanidad',
+    nivel: 'Administración General del Estado',
+    dominio: 'aemps.es',
+    scoring: 3,
     titular: true,
   },
 ];
