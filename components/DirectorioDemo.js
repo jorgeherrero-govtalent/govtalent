@@ -29,21 +29,9 @@ const BORDE = '#e0dfd8';
 // Una muestra de cada bloque, como la Base de datos de hoy: Gobierno,
 // Parlamento Europeo, cuerpo diplomático, medios, sociedades estatales y
 // organismos. La última no tiene correo publicado: enseña «Buscar correo».
-// Revisado el 12-10-2026: Xavier Martí Martí cesó como Subsecretario de
-// Exteriores (RD 770/2026, BOE-A-2026-20275); le sustituye Sergio Cuesta
-// Francisco (RD 781/2026, BOE-A-2026-20287). Correo de unidad publicado:
-// subsecretaria@maec.es.
+// Revisado el 12-10-2026: fuera Xavier Martí Martí, que cesó como
+// Subsecretario de Exteriores (RD 770/2026, BOE-A-2026-20275).
 const FILAS = [
-  {
-    nombre: 'Sergio Cuesta Francisco',
-    cargo: 'Subsecretario de Asuntos Exteriores, Unión Europea y Cooperación',
-    unidad: 'Subsecretaría de Asuntos Exteriores, Unión Europea y Cooperación',
-    institucion: 'Ministerio de Asuntos Exteriores, Unión Europea y Cooperación',
-    nivel: 'Administración General del Estado',
-    dominio: 'maec.es',
-    scoring: 3,
-    titular: true,
-  },
   {
     nombre: 'Joan Groizard Payeras',
     cargo: 'Secretario de Estado de Energía',
@@ -394,7 +382,7 @@ export default function DirectorioDemo() {
       >
         <div>
           <div style={{ fontSize: 14.5, color: '#fff', lineHeight: 1.5 }}>
-            {total ? `Estás viendo 8 de ${total} personas.` : 'Estás viendo 8 personas del directorio.'}
+            {total ? `Estás viendo ${FILAS.length} de ${total} personas.` : `Estás viendo ${FILAS.length} personas del directorio.`}
           </div>
           <div style={{ fontSize: 12.5, color: '#a8a49c', marginTop: 4 }}>
             Instituciones de España y la UE, cuerpo diplomático, medios y organizaciones, con su correo, su
