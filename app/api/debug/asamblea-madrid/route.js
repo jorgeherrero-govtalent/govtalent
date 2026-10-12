@@ -15,7 +15,7 @@
 import { crearWeb, textoPlano, enlacesDe } from '@/lib/ccaa/web';
 
 export const dynamic = 'force-dynamic';
-export const maxDuration = 60;
+export const maxDuration = 120;
 
 const BASE = 'https://ctyp.asambleamadrid.es/es/web/guest/composicion/diputados';
 
@@ -59,6 +59,31 @@ export async function GET(request) {
       return m.slice(0, 6);
     })(),
   };
+
+  // Texto útil de la ficha: a partir del título de la página.
+  const tf = textoPlano(ficha.replace(/<(script|style)\b[\s\S]*?<\/\1>/gi, ' '));
+  const k = tf.indexOf('Contenido ofrecido por el portal');
+  salida.ficha.texto = tf.slice(k > 0 ? k : 0, (k > 0 ? k : 0) + 5000);
+
+  // Órganos: índice de comisiones, una comisión y la Mesa.
+  const G = 'https://ctyp.asambleamadrid.es/es/web/guest';
+  const limpio = (h) => {
+    const t = textoPlano(h.replace(/<(script|style)\b[\s\S]*?<\/\1>/gi, ' '));
+    const i = t.indexOf('Contenido ofrecido por el portal');
+    return t.slice(i > 0 ? i : 0, (i > 0 ? i : 0) + 3500);
+  };
+  const ic = await web.texto(`${G}/organos/comisiones`);
+  const enlacesCom = [...new Set(enlacesDe(ic, `${G}/organos/comisiones`).filter((a) => /comisi/i.test(a.texto + a.href) && !/organos\/comisiones$/.test(a.href)).map((a) => `${a.texto.slice(0, 90)} | ${a.href}`))];
+  salida.comisiones = { enlaces: enlacesCom.slice(0, 40), texto: limpio(ic).slice(0, 2500) };
+  const primera = enlacesCom.map((x) => x.split(' | ')[1]).find((h) => /ctyp\.asambleamadrid\.es/.test(h) && /comision|organo/i.test(h) && !/\/organos\/(mesa|pleno|junta|diputacion|mesa-de-edad|comisiones)$/.test(h));
+  if (primera) {
+    const hc = await web.texto(primera);
+    salida.comision = { url: primera, texto: limpio(hc), imgs: [...new Set([...hc.matchAll(/<img[^>]+src=["']([^"']+)["']/gi)].map((m) => m[1]))].filter((x) => /diputad/.test(x)).slice(0, 5), html: alrededor(hc, 'diputado=', 1200, 1200) };
+  }
+  const hm = await web.texto(`${G}/organos/mesa`);
+  salida.mesa = { texto: limpio(hm).slice(0, 2500) };
+  const hg = await web.texto(`${G}/composicion/grupos-parlamentarios`);
+  salida.grupos = { texto: limpio(hg).slice(0, 3000), imgs: [...new Set([...hg.matchAll(/<img[^>]+src=["']([^"']+)["']/gi)].map((m) => m[1]))].filter((x) => /grupos/.test(x)).slice(0, 10), enlaces: [...new Set(enlacesDe(hg, `${G}/composicion/grupos-parlamentarios`).filter((a) => /grupo/i.test(a.href)).map((a) => `${a.texto.slice(0, 60)} | ${a.href}`))].slice(0, 15) };
 
   return Response.json(salida);
 }
