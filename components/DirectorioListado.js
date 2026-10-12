@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { parlamentoPorNombre } from '@/lib/ccaa/parlamentosUI';
+import BanderaCcaa, { claveBandera } from '@/components/BanderaCcaa';
 import BackLink from '@/components/BackLink';
 import MultiSelectFilter from '@/components/MultiSelectFilter';
 import Paginacion, { usePaginacion } from '@/components/Paginacion';
@@ -91,7 +92,15 @@ function Fila({ it, seccion, base, ultima }) {
         borderBottom: ultima ? 'none' : '.5px solid #f0f0eb',
       }}
     >
-      <Icono nombre={seccion.icono} />
+      {/* Parlamentos autonómicos: la bandera de la comunidad en lugar del
+          icono, del mismo tamaño, para reconocerlos de un vistazo. */}
+      {base === '/institutions/comunidades' && /parlament/i.test(it.tipo || '') && claveBandera(it.ccaa) ? (
+        <div style={{ width: 30, height: 30, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+          <BanderaCcaa ccaa={it.ccaa} ancho={28} />
+        </div>
+      ) : (
+        <Icono nombre={seccion.icono} />
+      )}
       <div style={{ flex: 1, minWidth: 0 }}>
         <div style={{ fontSize: 12.5, fontWeight: 600 }}>
           {it.organizacion}
