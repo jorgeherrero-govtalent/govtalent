@@ -19,6 +19,10 @@ CREATE TABLE IF NOT EXISTS ccaa_grupos (
   sigla         text,                           -- 'PP'
   slug          text UNIQUE NOT NULL,           -- 'madrid-pp'
   n_diputados   integer NOT NULL DEFAULT 0,
+  color         text,                           -- color oficial del grupo en la web del parlamento
+  logo_url      text,
+  fecha_constitucion date,
+  id_fuente     text,                           -- id del grupo en la web del parlamento
   url           text,
   activo        boolean NOT NULL DEFAULT true,
   fuente        text,
@@ -39,6 +43,8 @@ CREATE TABLE IF NOT EXISTS ccaa_diputados (
   foto_url         text,
   email            text,
   url_ficha        text,
+  twitter          text,
+  datos            jsonb,                       -- legislaturas, actividad parlamentaria (recuentos por tipo)
   id_fuente        text,                        -- id del diputado en la web del parlamento
   fecha_alta       date,
   activo           boolean NOT NULL DEFAULT true,

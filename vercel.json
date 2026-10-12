@@ -112,7 +112,6 @@
       "path": "/api/sync/patrones-correo",
       "schedule": "20 5 * * 1"
     },
-
     {
       "path": "/api/sync/ep-asistentes",
       "schedule": "40 6 * * 1"
@@ -124,6 +123,10 @@
     {
       "path": "/api/sync/diarios-autonomicos",
       "schedule": "15 5-22 * * *"
+    },
+    {
+      "path": "/api/sync/composicion-autonomica",
+      "schedule": "40 3 * * *"
     }
   ]
 }
