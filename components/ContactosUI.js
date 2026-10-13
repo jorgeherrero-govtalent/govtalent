@@ -41,6 +41,9 @@ export function etiquetaProbable(p) {
 export function textoAcierto(p) {
   if (!p) return '';
   if (p.verificado) return `Patrón de ${p.dominio} · comprobado en su servidor`;
+  if (p.origen === 'familia') {
+    return `Sin correos conocidos de ${p.dominio} · ${p.familia ? `patrón habitual en .${p.familia}` : 'patrón más común'}`;
+  }
   const m = Number(p.muestras) || 0;
   const f = Number(p.fiabilidad) || 0;
   const acierto = m < 20
@@ -470,7 +473,7 @@ export function CeldaContacto({ f, estado, onEnriquecer, puedeEnriquecer = true 
             title={
               f.probable.verificado
                 ? `Deducido del patrón de ${f.probable.dominio} y comprobado en su servidor de correo: la dirección existe.`
-                : `Deducido del patrón de ${f.probable.dominio} (${f.probable.descripcion}). Sin verificar.`
+                : `Deducido (${f.probable.descripcion}). ${textoAcierto(f.probable)}. Sin verificar.`
             }
           >
             <a href={`mailto:${f.probable.email}`} style={{ borderBottom: f.probable.verificado ? '1px solid #cfc9f8' : '1px dashed #cfc9f8' }}>

@@ -67,14 +67,13 @@ export function CorreoEncontrado({ r, alinear = 'right' }) {
 /** Un correo probable: deducido del patrón del organismo, sin verificar. */
 export function CorreoProbable({ p, alinear = 'right' }) {
   if (!p?.email) return null;
-  const pct = Math.round((p.fiabilidad || 0) * 100);
   return (
     <span
       style={{ display: 'inline-flex', flexDirection: 'column', alignItems: alinear === 'right' ? 'flex-end' : 'flex-start', gap: 1, minWidth: 0 }}
       title={
         p.verificado
           ? `Deducido del patrón de ${p.dominio} y comprobado en su servidor de correo: la dirección existe.`
-          : `Deducido del patrón de ${p.dominio} (${p.descripcion}): acierta en el ${pct} % de los ${p.muestras} correos que conocemos de ese dominio. Sin verificar.`
+          : `Deducido (${p.descripcion}). ${textoAcierto(p)}. Sin verificar.`
       }
     >
       <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
