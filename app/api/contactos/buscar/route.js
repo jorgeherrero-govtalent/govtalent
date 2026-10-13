@@ -65,8 +65,8 @@ export async function POST(request) {
   }
 
   // Correo probable (sql/86): el patrón del organismo, para quien no tiene
-  // correo ni enriquecido. De momento solo para las cuentas de prueba.
-  if (puedeVerProbables(authData.user.email)) {
+  // correo ni enriquecido. Para todos los que tienen el Directorio (13-10-2026).
+  if (puedeVerProbables()) {
     const sin = filas.filter((f) => !f.email && !(f.enriquecido?.estado === 'encontrado' && f.enriquecido?.email));
     const prob = await correosProbables(admin, sin).catch(() => ({}));
     for (const f of filas) f.probable = prob[f.id] || null;

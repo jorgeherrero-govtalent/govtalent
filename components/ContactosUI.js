@@ -31,6 +31,24 @@ export function etiquetaEnriquecido(r) {
   return TIPO_CONTACTO[r?.tipo] || 'Contacto';
 }
 
+/** Correo probable (patrón del organismo): Verificado, Probable o Probable · baja. */
+export function etiquetaProbable(p) {
+  if (p?.verificado) return 'Verificado';
+  return p?.baja ? 'Probable · baja' : 'Probable';
+}
+
+/** La línea de debajo de un correo probable: de dónde sale y cuánto acierta. */
+export function textoAcierto(p) {
+  if (!p) return '';
+  if (p.verificado) return `Patrón de ${p.dominio} · comprobado en su servidor`;
+  const m = Number(p.muestras) || 0;
+  const f = Number(p.fiabilidad) || 0;
+  const acierto = m < 20
+    ? `acierta en ${Math.round(f * m)} de ${m} correos conocidos`
+    : `acierta en el ${Math.round(f * 100)} % de ${miles(m)}`;
+  return `Patrón de ${p.dominio} · ${acierto}`;
+}
+
 export const AYUDA_PROBABLE = 'Sigue el patrón de su organismo; su servidor no permite comprobarlo.';
 
 export function limpiarEmail(v) {
@@ -459,13 +477,11 @@ export function CeldaContacto({ f, estado, onEnriquecer, puedeEnriquecer = true 
               {f.probable.email}
             </a>
             <span className="gt-ct-tipo" style={{ background: '#efedfd', color: '#3d2fb3' }}>
-              {f.probable.verificado ? 'Verificado' : 'Probable'}
+              {etiquetaProbable(f.probable)}
             </span>
           </span>
           <span className="gt-ct-fte">
-            {f.probable.verificado
-              ? `Patrón de ${f.probable.dominio} · comprobado en su servidor`
-              : `Patrón de ${f.probable.dominio} · acierta en el ${Math.round((f.probable.fiabilidad || 0) * 100)} % de ${miles(f.probable.muestras)}`}
+            {textoAcierto(f.probable)}
           </span>
         </span>
       )}
@@ -637,7 +653,7 @@ export function exportarExcel(filas, nombreArchivo = 'contactos', estado = null)
         'Estado del email deducido': !limpiarEmail(f.email) && !ok && f.probable?.email
           ? f.probable.verificado
             ? 'Verificado en el servidor'
-            : `Probable · el patrón acierta en el ${Math.round(f.probable.fiabilidad * 100)} %`
+            : `${etiquetaProbable(f.probable)} · ${textoAcierto(f.probable)}`
           : '',
         'Teléfono enriquecido': ok ? enr.telefono || '' : '',
         'Tipo de contacto enriquecido': ok ? etiquetaEnriquecido(enr) : '',

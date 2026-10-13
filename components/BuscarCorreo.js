@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import BuscarCorreoModal from '@/components/BuscarCorreoModal';
-import { limpiarEmail } from '@/components/ContactosUI';
+import { limpiarEmail, etiquetaProbable, textoAcierto } from '@/components/ContactosUI';
 
 /**
  * «Buscar correo» en las fichas (Organizaciones, diputados, asesores,
@@ -81,10 +81,10 @@ export function CorreoProbable({ p, alinear = 'right' }) {
         <a href={`mailto:${p.email}`} style={{ fontSize: 12, color: '#3d3a35', textDecoration: 'none', borderBottom: p.verificado ? '1px solid #cfc9f8' : '1px dashed #cfc9f8', overflowWrap: 'anywhere' }}>
           {p.email}
         </a>
-        <span style={{ fontSize: 10, fontWeight: 600, color: '#3d2fb3', background: '#efedfd', borderRadius: 999, padding: '1px 7px' }}>{p.verificado ? 'Verificado' : 'Probable'}</span>
+        <span style={{ fontSize: 10, fontWeight: 600, color: '#3d2fb3', background: '#efedfd', borderRadius: 999, padding: '1px 7px' }}>{etiquetaProbable(p)}</span>
       </span>
       <span style={{ fontSize: 10.5, color: '#a8a49c' }}>
-        {p.verificado ? `Patrón de ${p.dominio} · comprobado en su servidor` : `Patrón de ${p.dominio} · acierta en el ${pct} %`}
+        {textoAcierto(p)}
       </span>
     </span>
   );

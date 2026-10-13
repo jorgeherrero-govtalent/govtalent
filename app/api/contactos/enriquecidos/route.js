@@ -55,7 +55,7 @@ export async function POST(request) {
 
   // Correos probables (sql/86) de quienes no tienen uno encontrado.
   let probables = {};
-  if (puedeVerProbables(authData.user.email)) {
+  if (puedeVerProbables()) {
     const faltan = ids.filter((id) => !resultados[id]);
     if (faltan.length) {
       const { data: filas } = await admin.rpc('contactos_por_ids', { p_ids: faltan.slice(0, 500) });
