@@ -12,6 +12,7 @@ import { useTotalDirectorio, masDe } from '@/lib/useTotalDirectorio';
 import { BANDAS, TIPOS_INSTITUCION, FILTROS_VACIOS } from '@/lib/contactosFiltros';
 import {
   ESTILOS_CONTACTOS,
+  Buscando,
   MORADO,
   GRIS,
   miles,
@@ -33,6 +34,9 @@ import {
   ValoresColumna,
   BarraSeleccion,
 } from '@/components/ContactosUI';
+
+// Mientras la IA convierte la frase en filtros (mismo efecto que al buscar correo).
+const PASOS_INTERPRETAR = ['Entendiendo tu búsqueda…', 'Identificando cargos e instituciones…', 'Preparando los filtros…'];
 
 /**
  * Contactos (Buscar y enriquecer, 07-10-2026).
@@ -500,7 +504,7 @@ function ContactosPagina() {
               />
             </label>
             <div className="gt-ct-pie">
-              <small>{interpretando ? 'Preparando los filtros…' : error || ' '}</small>
+              {interpretando ? <Buscando pasos={PASOS_INTERPRETAR} /> : <small>{error || ' '}</small>}
               <button type="submit" className={`gt-ct-enviar${listo ? ' listo' : ''}`} aria-label="Buscar" title="Buscar" disabled={interpretando}>
                 <i className={`ti ${interpretando ? 'ti-loader-2' : 'ti-arrow-up'}`} aria-hidden="true"></i>
               </button>
@@ -572,6 +576,11 @@ function ContactosPagina() {
         </button>
       </div>
 
+      {interpretando && (
+        <div style={{ marginBottom: 12 }}>
+          <Buscando pasos={PASOS_INTERPRETAR} />
+        </div>
+      )}
       {aviso && <div className="gt-ct-aviso" style={{ marginBottom: 12 }}>{aviso}</div>}
 
       {personaFuera && (
