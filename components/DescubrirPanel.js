@@ -1,7 +1,16 @@
 'use client';
 
 import { useState } from 'react';
-import { MORADO, BORDE, GRIS, miles } from '@/components/ContactosUI';
+import { MORADO, BORDE, GRIS, miles, Buscando, ESTILOS_CONTACTOS } from '@/components/ContactosUI';
+
+const PASOS_DESCUBRIR = [
+  'Buscando organigramas oficiales…',
+  'Revisando portales de transparencia…',
+  'Consultando nombramientos y ceses en boletines…',
+  'Comprobando quién ocupa hoy cada cargo…',
+  'Cruzando con el directorio de GovTalent…',
+  'Descartando lo que no está citado en las fuentes…',
+];
 
 /**
  * Buscar fuera de GovTalent por cargo (sql/97), dentro de Contactos.
@@ -106,9 +115,23 @@ export default function DescubrirPanel({ consulta, onSeleccionar, onSaldo, onSin
 
   if (fase === 'buscando') {
     return (
-      <div style={{ ...caja, fontSize: 13, color: '#3a3a3d' }}>
-        <b style={{ fontWeight: 600 }}>Buscando en fuentes oficiales…</b>
-        <span style={{ display: 'block', fontSize: 12, color: GRIS, marginTop: 2 }}>Organigramas, portales de transparencia y nombramientos. Puede tardar hasta dos minutos.</span>
+      <div style={{ ...caja, borderStyle: 'solid', borderColor: BORDE, background: '#fff', padding: 0, overflow: 'hidden' }}>
+        <style>{ESTILOS_CONTACTOS}</style>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, padding: '11px 14px', borderBottom: `1px solid ${BORDE}`, flexWrap: 'wrap' }}>
+          <Buscando pasos={PASOS_DESCUBRIR} />
+          <span style={{ fontSize: 11.5, color: GRIS }}>Puede tardar hasta dos minutos.</span>
+        </div>
+        {[0, 1, 2].map((n) => (
+          <div
+            key={n}
+            style={{ display: 'grid', gridTemplateColumns: '22px minmax(0, 220px) minmax(0, 1fr) 70px', gap: 12, alignItems: 'center', padding: '11px 14px', borderTop: n ? '1px solid #f1f0ea' : 'none' }}
+          >
+            <span className="skel" style={{ display: 'block', width: 14, height: 14, borderRadius: 3 }} />
+            <span className="skel" style={{ display: 'block', width: `${70 - n * 12}%`, height: 11, borderRadius: 4 }} />
+            <span className="skel" style={{ display: 'block', width: `${85 - n * 15}%`, height: 11, borderRadius: 4 }} />
+            <span className="skel" style={{ display: 'block', width: 56, height: 16, borderRadius: 999 }} />
+          </div>
+        ))}
       </div>
     );
   }
