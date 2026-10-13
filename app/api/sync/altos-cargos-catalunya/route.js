@@ -38,6 +38,7 @@ function banda(cargo) {
   if (/^(president|vicepresident|conseller)/.test(c)) return 'alta_direccion';
   if (/^secretari/.test(c) && !/executiv|tecnic|de govern|general tecnic/.test(c)) return 'alta_direccion';
   if (/^secretari general/.test(c)) return 'alta_direccion';
+  if (/^director(a)? general/.test(c)) return 'alta_direccion';
   if (/^subdirect|^cap de la subdirecci/.test(c)) return 'subdireccion';
   if (/^(director|directora|delegat|delegada|comissionat|comissionada|cap del gabinet|gerent)/.test(c)) return 'direccion';
   return 'mando_intermedio';
