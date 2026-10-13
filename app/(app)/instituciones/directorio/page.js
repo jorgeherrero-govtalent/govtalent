@@ -84,7 +84,12 @@ const POR_FUENTE = {
 
 function clasificar(f) {
   if (String(f.id || '').startsWith('fuente:')) {
-    return POR_FUENTE[f.categoria_unidad] || ['instituciones', 'Otros organismos públicos'];
+    if (POR_FUENTE[f.categoria_unidad]) return POR_FUENTE[f.categoria_unidad];
+    // Altos cargos y directorios autonómicos o locales cargados como fuente
+    // (Generalitat, 13-10-2026; búsquedas fuera de GovTalent): por su tipo.
+    if (f.tipo_institucion === 'autonómico') return ['instituciones', 'Comunidades autónomas'];
+    if (f.tipo_institucion === 'local') return ['instituciones', 'Administración local'];
+    return ['instituciones', 'Otros organismos públicos'];
   }
   if (f.jurisdiccion === 'UE') {
     return ['instituciones', f.tipo_institucion === 'legislativo' ? 'Parlamento Europeo' : 'Comisión Europea'];
