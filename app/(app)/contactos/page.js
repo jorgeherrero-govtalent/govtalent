@@ -7,6 +7,7 @@ import TextoCreciente, { enviarConIntro } from '@/components/TextoCreciente';
 import Paginacion, { usePaginacion } from '@/components/Paginacion';
 import UpgradeModal from '@/components/UpgradeModal';
 import BuscarCorreoModal from '@/components/BuscarCorreoModal';
+import DescubrirPanel from '@/components/DescubrirPanel';
 import { useTotalDirectorio, masDe } from '@/lib/useTotalDirectorio';
 import { BANDAS, TIPOS_INSTITUCION, FILTROS_VACIOS } from '@/lib/contactosFiltros';
 import {
@@ -591,6 +592,22 @@ function ContactosPagina() {
             setCorreoLibre(false);
             cargarSaldo();
           }}
+        />
+      )}
+
+      {acceso && filtros && consulta && !interpretando && !buscando && !personaBuscada && (
+        <DescubrirPanel
+          key={consulta}
+          consulta={consulta}
+          onSeleccionar={(rows) =>
+            setSeleccion((prev) => {
+              const m = new Map(prev);
+              for (const r of rows) m.set(r.id, r);
+              return m;
+            })
+          }
+          onSaldo={setSaldo}
+          onSinCreditos={() => setModalComprar(true)}
         />
       )}
 
