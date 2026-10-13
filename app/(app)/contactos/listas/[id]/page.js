@@ -328,6 +328,8 @@ export default function ListaPage() {
                           estado={enr}
                           puedeEnriquecer={!f._salida}
                           onEnriquecer={(pid) => (saldo?.disponibles >= 1 ? enriquecer(pid) : setModalComprar(true))}
+                          onSaldo={setSaldo}
+                          onSinCreditos={() => setModalComprar(true)}
                         />
                       </td>
                       <td style={{ textAlign: 'right' }}>

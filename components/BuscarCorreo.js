@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import BuscarCorreoModal from '@/components/BuscarCorreoModal';
-import { limpiarEmail, etiquetaProbable, textoAcierto } from '@/components/ContactosUI';
+import { limpiarEmail, etiquetaProbable, textoAcierto, estiloEtiquetaProbable, VerificarCorreo } from '@/components/ContactosUI';
 
 /**
  * «Buscar correo» en las fichas (Organizaciones, diputados, asesores,
@@ -64,8 +64,10 @@ export function CorreoEncontrado({ r, alinear = 'right' }) {
   );
 }
 
-/** Un correo probable: deducido del patrón del organismo, sin verificar. */
-export function CorreoProbable({ p, alinear = 'right' }) {
+/** Un correo probable: deducido del patrón del organismo, con «Verificar». */
+export function CorreoProbable({ id, p: inicial, alinear = 'right' }) {
+  const [p, setP] = useState(inicial || null);
+  useEffect(() => setP(inicial || null), [inicial]);
   if (!p?.email) return null;
   return (
     <span
@@ -80,11 +82,16 @@ export function CorreoProbable({ p, alinear = 'right' }) {
         <a href={`mailto:${p.email}`} style={{ fontSize: 12, color: '#3d3a35', textDecoration: 'none', borderBottom: p.verificado ? '1px solid #cfc9f8' : '1px dashed #cfc9f8', overflowWrap: 'anywhere' }}>
           {p.email}
         </a>
-        <span style={{ fontSize: 10, fontWeight: 600, color: '#3d2fb3', background: '#efedfd', borderRadius: 999, padding: '1px 7px' }}>{etiquetaProbable(p)}</span>
+        <span style={{ fontSize: 10, fontWeight: 600, borderRadius: 999, padding: '1px 7px', ...estiloEtiquetaProbable(p) }}>{etiquetaProbable(p)}</span>
       </span>
       <span style={{ fontSize: 10.5, color: '#a8a49c' }}>
         {textoAcierto(p)}
       </span>
+      {id ? (
+        <span style={{ marginTop: 4 }}>
+          <VerificarCorreo id={id} p={p} onCambio={setP} alinear={alinear} />
+        </span>
+      ) : null}
     </span>
   );
 }
@@ -103,7 +110,7 @@ export default function BuscarCorreo({ persona, encontrado, probable, onResultad
   return (
     <span style={{ display: 'inline-flex', flexDirection: 'column', alignItems: alinear === 'right' ? 'flex-end' : 'flex-start', gap: 6 }}>
       {generico ? <CorreoEncontrado r={encontrado} alinear={alinear} /> : null}
-      {probable ? <CorreoProbable p={probable} alinear={alinear} /> : null}
+      {probable ? <CorreoProbable id={persona.id} p={probable} alinear={alinear} /> : null}
       <button
         type="button"
         onClick={() => setAbierto(true)}

@@ -758,7 +758,13 @@ function ContactosPagina() {
                         {f.unidad && f.unidad !== f.institucion && <div style={{ fontSize: 12, color: GRIS, marginTop: 2 }}>{f.unidad}</div>}
                       </td>
                       <td>
-                        <CeldaContacto f={f} estado={enr} onEnriquecer={(id) => (saldo?.disponibles >= 1 ? enriquecer(id) : setModalComprar(true))} />
+                        <CeldaContacto
+                          f={f}
+                          estado={enr}
+                          onEnriquecer={(id) => (saldo?.disponibles >= 1 ? enriquecer(id) : setModalComprar(true))}
+                          onSaldo={setSaldo}
+                          onSinCreditos={() => setModalComprar(true)}
+                        />
                       </td>
                       <td style={{ fontSize: 12, color: GRIS }}>
                         <div>{f.fuente || '—'}</div>

@@ -34,6 +34,7 @@ export function etiquetaEnriquecido(r) {
 /** Correo probable (patrón del organismo): Verificado, Probable o Probable · baja. */
 export function etiquetaProbable(p) {
   if (p?.verificado) return 'Verificado';
+  if (p?.noConfirmado) return 'No confirmado';
   return p?.baja ? 'Probable · baja' : 'Probable';
 }
 
@@ -50,6 +51,79 @@ export function textoAcierto(p) {
     ? `acierta en ${Math.round(f * m)} de ${m} correos conocidos`
     : `acierta en el ${Math.round(f * 100)} % de ${miles(m)}`;
   return `Patrón de ${p.dominio} · ${acierto}`;
+}
+
+/** Estilo de la etiqueta de un correo probable: gris si no se confirmó. */
+export function estiloEtiquetaProbable(p) {
+  return p?.noConfirmado ? { background: '#f1f1f3', color: '#3a3a3d' } : { background: '#efedfd', color: '#3d2fb3' };
+}
+
+/**
+ * «Verificar · 1 crédito» (gris) de un correo probable, con el resultado
+ * (decisión de Jorge, 13-10-2026). Solo se cobra si queda verificado.
+ * onCambio(probable) recibe el correo probable actualizado; onSaldo(saldo),
+ * el saldo tras cobrar; onSinCreditos() abre la compra de créditos.
+ */
+export function VerificarCorreo({ id, p, onCambio, onSaldo, onSinCreditos, alinear = 'left' }) {
+  const [verificando, setVerificando] = useState(false);
+  const [aviso, setAviso] = useState(null);
+  if (!id || !p || p.verificado) return null;
+  const texto = { fontSize: 11.5, color: GRIS };
+  if (p.noConfirmado) return <span style={texto}>Ninguna forma existe en su servidor · sin coste</span>;
+  if (!p.verificable) return <span style={texto}>Su servidor no permite verificar</span>;
+
+  async function verificar() {
+    setVerificando(true);
+    setAviso(null);
+    try {
+      const r = await fetch('/api/contactos/verificar', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id }),
+      });
+      const j = await r.json().catch(() => ({}));
+      if (r.status === 402 || j.sinCreditos) {
+        if (onSinCreditos) onSinCreditos();
+        else setAviso('No te quedan créditos este mes');
+        return;
+      }
+      if (!r.ok) {
+        setAviso(j.error || 'No se pudo verificar · sin coste');
+        return;
+      }
+      if (j.saldo && onSaldo) onSaldo(j.saldo);
+      if (j.resultado === 'no_se_pudo') setAviso('No se pudo verificar ahora · sin coste');
+      if (j.probable && onCambio) onCambio(j.probable);
+    } catch {
+      setAviso('No se pudo verificar ahora · sin coste');
+    } finally {
+      setVerificando(false);
+    }
+  }
+
+  return (
+    <span style={{ display: 'inline-flex', flexDirection: 'column', alignItems: alinear === 'right' ? 'flex-end' : 'flex-start', gap: 3 }}>
+      <button
+        type="button"
+        onClick={verificar}
+        disabled={verificando}
+        style={{
+          fontSize: 11.5,
+          fontWeight: 500,
+          border: `1px solid ${BORDE}`,
+          background: '#f5f4ef',
+          color: '#4a4a4e',
+          borderRadius: 7,
+          padding: '4px 9px',
+          cursor: verificando ? 'default' : 'pointer',
+          fontFamily: 'inherit',
+        }}
+      >
+        {verificando ? 'Verificando…' : 'Verificar · 1 crédito'}
+      </button>
+      {aviso && <span style={texto}>{aviso}</span>}
+    </span>
+  );
 }
 
 export const AYUDA_PROBABLE = 'Sigue el patrón de su organismo; su servidor no permite comprobarlo.';
@@ -438,7 +512,10 @@ export function BarraSeleccion({ cuantas, onQuitar, onExportar, children }) {
   );
 }
 
-export function CeldaContacto({ f, estado, onEnriquecer, puedeEnriquecer = true }) {
+export function CeldaContacto({ f, estado, onEnriquecer, puedeEnriquecer = true, onSaldo, onSinCreditos }) {
+  // El correo probable, que puede cambiar al verificarlo.
+  const [prob, setProb] = useState(f.probable || null);
+  useEffect(() => setProb(f.probable || null), [f.probable]);
   const email = limpiarEmail(f.email);
   const emailUnidad = limpiarEmail(f.email_unidad);
   const enCurso = estado?.get(f.id);
@@ -466,25 +543,26 @@ export function CeldaContacto({ f, estado, onEnriquecer, puedeEnriquecer = true 
           {enr.calidad === 'probable' && <span className="gt-ct-fte">{AYUDA_PROBABLE}</span>}
         </span>
       )}
-      {!email && !enrEmail && f.probable?.email && (
+      {!email && !enrEmail && prob?.email && (
         <span style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
           <span
             className="gt-ct-cto"
             title={
-              f.probable.verificado
-                ? `Deducido del patrón de ${f.probable.dominio} y comprobado en su servidor de correo: la dirección existe.`
-                : `Deducido (${f.probable.descripcion}). ${textoAcierto(f.probable)}. Sin verificar.`
+              prob.verificado
+                ? `Deducido del patrón de ${prob.dominio} y comprobado en su servidor de correo: la dirección existe.`
+                : `Deducido (${prob.descripcion}). ${textoAcierto(prob)}. Sin verificar.`
             }
           >
-            <a href={`mailto:${f.probable.email}`} style={{ borderBottom: f.probable.verificado ? '1px solid #cfc9f8' : '1px dashed #cfc9f8' }}>
-              {f.probable.email}
+            <a href={`mailto:${prob.email}`} style={{ borderBottom: prob.verificado ? '1px solid #cfc9f8' : '1px dashed #cfc9f8' }}>
+              {prob.email}
             </a>
-            <span className="gt-ct-tipo" style={{ background: '#efedfd', color: '#3d2fb3' }}>
-              {etiquetaProbable(f.probable)}
+            <span className="gt-ct-tipo" style={estiloEtiquetaProbable(prob)}>
+              {etiquetaProbable(prob)}
             </span>
           </span>
-          <span className="gt-ct-fte">
-            {textoAcierto(f.probable)}
+          <span className="gt-ct-fte">{textoAcierto(prob)}</span>
+          <span style={{ marginTop: 3 }}>
+            <VerificarCorreo id={f.id} p={prob} onCambio={setProb} onSaldo={onSaldo} onSinCreditos={onSinCreditos} />
           </span>
         </span>
       )}
