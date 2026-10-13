@@ -89,7 +89,7 @@ export async function POST(request) {
 
   const { data: guardado, error } = await admin
     .from('descubrimientos')
-    .insert({ user_id: userId, q, personas, nuevos, cobrado, coste_usd: r.coste_usd })
+    .insert({ user_id: userId, q, personas, nuevos, cobrado, coste_usd: r.coste_usd, diagnostico: r.diagnostico })
     .select('id')
     .single();
   if (error) console.error('[contactos/descubrir] guardar:', error.message);
@@ -108,6 +108,7 @@ export async function POST(request) {
       existente_id: p.existente_id,
     })),
     nuevos,
+    notas: r.notas || null,
     cobrado,
     creditos: cobrado ? CREDITOS_BUSQUEDA : 0,
     saldo: await saldoCreditos(admin, userId),

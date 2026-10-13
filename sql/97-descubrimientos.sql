@@ -20,3 +20,7 @@ create table if not exists public.descubrimientos (
 create index if not exists descubrimientos_user_idx on public.descubrimientos (user_id, created_at desc);
 alter table public.descubrimientos enable row level security;
 -- Sin políticas: solo el servidor.
+
+-- 98 · Diagnóstico de cada búsqueda (stop_reason, búsquedas, cómo se leyó
+-- el JSON y el final de la respuesta), para revisar las que salen vacías.
+alter table public.descubrimientos add column if not exists diagnostico jsonb;

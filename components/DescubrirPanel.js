@@ -169,7 +169,7 @@ export default function DescubrirPanel({ consulta, onSeleccionar, onSaldo, onSin
       </div>
       {error && <div style={{ fontSize: 12.5, color: '#3a3a3d', padding: '8px 14px' }}>{error}</div>}
       {personas.length === 0 ? (
-        <div style={{ fontSize: 13, color: '#3a3a3d', padding: '12px 14px' }}>No hemos encontrado a nadie en fuentes oficiales. No se ha descontado ningún crédito.</div>
+        <div style={{ fontSize: 13, color: '#3a3a3d', padding: '12px 14px' }}>No hemos encontrado a nadie en fuentes oficiales. No se ha descontado ningún crédito.{res.notas ? <span style={{ display: 'block', fontSize: 12, color: GRIS, marginTop: 4 }}>{res.notas}</span> : null} Prueba a acotar por consejería o departamento.</div>
       ) : (
         <div>
           {personas.map((p) => (
