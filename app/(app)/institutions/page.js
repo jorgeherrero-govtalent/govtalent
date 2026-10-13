@@ -66,9 +66,9 @@ const CIFRAS = {
   // que tocarla aquí también.
   congreso: { n: 350, etiqueta: 'diputados · 321 asesores' },
   organismos: { n: 77, etiqueta: 'organismos' },
-  // Gobierno, Parlamento y TSJ de cada una, de la Agenda de la Comunicación
-  // 2026-2027 (sql/69). Ceuta y Melilla van dentro, pero no son comunidades.
-  comunidades: { n: 17, etiqueta: 'comunidades · Gobierno, Parlamento y TSJ' },
+  // Solo los parlamentos desde el 14-10-2026: los 17 y las asambleas de
+  // Ceuta y Melilla. Gobiernos y TSJ, en la Base de datos.
+  comunidades: { n: 19, etiqueta: 'parlamentos · diputados, grupos y técnicos' },
   parlamentoUe: { n: 720, etiqueta: 'eurodiputados · 22 comisiones' },
   comisionUe: { n: 27, etiqueta: 'comisarios · 2.096 cargos y funcionarios en DG' },
 };
@@ -184,14 +184,13 @@ export default function InstitutionsPage() {
           cifra={CIFRAS.organismos.n}
           etiqueta={CIFRAS.organismos.etiqueta}
         />
-        {/* Las comunidades, con sus tres instituciones (Gobierno, Parlamento y
-            TSJ). También cuadra la rejilla: sin la tarjeta negra quedaban
-            cinco. */}
+        {/* Las comunidades: solo sus parlamentos (14-10-2026). Gobiernos y
+            TSJ, en la Base de datos. También cuadra la rejilla. */}
         <Modulo
           href="/institutions/comunidades"
           pais="es"
           titulo="Comunidades autónomas"
-          descripcion="Gobierno, Parlamento y Tribunal Superior de Justicia de las 17 comunidades, Ceuta y Melilla."
+          descripcion="Parlamentos de las 17 comunidades, Ceuta y Melilla. Gobiernos y tribunales, en la Base de datos."
           cifra={CIFRAS.comunidades.n}
           etiqueta={CIFRAS.comunidades.etiqueta}
         />

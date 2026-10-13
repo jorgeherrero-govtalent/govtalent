@@ -149,15 +149,16 @@ async function contactosDe(admin, ids, columnas) {
 
 // Una fila por organización. El id de la fila es el de su primer bloque en
 // la Agenda: es lo que lleva la URL de la ficha.
-async function listadoAgenda(admin, cat) {
-  const entidades = await todas(() =>
-    admin
+async function listadoAgenda(admin, cat, subcategoria = null) {
+  const entidades = await todas(() => {
+    let q = admin
       .from('directorio_entidades')
       .select('id, organizacion, subcategoria, ccaa, direccion, orden')
       .eq('categoria', cat)
-      .eq('activo', true)
-      .order('orden', { ascending: true })
-  );
+      .eq('activo', true);
+    if (subcategoria) q = q.eq('subcategoria', subcategoria);
+    return q.order('orden', { ascending: true });
+  });
   const contactos = await contactosDe(
     admin,
     entidades.map((e) => e.id),
@@ -210,15 +211,16 @@ async function listadoAgenda(admin, cat) {
   return [...filas.values()];
 }
 
-async function ficha(admin, cat, id, conContacto) {
+async function ficha(admin, cat, id, conContacto, subcategoria = null) {
   const { data: base, error } = await admin
     .from('directorio_entidades')
-    .select('organizacion')
+    .select('organizacion, subcategoria')
     .eq('id', id)
     .eq('categoria', cat)
     .maybeSingle();
   if (error) throw new Error(error.message);
   if (!base) return null;
+  if (subcategoria && base.subcategoria !== subcategoria) return null;
 
   const entidades = await todas(() =>
     admin
@@ -289,7 +291,7 @@ export async function GET(request) {
     if (!seccion) return NextResponse.json({ error: 'Sección desconocida' }, { status: 404 });
 
     if (vista === 'listado') {
-      const items = seccion.cat ? await listadoAgenda(admin, seccion.cat) : await listadoAsociaciones(admin);
+      const items = seccion.cat ? await listadoAgenda(admin, seccion.cat, seccion.subcategoria) : await listadoAsociaciones(admin);
       return NextResponse.json({ items }, { headers: CABECERAS });
     }
 
@@ -299,7 +301,7 @@ export async function GET(request) {
 
       const conContacto = await puedeVerContactos(admin, authData.user.id);
 
-      const datos = await ficha(admin, seccion.cat, id, conContacto);
+      const datos = await ficha(admin, seccion.cat, id, conContacto, seccion.subcategoria);
       if (!datos) return NextResponse.json({ error: 'Ficha desconocida' }, { status: 404 });
       // Sin caché: la ficha cambia según quién la pida (con o sin correos).
       // Con max-age, el navegador servía la de una cuenta con Directorio a
