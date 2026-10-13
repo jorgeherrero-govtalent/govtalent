@@ -5,7 +5,8 @@ import { puedeVerContactos } from '@/lib/accesoContactos';
 import { saldoCreditos, consumirCreditos } from '@/lib/creditos';
 import { enriquecerPersona, buscarCorreoPublicado } from '@/lib/enriquecer';
 import { enriquecidoPublico } from '@/lib/enriquecidoPublico';
-import { correoPorServidor } from '@/lib/correoPorServidor';
+import { correoPorServidor, dominioDe } from '@/lib/correoPorServidor';
+import { probableParaDominio } from '@/lib/correosProbables';
 import { limpiar } from '@/lib/patronesCorreo';
 import { reveladosDe, revelar } from '@/lib/revelados';
 
@@ -181,17 +182,48 @@ export async function POST(request) {
     if (s2) r = { ...r, ...(await desdeServidor(s2, persona, r.coste_usd || 0)) };
   }
 
+  // Fuera del directorio, siempre un correo (decisión de Jorge, 13-10-2026):
+  // si no hay uno nominativo, el deducido del patrón del dominio de su
+  // organización. El correo genérico encontrado queda como respaldo.
+  const ident = r?.identificacion || null;
+  let probable = null;
+  let respaldo = null;
+  if (libre && !(r?.email && r.tipo === 'personal')) {
+    const generico = r?.email || (cacheGenerico ? cache.email : null);
+    respaldo = generico ? { email: generico, tipo: r?.email ? r.tipo : cache.tipo } : null;
+    const dom =
+      (generico && String(generico).toLowerCase().split('@')[1]) ||
+      ident?.dominio ||
+      (await dominioDe(admin, libre.institucion).catch(() => null)) ||
+      (await dominioManual(admin, libre.institucion));
+    probable = dom ? await probableParaDominio(admin, libre.nombre, dom).catch(() => null) : null;
+    if (probable) {
+      r = {
+        ...(r || {}),
+        estado: 'encontrado',
+        email: probable.email,
+        tipo: 'personal',
+        verificado: false,
+        telefono: r?.telefono || cache?.telefono || null,
+        fuente_url: r?.fuente_url || null,
+        notas: `Deducido del patrón de ${probable.dominio}`,
+        coste_usd: r?.coste_usd || 0,
+      };
+    }
+  }
+
   if (!r) {
     if (cacheGenerico) return devolverCache();
     return NextResponse.json({ resultado: publico(cache), cobrado: false, cache: true, persona_id: id, saldo: await saldoCreditos(admin, userId) });
   }
 
   // 4. Caché y cobro.
+  const { identificacion: _ident, ...rGuardar } = r;
   const fila = {
     persona_id: id,
     nombre: persona.nombre || null,
     institucion: persona.institucion || null,
-    ...r,
+    ...rGuardar,
     creado_por: userId,
     created_at: new Date().toISOString(),
   };
@@ -211,11 +243,86 @@ export async function POST(request) {
     if (cobrado) await revelar(admin, userId, id);
   }
 
+  // Alta en el directorio de quien no estaba, si la IA ha confirmado su
+  // cargo en una fuente oficial. Su correo deducido no se guarda como
+  // publicado: el directorio lo vuelve a deducir (y se puede verificar).
+  let personaId = id;
+  let alta = false;
+  if (libre && ident?.cargo && ident?.organizacion) {
+    const dirId = await darDeAlta(admin, libre, ident, respaldo, probable?.dominio || ident.dominio).catch((e) => {
+      console.error('[contactos/enriquecer] alta:', e.message);
+      return null;
+    });
+    if (dirId) {
+      personaId = dirId;
+      alta = true;
+      await admin.from('contactos_enriquecidos').upsert({ ...fila, persona_id: dirId, institucion: ident.organizacion }, { onConflict: 'persona_id' });
+      if (cobrado) await revelar(admin, userId, dirId);
+    }
+  }
+
   return NextResponse.json({
     resultado: publico(guardada || fila),
     cobrado,
     cache: false,
-    persona_id: id,
+    persona_id: personaId,
+    alta,
+    cargo: alta ? ident.cargo : null,
+    institucion: alta ? ident.organizacion : null,
+    probable: probable ? { ...probable } : null,
+    respaldo: respaldo ? { email: respaldo.email, tipo: respaldo.tipo } : null,
     saldo: await saldoCreditos(admin, userId),
   });
+}
+
+// Dominio puesto a mano (sql/96) para una organización escrita por el usuario.
+async function dominioManual(admin, institucion) {
+  const t = String(institucion || '').trim();
+  if (t.length < 3) return null;
+  const { data } = await admin.from('email_dominios_manual').select('dominio').ilike('institucion', `%${t.replace(/[%_]/g, '')}%`).limit(1);
+  return data?.[0]?.dominio || null;
+}
+
+function tipoInstitucion(ident) {
+  if (ident.ambito === 'UE') return 'órganos UE';
+  if (ident.ambito === 'internacional') return 'internacional';
+  const o = String(ident.organizacion || '').toLowerCase();
+  if (/generalitat|xunta|junta de|gobierno de (?!españa)|govern|consejer|conselleria|comunidad de|comunitat|principado|cabildo|parlament|cortes de|asamblea de|diputación foral|eusko/.test(o)) return 'autonómico';
+  if (/ayuntamiento|ajuntament|concello|diputación|udala|consell comarcal/.test(o)) return 'local';
+  if (/ministerio|secretaría de estado|agencia estatal|gobierno de españa/.test(o)) return 'ejecutivo';
+  return 'institucional';
+}
+
+/** Alta en fuentes_personas (sql/78). Devuelve el id de directorio_pro. */
+async function darDeAlta(admin, libre, ident, respaldo, dominio) {
+  const hoy = new Date().toISOString().slice(0, 10);
+  const { data, error } = await admin
+    .from('fuentes_personas')
+    .upsert(
+      {
+        fuente: 'Búsqueda en fuentes oficiales',
+        fuente_fecha: hoy,
+        fuente_clave: libre.id,
+        jurisdiccion: ident.ambito === 'UE' ? 'UE' : 'España',
+        tipo_institucion: tipoInstitucion(ident),
+        institucion: ident.organizacion,
+        nombre: libre.nombre,
+        cargo: ident.cargo,
+        email_unidad: respaldo?.email || null,
+        extra: { alta: 'busqueda', fecha: hoy },
+      },
+      { onConflict: 'fuente_clave' }
+    )
+    .select('id')
+    .single();
+  if (error) throw new Error(error.message);
+  // Para que el directorio deduzca el mismo dominio: si la organización no
+  // tiene dominio conocido, se apunta el que ha confirmado la búsqueda.
+  if (dominio) {
+    const { data: ya } = await admin.from('email_dominios_institucion').select('institucion').eq('institucion', ident.organizacion).maybeSingle();
+    if (!ya) {
+      await admin.from('email_dominios_manual').upsert({ institucion: ident.organizacion, dominio }, { onConflict: 'institucion', ignoreDuplicates: true });
+    }
+  }
+  return `fuente:${data.id}`;
 }

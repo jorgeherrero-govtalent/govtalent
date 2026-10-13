@@ -61,13 +61,15 @@ export function estiloEtiquetaProbable(p) {
 /**
  * «Verificar · 1 crédito» (gris) de un correo probable, con el resultado
  * (decisión de Jorge, 13-10-2026). Solo se cobra si queda verificado.
+ * id: de directorio_pro; o persona: { nombre, institucion, dominio } para
+ * alguien que no está en el directorio.
  * onCambio(probable) recibe el correo probable actualizado; onSaldo(saldo),
  * el saldo tras cobrar; onSinCreditos() abre la compra de créditos.
  */
-export function VerificarCorreo({ id, p, onCambio, onSaldo, onSinCreditos, alinear = 'left' }) {
+export function VerificarCorreo({ id, persona, p, onCambio, onSaldo, onSinCreditos, alinear = 'left' }) {
   const [verificando, setVerificando] = useState(false);
   const [aviso, setAviso] = useState(null);
-  if (!id || !p || p.verificado) return null;
+  if ((!id && !persona) || !p || p.verificado) return null;
   const texto = { fontSize: 11.5, color: GRIS };
   if (p.noConfirmado) return <span style={texto}>Ninguna forma existe en su servidor · sin coste</span>;
   if (!p.verificable) return <span style={texto}>Su servidor no permite verificar</span>;
@@ -79,7 +81,7 @@ export function VerificarCorreo({ id, p, onCambio, onSaldo, onSinCreditos, aline
       const r = await fetch('/api/contactos/verificar', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id }),
+        body: JSON.stringify(persona ? { persona } : { id }),
       });
       const j = await r.json().catch(() => ({}));
       if (r.status === 402 || j.sinCreditos) {

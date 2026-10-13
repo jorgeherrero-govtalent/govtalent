@@ -577,7 +577,7 @@ function ContactosPagina() {
         <div className="gt-ct-fuera">
           <div>
             <b>{personaFuera.nombre} no está en el directorio</b>
-            <span>Buscamos su correo en {personaFuera.organizacion} y lo comprobamos. 1 crédito, solo si lo encontramos.</span>
+            <span>Lo buscamos en fuentes oficiales y te damos su correo: el publicado o, si no hay, el deducido del patrón de {personaFuera.organizacion}. 1 crédito.</span>
           </div>
           <button type="button" className="btn-ai-o" onClick={() => setCorreoLibre(true)} style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
             <i className="ti ti-search" aria-hidden="true"></i> Buscar correo

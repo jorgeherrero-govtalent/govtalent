@@ -3,7 +3,21 @@
 import { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import Link from 'next/link';
-import { ModalComprar, ModalGuardarLista, etiquetaEnriquecido, AYUDA_PROBABLE, limpiarEmail, miles, Buscando, ESTILOS_CONTACTOS } from '@/components/ContactosUI';
+import {
+  ModalComprar,
+  ModalGuardarLista,
+  etiquetaEnriquecido,
+  etiquetaProbable,
+  estiloEtiquetaProbable,
+  textoAcierto,
+  VerificarCorreo,
+  TIPO_CONTACTO,
+  AYUDA_PROBABLE,
+  limpiarEmail,
+  miles,
+  Buscando,
+  ESTILOS_CONTACTOS,
+} from '@/components/ContactosUI';
 
 /**
  * Buscar el correo de una persona que la fuente no trae (Directorio).
@@ -33,6 +47,11 @@ export default function BuscarCorreoModal({ persona, onClose, onResultado }) {
   const [personaId, setPersonaId] = useState(persona.libre ? null : persona.id);
   const [aLista, setALista] = useState(false);
   const [listaHecha, setListaHecha] = useState(null);
+  // Fuera del directorio (13-10-2026): el correo deducido, con «Verificar»;
+  // el alta en el directorio y el contacto genérico de respaldo.
+  const [probable, setProbable] = useState(null);
+  const [alta, setAlta] = useState(null);
+  const [respaldo, setRespaldo] = useState(null);
 
   useEffect(() => {
     let vivo = true;
@@ -69,6 +88,9 @@ export default function BuscarCorreoModal({ persona, onClose, onResultado }) {
       }
       setResultado(json.resultado);
       if (json.persona_id) setPersonaId(json.persona_id);
+      setProbable(json.probable || null);
+      setAlta(json.alta ? { cargo: json.cargo, institucion: json.institucion } : null);
+      setRespaldo(json.respaldo || null);
       setCobrado(!!json.cobrado);
       setFase('hecho');
       if (onResultado) onResultado(json.resultado);
@@ -105,7 +127,7 @@ export default function BuscarCorreoModal({ persona, onClose, onResultado }) {
 
   const disponibles = saldo?.disponibles ?? null;
   const sinCreditos = disponibles !== null && disponibles < 1;
-  const email = resultado?.estado === 'encontrado' ? limpiarEmail(resultado.email) : null;
+  const email = probable?.email || (resultado?.estado === 'encontrado' ? limpiarEmail(resultado.email) : null);
   const buscando = fase === 'buscando';
 
   return createPortal(
@@ -135,9 +157,39 @@ export default function BuscarCorreoModal({ persona, onClose, onResultado }) {
                     <a href={`mailto:${email}`} style={{ fontSize: 13.5, color: '#1a1a18', textDecoration: 'none', fontWeight: 600, overflowWrap: 'anywhere' }}>
                       {email}
                     </a>
-                    <span style={{ fontSize: 10.5, fontWeight: 600, color: '#3d2fb3', background: '#efedfd', borderRadius: 999, padding: '1px 7px' }}>
-                      {etiquetaEnriquecido(resultado)}
+                    <span style={{ fontSize: 10.5, fontWeight: 600, borderRadius: 999, padding: '1px 7px', ...(probable ? estiloEtiquetaProbable(probable) : { color: '#3d2fb3', background: '#efedfd' }) }}>
+                      {probable ? etiquetaProbable(probable) : etiquetaEnriquecido(resultado)}
                     </span>
+                  </div>
+                ) : null}
+                {probable ? (
+                  <>
+                    <div style={{ fontSize: 12, color: GRIS }}>{textoAcierto(probable)}</div>
+                    <div>
+                      <VerificarCorreo
+                        id={alta && personaId ? personaId : null}
+                        persona={alta && personaId ? null : { nombre: persona.nombre, institucion: persona.institucion, dominio: probable.dominio }}
+                        p={probable}
+                        onCambio={setProbable}
+                        onSaldo={setSaldo}
+                        onSinCreditos={() => setComprar(true)}
+                      />
+                    </div>
+                  </>
+                ) : null}
+                {respaldo?.email ? (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', fontSize: 12.5 }}>
+                    <a href={`mailto:${respaldo.email}`} style={{ color: '#1a1a18', textDecoration: 'none', overflowWrap: 'anywhere' }}>
+                      {respaldo.email}
+                    </a>
+                    <span style={{ fontSize: 10.5, fontWeight: 600, color: '#3a3a3d', background: '#f1f1f3', borderRadius: 999, padding: '1px 7px' }}>
+                      {TIPO_CONTACTO[respaldo.tipo] || 'Contacto'}
+                    </span>
+                  </div>
+                ) : null}
+                {alta ? (
+                  <div style={{ fontSize: 12, color: '#3d2fb3', background: '#efedfd', borderRadius: 8, padding: '7px 9px', lineHeight: 1.45 }}>
+                    No estaba en GovTalent. Lo hemos añadido al directorio: {alta.cargo} · {alta.institucion}.
                   </div>
                 ) : null}
                 {resultado.telefono ? (
@@ -146,7 +198,7 @@ export default function BuscarCorreoModal({ persona, onClose, onResultado }) {
                     {resultado.telefono}
                   </div>
                 ) : null}
-                {resultado.calidad === 'probable' ? <div style={{ fontSize: 12, color: GRIS }}>{AYUDA_PROBABLE}</div> : null}
+                {resultado.calidad === 'probable' && !probable ? <div style={{ fontSize: 12, color: GRIS }}>{AYUDA_PROBABLE}</div> : null}
                 {resultado.tipo !== 'personal' ? (
                   <div style={{ fontSize: 12, color: GRIS }}>No hemos encontrado su correo nominativo; este es el contacto publicado.</div>
                 ) : null}
