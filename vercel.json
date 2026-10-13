@@ -143,6 +143,10 @@
     {
       "path": "/api/sync/composicion-autonomica?p=andalucia",
       "schedule": "20 4 * * *"
+    },
+    {
+      "path": "/api/sync/altos-cargos-catalunya",
+      "schedule": "25 4 * * 1"
     }
   ]
 }
