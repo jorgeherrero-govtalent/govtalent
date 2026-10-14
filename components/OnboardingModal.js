@@ -6,8 +6,10 @@ import { toast } from '@/lib/toast';
 import Logo from '@/components/Logo';
 
 /**
- * Onboarding: una sola pantalla, «Cuéntanos sobre ti» (14-10-2026,
- * maqueta A1).
+ * Onboarding: una sola pantalla, «Bienvenido a GovTalent» (14-10-2026,
+ * maqueta A1). El título no es «Cuéntanos sobre ti» porque, con el mismo
+ * fondo y la misma tarjeta, se confundía con la pantalla de login; por lo
+ * mismo hay un «Cerrar sesión» debajo.
  *
  * Sustituye al de tres pasos, que venía de la etapa de empleo y talento:
  * pedía la situación profesional («busco mi primera experiencia…»), temas
@@ -129,6 +131,11 @@ export default function OnboardingModal({ userId, onComplete }) {
     if (onComplete) onComplete();
   }
 
+  async function cerrarSesion() {
+    await supabase.auth.signOut();
+    window.location.href = '/login';
+  }
+
   return (
     <div
       style={{
@@ -160,7 +167,7 @@ export default function OnboardingModal({ userId, onComplete }) {
           }}
         >
           <div>
-            <h1 style={{ fontSize: 22, fontWeight: 600, letterSpacing: '-.3px', margin: '0 0 6px' }}>Cuéntanos sobre ti</h1>
+            <h1 style={{ fontSize: 22, fontWeight: 600, letterSpacing: '-.3px', margin: '0 0 6px' }}>Bienvenido a GovTalent</h1>
             <p style={{ margin: 0, fontSize: 13.5, color: GRIS, lineHeight: 1.55 }}>
               Con estos datos adaptamos GovTalent a ti y a tu organización.
             </p>
@@ -245,6 +252,16 @@ export default function OnboardingModal({ userId, onComplete }) {
             {guardando ? 'Guardando…' : 'Empezar'}
           </button>
         </form>
+
+        {/* Única salida de esta pantalla sin completarla: quien entra con
+            otra cuenta por error no tiene que rellenar nada para salir. */}
+        <button
+          type="button"
+          onClick={cerrarSesion}
+          style={{ background: 'none', border: 'none', padding: 0, font: 'inherit', fontSize: 13, color: GRIS, cursor: 'pointer' }}
+        >
+          Cerrar sesión
+        </button>
       </div>
 
       <style>{`
