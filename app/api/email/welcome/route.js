@@ -32,7 +32,7 @@ export async function POST(request) {
 
   const { data: user } = await supabase
     .from('users')
-    .select('first_name, last_name, email, professional_title, auth_provider, role, created_at')
+    .select('first_name, last_name, email, professional_title, organizacion_nombre, organizacion_tipo, auth_provider, role, created_at')
     .eq('id', authData.user.id)
     .single();
 
@@ -51,6 +51,8 @@ export async function POST(request) {
           lastName: user.last_name,
           email: user.email,
           professionalTitle: user.professional_title,
+          orgName: user.organizacion_nombre,
+          orgTipo: user.organizacion_tipo,
           provider: authData.user.app_metadata?.provider || user.auth_provider,
           createdAt: user.created_at,
         });

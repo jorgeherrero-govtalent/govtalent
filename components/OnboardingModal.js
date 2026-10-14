@@ -3,255 +3,131 @@
 import { useEffect, useState } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { toast } from '@/lib/toast';
-import {
-  CAREER_SITUATIONS,
-  ORG_TYPES,
-  ROLE_TYPES,
-  LEVEL_TYPES,
-  SHOWS_DETAIL_QUESTIONS,
-} from '@/lib/professionalSituation';
 import Logo from '@/components/Logo';
 
 /**
- * Onboarding en tres pasos.
+ * Onboarding: una sola pantalla, «Cuéntanos sobre ti» (14-10-2026,
+ * maqueta A1).
  *
- * QUÉ CAMBIA RESPECTO AL ANTERIOR
+ * Sustituye al de tres pasos, que venía de la etapa de empleo y talento:
+ * pedía la situación profesional («busco mi primera experiencia…»), temas
+ * para el perfil de sector (que ya sustituyen las alarmas) y el contexto
+ * profesional del perfil de candidato. Ahora solo se pide quién es la
+ * persona y en qué organización trabaja; las alarmas se crean dentro.
  *
- * 1. No hay pantalla de "elige tu camino". Quien representa a una
- *    organización también es un profesional del sector, y obligarle a
- *    elegir le hacía escoger una mitad de sí mismo. Además chocaba con
- *    la navegación: ahí la organización es un contexto que añades, no un
- *    tipo de usuario. El acceso al lado de organización vive en el menú
- *    de la esquina, que ya lo ofrece nada más entrar.
+ * La organización y su tipo son datos declarados (users.organizacion_nombre
+ * y users.organizacion_tipo, sql/98): no se enlazan todavía con
+ * `organizations` ni con el directorio.
  *
- * 2. Los temas van a topics/user_topics y generan el perfil de sector.
- *    Antes se guardaban en user_work_areas y user_interest_areas, que no
- *    leía nadie: se preguntaba y la respuesta no llegaba al motor de
- *    avisos.
- *
- * 3. Fuera la foto. Se pide dentro, cuando ya hay perfil que decorar.
- *
- * 4. Fuera "Todos los sectores" y "Todas las áreas": contradecían el
- *    "elige hasta 3" de la misma pantalla. Si alguien lo quiere todo, la
- *    respuesta no es una opción, es no elegir ninguno.
- *
- * COLOR: verde lo que eliges, morado el botón y lo que la plataforma
- * devuelve.
+ * Sin verde: la opción elegida va en gris oscuro, como en el login.
  */
 
-const VERDE = '#1d6f5c';
-const MORADO = '#6d5aef';
-const BORDE = '#e0dfd8';
+export const TIPOS_ORGANIZACION = [
+  { value: 'consultora', label: 'Consultora de asuntos públicos' },
+  { value: 'empresa', label: 'Empresa' },
+  { value: 'asociacion_sectorial', label: 'Asociación sectorial' },
+  { value: 'despacho', label: 'Despacho de abogados' },
+  { value: 'institucion_publica', label: 'Institución pública' },
+  { value: 'tercer_sector', label: 'ONG / tercer sector' },
+];
 
-const MAX_TEMAS = 3;
-const TEMAS_VISIBLES = 10;
+const TINTA = '#1a1a18';
+const GRIS = '#5f5b54';
+const BORDE = '#d9d7cf';
+
+const CAMPO = {
+  height: 44,
+  borderRadius: 10,
+  border: `1px solid ${BORDE}`,
+  background: '#fff',
+  padding: '0 14px',
+  font: 'inherit',
+  fontSize: 14,
+  color: TINTA,
+  boxSizing: 'border-box',
+  width: '100%',
+  outline: 'none',
+};
+
+const ETIQUETA = { display: 'flex', flexDirection: 'column', gap: 6, fontSize: 13, fontWeight: 500 };
 
 export default function OnboardingModal({ userId, onComplete }) {
   const supabase = createClient();
-  const [paso, setPaso] = useState(1);
   const [guardando, setGuardando] = useState(false);
   const [error, setError] = useState('');
-
-  const [temas, setTemas] = useState([]);
-  const [verTodos, setVerTodos] = useState(false);
-  const [contando, setContando] = useState(false);
-  const [asuntos, setAsuntos] = useState(null);
-
   const [form, setForm] = useState({
     first_name: '',
     last_name: '',
     professional_title: '',
-    location: '',
-    career_situation: '',
-    temas: [],
-    org_type: '',
-    role_type: '',
-    level_type: '',
+    organizacion_nombre: '',
+    organizacion_tipo: '',
   });
 
+  // Quien entra con Google ya trae nombre y apellidos: se rellenan para
+  // que solo tenga que confirmarlos.
   useEffect(() => {
-    cargarTemas();
-  }, []);
-
-  async function cargarTemas() {
-    const { data } = await supabase
-      .from('topics')
-      .select('id, label')
-      .eq('activo', true)
-      .order('orden');
-    setTemas(data || []);
-  }
-
-  // El recuento en vivo: con datos reales de la base, no un número
-  // decorativo. Se cuenta en el servidor porque hay medio millar de
-  // iniciativas y traerlas al navegador en cada toque no tiene sentido.
-  useEffect(() => {
-    if (paso !== 2 || form.temas.length === 0) {
-      setAsuntos(null);
-      return;
-    }
     let vivo = true;
-    setContando(true);
     supabase
-      .rpc('contar_asuntos_por_temas', { p_topics: form.temas })
-      .then(({ data, error: err }) => {
-        if (!vivo) return;
-        setContando(false);
-        setAsuntos(err ? null : data);
+      .from('users')
+      .select('first_name, last_name, professional_title, organizacion_nombre, organizacion_tipo')
+      .eq('id', userId)
+      .maybeSingle()
+      .then(({ data }) => {
+        if (!vivo || !data) return;
+        setForm((f) => ({
+          first_name: f.first_name || data.first_name || '',
+          last_name: f.last_name || data.last_name || '',
+          professional_title: f.professional_title || data.professional_title || '',
+          organizacion_nombre: f.organizacion_nombre || data.organizacion_nombre || '',
+          organizacion_tipo: f.organizacion_tipo || data.organizacion_tipo || '',
+        }));
       });
     return () => {
       vivo = false;
     };
-  }, [form.temas, paso]); // eslint-disable-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [userId]);
 
-  function elegir(campo, valor) {
-    setForm((f) => ({ ...f, [campo]: f[campo] === valor ? '' : valor }));
-  }
+  const set = (campo) => (e) => setForm((f) => ({ ...f, [campo]: e.target.value }));
+  const listo = form.first_name.trim() && form.last_name.trim();
 
-  function alternarTema(id) {
-    setForm((f) => {
-      if (f.temas.includes(id)) return { ...f, temas: f.temas.filter((t) => t !== id) };
-      if (f.temas.length >= MAX_TEMAS) return f;
-      return { ...f, temas: [...f.temas, id] };
-    });
-  }
-
-  // Quien no trabaja en el sector se salta el paso 3: preguntarle tipo de
-  // organización y nivel no aporta nada al benchmark y sí abandono.
-  const conDetalle = SHOWS_DETAIL_QUESTIONS.includes(form.career_situation);
-  const pasosTotales = conDetalle ? 3 : 2;
-
-  const paso1Listo =
-    form.first_name.trim() && form.last_name.trim() && form.career_situation;
-
-  async function terminar() {
+  async function terminar(e) {
+    e.preventDefault();
+    if (!listo || guardando) return;
     setGuardando(true);
     setError('');
 
-    const { error: errUsuario } = await supabase
+    const { error: err } = await supabase
       .from('users')
       .update({
         first_name: form.first_name.trim(),
         last_name: form.last_name.trim(),
         professional_title: form.professional_title.trim() || null,
-        location: form.location.trim() || null,
+        organizacion_nombre: form.organizacion_nombre.trim() || null,
+        organizacion_tipo: form.organizacion_tipo || null,
         onboarding_completed: true,
       })
       .eq('id', userId);
 
-    if (errUsuario) {
+    if (err) {
       setGuardando(false);
       setError('No se han podido guardar tus datos. Comprueba tu conexión e inténtalo de nuevo.');
       return;
     }
 
-    // Los temas, y con ellos el perfil de sector. Este es el circuito que
-    // antes estaba roto: se preguntaba y no llegaba a ninguna parte.
-    await supabase.from('user_topics').delete().eq('user_id', userId);
-    if (form.temas.length) {
-      await supabase
-        .from('user_topics')
-        .insert(form.temas.map((topic_id) => ({ user_id: userId, topic_id })));
-    }
-    const { error: errPerfil } = await supabase.rpc('regenerar_perfil_sector', {
-      p_user_id: userId,
-    });
-    if (errPerfil) {
-      // No se aborta: los temas están guardados y el perfil se puede
-      // regenerar más tarde. Perder el registro entero por esto sería peor.
-      console.error('No se pudo generar el perfil de sector:', errPerfil);
-    }
-
-    if (conDetalle) {
-      await supabase.from('candidate_profiles').upsert(
-        {
-          user_id: userId,
-          career_situation: form.career_situation || null,
-          org_type: form.org_type || null,
-          role_type: form.role_type || null,
-          level_type: form.level_type || null,
-        },
-        { onConflict: 'user_id' }
-      );
-    } else {
-      await supabase.from('candidate_profiles').upsert(
-        { user_id: userId, career_situation: form.career_situation || null },
-        { onConflict: 'user_id' }
-      );
-    }
-
-    // Bienvenida por correo. keepalive porque onComplete puede navegar o
-    // desmontar el modal antes de que termine la petición. Un fallo aquí no
-    // afecta al alta: la ruta lo registra y responde 200.
+    // Bienvenida por correo. keepalive porque onComplete recarga la página
+    // antes de que termine la petición. Un fallo aquí no afecta al alta.
     fetch('/api/email/welcome', {
       method: 'POST',
       keepalive: true,
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ type: 'candidate' }),
-    }).catch((err) => console.error('Error enviando email de bienvenida:', err));
+    }).catch((e2) => console.error('Error enviando email de bienvenida:', e2));
 
     setGuardando(false);
     toast('Todo listo ✓');
     if (onComplete) onComplete();
   }
-
-  // --- Piezas compartidas ---------------------------------------------
-
-  const pastilla = (activa) => ({
-    fontSize: 12.5,
-    borderRadius: 20,
-    padding: '6px 13px',
-    cursor: 'pointer',
-    whiteSpace: 'nowrap',
-    background: activa ? '#e8f4f0' : '#fff',
-    border: activa ? `1.5px solid ${VERDE}` : `.5px solid ${BORDE}`,
-    color: activa ? VERDE : '#555',
-    fontWeight: activa ? 500 : 400,
-  });
-
-  const campo = {
-    width: '100%',
-    padding: '10px 12px',
-    border: `.5px solid ${BORDE}`,
-    borderRadius: 9,
-    fontSize: 13,
-    fontFamily: 'inherit',
-    outline: 'none',
-    background: '#fafaf7',
-  };
-
-  const etiqueta = { fontSize: 12.5, marginBottom: 5, display: 'block' };
-
-  function Grupo({ titulo, opciones, valor, campo: nombre }) {
-    return (
-      <div style={{ marginBottom: 16 }}>
-        <div style={{ fontSize: 12.5, fontWeight: 500, marginBottom: 8 }}>{titulo}</div>
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 7 }}>
-          {opciones.map((o) => (
-            <button key={o.value} type="button" onClick={() => elegir(nombre, o.value)} style={pastilla(valor === o.value)}>
-              {o.label}
-            </button>
-          ))}
-        </div>
-      </div>
-    );
-  }
-
-  const botonPrincipal = {
-    width: '100%',
-    background: MORADO,
-    color: '#fff',
-    border: 'none',
-    borderRadius: 9,
-    padding: '12px',
-    fontSize: 13.5,
-    fontWeight: 500,
-    cursor: 'pointer',
-    marginTop: 8,
-  };
-
-  const listos = temas.filter((t) => form.temas.includes(t.id));
-  const visibles = verTodos ? temas : temas.slice(0, TEMAS_VISIBLES);
 
   return (
     <div
@@ -261,245 +137,121 @@ export default function OnboardingModal({ userId, onComplete }) {
         background: '#f0efe9',
         zIndex: 5000,
         overflowY: 'auto',
-        padding: '28px 16px 40px',
+        padding: '40px 16px 56px',
       }}
     >
-      <div style={{ maxWidth: 520, margin: '0 auto' }}>
-        <div style={{ textAlign: 'center', marginBottom: 20 }}>
-          <div className="logo" style={{ display: 'inline-flex' }}>
-            <Logo height={26} />
-          </div>
+      <div style={{ maxWidth: 540, margin: '0 auto', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 22 }}>
+        <div className="logo" style={{ display: 'inline-flex' }}>
+          <Logo height={26} />
         </div>
 
-        {/* Trazos y no círculos numerados: cuatro círculos con números
-            parecen un formulario largo antes de empezar. */}
-        <div style={{ display: 'flex', gap: 5, justifyContent: 'center', marginBottom: 18 }}>
-          {Array.from({ length: pasosTotales }).map((_, i) => (
-            <span
-              key={i}
-              style={{
-                width: 26,
-                height: 5,
-                borderRadius: 3,
-                background: i < paso ? VERDE : BORDE,
-              }}
-            ></span>
-          ))}
-        </div>
-
-        <div
+        <form
+          onSubmit={terminar}
           style={{
+            width: '100%',
             background: '#fff',
-            border: `.5px solid ${BORDE}`,
-            borderRadius: 14,
-            padding: '26px 24px',
+            border: '1px solid #e0dfd8',
+            borderRadius: 16,
+            padding: '30px 28px',
+            boxSizing: 'border-box',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 16,
           }}
         >
-          {paso > 1 && (
-            <button
-              type="button"
-              onClick={() => setPaso(paso - 1)}
-              style={{ background: 'none', border: 'none', color: '#888', fontSize: 12.5, padding: 0, marginBottom: 14 }}
-            >
-              ← Volver
-            </button>
-          )}
+          <div>
+            <h1 style={{ fontSize: 22, fontWeight: 600, letterSpacing: '-.3px', margin: '0 0 6px' }}>Cuéntanos sobre ti</h1>
+            <p style={{ margin: 0, fontSize: 13.5, color: GRIS, lineHeight: 1.55 }}>
+              Con estos datos adaptamos GovTalent a ti y a tu organización.
+            </p>
+          </div>
 
-          {/* ---------------- Paso 1: quién eres ---------------- */}
-          {paso === 1 && (
-            <>
-              <h2 style={{ fontSize: 20, fontWeight: 600, marginBottom: 4 }}>Cuéntanos sobre ti</h2>
-              <p style={{ fontSize: 13, color: '#888', marginBottom: 22 }}>
-                Con esto personalizamos lo que ves desde el primer día.
-              </p>
+          <div className="onb-dos">
+            <label style={ETIQUETA}>
+              Nombre
+              <input className="onb-input" style={CAMPO} required autoComplete="given-name" value={form.first_name} onChange={set('first_name')} />
+            </label>
+            <label style={ETIQUETA}>
+              Apellidos
+              <input className="onb-input" style={CAMPO} required autoComplete="family-name" value={form.last_name} onChange={set('last_name')} />
+            </label>
+          </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 14 }}>
-                <div>
-                  <label style={etiqueta}>Nombre</label>
-                  <input
-                    style={campo}
-                    value={form.first_name}
-                    onChange={(e) => setForm((f) => ({ ...f, first_name: e.target.value }))}
-                  />
-                </div>
-                <div>
-                  <label style={etiqueta}>Apellidos</label>
-                  <input
-                    style={campo}
-                    value={form.last_name}
-                    onChange={(e) => setForm((f) => ({ ...f, last_name: e.target.value }))}
-                  />
-                </div>
-              </div>
+          <label style={ETIQUETA}>
+            Tu puesto
+            <input
+              className="onb-input"
+              style={CAMPO}
+              autoComplete="organization-title"
+              placeholder="Directora de Asuntos Públicos, consultor…"
+              value={form.professional_title}
+              onChange={set('professional_title')}
+            />
+          </label>
 
-              <div style={{ marginBottom: 14 }}>
-                <label style={etiqueta}>Tu puesto</label>
-                <input
-                  style={campo}
-                  placeholder="Director de Asuntos Públicos, Consultor, Técnico de RRII…"
-                  value={form.professional_title}
-                  onChange={(e) => setForm((f) => ({ ...f, professional_title: e.target.value }))}
-                />
-              </div>
+          <label style={ETIQUETA}>
+            Organización
+            <input
+              className="onb-input"
+              style={CAMPO}
+              autoComplete="organization"
+              placeholder="Dónde trabajas"
+              value={form.organizacion_nombre}
+              onChange={set('organizacion_nombre')}
+            />
+          </label>
 
-              <div style={{ marginBottom: 20 }}>
-                <label style={etiqueta}>Dónde trabajas</label>
-                <input
-                  style={campo}
-                  placeholder="Ciudad, país"
-                  value={form.location}
-                  onChange={(e) => setForm((f) => ({ ...f, location: e.target.value }))}
-                />
-              </div>
-
-              <div style={{ borderTop: `.5px solid ${BORDE}`, paddingTop: 18 }}>
-                <div style={{ fontSize: 13, fontWeight: 500, marginBottom: 10 }}>
-                  ¿Cuál es tu situación profesional?
-                </div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
-                  {CAREER_SITUATIONS.map((s) => {
-                    const on = form.career_situation === s.value;
-                    return (
-                      <button
-                        key={s.value}
-                        type="button"
-                        onClick={() => setForm((f) => ({ ...f, career_situation: s.value }))}
-                        style={{
-                          textAlign: 'left',
-                          padding: '11px 14px',
-                          borderRadius: 9,
-                          fontSize: 13,
-                          cursor: 'pointer',
-                          background: on ? '#e8f4f0' : '#fff',
-                          border: on ? `1.5px solid ${VERDE}` : `.5px solid ${BORDE}`,
-                          color: on ? '#1a1a18' : '#555',
-                          fontWeight: on ? 500 : 400,
-                        }}
-                      >
-                        {s.label}
-                      </button>
-                    );
-                  })}
-
-                </div>
-              </div>
-
-              <button
-                type="button"
-                disabled={!paso1Listo}
-                onClick={() => setPaso(2)}
-                style={{ ...botonPrincipal, opacity: paso1Listo ? 1 : 0.45, cursor: paso1Listo ? 'pointer' : 'default', marginTop: 22 }}
-              >
-                Continuar
-              </button>
-            </>
-          )}
-
-          {/* ---------------- Paso 2: sobre qué trabajas ---------------- */}
-          {paso === 2 && (
-            <>
-              <h2 style={{ fontSize: 20, fontWeight: 600, marginBottom: 4 }}>¿Sobre qué temas trabajas?</h2>
-              <p style={{ fontSize: 13, color: '#888', marginBottom: 18 }}>
-                Elige hasta {MAX_TEMAS}. Lo usamos para mostrarte los proyectos normativos que te afectan.
-              </p>
-
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 7, marginBottom: 16 }}>
-                {visibles.map((t) => {
-                  const on = form.temas.includes(t.id);
-                  const lleno = !on && form.temas.length >= MAX_TEMAS;
-                  return (
-                    <button
-                      key={t.id}
-                      type="button"
-                      onClick={() => alternarTema(t.id)}
-                      style={{ ...pastilla(on), opacity: lleno ? 0.4 : 1 }}
-                    >
-                      {t.label}
-                    </button>
-                  );
-                })}
-                {!verTodos && temas.length > TEMAS_VISIBLES && (
+          <div role="group" aria-labelledby="onb-tipo" style={{ display: 'flex', flexDirection: 'column', gap: 9 }}>
+            <span id="onb-tipo" style={{ fontSize: 13, fontWeight: 500 }}>
+              Tipo de organización
+            </span>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 7 }}>
+              {TIPOS_ORGANIZACION.map((t) => {
+                const on = form.organizacion_tipo === t.value;
+                return (
                   <button
+                    key={t.value}
                     type="button"
-                    onClick={() => setVerTodos(true)}
-                    style={{ background: 'none', border: 'none', color: VERDE, fontSize: 12.5, padding: '6px 3px' }}
+                    aria-pressed={on}
+                    onClick={() => setForm((f) => ({ ...f, organizacion_tipo: on ? '' : t.value }))}
+                    style={{
+                      font: 'inherit',
+                      fontSize: 13,
+                      borderRadius: 20,
+                      padding: '8px 14px',
+                      minHeight: 36,
+                      cursor: 'pointer',
+                      background: on ? '#f3f2ee' : '#fff',
+                      border: on ? `1.5px solid ${TINTA}` : '1px solid #e0dfd8',
+                      color: on ? TINTA : GRIS,
+                      fontWeight: on ? 500 : 400,
+                    }}
                   >
-                    Ver los {temas.length} temas
+                    {t.label}
                   </button>
-                )}
-              </div>
+                );
+              })}
+            </div>
+          </div>
 
-              {/* Lo que la plataforma devuelve, en morado. Y el número es
-                  real: sale de las consultas europeas y las iniciativas
-                  del Congreso con plazo vivo. Si no hay nada, se dice. */}
-              {form.temas.length > 0 && (
-                <div
-                  style={{
-                    background: '#faf9ff',
-                    border: '.5px solid #d8d3f5',
-                    borderRadius: 9,
-                    padding: '11px 13px',
-                    marginBottom: 16,
-                    fontSize: 12,
-                    color: '#555',
-                    lineHeight: 1.55,
-                  }}
-                >
-                  {contando ? (
-                    'Mirando qué hay abierto…'
-                  ) : asuntos === null ? (
-                    'Te avisaremos cuando se mueva algo en estos temas.'
-                  ) : asuntos === 0 ? (
-                    <>
-                      Ahora mismo no hay nada con plazo abierto en{' '}
-                      {listos.length === 1 ? 'este tema' : 'estos temas'}, pero te avisaremos en cuanto lo haya.
-                    </>
-                  ) : (
-                    <>
-                      Con {listos.length === 1 ? 'este tema' : `estos ${listos.length} temas`} te avisaríamos hoy de{' '}
-                      <b style={{ color: '#3c3489' }}>
-                        {asuntos} {asuntos === 1 ? 'asunto' : 'asuntos'} con plazo abierto
-                      </b>
-                      .
-                    </>
-                  )}
-                </div>
-              )}
+          {error && <div style={{ fontSize: 12.5, color: '#b3261e', lineHeight: 1.5 }}>{error}</div>}
 
-              <button
-                type="button"
-                onClick={() => (conDetalle ? setPaso(3) : terminar())}
-                disabled={guardando}
-                style={botonPrincipal}
-              >
-                {conDetalle ? 'Continuar' : guardando ? 'Guardando…' : 'Empezar'}
-              </button>
-            </>
-          )}
-
-          {/* ---------------- Paso 3: dónde estás ---------------- */}
-          {paso === 3 && (
-            <>
-              <h2 style={{ fontSize: 20, fontWeight: 600, marginBottom: 4 }}>Tu contexto profesional</h2>
-              <p style={{ fontSize: 13, color: '#888', marginBottom: 20 }}>
-                Con estos datos ajustamos el contenido que te mostramos.
-              </p>
-
-              <Grupo titulo="Tipo de organización" opciones={ORG_TYPES} valor={form.org_type} campo="org_type" />
-              <Grupo titulo="Tu función" opciones={ROLE_TYPES} valor={form.role_type} campo="role_type" />
-              <Grupo titulo="Rol" opciones={LEVEL_TYPES} valor={form.level_type} campo="level_type" />
-
-              <button type="button" onClick={terminar} disabled={guardando} style={botonPrincipal}>
-                {guardando ? 'Guardando…' : 'Empezar'}
-              </button>
-            </>
-          )}
-
-          {error && (
-            <div style={{ fontSize: 12.5, color: '#b3261e', marginTop: 12, lineHeight: 1.5 }}>{error}</div>
-          )}
-        </div>
+          <button
+            type="submit"
+            className="mbtn mbtn-morado"
+            disabled={!listo || guardando}
+            style={{ height: 46, padding: 0, marginTop: 6 }}
+          >
+            {guardando ? 'Guardando…' : 'Empezar'}
+          </button>
+        </form>
       </div>
+
+      <style>{`
+        .onb-dos { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+        .onb-input:focus { border-color: #a8a49c !important; }
+        @media (max-width: 480px) { .onb-dos { grid-template-columns: 1fr; } }
+      `}</style>
     </div>
   );
 }
