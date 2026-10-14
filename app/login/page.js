@@ -120,23 +120,37 @@ export default function LoginPage() {
   }
 
   return (
-    <div>
-      {/* La barra con el logo solo en las pantallas de paso (correo
-          enviado, recuperar contraseña): en el login el logo va dentro de
-          la columna. */}
-      {(view === 'confirm' || view === 'sent' || view === 'reset') && (
-        <div className="login-bar">
-          <div className="logo">
-            <Logo height={24} />
-          </div>
-        </div>
-      )}
+    <div className="lg-fondo">
+      {/* Fondo «aurora» (14-10-2026, propuesta 2): manchas difuminadas
+          verde y morado que se desplazan despacio sobre azul noche, en
+          todas las vistas para que el fondo no cambie entre pantallas.
+          Quieto si el sistema pide reducir el movimiento. */}
+      <div className="lg-aurora" aria-hidden="true">
+        <span className="lg-mancha lg-a1" style={{ width: '70vw', height: '46vh', left: '-18vw', top: '8vh', background: VERDE, opacity: 0.75 }}></span>
+        <span className="lg-mancha lg-a2" style={{ width: '60vw', height: '50vh', right: '-14vw', top: '-14vh', background: '#6d5aef', opacity: 0.55 }}></span>
+        <span className="lg-mancha lg-a3" style={{ width: '64vw', height: '40vh', left: '20vw', bottom: '-18vh', background: '#2c2580', opacity: 0.8 }}></span>
+        <span className="lg-mancha lg-a2" style={{ width: '34vw', height: '30vh', left: '4vw', bottom: '4vh', background: VERDE, opacity: 0.4 }}></span>
+      </div>
+      <style>{`
+        .lg-fondo { position: relative; min-height: 100vh; background: #111417; overflow: hidden; }
+        .lg-fondo > :not(.lg-aurora) { position: relative; }
+        .lg-aurora { position: absolute; inset: 0; overflow: hidden; pointer-events: none; }
+        .lg-mancha { position: absolute; border-radius: 50%; filter: blur(90px); will-change: transform; }
+        @keyframes lg-m1 { 0%, 100% { transform: translate(0, 0) scale(1); } 50% { transform: translate(18vw, 8vh) scale(1.15); } }
+        @keyframes lg-m2 { 0%, 100% { transform: translate(0, 0) scale(1.1); } 50% { transform: translate(-16vw, -10vh) scale(.95); } }
+        @keyframes lg-m3 { 0%, 100% { transform: translate(0, 0) rotate(0); } 50% { transform: translate(10vw, -12vh) rotate(25deg); } }
+        .lg-a1 { animation: lg-m1 22s ease-in-out infinite; }
+        .lg-a2 { animation: lg-m2 28s ease-in-out infinite; }
+        .lg-a3 { animation: lg-m3 34s ease-in-out infinite; }
+        .lg-tarjeta { background: #fff; border-radius: 18px; box-shadow: 0 24px 60px rgba(0, 0, 0, .35); }
+        @media (prefers-reduced-motion: reduce) { .lg-a1, .lg-a2, .lg-a3 { animation: none; } }
+      `}</style>
 
       {view === 'login' || view === 'signup' ? (
-        <div style={{ minHeight: '100vh', display: 'flex', justifyContent: 'center', padding: '0 16px', boxSizing: 'border-box' }}>
+        <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '48px 16px', boxSizing: 'border-box' }}>
           <main
-            className="login-col"
-            style={{ width: '100%', maxWidth: 360, display: 'flex', flexDirection: 'column', gap: 22, padding: '120px 0 48px' }}
+            className="login-col lg-tarjeta"
+            style={{ width: '100%', maxWidth: 420, display: 'flex', flexDirection: 'column', gap: 20, padding: '36px 32px 28px', boxSizing: 'border-box' }}
           >
             <div style={{ alignSelf: 'flex-start' }}>
               <Logo height={26} />
@@ -299,13 +313,16 @@ export default function LoginPage() {
           <style>{`
             .login-input:focus { border-color: ${VERDE} !important; }
             .login-input::placeholder { color: #a8a49c; }
-            @media (max-width: 720px) { .login-col { padding-top: 56px !important; } }
+            @media (max-width: 480px) { .login-col { padding: 28px 20px 22px !important; } }
           `}</style>
         </div>
       ) : (
-      <div className="login-body">
+      <div className="login-body" style={{ minHeight: '100vh', padding: '48px 16px', boxSizing: 'border-box' }}>
         {view === 'confirm' ? (
-          <div className="ob-card" style={{ maxWidth: 420, textAlign: 'center' }}>
+          <div className="ob-card lg-tarjeta" style={{ maxWidth: 420, textAlign: 'center' }}>
+            <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 22 }}>
+              <Logo height={24} />
+            </div>
             <div
               style={{
                 width: 60,
@@ -385,7 +402,10 @@ export default function LoginPage() {
             </div>
           </div>
         ) : view === 'sent' ? (
-          <div className="ob-card" style={{ maxWidth: 420, textAlign: 'center' }}>
+          <div className="ob-card lg-tarjeta" style={{ maxWidth: 420, textAlign: 'center' }}>
+            <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 22 }}>
+              <Logo height={24} />
+            </div>
             <div
               style={{
                 width: 60,
@@ -422,7 +442,10 @@ export default function LoginPage() {
             </button>
           </div>
         ) : view === 'reset' ? (
-          <div className="ob-card" style={{ maxWidth: 420 }}>
+          <div className="ob-card lg-tarjeta" style={{ maxWidth: 420 }}>
+            <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 18 }}>
+              <Logo height={24} />
+            </div>
             <div className="back" onClick={() => setView('login')}>
               <i className="ti ti-arrow-left"></i> Volver
             </div>
