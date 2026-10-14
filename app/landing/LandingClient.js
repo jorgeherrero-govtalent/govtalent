@@ -247,6 +247,8 @@ this.startTab(i);
 }
 renderVals() {
 var st = this.state || {};
+var openVid = () => { this.setState({ vid: true }); };
+var closeVid = (e) => { if (e && e.target && e.currentTarget && e.target !== e.currentTarget) return; this.setState({ vid: false }); };
 var tab = st.tab || 0;
 var typed = st.typed == null ? 0 : st.typed;
 var done = typed >= GT_PROMPT.length;
@@ -260,6 +262,7 @@ var dtab = st.dtab || 0;
 var dtyped = st.dtyped == null ? 0 : st.dtyped;
 var ddone = dtyped >= GT_DQ.length;
 return {
+vidOpen: !!st.vid, openVid, closeVid,
 dtabs: GT_DTABS.map((label, i) => ({
 label: label,
 cls: i === dtab ? 'tab tab-on' : 'tab',
