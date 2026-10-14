@@ -267,7 +267,7 @@ sel: i === dtab ? 'true' : 'false',
 pick: () => this.pickDir(i)
 })),
 d0: dtab === 0, d1: dtab === 1, d2: dtab === 2,
-durl: 'app.govtalent.app/' + GT_DURLS[dtab],
+durl: 'govtalent.app/' + GT_DURLS[dtab],
 dTyped: GT_DQ.slice(0, dtyped),
 dDone: ddone,
 dTyping: !ddone,
@@ -284,7 +284,7 @@ sel: i === tab ? 'true' : 'false',
 pick: () => this.pickTab(i)
 })),
 t0: tab === 0, t1: tab === 1, t2: tab === 2, t3: tab === 3, t4: tab === 4,
-url: 'app.govtalent.app/' + GT_URLS[tab],
+url: 'govtalent.app/' + GT_URLS[tab],
 typedText: GT_PROMPT.slice(0, typed),
 typingDone: done,
 typing: !done,
@@ -350,6 +350,10 @@ function renderNode(node, scope, key) {
       const st = {};
       for (const p in v) st[p] = value(v[p], scope);
       props.style = st;
+    } else if (name === 'className') {
+      // Mismo prefijo que landing.css (l-), para no chocar con globals.css.
+      const c = value(v, scope);
+      props.className = c ? String(c).split(/\s+/).filter(Boolean).map((k) => 'l-' + k).join(' ') : undefined;
     } else {
       props[name] = value(v, scope);
     }
@@ -365,6 +369,29 @@ export default function LandingClient() {
     const c = ref.current;
     c.componentDidMount();
     return () => c.componentWillUnmount();
+  }, []);
+  // Móvil y tableta: las maquetas de la plataforma se ven como en el
+  // ordenador, reducidas al ancho disponible (no se recolocan).
+  useEffect(() => {
+    const fit = () => {
+      document.querySelectorAll('.gtl [data-fit]').forEach((el) => {
+        if (window.innerWidth > 900) {
+          el.style.width = '';
+          el.style.zoom = '';
+          return;
+        }
+        const base = Number(el.dataset.fit);
+        const pa = el.parentElement;
+        const cs = getComputedStyle(pa);
+        const disponible = pa.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight);
+        el.style.boxSizing = 'border-box';
+        el.style.width = base + 'px';
+        el.style.zoom = String(Math.min(1, disponible / base));
+      });
+    };
+    fit();
+    window.addEventListener('resize', fit);
+    return () => window.removeEventListener('resize', fit);
   }, []);
   const vals = ref.current.renderVals();
   return createElement('div', { className: 'gtl' }, ...TPL.map((n, i) => renderNode(n, vals, i)));
