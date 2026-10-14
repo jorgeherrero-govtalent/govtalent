@@ -28,9 +28,9 @@ class DCLogic {
 
 /* ---------- lógica del diseño (sin cambios) ---------- */
 var GT_DQ = 'Quién lleva energía en el Gobierno, el Congreso, las comunidades y la Comisión Europea';
-var GT_DTABS = ['Buscar y enriquecer', 'Base de datos', 'Listas'];
-var GT_DURLS = ['contactos', 'base-de-datos', 'listas'];
-var GT_DDUR = [15000, 8000, 8000];
+var GT_DTABS = ['Buscar y enriquecer', 'Base de datos'];
+var GT_DURLS = ['contactos', 'base-de-datos'];
+var GT_DDUR = [15000, 8000];
 var GT_PROMPT = 'Avísame de cualquier novedad sobre almacenamiento energético y baterías en Madrid, Cataluña y a nivel estatal, sobre todo de plazos de enmiendas y consultas públicas.';
 var GT_TABS = ['Asistente', 'Novedades', 'Alarmas', 'Base de datos', 'Enriquecer'];
 var GT_URLS = ['asistente', 'novedades', 'alarmas', 'base-de-datos', 'contactos/listas/energia'];
