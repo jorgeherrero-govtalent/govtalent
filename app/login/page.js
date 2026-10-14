@@ -212,7 +212,7 @@ export default function LoginPage() {
                     <button
                       type="button"
                       onClick={() => setView('reset')}
-                      style={{ background: 'none', border: 'none', padding: 0, font: 'inherit', fontSize: 13, fontWeight: 400, color: VERDE }}
+                      style={{ background: 'none', border: 'none', padding: 0, font: 'inherit', fontSize: 13, fontWeight: 400, color: GRIS }}
                     >
                       ¿La has olvidado?
                     </button>
@@ -268,7 +268,7 @@ export default function LoginPage() {
                   setError('');
                   setView(view === 'login' ? 'signup' : 'login');
                 }}
-                style={{ background: 'none', border: 'none', padding: 0, font: 'inherit', fontSize: 13, fontWeight: 600, color: VERDE }}
+                style={{ background: 'none', border: 'none', padding: 0, font: 'inherit', fontSize: 13, fontWeight: 600, color: GRIS }}
               >
                 {view === 'login' ? 'Crear cuenta gratis' : 'Iniciar sesión'}
               </button>
