@@ -9,7 +9,7 @@ import LandingClient from './LandingClient';
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://govtalent.app';
 const TITULO = 'GovTalent | Vigilancia normativa con IA y directorio del sector público';
 const DESCRIPCION =
-  'Alarmas con IA sobre la normativa del Estado, las comunidades autónomas y la UE, avisos en tiempo real y la mayor base de datos del sector público, con más de 25.000 contactos.';
+  'Desde la primera señal normativa hasta el contacto de quien la tramita: diseñada para que tu organización sea más eficiente con IA.';
 
 export const metadata = {
   title: { absolute: TITULO },
