@@ -275,7 +275,7 @@ dbt0: dbts[0], dbt1: dbts[1], dbt2: dbts[2], dbt3: dbts[3], dbtabs: dbts,
 eut0: eus[0], eut1: eus[1], eut2: eus[2], eut3: eus[3], eut4: eus[4],
 eu0: eut === 0, eu1: eut === 1, eu2: eut === 2, eu3: eut === 3, eu4: eut === 4,
 b0: dblk === 0, b1: dblk === 1, b2: dblk === 2, b3: dblk === 3,
-dbrows: gtDbRows(dblk), dbNivel: GT_DBN[dblk], dbEntidad: GT_DBE[dblk],
+dbrows: gtDbRows(dblk), dbm: gtDbRows(dblk).slice(0, 3), hcF: gtCt(st.hclk == null ? 0 : st.hclk).filas.slice(0, 4), dcF: gtCt(st.dclk == null ? 0 : st.dclk).filas.slice(0, 4), dbNivel: GT_DBN[dblk], dbEntidad: GT_DBE[dblk],
 hc: gtCt(st.hclk == null ? 0 : st.hclk), dc: gtCt(st.dclk == null ? 0 : st.dclk),
 tabs: GT_TABS.map((label, i) => ({
 label: label,
