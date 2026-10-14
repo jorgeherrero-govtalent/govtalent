@@ -272,8 +272,8 @@ export default function CalculadoraPrecios({ autenticado = false }) {
               </span>
             </h3>
             <p style={{ margin: 0, fontSize: 13, color: '#6f6c64', lineHeight: 1.45 }}>
-              Más de 18.000 contactos de instituciones, organizaciones, medios y actores sociales: altos cargos,
-              asesores y funcionarios, más de 15.000 con correo o teléfono. Incluye 1 usuario, 1 alarma semanal y 25 créditos de contacto al mes. Cada usuario adicional, {euros(DIRECTORIO_USUARIO_EXTRA)} al año.
+              Cerca de 25.000 contactos de instituciones, organizaciones, medios y actores sociales: altos cargos,
+              asesores y funcionarios, más de 22.000 con correo o teléfono, y la opción de buscar cualquier otro contacto. Incluye 1 usuario, 1 alarma semanal y 25 créditos de contacto al mes. Cada usuario adicional, {euros(DIRECTORIO_USUARIO_EXTRA)} al año.
             </p>
           </div>
           <div style={{ display: 'flex', alignItems: 'baseline', gap: 4, whiteSpace: 'nowrap' }}>
