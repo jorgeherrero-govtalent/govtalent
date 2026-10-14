@@ -66,6 +66,22 @@ export async function middleware(request) {
   } = await supabase.auth.getUser();
 
   const path = request.nextUrl.pathname;
+
+  // Portada pública: quien llega a / sin sesión ve la landing, con la misma
+  // dirección (reescritura, no redirección: es lo que indexa Google). Con
+  // sesión, / sigue siendo el Asistente. /landing no se sirve por sí sola:
+  // vuelve a / para que la portada tenga una única dirección.
+  if (path === '/landing') {
+    const url = request.nextUrl.clone();
+    url.pathname = '/';
+    return NextResponse.redirect(url, 308);
+  }
+  if (!user && path === '/') {
+    const url = request.nextUrl.clone();
+    url.pathname = '/landing';
+    return NextResponse.rewrite(url);
+  }
+
   const isAuthRoute = path === '/login' || path.startsWith('/auth');
   const isOnboarding = path.startsWith('/onboarding');
   const isPublicJobPage = path.startsWith('/empleo/');
