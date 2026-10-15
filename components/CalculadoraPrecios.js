@@ -143,7 +143,7 @@ export default function CalculadoraPrecios({ autenticado = false, plazasFundador
 
   const precio = anual ? ano : mes;
   const detalle = anual
-    ? `Equivale a ${euros(ano / 12)} al mes · ahorras ${euros(mes * 12 - ano)}`
+    ? `Equivale a ${euros(ano / 12)} al mes, ahorras ${euros(mes * 12 - ano)}`
     : 'Pago cada mes';
   const maxCreditos = HORQUILLAS[HORQUILLAS.length - 1].creditos;
 
