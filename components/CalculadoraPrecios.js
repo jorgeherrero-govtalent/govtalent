@@ -6,12 +6,10 @@ import {
   HORQUILLAS,
   MAX_USUARIOS,
   PLAZAS_FUNDADOR,
-  CREDITOS_POR_ALARMA,
   PACKS_CREDITOS_IA,
   MESES_CADUCIDAD_PACKS,
   DIRECTORIO_ANUAL,
   DIRECTORIO_USUARIO_EXTRA,
-  alarmasEquivalentes,
   precioDe,
   euros,
   miles,
@@ -146,10 +144,7 @@ export default function CalculadoraPrecios({ autenticado = false, plazasFundador
   const precio = anual ? ano : mes;
   const detalle = anual
     ? `Equivale a ${euros(ano / 12)} al mes · ahorras ${euros(mes * 12 - ano)}`
-    : equipo
-      ? `${euros(mes / h.usuarios)} por persona con el equipo completo`
-      : 'Pago cada mes';
-  const alarmas = alarmasEquivalentes(h.creditos);
+    : 'Pago cada mes';
   const maxCreditos = HORQUILLAS[HORQUILLAS.length - 1].creditos;
 
   return (
@@ -259,11 +254,6 @@ export default function CalculadoraPrecios({ autenticado = false, plazasFundador
                 }}
               />
             </div>
-            <span style={{ fontSize: 13, color: '#6f6c64' }}>
-              {aMedida
-                ? `Cada alarma usa aproximadamente ${CREDITOS_POR_ALARMA} créditos al mes`
-                : `Unas ${alarmas} alarmas · aproximadamente ${CREDITOS_POR_ALARMA} créditos cada una`}
-            </span>
           </div>
           {fundador && !aMedida && (
             <div
