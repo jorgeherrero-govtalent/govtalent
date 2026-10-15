@@ -13,7 +13,7 @@ const PAGE_SIZE_OPTIONS = [25, 50, 100, 200];
 
 // La vista tiene unas 18.200 filas desde que entró la Agenda de la
 // Comunicación (sql/70, 05-10-2026).
-// Hasta 25.000 filas en 5 bloques de 5.000 (ver /api/instituciones/directorio/data).
+// Las filas, en bloques de 5.000 (ver /api/instituciones/directorio/data).
 // Bloques de 5.000 filas: tantos como pida el total (máx. 12, ver la ruta
 // /data). Si el total falla, 7 bloques (35.000 filas).
 const BLOQUE_FILAS = 5000;
@@ -360,6 +360,45 @@ function FiltroBarra({ icono, label, values, selected, onApply }) {
   );
 }
 
+// Cifra de la cabecera, del total real: «+26.000» o, si está a menos de 300
+// del siguiente millar, «Casi 27.000» (nunca prometer más de lo que hay).
+function cifraCabecera(total) {
+  if (!total) return '+25.000';
+  const sig = Math.ceil(total / 1000) * 1000;
+  if (sig - total > 0 && sig - total <= 300) return `Casi ${sig.toLocaleString('es-ES')}`;
+  return `+${(Math.floor(total / 1000) * 1000).toLocaleString('es-ES')}`;
+}
+
+// Un filtro aplicado, junto al número de resultados, con su aspa para quitarlo.
+function ChipFiltro({ texto, onQuitar }) {
+  return (
+    <span
+      style={{
+        display: 'inline-flex',
+        alignItems: 'center',
+        gap: 4,
+        fontSize: 12,
+        background: '#f1effe',
+        color: '#3d2fb3',
+        borderRadius: 999,
+        padding: '3px 4px 3px 10px',
+        maxWidth: 320,
+      }}
+    >
+      <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{texto}</span>
+      <button
+        type="button"
+        onClick={onQuitar}
+        aria-label={`Quitar filtro ${texto}`}
+        title="Quitar filtro"
+        style={{ border: 'none', background: 'transparent', color: '#5443d6', cursor: 'pointer', padding: '0 3px', display: 'flex', lineHeight: 1 }}
+      >
+        <i className="ti ti-x" style={{ fontSize: 13 }} aria-hidden="true"></i>
+      </button>
+    </span>
+  );
+}
+
 export default function DirectorioInstitucionalPage() {
   const supabase = createClient();
 
@@ -384,7 +423,8 @@ export default function DirectorioInstitucionalPage() {
   const [selectedIds, setSelectedIds] = useState(new Set());
 
   const [modalUpsell, setModalUpsell] = useState(false);
-  const cuantosDirectorio = masDe(useTotalDirectorio());
+  const totalDirectorio = useTotalDirectorio();
+  const cuantosDirectorio = masDe(totalDirectorio);
   const [showExportConfirm, setShowExportConfirm] = useState(false);
   const [exportUsage, setExportUsage] = useState(null);
   const [exportBusy, setExportBusy] = useState(false);
@@ -763,7 +803,7 @@ export default function DirectorioInstitucionalPage() {
       <div style={{ marginBottom: 16 }}>
         <h1 style={{ fontSize: 19, fontWeight: 700, margin: 0 }}>Directorio institucional</h1>
         <p style={{ fontSize: 12.5, color: '#888', margin: '4px 0 0' }}>
-          +25.000 personas de las instituciones de España y la UE, las organizaciones
+          {cifraCabecera(totalDirectorio)} personas de las instituciones de España y la UE, las organizaciones
           y los medios de comunicación.
         </p>
       </div>
@@ -916,9 +956,53 @@ export default function DirectorioInstitucionalPage() {
         </button>
       </div>
 
-      <div style={{ fontSize: 12, color: '#999', marginBottom: 8 }}>
-        {filtered.length.toLocaleString('es-ES')} resultados
-      </div>
+      {(() => {
+        const quitar = (set, setter, v) => {
+          const n = new Set(set);
+          n.delete(v);
+          setter(n);
+        };
+        const chips = [
+          ...(search.trim() ? [{ k: 'q', t: `«${search.trim()}»`, f: () => setSearch('') }] : []),
+          ...[...nivelFilter].map((v) => ({ k: `n-${v}`, t: v, f: () => quitar(nivelFilter, setNivelFilter, v) })),
+          ...[...institucionFilter].map((v) => ({ k: `i-${v}`, t: v, f: () => quitar(institucionFilter, setInstitucionFilter, v) })),
+          ...[...areaFilter].map((v) => ({ k: `a-${v}`, t: `Área: ${v}`, f: () => quitar(areaFilter, setAreaFilter, v) })),
+          ...[...paisFilter].map((v) => ({ k: `p-${v}`, t: PAISES[v] || v, f: () => quitar(paisFilter, setPaisFilter, v) })),
+          ...[...bandaFilter].map((v) => ({ k: `b-${v}`, t: BANDA_LABELS[v] || v, f: () => quitar(bandaFilter, setBandaFilter, v) })),
+          ...[...contactoFilter].map((v) => ({
+            k: `c-${v}`,
+            t: `Scoring: ${contactoValues.find((x) => x.value === v)?.label || v}`,
+            f: () => quitar(contactoFilter, setContactoFilter, v),
+          })),
+        ];
+        return (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap', minHeight: 26, marginBottom: 8 }}>
+            <span style={{ fontSize: 12, color: '#999', marginRight: 4 }}>
+              {filtered.length.toLocaleString('es-ES')} resultados
+            </span>
+            {chips.map((c) => (
+              <ChipFiltro key={c.k} texto={c.t} onQuitar={c.f} />
+            ))}
+            {chips.length > 1 && (
+              <button
+                type="button"
+                onClick={() => {
+                  setSearch('');
+                  setNivelFilter(new Set());
+                  setInstitucionFilter(new Set());
+                  setAreaFilter(new Set());
+                  setPaisFilter(new Set());
+                  setBandaFilter(new Set());
+                  setContactoFilter(new Set());
+                }}
+                style={{ border: 'none', background: 'transparent', color: '#5443d6', fontSize: 12, fontWeight: 600, cursor: 'pointer', padding: '3px 6px' }}
+              >
+                Quitar todos
+              </button>
+            )}
+          </div>
+        );
+      })()}
 
       <div
         style={{
