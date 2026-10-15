@@ -14,7 +14,10 @@ const PAGE_SIZE_OPTIONS = [25, 50, 100, 200];
 // La vista tiene unas 18.200 filas desde que entró la Agenda de la
 // Comunicación (sql/70, 05-10-2026).
 // Hasta 25.000 filas en 5 bloques de 5.000 (ver /api/instituciones/directorio/data).
-const BLOQUES_CARGA = 5;
+// Bloques de 5.000 filas: tantos como pida el total (máx. 12, ver la ruta
+// /data). Si el total falla, 7 bloques (35.000 filas).
+const BLOQUE_FILAS = 5000;
+const MAX_BLOQUES = 12;
 
 // Tres bloques, como el menú del Directorio (05-10-2026). Sustituyen a las
 // pestañas España / UE: desde que entraron los medios y los ayuntamientos,
@@ -421,8 +424,12 @@ export default function DirectorioInstitucionalPage() {
     // página. Antes eran 13 peticiones de 1.000, una detrás de otra.
     async function cargar() {
       try {
+        const tot = await fetch('/api/instituciones/directorio/total')
+          .then((r) => (r.ok ? r.json() : null))
+          .catch(() => null);
+        const nBloques = tot?.total ? Math.min(MAX_BLOQUES, Math.ceil(tot.total / BLOQUE_FILAS)) : 7;
         const bloques = await Promise.all(
-          Array.from({ length: BLOQUES_CARGA }, async (_, i) => {
+          Array.from({ length: nBloques }, async (_, i) => {
             const res = await fetch(`/api/instituciones/directorio/data?bloque=${i}`);
             const json = await res.json().catch(() => ({}));
             if (!res.ok) throw new Error(json.error || 'No se pudo cargar el directorio');

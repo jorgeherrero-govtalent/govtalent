@@ -26,7 +26,10 @@ export const dynamic = 'force-dynamic';
 const CHUNK = 1000;
 // 25.000 desde el 05-10-2026 (sql/70: la Agenda de la Comunicación suma
 // unas 5.800 personas y la vista queda en unas 18.200). Cinco bloques.
-const MAX_FILAS = 25000;
+// 60.000 desde el 15-10-2026: con las cargas autonómicas el directorio pasó
+// de 25.000 y la Base de datos cortaba las últimas filas. La página pide
+// solo los bloques que hacen falta según el total.
+const MAX_FILAS = 60000;
 const BLOQUE = 5000;
 const MAX_BLOQUES = MAX_FILAS / BLOQUE;
 const COLUMNAS =
