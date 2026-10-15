@@ -162,7 +162,8 @@ export default function CondicionesPage() {
 
       <h4 style={sub}>5.2. Alarmas y créditos</h4>
       <p>Cada horquilla incluye un número de créditos al mes para toda la suscripción, compartidos por todos sus
-      Usuarios. Cada alarma activa consume {CREDITOS_POR_ALARMA} créditos al mes; el resto de los créditos se
+      Usuarios. Cada alarma activa consume {CREDITOS_POR_ALARMA} créditos al mes y, en la horquilla de 1 Usuario,
+      el máximo es de {HORQUILLAS[0].alarmasMax} alarmas activas a la vez; el resto de los créditos se
       consume al utilizar el Asistente y las demás funcionalidades de inteligencia artificial que así se indiquen
       en la Plataforma. Los créditos mensuales se renuevan al inicio de cada mes y los no utilizados no se
       acumulan para meses posteriores.</p>

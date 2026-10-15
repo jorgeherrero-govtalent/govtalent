@@ -242,6 +242,11 @@ export default function CalculadoraPrecios({ autenticado = false, plazasFundador
             <span style={{ fontSize: 14, color: '#55524b' }}>
               créditos al mes{!aMedida && equipo ? ', para todo el equipo' : ''}
             </span>
+            {!aMedida && h.alarmasMax && (
+              <span style={{ fontSize: 13, color: '#6f6c64', marginTop: 4 }}>
+                Con este plan puedes tener hasta {h.alarmasMax} alarmas activas a la vez.
+              </span>
+            )}
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
             <div style={{ height: 8, borderRadius: 8, background: MORADO_SUAVE, overflow: 'hidden' }}>
