@@ -450,7 +450,7 @@ html:has(.gtl){scroll-behavior:smooth}
 .gtl .l-m-prep .l-m-paso{display:flex;gap:8px;font-size:13px;line-height:1.4;color:#3a3750}
 .gtl .l-m-chk{width:14px;height:14px;border-radius:50%;background:#6d5aef;flex:none;margin-top:2px}
 .gtl .l-m-li{display:flex;align-items:center;gap:10px;font-size:13.5px;padding:7px 0;border-bottom:1px solid #f0eef5}
-.gtl .l-m-src{font-size:11px;font-weight:600;color:#6a6780;width:42px;flex:none}
+.gtl .l-m-src{font-size:11px;font-weight:600;color:#6a6780;width:56px;flex:none}
 .gtl .l-m-li2{flex-direction:row;align-items:center;gap:12px}
 .gtl .l-m-time{font-family:'GeistMono',ui-monospace,monospace;font-size:12px;color:#8a879c;flex:none}
 .gtl .l-m-live{display:flex;align-items:center;gap:8px;font-size:13px;font-weight:500;color:#3a3750}
