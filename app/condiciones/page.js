@@ -23,6 +23,7 @@ export const metadata = {
 export default function CondicionesPage() {
   return (
     <LegalPageShell title="Condiciones generales de contratación y uso">
+      <p style={{ fontSize: 13, color: '#8b8780', marginTop: -10 }}>Última actualización: 15 de octubre de 2026.</p>
       <h3>Información del prestador</h3>
       <p>El sitio web https://govtalent.app y los servicios ofrecidos a través de él son prestados por Jorge Rafael
       Herrero Vidal, con NIF 20455625T, quien desarrolla su actividad profesional bajo el nombre comercial
