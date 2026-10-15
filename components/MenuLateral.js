@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { creditosIncluidos, miles } from '@/lib/precios';
+import { CREDITOS_POR_ALARMA, miles } from '@/lib/precios';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import BuscadorGlobal from '@/components/BuscadorGlobal';
@@ -111,7 +111,7 @@ const SECCIONES = [
   },
 ];
 
-/** El anillo de la tarjeta del plan: alarmas activas sobre el límite. */
+/** El anillo de la tarjeta del plan: créditos usados (o alarmas en Free) sobre el total. */
 function Anillo({ usadas, limite, tam = 40 }) {
   const r = 16;
   const c = 2 * Math.PI * r;
@@ -160,7 +160,7 @@ export default function MenuLateral({
   enOrganizacion = null,
   tieneOfertas = false,
   novedades = 0,
-  alarmas = null, // { usadas, limite, esPro } o null mientras carga
+  alarmas = null, // { usadas, limite, esPro, creditos, creditosUsados } o null mientras carga
   onSignOut,
   movilAbierto = false,
   onCerrarMovil,
@@ -266,20 +266,44 @@ export default function MenuLateral({
             <Link
               href="/alarmas"
               className="gt-lat-anillo"
-              title={`${alarmas.usadas} de ${alarmas.limite} ${alarmas.limite === 1 ? 'alarma' : 'alarmas'} · ${esPro ? `${miles(creditosIncluidos(user?.plan_usuarios || 1))} créditos mensuales` : 'Plan Free'}`}
+              title={
+                esPro
+                  ? `${miles(alarmas.creditosUsados)} de ${miles(alarmas.creditos)} créditos usados este mes`
+                  : `${alarmas.usadas} de ${alarmas.limite} ${alarmas.limite === 1 ? 'alarma' : 'alarmas'} · Plan Free`
+              }
             >
-              <Anillo usadas={alarmas.usadas} limite={alarmas.limite} tam={34} />
+              {esPro ? (
+                <Anillo usadas={alarmas.creditosUsados} limite={alarmas.creditos} tam={34} />
+              ) : (
+                <Anillo usadas={alarmas.usadas} limite={alarmas.limite} tam={34} />
+              )}
             </Link>
           ) : (
             <div className="gt-lat-plan">
               <div className="gt-lat-plan-t">
-                <div>
-                  <b>
-                    {alarmas.usadas} de {alarmas.limite} {alarmas.limite === 1 ? 'alarma' : 'alarmas'}
-                  </b>
-                  <small>{esPro ? `${miles(creditosIncluidos(user?.plan_usuarios || 1))} créditos mensuales` : 'Plan Free · resumen los lunes'}</small>
-                </div>
-                <Anillo usadas={alarmas.usadas} limite={alarmas.limite} />
+                {esPro ? (
+                  <div>
+                    <b>
+                      {miles(alarmas.creditosUsados)} de {miles(alarmas.creditos)} créditos
+                    </b>
+                    <small>
+                      {alarmas.usadas} {alarmas.usadas === 1 ? 'alarma activa' : 'alarmas activas'} · {CREDITOS_POR_ALARMA} créditos
+                      cada una
+                    </small>
+                  </div>
+                ) : (
+                  <div>
+                    <b>
+                      {alarmas.usadas} de {alarmas.limite} {alarmas.limite === 1 ? 'alarma' : 'alarmas'}
+                    </b>
+                    <small>Plan Free · resumen los lunes</small>
+                  </div>
+                )}
+                {esPro ? (
+                  <Anillo usadas={alarmas.creditosUsados} limite={alarmas.creditos} />
+                ) : (
+                  <Anillo usadas={alarmas.usadas} limite={alarmas.limite} />
+                )}
               </div>
               {esPro ? (
                 <Link href="/account" className="gt-lat-btn">
