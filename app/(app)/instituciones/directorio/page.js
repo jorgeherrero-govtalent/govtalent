@@ -756,7 +756,7 @@ export default function DirectorioInstitucionalPage() {
       <div style={{ marginBottom: 16 }}>
         <h1 style={{ fontSize: 19, fontWeight: 700, margin: 0 }}>Directorio institucional</h1>
         <p style={{ fontSize: 12.5, color: '#888', margin: '4px 0 0' }}>
-          {filtered.length.toLocaleString('es-ES')} personas de las instituciones de España y la UE, las organizaciones
+          +25.000 personas de las instituciones de España y la UE, las organizaciones
           y los medios de comunicación.
         </p>
       </div>
