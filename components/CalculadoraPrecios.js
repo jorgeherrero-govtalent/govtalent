@@ -261,8 +261,8 @@ export default function CalculadoraPrecios({ autenticado = false, plazasFundador
             </div>
             <span style={{ fontSize: 13, color: '#6f6c64' }}>
               {aMedida
-                ? `Cada alarma activa usa ${CREDITOS_POR_ALARMA} créditos al mes`
-                : `Hasta ${alarmas} alarmas activas · ${CREDITOS_POR_ALARMA} créditos cada una`}
+                ? `Cada alarma usa aproximadamente ${CREDITOS_POR_ALARMA} créditos al mes`
+                : `Unas ${alarmas} alarmas · aproximadamente ${CREDITOS_POR_ALARMA} créditos cada una`}
             </span>
           </div>
           {fundador && !aMedida && (
@@ -306,7 +306,7 @@ export default function CalculadoraPrecios({ autenticado = false, plazasFundador
             Actividad normativa e institucional de cargos públicos, con aviso de sus agendas y comunicados.
           </Punto>
           <Punto titulo="Proyectos y Tareas">
-            {equipo || aMedida ? 'Compartidos con el equipo, con roles.' : 'Organiza tu trabajo regulatorio.'}
+            Para la creación de proyectos, seguimiento de tareas y trabajo colaborativo en equipo.
           </Punto>
           <Punto titulo="Asistente y MCP">Crea alarmas hablando y conéctalo con ChatGPT y Claude.</Punto>
         </div>
