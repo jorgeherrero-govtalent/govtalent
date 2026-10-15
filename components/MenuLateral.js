@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { CREDITOS_POR_ALARMA, miles } from '@/lib/precios';
+import { miles } from '@/lib/precios';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import BuscadorGlobal from '@/components/BuscadorGlobal';
@@ -287,8 +287,7 @@ export default function MenuLateral({
                       {miles(alarmas.creditosUsados)} de {miles(alarmas.creditos)} créditos
                     </b>
                     <small>
-                      {alarmas.usadas} {alarmas.usadas === 1 ? 'alarma activa' : 'alarmas activas'} · {CREDITOS_POR_ALARMA} créditos
-                      cada una
+                      {alarmas.usadas} {alarmas.usadas === 1 ? 'alarma activa' : 'alarmas activas'}
                     </small>
                   </div>
                 ) : (
