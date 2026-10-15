@@ -575,6 +575,7 @@ export default function AlarmasTab({ seccion = 'alarmas' }) {
   const [userId, setUserId] = useState(null);
   const [email, setEmail] = useState('');
   const [nivel, setNivel] = useState('free');
+  const [usuariosPlan, setUsuariosPlan] = useState(1);
   const [alarmas, setAlarmas] = useState([]);
   const [encaja, setEncaja] = useState([]); // coincidencias de todas mis alarmas
   const [correos, setCorreos] = useState(true);
@@ -616,7 +617,7 @@ export default function AlarmasTab({ seccion = 'alarmas' }) {
   const restaurado = useRef(false);
 
   const esPro = nivel === 'pro';
-  const limites = limitesDe(nivel);
+  const limites = limitesDe(nivel, usuariosPlan);
   const activas = useMemo(() => alarmas.filter((a) => a.activa), [alarmas]);
   const enLimite = activas.length >= limites.alarmas;
 
@@ -658,8 +659,13 @@ export default function AlarmasTab({ seccion = 'alarmas' }) {
       const { data: u } = await supabase.from('users').select('plan').eq('id', uid).maybeSingle();
       niv = u?.plan === 'pro' ? 'pro' : 'free';
     }
+    // La horquilla contratada decide los créditos y, con ellos, cuántas
+    // alarmas se pueden activar (lib/alarmas.js, limitesDe).
+    const { data: up } = await supabase.from('users').select('plan_usuarios').eq('id', uid).maybeSingle();
+    const usuariosDelPlan = Number(up?.plan_usuarios) || 1;
     setNivel(niv);
     setAlarmas(al || []);
+    setUsuariosPlan(usuariosDelPlan);
     setEncaja(m || []);
     setCorreos(p?.email !== false);
     setEventos(ev || []);

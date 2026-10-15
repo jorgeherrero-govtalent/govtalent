@@ -123,6 +123,7 @@ export default function ConsolaAlarmas() {
   const cajaRef = useRef(null);
   const [cargado, setCargado] = useState(false);
   const [nivel, setNivel] = useState('free');
+  const [usuariosPlan, setUsuariosPlan] = useState(1);
   const [alarmas, setAlarmas] = useState([]);
   const [matches, setMatches] = useState([]);
   const [valor, setValor] = useState('');
@@ -156,8 +157,12 @@ export default function ConsolaAlarmas() {
         const { data: u } = await supabase.from('users').select('plan').eq('id', uid).maybeSingle();
         niv = u?.plan === 'pro' ? 'pro' : 'free';
       }
+      // La horquilla decide cuántas alarmas se pueden activar.
+      const { data: up } = await supabase.from('users').select('plan_usuarios').eq('id', uid).maybeSingle();
+      const usuariosDelPlan = Number(up?.plan_usuarios) || 1;
       if (cancelado) return;
       setNivel(niv);
+      setUsuariosPlan(usuariosDelPlan);
       setAlarmas(al || []);
       setMatches(m || []);
       setCargado(true);
@@ -170,7 +175,7 @@ export default function ConsolaAlarmas() {
 
   const esPro = nivel === 'pro';
   const activas = alarmas.filter((a) => a.activa);
-  const limite = limitesDe(nivel).alarmas;
+  const limite = limitesDe(nivel, usuariosPlan).alarmas;
 
   const resumen = useMemo(() => {
     // Un asunto encontrado por dos alarmas cuenta una vez.

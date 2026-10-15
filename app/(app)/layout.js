@@ -9,6 +9,7 @@ import OnboardingModal from '@/components/OnboardingModal';
 import PublicHeader from '@/components/PublicHeader';
 import Footer from '@/components/Footer';
 import MenuUsuario from '@/components/MenuUsuario';
+import { creditosIncluidos, CREDITOS_POR_ALARMA } from '@/lib/precios';
 import MenuLateral from '@/components/MenuLateral';
 import BarraMovil from '@/components/BarraMovil';
 import BuscadorGlobal from '@/components/BuscadorGlobal';
@@ -115,7 +116,17 @@ export default function AppLayout({ children }) {
       if (active && vistasEn.current < pedidoEn) setNovedades((cambios || 0) + (encontrados || 0));
       if (active) {
         const esPro = nivel === 'pro';
-        setAlarmas({ usadas: activas || 0, limite: limitesDe(nivel).alarmas, esPro });
+        const usuarios = Number(profile?.plan_usuarios) || 1;
+        const creditos = creditosIncluidos(usuarios);
+        setAlarmas({
+          usadas: activas || 0,
+          limite: limitesDe(nivel, esPro ? usuarios : null).alarmas,
+          esPro,
+          creditos,
+          // Lo que reservan las alarmas activas este mes. El resto de la IA
+          // aún no descuenta créditos.
+          creditosUsados: (activas || 0) * CREDITOS_POR_ALARMA,
+        });
       }
     }
     load();
