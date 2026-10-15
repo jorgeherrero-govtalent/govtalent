@@ -296,6 +296,9 @@ export default function CalculadoraPrecios({ autenticado = false, plazasFundador
             Boletines oficiales, consultas públicas, parlamentos autonómicos, Congreso, Senado, Unión Europea y Consejo
             de Ministros.
           </Punto>
+          <Punto titulo="Actividad normativa">
+            Resumen del expediente, recorrido, plazos y actores que influyen o se han posicionado.
+          </Punto>
           <Punto titulo="Avisos y plazos">
             Personaliza tu alarma, con alertas al momento, cada mañana o semanalmente.
           </Punto>
