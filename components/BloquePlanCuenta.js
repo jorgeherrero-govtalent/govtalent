@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { toast } from '@/lib/toast';
-import { euros, precioMensual, DIRECTORIO_ANUAL } from '@/lib/precios';
+import { euros, HORQUILLAS, MAX_USUARIOS, DIRECTORIO_ANUAL, horquillaPorUsuarios, miles } from '@/lib/precios';
 import UsuariosDirectorio from '@/components/UsuariosDirectorio';
 
 const CARD = { background: '#fff', borderRadius: 10, boxShadow: '0 1px 2px rgba(0,0,0,.04)' };
@@ -37,7 +37,7 @@ const SIRVIENDO = new Set(['active', 'trialing', 'past_due']);
 // Los verbos hacen el trabajo: Free consulta, Pro busca y sigue. La
 // diferencia entre mirar y vigilar es lo que se está vendiendo aquí.
 const BENEFICIOS_PRO = [
-  ['Vigila', ' el BOE, el Congreso, el Consejo de Ministros y más, con hasta 50 alarmas'],
+  ['Vigila', ' el BOE, el Congreso, el Consejo de Ministros y más, con alarmas al momento'],
   ['Sigue', ' normas, instituciones y personas, con aviso de sus cambios'],
   [null, 'Avisos de plazo a 30, 14, 7, 3 y 1 días'],
   [null, 'Proyectos y Tareas'],
@@ -210,7 +210,7 @@ export default function BloquePlanCuenta({ user }) {
             </p>
           ) : (
             <p style={{ fontSize: 12.5, color: '#8b8780', lineHeight: 1.6, margin: '0 0 16px' }}>
-              Suscripción activa{usuarios > 1 ? ` · ${usuarios} usuarios` : ''}.
+              Suscripción activa{usuarios > 1 ? ` · hasta ${usuarios} usuarios` : ''} · {miles(horquillaPorUsuarios(usuarios).creditos)} créditos al mes.
               {renovacion && ` Se renueva el ${renovacion}.`}
             </p>
           )}
@@ -221,9 +221,9 @@ export default function BloquePlanCuenta({ user }) {
 
           <div style={SEPARADOR}>
             <p style={{ fontSize: 13, color: '#3a3a36', lineHeight: 1.6, margin: '0 0 10px' }}>
-              <strong style={{ fontWeight: 600 }}>Para equipos</strong>, la suscripción admite de 2 a
-              50 usuarios, con alarmas, créditos y proyectos compartidos. El directorio se contrata
-              aparte.
+              <strong style={{ fontWeight: 600 }}>Para equipos</strong>, hay horquillas de hasta 3, 6, 10 y{' '}
+              {MAX_USUARIOS} usuarios, con créditos y proyectos compartidos; con más, a medida. El
+              directorio se contrata aparte.
             </p>
             <a
               href="/precios"
@@ -254,7 +254,7 @@ export default function BloquePlanCuenta({ user }) {
         <div style={{ borderTop: '.5px solid #f2f0ec', paddingTop: 14 }}>
           <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 11 }}>
             <span style={{ fontSize: 14, fontWeight: 600, color: '#1a1a18' }}>Vigilancia normativa</span>
-            <span style={{ fontSize: 12.5, color: '#8b8780' }}>desde {euros(precioMensual(1))} / mes</span>
+            <span style={{ fontSize: 12.5, color: '#8b8780' }}>desde {euros(HORQUILLAS[0].mensual)} / mes</span>
           </div>
 
           {BENEFICIOS_PRO.map(([verbo, texto]) => (

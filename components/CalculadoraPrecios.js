@@ -3,13 +3,16 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import {
+  HORQUILLAS,
   MAX_USUARIOS,
+  PLAZAS_FUNDADOR,
+  CREDITOS_POR_ALARMA,
+  PACKS_CREDITOS_IA,
+  MESES_CADUCIDAD_PACKS,
   DIRECTORIO_ANUAL,
   DIRECTORIO_USUARIO_EXTRA,
-  precioMensual,
-  precioAnual,
-  alarmasIncluidas,
-  creditosIncluidos,
+  alarmasEquivalentes,
+  precioDe,
   euros,
   miles,
 } from '@/lib/precios';
@@ -17,26 +20,35 @@ import {
 const MORADO = '#6d5aef';
 const MORADO_OSCURO = '#4f3fc4';
 const MORADO_SUAVE = '#f6f4ff';
+const A_MEDIDA = 'a-medida';
 
 /**
- * La calculadora de /precios: un único plan de 1 a 50 usuarios, con pago
- * mensual o anual. El cliente nunca ve los tramos, solo el resultado: el
- * total, el precio por usuario y lo que incluye.
+ * /precios: el plan de Vigilancia por horquillas de usuarios (1, hasta 3,
+ * 6, 10 y 15; más de 15, a medida), con pago mensual o anual y una bolsa
+ * de créditos mensuales para todo el equipo.
  *
- * Contratar abre el checkout con el plan, los usuarios y la forma de pago
- * (precios vigilancia_mensual, vigilancia_anual y directorio_anual en
- * Stripe). Sin sesión, lleva al alta recordando la elección.
+ * Precio fundador: mientras queden plazas (`plazasFundador`, contadas en
+ * el servidor), las horquillas de equipo muestran el precio fundador junto
+ * al oficial tachado. Quién paga qué lo decide el checkout, no la página.
+ *
+ * Contratar abre el checkout con la horquilla y la forma de pago. Sin
+ * sesión, lleva al alta y vuelve aquí.
  */
-export default function CalculadoraPrecios({ autenticado = false }) {
-  const [usuarios, setUsuarios] = useState(1);
+export default function CalculadoraPrecios({ autenticado = false, plazasFundador = 0 }) {
+  const [sel, setSel] = useState('individual');
   const [anual, setAnual] = useState(true);
   const [cargando, setCargando] = useState(null);
   const [error, setError] = useState(null);
 
-  const mes = precioMensual(usuarios);
-  const ano = precioAnual(usuarios);
-  const equipo = usuarios > 1;
+  const aMedida = sel === A_MEDIDA;
+  const h = HORQUILLAS.find((x) => x.id === sel) || HORQUILLAS[0];
+  const fundador = plazasFundador > 0 && !!h.fundador;
+  const mes = precioDe(h, { fundador });
+  const ano = precioDe(h, { anual: true, fundador });
+  const mesOficial = h.mensual;
+  const anoOficial = h.anual;
   const pago = anual ? 'anual' : 'mensual';
+  const equipo = h.usuarios > 1;
 
   async function contratar(plan) {
     if (cargando) return;
@@ -46,7 +58,7 @@ export default function CalculadoraPrecios({ autenticado = false }) {
       const res = await fetch('/api/stripe/checkout', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(plan === 'directorio' ? { plan } : { plan, usuarios, pago }),
+        body: JSON.stringify(plan === 'directorio' ? { plan } : { plan, horquilla: h.id, pago }),
       });
       const data = await res.json();
       if (data?.url) {
@@ -61,7 +73,6 @@ export default function CalculadoraPrecios({ autenticado = false }) {
   }
 
   // Sin sesión: crear la cuenta y volver a /precios para pagar con ella.
-  // (/signup no existe: el middleware lo mandaba a «Iniciar sesión».)
   const urlAlta = () => '/login?view=signup&redirect=%2Fprecios';
 
   const textoCta = anual
@@ -107,114 +118,155 @@ export default function CalculadoraPrecios({ autenticado = false }) {
       clave: false,
       titulo: 'Pago mensual',
       importe: euros(mes),
+      tachado: fundador ? euros(mesOficial) : null,
       periodo: 'al mes',
-      detalle: equipo ? `${euros(mes / usuarios)} por usuario` : 'Pago cada mes',
+      detalle: equipo ? `${euros(mes / h.usuarios)} por usuario con el equipo completo` : 'Pago cada mes',
       ahorro: null,
     },
     {
       clave: true,
       titulo: 'Pago anual',
       importe: euros(ano),
+      tachado: fundador ? euros(anoOficial) : null,
       periodo: 'al año',
-      detalle: `Equivale a ${euros(ano / 12)} al mes${equipo ? ` · ${euros(ano / 12 / usuarios)} por usuario` : ''}`,
+      detalle: `Equivale a ${euros(ano / 12)} al mes`,
       ahorro: `Ahorras ${euros(mes * 12 - ano)}`,
     },
+  ];
+
+  const opcionesHorquilla = [
+    ...HORQUILLAS.map((x) => ({ id: x.id, texto: x.usuarios === 1 ? '1 usuario' : `Hasta ${x.usuarios}` })),
+    { id: A_MEDIDA, texto: `Más de ${MAX_USUARIOS}` },
   ];
 
   return (
     <>
       <div className="precios-fila">
-        {/* --- Calculadora --- */}
+        {/* --- Horquilla y pago --- */}
         <div className="bento precios-caja" style={{ flex: '3 1 420px' }}>
           <h2 style={{ margin: 0, fontSize: 21, color: '#1a1a18' }}>Vigilancia normativa y trabajo en equipo</h2>
 
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-            <label
-              htmlFor="precios-usuarios"
-              style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 12, fontSize: 14, color: '#55524b' }}
-            >
-              <span>¿Cuántas personas lo vais a usar?</span>
-              <b style={{ fontSize: 21, color: '#1a1a18', whiteSpace: 'nowrap' }}>
-                {usuarios === 1 ? '1 usuario' : `${usuarios} usuarios`}
-              </b>
-            </label>
-            <input
-              id="precios-usuarios"
-              type="range"
-              min={1}
-              max={MAX_USUARIOS}
-              step={1}
-              value={usuarios}
-              onChange={(e) => setUsuarios(Number(e.target.value) || 1)}
-              style={{ width: '100%', accentColor: MORADO, height: 28 }}
-            />
-            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, color: '#a8a49c' }}>
-              <span>1</span>
-              <span>10</span>
-              <span>25</span>
-              <span>{MAX_USUARIOS}</span>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+            <span id="precios-horquilla" style={{ fontSize: 14, color: '#55524b' }}>
+              ¿Cuántas personas lo vais a usar?
+            </span>
+            <div role="radiogroup" aria-labelledby="precios-horquilla" className="precios-horquillas">
+              {opcionesHorquilla.map((o) => {
+                const activa = sel === o.id;
+                return (
+                  <button
+                    key={o.id}
+                    type="button"
+                    role="radio"
+                    aria-checked={activa}
+                    onClick={() => setSel(o.id)}
+                    style={{
+                      padding: '10px 6px',
+                      borderRadius: 10,
+                      border: activa ? `2px solid ${MORADO}` : '1px solid #e0dfd8',
+                      margin: activa ? 0 : 1,
+                      background: activa ? MORADO_SUAVE : '#fff',
+                      color: activa ? MORADO_OSCURO : '#3a3a36',
+                      fontSize: 14,
+                      fontWeight: activa ? 700 : 500,
+                      fontFamily: 'inherit',
+                      cursor: 'pointer',
+                      whiteSpace: 'nowrap',
+                      textAlign: 'center',
+                    }}
+                  >
+                    {o.texto}
+                  </button>
+                );
+              })}
             </div>
           </div>
 
-          <div role="radiogroup" aria-label="Forma de pago" className="precios-pagos">
-            {opcionesPago.map((o) => {
-              const sel = anual === o.clave;
-              return (
-                <button
-                  key={o.titulo}
-                  type="button"
-                  role="radio"
-                  aria-checked={sel}
-                  onClick={() => setAnual(o.clave)}
-                  style={{
-                    position: 'relative',
-                    textAlign: 'left',
-                    padding: sel ? '17px 19px' : '18px 20px',
-                    borderRadius: 12,
-                    border: sel ? `2px solid ${MORADO}` : '1px solid #e0dfd8',
-                    background: sel ? MORADO_SUAVE : '#fff',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    gap: 6,
-                    fontFamily: 'inherit',
-                    cursor: 'pointer',
-                  }}
-                >
-                  <span style={{ fontSize: 13, fontWeight: 700, color: sel ? MORADO_OSCURO : '#55524b' }}>{o.titulo}</span>
-                  <span style={{ display: 'flex', alignItems: 'baseline', gap: 6 }}>
-                    <b style={{ fontSize: 30, color: '#1a1a18', letterSpacing: '-.5px' }}>{o.importe}</b>
-                    <span style={{ fontSize: 14, color: '#55524b' }}>{o.periodo}</span>
-                  </span>
-                  <span style={{ fontSize: 12.5, color: '#55524b', lineHeight: 1.4 }}>{o.detalle}</span>
-                  {o.ahorro && (
-                    <span
+          {aMedida ? (
+            <div style={{ background: '#faf9f5', borderRadius: 12, padding: 20, display: 'flex', flexDirection: 'column', gap: 8 }}>
+              <b style={{ fontSize: 18, color: '#1a1a18' }}>Precio a medida</b>
+              <span style={{ fontSize: 13.5, color: '#55524b', lineHeight: 1.5 }}>
+                Para equipos de más de {MAX_USUARIOS} personas preparamos una propuesta con los usuarios, los créditos y
+                la forma de pago que necesitéis.
+              </span>
+            </div>
+          ) : (
+            <>
+              {fundador && (
+                <div style={{ background: MORADO_SUAVE, borderRadius: 10, padding: '11px 14px', fontSize: 13, color: MORADO_OSCURO, lineHeight: 1.45 }}>
+                  <b>Precio fundador para los {PLAZAS_FUNDADOR} primeros clientes</b>
+                  {` · ${plazasFundador === 1 ? 'queda 1 plaza' : `quedan ${plazasFundador} plazas`}. `}
+                  Lo mantienes mientras sigas suscrito.
+                </div>
+              )}
+              <div role="radiogroup" aria-label="Forma de pago" className="precios-pagos">
+                {opcionesPago.map((o) => {
+                  const marcado = anual === o.clave;
+                  return (
+                    <button
+                      key={o.titulo}
+                      type="button"
+                      role="radio"
+                      aria-checked={marcado}
+                      onClick={() => setAnual(o.clave)}
                       style={{
-                        position: 'absolute',
-                        top: 14,
-                        right: 14,
-                        fontSize: 11.5,
-                        fontWeight: 700,
-                        borderRadius: 20,
-                        padding: '3px 9px',
-                        color: sel ? '#fff' : MORADO,
-                        background: sel ? MORADO : MORADO_SUAVE,
+                        position: 'relative',
+                        textAlign: 'left',
+                        padding: marcado ? '17px 19px' : '18px 20px',
+                        borderRadius: 12,
+                        border: marcado ? `2px solid ${MORADO}` : '1px solid #e0dfd8',
+                        background: marcado ? MORADO_SUAVE : '#fff',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: 6,
+                        fontFamily: 'inherit',
+                        cursor: 'pointer',
                       }}
                     >
-                      {o.ahorro}
-                    </span>
-                  )}
-                </button>
-              );
-            })}
-          </div>
+                      <span style={{ fontSize: 13, fontWeight: 700, color: marcado ? MORADO_OSCURO : '#55524b' }}>{o.titulo}</span>
+                      {o.tachado && (
+                        <span style={{ fontSize: 13, color: '#8b8780', textDecoration: 'line-through' }}>{o.tachado}</span>
+                      )}
+                      <span style={{ display: 'flex', alignItems: 'baseline', gap: 6, flexWrap: 'wrap' }}>
+                        <b style={{ fontSize: 30, color: '#1a1a18', letterSpacing: '-.5px' }}>{o.importe}</b>
+                        <span style={{ fontSize: 14, color: '#55524b' }}>{o.periodo}</span>
+                      </span>
+                      <span style={{ fontSize: 12.5, color: '#55524b', lineHeight: 1.4 }}>{o.detalle}</span>
+                      {o.ahorro && (
+                        <span
+                          style={{
+                            position: 'absolute',
+                            top: 14,
+                            right: 14,
+                            fontSize: 11.5,
+                            fontWeight: 700,
+                            borderRadius: 20,
+                            padding: '3px 9px',
+                            color: marcado ? '#fff' : MORADO,
+                            background: marcado ? MORADO : MORADO_SUAVE,
+                          }}
+                        >
+                          {o.ahorro}
+                        </span>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+            </>
+          )}
 
           <div style={{ flex: 1 }} />
-          {autenticado ? (
+          {aMedida ? (
+            <a href="mailto:hola@govtalent.app?subject=GovTalent%20para%20m%C3%A1s%20de%2015%20usuarios" style={botonPrincipal}>
+              Pedir una propuesta
+            </a>
+          ) : autenticado ? (
             <button type="button" style={botonPrincipal} onClick={() => contratar('vigilancia')} disabled={!!cargando}>
               {cargando === 'vigilancia' ? 'Abriendo el pago…' : textoCta}
             </button>
           ) : (
-            <Link href={urlAlta('vigilancia')} style={botonPrincipal}>
+            <Link href={urlAlta()} style={botonPrincipal}>
               {textoCta}
             </Link>
           )}
@@ -226,15 +278,17 @@ export default function CalculadoraPrecios({ autenticado = false }) {
           <h3 style={{ margin: '0 0 2px', fontSize: 16, color: '#1a1a18' }}>Incluye</h3>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 10 }}>
             <div style={{ background: '#faf9f5', borderRadius: 10, padding: 14 }}>
-              <b style={{ fontSize: 24, color: '#1a1a18' }}>{miles(alarmasIncluidas(usuarios))}</b>
-              <div style={{ fontSize: 12.5, color: '#55524b' }}>alarmas al momento</div>
-              {equipo && <div style={{ fontSize: 11.5, color: '#8b8780', marginTop: 2 }}>compartidas por el equipo</div>}
+              <b style={{ fontSize: 24, color: '#1a1a18' }}>{aMedida ? 'A medida' : miles(h.creditos)}</b>
+              <div style={{ fontSize: 12.5, color: '#55524b' }}>créditos al mes</div>
+              <div style={{ fontSize: 11.5, color: '#8b8780', marginTop: 2 }}>
+                {aMedida ? 'según el equipo' : equipo ? 'para todo el equipo' : `hasta ${alarmasEquivalentes(h.creditos)} alarmas`}
+              </div>
             </div>
             <div style={{ background: '#faf9f5', borderRadius: 10, padding: 14 }}>
-              <b style={{ fontSize: 24, color: '#1a1a18' }}>{miles(creditosIncluidos(usuarios))}</b>
-              <div style={{ fontSize: 12.5, color: '#55524b' }}>créditos mensuales</div>
+              <b style={{ fontSize: 24, color: '#1a1a18' }}>{aMedida ? `+${MAX_USUARIOS}` : h.usuarios}</b>
+              <div style={{ fontSize: 12.5, color: '#55524b' }}>{!aMedida && h.usuarios === 1 ? 'usuario' : 'usuarios'}</div>
               <div style={{ fontSize: 11.5, color: '#8b8780', marginTop: 2 }}>
-                {equipo ? '300 por usuario, compartidos' : '300 por usuario'}
+                {aMedida ? 'con su propio acceso' : equipo ? `hasta ${alarmasEquivalentes(h.creditos)} alarmas` : 'con su propio acceso'}
               </div>
             </div>
           </div>
@@ -249,12 +303,18 @@ export default function CalculadoraPrecios({ autenticado = false }) {
           </Grupo>
           <Grupo titulo="Trabajo">
             <Linea>Proyectos y Tareas</Linea>
-            {equipo && <Linea>Proyectos y tareas compartidos, con roles</Linea>}
-            {equipo && <Linea>Alarmas y créditos compartidos por todo el equipo</Linea>}
+            {(equipo || aMedida) && <Linea>Proyectos y tareas compartidos, con roles</Linea>}
           </Grupo>
           <Grupo titulo="Inteligencia artificial">
             <Linea>Asistente para crear y afinar alarmas</Linea>
             <Linea>MCP: conexión con ChatGPT y Claude</Linea>
+          </Grupo>
+          <Grupo titulo="Créditos">
+            <Linea>Cada alarma activa usa {CREDITOS_POR_ALARMA} créditos al mes; el resto, el Asistente y la IA</Linea>
+            <Linea>
+              ¿Necesitas más? Paquetes de{' '}
+              {PACKS_CREDITOS_IA.map((p, i) => `${i ? (i === PACKS_CREDITOS_IA.length - 1 ? ' y ' : ', ') : ''}${miles(p.creditos)} créditos (${euros(p.precio)})`).join('')}, válidos {MESES_CADUCIDAD_PACKS} meses
+            </Linea>
           </Grupo>
         </div>
       </div>
