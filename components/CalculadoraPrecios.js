@@ -325,7 +325,7 @@ export default function CalculadoraPrecios({ autenticado = false, plazasFundador
               </span>
             </b>
             <span style={{ fontSize: 13, color: '#6f6c64', lineHeight: 1.45 }}>
-              Cerca de 25.000 contactos de cargos, asesores y funcionarios. {euros(DIRECTORIO_USUARIO_EXTRA)} al año por
+              Cerca de 27.000 contactos de cargos, asesores y funcionarios. {euros(DIRECTORIO_USUARIO_EXTRA)} al año por
               usuario adicional.
             </span>
           </div>

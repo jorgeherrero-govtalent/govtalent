@@ -297,7 +297,7 @@ export default function BloquePlanCuenta({ user }) {
             <>
               <p style={{ fontSize: 12.5, color: '#8b8780', lineHeight: 1.6, margin: '0 0 12px' }}>
                 El correo y el teléfono de cargos, unidades, diputados y asesores, y la Base de datos con cerca de
-                25.000 contactos para filtrar y exportar.
+                27.000 contactos para filtrar y exportar.
               </p>
               <button type="button" style={BOTON_SEC} disabled={ocupado} onClick={contratarDirectorio}>
                 {ocupado ? 'Abriendo el pago…' : 'Contratar el Directorio'}

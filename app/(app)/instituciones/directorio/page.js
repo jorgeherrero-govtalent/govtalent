@@ -360,13 +360,11 @@ function FiltroBarra({ icono, label, values, selected, onApply }) {
   );
 }
 
-// Cifra de la cabecera, del total real: «+26.000» o, si está a menos de 300
-// del siguiente millar, «Casi 27.000» (nunca prometer más de lo que hay).
+// Cifra de la cabecera, del total real redondeado al millar: «+27.000»
+// (decisión de Jorge, 15-10-2026). Sin total, la última conocida.
 function cifraCabecera(total) {
-  if (!total) return '+25.000';
-  const sig = Math.ceil(total / 1000) * 1000;
-  if (sig - total > 0 && sig - total <= 300) return `Casi ${sig.toLocaleString('es-ES')}`;
-  return `+${(Math.floor(total / 1000) * 1000).toLocaleString('es-ES')}`;
+  if (!total) return '+27.000';
+  return `+${(Math.round(total / 1000) * 1000).toLocaleString('es-ES')}`;
 }
 
 // Un filtro aplicado, junto al número de resultados, con su aspa para quitarlo.
