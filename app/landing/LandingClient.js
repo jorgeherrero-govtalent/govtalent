@@ -28,6 +28,7 @@ class DCLogic {
 
 /* ---------- lógica del diseño (sin cambios) ---------- */
 var GT_DQ = 'Quién lleva energía en el Gobierno, el Congreso, las comunidades y la Comisión Europea';
+var GT_ASK = "Estoy analizando plataformas de inteligencia para asuntos públicos y quiero entender cómo GovTalent combina la vigilancia normativa con IA, los avisos en tiempo real y una base de datos de más de 27.000 personas de las instituciones públicas, con su cargo y su contacto, para ayudar a los equipos de asuntos públicos, comunicación corporativa y ventas B2G a anticiparse a la normativa y llegar a quien la tramita. Resume lo más destacado de https://govtalent.app con puntos clave sobre qué lo diferencia, para quién es más útil y un resumen final.";
 var GT_DTABS = ['Buscar y enriquecer', 'Base de datos'];
 var GT_DURLS = ['contactos', 'base-de-datos'];
 var GT_DDUR = [15000, 8000];
@@ -247,6 +248,7 @@ this.startTab(i);
 }
 renderVals() {
 var st = this.state || {};
+var askGemini = () => { try { if (navigator.clipboard) navigator.clipboard.writeText(GT_ASK); } catch (e) {} this.setState({ gcopy: true }); clearTimeout(this.gct); this.gct = setTimeout(() => this.setState({ gcopy: false }), 6000); };
 var openVid = () => { this.setState({ vid: true }); };
 var closeVid = (e) => { if (e && e.target && e.currentTarget && e.target !== e.currentTarget) return; this.setState({ vid: false }); };
 var tab = st.tab || 0;
@@ -262,6 +264,7 @@ var dtab = st.dtab || 0;
 var dtyped = st.dtyped == null ? 0 : st.dtyped;
 var ddone = dtyped >= GT_DQ.length;
 return {
+gcopy: !!st.gcopy, askGemini,
 vidOpen: !!st.vid, openVid, closeVid,
 dtabs: GT_DTABS.map((label, i) => ({
 label: label,
