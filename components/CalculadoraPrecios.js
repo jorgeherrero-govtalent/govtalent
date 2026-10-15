@@ -268,7 +268,7 @@ export default function CalculadoraPrecios({ autenticado = false, plazasFundador
               }}
             >
               <b style={{ fontSize: 13.5, color: MORADO_OSCURO }}>
-                Precio fundador · {plazasFundador === 1 ? 'queda 1 plaza' : `quedan ${plazasFundador} plazas`}
+                Precio fundador, {plazasFundador === 1 ? 'queda 1 plaza' : `quedan ${plazasFundador} plazas`}
               </b>
               <span style={{ fontSize: 12.5, color: MORADO_OSCURO, lineHeight: 1.45 }}>
                 Para los {PLAZAS_FUNDADOR} primeros clientes. Se mantiene mientras sigas suscrito.
