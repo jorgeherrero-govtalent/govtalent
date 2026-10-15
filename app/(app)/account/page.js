@@ -853,7 +853,7 @@ export default function AccountPage() {
             <Fila
               primera
               titulo="Trabaja con tu equipo"
-              detalle="Con la suscripción de 2 a 50 usuarios, tu equipo comparte alarmas, créditos, proyectos y tareas. Para darlos de alta, escríbenos a hola@govtalent.app."
+              detalle="Con los planes de hasta 3, 6, 10 o 15 usuarios, tu equipo comparte los créditos, las alarmas, los proyectos y las tareas. Para darlos de alta, escríbenos a hola@govtalent.app."
               accion={
                 <a href="/precios" target="_blank" rel="noreferrer" style={{ ...BOTON_FILA, textDecoration: 'none' }}>
                   Ver planes
