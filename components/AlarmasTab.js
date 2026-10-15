@@ -1134,7 +1134,7 @@ export default function AlarmasTab({ seccion = 'alarmas' }) {
   const modalUpsell = upsell && (
     <UpgradeModal
       title="Más alarmas y avisos al momento"
-      message="Con suscripción tienes hasta 50 alarmas, te avisamos el mismo día en que se abre un plazo y te recordamos cuándo cierra."
+      message="Con suscripción tienes más alarmas, te avisamos el mismo día en que se abre un plazo y te recordamos cuándo cierra."
       onClose={() => setUpsell(false)}
     />
   );
@@ -1768,7 +1768,7 @@ export default function AlarmasTab({ seccion = 'alarmas' }) {
               ✦
             </span>
             <div style={{ flex: 1 }}>
-              <div style={{ fontSize: 13.5, fontWeight: 500 }}>Con suscripción, hasta 50 alarmas y avisos al momento</div>
+              <div style={{ fontSize: 13.5, fontWeight: 500 }}>Con suscripción, más alarmas y avisos al momento</div>
               <div style={{ fontSize: 12.5, color: GRIS, lineHeight: 1.55, marginTop: 3 }}>
                 Entérate el mismo día en que se abre un plazo, no el lunes siguiente.
               </div>

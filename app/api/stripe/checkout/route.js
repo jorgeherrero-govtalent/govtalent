@@ -3,7 +3,8 @@ import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { stripe } from '@/lib/stripe';
 import { PLAN_SCOPE, PRICE_LOOKUP_KEYS, FOUNDING_PROMO_CODES } from '@/lib/plans';
-import { MAX_USUARIOS } from '@/lib/precios';
+import { horquilla as horquillaDe, lookupVigilancia } from '@/lib/precios';
+import { plazasFundadorLibres } from '@/lib/fundadores';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -14,7 +15,7 @@ const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://govtalent.app';
  * POST /api/stripe/checkout
  * body: {
  *   plan: 'vigilancia' | 'directorio' | 'pro' | 'recruiter' | 'teams',
- *   usuarios?: number       // vigilancia: de 1 a 50 (cantidad en Stripe)
+ *   horquilla?: 'individual' | 'h3' | 'h6' | 'h10' | 'h15'  // vigilancia
  *   pago?: 'mensual' | 'anual'  // vigilancia
  *   organizationId?: string,
  *   founding?: boolean      // aplica el descuento de fundador de ese plan
@@ -43,20 +44,24 @@ export async function POST(request) {
   const founding = body.founding === true;
   const scope = PLAN_SCOPE[plan];
 
-  // Vigilancia: el número de usuarios es la cantidad de la suscripción y
-  // Stripe aplica los tramos del precio (lib/precios.js). El precio por
-  // tramos solo existe en mensual y anual.
+  // Vigilancia: un precio fijo por horquilla y forma de pago
+  // (lib/precios.js). El precio fundador lo decide el servidor: se aplica
+  // en las horquillas de equipo mientras queden plazas, nunca porque lo
+  // pida el navegador.
   let cantidad = 1;
   let lookupKey = PRICE_LOOKUP_KEYS[plan];
+  let banda = null;
+  let precioFundador = false;
   if (plan === 'vigilancia') {
-    cantidad = Math.round(Number(body.usuarios) || 1);
-    if (!(cantidad >= 1 && cantidad <= MAX_USUARIOS)) {
-      return NextResponse.json(
-        { error: `El plan admite de 1 a ${MAX_USUARIOS} usuarios` },
-        { status: 400 }
-      );
+    banda = horquillaDe(body.horquilla);
+    if (!banda) {
+      return NextResponse.json({ error: 'Elige cuántas personas lo vais a usar' }, { status: 400 });
     }
-    lookupKey = body.pago === 'mensual' ? PRICE_LOOKUP_KEYS.vigilancia_mensual : PRICE_LOOKUP_KEYS.vigilancia_anual;
+    const esAnual = body.pago !== 'mensual';
+    if (banda.fundador) {
+      precioFundador = (await plazasFundadorLibres(createAdminClient())) > 0;
+    }
+    lookupKey = lookupVigilancia(banda, { anual: esAnual, fundador: precioFundador });
   }
 
   if (!scope) {
@@ -76,7 +81,10 @@ export async function POST(request) {
   if (!price) {
     console.error(`No hay precio activo con lookup_key "${lookupKey}" en Stripe`);
     return NextResponse.json(
-      { error: 'Plan no disponible temporalmente' },
+      {
+        error:
+          'La contratación online de este plan estará disponible en unos días. Escríbenos a hola@govtalent.app y te damos de alta.',
+      },
       { status: 503 }
     );
   }
@@ -138,7 +146,7 @@ export async function POST(request) {
       return NextResponse.json(
         {
           error:
-            'Ya tienes una suscripción activa. Para cambiar el número de usuarios, escríbenos a hola@govtalent.app.',
+            'Ya tienes una suscripción activa. Para cambiar de horquilla, escríbenos a hola@govtalent.app.',
         },
         { status: 409 }
       );
@@ -160,7 +168,11 @@ export async function POST(request) {
 
     clientReferenceId = profile.id;
     metadata = { scope: 'user', plan_key: plan, user_id: profile.id };
-    if (plan === 'vigilancia') metadata.usuarios = String(cantidad);
+    if (plan === 'vigilancia') {
+      metadata.horquilla = banda.id;
+      metadata.usuarios = String(banda.usuarios);
+      if (precioFundador) metadata.fundador = '1';
+    }
   } else {
     if (!organizationId) {
       return NextResponse.json(

@@ -133,10 +133,14 @@ async function applySubscription(admin, subscription, extra = {}) {
       premium_source: serving ? 'paid' : null,
     };
     if (serving) patch.plan_started_at = new Date().toISOString();
-    // Usuarios contratados en Vigilancia: la cantidad de la suscripción.
-    if (serving && item?.quantity) {
-      patch.plan_usuarios = Math.max(1, Math.min(50, Number(item.quantity) || 1));
+    // Usuarios contratados en Vigilancia: el tope de la horquilla
+    // (metadatos del checkout) o, en las suscripciones antiguas por
+    // tramos, la cantidad.
+    if (serving) {
+      const usuarios = Number(meta.usuarios) || Number(item?.quantity) || 1;
+      patch.plan_usuarios = Math.max(1, Math.min(50, usuarios));
     }
+    if (meta.fundador === '1') patch.is_founding_member = true;
     if (extra.foundingMember) patch.is_founding_member = true;
     if (typeof subscription.customer === 'string') {
       patch.stripe_customer_id = subscription.customer;
@@ -208,7 +212,7 @@ async function enviarCorreoActivacion(admin, session, subscription, foundingMemb
     if (meta.scope === 'user' && meta.plan_key === 'directorio') {
       correo = directorioActivatedEmail({ firstName: comprador?.first_name || '' });
     } else if (meta.scope === 'user') {
-      const usuarios = Number(subscription.items?.data?.[0]?.quantity) || 1;
+      const usuarios = Number(meta.usuarios) || Number(subscription.items?.data?.[0]?.quantity) || 1;
       correo = proActivatedEmail({ firstName: comprador?.first_name || '', foundingMember, usuarios });
     } else if (meta.scope === 'org' && meta.organization_id && ['recruiter', 'teams'].includes(meta.plan_key)) {
       const { data: org } = await admin
@@ -324,8 +328,11 @@ export async function POST(request) {
         const subscription = await stripe.subscriptions.retrieve(subscriptionId);
 
         // Si la sesión llevó descuento aplicado, era una compra de fundador.
+        // Con descuento aplicado o con precio fundador (horquillas de
+        // Vigilancia, metadatos del checkout), era una compra de fundador.
         const foundingMember =
-          Number(session.total_details?.amount_discount || 0) > 0;
+          Number(session.total_details?.amount_discount || 0) > 0 ||
+          session.metadata?.fundador === '1';
 
         await applySubscription(admin, subscription, {
           foundingMember,

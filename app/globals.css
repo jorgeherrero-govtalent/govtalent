@@ -407,6 +407,7 @@ a{color:inherit}
 /* /precios: calculadora de un solo plan */
 .precios-fila{display:flex;flex-wrap:wrap;gap:20px;align-items:stretch}
 .precios-caja{background:#fff;border:.5px solid #e6e4dd;border-radius:16px;padding:30px;display:flex;flex-direction:column;gap:22px;box-sizing:border-box;min-width:0;box-shadow:0 1px 2px rgba(0,0,0,.04)}
+.precios-horquillas{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:8px}
 .precios-pagos{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
 .precios-directorio{flex-direction:row;flex-wrap:wrap;align-items:center;gap:20px;padding:22px 26px}
 .pricing-h1{font-size:28px}
@@ -420,6 +421,7 @@ a{color:inherit}
   .pricing-wrap{padding:28px 16px 44px}
   .precios-caja{padding:22px}
   .precios-pagos{grid-template-columns:1fr}
+  .precios-horquillas{grid-template-columns:repeat(3,minmax(0,1fr))}
   .pricing-h1{font-size:22px}
   .plan-card-head{flex-direction:column;align-items:stretch}
   .plan-card-cta{width:100%;justify-content:center}

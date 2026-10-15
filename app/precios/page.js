@@ -1,6 +1,8 @@
 import { createClient } from '@/lib/supabase/server';
 import PublicHeader from '@/components/PublicHeader';
 import CalculadoraPrecios from '@/components/CalculadoraPrecios';
+import { createAdminClient } from '@/lib/supabase/admin';
+import { plazasFundadorLibres } from '@/lib/fundadores';
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://govtalent.app';
 
@@ -11,7 +13,7 @@ export const revalidate = 0;
 export const fetchCache = 'force-no-store';
 
 const DESCRIPCION =
-  'Un solo plan de vigilancia normativa para una persona o para todo tu equipo, de 1 a 50 usuarios, con pago mensual o anual. El directorio, aparte.';
+  'Un solo plan de vigilancia normativa para una persona o para todo tu equipo, de 1 a 15 usuarios, con pago mensual o anual y créditos para todo el equipo. El directorio, aparte.';
 
 export const metadata = {
   title: 'Precios · GovTalent',
@@ -30,6 +32,7 @@ export default async function PricingPage() {
   const supabase = createClient();
   const { data } = await supabase.auth.getUser();
   const autenticado = Boolean(data?.user);
+  const plazasFundador = await plazasFundadorLibres(createAdminClient());
 
   return (
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', background: '#f4f3ee' }}>
@@ -45,7 +48,7 @@ export default async function PricingPage() {
           </p>
         </div>
 
-        <CalculadoraPrecios autenticado={autenticado} />
+        <CalculadoraPrecios autenticado={autenticado} plazasFundador={plazasFundador} />
 
         <p style={{ fontSize: 12, color: '#a8a49c', textAlign: 'center', marginTop: 32, lineHeight: 1.6 }}>
           Al contratar aceptas las{' '}

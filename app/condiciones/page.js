@@ -1,13 +1,15 @@
 import LegalPageShell from '@/components/LegalPageShell';
 import {
   MAX_USUARIOS,
-  TRAMOS_MENSUAL,
-  TRAMOS_ANUAL,
+  HORQUILLAS,
+  DESCUENTO_ANUAL,
+  PLAZAS_FUNDADOR,
+  CREDITOS_POR_ALARMA,
+  PACKS_CREDITOS_IA,
+  MESES_CADUCIDAD_PACKS,
   DIRECTORIO_ANUAL,
-  ALARMAS_POR_USUARIO,
-  ALARMAS_A_PARTIR_DEL_SEXTO,
-  CREDITOS_POR_USUARIO,
   DIRECTORIO_USUARIO_EXTRA,
+  miles,
   CREDITOS_CONTACTO_MES,
   euros,
 } from '@/lib/precios';
@@ -109,8 +111,10 @@ export default function CondicionesPage() {
       evitar usos automatizados, abusivos o contrarios a estas Condiciones.</p>
 
       <h3>5. Plan Vigilancia</h3>
-      <p>El plan Vigilancia es una suscripción para una persona o para un equipo de entre 1 y {MAX_USUARIOS}{' '}
-      Usuarios, con pago mensual o anual. Incluye las funcionalidades del plan Free y, adicionalmente:</p>
+      <p>El plan Vigilancia es una suscripción para una persona o para un equipo de hasta {MAX_USUARIOS} Usuarios,
+      contratada por horquillas según el número máximo de Usuarios, con pago mensual o anual. Para más de{' '}
+      {MAX_USUARIOS} Usuarios, las condiciones se pactan en una propuesta particular. Incluye las funcionalidades
+      del plan Free y, adicionalmente:</p>
       <ul>
         <li>Alarmas de vigilancia normativa sobre las fuentes indicadas en la Plataforma, entre otras el Boletín
         Oficial del Estado, el Consejo de Ministros, la agenda del Gobierno, el Congreso de los Diputados, las
@@ -125,41 +129,49 @@ export default function CondicionesPage() {
       </ul>
 
       <h4 style={sub}>5.1. Precio</h4>
-      <p>El precio se calcula por tramos según el número de Usuarios: cada Usuario paga el precio del tramo en el
-      que se encuentra. Los precios ordinarios vigentes, sin IVA, son:</p>
+      <p>Cada horquilla tiene un precio cerrado, con independencia del número de Usuarios que se den de alta
+      dentro de ella. El pago anual tiene un descuento del {Math.round(DESCUENTO_ANUAL * 100)} % sobre doce
+      mensualidades. Los precios ordinarios vigentes, sin IVA, son:</p>
       <table style={tableStyle}>
         <thead>
           <tr>
-            <td style={tdLabel}>Usuarios</td>
-            <td style={tdLabel}>Pago mensual, por Usuario y mes</td>
-            <td style={tdLabel}>Pago anual, por Usuario y año</td>
+            <td style={tdLabel}>Horquilla</td>
+            <td style={tdLabel}>Pago mensual</td>
+            <td style={tdLabel}>Pago anual</td>
+            <td style={tdLabel}>Créditos al mes</td>
           </tr>
         </thead>
         <tbody>
-          {TRAMOS_MENSUAL.map(([hasta, mensual], i) => {
-            const desde = i === 0 ? 1 : TRAMOS_MENSUAL[i - 1][0] + 1;
-            return (
-              <tr key={hasta}>
-                <td style={tdVal}>{desde === hasta ? `${hasta}.º` : `Del ${desde}.º al ${hasta}.º`}</td>
-                <td style={tdVal}>{euros(mensual)}</td>
-                <td style={tdVal}>{euros(TRAMOS_ANUAL[i][1])}</td>
-              </tr>
-            );
-          })}
+          {HORQUILLAS.map((h) => (
+            <tr key={h.id}>
+              <td style={tdVal}>{h.usuarios === 1 ? '1 Usuario' : `Hasta ${h.usuarios} Usuarios`}</td>
+              <td style={tdVal}>{euros(h.mensual)} al mes</td>
+              <td style={tdVal}>{euros(h.anual)} al año</td>
+              <td style={tdVal}>{miles(h.creditos)}</td>
+            </tr>
+          ))}
         </tbody>
       </table>
+      <p>Precio fundador: los {PLAZAS_FUNDADOR} primeros Clientes que contraten una horquilla de varios Usuarios
+      pagan el precio fundador publicado en la <a href="/precios">página de precios</a> mientras quedan plazas. El
+      precio fundador se mantiene en las renovaciones mientras la suscripción continúe sin interrupción; si se
+      cancela y se vuelve a contratar, se aplica el precio ordinario vigente.</p>
       <p>El importe total de cada suscripción se muestra en la <a href="/precios">página de precios</a> y antes de
       completar el pago.</p>
 
-      <h4 style={sub}>5.2. Alarmas y créditos de IA</h4>
-      <p>La suscripción incluye {ALARMAS_POR_USUARIO} alarmas activas por Usuario hasta el quinto Usuario y{' '}
-      {ALARMAS_A_PARTIR_DEL_SEXTO} por cada Usuario adicional, así como {CREDITOS_POR_USUARIO} créditos de IA al
-      mes por Usuario. En las suscripciones de varios Usuarios, las alarmas y los créditos de IA son compartidos
-      por todo el equipo.</p>
-      <p>Los créditos de IA se consumen al utilizar el Asistente y las demás funcionalidades de inteligencia
-      artificial que así se indiquen en la Plataforma, se renuevan al inicio de cada mes y los no utilizados no se
-      acumulan para meses posteriores. No pueden comprarse por separado ni utilizarse para buscar datos de
-      contacto, que se rigen por el apartado 6.2.</p>
+      <h4 style={sub}>5.2. Alarmas y créditos</h4>
+      <p>Cada horquilla incluye un número de créditos al mes para toda la suscripción, compartidos por todos sus
+      Usuarios. Cada alarma activa consume {CREDITOS_POR_ALARMA} créditos al mes; el resto de los créditos se
+      consume al utilizar el Asistente y las demás funcionalidades de inteligencia artificial que así se indiquen
+      en la Plataforma. Los créditos mensuales se renuevan al inicio de cada mes y los no utilizados no se
+      acumulan para meses posteriores.</p>
+      <p>El Cliente podrá adquirir paquetes adicionales de créditos mediante pago único (
+      {PACKS_CREDITOS_IA.map((p, i) => `${i ? (i === PACKS_CREDITOS_IA.length - 1 ? ' o ' : ', ') : ''}${miles(p.creditos)} créditos por ${euros(p.precio)}`).join('')}, sin IVA). Los créditos adquiridos caducan a los{' '}
+      {MESES_CADUCIDAD_PACKS} meses de la compra y se consumen después de los créditos mensuales. Los créditos no
+      pueden utilizarse para buscar datos de contacto, que se rigen por el apartado 6.2.</p>
+      <p>Las alarmas activas no se interrumpen por falta de créditos durante el mes en curso. Sin créditos
+      disponibles no podrán activarse alarmas nuevas ni utilizarse las demás funcionalidades que consumen
+      créditos hasta la siguiente renovación o la compra de un paquete.</p>
       <p>GovTalent podrá pausar automáticamente las alarmas que no se utilicen durante un periodo prolongado,
       informando de ello al Usuario, que podrá reactivarlas.</p>
 
@@ -193,7 +205,7 @@ export default function CondicionesPage() {
       <p>El Cliente podrá adquirir paquetes adicionales de créditos de contacto mediante pago único
       ({PACKS_CREDITOS.map((p, i) => `${i ? (i === PACKS_CREDITOS.length - 1 ? ' o ' : ', ') : ''}${p.creditos.toLocaleString('es-ES')} créditos por ${euros(p.precio)}`).join('')}, sin IVA). Los créditos adquiridos no caducan mientras se mantenga
       activa la suscripción al Directorio y se consumen después de los créditos mensuales.</p>
-      <p>Los créditos de contacto y los créditos de IA del plan Vigilancia son independientes y no pueden
+      <p>Los créditos de contacto y los créditos del plan Vigilancia son independientes y no pueden
       intercambiarse entre sí. Ningún tipo de crédito es canjeable por dinero ni transferible a otra cuenta.</p>
       <p>El uso del Directorio se rige además por las cláusulas específicas sobre el Directorio de estas
       Condiciones.</p>
