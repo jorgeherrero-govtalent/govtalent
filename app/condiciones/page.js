@@ -168,7 +168,10 @@ export default function CondicionesPage() {
       acumulan para meses posteriores.</p>
       <p>El Cliente podrá adquirir paquetes adicionales de créditos mediante pago único (
       {PACKS_CREDITOS_IA.map((p, i) => `${i ? (i === PACKS_CREDITOS_IA.length - 1 ? ' o ' : ', ') : ''}${miles(p.creditos)} créditos por ${euros(p.precio)}`).join('')}, sin IVA). Los créditos adquiridos caducan a los{' '}
-      {MESES_CADUCIDAD_PACKS} meses de la compra y se consumen después de los créditos mensuales. Los créditos no
+      {MESES_CADUCIDAD_PACKS} meses de la compra y se consumen después de los créditos mensuales. Solo pueden
+      adquirirse y utilizarse mientras se mantenga activa la suscripción al plan Vigilancia; si la suscripción
+      finaliza, los créditos adquiridos pendientes de uso no podrán utilizarse ni darán derecho a reembolso, sin
+      perjuicio de su caducidad. Los créditos no
       pueden utilizarse para buscar datos de contacto, que se rigen por el apartado 6.2.</p>
       <p>Las alarmas activas no se interrumpen por falta de créditos durante el mes en curso. Sin créditos
       disponibles no podrán activarse alarmas nuevas ni utilizarse las demás funcionalidades que consumen
