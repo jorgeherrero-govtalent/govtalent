@@ -284,7 +284,7 @@ export default function DirectorioListado({ slug, base, volverA, volverEtiqueta 
             onApply={(s) => setTipos(new Set(s))}
           />
         ) : null}
-        {valoresLugar.length > 1 ? (
+        {valoresLugar.length > 1 && !seccion.sinFiltroLugar ? (
           <MultiSelectFilter
             label={esCcaa ? 'Comunidad' : 'Provincia'}
             values={valoresLugar}
