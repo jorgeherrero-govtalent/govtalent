@@ -7,7 +7,7 @@ import BanderaCcaa, { claveBandera } from '@/components/BanderaCcaa';
 import BackLink from '@/components/BackLink';
 import MultiSelectFilter from '@/components/MultiSelectFilter';
 import Paginacion, { usePaginacion } from '@/components/Paginacion';
-import { seccionPorSlug } from '@/lib/directorio';
+import { seccionPorSlug, FUSIONES, seccionesDeFusion } from '@/lib/directorio';
 import { SECTOR_LABELS } from '@/lib/orgTaxonomy';
 
 /**
@@ -162,12 +162,18 @@ function FilaAsociacion({ it, seccion, ultima }) {
   );
 }
 
+// Pestañas de las secciones fusionadas: mismo estilo que las de Contactos.
+const PESTANAS = { display: 'flex', gap: 22, fontSize: 14, borderBottom: '1px solid #ececef', marginBottom: 18 };
+const PESTANA = { color: '#6b6b70', textDecoration: 'none', paddingBottom: 10 };
+const PESTANA_ON = { ...PESTANA, color: '#1a1a18', fontWeight: 600, borderBottom: '2px solid #6d5aef' };
+
 const CHIP = { fontSize: 11, padding: '3px 10px', borderRadius: 12, background: '#f5f4f1', color: '#666', border: 'none', cursor: 'pointer' };
 
 export default function DirectorioListado({ slug, base, volverA, volverEtiqueta }) {
   const seccion = seccionPorSlug(slug);
   const esAsociaciones = slug === 'asociaciones';
   const esCcaa = slug === 'comunidades';
+  const fusion = seccion?.fusion ? FUSIONES[seccion.fusion] : null;
 
   const [items, setItems] = useState([]);
   const [estado, setEstado] = useState('cargando');
@@ -224,8 +230,28 @@ export default function DirectorioListado({ slug, base, volverA, volverEtiqueta 
         <BackLink fallbackHref={volverA} fallbackLabel={volverEtiqueta} />
       </div>
 
-      <h1 style={{ fontSize: 19, fontWeight: 700, margin: 0 }}>{seccion.titulo}</h1>
-      <p style={{ fontSize: 12.5, color: '#888', margin: '3px 0 16px', lineHeight: 1.55 }}>{seccion.descripcion}</p>
+      <h1 style={{ fontSize: 19, fontWeight: 700, margin: 0 }}>{fusion ? fusion.titulo : seccion.titulo}</h1>
+      <p style={{ fontSize: 12.5, color: '#888', margin: '3px 0 16px', lineHeight: 1.55 }}>
+        {fusion ? fusion.descripcion : seccion.descripcion}
+      </p>
+
+      {fusion ? (
+        <nav aria-label={fusion.titulo} style={PESTANAS}>
+          {seccionesDeFusion(seccion.fusion).map((s) => {
+            const activa = s.slug === slug;
+            return (
+              <Link
+                key={s.slug}
+                href={base.replace(/[^/]+$/, s.slug)}
+                aria-current={activa ? 'page' : undefined}
+                style={activa ? PESTANA_ON : PESTANA}
+              >
+                {s.titulo}
+              </Link>
+            );
+          })}
+        </nav>
+      ) : null}
 
       <div style={{ display: 'flex', gap: 8, marginBottom: 14, flexWrap: 'wrap', alignItems: 'center' }}>
         <div

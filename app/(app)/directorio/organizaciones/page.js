@@ -3,15 +3,16 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import DirectorioPestanasMovil from '@/components/DirectorioPestanasMovil';
-import { SECCIONES_DIRECTORIO } from '@/lib/directorio';
+import { SECCIONES_DIRECTORIO, FUSIONES } from '@/lib/directorio';
 
 /**
  * Organizaciones: quien no es institución pero cuenta en asuntos públicos.
  *
  * Dos bloques, con las mismas tarjetas que Instituciones (maqueta elegida
  * el 05-10-2026, opción 1):
- *   · Organizaciones: patronales, asociaciones sectoriales, sociedades
- *     estatales y corporaciones de derecho público.
+ *   · Organizaciones: patronales y asociaciones sectoriales (una sola
+ *     tarjeta con dos pestañas), sociedades estatales y corporaciones de
+ *     derecho público.
  *   · Medios y actores sociales: prensa, radio y televisión, partidos,
  *     sindicatos, ONG y organismos internacionales.
  *
@@ -52,6 +53,33 @@ function etiqueta(seccion, cifra) {
   if (!cifra) return seccion.unidad;
   if (cifra.personas === null || cifra.personas === undefined) return seccion.unidad;
   return `${seccion.unidad} · ${cifra.personas.toLocaleString('es-ES')} contactos`;
+}
+
+// Las secciones fusionadas (FUSIONES) se pintan como una sola tarjeta que
+// enlaza a la primera; sus cifras se suman.
+function tarjetasDe(bloque, cifras) {
+  const vistas = new Set();
+  const out = [];
+  for (const s of SECCIONES_DIRECTORIO.filter((x) => x.bloque === bloque)) {
+    if (!s.fusion) {
+      out.push({ seccion: s, cifra: cifras[s.slug] });
+      continue;
+    }
+    if (vistas.has(s.fusion)) continue;
+    vistas.add(s.fusion);
+    const grupo = SECCIONES_DIRECTORIO.filter((x) => x.fusion === s.fusion);
+    const partes = grupo.map((x) => cifras[x.slug]).filter(Boolean);
+    const cifra = partes.length
+      ? {
+          organizaciones: partes.reduce((n, p) => n + (p.organizaciones || 0), 0),
+          personas: partes.some((p) => typeof p.personas === 'number')
+            ? partes.reduce((n, p) => n + (p.personas || 0), 0)
+            : null,
+        }
+      : null;
+    out.push({ seccion: { ...FUSIONES[s.fusion], slug: s.slug }, cifra });
+  }
+  return out;
 }
 
 function Tarjeta({ seccion, cifra, cargando }) {
@@ -108,8 +136,8 @@ export default function OrganizacionesPage() {
             className="reg-grid"
             style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 300px), 1fr))', gap: 14 }}
           >
-            {SECCIONES_DIRECTORIO.filter((s) => s.bloque === b.id).map((s) => (
-              <Tarjeta key={s.slug} seccion={s} cifra={cifras[s.slug]} cargando={cargando} />
+            {tarjetasDe(b.id, cifras).map(({ seccion, cifra }) => (
+              <Tarjeta key={seccion.slug} seccion={seccion} cifra={cifra} cargando={cargando} />
             ))}
           </div>
         </section>
