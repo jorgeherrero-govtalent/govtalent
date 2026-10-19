@@ -44,7 +44,7 @@ const NIVELES = {
     'Agencias y órganos de la UE',
     'Cuerpo diplomático',
   ],
-  organizaciones: ['Patronales', 'Sociedades estatales'],
+  organizaciones: ['Patronales', 'Sociedades estatales', 'Corporaciones de Derecho Público'],
   medios: ['Prensa', 'Radio y televisión', 'Partidos políticos', 'Sindicatos', 'ONG', 'Organismos internacionales'],
 };
 
@@ -60,7 +60,8 @@ const POR_CATEGORIA = {
   entidad_publica: ['instituciones', 'Otros organismos públicos'],
   investigacion: ['instituciones', 'Otros organismos públicos'],
   universidad: ['instituciones', 'Otros organismos públicos'],
-  camara_comercio: ['instituciones', 'Otros organismos públicos'],
+  camara_comercio: ['organizaciones', 'Corporaciones de Derecho Público'],
+  corporacion_derecho_publico: ['organizaciones', 'Corporaciones de Derecho Público'],
   consejo_audiovisual: ['instituciones', 'Otros organismos públicos'],
   patronal: ['organizaciones', 'Patronales'],
   sociedad_estatal: ['organizaciones', 'Sociedades estatales'],

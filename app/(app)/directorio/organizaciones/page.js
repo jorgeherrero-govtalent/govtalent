@@ -10,8 +10,8 @@ import { SECCIONES_DIRECTORIO } from '@/lib/directorio';
  *
  * Dos bloques, con las mismas tarjetas que Instituciones (maqueta elegida
  * el 05-10-2026, opción 1):
- *   · Organizaciones: patronales, asociaciones sectoriales y sociedades
- *     estatales.
+ *   · Organizaciones: patronales, asociaciones sectoriales, sociedades
+ *     estatales y corporaciones de derecho público.
  *   · Medios y actores sociales: prensa, radio y televisión, partidos,
  *     sindicatos, ONG y organismos internacionales.
  *
