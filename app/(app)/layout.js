@@ -15,6 +15,7 @@ import BarraMovil from '@/components/BarraMovil';
 import BuscadorGlobal from '@/components/BuscadorGlobal';
 import Logo from '@/components/Logo';
 import { limitesDe } from '@/lib/alarmas';
+import PageViewTracker from '@/components/PageViewTracker';
 
 export default function AppLayout({ children }) {
   const supabase = createClient();
@@ -225,6 +226,9 @@ export default function AppLayout({ children }) {
 
       <BarraMovil alarmas={novedades} />
       <Toast />
+
+      {/* Registro de páginas visitadas: solo con sesión iniciada. */}
+      {user && <PageViewTracker />}
 
       {needsOnboarding && user && pathname !== '/organizations/new' && (
         <OnboardingModal userId={user.id} onComplete={handleOnboardingComplete} />
