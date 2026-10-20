@@ -85,6 +85,10 @@
       "schedule": "0 8 * * *"
     },
     {
+      "path": "/api/cron/directorio-promo",
+      "schedule": "20 8 * * *"
+    },
+    {
       "path": "/api/sync/eu-feedback",
       "schedule": "30 9 * * *"
     },
