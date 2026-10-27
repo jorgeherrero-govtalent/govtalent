@@ -373,7 +373,7 @@ async function queTeAfecta(db, acuerdos, resumen, pro) {
       match_id: m.id,
       titulo: tituloDe(a),
       motivo: m.motivo || '',
-      etiqueta: [a.ministerio, nombres.get(m.alert_id) ? `Alarma «${nombres.get(m.alert_id)}»` : 'Tu alarma'].filter(Boolean).join(' · '),
+      etiqueta: [a.ministerio, nombres.get(m.alert_id) ? `Alarma «${nombres.get(m.alert_id)}»` : 'Tu alarma'].filter(Boolean).join(', '),
     });
   }
 
@@ -389,7 +389,7 @@ async function queTeAfecta(db, acuerdos, resumen, pro) {
         match_id: null,
         titulo: tituloDe(x.acuerdo),
         motivo: `Cita la norma ${nombreCita(x.cita)}, que aparece en «${String(x.label).slice(0, 120)}», que sigues.`,
-        etiqueta: [x.acuerdo.ministerio, 'Seguimiento'].filter(Boolean).join(' · '),
+        etiqueta: [x.acuerdo.ministerio, 'Seguimiento'].filter(Boolean).join(', '),
       });
     }
   }

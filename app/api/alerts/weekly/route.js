@@ -329,7 +329,7 @@ async function handler(request) {
         .slice(0, palabras.length === 0 ? TOPE_BOE_SIN_TEMAS : TOPE_BOE)
         .map((d) => ({
           title: d.titulo,
-          detail: [d.rango, d.departamento].filter(Boolean).join(' · '),
+          detail: [d.rango, d.departamento].filter(Boolean).join(', '),
           ruta: `/boe/${d.slug}`,
           sector: d.sector || null,
         }));

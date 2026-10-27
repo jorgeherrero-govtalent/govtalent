@@ -92,8 +92,7 @@ function fila(r, malo) {
         <div style="font-size:13.5px;color:#1a1a18;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;">${escapar(r.ruta)}</div>
         <div style="font-size:12.5px;color:${color};margin-top:3px;font-weight:600;">${escapar(EXPLICACION[r.veredicto] || r.veredicto)}</div>
         <div style="font-size:12px;color:#8a867e;margin-top:3px;">
-          Programada ${escapar(programadaLocal(r))} · última ${escapar(horaLocal(r.ultima_ejecucion))} · ${escapar(duracion(r.duracion_ms))}
-          · leídos ${r.n_leidos ?? '—'} · escritos ${r.n_escritos ?? '—'}
+          Programada ${escapar(programadaLocal(r))}, última ${escapar(horaLocal(r.ultima_ejecucion))}, ${escapar(duracion(r.duracion_ms))}, leídos ${r.n_leidos ?? '—'}, escritos ${r.n_escritos ?? '—'}
         </div>
         ${detalle}
       </td>
@@ -126,7 +125,7 @@ function correo({ problemas, resumen, esLunes }) {
         <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:600px;background:#ffffff;border-radius:12px;">
           <tr><td style="padding:26px 30px 30px;color:#3a3a36;font-size:14.5px;line-height:1.55;">
             <h2 style="margin:0 0 6px;font-size:18px;color:#1a1a18;">${escapar(titulo)}</h2>
-            <p style="margin:0 0 16px;color:#8a867e;font-size:12.5px;">${escapar(horaLocal(new Date().toISOString()))} · ${resumen.al_dia} de ${resumen.total} al día</p>
+            <p style="margin:0 0 16px;color:#8a867e;font-size:12.5px;">${escapar(horaLocal(new Date().toISOString()))}, ${resumen.al_dia} de ${resumen.total} al día</p>
             <p style="margin:0 0 14px;">${intro}</p>
             ${tabla}
             ${semanal}
@@ -138,7 +137,7 @@ function correo({ problemas, resumen, esLunes }) {
   </body>
 </html>`;
 
-  return { asunto: `GovTalent · ${titulo}`, html };
+  return { asunto: `GovTalent: ${titulo}`, html };
 }
 
 export const GET = conRegistro('/api/cron/vigilante-syncs', handler);
