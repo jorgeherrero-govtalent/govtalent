@@ -1,5 +1,8 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+// La extracción, la normalización y el cruce viven en lib/boeCargos.js,
+// donde se pueden probar con datos exportados sin pasar por Vercel.
+import { indices, cruzar, materiaDe } from '@/lib/boeCargos';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
@@ -16,13 +19,15 @@ export const fetchCache = 'force-no-store';
  * Extrae los nombramientos y ceses de la sección II-A del BOE ya
  * sincronizada, y los cruza con el directorio de cargos.
  *
- * No escribe en government_officials. Deja el resultado en
- * boe_appointments para revisarlo: hay 239 cargos correctos en el
- * directorio y un cruce mal hecho los estropearía sin vuelta atrás.
+ * Guarda cada movimiento en boe_appointments y después lo vuelca al
+ * directorio con volcar_titulares_boe() (sql/103): government_officials
+ * para las unidades de la AGE y directorio_contactos para las
+ * Delegaciones y Subdelegaciones del Gobierno.
  *
  * Uso:
  *   /api/sync/boe-cargos?key=<DEBUG_KEY>
  *   /api/sync/boe-cargos?key=<DEBUG_KEY>&desde=2023-11-01&hasta=2023-11-30
+ *   /api/sync/boe-cargos?key=<DEBUG_KEY>&dry=1   (qué cambiaría, sin escribir)
  *
  * Para el backfill desde el inicio de la legislatura, por tandas de un
  * mes: Vercel corta a los 60 segundos y tres años no caben de una vez.
@@ -67,145 +72,6 @@ async function registrar(supabase, fila) {
   }
 }
 
-// ---------------------------------------------------------------------
-// Extracción
-//
-// Los títulos del BOE siguen tres formas estables:
-//
-//   "…por el que se nombra <CARGO> a don/doña <NOMBRE>."
-//   "…por el que se designa <CARGO> a don/doña <NOMBRE>."
-//   "…por el que se dispone el cese de don/doña <NOMBRE> como <CARGO>."
-//
-// Probado contra los 32 documentos que había en agosto de 2026: los 32
-// se extrajeron limpios, incluidos apellidos compuestos y paréntesis.
-// ---------------------------------------------------------------------
-
-const RE_NOMBRA = /se (?:nombra|designa)\s+(.+?)\s+a\s+(?:don|doña|D\.|Dª)\s+(.+?)\.?$/i;
-const RE_CESE = /se dispone el cese de\s+(?:don|doña|D\.|Dª)\s+(.+?)\s+como\s+(.+?)\.?$/i;
-
-function extraer(titulo) {
-  const n = titulo.match(RE_NOMBRA);
-  if (n) return { accion: 'nombramiento', cargo: n[1].trim(), persona: n[2].trim() };
-  const c = titulo.match(RE_CESE);
-  if (c) return { accion: 'cese', persona: c[1].trim(), cargo: c[2].trim() };
-  return null;
-}
-
-// Los cargos de exterior dominan el volumen —14 de 32 en la muestra— y
-// no aportan nada a un directorio de asuntos públicos.
-const RE_EXTERIOR = /^(embajador|embajadora|c[oó]nsul|enviad[oa] especial|representante permanente)/i;
-
-/**
- * Saca el organismo del cargo, cuando lo lleva dentro.
- *
- * "Director del Organismo Autónomo Instituto Nacional de Administración
- * Pública" → "Instituto Nacional de Administración Pública"
- *
- * "Presidenta de la Comisión Nacional de los Mercados y la Competencia"
- * → "Comisión Nacional de los Mercados y la Competencia"
- *
- * En cambio "Director General de Financiación Internacional" no lleva
- * organismo: es una unidad del ministerio, y ahí el organismo es el
- * propio departamento.
- */
-const RE_ORGANISMO =
-  /\b(?:del?|de la|de los|de las)\s+(?:Organismo Aut[oó]nomo\s+)?((?:Comisi[oó]n Nacional|Instituto|Agencia|Consejo|Fondo|Autoridad|Centro|Oficina|Museo|Biblioteca|Fábrica|Entidad|Servicio P[uú]blico|Confederaci[oó]n)\b.+)$/i;
-
-function organismoDe(cargo) {
-  const m = cargo.match(RE_ORGANISMO);
-  if (!m) return null;
-  // Se limpian los paréntesis del final: "(FROB)", "(INAP)".
-  return m[1].replace(/\s*\([^)]*\)\s*$/, '').trim();
-}
-
-/**
- * Normaliza para comparar: sin tildes, sin género, sin artículos.
- *
- * Es lo que hace que "Directora General" case con "Director General" y
- * que "Instituto Nacional de Administración Pública (INAP)" case con
- * "Organismo Autónomo Instituto Nacional de Administración Pública".
- */
-function clave(texto) {
-  if (!texto) return '';
-  return texto
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .toLowerCase()
-    .replace(/\([^)]*\)/g, ' ')
-    // Mapa explícito y no "quitar la última letra": eso convertía
-    // "directora" en "directoro" y rompía la mitad de los cruces.
-    .replace(
-      /\b(directora|subdirectora|presidenta|secretaria|consejera|delegada|interventora|abogada|vicepresidenta)\b/g,
-      (m) =>
-        ({
-          directora: 'director',
-          subdirectora: 'subdirector',
-          presidenta: 'presidente',
-          vicepresidenta: 'vicepresidente',
-          secretaria: 'secretario',
-          consejera: 'consejero',
-          delegada: 'delegado',
-          interventora: 'interventor',
-          abogada: 'abogado',
-        }[m] || m)
-    )
-    .replace(/\borganismo autonomo\b/g, ' ')
-    .replace(/\b(de|del|la|el|los|las|y)\b/g, ' ')
-    .replace(/[^a-z0-9\s]/g, ' ')
-    .replace(/\s+/g, ' ')
-    .trim();
-}
-
-/**
- * La materia del cargo: lo que queda al quitarle el rango.
- *
- *   "Director General de Financiación Internacional" → "financiacion internacional"
- *   "Presidenta de la Comisión Nacional…"            → "comision nacional…"
- *
- * Es lo que se puede comparar con el nombre de una unidad, porque DIR3
- * nombra unidades y el BOE nombra puestos.
- */
-// Las abreviaturas con las que DIR3 nombra sus unidades. Conviven las
-// dos formas: "D.G. de Armamento" y "Dirección General de Estrategia e
-// Innovación".
-const RE_PREFIJO_DIR3 =
-  /^(d\.g\.|direcci[oó]n general|s\. de e\.|secretar[ií]a de estado|s\.gral\.|secretar[ií]a general|s\.g\.|subdirecci[oó]n general|subsecretar[ií]a|gabinete)\s*(del?\s+|de la\s+|)/i;
-
-const RE_RANGO =
-  /^(director general|directora general|director|directora|presidente|presidenta|vicepresidente|vicepresidenta|secretario general|secretaria general|secretario de estado|secretaria de estado|subsecretario|subsecretaria|consejero|consejera|subdirector general|subdirectora general|interventor general|interventora general|delegado|delegada)\s*(del?\s+|de la\s+|de los\s+|de las\s+)?(organismo aut[oó]nomo\s+)?/i;
-
-function materiaDe(cargo, organismo) {
-  return clave((organismo || cargo || '').replace(RE_RANGO, ''));
-}
-
-/**
- * Similitud de trigramas, la misma idea que pg_trgm pero en memoria: se
- * comparan los conjuntos de secuencias de tres letras.
- *
- * Se hace aquí y no en la base para no lanzar una consulta por cada
- * nombramiento: con 2.131 unidades en un Map, comparar es inmediato.
- */
-function trigramas(t) {
-  const p = `  ${t} `;
-  const s = new Set();
-  for (let i = 0; i < p.length - 2; i++) s.add(p.slice(i, i + 3));
-  return s;
-}
-
-function similitud(a, b) {
-  if (!a || !b) return 0;
-  const ta = trigramas(a);
-  const tb = trigramas(b);
-  let comunes = 0;
-  for (const t of ta) if (tb.has(t)) comunes += 1;
-  return comunes / (ta.size + tb.size - comunes);
-}
-
-// Por debajo de esto no se propone nada: en las pruebas, 0.26 era ruido
-// —"Tesoro y Política Financiera" contra "Segipsa Financiero"— y a
-// partir de 0.55 los aciertos eran limpios.
-const UMBRAL_AUTO = 0.55;
-
 export async function GET(req) {
   const t0 = Date.now();
   const { searchParams } = new URL(req.url);
@@ -226,6 +92,7 @@ export async function GET(req) {
   }
 
   const supabase = admin();
+  const dry = searchParams.get('dry') === '1';
   const hasta = searchParams.get('hasta') || new Date().toISOString().slice(0, 10);
   const desde =
     searchParams.get('desde') ||
@@ -249,34 +116,32 @@ export async function GET(req) {
     return NextResponse.json({ error: eDocs.message }, { status: 500 });
   }
 
-  // 2. Las unidades de la AGE y las equivalencias ya resueltas.
+  // 2. Las unidades de la AGE, las equivalencias ya resueltas y las
+  //    entidades territoriales del directorio.
   //
-  //    El cruce se hace en tres intentos, de más fiable a menos:
+  //    El cruce (lib/boeCargos.js) se hace de más fiable a menos:
+  //      0) Delegaciones, Subdelegaciones y Direcciones Insulares: a su
+  //         entidad de directorio_entidades por el territorio. No existen
+  //         en age_units.
   //      a) cargo_unit_map, decidido a mano y por tanto seguro
-  //      b) coincidencia exacta de claves normalizadas
-  //      c) similitud por trigramas, que resuelve las diferencias de
-  //         redacción entre DIR3 y el BOE
+  //      b) coincidencia exacta de claves, con tipo de unidad compatible
+  //      c) similitud por trigramas sobre lo distintivo, también con tipo
+  //         compatible
   //
   //    Lo que no pasa ninguno queda pendiente de revisar, y al revisarlo
   //    se convierte en una entrada de cargo_unit_map: cada caso raro se
   //    decide una sola vez.
-  const [{ data: unidades }, { data: mapa }] = await Promise.all([
-    supabase.from('age_units').select('dir3_code, nombre, categoria, raiz_nombre').eq('activo', true),
+  const [{ data: unidades }, { data: mapa }, { data: entidades }] = await Promise.all([
+    supabase.from('age_units').select('dir3_code, nombre, categoria').eq('activo', true),
     supabase.from('cargo_unit_map').select('clave_cargo, dir3_code, ignorar'),
+    supabase
+      .from('directorio_entidades')
+      .select('id, organizacion, grupo')
+      .eq('categoria', 'delegacion_gobierno')
+      .eq('activo', true),
   ]);
 
-  const equivalencias = new Map((mapa || []).map((m) => [m.clave_cargo, m]));
-
-  const porUnidad = new Map();
-  for (const u of unidades || []) {
-    // Se quita el prefijo también aquí: DIR3 escribe "D.G. de Política
-    // Interior" y el BOE "Director General de Política Interior". Sin
-    // esto, las claves son "d g politica interior" y "politica
-    // interior", y no casa ninguna dirección general —que son
-    // precisamente el grueso de los nombramientos.
-    const k = clave(u.nombre.replace(RE_PREFIJO_DIR3, ''));
-    if (k && !porUnidad.has(k)) porUnidad.set(k, u);
-  }
+  const idx = indices({ unidades, mapa, entidades });
 
   // 3. Extraer y cruzar
   const filas = [];
@@ -284,89 +149,37 @@ export async function GET(req) {
 
   for (const d of docs || []) {
     if (Date.now() - t0 > PRESUPUESTO_MS) break;
-
-    const e = extraer(d.titulo);
-    if (!e) {
+    const fila = cruzar(d, idx);
+    if (!fila) {
       sinPatron += 1;
       continue;
     }
+    filas.push(fila);
+  }
 
-    const esExterior = RE_EXTERIOR.test(e.cargo);
-    const organismo = organismoDe(e.cargo);
-    const materia = materiaDe(e.cargo, organismo);
-
-    let dir3 = null;
-    let via = null;
-    let parecido = null;
-
-    // a) Equivalencia decidida a mano. Manda sobre todo lo demás: es la
-    //    que resuelve casos como el FROB, que DIR3 llama "Autoridad
-    //    Administrativa Indpendiente Frob" y ninguna similitud alcanza.
-    const eq = equivalencias.get(materia);
-    if (eq) {
-      if (eq.ignorar) {
-        dir3 = null;
-        via = 'ignorado';
-      } else {
-        dir3 = eq.dir3_code;
-        via = 'mapa';
-      }
-    }
-
-    // b) Coincidencia exacta de claves.
-    if (!dir3 && via !== 'ignorado') {
-      const u = porUnidad.get(materia);
-      if (u) {
-        dir3 = u.dir3_code;
-        via = 'exacto';
-      }
-    }
-
-    // c) Similitud. Solo se acepta sola por encima del umbral; lo que
-    //    queda por debajo se guarda como sugerencia para revisar, no se
-    //    da por bueno.
-    let sugerencia = null;
-    if (!dir3 && via !== 'ignorado' && materia) {
-      let mejor = null;
-      let mejorSim = 0;
-      for (const [k, u] of porUnidad) {
-        const sim = similitud(materia, k);
-        if (sim > mejorSim) {
-          mejorSim = sim;
-          mejor = u;
-        }
-      }
-      if (mejor && mejorSim >= UMBRAL_AUTO) {
-        dir3 = mejor.dir3_code;
-        via = 'similitud';
-        parecido = Number(mejorSim.toFixed(2));
-      } else if (mejor && mejorSim >= 0.35) {
-        sugerencia = `${mejor.nombre} (${mejor.dir3_code}, ${mejorSim.toFixed(2)})`;
-      }
-    }
-
-    filas.push({
-      boe_id: d.id,
-      fecha: d.fecha_publicacion,
-      departamento: d.departamento,
-      titulo: d.titulo,
-      accion: e.accion,
-      persona: e.persona,
-      cargo: e.cargo,
-      organismo,
-      es_exterior: esExterior,
-      dir3_code: dir3,
-      estado: esExterior
-        ? 'descartado'
-        : via === 'ignorado'
-        ? 'descartado'
-        : dir3
-        ? 'casado'
-        : 'sin_equivalencia',
-      nota: [via, parecido ? `sim ${parecido}` : null, sugerencia ? `sugerencia: ${sugerencia}` : null]
-        .filter(Boolean)
-        .join(' · ') || null,
-    });
+  // Prueba en seco: devuelve lo que cambiaría respecto a lo guardado, sin
+  // escribir nada ni volcar al directorio.
+  if (dry) {
+    const ids = filas.map((f) => f.boe_id);
+    const { data: previas } = await supabase
+      .from('boe_appointments')
+      .select('boe_id, estado, dir3_code, entidad_id')
+      .in('boe_id', ids.length ? ids : ['-']);
+    const antes = new Map((previas || []).map((p) => [p.boe_id, p]));
+    const cambios = filas
+      .filter((f) => {
+        const p = antes.get(f.boe_id);
+        return !p || p.estado !== f.estado || p.dir3_code !== f.dir3_code || p.entidad_id !== f.entidad_id;
+      })
+      .map((f) => ({
+        boe_id: f.boe_id,
+        accion: f.accion,
+        persona: f.persona,
+        cargo: f.cargo,
+        antes: antes.get(f.boe_id) || null,
+        despues: { estado: f.estado, dir3_code: f.dir3_code, entidad_id: f.entidad_id, nota: f.nota },
+      }));
+    return NextResponse.json({ dry: true, rango: { desde, hasta }, extraidos: filas.length, sin_patron: sinPatron, cambios });
   }
 
   // 4. Guardar. onConflict por boe_id: reejecutar no duplica y sí
@@ -447,7 +260,11 @@ export async function GET(req) {
             Object.entries(resumen)
               .map(([k, v]) => `${k} ${v}`)
               .join(', '),
-            volcado?.error ? `volcado: ${volcado.error}` : null,
+            volcado?.error
+              ? `volcado: ${volcado.error}`
+              : volcado
+              ? `volcado: AGE −${volcado.ceses} +${volcado.altas}, agenda −${volcado.ceses_agenda} +${volcado.altas_agenda}`
+              : null,
           ]
             .filter(Boolean)
             .join(' · ')
