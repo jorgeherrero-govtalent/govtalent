@@ -119,6 +119,7 @@ export default function CalendarioElectoral() {
         .ce-punto { width: 12px; height: 12px; border-radius: 50%; background: #fff; border: 2px solid ${MORADO}; position: relative; z-index: 1; }
         .ce-hito.pasado .ce-punto { background: ${MORADO}; }
         .ce-hito.pasado .ce-nombre { color: ${GRIS}; font-weight: 500; }
+        .ce-hito.actual .ce-punto { background: ${MORADO}; box-shadow: 0 0 0 4px ${MORADO_S}; }
         @media (max-width: 560px) { .ce-dias { display: none; } }
       `}</style>
 
@@ -148,7 +149,7 @@ export default function CalendarioElectoral() {
         <>
           <div className="ce-linea">
             {hitos.map((h) => (
-              <div key={h.id} className={`ce-hito ${h.estado === 'pasado' ? 'pasado' : ''}`}>
+              <div key={h.id} className={`ce-hito ${h.estado === 'pasado' ? 'pasado' : h.estado === 'hoy' || h.estado === 'en_curso' ? 'actual' : ''}`}>
                 <span className="ce-punto"></span>
                 <span style={{ fontSize: 11, color: GRIS, fontVariantNumeric: 'tabular-nums' }}>{fechaHito(h)}</span>
                 <span className="ce-nombre" style={{ fontSize: 12, fontWeight: 600, lineHeight: 1.3, color: TINTA }}>
