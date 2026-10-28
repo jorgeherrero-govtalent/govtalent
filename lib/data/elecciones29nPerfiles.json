@@ -225,9 +225,9 @@
   "fuente": "https://www.democrata.es/elecciones-generales-espana/consulte-aqui-lista-psoe-por-madrid-elecciones-29n-estos-son-candidatos-congreso-senado/"
  },
  "Manuela Villa Acosta": {
-  "org": "Exdiputada en la Asamblea de Madrid",
-  "ot": "Parlamentos autonómicos",
-  "fuente": "https://theobjective.com/espana/politica/2024-02-13/consejo-ministros-manuela-villa-oficina-cultural-moncloa/"
+  "org": "Directora del Departamento de Asuntos Culturales (Presidencia del Gobierno)",
+  "ot": "Gobierno",
+  "fuente": "GovTalent"
  },
  "Aránzazu Figueroa Toledo": {
   "org": "Secretaria general de Juventudes Socialistas de España",
@@ -348,5 +348,70 @@
   "org": "Consejero de Urbanismo y Transportes de Ceuta",
   "ot": "Gobiernos autonómicos",
   "fuente": "https://elfarodeceuta.es/ceuta-ya-reestructuracion-gobierno-80-000-euros-fan-ayuso-milei/"
+ },
+ "Sebastián Pérez Gallardo": {
+  "org": "Coordinador provincial de IU en Córdoba",
+  "ot": "Partido",
+  "fuente": "https://www.democrata.es/en/politics/expansion-frente-amplio-rushes-the-closing-of-lists-with-uncertainties-in-several-provinces/"
+ },
+ "Jorge Saavedra Requena": {
+  "org": "Portavoz del equipo de gobierno del Ayuntamiento de Granada",
+  "ot": "Ayuntamientos",
+  "fuente": "https://www.granada.org/inet/agecorporativos.nsf/hist!OpenView&Start=27&Count=30&Expand=49"
+ },
+ "Cristina Morón Molina": {
+  "org": "Tercera teniente de alcalde del Ayuntamiento de Lleida",
+  "ot": "Ayuntamientos",
+  "fuente": "https://www.democrata.es/en/politics/cristina-moron-will-replace-minguez-as-the-head-of-the-psc-list-for-lleida/amp/"
+ },
+ "Lucía Soledad Fernández Alonso": {
+  "org": "Alcaldesa de San Sebastián de los Reyes (Madrid)",
+  "ot": "Ayuntamientos",
+  "fuente": "GovTalent: directorio"
+ },
+ "Miguel Ángel Ortega Pérez": {
+  "org": "Diputado en la Asamblea Regional de Murcia",
+  "ot": "Parlamentos autonómicos",
+  "fuente": "https://www.democrata.es/politicos/miguel-angel-ortega-perez-1189"
+ },
+ "Vanesa María Cabrera Ramos": {
+  "org": "Jefa de Gabinete de la Delegación del Gobierno en Canarias",
+  "ot": "Delegaciones del Gobierno",
+  "fuente": "GovTalent: directorio"
+ },
+ "Sergio Ramos Acosta": {
+  "org": "Exsenador por Gran Canaria y ex primer teniente de alcalde de Telde",
+  "ot": "Senado",
+  "fuente": "https://rtvc.es/sergio-ramos-encabezara-lista-pp-congreso-palmas-21-octubre-2026/"
+ },
+ "Jose Antonio Valbuena Alonso": {
+  "org": "Senador designado por el Parlamento de Canarias",
+  "ot": "Senado",
+  "fuente": "https://en.wikipedia.org/wiki/Jos%C3%A9_Antonio_Valbuena_Alonso"
+ },
+ "Rebeca Torró Soler": {
+  "org": "Secretaria de Organización y portavoz de la Ejecutiva Federal del PSOE",
+  "ot": "Partido",
+  "fuente": "https://www.articulo14.es/politica/rebeca-torro-la-cara-visible-del-psoe-en-sus-momentos-mas-dificiles-20261018.html"
+ },
+ "José Enrique Muñoz Lladró": {
+  "org": "Síndic del Grupo Socialista en Les Corts Valencianes",
+  "ot": "Parlamentos autonómicos",
+  "fuente": "GovTalent: Corts Valencianes"
+ },
+ "Fernando Martínez-Maillo Toribio": {
+  "org": "Excoordinador general del PP y exdiputado en el Congreso por Zamora",
+  "ot": "Otros cargos",
+  "fuente": "https://en.wikipedia.org/wiki/Fernando_Mart%C3%ADnez-Ma%C3%ADllo"
+ },
+ "María del Rocío Dívar Conde": {
+  "org": "Senadora por Zaragoza y portavoz adjunta del GP Popular en el Senado",
+  "ot": "Senado",
+  "fuente": "https://en.wikipedia.org/wiki/Roc%C3%ADo_D%C3%ADvar"
+ },
+ "Javier Campoy Monreal": {
+  "org": "Exconsejero de Hacienda del Gobierno de Aragón",
+  "ot": "Gobiernos autonómicos",
+  "fuente": "https://www.lacomarca.net/azcon-desafia-genova-envia-campoy-senado-lista-pp-huesca/"
  }
 }
