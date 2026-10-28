@@ -12,9 +12,17 @@
 // Directorio (tiene_directorio_de, sql/73) ni dos veces a la misma
 // persona (users.directorio_promo_sent_at, sql/101).
 //
+// ENVÍO A MANO A UNA LISTA (28-10-2026). Con ?para=correo1,correo2 y la
+// clave de depuración, se envía solo a esas personas, aunque estén fuera
+// de la ventana o ya tengan el Directorio (clientes a los que se les ha
+// dado acceso a mano). Se sigue sin escribir a quien ha pedido borrar su
+// cuenta ni a quien ya lo recibió, salvo con &repetir=1.
+//
 // Uso:
 //   ?key=<DEBUG_KEY>&dry=1   prueba sin enviar
 //   ?key=<DEBUG_KEY>         envío real
+//   ?key=<DEBUG_KEY>&para=a@x.com,b@y.com&dry=1   a quién saldría
+//   ?key=<DEBUG_KEY>&para=a@x.com,b@y.com         envío a esa lista
 // =====================================================================
 
 import { NextResponse } from 'next/server';
@@ -52,6 +60,55 @@ async function handler(request) {
   const informe = { inicio: new Date().toISOString(), dry_run: dry };
 
   try {
+    // --- Envío a mano a una lista ---------------------------------------
+    const para = isManual
+      ? String(sp.get('para') || '')
+          .split(',')
+          .map((e) => e.trim().toLowerCase())
+          .filter((e) => e.includes('@'))
+      : [];
+    if (para.length > 0) {
+      const repetir = sp.get('repetir') === '1';
+      const { data: usuarios, error } = await supabase
+        .from('users')
+        .select('id, first_name, email, directorio_promo_sent_at, deletion_requested_at')
+        .in('email', para);
+      if (error) throw new Error(`No se pudieron leer los usuarios: ${error.message}`);
+
+      const encontrados = new Set((usuarios || []).map((u) => String(u.email).toLowerCase()));
+      informe.pedidos = para.length;
+      informe.no_encontrados = para.filter((e) => !encontrados.has(e));
+      const destinatarios = (usuarios || []).filter(
+        (u) => !u.deletion_requested_at && (repetir || !u.directorio_promo_sent_at)
+      );
+      informe.omitidos = (usuarios || []).filter((u) => !destinatarios.includes(u)).map((u) => u.email);
+
+      if (dry) {
+        informe.saldria_a = destinatarios.map((u) => `${u.first_name || '(sin nombre)'} <${u.email}>`);
+        informe.ms_total = Date.now() - t0;
+        return NextResponse.json(informe);
+      }
+
+      const enviados = [];
+      const fallos = [];
+      for (const u of destinatarios) {
+        const { subject, html } = directorioPromoEmail({ firstName: u.first_name || '' });
+        const { error: errEnvio } = await resend.emails.send({ from: EMAIL_FROM, to: u.email, subject, html });
+        if (errEnvio) fallos.push({ email: u.email, error: errEnvio.message });
+        else enviados.push(u);
+      }
+      if (enviados.length) {
+        await supabase
+          .from('users')
+          .update({ directorio_promo_sent_at: new Date().toISOString() })
+          .in('id', enviados.map((u) => u.id));
+      }
+      informe.enviados = enviados.map((u) => u.email);
+      informe.fallidos = fallos;
+      informe.ms_total = Date.now() - t0;
+      return NextResponse.json(informe);
+    }
+
     const hasta = new Date(Date.now() - DIAS_MIN * 86400000).toISOString();
     const desde = new Date(Date.now() - DIAS_MAX * 86400000).toISOString();
 
