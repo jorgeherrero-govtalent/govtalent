@@ -163,6 +163,10 @@ export default function CalendarioElectoral() {
               <i className="ti ti-calendar-plus" style={{ fontSize: 14 }} aria-hidden="true"></i>
               Añadir a mi calendario
             </button>
+            <a href="/elecciones-29n" style={boton(false)}>
+              Explorar las candidaturas
+              <i className="ti ti-arrow-right" aria-hidden="true" style={{ fontSize: 13 }}></i>
+            </a>
             <button type="button" onClick={ocultar} style={boton(false)}>
               Ocultar
             </button>

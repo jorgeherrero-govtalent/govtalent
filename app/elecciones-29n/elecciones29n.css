@@ -94,3 +94,20 @@
 .e29 .tile{font-size:0}
 .e29 .tile b{font-size:10px}
 }
+/* Cabecera de la landing */
+.e29-cab{position:sticky;top:0;z-index:30;background:rgba(255,255,255,.92);-webkit-backdrop-filter:saturate(180%) blur(12px);backdrop-filter:saturate(180%) blur(12px);border-bottom:1px solid #ecebe6}
+.e29-cab-in{max-width:1180px;margin:0 auto;padding:0 22px;height:64px;display:flex;align-items:center;justify-content:space-between;gap:16px}
+.e29-cab-acc{display:flex;gap:10px;align-items:center}
+.e29-cab .btn-ai,.e29-cab .btn-ai-o{text-decoration:none;white-space:nowrap}
+@media(max-width:560px){.e29-cab-video{display:none}}
+.e29-vid{position:fixed;inset:0;z-index:100;background:rgba(10,10,20,.72);display:flex;align-items:center;justify-content:center;padding:20px}
+.e29-vid-caja{position:relative;width:min(960px,100%);aspect-ratio:16/9;background:#000;border-radius:14px;overflow:hidden}
+.e29-vid-caja iframe{position:absolute;inset:0;width:100%;height:100%;border:0}
+.e29-vid-x{position:absolute;top:8px;right:10px;z-index:2;background:rgba(255,255,255,.9);border:0;border-radius:50%;width:32px;height:32px;font-size:20px;line-height:1;cursor:pointer}
+/* Bloque de registro tras el hemiciclo */
+.e29 .registro{margin-top:28px;background:#1a1a18;color:#fff;border-radius:22px;padding:30px 34px;display:flex;gap:24px;align-items:center;justify-content:space-between;flex-wrap:wrap}
+.e29 .registro>div{max-width:680px}
+.e29 .registro h2{font-size:28px;letter-spacing:-.8px;margin:6px 0 8px;color:#fff}
+.e29 .registro p{margin:0;color:#c9c6be;font-size:15px;line-height:1.55}
+.e29 .registro .btn-ai{text-decoration:none;min-height:44px;padding:0 22px;font-size:14px}
+.e29 .cta .btn-ai{text-decoration:none}

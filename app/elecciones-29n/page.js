@@ -1,11 +1,10 @@
-import PublicHeader from '@/components/PublicHeader';
 import Elecciones29n from './Elecciones29n';
 import datos from '@/lib/data/elecciones29n.json';
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://govtalent.app';
 
-const TITULO = 'Quién repite y quién llega al Congreso el 29N';
-const DESCRIPCION = `${datos.d.filter((d) => d.d === 'no').length} de los 350 diputados no vuelven a presentarse. Explora el hemiciclo, quién llega al Congreso y los cargos del Gobierno que van en las listas.`;
+const TITULO = 'Quién repite y quién llegará al Congreso el 29N';
+const DESCRIPCION = `${datos.d.filter((d) => d.d === 'no').length} de los 350 diputados no vuelven a presentarse. Explora el hemiciclo, quién llegará al Congreso y los cargos del Gobierno que van en las listas.`;
 
 export const metadata = {
   title: `${TITULO} | GovTalent`,
@@ -18,7 +17,9 @@ export const metadata = {
     siteName: 'GovTalent',
     locale: 'es_ES',
     type: 'article',
+    images: [{ url: `${SITE_URL}/og/elecciones-29n.png`, width: 1200, height: 630, alt: TITULO }],
   },
+  twitter: { card: 'summary_large_image', title: TITULO, description: DESCRIPCION, images: [`${SITE_URL}/og/elecciones-29n.png`] },
 };
 
 // Datos estáticos (lib/data/elecciones29n.json): la página se sirve en caché.
@@ -26,7 +27,6 @@ export const metadata = {
 export default function Elecciones29nPage() {
   return (
     <div style={{ minHeight: '100vh', background: '#f0efe9' }}>
-      <PublicHeader maxWidth={1180} />
       <Elecciones29n datos={datos} />
     </div>
   );

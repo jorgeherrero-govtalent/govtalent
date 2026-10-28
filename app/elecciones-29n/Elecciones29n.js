@@ -2,18 +2,64 @@
 
 /**
  * Explorador de las elecciones del 29N: hemiciclo de los 350 diputados de
- * la XV con su destino en las candidaturas, quién llega al Congreso, mapa
+ * la XV con su destino en las candidaturas, quién llegará al Congreso, mapa
  * por provincias y cargos del Gobierno en las listas.
  *
  * El DOM y la lógica vienen del prototipo aprobado (lib/elecciones29nExplorador.js),
  * para no rehacer a mano un hemiciclo en SVG con filtros y fichas.
  */
 
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import Logo from '@/components/Logo';
 import { iniciar } from '@/lib/elecciones29nExplorador';
 import './elecciones29n.css';
 
-const ESQUELETO = "<div class=\"wrap\">\n <div class=\"hero\">\n  <div class=\"ante\">Elecciones generales del 29 de noviembre</div>\n  <h1><em id=\"h-n\">110</em> de los 350 diputados<br>no vuelven a presentarse</h1>\n  <p class=\"lead\">Pasa por cada escaño para ver quién repite, quién salta al Senado y quién se va. Cruce de las candidaturas presentadas en el BOE con el Congreso de la XV Legislatura.</p>\n  <div class=\"fuente\">Fuente: BOE-A-2026-22607 (candidaturas presentadas, 28-10-2026). Se actualizará con las proclamadas el 3 de noviembre.</div>\n </div>\n\n <div class=\"stage\">\n  <div class=\"panel\">\n   <div class=\"gtabs\" id=\"gtabs\"></div>\n   <div class=\"barra-top\" style=\"margin-top:12px\">\n    <div class=\"modos\" id=\"dests\"></div>\n    <div style=\"display:flex;gap:8px;align-items:center;flex:1;justify-content:flex-end\"><input class=\"busca\" id=\"q\" placeholder=\"Busca un diputado o una provincia…\"><div class=\"modos\" id=\"modos\"><button data-m=\"grupo\">Hoy</button><button data-m=\"29n\" class=\"on\">29N</button></div></div>\n   </div>\n   <svg class=\"hemi\" id=\"hemi\" viewBox=\"0 0 800 430\"></svg>\n   <div class=\"leyenda\" id=\"ley\"></div>\n   <div id=\"filtro-prov\" style=\"margin-top:10px\"></div>\n  </div>\n  <div class=\"panel ficha\" id=\"ficha\"></div>\n </div>\n\n <section class=\"blk\">\n  <div class=\"ante\">Los que entran</div><h2>Quién llega al Congreso</h2>\n  <p class=\"lead\"><b style=\"color:#1a1a18\"><span id=\"nn\"></span> candidatos</b> que hoy no son diputados van en puestos en los que su partido obtuvo escaño en 2023. Entre ellos, 10 ministros, 6 alcaldes y los 4 delegados del Gobierno que dejaron el cargo la semana pasada.</p>\n  <div class=\"otabs\" id=\"otabs\"></div>\n  <div class=\"gtabs\" id=\"ntabs\" style=\"margin-top:8px\"></div>\n  <div class=\"nuevos\" id=\"nuevos\"></div>\n  <div style=\"text-align:center;margin-top:14px\"><button class=\"mas\" id=\"nmas\">Ver todos</button></div>\n </section>\n\n <section class=\"blk\">\n  <div class=\"ante\">Por provincia</div><h2>El mapa del relevo</h2>\n  <p class=\"lead\">Cuanto más intenso, más diputados de esa circunscripción se van.</p>\n  <div class=\"mapgrid\"><div class=\"mapa\" id=\"mapa\"></div><div class=\"panel\" id=\"prov\"><div class=\"vacia\" style=\"color:#8b8780\">Pulsa una provincia.</div></div></div>\n </section>\n\n <section class=\"blk\">\n  <div class=\"ante\">Del Gobierno a las listas</div><h2><span id=\"nc\"></span> cargos del Gobierno se presentan</h2>\n  <p class=\"lead\">Si salen elegidos, dejarán su puesto: relevos previsibles en ministerios y secretarías de Estado a partir de diciembre.</p>\n  <div class=\"cargos\" id=\"cargos\"></div>\n </section>\n\n <div class=\"cta\"><div><h3>Sigue el relevo en GovTalent</h3><p>Nuevos diputados, nombramientos en el BOE y alarmas sobre lo que te afecta.</p></div><a class=\"btn-ai\" href=\"/login?view=signup\">Crear cuenta gratis</a></div>\n</div>\n<div class=\"tip\" id=\"tip\"></div>";
+const ESQUELETO = "<div class=\"wrap\">\n <div class=\"hero\">\n  <div class=\"ante\">Elecciones generales del 29 de noviembre</div>\n  <h1><em id=\"h-n\">110</em> de los 350 diputados<br>no vuelven a presentarse</h1>\n  <p class=\"lead\">Pasa por cada escaño para ver quién repite, quién salta al Senado y quién se va. Cruce de las candidaturas presentadas en el BOE con el Congreso de la XV Legislatura.</p>\n  <div class=\"fuente\">Fuente: BOE-A-2026-22607 (candidaturas presentadas, 28-10-2026). Se actualizará con las proclamadas el 3 de noviembre.</div>\n </div>\n\n <div class=\"stage\">\n  <div class=\"panel\">\n   <div class=\"gtabs\" id=\"gtabs\"></div>\n   <div class=\"barra-top\" style=\"margin-top:12px\">\n    <div class=\"modos\" id=\"dests\"></div>\n    <div style=\"display:flex;gap:8px;align-items:center;flex:1;justify-content:flex-end\"><input class=\"busca\" id=\"q\" placeholder=\"Busca un diputado o una provincia…\"><div class=\"modos\" id=\"modos\"><button data-m=\"grupo\">Hoy</button><button data-m=\"29n\" class=\"on\">29N</button></div></div>\n   </div>\n   <svg class=\"hemi\" id=\"hemi\" viewBox=\"0 0 800 430\"></svg>\n   <div class=\"leyenda\" id=\"ley\"></div>\n   <div id=\"filtro-prov\" style=\"margin-top:10px\"></div>\n  </div>\n  <div class=\"panel ficha\" id=\"ficha\"></div>\n </div>\n\n <section class=\"registro\">\n  <div>\n   <div class=\"ante\" style=\"color:#b3a8f6\">Con GovTalent</div>\n   <h2>El nuevo Congreso, con todos sus contactos</h2>\n   <p>En cuanto se constituyan las Cortes tendrás el directorio completo: Gobierno, diputados, grupos parlamentarios, comisiones y asesores, con su cargo y su contacto.</p>\n  </div>\n  <a class=\"btn-ai\" href=\"/login?view=signup\">Crear cuenta gratis</a>\n </section>\n <section class=\"blk\">\n  <div class=\"ante\">Los que entran</div><h2>Quién llegará al Congreso</h2>\n  <p class=\"lead\"><b style=\"color:#1a1a18\"><span id=\"nn\"></span> candidatos</b> que hoy no son diputados van en puestos en los que su partido obtuvo escaño en 2023. Entre ellos, 10 ministros, 6 alcaldes y los 4 delegados del Gobierno que dejaron el cargo la semana pasada.</p>\n  <div class=\"otabs\" id=\"otabs\"></div>\n  <div class=\"gtabs\" id=\"ntabs\" style=\"margin-top:8px\"></div>\n  <div class=\"nuevos\" id=\"nuevos\"></div>\n  <div style=\"text-align:center;margin-top:14px\"><button class=\"mas\" id=\"nmas\">Ver todos</button></div>\n </section>\n\n <section class=\"blk\">\n  <div class=\"ante\">Por provincia</div><h2>El mapa del relevo</h2>\n  <p class=\"lead\">Cuanto más intenso, más diputados de esa circunscripción se van.</p>\n  <div class=\"mapgrid\"><div class=\"mapa\" id=\"mapa\"></div><div class=\"panel\" id=\"prov\"><div class=\"vacia\" style=\"color:#8b8780\">Pulsa una provincia.</div></div></div>\n </section>\n\n <section class=\"blk\">\n  <div class=\"ante\">Del Gobierno a las listas</div><h2><span id=\"nc\"></span> cargos del Gobierno se presentan</h2>\n  <p class=\"lead\">Si salen elegidos, dejarán su puesto: relevos previsibles en ministerios y secretarías de Estado a partir de diciembre.</p>\n  <div class=\"cargos\" id=\"cargos\"></div>\n </section>\n\n <div class=\"cta\"><div><h3>Sigue el relevo en GovTalent</h3><p>Nuevos diputados, nombramientos en el BOE y alarmas sobre lo que te afecta.</p></div><a class=\"btn-ai\" href=\"/login?view=signup\">Crear cuenta gratis</a></div>\n</div>\n<div class=\"tip\" id=\"tip\"></div>";
+
+// Cabecera de la landing: solo el logo y, a la derecha, el vídeo y el alta.
+function Cabecera() {
+  const [video, setVideo] = useState(false);
+  useEffect(() => {
+    if (!video) return;
+    const cerrar = (e) => e.key === 'Escape' && setVideo(false);
+    window.addEventListener('keydown', cerrar);
+    return () => window.removeEventListener('keydown', cerrar);
+  }, [video]);
+  return (
+    <header className="e29-cab">
+      <div className="e29-cab-in">
+        <a href="/" aria-label="GovTalent">
+          <Logo height={24} />
+        </a>
+        <div className="e29-cab-acc">
+          <button type="button" className="btn-ai-o e29-cab-video" onClick={() => setVideo(true)}>
+            <i className="ti ti-player-play" aria-hidden="true"></i>
+            ¿Qué es GovTalent?
+          </button>
+          <a className="btn-ai" href="/login?view=signup">
+            Crear cuenta gratis
+          </a>
+        </div>
+      </div>
+      {video && (
+        <div className="e29-vid" role="dialog" aria-modal="true" aria-label="Vídeo: ¿Qué es GovTalent?" onClick={() => setVideo(false)}>
+          <div className="e29-vid-caja" onClick={(e) => e.stopPropagation()}>
+            <button type="button" className="e29-vid-x" aria-label="Cerrar" onClick={() => setVideo(false)}>
+              ×
+            </button>
+            <iframe
+              src="https://www.youtube-nocookie.com/embed/3ZxkLcQZW1E?autoplay=1&rel=0&modestbranding=1"
+              title="¿Qué es GovTalent?"
+              allow="autoplay; encrypted-media; picture-in-picture; fullscreen"
+              allowFullScreen
+              referrerPolicy="strict-origin-when-cross-origin"
+            />
+          </div>
+        </div>
+      )}
+    </header>
+  );
+}
 
 export default function Elecciones29n({ datos }) {
   const ref = useRef(null);
@@ -22,5 +68,10 @@ export default function Elecciones29n({ datos }) {
     ref.current.innerHTML = ESQUELETO;
     iniciar(ref.current, datos);
   }, [datos]);
-  return <div className="e29" ref={ref} />;
+  return (
+    <>
+      <Cabecera />
+      <div className="e29" ref={ref} />
+    </>
+  );
 }
