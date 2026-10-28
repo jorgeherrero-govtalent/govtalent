@@ -70,10 +70,14 @@
 .e29 .gc .pct{font-size:36px;font-weight:750;letter-spacing:-1px}
 .e29 .mini{display:flex;flex-wrap:wrap;gap:3px;margin-top:10px}
 .e29 .mini i{width:9px;height:9px;border-radius:50%}
-.e29 .mapa{display:grid;grid-template-columns:repeat(10,1fr);gap:5px;margin-top:20px;max-width:760px}
-.e29 .tile{aspect-ratio:1;border-radius:8px;display:flex;flex-direction:column;justify-content:space-between;padding:5px 6px;font-size:10px;line-height:1.1;cursor:pointer;transition:transform .12s;color:#1a1a18}
-.e29 .tile:hover{transform:scale(1.07);z-index:2}
-.e29 .tile b{font-size:13px}
+.e29 .mapa{margin-top:20px;background:#fff;border:1px solid #e6e4dc;border-radius:18px;padding:16px}
+.e29 .mapa-svg{width:100%;height:auto;display:block}
+.e29 .prov{cursor:pointer}
+.e29 .prov path,.e29 .prov circle{transition:filter .15s, stroke .15s}
+.e29 .prov:hover path,.e29 .prov:hover circle{filter:brightness(.92);stroke:#3c3489;stroke-width:1.6}
+.e29 .prov.sel path,.e29 .prov.sel circle{stroke:#1a1a18;stroke-width:2}
+.e29 .mapa-ley{display:flex;align-items:center;gap:8px;font-size:11.5px;color:#8b8780;margin-top:6px}
+.e29 .mapa-ley i{width:120px;height:8px;border-radius:4px;display:inline-block}
 .e29 .mapgrid{display:grid;grid-template-columns:minmax(0,760px) 1fr;gap:22px;align-items:start}
 .e29 .cargos{display:grid;grid-template-columns:repeat(auto-fill,minmax(270px,1fr));gap:12px;margin-top:20px}
 .e29 .cg{background:#fff;border:1px solid #e6e4dc;border-radius:16px;padding:16px;display:flex;gap:12px;align-items:flex-start}
@@ -90,9 +94,6 @@
 @media(max-width:860px){
 .e29 .gtabs{grid-template-columns:repeat(3,1fr)}
 .e29 .stage,.e29 .mapgrid{grid-template-columns:1fr}
-.e29 .mapa{grid-template-columns:repeat(10,1fr)}
-.e29 .tile{font-size:0}
-.e29 .tile b{font-size:10px}
 }
 /* Cabecera de la landing */
 .e29-cab{position:sticky;top:0;z-index:30;background:rgba(255,255,255,.92);-webkit-backdrop-filter:saturate(180%) blur(12px);backdrop-filter:saturate(180%) blur(12px);border-bottom:1px solid #ecebe6}
@@ -124,13 +125,3 @@
 .e29 .e29-btn-o:hover{background:rgba(255,255,255,.12);border-color:rgba(255,255,255,.5)}
 .e29 .btn-ai.e29-btn{border:1px solid #6d5aef}
 /* Pie */
-.e29-pie{background:#f0efe9;border-top:1px solid #e3e1da;padding:52px 0 36px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif}
-.e29-pie-in{max-width:1180px;margin:0 auto;padding:0 22px}
-.e29-pie-g{display:grid;grid-template-columns:1.4fr 1fr 1fr 1fr;gap:32px}
-.e29-pie-col{display:flex;flex-direction:column;align-items:flex-start;gap:10px;font-size:14px}
-.e29-pie-col a{color:#55534e;text-decoration:none}.e29-pie-col a:hover{color:#5a47dc}
-.e29-pie-t{font-weight:600;color:#1a1a18}
-.e29-pie-lema{margin:6px 0 0;color:#6b6862;font-size:13.5px}
-.e29-pie-base{display:flex;justify-content:space-between;gap:12px;margin-top:40px;padding-top:20px;border-top:1px solid #e3e1da;font-size:12.5px;color:#8b8780}
-.e29-pie-base a{color:#8b8780;text-decoration:none}
-@media(max-width:760px){.e29-pie-g{grid-template-columns:1fr 1fr}.e29 .banda{padding:30px 24px}}

@@ -1,5 +1,9 @@
 import Elecciones29n from './Elecciones29n';
-import datos from '@/lib/data/elecciones29n.json';
+import datosBase from '@/lib/data/elecciones29n.json';
+import mapa from '@/lib/data/mapaProvincias.json';
+
+// Provincias: es-atlas (IGN, MIT), proyectadas con d3-geo y Canarias en recuadro.
+const datos = { ...datosBase, mapa };
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://govtalent.app';
 

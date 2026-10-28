@@ -402,3 +402,41 @@ export default function LandingClient() {
   const vals = ref.current.renderVals();
   return createElement('div', { className: 'gtl' }, ...TPL.map((n, i) => renderNode(n, vals, i)));
 }
+
+/**
+ * El pie de la portada, para usarlo tal cual en otras páginas públicas
+ * (p. ej. /elecciones-29n). Los enlaces a secciones de la portada (#producto…)
+ * se reescriben a /#producto para que funcionen fuera de ella.
+ */
+function buscarPie(nodos) {
+  for (const n of nodos) {
+    if (!Array.isArray(n)) continue;
+    if (n[0] === 'footer') return n;
+    const r = buscarPie(n[2] || []);
+    if (r) return r;
+  }
+  return null;
+}
+function anclasAPortada(n) {
+  if (!Array.isArray(n)) return n;
+  const [tag, attrs, kids] = n;
+  const a = { ...attrs };
+  if (typeof a.href === 'string' && a.href.startsWith('#')) a.href = '/' + a.href;
+  return [tag, a, (kids || []).map(anclasAPortada)];
+}
+const PIE = anclasAPortada(buscarPie(TPL));
+
+export function PieLanding() {
+  const [gcopy, setGcopy] = useReducer((_, v) => v, false);
+  const t = useRef(null);
+  const askGemini = () => {
+    try {
+      if (navigator.clipboard) navigator.clipboard.writeText(GT_ASK);
+    } catch (e) {}
+    setGcopy(true);
+    clearTimeout(t.current);
+    t.current = setTimeout(() => setGcopy(false), 6000);
+  };
+  useEffect(() => () => clearTimeout(t.current), []);
+  return createElement('div', { className: 'gtl' }, renderNode(PIE, { gcopy, askGemini }, 'pie'));
+}
