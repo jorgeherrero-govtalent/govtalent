@@ -6,7 +6,8 @@ import { NextResponse } from 'next/server';
 // condiciones en el proceso de contratación.
 // /bot explica qué es GovTalentBot a las webs que lee: tiene que poder
 // abrirla cualquiera, sin cuenta.
-const PUBLIC_LEGAL_PATHS = ['/legal', '/privacidad', '/cookies', '/condiciones', '/bot'];
+// /elecciones-29n es una página de contenido abierta para compartir.
+const PUBLIC_LEGAL_PATHS = ['/legal', '/privacidad', '/cookies', '/condiciones', '/bot', '/elecciones-29n'];
 
 // Secciones ocultas desde el 04-10-2026: Organizaciones (el directorio y
 // sus páginas públicas), Empleos (listado, ofertas públicas y candidatos)
