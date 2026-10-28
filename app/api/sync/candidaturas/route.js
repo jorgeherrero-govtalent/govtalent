@@ -14,7 +14,8 @@
 //   estado    presentada | proclamada
 //   dry=1     no escribe: devuelve recuentos por circunscripción y muestra
 //
-// Probado con el 23J: BOE-A-2023-14733 (candidaturas presentadas).
+// Probado con el 23J: BOE-A-2023-14733 (candidaturas presentadas) y con
+// el 29N: BOE-A-2026-22607 (presentadas, 28-10-2026).
 // =====================================================================
 
 import { createClient } from '@supabase/supabase-js';
@@ -65,16 +66,18 @@ async function handler(request) {
     const r = leerCandidaturas(lineasDeHtml(html));
     for (const f of r.filas) filas.push({ ...f, fuente_boe: id });
     r.circunscripciones.forEach((c) => circs.add(c));
+    informe.escanos = { ...(informe.escanos || {}), ...r.escanos };
     avisos.push(...r.avisos);
   }
 
   // Sin duplicados por la clave única (por si una junta corrige y repite).
   const vistos = new Map();
-  for (const f of filas) vistos.set([f.camara, f.circunscripcion, f.candidatura, f.suplente, f.orden].join('|'), f);
+  for (const f of filas) vistos.set([f.camara, f.circunscripcion, f.candidatura, f.suplente, f.suplente_de, f.orden].join('|'), f);
   const unicas = [...vistos.values()];
 
   informe.n_leidos = unicas.length;
   informe.circunscripciones = circs.size;
+  informe.escanos_congreso = Object.values(informe.escanos || {}).reduce((a, n) => a + n, 0);
   informe.por_camara = unicas.reduce((a, f) => ((a[f.camara] = (a[f.camara] || 0) + 1), a), {});
   informe.candidaturas_congreso = new Set(unicas.filter((f) => f.camara === 'congreso').map((f) => `${f.circunscripcion}|${f.candidatura}`)).size;
   informe.siglas_mas_frecuentes = Object.entries(
@@ -100,7 +103,7 @@ async function handler(request) {
   for (let i = 0; i < payload.length; i += 1000) {
     const { error } = await supabase
       .from('candidatos')
-      .upsert(payload.slice(i, i + 1000), { onConflict: 'eleccion,camara,circunscripcion,candidatura,suplente,orden' });
+      .upsert(payload.slice(i, i + 1000), { onConflict: 'eleccion,camara,circunscripcion,candidatura,suplente,suplente_de,orden' });
     if (error) return Response.json({ ...informe, error: error.message }, { status: 500 });
     escritas += Math.min(1000, payload.length - i);
   }
