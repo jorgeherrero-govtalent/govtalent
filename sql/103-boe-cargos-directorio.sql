@@ -130,6 +130,22 @@ returns text language sql immutable as $$
     '\m(de|del|la|el|los|las|y|para|en)\M', ' ', 'g'))
 $$;
 
+-- Misma persona aunque el BOE dé un nombre más largo que la Agenda:
+-- «Pilar Trinidad Núñez» = «María Pilar Trinidad Núñez». Las palabras del
+-- nombre más corto (al menos tres) tienen que estar todas en el largo.
+create or replace function public.misma_persona(a text, b text)
+returns boolean language sql immutable as $$
+  with x as (
+    select string_to_array(clave_persona(a), ' ') wa, string_to_array(clave_persona(b), ' ') wb
+  )
+  select case
+    when clave_persona(a) = clave_persona(b) then true
+    when least(cardinality(wa), cardinality(wb)) < 3 then false
+    else wa <@ wb or wb <@ wa
+  end
+  from x
+$$;
+
 -- ---------------------------------------------------------------------
 -- 4. El volcado
 -- ---------------------------------------------------------------------
@@ -171,7 +187,7 @@ begin
   where m.accion = 'cese'
     and g.dir3_code = m.dir3_code
     and g.active
-    and clave_persona(g.full_name) = clave_persona(m.persona);
+    and misma_persona(g.full_name, m.persona);
   get diagnostics n_ceses = row_count;
 
   -- 2. Altas. ON CONFLICT (slug) DO NOTHING: si la persona ya está, su
@@ -209,7 +225,7 @@ begin
       select 1 from government_officials g
       where g.dir3_code = m.dir3_code
         and g.active
-        and clave_persona(g.full_name) = clave_persona(m.persona)
+        and misma_persona(g.full_name, m.persona)
     )
   on conflict (slug) do nothing;
   get diagnostics n_altas = row_count;
@@ -240,7 +256,7 @@ begin
   where m.accion = 'cese'
     and c.entidad_id = m.entidad_id
     and c.activo
-    and clave_persona(c.nombre) = clave_persona(m.persona)
+    and misma_persona(c.nombre, m.persona)
     and rango_territorial(c.cargo) is not distinct from m.rango
     and coalesce(c.fuente_fecha, date '1900-01-01') <= m.fecha;
   get diagnostics n = row_count;
@@ -257,7 +273,7 @@ begin
     if exists (
       select 1 from directorio_contactos c
       where c.entidad_id = mv.entidad_id
-        and clave_persona(c.nombre) = clave_persona(mv.persona)
+        and misma_persona(c.nombre, mv.persona)
         and rango_territorial(c.cargo) = mv.rango
         and (c.activo or c.fuente_fecha >= mv.fecha)
     ) then
@@ -285,7 +301,7 @@ begin
     from directorio_contactos c
     where c.entidad_id = mv.entidad_id
       and rango_territorial(c.cargo) = mv.rango
-      and clave_persona(c.nombre) <> clave_persona(mv.persona)
+      and not misma_persona(c.nombre, mv.persona)
     order by c.activo desc, coalesce(c.fuente_fecha, date '1900-01-01') desc, c.id desc
     limit 1;
 
@@ -308,7 +324,7 @@ begin
       and coalesce(c.fuente_fecha, date '1900-01-01') <= mv.fecha
       and (
         rango_territorial(c.cargo) = mv.rango
-        or clave_persona(c.nombre) = clave_persona(mv.persona)
+        or misma_persona(c.nombre, mv.persona)
       );
     get diagnostics n = row_count;
     n_ceses_ag := n_ceses_ag + n;
@@ -349,7 +365,7 @@ begin
     and e.id = c.entidad_id
     and e.categoria in ('ministerio', 'organismo_age')
     and c.activo
-    and clave_persona(c.nombre) = clave_persona(a.persona)
+    and misma_persona(c.nombre, a.persona)
     and rango_puesto(c.cargo) is not null
     and rango_puesto(c.cargo) = rango_puesto(a.cargo)
     and similarity(materia_puesto(coalesce(nullif(e.unidad, ''), e.organizacion)), materia_puesto(a.cargo)) >= 0.5
@@ -359,7 +375,7 @@ begin
     and not exists (
       select 1 from boe_appointments b
       where b.accion = 'nombramiento'
-        and clave_persona(b.persona) = clave_persona(a.persona)
+        and misma_persona(b.persona, a.persona)
         and rango_puesto(b.cargo) = rango_puesto(a.cargo)
         and materia_puesto(b.cargo) = materia_puesto(a.cargo)
         and b.fecha > a.fecha
