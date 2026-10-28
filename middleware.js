@@ -92,7 +92,6 @@ export async function middleware(request) {
     !path.startsWith('/organizations/admin') &&
     !path.startsWith('/organizations/new');
   const isPublicUnsubscribe = path.startsWith('/api/alerts/unsubscribe');
-  const isPublicPricing = path === '/precios';
   const isPublicLegal = PUBLIC_LEGAL_PATHS.includes(path);
   // Los calendarios de suscripción (.ics) los piden Google, Apple y
   // Outlook sin sesión cada pocas horas. Sin esto recibían el login.
@@ -124,7 +123,6 @@ export async function middleware(request) {
     !isPublicJobPage &&
     !isPublicOrgPage &&
     !isPublicUnsubscribe &&
-    !isPublicPricing &&
     !isPublicLegal &&
     !isPublicCalendar &&
     !isInternalSync &&
@@ -132,6 +130,9 @@ export async function middleware(request) {
   ) {
     const url = request.nextUrl.clone();
     url.pathname = '/login';
+    // Los precios solo se ven con sesión (28-10-2026). Quien llega a
+    // /precios desde un correo o un enlace antiguo vuelve ahí al entrar.
+    if (path === '/precios') url.search = '?redirect=/precios';
     return NextResponse.redirect(url);
   }
 

@@ -1,4 +1,5 @@
 import LegalPageShell from '@/components/LegalPageShell';
+import { createClient } from '@/lib/supabase/server';
 import {
   MAX_USUARIOS,
   HORQUILLAS,
@@ -20,7 +21,17 @@ export const metadata = {
   description: 'Condiciones que regulan el registro, la contratación y el uso de los servicios de GovTalent.',
 };
 
-export default function CondicionesPage() {
+// Los importes solo se muestran con sesión (decisión del 28-10-2026: los
+// precios no aparecen en la web pública, solo dentro de la plataforma). Sin
+// sesión, el texto remite a la Plataforma, donde se ven antes de contratar.
+export const dynamic = 'force-dynamic';
+
+export default async function CondicionesPage() {
+  const supabase = createClient();
+  const { data } = await supabase.auth.getUser();
+  const conPrecios = Boolean(data?.user);
+  const paginaPrecios = conPrecios ? <a href="/precios">página de precios</a> : 'Plataforma';
+
   return (
     <LegalPageShell title="Condiciones generales de contratación y uso">
       <p style={{ fontSize: 13, color: '#8b8780', marginTop: -10 }}>Última actualización: 15 de octubre de 2026.</p>
@@ -70,7 +81,7 @@ export default function CondicionesPage() {
         <li>El <a href="/legal">Aviso Legal</a>.</li>
         <li>La <a href="/privacidad">Política de Privacidad</a>.</li>
         <li>La <a href="/cookies">Política de Cookies</a>.</li>
-        <li>Las características, precios y límites publicados en la <a href="/precios">página de precios</a>.</li>
+        <li>Las características, precios y límites publicados en la {paginaPrecios}.</li>
         <li>Las condiciones particulares que puedan mostrarse durante la contratación.</li>
       </ul>
       <p>En caso de contradicción, las condiciones particulares aceptadas durante la contratación prevalecerán
@@ -101,7 +112,7 @@ export default function CondicionesPage() {
       Servicio.</p>
 
       <h3>4. Plan Free</h3>
-      <p>El plan Free tiene un precio de 0 € y permite acceder, con los límites indicados en la Plataforma, a:</p>
+      <p>El plan Free es gratuito y permite acceder, con los límites indicados en la Plataforma, a:</p>
       <ul>
         <li>Consulta de la actividad normativa y regulatoria en España y la Unión Europea.</li>
         <li>Consulta del directorio institucional, sin los datos de contacto de las personas.</li>
@@ -130,6 +141,8 @@ export default function CondicionesPage() {
       </ul>
 
       <h4 style={sub}>5.1. Precio</h4>
+      {conPrecios ? (
+      <>
       <p>Cada horquilla tiene un precio cerrado, con independencia del número de Usuarios que se den de alta
       dentro de ella. El pago anual tiene un descuento del {Math.round(DESCUENTO_ANUAL * 100)} % sobre doce
       mensualidades. Los precios ordinarios vigentes, sin IVA, son:</p>
@@ -153,11 +166,18 @@ export default function CondicionesPage() {
           ))}
         </tbody>
       </table>
+      </>
+      ) : (
+      <p>Cada horquilla tiene un precio cerrado, con independencia del número de Usuarios que se den de alta
+      dentro de ella, y el pago anual tiene un descuento sobre doce mensualidades. Los precios ordinarios
+      vigentes, sin IVA, y los créditos al mes de cada horquilla se muestran en la Plataforma antes de
+      contratar.</p>
+      )}
       <p>Precio fundador: los {PLAZAS_FUNDADOR} primeros Clientes que contraten una horquilla de varios Usuarios
-      pagan el precio fundador publicado en la <a href="/precios">página de precios</a> mientras quedan plazas. El
+      pagan el precio fundador publicado en la {paginaPrecios} mientras quedan plazas. El
       precio fundador se mantiene en las renovaciones mientras la suscripción continúe sin interrupción; si se
       cancela y se vuelve a contratar, se aplica el precio ordinario vigente.</p>
-      <p>El importe total de cada suscripción se muestra en la <a href="/precios">página de precios</a> y antes de
+      <p>El importe total de cada suscripción se muestra en la {paginaPrecios} y antes de
       completar el pago.</p>
 
       <h4 style={sub}>5.2. Alarmas y créditos</h4>
@@ -168,7 +188,9 @@ export default function CondicionesPage() {
       en la Plataforma. Los créditos mensuales se renuevan al inicio de cada mes y los no utilizados no se
       acumulan para meses posteriores.</p>
       <p>El Cliente podrá adquirir paquetes adicionales de créditos mediante pago único (
-      {PACKS_CREDITOS_IA.map((p, i) => `${i ? (i === PACKS_CREDITOS_IA.length - 1 ? ' o ' : ', ') : ''}${miles(p.creditos)} créditos por ${euros(p.precio)}`).join('')}, sin IVA). Los créditos adquiridos caducan a los{' '}
+      {conPrecios
+        ? `${PACKS_CREDITOS_IA.map((p, i) => `${i ? (i === PACKS_CREDITOS_IA.length - 1 ? ' o ' : ', ') : ''}${miles(p.creditos)} créditos por ${euros(p.precio)}`).join('')}, sin IVA`
+        : 'con los importes indicados en la Plataforma'}). Los créditos adquiridos caducan a los{' '}
       {MESES_CADUCIDAD_PACKS} meses de la compra y se consumen después de los créditos mensuales. Solo pueden
       adquirirse y utilizarse mientras se mantenga activa la suscripción al plan Vigilancia; si la suscripción
       finaliza, los créditos adquiridos pendientes de uso no podrán utilizarse ni darán derecho a reembolso, sin
@@ -189,9 +211,21 @@ export default function CondicionesPage() {
       <h3>6. Directorio</h3>
       <h4 style={sub}>6.1. Suscripción y Usuarios</h4>
       <p>El Directorio se contrata de forma independiente del plan Vigilancia, mediante una suscripción anual con
-      renovación automática. El precio ordinario es de {euros(DIRECTORIO_ANUAL)} al año, sin IVA, e incluye el
-      acceso de un Usuario. Cada Usuario adicional con acceso al Directorio tiene un precio de{' '}
-      {euros(DIRECTORIO_USUARIO_EXTRA)} al año, sin IVA. Los Usuarios adicionales que se añadan durante el periodo
+      renovación automática.{' '}
+      {conPrecios ? (
+        <>
+          El precio ordinario es de {euros(DIRECTORIO_ANUAL)} al año, sin IVA, e incluye el acceso de un Usuario.
+          Cada Usuario adicional con acceso al Directorio tiene un precio de {euros(DIRECTORIO_USUARIO_EXTRA)} al
+          año, sin IVA.
+        </>
+      ) : (
+        <>
+          El precio ordinario anual incluye el acceso de un Usuario, y cada Usuario adicional con acceso al
+          Directorio tiene un precio anual propio; los dos se muestran, sin IVA, en la Plataforma antes de
+          contratar.
+        </>
+      )}{' '}
+      Los Usuarios adicionales que se añadan durante el periodo
       de suscripción se facturarán por la parte proporcional del periodo restante.</p>
       <p>La suscripción al Directorio da acceso a los datos de contacto de instituciones, organizaciones, medios
       y actores sociales publicados en la Plataforma, e incluye además una alarma con resumen semanal y{' '}
@@ -208,7 +242,9 @@ export default function CondicionesPage() {
       Usuario, y son compartidos por todos los Usuarios con acceso al Directorio. Se renuevan al inicio de cada mes
       y los no utilizados no se acumulan para meses posteriores.</p>
       <p>El Cliente podrá adquirir paquetes adicionales de créditos de contacto mediante pago único
-      ({PACKS_CREDITOS.map((p, i) => `${i ? (i === PACKS_CREDITOS.length - 1 ? ' o ' : ', ') : ''}${p.creditos.toLocaleString('es-ES')} créditos por ${euros(p.precio)}`).join('')}, sin IVA). Los créditos adquiridos no caducan mientras se mantenga
+      ({conPrecios
+        ? `${PACKS_CREDITOS.map((p, i) => `${i ? (i === PACKS_CREDITOS.length - 1 ? ' o ' : ', ') : ''}${p.creditos.toLocaleString('es-ES')} créditos por ${euros(p.precio)}`).join('')}, sin IVA`
+        : 'con los importes indicados en la Plataforma'}). Los créditos adquiridos no caducan mientras se mantenga
       activa la suscripción al Directorio y se consumen después de los créditos mensuales.</p>
       <p>Los créditos de contacto y los créditos del plan Vigilancia son independientes y no pueden
       intercambiarse entre sí. Ningún tipo de crédito es canjeable por dinero ni transferible a otra cuenta.</p>
@@ -232,7 +268,7 @@ export default function CondicionesPage() {
 
       <h3>8. Precio e impuestos</h3>
       <p>Los precios aplicables serán los publicados en la Plataforma en el momento de la contratación.</p>
-      <p>Los precios publicados en la página de precios se muestran sin IVA. El IVA y los demás impuestos
+      <p>Los precios publicados en la Plataforma se muestran sin IVA. El IVA y los demás impuestos
       indirectos legalmente aplicables se añadirán al precio y se mostrarán desglosados antes de completar el
       pago.</p>
       <p>Antes de completar el pago, el Cliente podrá consultar:</p>
