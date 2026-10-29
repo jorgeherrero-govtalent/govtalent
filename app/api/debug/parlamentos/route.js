@@ -90,6 +90,16 @@ const FUENTES = {
     ['diario', 'https://agoranet.jgpa.es/documentos/Diarios/PDF/12J117.pdf'],
   ],
   baleares: [
+    // 29-10-2026: RSS que nos facilitó el propio Parlament (Xavier Mesquida,
+    // Seguretat), en web.parlamentib.es. GET sin parámetros, RSS 2.0 UTF-8.
+    ['tramitacion', 'https://web.parlamentib.es/RSSWebApiFront/PropersTerminis'],
+    ['tramitacion', 'https://web.parlamentib.es/RSSWebApiFront/IniciativesPresentades'],
+    ['tramitacion', 'https://web.parlamentib.es/RSSWebApiFront/LleisPIB'],
+    ['boletin', 'https://web.parlamentib.es/RSSWebApiFront/DarrersBopibsPublicats'],
+    ['agenda', 'https://web.parlamentib.es/RSSWebApiFront/ActesParlamentaris'],
+    ['diario', 'https://web.parlamentib.es/RSSWebApiFront/DiarisPleDiputacioPermanentPublicats'],
+    ['diario', 'https://web.parlamentib.es/RSSWebApiFront/DarrersDiarisComissionsPublicats'],
+    // Las del 04-10-2026 (www daba tiempo agotado), para comparar.
     ['boletin', 'https://www.parlamentib.es/Publicacions/Detalle.aspx'],
     ['boletin', 'https://web.parlamentib.es/repositori/PUBLICACIONS/11/bopibs/bopib-11-130.pdf'],
     ['agenda', 'https://www.parlamentib.es/Actividad/Actividad.aspx'],
@@ -232,7 +242,22 @@ function muestra(texto, tipo, url) {
   if (/<rss|<rdf:RDF|<feed/i.test(t.slice(0, 2000))) {
     const n = (t.match(/<item[\s>]/gi) || []).length || (t.match(/<entry[\s>]/gi) || []).length;
     const primero = (t.match(/<item[\s\S]*?<title[^>]*>([\s\S]*?)<\/title>/i) || [])[1] || '';
-    return `RSS con ${n} elementos · ${primero.replace(/<!\[CDATA\[|\]\]>/g, '').replace(/\s+/g, ' ').trim()}`.slice(0, MUESTRA_MAX);
+    const resumen = `RSS con ${n} elementos · ${primero.replace(/<!\[CDATA\[|\]\]>/g, '').replace(/\s+/g, ' ').trim()}`.slice(0, MUESTRA_MAX);
+    // 29-10-2026 (Baleares): el XML de los dos primeros elementos y las
+    // fechas del canal, para escribir el lector sin otra ronda.
+    if (/parlamentib\.es\/RSSWebApiFront/.test(url || '')) {
+      const items = (t.match(/<item[\s>][\s\S]*?<\/item>/gi) || []);
+      const fechas = items.map((it) => (it.match(/<pubDate>([\s\S]*?)<\/pubDate>/i) || [])[1]).filter(Boolean);
+      return {
+        resumen,
+        canal_lastBuildDate: (t.match(/<lastBuildDate>([\s\S]*?)<\/lastBuildDate>/i) || [])[1] || null,
+        pubDate_primero: fechas[0] || null,
+        pubDate_ultimo: fechas[fechas.length - 1] || null,
+        etiquetas_item: [...new Set((items[0] || '').match(/<([a-zA-Z][\w:.-]*)[\s>]/g)?.map((x) => x.slice(1, -1)) || [])],
+        items_xml: items.slice(0, 2).map((x) => x.slice(0, 2000)),
+      };
+    }
+    return resumen;
   }
   const titulo = (t.match(/<title[^>]*>([\s\S]*?)<\/title>/i) || [])[1];
   // Composición de la Asamblea de Madrid (12-10-2026): qué hay de foto,
