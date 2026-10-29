@@ -37,7 +37,6 @@ function correo(firstName) {
   return novedad29nEmail({
     firstName,
     seVan: datos.d.filter((d) => d.d === 'no').length,
-    cargos: (datos.gob || datos.c || []).length,
   });
 }
 
