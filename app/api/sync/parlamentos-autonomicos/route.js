@@ -54,7 +54,7 @@ import { mismoTitulo } from '@/lib/ccaa/comun';
 import { FASE1, PARLAMENTOS, idExpediente, slugExpediente, tipoNorm, claveExpediente } from '@/lib/parlamentosAutonomicos';
 import { leerBoletin, guardarActos, MAX_PDF_KB } from '@/lib/lectorBoletines';
 import { textoDePdf } from '@/lib/textoPdf';
-import { textoDeDocx, extractoTramitacion } from '@/lib/textoDocx';
+import { textoDeDocx, extractoTramitacion, trocearExtracto } from '@/lib/textoDocx';
 import { urlsDocx } from '@/lib/ccaa/madrid';
 import { eventosDeSeguimiento, eventosDiferidos, avisarSeguimientos, recordatoriosSeguimiento } from '@/lib/ccaa/eventos';
 import { sincronizarPlazos, RECORDATORIOS_ACTIVOS } from '@/lib/ccaa/plazos';
@@ -88,6 +88,9 @@ const SOLO_BOLETIN = new Set(['valencia', 'asturias', 'cataluna', 'madrid']);
 // queda tiempo, y lo que no dé tiempo lo hace la ejecución siguiente.
 const FIN_SECTORES_MS = 200000;
 const IA_POR_DEFECTO = 4;
+// Tope de trozos de ~150 KB por BOAM (unos 900 KB de extracto): acota el
+// coste de un boletín enorme. Medido el 30-10-2026, ninguno pasaba de ahí.
+const MAX_TROZOS_BOAM = 6;
 // Parlamentos cuyo boletín puede llegar en HTML en vez de PDF.
 const HTML_PERMITIDO = new Set(['cataluna']);
 // Parlamentos cuyo PDF se lee como texto extraído (lib/textoPdf.js).
@@ -531,7 +534,18 @@ async function leerBoamDocx(db, web, b, nuevos = []) {
 async function leerTextoBoam(db, b, { extracto, paginas, kb, formato }, nuevos = []) {
   const base = { id: b.id };
   try {
-    const { actos, modelo, fechaBoletin } = await leerBoletin({ parlamento: 'madrid', numero: b.numero, fecha: b.fecha, texto: extracto, conPaginas: true });
+    // El extracto entero, en trozos de ~150 KB: una llamada a la IA por trozo
+    // (antes se cortaba a 150 KB y se perdía lo de las páginas siguientes).
+    const trozos = trocearExtracto(extracto).slice(0, MAX_TROZOS_BOAM);
+    const actos = [];
+    let modelo = null;
+    let fechaBoletin = null;
+    for (const [k, trozo] of trozos.entries()) {
+      const r = await leerBoletin({ parlamento: 'madrid', numero: b.numero, fecha: b.fecha || fechaBoletin, texto: trozo, conPaginas: true, parte: trozos.length > 1 ? `${k + 1} de ${trozos.length}` : null });
+      actos.push(...r.actos);
+      modelo = r.modelo;
+      fechaBoletin = fechaBoletin || r.fechaBoletin;
+    }
     if (!b.fecha && fechaBoletin) {
       b.fecha = fechaBoletin;
       await db.from('ccaa_boletines').update({ fecha: fechaBoletin }).eq('id', b.id);
@@ -540,7 +554,7 @@ async function leerTextoBoam(db, b, { extracto, paginas, kb, formato }, nuevos =
     if (g.nuevos?.length) nuevos.push(...g.nuevos);
     delete g.nuevos;
     await db.from('ccaa_boletines').update({ estado: 'leido', modelo, n_actos: actos.length, kb, error: null, leido_at: new Date().toISOString() }).eq('id', b.id);
-    return { ...base, estado: 'leido', formato, kb, paginas, extracto_kb: Math.round(extracto.length / 1024), actos: actos.length, ...g };
+    return { ...base, estado: 'leido', formato, kb, paginas, extracto_kb: Math.round(extracto.length / 1024), trozos: trozos.length, actos: actos.length, ...g };
   } catch (e) {
     const msg = String(e.message || e).slice(0, 300);
     await db.from('ccaa_boletines').update({ estado: 'error', error: msg, kb }).eq('id', b.id);
