@@ -575,7 +575,19 @@ async function handler(request) {
       if (!porUsuario.has(userId)) porUsuario.set(userId, { novedades: [], plazos: [] });
       return porUsuario.get(userId);
     };
-    for (const m of pendientes) de(m.user_id).novedades.push(m);
+    // Un mismo asunto encontrado por varias alarmas de una persona va una
+    // vez en el correo (con los nombres de las alarmas) y se marcan todas.
+    const repetidas = new Map(); // id de la que va → ids de las demás
+    for (const m of pendientes) {
+      const u = de(m.user_id);
+      const igual = u.novedades.find((n) => n.kind === m.kind && n.ref_id === m.ref_id);
+      if (igual) {
+        if (!repetidas.has(igual.id)) repetidas.set(igual.id, []);
+        repetidas.get(igual.id).push(m);
+        continue;
+      }
+      u.novedades.push(m);
+    }
     for (const r of recordatorios) {
       // Si el mismo asunto va como novedad, no se repite como recordatorio.
       // En las leyes autonómicas cuenta cada plazo (totalidad, articulado…);
@@ -637,7 +649,7 @@ async function handler(request) {
             ruta: m.ruta,
             motivo: m.motivo,
             plazo: m.plazo,
-            alarma: porId.get(m.alert_id)?.nombre || null,
+            alarma: [m, ...(repetidas.get(m.id) || [])].map((x) => porId.get(x.alert_id)?.nombre).filter(Boolean).join(', ') || null,
           })),
           total: novedades.length,
           recordatorios: [...plazos]
@@ -661,7 +673,7 @@ async function handler(request) {
         try {
           await enviar({ to: u.email, subject, html });
           enviados += 1;
-          marcados.push(...novedades.map((m) => m.id));
+          marcados.push(...novedades.flatMap((m) => [m.id, ...(repetidas.get(m.id) || []).map((x) => x.id)]));
           avisosPlazo.push(
             ...plazos.filter((r) => !r.hito).map((r) => ({ alert_id: r.alert_id, kind: r.kind, ref_id: r.ref_id, deadline: r.plazo, umbral: r.umbral }))
           );
