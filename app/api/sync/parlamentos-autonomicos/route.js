@@ -30,6 +30,9 @@
 //   ?key=<DEBUG_KEY>&soloia=1&ia=0              solo clasifica sectores (lib/ccaa/sectores.js)
 //   ?key=<DEBUG_KEY>&sectores=0                 sin clasificar sectores
 //   ?key=<DEBUG_KEY>&vigilar=0                  sin lanzar la pasada urgente
+//   ?key=<DEBUG_KEY>&dry=1&soloia=1&ia=0&seguimiento_desde=2026-10-01
+//                                               simula el correo de seguimiento
+//                                               con los trámites desde esa fecha
 //
 // AVISOS AL MOMENTO (entrega A, 30-10-2026). Si se guardan trámites nuevos
 // de leyes que alguna alarma ya encontró, se lanza al terminar
@@ -48,7 +51,7 @@ import { leerBoletin, guardarActos, MAX_PDF_KB } from '@/lib/lectorBoletines';
 import { textoDePdf } from '@/lib/textoPdf';
 import { textoDeDocx, extractoTramitacion } from '@/lib/textoDocx';
 import { urlsDocx } from '@/lib/ccaa/madrid';
-import { eventosDeSeguimiento } from '@/lib/ccaa/eventos';
+import { eventosDeSeguimiento, avisarSeguimientos } from '@/lib/ccaa/eventos';
 import { clasificarSectores } from '@/lib/ccaa/sectores';
 import { hayAlarmasDeLeyes } from '@/lib/ccaa/tramitesAlarmas';
 import * as andalucia from '@/lib/ccaa/andalucia';
@@ -208,6 +211,17 @@ async function handler(request) {
 
   if (!dry && nuevos.length) salida.seguimiento = await eventosDeSeguimiento(db, nuevos);
 
+  // Correo al momento de lo que se sigue (suscriptores). Corre siempre,
+  // aunque no haya trámites nuevos: así reintenta lo que falló antes.
+  const desdeSeg = isManual && dry && /^\d{4}-\d{2}-\d{2}$/.test(sp.get('seguimiento_desde') || '') ? sp.get('seguimiento_desde') : null;
+  if (!dry || desdeSeg) {
+    try {
+      salida.correo_seguimiento = await avisarSeguimientos(db, { dry, desde: desdeSeg });
+    } catch (e) {
+      salida.correo_seguimiento = { error: e.message };
+    }
+  }
+
   // Trámites de leyes que alguna alarma ya encontró: pasada urgente.
   if (!dry && nuevos.length && sp.get('vigilar') !== '0') {
     try {
@@ -299,7 +313,7 @@ async function guardarLectura(db, p, r, nuevos = []) {
     if (tram.length) {
       const { data: ins, error: et } = await db.from('ccaa_tramites')
         .upsert(tram, { onConflict: 'expediente_id,tipo,fecha,plazo_hasta', ignoreDuplicates: true })
-        .select('expediente_id, tipo, fecha, descripcion, plazo_hasta');
+        .select('id, expediente_id, tipo, fecha, descripcion, plazo_hasta, organo, boletin_id, pagina, url');
       if (et) res.errores.push(`trámites ${e.num_expediente}: ${et.message}`.slice(0, 200));
       res.tramites_nuevos += ins?.length || 0;
       if (ins?.length && previo) nuevos.push(...ins);

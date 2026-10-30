@@ -12,6 +12,7 @@ import CalendarioElectoral from '@/components/CalendarioElectoral';
 import AvisoCaducadas from '@/components/AvisoCaducadas';
 import { FRECUENCIAS, limitesDe, mensajeError } from '@/lib/alarmas';
 import { cifraPlazo } from '@/lib/plazos';
+import { PARLAMENTOS } from '@/lib/parlamentosAutonomicos';
 
 /**
  * Alarmas.
@@ -647,7 +648,7 @@ export default function AlarmasTab({ seccion = 'alarmas' }) {
       // no es una novedad, y la lista completa sigue en /seguimiento.
       supabase
         .from('my_follow_events')
-        .select('event_id, follow_id, kind, ref_id, title, detail, occurred_at, es_nueva, project_name')
+        .select('event_id, follow_id, kind, ref_id, title, detail, occurred_at, es_nueva, project_name, event_title, url, cita')
         .gte('occurred_at', new Date(Date.now() - 60 * 86400000).toISOString())
         .order('occurred_at', { ascending: false })
         .limit(80),
@@ -1423,14 +1424,20 @@ export default function AlarmasTab({ seccion = 'alarmas' }) {
     });
   }
   const encontrados = [...porClave.values()];
+  // Trámite de una ley autonómica (sql/108, opción A del 30-10-2026): el
+  // trámite como título, la ley y la fecha debajo, y la cita al boletín
+  // con su enlace. El resto de eventos, como siempre.
+  const esTramite = (e) => e.kind === 'ccaa' && !!e.event_title;
   const cambios = eventos.map((e) => ({
     id: `e-${e.event_id}`,
     tipo: 'seg',
     fecha: e.occurred_at,
-    titulo: e.detail || e.title,
-    subtitulo: e.detail ? e.title : null,
+    titulo: esTramite(e) ? e.event_title : e.detail || e.title,
+    subtitulo: esTramite(e) ? e.detail : e.detail ? e.title : null,
+    cita: esTramite(e) ? e.cita : null,
+    citaUrl: esTramite(e) ? e.url : null,
     ruta: rutaDeSeguido.get(e.follow_id) || null,
-    fuente: fuenteCorta(null, e.kind),
+    fuente: e.kind === 'ccaa' ? PARLAMENTOS[String(e.ref_id).split(':')[0]]?.nombre || 'Parlamentos autonómicos' : fuenteCorta(null, e.kind),
     proyecto: e.project_name,
     dias: null,
     nuevo: !!e.es_nueva,
@@ -2022,6 +2029,12 @@ export default function AlarmasTab({ seccion = 'alarmas' }) {
                           <div className="alarmas-texto" title={x.texto || x.subtitulo} style={{ fontSize: 12, color: GRIS, lineHeight: 1.5 }}>
                             {x.texto || x.subtitulo}
                           </div>
+                        )}
+                        {x.cita && x.citaUrl && (
+                          <a href={x.citaUrl} target="_blank" rel="noopener noreferrer" style={{ display: 'inline-flex', alignItems: 'center', gap: 3, fontSize: 12, color: MORADO, textDecoration: 'none', alignSelf: 'flex-start' }}>
+                            {x.cita}
+                            <i className="ti ti-external-link" style={{ fontSize: 12 }} aria-hidden="true"></i>
+                          </a>
                         )}
                       </div>
                       <div className="alarmas-acciones">{acciones(x)}</div>
