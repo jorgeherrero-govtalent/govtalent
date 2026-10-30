@@ -51,7 +51,7 @@ import { leerBoletin, guardarActos, MAX_PDF_KB } from '@/lib/lectorBoletines';
 import { textoDePdf } from '@/lib/textoPdf';
 import { textoDeDocx, extractoTramitacion } from '@/lib/textoDocx';
 import { urlsDocx } from '@/lib/ccaa/madrid';
-import { eventosDeSeguimiento, avisarSeguimientos } from '@/lib/ccaa/eventos';
+import { eventosDeSeguimiento, eventosDiferidos, avisarSeguimientos } from '@/lib/ccaa/eventos';
 import { clasificarSectores } from '@/lib/ccaa/sectores';
 import { hayAlarmasDeLeyes } from '@/lib/ccaa/tramitesAlarmas';
 import * as andalucia from '@/lib/ccaa/andalucia';
@@ -210,6 +210,8 @@ async function handler(request) {
   }
 
   if (!dry && nuevos.length) salida.seguimiento = await eventosDeSeguimiento(db, nuevos);
+  // Lo de la ficha que esperaba al boletín y no llegó (lib/ccaa/duplicados.js).
+  if (!dry) salida.seguimiento_diferido = await eventosDiferidos(db);
 
   // Correo al momento de lo que se sigue (suscriptores). Corre siempre,
   // aunque no haya trámites nuevos: así reintenta lo que falló antes.
@@ -313,7 +315,7 @@ async function guardarLectura(db, p, r, nuevos = []) {
     if (tram.length) {
       const { data: ins, error: et } = await db.from('ccaa_tramites')
         .upsert(tram, { onConflict: 'expediente_id,tipo,fecha,plazo_hasta', ignoreDuplicates: true })
-        .select('id, expediente_id, tipo, fecha, descripcion, plazo_hasta, organo, boletin_id, pagina, url');
+        .select('id, expediente_id, tipo, fecha, descripcion, plazo_hasta, organo, boletin_id, pagina, url, origen, created_at');
       if (et) res.errores.push(`trámites ${e.num_expediente}: ${et.message}`.slice(0, 200));
       res.tramites_nuevos += ins?.length || 0;
       if (ins?.length && previo) nuevos.push(...ins);
