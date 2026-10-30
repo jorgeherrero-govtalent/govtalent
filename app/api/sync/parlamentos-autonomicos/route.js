@@ -58,6 +58,7 @@ import { textoDeDocx, extractoTramitacion } from '@/lib/textoDocx';
 import { urlsDocx } from '@/lib/ccaa/madrid';
 import { eventosDeSeguimiento, eventosDiferidos, avisarSeguimientos, recordatoriosSeguimiento } from '@/lib/ccaa/eventos';
 import { sincronizarPlazos, RECORDATORIOS_ACTIVOS } from '@/lib/ccaa/plazos';
+import { huellaTramite } from '@/lib/ccaa/huella';
 import { clasificarSectores } from '@/lib/ccaa/sectores';
 import { hayAlarmasDeLeyes } from '@/lib/ccaa/tramitesAlarmas';
 import * as andalucia from '@/lib/ccaa/andalucia';
@@ -118,6 +119,31 @@ async function handler(request) {
     } catch (e) {
       return Response.json({ ok: false, error: e.message }, { status: 500 });
     }
+  }
+  // Relectura sin avisos de unos boletines para UNA ley (?relectura=1&solo=
+  // <expediente>&boletines=<id>,<id>…): recupera trámites perdidos (p. ej.
+  // por la clave única anterior a sql/110) sin eventos, sin correo y sin
+  // alarmas (origen 'boletin_relectura'). Para por tiempo: lo que quede se
+  // lanza en otra llamada con los boletines que falten.
+  if (isManual && sp.get('relectura') === '1') {
+    const solo = sp.get('solo');
+    const ids = (sp.get('boletines') || '').split(',').map((x) => x.trim()).filter(Boolean);
+    if (!solo || !ids.length) return Response.json({ error: 'faltan solo y boletines' }, { status: 400 });
+    const db = admin();
+    const web = crearWeb();
+    const { data: bols } = await db.from('ccaa_boletines').select('id, parlamento, numero, fecha, url, url_pdf, kb').in('id', ids);
+    const orden = new Map(ids.map((id, i) => [id, i]));
+    const salida = { ok: true, relectura: [], pendientes: [] };
+    for (const b of (bols || []).sort((x, y) => orden.get(x.id) - orden.get(y.id))) {
+      if (Date.now() - t0 > FIN_TOTAL_MS) { salida.pendientes.push(b.id); continue; }
+      salida.relectura.push(await leerUno(db, web, { ...b, _solo: solo, _relectura: true }, []));
+    }
+    try {
+      salida.plazos = await sincronizarPlazos(db, { expedienteIds: [solo] });
+    } catch (e) {
+      salida.plazos = { error: e.message };
+    }
+    return Response.json({ ...salida, ms: Date.now() - t0 });
   }
   const sinIA = dry || sp.get('sinia') === '1';
   const soloIA = sp.get('soloia') === '1' || !!sp.get('boletin');
@@ -336,10 +362,11 @@ async function guardarLectura(db, p, r, nuevos = []) {
         organo: t.organo || null,
         url: t.url || null,
         origen: 'ficha',
+        huella: huellaTramite(t.descripcion),
       }));
     if (tram.length) {
       const { data: ins, error: et } = await db.from('ccaa_tramites')
-        .upsert(tram, { onConflict: 'expediente_id,tipo,fecha,plazo_hasta', ignoreDuplicates: true })
+        .upsert(tram, { onConflict: 'expediente_id,tipo,fecha,plazo_hasta,huella', ignoreDuplicates: true })
         .select('id, expediente_id, tipo, fecha, descripcion, plazo_hasta, organo, boletin_id, pagina, url, origen, created_at');
       if (et) res.errores.push(`trámites ${e.num_expediente}: ${et.message}`.slice(0, 200));
       res.tramites_nuevos += ins?.length || 0;
@@ -387,7 +414,7 @@ async function leerUno(db, web, b, nuevos = []) {
         return { ...base, estado: 'error', error: 'HTML sin contenido' };
       }
       const { actos, modelo } = await leerBoletin({ parlamento: b.parlamento, numero: b.numero, fecha: b.fecha, texto: texto.slice(0, 400000) });
-      const g = await guardarActos(db, { parlamento: b.parlamento, boletin: { ...b, url_pdf: null }, actos });
+      const g = await guardarActos(db, { parlamento: b.parlamento, boletin: { ...b, url_pdf: null }, actos, soloExpediente: b._solo || null, relectura: !!b._relectura });
       if (g.nuevos?.length) nuevos.push(...g.nuevos);
       delete g.nuevos;
       await db.from('ccaa_boletines').update({ estado: 'leido', modelo, n_actos: actos.length, kb, error: null, leido_at: new Date().toISOString() }).eq('id', b.id);
@@ -417,7 +444,7 @@ async function leerUno(db, web, b, nuevos = []) {
       b.fecha = fechaBoletin;
       await db.from('ccaa_boletines').update({ fecha: fechaBoletin }).eq('id', b.id);
     }
-    const g = await guardarActos(db, { parlamento: b.parlamento, boletin: b, actos });
+    const g = await guardarActos(db, { parlamento: b.parlamento, boletin: b, actos, soloExpediente: b._solo || null, relectura: !!b._relectura });
     if (g.nuevos?.length) nuevos.push(...g.nuevos);
     delete g.nuevos;
     await db.from('ccaa_boletines').update({ estado: 'leido', modelo, n_actos: actos.length, kb, error: null, leido_at: new Date().toISOString() }).eq('id', b.id);
@@ -509,7 +536,7 @@ async function leerTextoBoam(db, b, { extracto, paginas, kb, formato }, nuevos =
       b.fecha = fechaBoletin;
       await db.from('ccaa_boletines').update({ fecha: fechaBoletin }).eq('id', b.id);
     }
-    const g = await guardarActos(db, { parlamento: 'madrid', boletin: b, actos });
+    const g = await guardarActos(db, { parlamento: 'madrid', boletin: b, actos, soloExpediente: b._solo || null, relectura: !!b._relectura });
     if (g.nuevos?.length) nuevos.push(...g.nuevos);
     delete g.nuevos;
     await db.from('ccaa_boletines').update({ estado: 'leido', modelo, n_actos: actos.length, kb, error: null, leido_at: new Date().toISOString() }).eq('id', b.id);
