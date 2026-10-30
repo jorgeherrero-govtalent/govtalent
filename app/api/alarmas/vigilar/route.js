@@ -41,6 +41,10 @@
 //   ?key=<DEBUG_KEY>&modelo=sonnet  evalúa con Sonnet (para comparar)
 //   ?urgente=consejo                pasada urgente del Consejo (ver abajo)
 //   ?urgente=agenda                 pasada urgente de la agenda (ver abajo)
+//   ?urgente=ccaa                   pasada urgente de trámites autonómicos (ver abajo)
+//   ?key=<DEBUG_KEY>&dry=1&tramites_desde=2026-10-01
+//                                   simula los avisos de trámites autonómicos
+//                                   entrados desde esa fecha (sin escribir)
 //
 // PASADA URGENTE DEL CONSEJO DE MINISTROS. La lanza el sync del Consejo
 // (/api/sync/consejo-ministros) en cuanto guarda acuerdos nuevos del
@@ -56,6 +60,13 @@
 // hoy en adelante. Es una pasada normal que nunca cuenta como la de la
 // mañana: sale ya para las alarmas «Al momento»; las de «Cada mañana» y
 // «Los lunes» reciben esos actos en su resumen.
+//
+// TRÁMITES DE LEYES AUTONÓMICAS (kind 'ccaa_tramite', sql/107). No los
+// evalúa la IA: si una alarma ya encontró una ley autonómica (relevancia
+// 2 o 3), cada trámite nuevo de esa ley entra solo, con relevancia 3, y
+// se envía según la frecuencia de la alarma (lib/ccaa/tramitesAlarmas.js).
+// El sync de parlamentos lanza ?urgente=ccaa cuando guarda trámites de
+// leyes que alguna alarma tiene: funciona como la pasada de la agenda.
 // =====================================================================
 
 import { hitoParaCorreo } from '@/lib/calendarioElectoral';
@@ -66,6 +77,7 @@ import { evaluar, ordenar, costeUsd, MAX_CANDIDATOS, MODELO, MODELO_EVALUACION }
 import { nivelesAvisos } from '@/lib/nivelAvisos';
 import { limitesDe } from '@/lib/alarmas';
 import { alarmasEmail, alarmaPausadaEmail } from '@/lib/email/templates';
+import { avisosDeTramites } from '@/lib/ccaa/tramitesAlarmas';
 
 export const dynamic = 'force-dynamic';
 // Con la lista partida en bloques, una pasada con mucho pendiente hace
@@ -149,10 +161,12 @@ async function handler(request) {
   const ahora = new Date();
   // La primera pasada del día es la de las 06:30 UTC. Con margen: si el
   // cron se retrasa, sigue contando como la de la mañana.
-  const urgente = ['consejo', 'agenda'].includes(sp.get('urgente')) ? sp.get('urgente') : null;
+  const urgente = ['consejo', 'agenda', 'ccaa'].includes(sp.get('urgente')) ? sp.get('urgente') : null;
   const urgenteConsejo = urgente === 'consejo';
   const esManana = !urgente && (sp.get('manana') === '1' || ahora.getUTCHours() < 9);
   const esLunes = sp.get('lunes') === '1' || ahora.getUTCDay() === 1;
+  // Prueba en seco de los avisos de trámites autonómicos desde una fecha.
+  const tramitesDesde = isManual && dry && /^\d{4}-\d{2}-\d{2}$/.test(sp.get('tramites_desde') || '') ? sp.get('tramites_desde') : null;
 
   const db = admin();
   const informe = { inicio: ahora.toISOString(), dry_run: dry, manana: esManana, lunes: esLunes, urgente };
@@ -194,7 +208,11 @@ async function handler(request) {
       .select('kind, ref_id, titulo, contexto, fuente, ruta, plazo, fecha')
       .limit(3000);
     if (errR) throw new Error(`No se pudo leer lo reciente: ${errR.message}`);
-    informe.recientes = (reciente || []).length;
+    // Los trámites autonómicos no van a la IA: tienen su regla fija (1e).
+    const tramitesRecientes = (reciente || []).filter((r) => r.kind === 'ccaa_tramite');
+    const paraIA = (reciente || []).filter((r) => r.kind !== 'ccaa_tramite');
+    informe.recientes = paraIA.length;
+    informe.tramites_ccaa_recientes = tramitesRecientes.length;
 
     // Consumo real de tokens de la evaluación, para ver el coste y si la
     // caché de la lista funciona (lectura de caché > 0 desde la 2.ª alarma).
@@ -215,7 +233,7 @@ async function handler(request) {
 
     // Lo reciente, siempre en el mismo orden: es lo que hace que la lista
     // sea idéntica para todas las alarmas y se pueda compartir la caché.
-    const recienteOrdenado = ordenar(reciente || []);
+    const recienteOrdenado = ordenar(paraIA);
 
     // 1a. Lo pendiente de cada alarma.
     const tareas = [];
@@ -328,6 +346,32 @@ async function handler(request) {
       }
     });
 
+    // 1e. Trámites nuevos de las leyes autonómicas que ya encontró cada
+    // alarma: sin IA, relevancia 3 (lib/ccaa/tramitesAlarmas.js).
+    try {
+      const tr = await avisosDeTramites(db, { alarmas: vigentes, recientes: tramitesRecientes, desde: tramitesDesde });
+      informe.tramites_ccaa = { candidatos: tr.candidatos, coincidencias: tr.filas.length };
+      if (dry) {
+        informe.tramites_ccaa.detalle = tr.filas.slice(0, 50).map((f) => ({
+          alarma: vigentes.find((a) => a.id === f.alert_id)?.nombre || f.alert_id,
+          titulo: f.titulo.slice(0, 160),
+          motivo: f.motivo,
+          ruta: f.ruta,
+          plazo: f.plazo,
+        }));
+      } else if (tr.filas.length) {
+        for (let i = 0; i < tr.filas.length; i += 500) {
+          const { error } = await db
+            .from('sector_alert_matches')
+            .upsert(tr.filas.slice(i, i + 500), { onConflict: 'alert_id,kind,ref_id', ignoreDuplicates: true });
+          if (error) throw new Error(error.message);
+        }
+      }
+      nuevas += tr.filas.length;
+    } catch (e) {
+      errores.push(`trámites autonómicos: ${e.message}`);
+    }
+
     informe.evaluadas = evaluadas;
     informe.llamadas_ia = llamadas;
     informe.coincidencias_nuevas = nuevas;
@@ -420,6 +464,9 @@ async function handler(request) {
           .eq('descartado', false)
           // Relevancia 1 («contexto útil») no avisa: se ve en Novedades.
           .gte('relevancia', 2)
+          // Los trámites autonómicos no entran en esta escalera: el plazo
+          // ya lo recuerda la coincidencia de la ley (entrega C).
+          .neq('kind', 'ccaa_tramite')
           .not('plazo', 'is', null);
         encontrados.push(...(data || []));
       }

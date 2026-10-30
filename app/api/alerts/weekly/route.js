@@ -223,6 +223,9 @@ async function handler(request) {
     const { data: venceSemana } = await supabase
       .from('regulatorio_search')
       .select('kind, ref_id, titulo, fuente, ruta, plazo')
+      // El plazo de una ley autonómica ya va en su fila 'ccaa'; sus
+      // trámites (sql/107) lo repetirían.
+      .neq('kind', 'ccaa_tramite')
       .not('plazo', 'is', null)
       .gte('plazo', hoy)
       .lte('plazo', hasta)

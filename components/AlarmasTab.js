@@ -1590,9 +1590,13 @@ export default function AlarmasTab({ seccion = 'alarmas' }) {
     }
     return (
       <>
-        <button type="button" className="alarmas-accion" onClick={() => seguir({ kind: x.m.kind, ref_id: x.m.ref_id, titulo: x.titulo })} style={BOTON_V}>
-          Seguir
-        </button>
+        {/* Un trámite autonómico (sql/107) es un paso de una ley que la
+            alarma ya vigila: no se sigue el trámite, solo la ley. */}
+        {x.m.kind !== 'ccaa_tramite' && (
+          <button type="button" className="alarmas-accion" onClick={() => seguir({ kind: x.m.kind, ref_id: x.m.ref_id, titulo: x.titulo })} style={BOTON_V}>
+            Seguir
+          </button>
+        )}
         <button type="button" className="alarmas-accion" onClick={() => descartar(x.m)} style={BOTON_S}>
           No me afecta
         </button>

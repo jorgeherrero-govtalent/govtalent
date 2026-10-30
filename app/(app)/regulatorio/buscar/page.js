@@ -76,6 +76,9 @@ function Buscar() {
     supabase
       .from('regulatorio_search')
       .select('kind, ref_id, titulo, contexto, fuente, ruta, plazo, fecha, activo')
+      // Los trámites autonómicos (sql/107) son para los avisos: el buscador
+      // muestra la ley.
+      .neq('kind', 'ccaa_tramite')
       .ilike('titulo', `%${termino.trim()}%`)
       .order('fecha', { ascending: false })
       .limit(300)

@@ -27,6 +27,13 @@
 //   ?key=<DEBUG_KEY>&boletin=<id>               relee con IA un boletín concreto
 //   ?key=<DEBUG_KEY>&soloia=1&ia=0              solo clasifica sectores (lib/ccaa/sectores.js)
 //   ?key=<DEBUG_KEY>&sectores=0                 sin clasificar sectores
+//   ?key=<DEBUG_KEY>&vigilar=0                  sin lanzar la pasada urgente
+//
+// AVISOS AL MOMENTO (entrega A, 30-10-2026). Si se guardan trámites nuevos
+// de leyes que alguna alarma ya encontró, se lanza al terminar
+// /api/alarmas/vigilar?urgente=ccaa y se espera su respuesta (como la
+// agenda del Gobierno): las alarmas «Al momento» reciben el trámite ya,
+// sin esperar a la pasada siguiente.
 // =====================================================================
 
 import { createClient } from '@supabase/supabase-js';
@@ -41,6 +48,7 @@ import { textoDeDocx, extractoTramitacion } from '@/lib/textoDocx';
 import { urlsDocx } from '@/lib/ccaa/madrid';
 import { eventosDeSeguimiento } from '@/lib/ccaa/eventos';
 import { clasificarSectores } from '@/lib/ccaa/sectores';
+import { hayAlarmasDeLeyes } from '@/lib/ccaa/tramitesAlarmas';
 import * as andalucia from '@/lib/ccaa/andalucia';
 import * as aragon from '@/lib/ccaa/aragon';
 import * as asturias from '@/lib/ccaa/asturias';
@@ -52,7 +60,12 @@ import * as madrid from '@/lib/ccaa/madrid';
 import * as cataluna from '@/lib/ccaa/cataluna';
 
 export const dynamic = 'force-dynamic';
-export const maxDuration = 300;
+// 300 s de lectura e IA y hasta 240 s más esperando a la pasada urgente
+// de las alarmas. Vercel Pro permite hasta 800 s.
+export const maxDuration = 600;
+
+const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://govtalent.app';
+const ESPERA_VIGILAR_MS = 240000;
 
 const LECTORES = { andalucia, aragon, asturias, cantabria, castillayleon, rioja, valencia, madrid, cataluna };
 const FIN_LECTURA_MS = 150000;
@@ -192,6 +205,17 @@ async function handler(request) {
   }
 
   if (!dry && nuevos.length) salida.seguimiento = await eventosDeSeguimiento(db, nuevos);
+
+  // Trámites de leyes que alguna alarma ya encontró: pasada urgente.
+  if (!dry && nuevos.length && sp.get('vigilar') !== '0') {
+    try {
+      salida.vigilancia = (await hayAlarmasDeLeyes(db, nuevos.map((t) => t.expediente_id)))
+        ? await lanzarVigilancia()
+        : { lanzada: false };
+    } catch (e) {
+      salida.vigilancia = { error: e.message };
+    }
+  }
 
   return Response.json({ ok: true, dry, ms: Date.now() - t0, ...salida });
 }
@@ -451,5 +475,34 @@ async function leerTextoBoam(db, b, { extracto, paginas, kb, formato }, nuevos =
     const msg = String(e.message || e).slice(0, 300);
     await db.from('ccaa_boletines').update({ estado: 'error', error: msg, kb }).eq('id', b.id);
     return { ...base, estado: 'error', error: msg };
+  }
+}
+
+/**
+ * Como en la agenda del Gobierno: se llama a la ruta, que tiene su propio
+ * tiempo máximo y su fila en sync_log, y se espera la respuesta.
+ */
+async function lanzarVigilancia() {
+  const ctrl = new AbortController();
+  const reloj = setTimeout(() => ctrl.abort(), ESPERA_VIGILAR_MS);
+  try {
+    const res = await fetch(`${SITE_URL}/api/alarmas/vigilar?urgente=ccaa`, {
+      headers: { authorization: `Bearer ${process.env.CRON_SECRET}` },
+      cache: 'no-store',
+      signal: ctrl.signal,
+    });
+    const r = await res.json().catch(() => ({}));
+    return {
+      lanzada: true,
+      status: res.status,
+      tramites: r.tramites_ccaa ?? null,
+      coincidencias: r.coincidencias_nuevas ?? null,
+      enviados: r.enviados ?? 0,
+      error: r.error || null,
+    };
+  } catch (e) {
+    return { lanzada: true, error: e.name === 'AbortError' ? 'La vigilancia tardó demasiado; la recogerá la próxima pasada' : e.message };
+  } finally {
+    clearTimeout(reloj);
   }
 }
