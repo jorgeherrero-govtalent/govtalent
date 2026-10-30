@@ -321,6 +321,7 @@ export default function PrivacidadPage() {
         <li><b>Vercel:</b> alojamiento y funcionamiento de la aplicación.</li>
         <li><b>Resend:</b> envío de correos transaccionales, alertas y notificaciones.</li>
         <li><b>Google:</b> Gmail, inicio de sesión cuando esté disponible, indexación y Google Search Console.</li>
+        <li><b>LinkedIn:</b> inicio de sesión con la cuenta de LinkedIn (nombre, foto y correo), solo si el usuario lo elige.</li>
         <li><b>Stripe:</b> pagos y suscripciones.</li>
         <li><b>Anthropic:</b> funcionalidades de inteligencia artificial cuando se utilicen sus modelos.</li>
       </ul>
