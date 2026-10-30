@@ -20,6 +20,8 @@
 //
 // Uso:
 //   cron (CRON_SECRET)                          todo, con ia=4
+//   cron ?p=madrid, cada hora en laborables      solo Madrid: descubre el BOAM
+//                                               nuevo en cuanto sale (lib/ccaa/madrid.js)
 //   ?key=<DEBUG_KEY>&dry=1                      lee y devuelve lo leído, sin guardar ni IA
 //   ?key=<DEBUG_KEY>&dry=1&p=rioja              un parlamento
 //   ?key=<DEBUG_KEY>&sinia=1                    guarda, sin IA
