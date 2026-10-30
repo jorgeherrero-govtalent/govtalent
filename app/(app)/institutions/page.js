@@ -43,9 +43,9 @@ const MORADO = '#6d5aef';
  * 12.000. Quien entra por el login y suma lo que ve, resta credibilidad.
  *
  * Dos discrepancias conocidas a día de hoy:
- *   · deputies devuelve 351 filas y aquí se dice 350, que son los
+ *   - deputies devuelve 351 filas y aquí se dice 350, que son los
  *     escaños reales del Congreso. Sobra una fila en la tabla.
- *   · eu_committees_directory devuelve 26 y aquí se dice 22, que son
+ *   - eu_committees_directory devuelve 26 y aquí se dice 22, que son
  *     las comisiones permanentes; las otras cuatro son subcomisiones o
  *     comisiones especiales.
  *
@@ -60,17 +60,17 @@ const MORADO = '#6d5aef';
  * toLocaleString.
  */
 const CIFRAS = {
-  ministerios: { n: 22, etiqueta: 'ministerios · 820 altos cargos' },
+  ministerios: { n: 22, etiqueta: 'ministerios, 820 altos cargos' },
   // Los 321 asesores son los mismos que cuentan las tarjetas de grupos
   // parlamentarios: activos y sin objeción. Si esa cifra se mueve, hay
   // que tocarla aquí también.
-  congreso: { n: 350, etiqueta: 'diputados · 321 asesores' },
+  congreso: { n: 350, etiqueta: 'diputados, 321 asesores' },
   organismos: { n: 77, etiqueta: 'organismos' },
   // Solo los parlamentos desde el 14-10-2026: los 17 y las asambleas de
   // Ceuta y Melilla. Gobiernos y TSJ, en la Base de datos.
-  comunidades: { n: 19, etiqueta: 'parlamentos · diputados, grupos y técnicos' },
-  parlamentoUe: { n: 720, etiqueta: 'eurodiputados · 22 comisiones' },
-  comisionUe: { n: 27, etiqueta: 'comisarios · 2.096 cargos y funcionarios en DG' },
+  comunidades: { n: 19, etiqueta: 'parlamentos, diputados, grupos y técnicos' },
+  parlamentoUe: { n: 720, etiqueta: 'eurodiputados, 22 comisiones' },
+  comisionUe: { n: 27, etiqueta: 'comisarios, 2.096 cargos y funcionarios en DG' },
 };
 
 const CARD = {
@@ -218,7 +218,7 @@ export default function InstitutionsPage() {
           tarjeta pesaba lo mismo que una sección real y prometía más de
           lo que es. */}
       <div style={{ fontSize: 11.5, color: '#a8a49c', paddingTop: 16 }}>
-        Próximamente · Senado, y organismos y agencias de la UE
+        Próximamente: Senado, y organismos y agencias de la UE
       </div>
 
 

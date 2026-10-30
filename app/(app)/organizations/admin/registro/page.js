@@ -234,7 +234,7 @@ export default function RegistroActividadPage() {
               fechaCorta(a.fecha),
             ]
               .filter(Boolean)
-              .join(' · ');
+              .join(', ');
 
             return (
               <div
@@ -263,7 +263,7 @@ export default function RegistroActividadPage() {
                     }}
                   >
                     {TIPO_LABEL[a.tipo] || a.tipo}
-                    {contraparte.length > 0 && ` · ${contraparte.map((p) => p.nombre).join(', ')}`}
+                    {contraparte.length > 0 && `, ${contraparte.map((p) => p.nombre).join(', ')}`}
                   </div>
                   <div
                     style={{

@@ -450,10 +450,10 @@ export default function JobsPage() {
                     <div>
                       <h2 style={{ margin: 0 }}>{selected.title}</h2>
                       <div style={{ fontSize: 13, color: '#666', marginTop: 5 }}>
-                        {selected.organizations?.name} · {selected.location}
+                        {selected.organizations?.name}, {selected.location}
                       </div>
                       <div style={{ fontSize: 12, color: '#999', marginTop: 3 }}>
-                        {modalityLabel(selected.modality)} · Publicado {timeAgo(selected.created_at)}
+                        {modalityLabel(selected.modality)}, Publicado {timeAgo(selected.created_at)}
                       </div>
                       {selected.views_count >= 3 && (
                         <div style={{ fontSize: 12, color: '#888', marginTop: 5, display: 'flex', alignItems: 'center', gap: 5 }}>

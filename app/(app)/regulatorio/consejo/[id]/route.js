@@ -7,9 +7,9 @@
 //
 // PROVISIONAL, hasta que exista la ficha del acuerdo (pendiente de
 // maquetas). Mientras tanto redirige:
-//   · si ya se publicó en el BOE → a su ficha del BOE en GovTalent
-//   · si ya está en el Congreso  → a su ficha del Congreso
-//   · si no                      → a la Referencia oficial de La
+//   - si ya se publicó en el BOE → a su ficha del BOE en GovTalent
+//   - si ya está en el Congreso  → a su ficha del Congreso
+//   - si no                      → a la Referencia oficial de La
 //                                  Moncloa, en el punto del acuerdo
 //                                  cuando tiene ancla
 // Cuando exista la ficha, este fichero se sustituye por un page.js.

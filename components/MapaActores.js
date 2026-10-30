@@ -479,10 +479,10 @@ export default function MapaActores({ projectId, abrirBuscador, onCerrarBuscador
               <span style={{ color: '#1a1a18', fontWeight: 600 }}>
                 {resumen.prioridadSinContactar} {resumen.prioridadSinContactar === 1 ? 'decisivo' : 'decisivos'}
               </span>{' '}
-              sin posición definida y sin contactar · {resumen.total} en el mapa
+              sin posición definida y sin contactar, {resumen.total} en el mapa
             </>
           ) : (
-            `${resumen.total} en el mapa · ${resumen.sinContactar} sin contactar`
+            `${resumen.total} en el mapa, ${resumen.sinContactar} sin contactar`
           )}
         </div>
         <div style={{ display: 'flex', gap: 7, alignItems: 'center' }}>
@@ -511,7 +511,7 @@ export default function MapaActores({ projectId, abrirBuscador, onCerrarBuscador
                   marginBottom: 8,
                 }}
               >
-                {g.titulo.toUpperCase()} · {g.actores.length}
+                {g.titulo.toUpperCase()} ({g.actores.length})
               </div>
 
               {g.actores.map((a, i) => {
@@ -547,7 +547,7 @@ export default function MapaActores({ projectId, abrirBuscador, onCerrarBuscador
                         {a.nombre}
                       </span>
                       <span style={{ display: 'block', fontSize: 11.5, color: '#888', marginTop: 1 }}>
-                        {[a.descripcion, relacionLabel(a.relacion).toLowerCase()].filter(Boolean).join(' · ')}
+                        {[a.descripcion, relacionLabel(a.relacion).toLowerCase()].filter(Boolean).join(', ')}
                       </span>
                     </span>
                     <i className="ti ti-chevron-right" style={{ fontSize: 15, color: '#c4c0b8', flexShrink: 0 }}></i>
@@ -668,7 +668,7 @@ export default function MapaActores({ projectId, abrirBuscador, onCerrarBuscador
                   onPointerDown={(e) => alPulsar(e, a)}
                   onPointerMove={alMover}
                   onPointerUp={(e) => alSoltar(e, a)}
-                  title={`${a.nombre} · ${posicionLabel(a.posicion)}`}
+                  title={`${a.nombre}, ${posicionLabel(a.posicion)}`}
                   style={{
                     position: 'absolute',
                     left: pos ? `${Math.round(pos.x)}px` : `${a.posicion}%`,

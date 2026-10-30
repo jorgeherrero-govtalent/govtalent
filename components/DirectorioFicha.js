@@ -154,7 +154,7 @@ function Unidades({ unidades, contacto, encontrados, apuntar }) {
     <div className="card" style={{ padding: 0, overflow: 'hidden', marginBottom: 12 }}>
       <div style={{ padding: '20px 20px 4px' }}>
         <Etiqueta>
-          DELEGACIONES Y UNIDADES · {unidades.length}
+          DELEGACIONES Y UNIDADES ({unidades.length})
         </Etiqueta>
       </div>
       {slice.map((u, i) => (
@@ -254,11 +254,11 @@ export default function DirectorioFicha({ slug, id, volverA, volverEtiqueta }) {
   const [sede, ...resto] = ficha.unidades;
   const equipo = sede?.personas || [];
   const web = urlWeb(ficha.web);
-  const etiquetaSup = [seccion.titulo, ficha.tipo].filter(Boolean).join(' · ').toUpperCase();
+  const etiquetaSup = [seccion.titulo, ficha.tipo].filter(Boolean).join(', ').toUpperCase();
   const meta = [ficha.ccaa, ficha.ciudad, ficha.grupo && ficha.grupo !== ficha.ccaa ? ficha.grupo : null]
     .filter(Boolean)
     .filter((v, i, a) => a.indexOf(v) === i)
-    .join(' · ');
+    .join(', ');
 
   return (
     <div className="sec">
@@ -317,7 +317,7 @@ export default function DirectorioFicha({ slug, id, volverA, volverEtiqueta }) {
       </div>
 
       <div className="card" style={{ padding: 20, marginBottom: 12 }}>
-        <Etiqueta>QUIÉN ES QUIÉN{equipo.length ? ` · ${equipo.length}` : ''}</Etiqueta>
+        <Etiqueta>QUIÉN ES QUIÉN{equipo.length ? ` (${equipo.length})` : ''}</Etiqueta>
         {!contacto && (equipo.length > 0 || resto.length > 0) ? <AvisoContacto onUpsell={() => setUpsell(true)} /> : null}
         {equipo.length === 0 ? (
           <div style={{ fontSize: 12.5, color: '#999', lineHeight: 1.6 }}>No tenemos todavía las personas de esta sede.</div>

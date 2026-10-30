@@ -304,10 +304,10 @@ export default function AvisosTab() {
                     </div>
                     <div style={{ fontSize: 11.5, color: '#a8a49c', marginTop: 3 }}>
                       {!a.activa
-                        ? 'Desactivada · sin avisos'
+                        ? 'Desactivada, sin avisos'
                         : c?.n > 0
                           ? `${c.n} ${c.n === 1 ? 'aviso' : 'avisos'} en el último mes${
-                              c.ultimo ? ` · último ${haceCuanto(c.ultimo)}` : ''
+                              c.ultimo ? `, último ${haceCuanto(c.ultimo)}` : ''
                             }`
                           : 'Sin avisos en el último mes'}
                     </div>

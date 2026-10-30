@@ -438,7 +438,7 @@ export default function BriefingProyecto({ projectId, userId }) {
         {prioritarios.length > 0 && (
           <>
             <div style={{ fontSize: 10.5, color: MORADO, letterSpacing: '.3px', padding: '0 8px 7px' }}>
-              PRIORIDAD · {prioritarios.length}
+              PRIORIDAD ({prioritarios.length})
             </div>
             {prioritarios.map(fila)}
           </>
@@ -455,7 +455,7 @@ export default function BriefingProyecto({ projectId, userId }) {
                 marginTop: prioritarios.length ? 8 : 0,
               }}
             >
-              RESTO · {resto.length}
+              RESTO ({resto.length})
             </div>
             {resto.map(fila)}
           </>
@@ -472,8 +472,8 @@ export default function BriefingProyecto({ projectId, userId }) {
               <div style={{ minWidth: 0, flex: 1 }}>
                 <div style={{ fontSize: 13.5, fontWeight: 600 }}>{actor.nombre}</div>
                 <div style={{ fontSize: 11, color: '#888', marginTop: 1 }}>
-                  {actor.descripcion ? `${actor.descripcion} · ` : ''}
-                  {posicionLabel(actor.posicion)} · {relacionLabel(actor.relacion).toLowerCase()}
+                  {actor.descripcion ? `${actor.descripcion}, ` : ''}
+                  {posicionLabel(actor.posicion)}, {relacionLabel(actor.relacion).toLowerCase()}
                 </div>
               </div>
               {enZonaDePrioridad(actor) && (

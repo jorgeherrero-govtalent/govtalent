@@ -14,13 +14,13 @@ function buildShareTemplates(job, orgName, voice) {
 
   if (voice === 'employer') {
     return {
-      linkedin: `📢 Buscamos ${job.title} en ${name}.\n\n📍 ${job.location} · ${modLabel}\n\nSi te interesa o conoces a alguien que pueda encajar, aquí tienes toda la información:\n${url}`,
+      linkedin: `📢 Buscamos ${job.title} en ${name}.\n\n📍 ${job.location}, ${modLabel}\n\nSi te interesa o conoces a alguien que pueda encajar, aquí tienes toda la información:\n${url}`,
       whatsapp: `¡Hola! 👋 Desde *${name}* buscamos *${job.title}*. Si te interesa o conoces a alguien que pueda encajar, aquí está la oferta: ${url}`,
     };
   }
 
   return {
-    linkedin: `📢 Desde ${name} están buscando un/a ${job.title}, ¿te interesa?\n\n📍 ${job.location} · ${modLabel}\n\nSi conoces a alguien que pueda encajar (¡o te interesa a ti!), aquí tienes toda la información:\n${url}`,
+    linkedin: `📢 Desde ${name} están buscando un/a ${job.title}, ¿te interesa?\n\n📍 ${job.location}, ${modLabel}\n\nSi conoces a alguien que pueda encajar (¡o te interesa a ti!), aquí tienes toda la información:\n${url}`,
     whatsapp: `¡Hola! 👋 Desde *${name}* están buscando un/a *${job.title}*, ¿te interesa? Aquí está la oferta: ${url}`,
   };
 }

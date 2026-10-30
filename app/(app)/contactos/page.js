@@ -153,7 +153,7 @@ function PanelFiltros({ filtros, setFiltros, resumen }) {
       </div>
 
       <details className="gt-ct-flt" open={filtros.tipos.length > 0}>
-        <summary className="gt-ct-flt-t">Tipo de institución{filtros.tipos.length ? ` · ${filtros.tipos.length}` : ''}</summary>
+        <summary className="gt-ct-flt-t">Tipo de institución{filtros.tipos.length ? ` (${filtros.tipos.length})` : ''}</summary>
         {TIPOS_INSTITUCION.map((t) => (
           <label key={t} className="gt-ct-chk">
             <input type="checkbox" checked={filtros.tipos.includes(t)} onChange={() => alternar('tipos', t)} />
@@ -163,7 +163,7 @@ function PanelFiltros({ filtros, setFiltros, resumen }) {
       </details>
 
       <details className="gt-ct-flt" open={filtros.bandas.length > 0}>
-        <summary className="gt-ct-flt-t">Nivel del cargo{filtros.bandas.length ? ` · ${filtros.bandas.length}` : ''}</summary>
+        <summary className="gt-ct-flt-t">Nivel del cargo{filtros.bandas.length ? ` (${filtros.bandas.length})` : ''}</summary>
         {Object.entries(BANDAS).map(([k, v]) => (
           <label key={k} className="gt-ct-chk">
             <input type="checkbox" checked={filtros.bandas.includes(k)} onChange={() => alternar('bandas', k)} />
@@ -193,7 +193,7 @@ function ContactosPagina() {
   const cuantosDirectorio = masDe(useTotalDirectorio());
   const router = useRouter();
   const cajaRef = useRef(null);
-  const [acceso, setAcceso] = useState(null); // null cargando · true · false
+  const [acceso, setAcceso] = useState(null); // null cargando, true, false
   const [saldo, setSaldo] = useState(null);
   const [packs, setPacks] = useState([]);
   const [modalComprar, setModalComprar] = useState(false);
@@ -629,14 +629,14 @@ function ContactosPagina() {
               <strong>
                 {miles(total)} {total === 1 ? 'persona' : 'personas'}
               </strong>
-              {buscando && <span style={{ color: GRIS }}> · buscando…</span>}
-              {enMarcha > 0 && <span style={{ color: '#5443d6' }}> · enriqueciendo {miles(enMarcha)}…</span>}
+              {buscando && <span style={{ color: GRIS }}>, buscando…</span>}
+              {enMarcha > 0 && <span style={{ color: '#5443d6' }}>, enriqueciendo {miles(enMarcha)}…</span>}
             </span>
             <span style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
               <span style={{ fontSize: 12, color: GRIS }}>Buscar no consume créditos</span>
               {enriqueciblesPagina.length > 0 && (
                 <button type="button" className="btn-ai-o" style={{ padding: '6px 12px', fontSize: 12.5 }} onClick={() => setConfirmarEnr(enriqueciblesPagina)}>
-                  Enriquecer los de esta página · máx. {miles(enriqueciblesPagina.length)} créditos
+                  Enriquecer los de esta página (máx. {miles(enriqueciblesPagina.length)} créditos)
                 </button>
               )}
             </span>
@@ -651,7 +651,7 @@ function ContactosPagina() {
                   </button>
                   {enriqueciblesSeleccion.length > 0 && (
                     <button type="button" style={sec} onClick={() => setConfirmarEnr(enriqueciblesSeleccion)}>
-                      <i className="ti ti-sparkles" aria-hidden="true"></i> Enriquecer · hasta {miles(enriqueciblesSeleccion.length)} créditos
+                      <i className="ti ti-sparkles" aria-hidden="true"></i> Enriquecer (hasta {miles(enriqueciblesSeleccion.length)} créditos)
                     </button>
                   )}
                 </>

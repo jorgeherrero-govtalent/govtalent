@@ -201,7 +201,7 @@ export default function NewOrganizationPage() {
               {/* "opcional" en la etiqueta y no escondido dentro del
                   desplegable: se sabe antes de abrirlo. */}
               <label>
-                Sector <span style={{ color: '#a8a49c', fontWeight: 400 }}>· opcional</span>
+                Sector <span style={{ color: '#a8a49c', fontWeight: 400 }}>(opcional)</span>
               </label>
               <select value={sector} onChange={(e) => setSector(e.target.value)}>
                 <option value="">Elegir uno</option>

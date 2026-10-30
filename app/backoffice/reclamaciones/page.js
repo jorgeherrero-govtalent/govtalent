@@ -165,7 +165,7 @@ export default function ClaimsBackofficePage() {
                   </span>
                 </div>
                 <div style={{ fontSize: 12.5, color: '#666', marginTop: 2 }}>
-                  {c.users?.first_name} {c.users?.last_name} · {c.users?.email}
+                  {c.users?.first_name} {c.users?.last_name}, {c.users?.email}
                 </div>
                 {c.role_title && <div style={{ fontSize: 12, color: '#888', marginTop: 2 }}>Cargo: {c.role_title}</div>}
                 {c.note && <div style={{ fontSize: 12, color: '#888', marginTop: 4, fontStyle: 'italic' }}>“{c.note}”</div>}

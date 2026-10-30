@@ -498,7 +498,7 @@ function CandidatesBoardInner() {
             <div style={{ fontSize: 12.5, color: '#888', marginTop: -6, marginBottom: 14 }}>
               {[detailApp.users?.professional_title, tiempoDesde(detailApp.applied_at)]
                 .filter(Boolean)
-                .join(' · ')}
+                .join(', ')}
             </div>
 
             <div
@@ -515,7 +515,6 @@ function CandidatesBoardInner() {
               }}
             >
               <span>{detailApp.jobs?.title}</span>
-              <span style={{ color: '#d5d3c9' }}>·</span>
               <span>{ETIQUETA_ESTADO[detailApp.status] || detailApp.status}</span>
               {detailApp.ai_score != null && (
                 <span style={{ marginLeft: 'auto' }} title={detailApp.ai_rationale || ''}>

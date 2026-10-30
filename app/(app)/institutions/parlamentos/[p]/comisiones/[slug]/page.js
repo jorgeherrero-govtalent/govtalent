@@ -106,7 +106,7 @@ export default function ComisionAutonomicaPage() {
         <div style={{ fontSize: 11.5, color: '#666', marginTop: 5 }}>
           {[esOrgano ? 'Órgano de gobierno' : `Comisión ${(TIPOS_COMISION[comision.tipo] || '').toLowerCase()}`.trim(), `${miembros.length} miembros`, `${cfg.legislatura} Legislatura`]
             .filter(Boolean)
-            .join(' · ')}
+            .join(', ')}
         </div>
 
         {porGrupo.length > 0 && (
@@ -141,7 +141,7 @@ export default function ComisionAutonomicaPage() {
 
       {portavoces.length > 0 && (
         <div style={{ ...CARD, marginBottom: 12 }}>
-          <div style={LABEL}>Portavoces · uno por grupo</div>
+          <div style={LABEL}>Portavoces, uno por grupo</div>
           {portavoces.map((m) => (
             <Miembro key={m.id} m={m} p={p} grupo={grupoDe(m)} />
           ))}
@@ -150,7 +150,7 @@ export default function ComisionAutonomicaPage() {
 
       {resto.length > 0 && (
         <div style={CARD}>
-          <div style={LABEL}>{mesa.length || portavoces.length ? 'Resto de miembros' : 'Miembros'} · {resto.length}</div>
+          <div style={LABEL}>{mesa.length || portavoces.length ? 'Resto de miembros' : 'Miembros'}, {resto.length}</div>
           {(verTodos ? resto : resto.slice(0, 8)).map((m) => (
             <Miembro key={m.id} m={m} p={p} grupo={grupoDe(m)} size={28} />
           ))}

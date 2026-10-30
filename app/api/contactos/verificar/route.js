@@ -14,11 +14,11 @@ import { saldoCreditos, consumirCreditos } from '@/lib/creditos';
 //
 // Verifica en su servidor de correo el correo probable de una persona
 // (decisión de Jorge, 13-10-2026):
-// · Existe → «Verificado» para todos. 1 crédito.
-// · No existe → se prueban las otras formas del patrón dentro de la misma
+// - Existe → «Verificado» para todos. 1 crédito.
+// - No existe → se prueban las otras formas del patrón dentro de la misma
 //   verificación; si una existe, verificada. 1 crédito.
-// · No existe ninguna → se deja la más probable como «No confirmado». Sin coste.
-// · No se pudo (servidor lento, acepta cualquier dirección…) → sigue
+// - No existe ninguna → se deja la más probable como «No confirmado». Sin coste.
+// - No se pudo (servidor lento, acepta cualquier dirección…) → sigue
 //   probable. Sin coste.
 // Solo con el Directorio.
 

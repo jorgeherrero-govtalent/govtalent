@@ -255,7 +255,7 @@ export default function DirectorioDemo() {
             lo que se compra, no una nota legal. */}
         <span style={{ fontSize: 11.5, color: '#8a897f', display: 'inline-flex', alignItems: 'center', gap: 6 }}>
           <i className="ti ti-circle-check" style={{ fontSize: 14, color: '#1d6f5c' }}></i>
-          Fuentes oficiales · DIR3, BOE, BOCG, congreso.es, portales de la UE y Agenda de la Comunicación · actualizado semanalmente
+          Fuentes oficiales: DIR3, BOE, BOCG, congreso.es, portales de la UE y Agenda de la Comunicación, actualizado semanalmente
         </span>
       </div>
 
@@ -316,7 +316,7 @@ export default function DirectorioDemo() {
                     {f.unidad}
                     {f.otros > 0 && (
                       <span style={{ color: MORADO, marginLeft: 6 }}>
-                        · {f.otros} cargo{f.otros === 1 ? '' : 's'} más
+                        y {f.otros} cargo{f.otros === 1 ? '' : 's'} más
                       </span>
                     )}
                   </div>
@@ -325,7 +325,7 @@ export default function DirectorioDemo() {
                   {f.institucion}
                   <div style={{ fontSize: 11, color: '#a8a79c', marginTop: 2 }}>
                     {f.nivel}
-                    {f.pais && <span style={{ color: MORADO }}>{' · '}{f.pais}</span>}
+                    {f.pais && <span style={{ color: MORADO }}>{', '}{f.pais}</span>}
                   </div>
                 </td>
                 <td style={{ padding: '11px 18px', whiteSpace: 'nowrap' }}>

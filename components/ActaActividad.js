@@ -137,7 +137,7 @@ export default function ActaActividad({ actividad, asunto, onCerrar }) {
   const denominacion = grupo?.legal_name || grupo?.name || '—';
   const porCuentaDe = cliente
     ? cliente.tax_id
-      ? `${cliente.nombre} · ${cliente.tax_id}`
+      ? `${cliente.nombre}, ${cliente.tax_id}`
       : cliente.nombre
     : actividad.cliente_nombre || null;
 

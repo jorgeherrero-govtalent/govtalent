@@ -214,9 +214,9 @@ async function handler(request) {
     const yaExistia = expedientesYa.has(c.slug);
     for (const a of todos) {
       // Cuándo se publicó, para las alarmas:
-      //   · carga inicial: nunca «recién publicado» (cuenta la fecha del acto);
-      //   · expediente que ya teníamos: el acto que no estaba es nuevo;
-      //   · expediente nuevo: solo su acto más reciente (el que lo ha traído).
+      //   - carga inicial: nunca «recién publicado» (cuenta la fecha del acto);
+      //   - expediente que ya teníamos: el acto que no estaba es nuevo;
+      //   - expediente nuevo: solo su acto más reciente (el que lo ha traído).
       let publicado = null;
       if (!carga && (yaExistia || a === masReciente)) publicado = c.rss?.publicado_en || ahora;
       actos.push({

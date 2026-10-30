@@ -259,7 +259,7 @@ export default function EuCommitteeDetailPage() {
               <div style={{ fontSize: 11.5, color: '#8b8780', marginTop: 5 }}>
                 {['Parlamento Europeo', comision.titulares ? `${comision.titulares} titulares` : null]
                   .filter(Boolean)
-                  .join(' · ')}
+                  .join(', ')}
               </div>
             </div>
           </div>
@@ -390,7 +390,7 @@ export default function EuCommitteeDetailPage() {
                 <div style={{ fontSize: 10.5, color: '#a8a49c', marginTop: 2 }}>
                   {[m.role_label || (m.role === 'CHAIR' ? 'Presidencia' : 'Vicepresidencia'), m.country_code]
                     .filter(Boolean)
-                    .join(' · ')}
+                    .join(', ')}
                 </div>
               </div>
               {m.political_group_code && (
@@ -450,7 +450,7 @@ export default function EuCommitteeDetailPage() {
                     <div style={{ fontSize: 10, color: '#a8a49c' }}>
                       {[m.membership_type === 'SUBSTITUTE' ? 'Suplente' : 'Titular', m.country_code]
                         .filter(Boolean)
-                        .join(' · ')}
+                        .join(', ')}
                     </div>
                   </div>
                   {m.political_group_code && (
@@ -514,7 +514,7 @@ export default function EuCommitteeDetailPage() {
                 <div style={{ fontSize: 11, color: '#a8a49c', marginTop: 4 }}>
                   {[p.label, p.ponente ? nombreLegible(p.ponente) : 'sin ponente asignado', p.ponente_grupo]
                     .filter(Boolean)
-                    .join(' · ')}
+                    .join(', ')}
                 </div>
               </div>
             </Link>

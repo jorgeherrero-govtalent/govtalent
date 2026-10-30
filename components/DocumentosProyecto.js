@@ -309,7 +309,7 @@ export default function DocumentosProyecto({ projectId, userId }) {
                 {subiendo ? 'Subiendo…' : 'Arrastra los archivos o pulsa para elegirlos'}
               </div>
               <div style={{ fontSize: 11.5, color: '#999', marginTop: 4 }}>
-                PDF, Word, Excel, PowerPoint o imagen · hasta 20 MB
+                PDF, Word, Excel, PowerPoint o imagen, hasta 20 MB
               </div>
             </div>
           </div>
@@ -358,7 +358,7 @@ export default function DocumentosProyecto({ projectId, userId }) {
               {d.nombre}
             </div>
             <div style={{ fontSize: 10.5, color: '#888', marginTop: 2 }}>
-              {[tamano(d.bytes), haceCuanto(d.created_at)].filter(Boolean).join(' · ')}
+              {[tamano(d.bytes), haceCuanto(d.created_at)].filter(Boolean).join(', ')}
             </div>
           </button>
 

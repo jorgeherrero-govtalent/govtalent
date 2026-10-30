@@ -170,7 +170,7 @@ function Diarios() {
         <p style={{ fontSize: 12.5, color: '#8b8780', margin: 0 }}>
           {items === null
             ? '—'
-            : `${items.length.toLocaleString('es-ES')} disposiciones${hoy > 0 ? ` · ${hoy} publicadas hoy` : ''}`}
+            : `${items.length.toLocaleString('es-ES')} disposiciones${hoy > 0 ? `, ${hoy} publicadas hoy` : ''}`}
         </p>
       </div>
 
@@ -303,12 +303,12 @@ function Diarios() {
                       marginBottom: 6,
                     }}
                   >
-                    {i.diario} · {i.comunidad}
+                    {i.diario}, {i.comunidad}
                   </span>
                 )}
                 <div style={{ fontSize: 13, lineHeight: 1.45, letterSpacing: '-.1px' }}>{i.titulo}</div>
                 <div style={{ fontSize: 11, color: '#a8a49c', marginTop: 4 }}>
-                  {[i.organo, i.rango].filter(Boolean).join(' · ')}
+                  {[i.organo, i.rango].filter(Boolean).join(', ')}
                 </div>
               </div>
 

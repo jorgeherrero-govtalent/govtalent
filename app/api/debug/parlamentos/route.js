@@ -220,7 +220,7 @@ const espera = (ms) => new Promise((r) => setTimeout(r, ms));
 
 function causa(e) {
   const c = e?.cause || e;
-  return [c?.code, c?.message || e?.message].filter(Boolean).join(' · ').slice(0, 200);
+  return [c?.code, c?.message || e?.message].filter(Boolean).join(', ').slice(0, 200);
 }
 
 async function pedir(url) {
@@ -242,7 +242,7 @@ function muestra(texto, tipo, url) {
   if (/<rss|<rdf:RDF|<feed/i.test(t.slice(0, 2000))) {
     const n = (t.match(/<item[\s>]/gi) || []).length || (t.match(/<entry[\s>]/gi) || []).length;
     const primero = (t.match(/<item[\s\S]*?<title[^>]*>([\s\S]*?)<\/title>/i) || [])[1] || '';
-    const resumen = `RSS con ${n} elementos · ${primero.replace(/<!\[CDATA\[|\]\]>/g, '').replace(/\s+/g, ' ').trim()}`.slice(0, MUESTRA_MAX);
+    const resumen = `RSS con ${n} elementos, ${primero.replace(/<!\[CDATA\[|\]\]>/g, '').replace(/\s+/g, ' ').trim()}`.slice(0, MUESTRA_MAX);
     // 29-10-2026 (Baleares): el XML de los dos primeros elementos y las
     // fechas del canal, para escribir el lector sin otra ronda.
     if (/parlamentib\.es\/RSSWebApiFront/.test(url || '')) {
@@ -269,10 +269,10 @@ function muestra(texto, tipo, url) {
     const correoTexto = [...new Set((t.match(/[\w.+-]+@asambleamadrid\.es/gi) || []))].slice(0, 5);
     return { titulo: titulo.replace(/\s+/g, ' ').trim(), fichas_n: fichas.length, fichas: fichas.slice(0, 5), mailtos, correos: correoTexto, imgs };
   }
-  if (titulo) return `HTML · ${titulo.replace(/\s+/g, ' ').trim()}`.slice(0, 160);
+  if (titulo) return `HTML, ${titulo.replace(/\s+/g, ' ').trim()}`.slice(0, 160);
   // CSV: cabecera y dos filas, para ver las columnas.
-  if (/csv/i.test(tipo || '') || /;|,/.test(t.split('\n')[0] || '')) return `${tipo || 'desconocido'} · ${t.split(/\r?\n/).slice(0, 3).join(' ⏎ ')}`.slice(0, MUESTRA_MAX);
-  return `${tipo || 'desconocido'} · ${t.replace(/\s+/g, ' ').slice(0, 100)}`.slice(0, MUESTRA_MAX);
+  if (/csv/i.test(tipo || '') || /;|,/.test(t.split('\n')[0] || '')) return `${tipo || 'desconocido'}, ${t.split(/\r?\n/).slice(0, 3).join(' ⏎ ')}`.slice(0, MUESTRA_MAX);
+  return `${tipo || 'desconocido'}, ${t.replace(/\s+/g, ' ').slice(0, 100)}`.slice(0, MUESTRA_MAX);
 }
 
 /** Todas las URL de un mismo sitio, una detrás de otra. */
@@ -333,7 +333,7 @@ function veredicto(sitios) {
   const ok = urls.filter((u) => u.status >= 200 && u.status < 300).length;
   const prohibidas = urls.filter((u) => u.robots === 'prohibido por robots.txt').length;
   const fallos = urls.length - ok - prohibidas;
-  return `${ok}/${urls.length} accesibles${prohibidas ? ` · ${prohibidas} prohibidas por robots.txt` : ''}${fallos ? ` · ${fallos} con error` : ''}`;
+  return `${ok}/${urls.length} accesibles${prohibidas ? `, ${prohibidas} prohibidas por robots.txt` : ''}${fallos ? `, ${fallos} con error` : ''}`;
 }
 
 export async function GET(request) {

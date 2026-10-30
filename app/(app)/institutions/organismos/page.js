@@ -506,7 +506,7 @@ export default function OrganismosPage() {
                           whiteSpace: 'nowrap',
                         }}
                       >
-                        {[ETIQUETA_CATEGORIA[u.categoria], u.raiz_nombre].filter(Boolean).join(' · ')}
+                        {[ETIQUETA_CATEGORIA[u.categoria], u.raiz_nombre].filter(Boolean).join(', ')}
                       </div>
                     </div>
 

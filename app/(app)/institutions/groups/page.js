@@ -69,7 +69,7 @@ export default function GroupsDirectoryPage() {
         <h1 style={{ fontSize: 18, fontWeight: 700, margin: 0 }}>Grupos parlamentarios</h1>
         <p style={{ fontSize: 12, color: '#888', margin: '3px 0 0' }}>
           {groups
-            ? `${groups.length} grupos · ${groups.reduce((s, g) => s + (g.n_diputados || 0), 0)} diputados · XV Legislatura`
+            ? `${groups.length} grupos, ${groups.reduce((s, g) => s + (g.n_diputados || 0), 0)} diputados, XV Legislatura`
             : '—'}
         </p>
       </div>

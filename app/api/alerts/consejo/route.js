@@ -4,8 +4,8 @@
 //
 // Un correo por Consejo a TODOS los usuarios, en cuanto se publica la
 // Referencia:
-//   · Free: el resumen general, por tipo de norma.
-//   · Pro y Teams: el mismo resumen y, arriba, «Te afecta»: lo que sus
+//   - Free: el resumen general, por tipo de norma.
+//   - Pro y Teams: el mismo resumen y, arriba, «Te afecta»: lo que sus
 //     alarmas han encontrado en ese Consejo y lo que cita una norma que
 //     siguen. Para ellos sustituye al aviso urgente del Consejo, que el
 //     sync ya no envía: un correo por Consejo, no dos.
@@ -322,9 +322,9 @@ async function handler(request) {
 
 /**
  * Por usuario Pro, lo que le afecta de este Consejo:
- *   · lo que han encontrado sus alarmas (sector_alert_matches), con el
+ *   - lo que han encontrado sus alarmas (sector_alert_matches), con el
  *     motivo que dio la IA o la normativa de referencia;
- *   · lo que cita una norma que sigue.
+ *   - lo que cita una norma que sigue.
  * Sin repetir un acuerdo, lo más relevante primero.
  *
  * El titular es el de la IA si el acuerdo está en el resumen; si no, el

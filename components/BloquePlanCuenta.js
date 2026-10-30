@@ -210,7 +210,7 @@ export default function BloquePlanCuenta({ user }) {
             </p>
           ) : (
             <p style={{ fontSize: 12.5, color: '#8b8780', lineHeight: 1.6, margin: '0 0 16px' }}>
-              Suscripción activa{usuarios > 1 ? ` · hasta ${usuarios} usuarios` : ''} · {miles(horquillaPorUsuarios(usuarios).creditos)} créditos al mes.
+              Suscripción activa{usuarios > 1 ? `, hasta ${usuarios} usuarios` : ''}, {miles(horquillaPorUsuarios(usuarios).creditos)} créditos al mes.
               {renovacion && ` Se renueva el ${renovacion}.`}
             </p>
           )}

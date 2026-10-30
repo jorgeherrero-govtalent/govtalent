@@ -6,18 +6,18 @@
 // Asamblea de Madrid (lib/ccaa/composicion/madrid.js), leída de
 // ctyp.asambleamadrid.es/es/web/guest/… como GovTalentBot:
 //
-//   1. listado  · página de grupos (logo, escaños, constitución) y las 7
+//   1. listado , página de grupos (logo, escaños, constitución) y las 7
 //                 páginas del listado de diputados (id, nombre, grupo,
 //                 color, correo, foto, Twitter). Los que dejan de salir
 //                 pasan a inactivos.
-//   2. fichas   · la ficha de cada diputado: cargos vigentes con su
+//   2. fichas  , la ficha de cada diputado: cargos vigentes con su
 //                 órgano (comisiones con vocales, Mesa, Junta de
 //                 Portavoces, Diputación Permanente), legislaturas y
 //                 recuentos de actividad. Por tandas: primero las que
 //                 nunca se leyeron y luego las de más de 6 días.
-//   4. mesa     · la Mesa, de los cargos de la Junta de Portavoces si las
+//   4. mesa    , la Mesa, de los cargos de la Junta de Portavoces si las
 //                 fichas no la traen (`?paso=mesa`).
-//   3. equipo   · técnicos de los grupos parlamentarios vigentes, del CSV
+//   3. equipo  , técnicos de los grupos parlamentarios vigentes, del CSV
 //                 de datos abiertos «OcupacionesDiputadosAsambleaMadrid».
 //
 // Uso:

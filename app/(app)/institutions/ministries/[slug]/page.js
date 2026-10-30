@@ -324,7 +324,7 @@ export default function GovernmentMemberProfilePage() {
                 <span style={{ fontSize: 12, color: '#555' }}>{member.role}</span>
               </div>
               <div style={{ fontSize: 11.5, color: '#999', marginTop: 4 }}>
-                {member.ministry_name ? `Ministerio de ${member.ministry_name} · ` : ''}Gobierno de España
+                {member.ministry_name ? `Ministerio de ${member.ministry_name}, ` : ''}Gobierno de España
               </div>
             </div>
           </div>
@@ -436,7 +436,7 @@ export default function GovernmentMemberProfilePage() {
             </div>
           )}
           <div style={{ fontSize: 11, color: '#aaa', marginTop: 14, paddingTop: 11, borderTop: '.5px solid #f0f0eb' }}>
-            Fuente: Agenda de la Comunicación 2025 · La Moncloa
+            Fuente: Agenda de la Comunicación 2025, La Moncloa
           </div>
         </div>
       )}
@@ -458,7 +458,7 @@ export default function GovernmentMemberProfilePage() {
             >
               <div style={{ fontSize: 12.5, lineHeight: 1.5 }}>{d.titulo}</div>
               <div style={{ fontSize: 10.5, color: '#a8a49c', marginTop: 3 }}>
-                {[d.rango, fechaCorta(d.fecha_publicacion)].filter(Boolean).join(' · ')}
+                {[d.rango, fechaCorta(d.fecha_publicacion)].filter(Boolean).join(', ')}
               </div>
             </Link>
           ))}

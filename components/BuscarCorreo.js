@@ -58,7 +58,7 @@ export function CorreoEncontrado({ r, alinear = 'right' }) {
         {email}
       </a>
       {r.calidad ? (
-        <span style={{ fontSize: 10.5, color: '#a8a49c' }}>{r.calidad === 'verificado' ? 'Verificado' : 'Probable · no verificable en su servidor'}</span>
+        <span style={{ fontSize: 10.5, color: '#a8a49c' }}>{r.calidad === 'verificado' ? 'Verificado' : 'Probable, no verificable en su servidor'}</span>
       ) : null}
     </span>
   );

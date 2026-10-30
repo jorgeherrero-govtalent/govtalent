@@ -22,8 +22,8 @@ const PASOS_DESCUBRIR = [
  * da de alta a los nuevos y los pasa a la selección de la página, donde ya
  * están «Añadir a lista» y «Enriquecer».
  *
- * consulta: la frase buscada · onSeleccionar(filas): mete filas de
- * directorio_pro en la selección · onSaldo(saldo) · onSinCreditos()
+ * consulta: la frase buscada, onSeleccionar(filas): mete filas de
+ * directorio_pro en la selección, onSaldo(saldo), onSinCreditos()
  */
 export default function DescubrirPanel({ consulta, onSeleccionar, onSaldo, onSinCreditos }) {
   const [fase, setFase] = useState('inicio'); // inicio | buscando | hecho | error | anadido
@@ -155,10 +155,10 @@ export default function DescubrirPanel({ consulta, onSeleccionar, onSaldo, onSin
     <div style={{ ...caja, borderStyle: 'solid', borderColor: BORDE, background: '#fff', padding: 0, overflow: 'hidden' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, padding: '11px 14px', borderBottom: `1px solid ${BORDE}`, flexWrap: 'wrap' }}>
         <div>
-          <b style={{ fontSize: 13.5, fontWeight: 600 }}>Encontrados en fuentes oficiales · {miles(personas.length)}</b>
+          <b style={{ fontSize: 13.5, fontWeight: 600 }}>Encontrados en fuentes oficiales ({miles(personas.length)})</b>
           <span style={{ display: 'block', fontSize: 12, color: GRIS, marginTop: 2 }}>
             {res.nuevos ? `${miles(res.nuevos)} no estaban en GovTalent` : 'Todos estaban ya en GovTalent'}
-            {res.cobrado ? ` · ${res.creditos} créditos` : ' · sin coste'}
+            {res.cobrado ? `, ${res.creditos} créditos` : ', sin coste'}
           </span>
         </div>
         {personas.length > 0 && (
@@ -191,9 +191,9 @@ export default function DescubrirPanel({ consulta, onSeleccionar, onSaldo, onSin
               <span style={{ color: '#3a3a3d', fontSize: 12.5 }}>
                 {p.cargo}
                 <span style={{ color: GRIS }}>
-                  {' · '}
+                  {', '}
                   {p.organizacion}
-                  {p.fuente_dominio ? ` · ${p.fuente_dominio}` : ''}
+                  {p.fuente_dominio ? `, ${p.fuente_dominio}` : ''}
                 </span>
               </span>
               <span
@@ -206,7 +206,7 @@ export default function DescubrirPanel({ consulta, onSeleccionar, onSaldo, onSin
                   ...(p.existente_id ? { background: '#efeee8', color: '#4a4a4e' } : { background: '#efedfd', color: '#3d2fb3' }),
                 }}
               >
-                {p.existente_id ? 'En GovTalent' : p.dudoso ? 'Nuevo · dudoso' : 'Nuevo'}
+                {p.existente_id ? 'En GovTalent' : p.dudoso ? 'Nuevo, dudoso' : 'Nuevo'}
               </span>
             </label>
           ))}

@@ -267,7 +267,7 @@ export async function GET(req) {
               : null,
           ]
             .filter(Boolean)
-            .join(' · ')
+            .join(', ')
             .slice(0, 2000),
   });
 

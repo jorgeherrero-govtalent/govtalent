@@ -1,7 +1,7 @@
 import LegalPageShell from '@/components/LegalPageShell';
 
 export const metadata = {
-  title: 'Política de cookies · GovTalent',
+  title: 'Política de cookies | GovTalent',
   description: 'Cookies y tecnologías similares utilizadas en GovTalent, su finalidad y cómo gestionarlas.',
 };
 

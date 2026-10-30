@@ -436,8 +436,8 @@ export default function InitiativeDetailPage() {
           <div style={{ minWidth: 0 }}>
             <h1 style={{ fontSize: 16, fontWeight: 700, margin: 0, lineHeight: 1.35 }}>{item.title}</h1>
             <div style={{ fontSize: 11.5, color: '#666', marginTop: 5 }}>
-              {actLabel(item.act_type)} · Comisión Europea
-              {(item.topics || []).length > 0 && ` · ${item.topics.map((t) => t.label).join(', ')}`}
+              {actLabel(item.act_type)}, Comisión Europea
+              {(item.topics || []).length > 0 && `, ${item.topics.map((t) => t.label).join(', ')}`}
             </div>
             {/* "Iniciativa principal" no decía nada por sí solo: es la
                 marca que pone la Comisión a lo que considera de mayor
@@ -711,7 +711,7 @@ export default function InitiativeDetailPage() {
               <Persona
                 av={<Avatar texto={iniciales(comisario.full_name)} url={comisario.photo_url} />}
                 nombre={comisario.full_name}
-                sub={[comisario.portfolio_es, comisario.country_name].filter(Boolean).join(' · ')}
+                sub={[comisario.portfolio_es, comisario.country_name].filter(Boolean).join(', ')}
                 href={`/institutions/eu-commission/comisarios/${comisario.slug}`}
                 seguir={{ kind: 'comisario', refId: comisario.slug, label: comisario.full_name }}
               />
@@ -727,7 +727,7 @@ export default function InitiativeDetailPage() {
                   nombre={dgNombre || item.dg_code}
                   sub={
                     item.author_name
-                      ? `Dirección general · ${item.author_name} es la persona de contacto`
+                      ? `Dirección general, ${item.author_name} es la persona de contacto`
                       : 'Dirección general responsable'
                   }
                   href={`/institutions/eu-commission/${item.dg_code}`}
@@ -784,7 +784,7 @@ export default function InitiativeDetailPage() {
                   key={`${a.ambito}-${a.person_id}`}
                   av={<Avatar texto={iniciales(a.full_name)} url={a.photo_url} />}
                   nombre={a.full_name}
-                  sub={`${a.role} · ${a.body_code}`}
+                  sub={`${a.role}, ${a.body_code}`}
                   href={a.ambito === 'parlamento' && a.person_slug ? `/institutions/eu-parliament/${a.person_slug}` : null}
                   extra={
                     a.email && (
@@ -804,7 +804,7 @@ export default function InitiativeDetailPage() {
                         key={`${a.ambito}-${a.person_id}`}
                         av={<Avatar texto={iniciales(a.full_name)} url={a.photo_url} />}
                         nombre={a.full_name}
-                        sub={`${a.role} · ${a.body_code}`}
+                        sub={`${a.role}, ${a.body_code}`}
                         href={a.ambito === 'parlamento' && a.person_slug ? `/institutions/eu-parliament/${a.person_slug}` : null}
                       />
                     ))}
@@ -898,7 +898,7 @@ export default function InitiativeDetailPage() {
                 key={m.mep_id}
                 av={<Avatar texto={iniciales(m.full_name)} url={m.photo_url} />}
                 nombre={m.full_name}
-                sub={`${m.political_group_code} · ${m.country_code} · ${m.comisiones}`}
+                sub={`${m.political_group_code}, ${m.country_code}, ${m.comisiones}`}
                 href={`/institutions/eu-parliament/${m.slug}`}
                 extra={
                   <span
@@ -940,7 +940,7 @@ export default function InitiativeDetailPage() {
                   <div style={{ fontSize: 10.5, color: '#999', marginTop: 3 }}>
                     {[d.paginas ? `${d.paginas} páginas` : null, pesoLegible(d.bytes), fechaCorta(d.fecha)]
                       .filter(Boolean)
-                      .join(' · ')}
+                      .join(', ')}
                   </div>
                 </div>
                 {url && (

@@ -153,7 +153,7 @@ export default function BoeDetailPage() {
             </span>
           )}
           <span style={{ fontSize: 11, color: '#a8a49c' }}>
-            {[item.rango, fechaCorta(item.fecha_publicacion)].filter(Boolean).join(' · ')}
+            {[item.rango, fechaCorta(item.fecha_publicacion)].filter(Boolean).join(', ')}
           </span>
           {item.derogado && (
             <span style={{ fontSize: 11, color: '#9a3412', background: '#fef3ec', padding: '4px 10px', borderRadius: 13 }}>
@@ -217,7 +217,7 @@ export default function BoeDetailPage() {
                   {r.texto && r.referencia_titulo && (
                     <div style={{ fontSize: 11.5, color: '#a8a49c', marginTop: 3, lineHeight: 1.45 }}>
                       {r.referencia_titulo}
-                      {r.referencia_departamento ? ` · ${r.referencia_departamento}` : ''}
+                      {r.referencia_departamento ? `, ${r.referencia_departamento}` : ''}
                     </div>
                   )}
                 </div>

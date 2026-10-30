@@ -16,10 +16,10 @@ const DESCRIPCION =
   'Un solo plan de vigilancia normativa para una persona o para todo tu equipo, de 1 a 15 usuarios, con pago mensual o anual y créditos para todo el equipo. El directorio, aparte.';
 
 export const metadata = {
-  title: 'Precios · GovTalent',
+  title: 'Precios | GovTalent',
   description: DESCRIPCION,
   openGraph: {
-    title: 'Precios · GovTalent',
+    title: 'Precios | GovTalent',
     description: DESCRIPCION,
     url: `${SITE_URL}/precios`,
     siteName: 'GovTalent',

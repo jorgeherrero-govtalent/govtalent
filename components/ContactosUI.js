@@ -31,26 +31,26 @@ export function etiquetaEnriquecido(r) {
   return TIPO_CONTACTO[r?.tipo] || 'Contacto';
 }
 
-/** Correo probable (patrón del organismo): Verificado, Probable o Probable · baja. */
+/** Correo probable (patrón del organismo): Verificado, Probable o Probable (baja). */
 export function etiquetaProbable(p) {
   if (p?.verificado) return 'Verificado';
   if (p?.noConfirmado) return 'No confirmado';
-  return p?.baja ? 'Probable · baja' : 'Probable';
+  return p?.baja ? 'Probable (baja)' : 'Probable';
 }
 
 /** La línea de debajo de un correo probable: de dónde sale y cuánto acierta. */
 export function textoAcierto(p) {
   if (!p) return '';
-  if (p.verificado) return `Patrón de ${p.dominio} · comprobado en su servidor`;
+  if (p.verificado) return `Patrón de ${p.dominio}, comprobado en su servidor`;
   if (p.origen === 'familia') {
-    return `Sin correos conocidos de ${p.dominio} · ${p.familia ? `patrón habitual en .${p.familia}` : 'patrón más común'}`;
+    return `Sin correos conocidos de ${p.dominio}, ${p.familia ? `patrón habitual en .${p.familia}` : 'patrón más común'}`;
   }
   const m = Number(p.muestras) || 0;
   const f = Number(p.fiabilidad) || 0;
   const acierto = m < 20
     ? `acierta en ${Math.round(f * m)} de ${m} correos conocidos`
     : `acierta en el ${Math.round(f * 100)} % de ${miles(m)}`;
-  return `Patrón de ${p.dominio} · ${acierto}`;
+  return `Patrón de ${p.dominio}, ${acierto}`;
 }
 
 /** Estilo de la etiqueta de un correo probable: gris si no se confirmó. */
@@ -59,7 +59,7 @@ export function estiloEtiquetaProbable(p) {
 }
 
 /**
- * «Verificar · 1 crédito» (gris) de un correo probable, con el resultado
+ * «Verificar, 1 crédito» (gris) de un correo probable, con el resultado
  * (decisión de Jorge, 13-10-2026). Solo se cobra si queda verificado.
  * id: de directorio_pro; o persona: { nombre, institucion, dominio } para
  * alguien que no está en el directorio.
@@ -71,7 +71,7 @@ export function VerificarCorreo({ id, persona, p, onCambio, onSaldo, onSinCredit
   const [aviso, setAviso] = useState(null);
   if ((!id && !persona) || !p || p.verificado) return null;
   const texto = { fontSize: 11.5, color: GRIS };
-  if (p.noConfirmado) return <span style={texto}>Ninguna forma existe en su servidor · sin coste</span>;
+  if (p.noConfirmado) return <span style={texto}>Ninguna forma existe en su servidor, sin coste</span>;
   if (!p.verificable) return <span style={texto}>Su servidor no permite verificar</span>;
 
   async function verificar() {
@@ -90,14 +90,14 @@ export function VerificarCorreo({ id, persona, p, onCambio, onSaldo, onSinCredit
         return;
       }
       if (!r.ok) {
-        setAviso(j.error || 'No se pudo verificar · sin coste');
+        setAviso(j.error || 'No se pudo verificar, sin coste');
         return;
       }
       if (j.saldo && onSaldo) onSaldo(j.saldo);
-      if (j.resultado === 'no_se_pudo') setAviso('No se pudo verificar ahora · sin coste');
+      if (j.resultado === 'no_se_pudo') setAviso('No se pudo verificar ahora, sin coste');
       if (j.probable && onCambio) onCambio(j.probable);
     } catch {
-      setAviso('No se pudo verificar ahora · sin coste');
+      setAviso('No se pudo verificar ahora, sin coste');
     } finally {
       setVerificando(false);
     }
@@ -121,7 +121,7 @@ export function VerificarCorreo({ id, persona, p, onCambio, onSaldo, onSinCredit
           fontFamily: 'inherit',
         }}
       >
-        {verificando ? 'Verificando…' : 'Verificar · 1 crédito'}
+        {verificando ? 'Verificando…' : 'Verificar (1 crédito)'}
       </button>
       {aviso && <span style={texto}>{aviso}</span>}
     </span>
@@ -258,7 +258,7 @@ export function TarjetaCreditos({ saldo, onComprar }) {
           <div style={{ width: `${pct}%`, height: 5, background: MORADO }}></div>
         </div>
         <span style={{ fontSize: 11.5, color: GRIS }}>
-          {saldo.comprados > 0 ? `+ ${miles(saldo.comprados)} comprados · ` : ''}
+          {saldo.comprados > 0 ? `+ ${miles(saldo.comprados)} comprados, ` : ''}
           {saldo.compartida ? 'compartidos con tu equipo' : 'se renuevan el día 1'}
         </span>
       </div>
@@ -580,11 +580,11 @@ export function CeldaContacto({ f, estado, onEnriquecer, puedeEnriquecer = true,
       {enCurso?.fase === 'buscando' && <Buscando />}
       {enCurso?.fase === 'error' && <span style={{ fontSize: 12, color: GRIS }}>{enCurso.error}</span>}
       {(enr?.estado === 'no_encontrado' || (enr?.estado === 'encontrado' && !enrEmail)) && (
-        <span style={{ fontSize: 12, color: GRIS }}>Sin correo publicado · sin coste</span>
+        <span style={{ fontSize: 12, color: GRIS }}>Sin correo publicado, sin coste</span>
       )}
       {puedeEnriquecer && onEnriquecer && enriquecible(f, estado) && enCurso?.fase !== 'buscando' && (
         <button type="button" className="gt-ct-enr" onClick={() => onEnriquecer(f.id)}>
-          Enriquecer · 1 crédito
+          Enriquecer (1 crédito)
         </button>
       )}
     </div>
@@ -688,7 +688,7 @@ export function ModalGuardarLista({ modo, cuantos, filtros, consulta, ids, onClo
           {(listas || []).map((l) => (
             <label key={l.id} className="gt-ct-chk">
               <input type="radio" name="destino" checked={destino === l.id} onChange={() => setDestino(l.id)} />
-              {l.nombre} <span style={{ color: GRIS }}>· {miles(l.n_miembros)}</span>
+              {l.nombre} <span style={{ color: GRIS }}>({miles(l.n_miembros)})</span>
             </label>
           ))}
         </div>
@@ -736,7 +736,7 @@ export function exportarExcel(filas, nombreArchivo = 'contactos', estado = null)
         'Estado del email deducido': !limpiarEmail(f.email) && !ok && f.probable?.email
           ? f.probable.verificado
             ? 'Verificado en el servidor'
-            : `${etiquetaProbable(f.probable)} · ${textoAcierto(f.probable)}`
+            : `${etiquetaProbable(f.probable)}, ${textoAcierto(f.probable)}`
           : '',
         'Teléfono enriquecido': ok ? enr.telefono || '' : '',
         'Tipo de contacto enriquecido': ok ? etiquetaEnriquecido(enr) : '',

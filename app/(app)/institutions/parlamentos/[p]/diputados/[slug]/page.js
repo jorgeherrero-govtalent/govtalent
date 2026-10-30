@@ -14,7 +14,7 @@ import { PARLAMENTOS_UI, base, useComposicion, colorGrupo, limpiarComision, fech
 /**
  * Ficha de un diputado autonómico. Copia de la del Congreso: cabecera con
  * foto, grupo y correo (este, solo con el Directorio y pedido al
- * servidor), y pestañas Resumen · Comisiones · Actividad. La Asamblea no
+ * servidor), y pestañas Resumen, Comisiones, Actividad. La Asamblea no
  * publica biografía; en su lugar va la actividad parlamentaria que sí
  * publica en la ficha (iniciativas por tipo y legislaturas).
  */
@@ -194,8 +194,8 @@ export default function DiputadoAutonomicoPage() {
                 )}
               </div>
               <div style={{ fontSize: 11.5, color: '#999', marginTop: 4 }}>
-                {diputadoA} {cfg.deNombre} · {cfg.legislatura} Legislatura
-                {desde ? ` · desde ${desde}` : ''}
+                {diputadoA} {cfg.deNombre}, {cfg.legislatura} Legislatura
+                {desde ? `, desde ${desde}` : ''}
               </div>
 
               {contacto.estado !== 'cargando' && (
@@ -316,7 +316,7 @@ export default function DiputadoAutonomicoPage() {
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ fontSize: 12.5, fontWeight: 600 }}>{c.com.nombre}</div>
                     <div style={{ fontSize: 10.5, color: '#999', marginTop: 1 }}>
-                      {[c.cargo, fechaCorta(c.fecha_inicio) ? `desde ${fechaCorta(c.fecha_inicio)}` : null].filter(Boolean).join(' · ')}
+                      {[c.cargo, fechaCorta(c.fecha_inicio) ? `desde ${fechaCorta(c.fecha_inicio)}` : null].filter(Boolean).join(', ')}
                     </div>
                   </div>
                   <i className="ti ti-chevron-right" style={{ color: '#ccc', fontSize: 14, flexShrink: 0 }}></i>
@@ -341,7 +341,7 @@ export default function DiputadoAutonomicoPage() {
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ fontSize: 12.5, fontWeight: 600 }}>{c.organo}</div>
                     <div style={{ fontSize: 10.5, color: '#999', marginTop: 1 }}>
-                      {[c.cargo, fechaCorta(c.fecha_inicio) ? `desde ${fechaCorta(c.fecha_inicio)}` : null].filter(Boolean).join(' · ')}
+                      {[c.cargo, fechaCorta(c.fecha_inicio) ? `desde ${fechaCorta(c.fecha_inicio)}` : null].filter(Boolean).join(', ')}
                     </div>
                   </div>
                   <i className="ti ti-chevron-right" style={{ color: '#ccc', fontSize: 14, flexShrink: 0 }}></i>
@@ -355,7 +355,7 @@ export default function DiputadoAutonomicoPage() {
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ fontSize: 12.5 }}>{c.com.nombre}</div>
                     <div style={{ fontSize: 10.5, color: '#999', marginTop: 1 }}>
-                      {[c.cargo, fechaCorta(c.fecha_inicio) ? `desde ${fechaCorta(c.fecha_inicio)}` : null].filter(Boolean).join(' · ')}
+                      {[c.cargo, fechaCorta(c.fecha_inicio) ? `desde ${fechaCorta(c.fecha_inicio)}` : null].filter(Boolean).join(', ')}
                     </div>
                   </div>
                   <i className="ti ti-chevron-right" style={{ color: '#ccc', fontSize: 14, flexShrink: 0 }}></i>
@@ -369,7 +369,7 @@ export default function DiputadoAutonomicoPage() {
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ fontSize: 12.5 }}>{c.com.nombre}</div>
                     <div style={{ fontSize: 10.5, color: '#999', marginTop: 1 }}>
-                      {[c.cargo, fechaCorta(c.fecha_inicio) ? `desde ${fechaCorta(c.fecha_inicio)}` : null].filter(Boolean).join(' · ')}
+                      {[c.cargo, fechaCorta(c.fecha_inicio) ? `desde ${fechaCorta(c.fecha_inicio)}` : null].filter(Boolean).join(', ')}
                     </div>
                   </div>
                 </div>
@@ -402,7 +402,7 @@ export default function DiputadoAutonomicoPage() {
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ fontSize: 12.5, fontWeight: voz ? 600 : 400 }}>{c.com.nombre}</div>
                     <div style={{ fontSize: 10.5, color: '#999', marginTop: 1 }}>
-                      {[c.cargo, fechaCorta(c.fecha_inicio) ? `desde ${fechaCorta(c.fecha_inicio)}` : null].filter(Boolean).join(' · ')}
+                      {[c.cargo, fechaCorta(c.fecha_inicio) ? `desde ${fechaCorta(c.fecha_inicio)}` : null].filter(Boolean).join(', ')}
                     </div>
                   </div>
                   <i className="ti ti-chevron-right" style={{ color: '#ccc', fontSize: 14, flexShrink: 0 }}></i>
@@ -417,7 +417,7 @@ export default function DiputadoAutonomicoPage() {
         <div className="card" style={{ padding: 18 }}>
           {actividad.total > 0 ? (
             <>
-              <div style={LABEL}>Actividad en la {cfg.legislatura} Legislatura · {actividad.total.toLocaleString('es-ES')} iniciativas</div>
+              <div style={LABEL}>Actividad en la {cfg.legislatura} Legislatura, {actividad.total.toLocaleString('es-ES')} iniciativas</div>
               {TIPOS_ACTIVIDAD.filter(([k]) => actividad[k] > 0).map(([k, label]) => (
                 <div key={k} style={{ ...FILA, padding: '8px 0' }}>
                   <div style={{ flex: 1, fontSize: 12.5, color: '#444' }}>{label}</div>

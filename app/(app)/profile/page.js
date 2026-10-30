@@ -871,7 +871,7 @@ export default function ProfilePage() {
                 {profile?.cv_url ? (
                   <div style={{ fontSize: 11.5, color: '#888', marginTop: 3 }}>
                     CV subido
-                    {profile.cv_uploaded_at && ` · ${new Date(profile.cv_uploaded_at).toLocaleDateString('es-ES')}`}
+                    {profile.cv_uploaded_at && `, ${new Date(profile.cv_uploaded_at).toLocaleDateString('es-ES')}`}
                     <div style={{ display: 'flex', gap: 8, marginTop: 6 }}>
                       <button type="button" onClick={viewCv} className="btn-o" style={{ fontSize: 11.5, padding: '5px 10px' }}>
                         Ver CV
@@ -1313,7 +1313,6 @@ export default function ProfilePage() {
                   >
                     Ver
                   </button>
-                  <span style={{ color: '#d5d3c9' }}>·</span>
                   <label style={{ color: '#1d6f5c', fontSize: 11.5, cursor: 'pointer' }}>
                     {uploadingCv ? 'Subiendo…' : 'Reemplazar'}
                     <input type="file" accept="application/pdf" hidden onChange={handleCvUpload} disabled={uploadingCv} />
@@ -1838,7 +1837,7 @@ export default function ProfilePage() {
                       style={{ marginTop: 3 }}
                     />
                     <div>
-                      <b>{e.title}</b> · {e.organization_name}
+                      <b>{e.title}</b>, {e.organization_name}
                       <div style={{ color: '#999', fontSize: 11 }}>
                         {e.start_date} – {e.end_date || 'Actualidad'}
                       </div>
@@ -1860,7 +1859,7 @@ export default function ProfilePage() {
                       style={{ marginTop: 3 }}
                     />
                     <div>
-                      <b>{e.degree}</b> · {e.institution}
+                      <b>{e.degree}</b>, {e.institution}
                     </div>
                   </label>
                 ))}

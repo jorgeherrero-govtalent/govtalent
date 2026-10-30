@@ -118,7 +118,7 @@ function Actividad() {
           <FlagES />
           <h1 style={{ fontSize: 18, fontWeight: 700, margin: 0 }}>Actividad parlamentaria</h1>
         </div>
-        <p style={{ fontSize: 12, color: '#888', margin: 0 }}>Congreso de los Diputados · XV Legislatura</p>
+        <p style={{ fontSize: 12, color: '#888', margin: 0 }}>Congreso de los Diputados, XV Legislatura</p>
       </div>
 
       <div style={{ display: 'flex', gap: 22, borderBottom: '.5px solid #e0dfd8', marginBottom: 15, overflowX: 'auto' }}>

@@ -282,7 +282,7 @@ export default function ActividadList({ kind }) {
                       {i.situacion && <span style={{ color: '#bbb' }}>En </span>}
                       {[i.situacion, fechaCorta(i.fecha_presentacion) ? `presentada el ${fechaCorta(i.fecha_presentacion)}` : null]
                         .filter(Boolean)
-                        .join(' · ')}
+                        .join(', ')}
                     </>
                   )}
                 </div>

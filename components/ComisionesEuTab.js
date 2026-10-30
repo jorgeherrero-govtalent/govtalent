@@ -239,7 +239,7 @@ export default function ComisionesEuTab() {
                         c.espanoles > 0 ? `${c.espanoles} españoles` : null,
                       ]
                         .filter(Boolean)
-                        .join(' · ')}
+                        .join(', ')}
                     </div>
                   </div>
 
@@ -257,7 +257,7 @@ export default function ComisionesEuTab() {
                       <div style={{ flex: 1, minWidth: 0 }}>
                         <div style={{ fontSize: 12, fontWeight: 600 }}>{nombreLegible(c.presidente)}</div>
                         <div style={{ fontSize: 10, color: '#999' }}>
-                          {['Preside', c.presidente_pais].filter(Boolean).join(' · ')}
+                          {['Preside', c.presidente_pais].filter(Boolean).join(', ')}
                         </div>
                       </div>
                       {c.presidente_grupo && (
@@ -289,7 +289,7 @@ export default function ComisionesEuTab() {
                           margin: '10px 0 8px',
                         }}
                       >
-                        Vicepresidencias · {vices.length}
+                        Vicepresidencias ({vices.length})
                       </div>
                       <div style={{ display: 'flex', alignItems: 'center' }}>
                         {vices.slice(0, 4).map((v, i) => (

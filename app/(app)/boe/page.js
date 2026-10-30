@@ -198,7 +198,7 @@ function Boe() {
         <p style={{ fontSize: 12.5, color: '#8b8780', margin: 0 }}>
           {items === null
             ? '—'
-            : `${items.length.toLocaleString('es-ES')} disposiciones${hoy > 0 ? ` · ${hoy} publicadas hoy` : ''}`}
+            : `${items.length.toLocaleString('es-ES')} disposiciones${hoy > 0 ? `, ${hoy} publicadas hoy` : ''}`}
         </p>
       </div>
 
@@ -348,7 +348,7 @@ function Boe() {
                 )}
                 <div style={{ fontSize: 13, lineHeight: 1.45, letterSpacing: '-.1px' }}>{i.titulo}</div>
                 <div style={{ fontSize: 11, color: '#a8a49c', marginTop: 4 }}>
-                  {[i.departamento, i.rango].filter(Boolean).join(' · ')}
+                  {[i.departamento, i.rango].filter(Boolean).join(', ')}
                 </div>
               </div>
 

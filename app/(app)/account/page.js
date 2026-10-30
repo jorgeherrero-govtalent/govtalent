@@ -504,7 +504,7 @@ export default function AccountPage() {
   const nombreCompleto = [user.first_name, user.last_name].filter(Boolean).join(' ');
   const tipoOrg = TIPOS_ORG.find((x) => x.v === org?.org_type)?.label;
   const legalResumen = org
-    ? [org.legal_name, org.tax_id, tipoOrg].filter(Boolean).join(' · ') || 'Sin completar'
+    ? [org.legal_name, org.tax_id, tipoOrg].filter(Boolean).join(', ') || 'Sin completar'
     : null;
   const usuariosPlan = Number(user.plan_usuarios) || 1;
 
@@ -673,7 +673,7 @@ export default function AccountPage() {
                     : org.cbtg_registry_number
                     ? `Nº ${org.cbtg_registry_number}${
                         org.cbtg_registered_at
-                          ? ` · inscrita el ${new Date(org.cbtg_registered_at).toLocaleDateString('es-ES')}`
+                          ? `, inscrita el ${new Date(org.cbtg_registered_at).toLocaleDateString('es-ES')}`
                           : ''
                       }`
                     : 'Sin número de inscripción'

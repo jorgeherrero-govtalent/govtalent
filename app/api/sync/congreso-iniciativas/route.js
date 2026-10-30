@@ -3,8 +3,8 @@
 // app/api/sync/congreso-iniciativas/route.js
 //
 // FUENTE: datos abiertos de congreso.es. Dos ficheros:
-//   ProyectosDeLey       106 · los presenta el Gobierno
-//   ProposicionesDeLey   361 · grupos, Senado, parlamentos autonómicos
+//   ProyectosDeLey       106, los presenta el Gobierno
+//   ProposicionesDeLey   361, grupos, Senado, parlamentos autonómicos
 //
 // El nombre del fichero lleva marca de tiempo y cambia cada vez que lo
 // regeneran, así que hay que descubrirlo leyendo la página del portal.

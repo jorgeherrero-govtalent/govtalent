@@ -358,7 +358,7 @@ export default function AgendaProyecto({ projectId }) {
                 )}
                 {a.recordatorio_dias !== null && a.recordatorio_dias !== undefined && (
                   <>
-                    {dias !== null && ' · '}
+                    {dias !== null && ', '}
                     Recordatorio {a.recordatorio_dias === 0 ? 'el mismo día' : `${a.recordatorio_dias} d antes`}
                   </>
                 )}

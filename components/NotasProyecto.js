@@ -236,7 +236,7 @@ export default function NotasProyecto({ projectId, userId }) {
             )}
             <div style={{ fontSize: 10.5, color: '#888', marginTop: 4 }}>
               {haceCuanto(n.created_at)}
-              {n.updated_at && n.updated_at !== n.created_at && ' · editada'}
+              {n.updated_at && n.updated_at !== n.created_at && ', editada'}
             </div>
           </div>
 

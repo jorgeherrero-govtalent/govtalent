@@ -269,7 +269,7 @@ export default function MenuLateral({
               title={
                 esPro
                   ? `${miles(alarmas.creditosUsados)} de ${miles(alarmas.creditos)} créditos usados este mes`
-                  : `${alarmas.usadas} de ${alarmas.limite} ${alarmas.limite === 1 ? 'alarma' : 'alarmas'} · Plan Free`
+                  : `${alarmas.usadas} de ${alarmas.limite} ${alarmas.limite === 1 ? 'alarma' : 'alarmas'}, Plan Free`
               }
             >
               {esPro ? (
@@ -295,7 +295,7 @@ export default function MenuLateral({
                     <b>
                       {alarmas.usadas} de {alarmas.limite} {alarmas.limite === 1 ? 'alarma' : 'alarmas'}
                     </b>
-                    <small>Plan Free · resumen los lunes</small>
+                    <small>Plan Free, resumen los lunes</small>
                   </div>
                 )}
                 {esPro ? (

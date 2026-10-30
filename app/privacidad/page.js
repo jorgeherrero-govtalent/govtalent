@@ -1,7 +1,7 @@
 import LegalPageShell from '@/components/LegalPageShell';
 
 export const metadata = {
-  title: 'Política de privacidad · GovTalent',
+  title: 'Política de privacidad | GovTalent',
   description: 'Cómo trata GovTalent los datos personales recogidos a través de la plataforma.',
 };
 

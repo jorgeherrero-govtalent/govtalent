@@ -135,9 +135,9 @@ async function getJob(id) {
 export async function generateMetadata({ params }) {
   const job = await getJob(params.id);
   if (!job) {
-    return { title: 'Oferta no disponible · GovTalent' };
+    return { title: 'Oferta no disponible | GovTalent' };
   }
-  const title = `${job.title} en ${job.organizations?.name} · GovTalent`;
+  const title = `${job.title} en ${job.organizations?.name} | GovTalent`;
   const description = (job.description || '').slice(0, 155);
   return {
     title,
@@ -238,7 +238,7 @@ export default async function PublicJobPage({ params }) {
             <span>
               <span style={{ display: 'block', fontSize: 14, fontWeight: 600 }}>{org?.name}</span>
               <span style={{ display: 'block', fontSize: 12, color: '#8b8780' }}>
-                {[TYPE_LABELS[org?.org_type], job.location].filter(Boolean).join(' · ')}
+                {[TYPE_LABELS[org?.org_type], job.location].filter(Boolean).join(', ')}
               </span>
             </span>
           </Link>
@@ -275,7 +275,7 @@ export default async function PublicJobPage({ params }) {
               externalApplyUrl={job.external_apply_url}
             />
             {interes.length > 0 && (
-              <span style={{ fontSize: 11.5, color: '#8b8780' }}>{interes.join(' · ')}</span>
+              <span style={{ fontSize: 11.5, color: '#8b8780' }}>{interes.join(', ')}</span>
             )}
           </div>
         </div>

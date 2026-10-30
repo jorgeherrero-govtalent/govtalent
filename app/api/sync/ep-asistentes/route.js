@@ -9,9 +9,9 @@
 // servicios», «Agentes pagadores»…) seguido de los nombres.
 //
 // Reglas:
-//  · Nunca sobrescribir con vacío: si una ficha falla o no trae ninguna
+//  - Nunca sobrescribir con vacío: si una ficha falla o no trae ninguna
 //    categoría reconocible, se conservan sus vínculos.
-//  · Una persona puede estar con varios eurodiputados (agrupación): se
+//  - Una persona puede estar con varios eurodiputados (agrupación): se
 //    guarda una vez (por nombre normalizado) y se vincula a cada uno.
 //
 // Parámetros:

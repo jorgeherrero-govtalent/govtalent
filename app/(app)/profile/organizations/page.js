@@ -167,7 +167,7 @@ export default function FollowedOrganizationsPage() {
                     {org.name}
                   </Link>
                   <div style={{ fontSize: 12, color: '#888', marginTop: 2 }}>
-                    {[TYPE_LABELS[org.org_type] || org.org_type, org.location].filter(Boolean).join(' · ') || 'Tipo no especificado'}
+                    {[TYPE_LABELS[org.org_type] || org.org_type, org.location].filter(Boolean).join(', ') || 'Tipo no especificado'}
                   </div>
                 </div>
                 <button

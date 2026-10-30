@@ -284,8 +284,8 @@ export default function SyncsBackoffice() {
               {estaAbierta && (
                 <div style={{ padding: '0 16px 14px', background: problema ? '#fdf8f7' : '#fff' }}>
                   <div style={{ fontSize: 11, color: '#a8a49c', marginBottom: 5 }}>
-                    {r.programada} UTC · último estado: {r.ultimo_estado || '—'}
-                    {r.hubo_prueba && ' · hubo una prueba en seco posterior'}
+                    {r.programada} UTC, último estado: {r.ultimo_estado || '—'}
+                    {r.hubo_prueba && ', hubo una prueba en seco posterior'}
                   </div>
                   <div
                     style={{

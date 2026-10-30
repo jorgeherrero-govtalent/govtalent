@@ -984,7 +984,7 @@ export async function GET(req) {
       conError ? `errores ${conError}` : null,
     ]
       .filter(Boolean)
-      .join(' · ')
+      .join(', ')
       .slice(0, 2000),
   });
 

@@ -311,7 +311,7 @@ export default function OrganizationsDirectory() {
                           whiteSpace: 'nowrap',
                         }}
                       >
-                        {contexto.join(' · ')}
+                        {contexto.join(', ')}
                       </span>
                     </span>
 

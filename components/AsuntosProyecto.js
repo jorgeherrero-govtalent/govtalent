@@ -30,11 +30,11 @@ const MESES = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'o
 
 const ORIGEN = {
   propio: 'Asunto propio',
-  ley: 'Congreso · proyecto de ley',
-  actividad: 'Congreso · actividad parlamentaria',
-  expediente: 'Comisión Europea · expediente',
-  procedimiento: 'Parlamento Europeo · procedimiento',
-  consulta: 'Ministerios · consulta pública',
+  ley: 'Congreso, proyecto de ley',
+  actividad: 'Congreso, actividad parlamentaria',
+  expediente: 'Comisión Europea, expediente',
+  procedimiento: 'Parlamento Europeo, procedimiento',
+  consulta: 'Ministerios, consulta pública',
   boe: 'BOE',
 };
 
@@ -867,7 +867,7 @@ function BuscadorAsuntos({ projectId, yaEn, onClose, onAdded }) {
             <div style={{ flex: 1, minWidth: 0 }}>
               <div style={{ fontSize: 12.5, lineHeight: 1.45 }}>{r.titulo}</div>
               <div style={{ fontSize: 11, color: '#888', marginTop: 2 }}>
-                {[ORIGEN[r.kind] || r.fuente, r.contexto].filter(Boolean).join(' · ')}
+                {[ORIGEN[r.kind] || r.fuente, r.contexto].filter(Boolean).join(', ')}
               </div>
             </div>
             <button className="btn-g" onClick={() => anadir(r)} disabled={guardando} style={{ flexShrink: 0 }}>

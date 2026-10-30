@@ -1,7 +1,7 @@
 import LegalPageShell from '@/components/LegalPageShell';
 
 export const metadata = {
-  title: 'Aviso legal · GovTalent',
+  title: 'Aviso legal | GovTalent',
   description: 'Aviso legal de GovTalent: titularidad, condiciones de acceso y uso de la plataforma.',
 };
 

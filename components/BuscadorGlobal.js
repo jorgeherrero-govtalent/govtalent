@@ -512,7 +512,7 @@ export default function BuscadorGlobal({ variante = 'barra' }) {
                     <span className="gt-buscador-linea">
                       <span className="gt-buscador-titulo">{r.titulo}</span>
                       <span className="gt-buscador-ctx">
-                        · {[ETIQUETA_TIPO[r.kind] || r.grupo, r.contexto].filter(Boolean).join(' · ')}
+                        {[ETIQUETA_TIPO[r.kind] || r.grupo, r.contexto].filter(Boolean).join(', ')}
                       </span>
                     </span>
                   </button>

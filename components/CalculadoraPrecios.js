@@ -74,7 +74,7 @@ export default function CalculadoraPrecios({ autenticado = false, plazasFundador
   // Sin sesión: crear la cuenta y volver a /precios para pagar con ella.
   const urlAlta = () => '/login?view=signup&redirect=%2Fprecios';
 
-  const textoCta = `Contratar · ${euros(anual ? ano : mes)} ${anual ? 'al año' : 'al mes'}`;
+  const textoCta = `Contratar: ${euros(anual ? ano : mes)} ${anual ? 'al año' : 'al mes'}`;
 
   const botonPrincipal = {
     display: 'block',

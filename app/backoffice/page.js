@@ -1,6 +1,6 @@
 import { createAdminClient } from '@/lib/supabase/admin';
 
-export const metadata = { title: 'Dashboard · Backoffice GovTalent' };
+export const metadata = { title: 'Dashboard | Backoffice GovTalent' };
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 export const fetchCache = 'force-no-store';
@@ -44,7 +44,7 @@ export default async function BackofficeDashboard() {
 
       {errors.length > 0 && (
         <div style={{ background: '#fdecea', border: '.5px solid #f3c9c9', color: '#c0392b', borderRadius: 9, padding: '10px 14px', fontSize: 12.5, marginBottom: 20 }}>
-          <i className="ti ti-alert-triangle"></i> Algunas métricas no se pudieron cargar: {errors.join(' · ')}
+          <i className="ti ti-alert-triangle"></i> Algunas métricas no se pudieron cargar: {errors.join(', ')}
         </div>
       )}
 

@@ -224,7 +224,7 @@ export default function MyJobsPage() {
                         </Link>
                         <div style={{ fontSize: 12.5, color: '#888' }}>{s.jobs?.organizations?.name}</div>
                         <div style={{ fontSize: 12, color: '#999' }}>
-                          {s.jobs?.location} · {s.jobs?.modality === 'presencial' ? 'Presencial' : s.jobs?.modality === 'hibrido' ? 'Híbrido' : 'Remoto'}
+                          {s.jobs?.location}, {s.jobs?.modality === 'presencial' ? 'Presencial' : s.jobs?.modality === 'hibrido' ? 'Híbrido' : 'Remoto'}
                         </div>
                       </>
                     )}
@@ -256,7 +256,7 @@ export default function MyJobsPage() {
                       )}
                       <div style={{ fontSize: 12.5, color: '#888', marginTop: 1 }}>
                         {!jobDeleted && a.jobs?.organizations?.name}
-                        {!jobDeleted && ' · '}
+                        {!jobDeleted && ', '}
                         Solicitado el {new Date(a.applied_at).toLocaleDateString('es-ES')}
                       </div>
 
@@ -293,7 +293,7 @@ export default function MyJobsPage() {
                 group.items.length > 0 && (
                   <div key={group.key} style={{ marginBottom: 22 }}>
                     <div style={{ fontSize: 11, fontWeight: 700, color: '#999', textTransform: 'uppercase', letterSpacing: '.03em', marginBottom: 8 }}>
-                      {group.title} · {group.items.length}
+                      {group.title}: {group.items.length}
                     </div>
                     {group.items.map((a) => {
                       const cat = closedCategory(a);
@@ -311,7 +311,7 @@ export default function MyJobsPage() {
                             )}
                             <div style={{ fontSize: 12.5, color: '#999' }}>
                               {!jobDeleted && a.jobs?.organizations?.name}
-                              {!jobDeleted && ' · '}
+                              {!jobDeleted && ', '}
                               Solicitado el {new Date(a.applied_at).toLocaleDateString('es-ES')}
                             </div>
                           </div>

@@ -189,7 +189,7 @@ export default function BuscarCorreoModal({ persona, onClose, onResultado }) {
                 ) : null}
                 {alta ? (
                   <div style={{ fontSize: 12, color: '#3d2fb3', background: '#efedfd', borderRadius: 8, padding: '7px 9px', lineHeight: 1.45 }}>
-                    No estaba en GovTalent. Lo hemos añadido al directorio: {alta.cargo} · {alta.institucion}.
+                    No estaba en GovTalent. Lo hemos añadido al directorio: {alta.cargo}, {alta.institucion}.
                   </div>
                 ) : null}
                 {resultado.telefono ? (
@@ -233,7 +233,7 @@ export default function BuscarCorreoModal({ persona, onClose, onResultado }) {
                   'Buscando…'
                 ) : (
                   <>
-                    <i className="ti ti-search" aria-hidden="true"></i> Buscar correo · 1 crédito
+                    <i className="ti ti-search" aria-hidden="true"></i> Buscar correo (1 crédito)
                   </>
                 )}
               </button>
@@ -244,7 +244,7 @@ export default function BuscarCorreoModal({ persona, onClose, onResultado }) {
             {email && personaId ? (
               listaHecha ? (
                 <Link href={`/contactos/listas/${listaHecha}`} style={{ fontSize: 12.5, color: '#5443d6', textDecoration: 'none', marginRight: 'auto' }}>
-                  Añadido a la lista · Ver lista →
+                  Añadido a la lista. Ver lista →
                 </Link>
               ) : (
                 <button type="button" className="btn-ai-o" onClick={() => setALista(true)} style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>

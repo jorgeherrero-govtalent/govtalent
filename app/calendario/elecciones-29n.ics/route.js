@@ -58,7 +58,7 @@ export function GET() {
     `DTSTAMP:${sello}`,
     `DTSTART;VALUE=DATE:${fechaIcs(h.inicio)}`,
     `DTEND;VALUE=DATE:${fechaIcs(diaSiguiente(h.fin))}`,
-    `SUMMARY:${texto(`${h.titulo} · Elecciones 29N`)}`,
+    `SUMMARY:${texto(`${h.titulo} (Elecciones 29N)`)}`,
     `DESCRIPTION:${texto(`${h.descripcion}\n\nGovTalent: ${SITE_URL}/novedades`)}`,
     'TRANSP:TRANSPARENT',
     'END:VEVENT',

@@ -235,8 +235,8 @@ export default function ListaPage() {
           )}
           <p>
             {miles(filas.length)} {filas.length === 1 ? 'persona' : 'personas'}
-            {l.consulta ? ` · creada desde «${l.consulta}»` : ''}
-            {l.filtros ? ' · avisa de incorporaciones' : ''}
+            {l.consulta ? `, creada desde «${l.consulta}»` : ''}
+            {l.filtros ? ', avisa de incorporaciones' : ''}
           </p>
         </div>
         <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
@@ -247,7 +247,7 @@ export default function ListaPage() {
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 14, alignItems: 'center' }}>
         {enriquecibles.length > 0 && (
           <button type="button" className="btn-ai-o" style={{ padding: '7px 12px', fontSize: 12.5 }} onClick={() => setConfirmarEnr(enriquecibles)}>
-            Enriquecer los que no tienen correo · máx. {miles(enriquecibles.length)} créditos
+            Enriquecer los que no tienen correo (máx. {miles(enriquecibles.length)} créditos)
           </button>
         )}
         {enMarcha > 0 && <span style={{ fontSize: 12.5, color: '#5443d6' }}>Enriqueciendo {miles(enMarcha)}…</span>}
@@ -268,7 +268,7 @@ export default function ListaPage() {
               </button>
               {enriqueciblesSel.length > 0 && (
                 <button type="button" style={sec} onClick={() => setConfirmarEnr(enriqueciblesSel)}>
-                  <i className="ti ti-sparkles" aria-hidden="true"></i> Enriquecer · hasta {miles(enriqueciblesSel.length)} créditos
+                  <i className="ti ti-sparkles" aria-hidden="true"></i> Enriquecer (hasta {miles(enriqueciblesSel.length)} créditos)
                 </button>
               )}
             </>

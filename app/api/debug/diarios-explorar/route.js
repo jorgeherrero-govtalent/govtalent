@@ -9,7 +9,7 @@
 // pausas incluidos) y devuelve, de cada una: título, enlaces (texto y
 // destino), scripts y un trozo del texto. No guarda nada.
 //
-// Uso: ?key=<DEBUG_KEY>  (todas)  ·  ?key=<DEBUG_KEY>&p=navarra,rioja
+// Uso: ?key=<DEBUG_KEY>  (todas) ,  ?key=<DEBUG_KEY>&p=navarra,rioja
 //
 // BORRAR ESTE ARCHIVO cuando estén los lectores.
 // =====================================================================

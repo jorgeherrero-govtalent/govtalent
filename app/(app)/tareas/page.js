@@ -10,8 +10,8 @@ import { toast } from '@/lib/toast';
 /**
  * Tareas.
  *
- * Diseño del 04-10-2026: calcado de Enginy (pestañas Vencidas · Próximas ·
- * Ignoradas · Completadas, filtros y tabla), en blanco y gris con el
+ * Diseño del 04-10-2026: calcado de Enginy (pestañas Vencidas, Próximas,
+ * Ignoradas, Completadas, filtros y tabla), en blanco y gris con el
  * morado de la marca donde Enginy usa negro.
  *
  * Lee la vista tareas_todas (sql/68): las tareas sueltas y las acciones de
@@ -415,7 +415,7 @@ export default function TareasPage() {
                             {t.prioridad && <Barras prioridad={t.prioridad} tam={12} />}
                             {[t.origen === 'proyecto' ? 'Acción de proyecto' : NOMBRE_TIPO[t.tipo], t.prioridad && `Prioridad ${t.prioridad}`]
                               .filter(Boolean)
-                              .join(' · ')}
+                              .join(', ')}
                           </div>
                         </td>
                         <td style={{ padding: '13px 8px', verticalAlign: 'top', maxWidth: 320 }}>
@@ -429,7 +429,7 @@ export default function TareasPage() {
                                 t.vinculo_titulo
                               )}
                               <div style={{ fontSize: 12, color: GRIS, marginTop: 2 }}>
-                                {[grupoVinculo(t.vinculo_kind), t.vinculo_contexto].filter(Boolean).join(' · ')}
+                                {[grupoVinculo(t.vinculo_kind), t.vinculo_contexto].filter(Boolean).join(', ')}
                               </div>
                             </>
                           ) : (

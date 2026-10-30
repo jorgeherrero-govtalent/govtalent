@@ -157,7 +157,7 @@ export default function RadarBackoffice() {
                           color: colors.color,
                         }}
                       >
-                        {ESTADO_LABELS[c.status]} · {c.confidence_score} pts
+                        {ESTADO_LABELS[c.status]}, {c.confidence_score} pts
                       </span>
                       <span style={{ fontSize: 11, color: '#a3a297' }}>
                         {c.claim_type === 'departure' ? 'Cese' : 'Nombramiento'}
@@ -168,7 +168,7 @@ export default function RadarBackoffice() {
                     </div>
                     <div style={{ fontSize: 14, fontWeight: 700, color: '#15140f' }}>{c.person_name}</div>
                     <div style={{ fontSize: 12.5, color: '#57564f', marginTop: 2 }}>
-                      {c.role_title || 'Cargo no especificado'} · {c.organization_name || 'Organización desconocida'}
+                      {c.role_title || 'Cargo no especificado'}, {c.organization_name || 'Organización desconocida'}
                     </div>
                     <div style={{ fontSize: 12.5, color: '#3a3a36', marginTop: 8 }}>{c.claim_text}</div>
 

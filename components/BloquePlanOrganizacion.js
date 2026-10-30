@@ -110,7 +110,7 @@ function TarjetaPlan({ nombre, precio, usuarios, beneficios, destacado, cta, onC
         )}
       </div>
       <div style={{ fontSize: 12.5, color: '#8b8780', marginBottom: 11 }}>
-        {precio} · {usuarios}
+        {precio}, {usuarios}
       </div>
       <div style={{ flex: 1 }}>
         {beneficios.map((b) => (

@@ -1084,7 +1084,7 @@ function MinisteriosTab({ members, officials, organigramas }) {
               <>
                 <div>
                   <i className="ti ti-sitemap" style={{ fontSize: 12, verticalAlign: -1, color: '#aaa' }}></i>{' '}
-                  {cuenta(m.org.secretarias, 'secretaría', 'secretarías')} ·{' '}
+                  {cuenta(m.org.secretarias, 'secretaría', 'secretarías')},{' '}
                   {cuenta(m.org.subsecretarias, 'subsecretaría', 'subsecretarías')}
                 </div>
                 <div>
@@ -1197,8 +1197,8 @@ export default function MinistriesDirectoryPage() {
           <h1 style={{ fontSize: 18, fontWeight: 700, margin: 0 }}>Ministerios</h1>
         </div>
         <p style={{ fontSize: 12, color: '#888', margin: 0 }}>
-          {members ? members.length + officials.length : '—'} personas · {members ? members.length : '—'} miembros del
-          Gobierno · {ministeriosDistintos} ministerios
+          {members ? members.length + officials.length : '—'} personas, {members ? members.length : '—'} miembros del
+          Gobierno, {ministeriosDistintos} ministerios
         </p>
       </div>
 

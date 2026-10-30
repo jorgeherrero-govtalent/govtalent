@@ -5,13 +5,13 @@
 // OBJETIVO: saber, DESDE LA RED DE VERCEL y como GovTalentBot, qué se
 // puede leer de cnmc.es antes de activar el sync (documento del proyecto
 // «cnmc-fuente.md»):
-//   · el robots.txt (desde fuera no se pudo leer) y qué permite;
-//   · si el RSS general está al día (el 27-10 la última entrada era del
+//   - el robots.txt (desde fuera no se pudo leer) y qué permite;
+//   - si el RSS general está al día (el 27-10 la última entrada era del
 //     08-10) y cuántas entradas son de expedientes;
-//   · el listado de Actuaciones (página 0): cuántas filas reconoce el
+//   - el listado de Actuaciones (página 0): cuántas filas reconoce el
 //     lector y cómo se clasifican;
-//   · una ficha de expediente, ya leída;
-//   · las consultas públicas.
+//   - una ficha de expediente, ya leída;
+//   - las consultas públicas.
 //
 // Lo prohibido por robots.txt NO se pide: se informa. Una petición cada
 // vez y respetando el Crawl-delay (lib/ccaa/web.js).

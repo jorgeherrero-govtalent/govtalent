@@ -283,14 +283,14 @@ export default function Aportaciones({ initiativeId, diasRestantes }) {
                     {f.organizacion || <span style={{ color: '#8b8780', fontWeight: 400 }}>Sin identificar</span>}
                   </div>
                   <div style={{ fontSize: 10.5, color: '#a8a49c', marginTop: 2 }}>
-                    {[f.tipo_es, f.pais, fechaCorta(f.fecha)].filter(Boolean).join(' · ')}
+                    {[f.tipo_es, f.pais, fechaCorta(f.fecha)].filter(Boolean).join(', ')}
                   </div>
                   {f.solo_adjunto && (
                     <div
                       style={{ fontSize: 11, color: '#8b8780', marginTop: 5, display: 'inline-flex', alignItems: 'center', gap: 6 }}
                     >
                       <i className="ti ti-file-text" style={{ fontSize: 12 }}></i>
-                      Sin texto · adjuntó un documento
+                      Sin texto, adjuntó un documento
                     </div>
                   )}
                 </div>

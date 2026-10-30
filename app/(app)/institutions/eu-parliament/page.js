@@ -109,7 +109,7 @@ function Committees({ list }) {
       {shown.map((c, i) => (
         <div key={i} style={{ color: c.role === 'MEMBER' ? '#666' : '#aaa' }}>
           {c.name}
-          {c.role !== 'MEMBER' ? ' · supl.' : ''}
+          {c.role !== 'MEMBER' ? ', supl.' : ''}
         </div>
       ))}
       {rest > 0 && <div style={{ color: '#aaa' }}>+{rest} más</div>}
@@ -308,7 +308,7 @@ function MepsTab({ meps }) {
                 <div style={{ minWidth: 0 }}>
                   <div style={{ fontSize: 12.5, fontWeight: 600 }}>{m.full_name}</div>
                   <div style={{ fontSize: 11, color: '#999' }}>
-                    {m.national_party ? `${m.national_party} · ` : ''}
+                    {m.national_party ? `${m.national_party}, ` : ''}
                     {countryName(m.country_code)}
                   </div>
                 </div>
@@ -428,7 +428,7 @@ function GroupsTab({ groups }) {
                 )}
               </div>
               <div style={{ fontSize: 12, color: '#666', whiteSpace: 'nowrap' }}>
-                {g.members} <span style={{ color: '#aaa' }}>· {pct}%</span>
+                {g.members} <span style={{ color: '#aaa' }}>({pct}%)</span>
               </div>
             </div>
             <div style={{ height: 5, background: '#f0efe9', borderRadius: 3, overflow: 'hidden' }}>
@@ -482,7 +482,7 @@ function GobiernoTab({ governance, chairs }) {
       if (c.body_code && !vistos.has(c.body_code)) vistos.set(c.body_code, c.body_name);
     }
     return [...vistos.entries()]
-      .map(([code, name]) => ({ value: code, label: `${code} · ${name}` }))
+      .map(([code, name]) => ({ value: code, label: `${code}, ${name}` }))
       .sort((a, b) => a.label.localeCompare(b.label));
   }, [soloPresidenciasComision]);
 
@@ -553,13 +553,13 @@ function GobiernoTab({ governance, chairs }) {
       <div style={{ flex: 1, minWidth: 0 }}>
         <div style={{ fontSize: 12.5, fontWeight: 600 }}>{p.full_name}</div>
         <div style={{ fontSize: 11, color: '#999' }}>
-          {p.political_group_code} · {countryName(p.country_code)}
+          {p.political_group_code}, {countryName(p.country_code)}
         </div>
         {/* Cuando alguien preside varios órganos, se listan todos en vez de
             repetir la persona una vez por cada uno. */}
         {p.organos && p.organos.length > 1 && (
           <div style={{ fontSize: 10.5, color: '#3C3489', marginTop: 3 }}>
-            {p.organos.map((o) => o.name).join(' · ')}
+            {p.organos.map((o) => o.name).join(', ')}
           </div>
         )}
       </div>
@@ -593,7 +593,7 @@ function GobiernoTab({ governance, chairs }) {
             marginBottom: 12,
           }}
         >
-          {titulo} · {lista.length}
+          {titulo}, {lista.length}
         </div>
         <div>
           {lista.map((p, i) => (
@@ -755,7 +755,7 @@ export default function EuParliamentPage() {
           <h1 style={{ fontSize: 18, fontWeight: 700, margin: 0 }}>Parlamento Europeo</h1>
         </div>
         <p style={{ fontSize: 12, color: '#888', margin: 0 }}>
-          {meps ? `${meps.length} eurodiputados` : '—'} · 10ª legislatura
+          {meps ? `${meps.length} eurodiputados` : '—'}, 10ª legislatura
         </p>
       </div>
 

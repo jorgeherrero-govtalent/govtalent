@@ -15,7 +15,7 @@
 // Quien ya está en el directorio con la Generalitat (Agenda de la
 // Comunicación) no se duplica.
 //
-// ?dry=1 no escribe · ?meses=12 ventana (por defecto 12) · ?key=DEBUG_KEY
+// ?dry=1 no escribe, ?meses=12 ventana (por defecto 12), ?key=DEBUG_KEY
 // =====================================================================
 
 import { createClient } from '@supabase/supabase-js';
@@ -138,7 +138,7 @@ async function handler(request) {
     muestra_secretarios: registros
       .filter((r) => /^secretari/i.test(limpiar(r.cargo)))
       .slice(0, 25)
-      .map((r) => `${r.nombre} · ${r.cargo} · ${r.unidad || ''}`),
+      .map((r) => `${r.nombre}, ${r.cargo}, ${r.unidad || ''}`),
   };
   if (dry) return Response.json(informe);
 

@@ -129,8 +129,8 @@ export async function POST(request) {
   // «leyendo telefonica.com», «buscando "autoconsumo" (3 de 12)»,
   // «evaluando 84 asuntos». Todo es real, nada de barras inventadas.
   //
-  // Fases: web · web_ok · web_fallo · criterios · criterios_ok · buscando ·
-  // candidatos · evaluando · fin · error
+  // Fases: web, web_ok, web_fallo, criterios, criterios_ok, buscando,
+  // candidatos, evaluando, fin, error
   const encoder = new TextEncoder();
   const flujo = new ReadableStream({
     async start(controller) {

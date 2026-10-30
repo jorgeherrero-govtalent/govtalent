@@ -384,8 +384,8 @@ export default function ProcedureDetailPage() {
           <div style={{ minWidth: 0 }}>
             <h1 style={{ fontSize: 16, fontWeight: 700, margin: 0, lineHeight: 1.35 }}>{item.title}</h1>
             <div style={{ fontSize: 11.5, color: '#666', marginTop: 5 }}>
-              Procedimiento legislativo ordinario · Parlamento Europeo
-              {item.comision_competente && ` · ${item.comision_competente}`}
+              Procedimiento legislativo ordinario, Parlamento Europeo
+              {item.comision_competente && `, ${item.comision_competente}`}
             </div>
           </div>
           <div style={{ display: 'flex', gap: 4, flexShrink: 0, alignItems: 'center' }}>
@@ -414,7 +414,7 @@ export default function ProcedureDetailPage() {
             <div style={{ fontSize: 13, fontWeight: 600, lineHeight: 1.3 }}>
               {item.ponente || '—'}
               {item.ponente_grupo && (
-                <span style={{ fontSize: 10.5, color: '#aaa', fontWeight: 400 }}> · {item.ponente_grupo}</span>
+                <span style={{ fontSize: 10.5, color: '#aaa', fontWeight: 400 }}>, {item.ponente_grupo}</span>
               )}
             </div>
           </div>
@@ -500,7 +500,7 @@ export default function ProcedureDetailPage() {
                 <span style={{ fontSize: 11.5, minWidth: 0 }}>
                   {e.activity_label}
                   {e._n > 1 && (
-                    <span style={{ color: '#aaa' }}> · {e._n} documentos</span>
+                    <span style={{ color: '#aaa' }}>, {e._n} documentos</span>
                   )}
                 </span>
                 <span style={{ fontSize: 10.5, color: '#aaa', flexShrink: 0 }}>{fechaCorta(e.activity_date) || '—'}</span>
@@ -604,7 +604,7 @@ export default function ProcedureDetailPage() {
                       </span>
                       <span style={{ fontSize: 10, color: '#999', flexShrink: 0, textAlign: 'right' }}>
                         {p.role_label}
-                        {p.comisiones && ` · ${p.comisiones}`}
+                        {p.comisiones && `, ${p.comisiones}`}
                       </span>
                       <i className="ti ti-chevron-right" style={{ color: '#ccc', fontSize: 14, flexShrink: 0 }}></i>
                     </Link>

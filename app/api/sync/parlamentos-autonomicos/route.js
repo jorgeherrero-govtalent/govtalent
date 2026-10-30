@@ -159,7 +159,7 @@ async function handler(request) {
   const nuevos = [];
 
   // -------------------------------------------------------------------
-  // 1 · Lectura
+  // 1, Lectura
   // -------------------------------------------------------------------
   if (!soloIA) {
     const { data: conocidos } = await db.from('ccaa_expedientes').select('id, is_closed').in('parlamento', pedidos);
@@ -217,7 +217,7 @@ async function handler(request) {
   }
 
   // -------------------------------------------------------------------
-  // 2 · IA sobre los boletines pendientes
+  // 2, IA sobre los boletines pendientes
   // -------------------------------------------------------------------
   if (!sinIA && maxIA > 0) {
     let q = db.from('ccaa_boletines').select('id, parlamento, numero, fecha, url, url_pdf, kb');
@@ -245,7 +245,7 @@ async function handler(request) {
   }
 
   // -------------------------------------------------------------------
-  // 3 · Sectores de los expedientes nuevos (una llamada, solo los que no
+  // 3, Sectores de los expedientes nuevos (una llamada, solo los que no
   //     tienen todavía)
   // -------------------------------------------------------------------
   if (!dry && sp.get('sectores') !== '0' && Date.now() - t0 < FIN_SECTORES_MS) {
@@ -304,7 +304,7 @@ function boletinesUtiles(r) {
   const abiertos = new Set(r.expedientes.filter((e) => !e.is_closed).map((e) => claveExpediente(e.num_expediente)));
   const porExp = new Map();
   for (const b of r.boletines) {
-    const k = b.expediente ? claveExpediente(b.expediente) : `·${b.id}`;
+    const k = b.expediente ? claveExpediente(b.expediente) : `#${b.id}`;
     const util = !b.expediente || abiertos.has(k) || (b.fecha && b.fecha >= limite);
     if (!util) continue;
     if (!porExp.has(k)) porExp.set(k, []);
@@ -515,7 +515,7 @@ async function leerBoamDocx(db, web, b, nuevos = []) {
     }
   }
   if (!r) {
-    const error = `BOAM no legible · ${intentos.join(' · ')}`.slice(0, 600);
+    const error = `BOAM no legible, ${intentos.join(', ')}`.slice(0, 600);
     await db.from('ccaa_boletines').update({ estado: 'error', error }).eq('id', b.id);
     return { ...base, estado: 'error', error };
   }

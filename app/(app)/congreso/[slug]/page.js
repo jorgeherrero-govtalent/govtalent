@@ -273,14 +273,12 @@ export default function CongresoDetailPage() {
         <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'flex-start', marginBottom: 13 }}>
           <div style={{ minWidth: 0 }}>
             <h1 style={{ fontSize: 16, fontWeight: 700, margin: 0, lineHeight: 1.35 }}>{item.title}</h1>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 6, flexWrap: 'wrap' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '4px 16px', marginTop: 6, flexWrap: 'wrap' }}>
               <span style={{ fontSize: 11.5, color: '#666' }}>{item.kind_label}</span>
-              <span style={{ color: '#ddd' }}>·</span>
               <span style={{ fontSize: 11.5, color: '#666' }}>Congreso de los Diputados</span>
               {item.fecha_presentacion && (
                 <>
-                  <span style={{ color: '#ddd' }}>·</span>
-                  <span style={{ fontSize: 11.5, color: '#666' }}>
+                      <span style={{ fontSize: 11.5, color: '#666' }}>
                     Presentada el {fechaCorta(item.fecha_presentacion)}
                   </span>
                 </>
@@ -324,7 +322,7 @@ export default function CongresoDetailPage() {
                 <>
                   Caducada
                   {fechaCaducidad && (
-                    <span style={{ fontSize: 10.5, color: '#aaa', fontWeight: 400 }}> · {fechaCaducidad}</span>
+                    <span style={{ fontSize: 10.5, color: '#aaa', fontWeight: 400 }}>, {fechaCaducidad}</span>
                   )}
                 </>
               ) : item.is_closed ? (
@@ -340,7 +338,7 @@ export default function CongresoDetailPage() {
             <div style={{ fontSize: 10, color: '#999', marginBottom: 3 }}>{caducada ? 'Dónde se quedó' : 'Dónde está'}</div>
             <div style={{ fontSize: 13, fontWeight: 600, lineHeight: 1.3 }}>
               {item.situacion || '—'}
-              {item.fase && <span style={{ fontSize: 10.5, color: '#aaa', fontWeight: 400 }}> · {item.fase}</span>}
+              {item.fase && <span style={{ fontSize: 10.5, color: '#aaa', fontWeight: 400 }}>, {item.fase}</span>}
             </div>
           </div>
           {/* El expediente sale de aquí: es la referencia técnica y
@@ -425,8 +423,7 @@ export default function CongresoDetailPage() {
               Plazo de enmiendas abierto hasta el {fechaCorta(item.plazo_enmiendas)}
               {item.n_prorrogas > 0 && (
                 <span style={{ color: '#999' }}>
-                  {' '}
-                  · prorrogado {item.n_prorrogas} {item.n_prorrogas === 1 ? 'vez' : 'veces'}
+                  , prorrogado {item.n_prorrogas} {item.n_prorrogas === 1 ? 'vez' : 'veces'}
                 </span>
               )}
             </div>
@@ -517,7 +514,7 @@ export default function CongresoDetailPage() {
                       {e.fecha_fin ? ` – ${fechaBreve(e.fecha_fin)}` : ''}
                       {/* Una etapa que dura más de un año señala dónde se
                           atascó el expediente. */}
-                      {e.dias > 365 && <span style={{ color: '#b0aea6' }}> · {Math.round(e.dias / 30)} meses</span>}
+                      {e.dias > 365 && <span style={{ color: '#b0aea6' }}>, {Math.round(e.dias / 30)} meses</span>}
                     </div>
                   </div>
                 </div>
@@ -605,7 +602,7 @@ export default function CongresoDetailPage() {
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ fontSize: 12.5, fontWeight: 600 }}>{comision.committee_name}</div>
                   <div style={{ fontSize: 10.5, color: '#999', marginTop: 1 }}>
-                    Comisión competente · {comision.n_members} miembros
+                    Comisión competente, {comision.n_members} miembros
                   </div>
                 </div>
                 <i className="ti ti-chevron-right" style={{ color: '#ccc', fontSize: 14, flexShrink: 0 }}></i>
@@ -630,7 +627,7 @@ export default function CongresoDetailPage() {
               {(comision.portavoces || []).length > 0 && (
                 <>
                   <div style={{ ...LABEL, marginTop: 18 }}>
-                    Portavoces en la comisión · {comision.portavoces.length}
+                    Portavoces en la comisión ({comision.portavoces.length})
                   </div>
                   {comision.portavoces.map((p, i) => {
                     const cuerpo = (
@@ -699,7 +696,7 @@ export default function CongresoDetailPage() {
 
           {ponentes.length > 0 && (
             <>
-              <div style={LABEL}>Ponencia · {ponentes.length}</div>
+              <div style={LABEL}>Ponencia ({ponentes.length})</div>
               {ponentes.map((p, i) => {
                 const contenido = (
                   <>
@@ -707,7 +704,7 @@ export default function CongresoDetailPage() {
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div style={{ fontSize: 12.5, fontWeight: 600 }}>{nombreLegible(p.full_name || p.nombre)}</div>
                       <div style={{ fontSize: 10.5, color: '#999', marginTop: 1 }}>
-                        {[p.grupo_nombre ? grupoCorto(p.grupo_nombre) : null, p.constituency].filter(Boolean).join(' · ') ||
+                        {[p.grupo_nombre ? grupoCorto(p.grupo_nombre) : null, p.constituency].filter(Boolean).join(', ') ||
                           'No está en el directorio'}
                       </div>
                     </div>
@@ -751,7 +748,7 @@ export default function CongresoDetailPage() {
 
           {autores.length > 0 && (
             <>
-              <div style={{ ...LABEL, marginTop: 18 }}>Firmantes · {autores.length}</div>
+              <div style={{ ...LABEL, marginTop: 18 }}>Firmantes ({autores.length})</div>
               {autores.map((p, i) => (
                 <div
                   key={`a-${p.nombre}-${i}`}

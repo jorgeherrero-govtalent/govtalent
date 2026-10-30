@@ -72,7 +72,7 @@ export default function OrganosGobiernoAutonomicosPage() {
       dp.miembros = dp.miembros
         .map((m) =>
           ['presidencia', 'vicepresidencia', 'secretaria'].includes(m.cargo_norm) && !enMesa.has(m.diputado_id)
-            ? { ...m, cargo: `Suplente · ${m.cargo.replace(/(Presidente|Presidenta)/, 'Presidencia').replace(/Vicepresident[ea]/, 'Vicepresidencia').replace(/Secretari[oa]/, 'Secretaría').replace(/Primer[oa]/, 'primera').replace(/Segund[oa]/, 'segunda').replace(/Tercer[oa]/, 'tercera')}`, cargo_norm: 'suplente' }
+            ? { ...m, cargo: `Suplente, ${m.cargo.replace(/(Presidente|Presidenta)/, 'Presidencia').replace(/Vicepresident[ea]/, 'Vicepresidencia').replace(/Secretari[oa]/, 'Secretaría').replace(/Primer[oa]/, 'primera').replace(/Segund[oa]/, 'segunda').replace(/Tercer[oa]/, 'tercera')}`, cargo_norm: 'suplente' }
             : m
         )
         .sort((a, b) => pesoCargo(a.cargo_norm) - pesoCargo(b.cargo_norm));
@@ -177,7 +177,7 @@ export default function OrganosGobiernoAutonomicosPage() {
           )}
 
           <p style={{ fontSize: 11.5, color: '#888', margin: '0 0 12px' }}>
-            {filtrando ? `${total} cargos con estos filtros` : `${organos.length} órganos · ${total} cargos · ${cfg.legislatura} Legislatura`}
+            {filtrando ? `${total} cargos con estos filtros` : `${organos.length} órganos, ${total} cargos, ${cfg.legislatura} Legislatura`}
           </p>
 
           {filtrando && total === 0 && (
@@ -198,7 +198,7 @@ export default function OrganosGobiernoAutonomicosPage() {
               <div key={o.id} className="card" style={{ padding: '16px 18px', marginBottom: 10 }}>
                 <div onClick={() => alternar(o.id)} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', cursor: 'pointer', gap: 12 }}>
                   <div style={{ fontSize: 10.5, fontWeight: 700, color: '#999', textTransform: 'uppercase', letterSpacing: '.3px' }}>
-                    {o.nombre} · {filtrando ? lista.length : o.miembros.length}
+                    {o.nombre} ({filtrando ? lista.length : o.miembros.length})
                   </div>
                   <i className={`ti ${abierto ? 'ti-chevron-up' : 'ti-chevron-down'}`} style={{ color: '#999', fontSize: 16, flexShrink: 0 }}></i>
                 </div>

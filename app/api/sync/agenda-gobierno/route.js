@@ -303,7 +303,7 @@ async function eventosDeSeguimiento(db, actos) {
     kind: 'cargo',
     ref_id: a.miembro_slug,
     event_type: 'agenda',
-    title: `${a.persona}${a.cargo ? ` · ${a.cargo}` : ''}`.slice(0, 300),
+    title: `${a.persona}${a.cargo ? `, ${a.cargo}` : ''}`.slice(0, 300),
     detail: `Agenda del ${diaTexto(a.fecha)}${a.hora ? `, ${a.hora} h` : ''}: ${a.texto}`.slice(0, 600),
     occurred_at: new Date(base + k).toISOString(),
   }));

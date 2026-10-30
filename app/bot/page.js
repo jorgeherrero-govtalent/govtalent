@@ -5,7 +5,7 @@ import LegalPageShell from '@/components/LegalPageShell';
 // los parlamentos. Pública: está en PUBLIC_LEGAL_PATHS del middleware.
 
 export const metadata = {
-  title: 'GovTalentBot · GovTalent',
+  title: 'GovTalentBot | GovTalent',
   description: 'Qué es GovTalentBot, qué publicaciones lee, cómo lo hace y cómo contactar o limitar su acceso.',
 };
 

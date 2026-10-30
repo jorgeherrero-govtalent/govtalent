@@ -50,7 +50,7 @@ function Fase({ e }) {
   if (e.fase === 'enmiendas' && plazo) {
     return (
       <span style={{ fontSize: 12, padding: '4px 9px', borderRadius: 6, background: '#f3f0fe', color: '#4b3bc4', whiteSpace: 'nowrap' }}>
-        Enmiendas · {plazo}
+        Enmiendas: {plazo}
       </span>
     );
   }
@@ -65,10 +65,10 @@ function Subtitulo({ e }) {
   const partes = [e.num_expediente && !/^[IVX]+-[0-9A-F]{12}$/.test(e.num_expediente) ? e.num_expediente : null, e.autor].filter(Boolean);
   return (
     <div style={{ fontSize: 12, color: GRIS, marginTop: 3 }}>
-      {partes.join(' · ')}
+      {partes.join(', ')}
       {(e.tipo_norm === 'presupuestos' || e.tipo_norm === 'acompanamiento') && (
         <>
-          {partes.length ? ' · ' : ''}
+          {partes.length ? ', ' : ''}
           <Etiqueta tipo={e.tipo_norm} />
         </>
       )}
@@ -187,7 +187,7 @@ export default function ParlamentosAutonomicosPage() {
         <div>
           <h1 style={{ fontSize: 21, fontWeight: 600, margin: 0, letterSpacing: '-.3px' }}>Parlamentos autonómicos</h1>
           <p style={{ fontSize: 13, color: GRIS, margin: '4px 0 0' }}>
-            Leyes en tramitación en {FASE1.length} parlamentos · actualizado 3 veces al día
+            Leyes en tramitación en {FASE1.length} parlamentos, actualizado 3 veces al día
           </p>
         </div>
         <label style={{ display: 'flex', alignItems: 'center', gap: 8, background: '#fff', border: '1px solid #e0dfd8', borderRadius: 9, padding: '8px 12px', minWidth: 260 }}>
@@ -237,7 +237,7 @@ export default function ParlamentosAutonomicosPage() {
             {movimientos.map((m) => (
               <Link key={m.id} href={`/parlamentos-autonomicos/${m.slug}`} style={{ padding: '12px 0', borderTop: '1px solid #efeee8', textDecoration: 'none', color: 'inherit', display: 'block' }}>
                 <div style={{ fontSize: 12, color: GRIS }}>
-                  {CCAA[m.parlamento]} · {fechaCorta(m.fecha)}
+                  {CCAA[m.parlamento]}, {fechaCorta(m.fecha)}
                 </div>
                 <div style={{ fontSize: 13, marginTop: 2, fontWeight: 600 }}>{tituloLegible(m.titulo)}</div>
                 {m.descripcion && <div style={{ fontSize: 12.5, color: '#3a3a36', marginTop: 2 }}>{m.descripcion.slice(0, 120)}</div>}
@@ -329,7 +329,7 @@ export default function ParlamentosAutonomicosPage() {
                     </Link>
                     <Subtitulo e={e} />
                     {e.sectores?.length > 0 && (
-                      <div style={{ fontSize: 11.5, color: GRIS, marginTop: 3 }}>{e.sectores.join(' · ')}</div>
+                      <div style={{ fontSize: 11.5, color: GRIS, marginTop: 3 }}>{e.sectores.join(', ')}</div>
                     )}
                   </td>
                   <td style={{ padding: '14px 12px', verticalAlign: 'top' }}>
@@ -337,7 +337,7 @@ export default function ParlamentosAutonomicosPage() {
                   </td>
                   <td style={{ padding: '14px 20px', color: '#3a3a36', verticalAlign: 'top' }}>
                     {e.ultimo_descripcion ? e.ultimo_descripcion.slice(0, 110) : '—'}
-                    {e.ultimo_fecha && <span style={{ color: GRIS }}> · {fechaCorta(e.ultimo_fecha)}</span>}
+                    {e.ultimo_fecha && <span style={{ color: GRIS }}>, {fechaCorta(e.ultimo_fecha)}</span>}
                   </td>
                 </tr>
               ))}
@@ -411,7 +411,7 @@ export default function ParlamentosAutonomicosPage() {
               return (
                 <div key={f.id} style={{ display: 'flex', flexDirection: 'column', gap: 8, minWidth: 0 }}>
                   <div style={{ fontSize: 12, color: GRIS }}>
-                    {f.nombre} · <b style={{ color: '#1a1a18' }}>{lista.length}</b>
+                    {f.nombre}: <b style={{ color: '#1a1a18' }}>{lista.length}</b>
                   </div>
                   {lista.slice(0, 12).map((e) => {
                     const plazo = f.id === 'enmiendas' ? plazoCorto(e) : null;
@@ -423,7 +423,7 @@ export default function ParlamentosAutonomicosPage() {
                       >
                         <div style={{ color: plazo ? '#4b3bc4' : GRIS, fontSize: 11.5 }}>
                           {CCAA[e.parlamento]}
-                          {plazo ? ` · ${plazo}` : ''}
+                          {plazo ? `, ${plazo}` : ''}
                         </div>
                         {tituloLegible(e.titulo_es || e.titulo)}
                       </Link>
@@ -431,7 +431,7 @@ export default function ParlamentosAutonomicosPage() {
                   })}
                   {lista.length > 12 && (
                     <button type="button" onClick={() => setVista('tabla')} style={{ font: 'inherit', fontSize: 12, color: MORADO, background: 'none', border: 'none', padding: 0, cursor: 'pointer', textAlign: 'left' }}>
-                      y {lista.length - 12} más · ver en tabla
+                      y {lista.length - 12} más, ver en tabla
                     </button>
                   )}
                 </div>

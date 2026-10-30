@@ -467,7 +467,7 @@ export default function GroupDetailPage() {
                     : null,
                 ]
                   .filter(Boolean)
-                  .join(' · ')}
+                  .join(', ')}
               </div>
             </div>
           </div>
@@ -572,7 +572,7 @@ export default function GroupDetailPage() {
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ fontSize: 11.5, fontWeight: 600, lineHeight: 1.4 }}>{u.titulo}</div>
                     <div style={{ fontSize: 10, color: '#999', marginTop: 2 }}>
-                      {[limpiarComision(u.situacion), haceCuanto(u.fecha_presentacion)].filter(Boolean).join(' · ')}
+                      {[limpiarComision(u.situacion), haceCuanto(u.fecha_presentacion)].filter(Boolean).join(', ')}
                     </div>
                   </div>
                 </Link>
@@ -674,7 +674,7 @@ export default function GroupDetailPage() {
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ fontSize: 12.5, fontWeight: 600 }}>{fullNameDisplay(p.full_name)}</div>
                   <div style={{ fontSize: 10.5, color: '#999', marginTop: 1 }}>
-                    {[`Portavoz en ${limpiarComision(p.committee_name)}`, p.constituency].filter(Boolean).join(' · ')}
+                    {[`Portavoz en ${limpiarComision(p.committee_name)}`, p.constituency].filter(Boolean).join(', ')}
                   </div>
                 </div>
                 {p.n_actividad > 0 && (
@@ -883,7 +883,7 @@ export default function GroupDetailPage() {
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ fontSize: 12.5, fontWeight: 600 }}>{a.full_name}</div>
                     <div style={{ fontSize: 10.5, color: '#999', marginTop: 1 }}>
-                      {[a.categoria, desdeCuando(a.fecha_alta)].filter(Boolean).join(' · ')}
+                      {[a.categoria, desdeCuando(a.fecha_alta)].filter(Boolean).join(', ')}
                     </div>
                   </div>
                   {a.linkedin_url && (
@@ -899,7 +899,7 @@ export default function GroupDetailPage() {
                   )}
                   {esPro === true && !a.tiene_email ? (
                     <BuscarCorreo
-                      persona={{ id: `es-legislativo-asesor:${a.id}`, nombre: a.full_name, cargo: [a.cargo || a.categoria, grupo?.name].filter(Boolean).join(' · ') }}
+                      persona={{ id: `es-legislativo-asesor:${a.id}`, nombre: a.full_name, cargo: [a.cargo || a.categoria, grupo?.name].filter(Boolean).join(', ') }}
                       encontrado={encontrados[`es-legislativo-asesor:${a.id}`]}
                       probable={probables[`es-legislativo-asesor:${a.id}`]}
                       onResultado={(r) => apuntar(`es-legislativo-asesor:${a.id}`, r)}

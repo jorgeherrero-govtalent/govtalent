@@ -89,7 +89,7 @@ function Miembro({ p, size = 34 }) {
             p.es_letrado ? 'Letrado de las Cortes' : null,
           ]
             .filter(Boolean)
-            .join(' · ')}
+            .join(', ')}
         </div>
       </div>
       {p.grupo && !p.es_letrado && (
@@ -235,7 +235,7 @@ export default function ComisionDetailPage() {
             comision.fecha_constitucion ? `constituida el ${fechaCorta(comision.fecha_constitucion)}` : null,
           ]
             .filter(Boolean)
-            .join(' · ')}
+            .join(', ')}
         </div>
 
         {porGrupo.length > 0 && (
@@ -272,7 +272,7 @@ export default function ComisionDetailPage() {
 
       {portavoces.length > 0 && (
         <div style={{ ...CARD, marginBottom: 12 }}>
-          <div style={LABEL}>Portavoces · uno por grupo</div>
+          <div style={LABEL}>Portavoces, uno por grupo</div>
           {portavoces.map((p, i) => (
             <Miembro key={`p-${i}`} p={p} />
           ))}
@@ -281,7 +281,7 @@ export default function ComisionDetailPage() {
 
       {(adjuntos.length > 0 || resto.length > 0) && (
         <div style={CARD}>
-          <div style={LABEL}>Resto de miembros · {adjuntos.length + resto.length}</div>
+          <div style={LABEL}>Resto de miembros ({adjuntos.length + resto.length})</div>
           {(verTodos ? [...adjuntos, ...resto] : [...adjuntos, ...resto].slice(0, 8)).map((p, i) => (
             <Miembro key={`r-${i}`} p={p} size={28} />
           ))}

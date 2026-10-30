@@ -197,7 +197,7 @@ export default function GovernmentOfficialProfilePage() {
               </div>
               <div style={{ fontSize: 11.5, color: '#999', marginTop: 4 }}>
                 {official.ministry_name}
-                {hasUnit ? ` · ${official.unit_name}` : ''}
+                {hasUnit ? `, ${official.unit_name}` : ''}
               </div>
             </div>
           </div>
@@ -316,7 +316,7 @@ export default function GovernmentOfficialProfilePage() {
             <div style={{ display: 'flex', alignItems: 'center', gap: 9, flexWrap: 'wrap', ...(hasContact ? { marginTop: 12, paddingTop: 12, borderTop: '.5px solid #f0f0eb' } : {}) }}>
               <i className="ti ti-mail" style={{ color: '#a8a49c', fontSize: 14 }} aria-hidden="true"></i>
               <BuscarCorreo
-                persona={{ id: idPro, nombre: displayName, cargo: [official.role, official.ministry_name].filter(Boolean).join(' · ') }}
+                persona={{ id: idPro, nombre: displayName, cargo: [official.role, official.ministry_name].filter(Boolean).join(', ') }}
                 encontrado={encontrados[idPro]}
                       probable={probables[idPro]}
                 onResultado={(r) => apuntar(idPro, r)}

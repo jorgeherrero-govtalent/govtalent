@@ -41,7 +41,7 @@ export default function MenuUsuario({
   const lateral = variante === 'lateral';
   const boton = useRef(null);
 
-  const inicial = (user?.first_name || user?.email || '·').charAt(0).toUpperCase();
+  const inicial = (user?.first_name || user?.email || '?').charAt(0).toUpperCase();
   const esPro = user?.plan === 'pro';
 
   function abrir() {
@@ -82,7 +82,7 @@ export default function MenuUsuario({
     ? orgActiva.name
     : [user?.first_name, user?.last_name].filter(Boolean).join(' ') || user?.email || 'Tu cuenta';
   const imagenContexto = orgActiva ? orgActiva.logo_url : user?.avatar_url;
-  const inicialContexto = (orgActiva ? orgActiva.name : user?.first_name || user?.email || '·').charAt(0).toUpperCase();
+  const inicialContexto = (orgActiva ? orgActiva.name : user?.first_name || user?.email || '?').charAt(0).toUpperCase();
 
   return (
     <div className={lateral ? 'gt-lat-yo' : 'nav-me'}>

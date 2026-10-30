@@ -1142,7 +1142,7 @@ export default function DirectorioInstitucionalPage() {
                     {f.unidad || ''}
                     {f.otrosCargos > 0 && (
                       <span style={{ color: '#6d5aef', marginLeft: f.unidad ? 6 : 0 }}>
-                        · {f.otrosCargos} cargo{f.otrosCargos === 1 ? '' : 's'} más
+                        y {f.otrosCargos} cargo{f.otrosCargos === 1 ? '' : 's'} más
                       </span>
                     )}
                   </div>
@@ -1153,7 +1153,7 @@ export default function DirectorioInstitucionalPage() {
                     {f.nivel}
                     {f.pais && f.jurisdiccion === 'UE' && (
                       <span style={{ color: f.pais === 'ES' ? '#6d5aef' : '#a8a79c' }}>
-                        {' · '}{PAISES[f.pais] || f.pais}
+                        {', '}{PAISES[f.pais] || f.pais}
                       </span>
                     )}
                   </div>
@@ -1178,7 +1178,7 @@ export default function DirectorioInstitucionalPage() {
                     </a>
                   ) : (
                     <BuscarCorreo
-                      persona={{ id: f.id, nombre: f.nombre, cargo: [f.cargo, f.institucion].filter(Boolean).join(' · ') }}
+                      persona={{ id: f.id, nombre: f.nombre, cargo: [f.cargo, f.institucion].filter(Boolean).join(', ') }}
                       encontrado={encontrados[f.id]}
                       probable={probables[f.id]}
                       onResultado={(r) => apuntar(f.id, r)}

@@ -17,7 +17,7 @@ import {
 import { PACKS_CREDITOS } from '@/lib/creditos';
 
 export const metadata = {
-  title: 'Condiciones generales de contratación y uso · GovTalent',
+  title: 'Condiciones generales de contratación y uso | GovTalent',
   description: 'Condiciones que regulan el registro, la contratación y el uso de los servicios de GovTalent.',
 };
 

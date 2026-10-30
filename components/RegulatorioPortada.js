@@ -161,7 +161,7 @@ function Institucion({ href, titulo, descripcion, trazo, cifra, etiqueta, afecta
               solo si hay algo que contar. Un "0 te afectan" no distingue
               entre no haber nada tuyo y no cubrir esa fuente. */}
           {afectan > 0 && (
-            <span style={{ fontSize: 12, color: MORADO }}>· {afectan} te {afectan === 1 ? 'afecta' : 'afectan'}</span>
+            <span style={{ fontSize: 12, color: MORADO }}>({afectan} te {afectan === 1 ? 'afecta' : 'afectan'})</span>
           )}
         </div>
       </div>
@@ -355,7 +355,7 @@ export default function RegulatorioPortada({ ambito }) {
               cifra={cifras.consultasAbiertas}
               etiqueta={
                 cifras.consultasUrgentes > 0
-                  ? `abiertas · ${cifras.consultasUrgentes} cierran esta semana`
+                  ? `abiertas, ${cifras.consultasUrgentes} cierran esta semana`
                   : 'abiertas'
               }
               afectan={afectan.consulta || 0}
@@ -394,7 +394,7 @@ export default function RegulatorioPortada({ ambito }) {
       </div>
 
       {a.proximamente && (
-        <p style={{ fontSize: 11.5, color: '#a8a49c', margin: '16px 2px 0' }}>Próximamente · {a.proximamente}</p>
+        <p style={{ fontSize: 11.5, color: '#a8a49c', margin: '16px 2px 0' }}>Próximamente: {a.proximamente}</p>
       )}
     </div>
   );

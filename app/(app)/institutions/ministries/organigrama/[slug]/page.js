@@ -145,7 +145,7 @@ function Rama({ nodo, profundidad, abiertos, alternar, filtro }) {
           </span>
 
           {tieneHijos ? (
-            <span style={{ fontSize: 11, color: '#aaa' }}>· {nodo.hijos.length}</span>
+            <span style={{ fontSize: 11, color: '#aaa' }}>({nodo.hijos.length})</span>
           ) : null}
 
           {nodo.confianza !== 'alta' ? (
@@ -153,7 +153,7 @@ function Rama({ nodo, profundidad, abiertos, alternar, filtro }) {
               style={{ fontSize: 11, color: MORADO }}
               title="Lectura del organigrama pendiente de revisión"
             >
-              · sin revisar
+              sin revisar
             </span>
           ) : null}
         </div>
@@ -161,7 +161,7 @@ function Rama({ nodo, profundidad, abiertos, alternar, filtro }) {
         {nodo.titular || nodo.telefono ? (
           <div style={{ fontSize: 12, color: '#888', marginTop: 3 }}>
             {nodo.titular}
-            {nodo.titular && nodo.telefono ? ' · ' : ''}
+            {nodo.titular && nodo.telefono ? ', ' : ''}
             {nodo.telefono}
           </div>
         ) : null}
@@ -340,9 +340,9 @@ export default function OrganigramaMinisterioPage() {
         <p style={{ fontSize: 12, color: '#888', margin: 0 }}>
           {unidades.length} unidades
           {porBanda.get('subdireccion_general')
-            ? ` · ${porBanda.get('subdireccion_general')} subdirecciones`
+            ? `, ${porBanda.get('subdireccion_general')} subdirecciones`
             : ''}
-          {fuente.fecha_documento ? ` · organigrama de ${fechaCorta(fuente.fecha_documento)}` : ''}
+          {fuente.fecha_documento ? `, organigrama de ${fechaCorta(fuente.fecha_documento)}` : ''}
         </p>
         {fuente.norma_referencia ? (
           <p style={{ fontSize: 12, color: '#aaa', margin: '3px 0 0' }}>{fuente.norma_referencia}</p>
@@ -482,8 +482,8 @@ export default function OrganigramaMinisterioPage() {
                 <div style={{ fontSize: 13 }}>{u.nombre}</div>
                 <div style={{ fontSize: 12, color: '#888', marginTop: 2 }}>
                   {ETIQUETA_BANDA[banda(u.categoria)]}
-                  {u.titular ? ` · ${u.titular}` : ''}
-                  {u.telefono ? ` · ${u.telefono}` : ''}
+                  {u.titular ? `, ${u.titular}` : ''}
+                  {u.telefono ? `, ${u.telefono}` : ''}
                 </div>
               </div>
             ))}

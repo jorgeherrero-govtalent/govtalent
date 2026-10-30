@@ -344,7 +344,7 @@ export default function OrganosGobiernoTab() {
       )}
 
       <p style={{ fontSize: 11.5, color: '#888', margin: '0 0 12px' }}>
-        {filtrando ? `${total} cargos con estos filtros` : `${organos.length} órganos · ${total} cargos · XV Legislatura`}
+        {filtrando ? `${total} cargos con estos filtros` : `${organos.length} órganos, ${total} cargos, XV Legislatura`}
       </p>
 
       {filtrando && total === 0 && (
@@ -383,7 +383,7 @@ export default function OrganosGobiernoTab() {
                     letterSpacing: '.3px',
                   }}
                 >
-                  {o.name} · {filtrando ? lista.length : o.n_members}
+                  {o.name} ({filtrando ? lista.length : o.n_members})
                 </div>
                 {o.fecha_constitucion && !abierto && (
                   <div style={{ fontSize: 11.5, color: '#888', marginTop: 4 }}>

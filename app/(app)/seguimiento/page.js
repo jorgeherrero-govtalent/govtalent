@@ -17,7 +17,7 @@ import { toast } from '@/lib/toast';
  *   2. Un bloque por fuente (Congreso, Parlamento Europeo…) con los tres
  *      más recientes y «Ver los N».
  *   3. Personas e instituciones, con foto. De los miembros del Gobierno se
- *      resume su agenda en una línea: «Agenda · 3 actos · 11:00 … ·
+ *      resume su agenda en una línea: «Agenda, 3 actos, 11:00 …,
  *      16:00 …», con el día de los actos a la derecha (no el día en que
  *      se leyó).
  *   4. Consejo de Ministros: los acuerdos que han hecho saltar alguna de
@@ -25,7 +25,7 @@ import { toast } from '@/lib/toast';
  *      Referencia de La Moncloa en otra pestaña, en el punto del acuerdo.
  *
  * Datos: la vista my_follows (sql/69 añade foto, ultimo_tipo y
- * ultimo_detalle). «Dejar de seguir» va en el menú «···» de cada fila.
+ * ultimo_detalle). «Dejar de seguir» va en el menú «…» de cada fila.
  *
  * Los enlaces antiguos a ?alarmas=1 y ?ajustes=1 llevan a /alarmas.
  */
@@ -109,7 +109,7 @@ function referenciaDe(a) {
 
 function iniciales(nombre) {
   const p = String(nombre || '').trim().split(/\s+/).filter(Boolean);
-  return ((p[0]?.[0] || '') + (p[1]?.[0] || '')).toUpperCase() || '·';
+  return ((p[0]?.[0] || '') + (p[1]?.[0] || '')).toUpperCase() || '?';
 }
 
 export default function SeguimientoPage() {
@@ -157,7 +157,7 @@ function Avatar({ item }) {
   );
 }
 
-/** El menú «···» de una fila: por ahora, dejar de seguir. */
+/** El menú «…» de una fila: por ahora, dejar de seguir. */
 function MenuFila({ onDejar }) {
   const [abierto, setAbierto] = useState(false);
   const caja = useRef(null);
@@ -211,7 +211,7 @@ function MenuFila({ onDejar }) {
 }
 
 function Fila({ item, conCambio, conFoto, onDejar }) {
-  const sub = [item.estado, item.activo === false ? 'concluido' : null].filter(Boolean).join(' · ');
+  const sub = [item.estado, item.activo === false ? 'concluido' : null].filter(Boolean).join(', ');
   const fecha = cuando(item.ultima_novedad);
   const nueva = item.n_novedades > 0;
   const contenido = (
@@ -222,7 +222,7 @@ function Fila({ item, conCambio, conFoto, onDejar }) {
       )}
       {(sub || conCambio) && (
         <span style={{ display: 'block', fontSize: 12, color: GRIS, marginTop: 3 }}>
-          {conCambio ? [item.fuente, sub].filter(Boolean).join(' · ') : sub}
+          {conCambio ? [item.fuente, sub].filter(Boolean).join(', ') : sub}
         </span>
       )}
     </>
@@ -266,10 +266,10 @@ function FilaPersona({ item, agenda, onDejar }) {
         {ag ? (
           <span style={{ display: 'flex', gap: 8, alignItems: 'baseline', marginTop: 6, fontSize: 12.5, color: '#3a3a36', minWidth: 0 }}>
             <span style={{ fontWeight: 600, whiteSpace: 'nowrap', color: '#1a1a18' }}>
-              Agenda · {ag.actos.length} {ag.actos.length === 1 ? 'acto' : 'actos'}
+              Agenda, {ag.actos.length} {ag.actos.length === 1 ? 'acto' : 'actos'}
             </span>
             <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-              {ag.actos.map((a) => [a.hora, a.texto].filter(Boolean).join(' ')).join(' · ')}
+              {ag.actos.map((a) => [a.hora, a.texto].filter(Boolean).join(' ')).join(', ')}
             </span>
           </span>
         ) : esGobierno ? (
@@ -487,7 +487,7 @@ function Seguimiento() {
               : todos.length === 0
                 ? 'Aún no sigues nada.'
                 : `${todos.length} ${todos.length === 1 ? 'asunto' : 'asuntos'}${
-                    conCambios.length ? ` · ${conCambios.length} con cambios desde tu última visita` : ''
+                    conCambios.length ? `, ${conCambios.length} con cambios desde tu última visita` : ''
                   }`}
           </p>
         </div>
@@ -498,7 +498,7 @@ function Seguimiento() {
                 Todo
               </button>
               <button type="button" aria-pressed={soloNovedades} onClick={() => setSoloNovedades(true)} style={segmento(soloNovedades)}>
-                Con novedades{conCambios.length ? ` · ${conCambios.length}` : ''}
+                Con novedades{conCambios.length ? ` (${conCambios.length})` : ''}
               </button>
             </div>
             <div style={{ width: 230 }}>
@@ -598,7 +598,7 @@ function Seguimiento() {
                     >
                       <span style={{ display: 'block', fontWeight: 500, lineHeight: 1.4 }}>{a.titulo}</span>
                       <span style={{ display: 'block', fontSize: 12, color: GRIS, marginTop: 3 }}>
-                        {[a.ministerio, a.alarma ? `Coincide con tu alarma «${a.alarma}»` : null].filter(Boolean).join(' · ')}
+                        {[a.ministerio, a.alarma ? `Coincide con tu alarma «${a.alarma}»` : null].filter(Boolean).join(', ')}
                         <i className="ti ti-external-link" style={{ fontSize: 12, marginLeft: 6, verticalAlign: -1 }} aria-label="Se abre en otra pestaña"></i>
                       </span>
                     </a>

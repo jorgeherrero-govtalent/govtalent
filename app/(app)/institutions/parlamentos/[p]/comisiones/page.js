@@ -153,7 +153,7 @@ export default function ComisionesAutonomicasPage() {
                       {c.reparto.map((g) => (
                         <span
                           key={g.grupo?.id}
-                          title={`${g.grupo?.sigla} · ${g.n}`}
+                          title={`${g.grupo?.sigla} (${g.n})`}
                           style={{ background: colorGrupo(g.grupo), width: `${(g.n / c.n_members) * 100}%` }}
                         ></span>
                       ))}
@@ -178,7 +178,7 @@ export default function ComisionesAutonomicasPage() {
                 {c.portavoces.length > 0 && (
                   <>
                     <div style={{ fontSize: 10, fontWeight: 700, color: '#999', textTransform: 'uppercase', letterSpacing: '.3px', margin: '10px 0 8px' }}>
-                      Portavoces · {c.portavoces.length}
+                      Portavoces ({c.portavoces.length})
                     </div>
                     <div style={{ display: 'flex', alignItems: 'center' }}>
                       {c.portavoces.slice(0, 5).map((d, i) => (

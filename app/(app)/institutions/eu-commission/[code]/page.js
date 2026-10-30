@@ -239,7 +239,7 @@ export default function DgDetailPage() {
               <div style={{ fontSize: 11.5, color: '#8b8780', marginTop: 5 }}>
                 {['Dirección General', 'Comisión Europea', dg.n_personas ? `${dg.n_personas} personas` : null]
                   .filter(Boolean)
-                  .join(' · ')}
+                  .join(', ')}
               </div>
             </div>
           </div>
@@ -329,7 +329,7 @@ export default function DgDetailPage() {
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ fontSize: 12.5, fontWeight: 600 }}>{p.full_name}</div>
                 <div style={{ fontSize: 10.5, color: '#a8a49c', marginTop: 2 }}>
-                  {[p.role, p.directorate || p.unit].filter(Boolean).join(' · ')}
+                  {[p.role, p.directorate || p.unit].filter(Boolean).join(', ')}
                 </div>
               </div>
               {p.email && !p.email_dubious ? (
@@ -341,7 +341,7 @@ export default function DgDetailPage() {
                 </a>
               ) : (
                 <BuscarCorreo
-                  persona={{ id: `ue-ejecutivo:${p.id}`, nombre: p.full_name, cargo: [p.role, dg.code].filter(Boolean).join(' · ') }}
+                  persona={{ id: `ue-ejecutivo:${p.id}`, nombre: p.full_name, cargo: [p.role, dg.code].filter(Boolean).join(', ') }}
                   encontrado={encontrados[`ue-ejecutivo:${p.id}`]}
                       probable={probables[`ue-ejecutivo:${p.id}`]}
                   onResultado={(r) => apuntar(`ue-ejecutivo:${p.id}`, r)}
@@ -407,7 +407,7 @@ export default function DgDetailPage() {
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ fontSize: 13, lineHeight: 1.45, letterSpacing: '-.1px' }}>{e.title}</div>
                   <div style={{ fontSize: 11, color: '#a8a49c', marginTop: 4 }}>
-                    {[e.act_type, !abierto ? 'cerrado' : null].filter(Boolean).join(' · ')}
+                    {[e.act_type, !abierto ? 'cerrado' : null].filter(Boolean).join(', ')}
                   </div>
                 </div>
               </Link>

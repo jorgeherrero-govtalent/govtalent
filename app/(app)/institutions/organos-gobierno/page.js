@@ -36,7 +36,7 @@ export default function OrganosGobiernoPage() {
       <div style={{ marginBottom: 14 }}>
         <h1 style={{ fontSize: 18, fontWeight: 700, margin: 0 }}>Congreso de los Diputados</h1>
         <p style={{ fontSize: 12, color: '#888', margin: '3px 0 0' }}>
-          {cifras.diputados ?? '—'} diputados · {cifras.grupos ?? '—'} grupos · {cifras.comisiones ?? '—'} comisiones ·
+          {cifras.diputados ?? '—'} diputados, {cifras.grupos ?? '—'} grupos, {cifras.comisiones ?? '—'} comisiones,
           XV Legislatura
         </p>
       </div>

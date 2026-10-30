@@ -7,10 +7,10 @@
 // desarrollo no se pueden abrir sus webs, así que esta ruta los lee desde
 // Vercel (como GovTalentBot, respetando el robots.txt) y devuelve el
 // contenido en bruto, recortado:
-//   · RSS/XML: el texto tal cual (hasta 60 KB).
-//   · HTML: sin <script>, <style> ni <svg>, hasta 80 KB, más la lista de
+//   - RSS/XML: el texto tal cual (hasta 60 KB).
+//   - HTML: sin <script>, <style> ni <svg>, hasta 80 KB, más la lista de
 //     enlaces de la página.
-//   · PDF: solo el tamaño (los PDF los leerá la IA).
+//   - PDF: solo el tamaño (los PDF los leerá la IA).
 // Si una URL es un RSS con «seguir», también trae la página del primer
 // elemento (para ver cómo es una ficha).
 //

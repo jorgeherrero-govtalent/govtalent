@@ -62,21 +62,21 @@ function haceCuanto(iso) {
 // arranque solo ofrece los cinco tipos regulatorios y deja fuera
 // diputados, comisarios, comisiones y grupos.
 const TIPOS_ARRANQUE = {
-  ley: ['Congreso · proyecto de ley', 'ti-file-text'],
-  actividad: ['Congreso · actividad parlamentaria', 'ti-file-text'],
-  expediente: ['Comisión Europea · expediente', 'ti-file-text'],
-  procedimiento: ['Parlamento Europeo · procedimiento', 'ti-gavel'],
+  ley: ['Congreso, proyecto de ley', 'ti-file-text'],
+  actividad: ['Congreso, actividad parlamentaria', 'ti-file-text'],
+  expediente: ['Comisión Europea, expediente', 'ti-file-text'],
+  procedimiento: ['Parlamento Europeo, procedimiento', 'ti-gavel'],
   // Una consulta con plazo de alegaciones abierto es el caso más claro de
   // asunto sobre el que se abre un proyecto: hay una fecha y hay algo que
   // presentar. Faltaba aquí, así que no se podían arrancar proyectos desde
   // ellas aunque el seguimiento sí existiera.
-  consulta: ['Ministerios · consulta pública', 'ti-message-2'],
+  consulta: ['Ministerios, consulta pública', 'ti-message-2'],
   boe: ['BOE', 'ti-news'],
 };
 
 const DEMO_LISTA = [
-  { id: 'demo-1', name: 'Ley de gobernanza de la IA', objetivo: 'Congreso · fase de enmiendas' },
-  { id: 'demo-2', name: 'Movilidad sostenible', objetivo: 'Trasposición · sin plazo abierto' },
+  { id: 'demo-1', name: 'Ley de gobernanza de la IA', objetivo: 'Congreso, fase de enmiendas' },
+  { id: 'demo-2', name: 'Movilidad sostenible', objetivo: 'Trasposición, sin plazo abierto' },
 ];
 
 export default function ProjectsPage() {
@@ -1064,7 +1064,7 @@ function Proyectos() {
           <div style={{ fontSize: 12, color: '#888', marginTop: 4 }}>
             {esPro ? (
               <>
-                {d.actores} {d.actores === 1 ? 'actor' : 'actores'} · {d.asuntos}{' '}
+                {d.actores} {d.actores === 1 ? 'actor' : 'actores'}, {d.asuntos}{' '}
                 {d.asuntos === 1 ? 'asunto' : 'asuntos'}
               </>
             ) : (

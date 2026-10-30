@@ -148,7 +148,7 @@ function ComisariosTab({ comisarios }) {
                   <div style={{ fontSize: 13, fontWeight: 700, lineHeight: 1.3 }}>{c.full_name}</div>
                   <div style={{ fontSize: 10.5, color: '#999', marginTop: 2 }}>
                     {RANGOS[c.rank] || c.rank}
-                    {c.country_name ? ` · ${c.country_name}` : ''}
+                    {c.country_name ? `, ${c.country_name}` : ''}
                   </div>
                   <div style={{ fontSize: 11.5, color: '#666', marginTop: 6, lineHeight: 1.45 }}>{c.portfolio_es}</div>
                 </div>
@@ -297,7 +297,7 @@ function UnidadesTab({ bodies, onSelect }) {
                 )}
                 <div style={{ marginTop: 3 }}>
                   <i className="ti ti-layout-grid" style={{ fontSize: 12, verticalAlign: -1, color: '#aaa' }}></i>{' '}
-                  {b.unidades} unidades · {b.jefes_unidad} jefaturas
+                  {b.unidades} unidades, {b.jefes_unidad} jefaturas
                 </div>
                 {/* Se conserva el filtrado que hacía la tarjeta antes,
                     ahora como acción secundaria: pulsar la tarjeta abre
@@ -416,7 +416,7 @@ function PersonasTab({ people, bodies, bodyFilter, setBodyFilter }) {
     () =>
       [...bodies]
         .sort((a, b) => a.name.localeCompare(b.name))
-        .map((b) => ({ value: b.code, label: `${b.code} · ${b.name}` })),
+        .map((b) => ({ value: b.code, label: `${b.code}, ${b.name}` })),
     [bodies]
   );
 
@@ -600,7 +600,7 @@ function PersonasTab({ people, bodies, bodyFilter, setBodyFilter }) {
                 <div style={{ minWidth: 0 }}>
                   <div style={{ fontSize: 12.5, fontWeight: 600 }}>{p.full_name}</div>
                   <div style={{ fontSize: 10.5, color: '#999' }}>
-                    {p.body_code ? `${p.body_code} · ${p.body_name}` : p.cabinet || '—'}
+                    {p.body_code ? `${p.body_code}, ${p.body_name}` : p.cabinet || '—'}
                   </div>
                 </div>
               </div>
@@ -756,7 +756,7 @@ export default function EuCommissionPage() {
           <h1 style={{ fontSize: 18, fontWeight: 700, margin: 0 }}>Comisión Europea</h1>
         </div>
         <p style={{ fontSize: 12, color: '#888', margin: 0 }}>
-          {people.length ? `${people.length} personas` : '—'} · {comisarios ? comisarios.length : '—'} comisarios ·{' '}
+          {people.length ? `${people.length} personas` : '—'}, {comisarios ? comisarios.length : '—'} comisarios,{' '}
           {bodies.length} direcciones generales
         </p>
       </div>

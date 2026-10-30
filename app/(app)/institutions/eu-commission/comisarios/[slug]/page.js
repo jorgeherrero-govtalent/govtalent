@@ -226,7 +226,7 @@ export default function ComisarioDetailPage() {
               </h1>
               <div style={{ fontSize: 12.5, color: '#3f3d39', marginTop: 6, lineHeight: 1.45 }}>{c.portfolio_es}</div>
               <div style={{ fontSize: 11.5, color: '#a8a49c', marginTop: 5 }}>
-                {[RANGOS[c.rank] || c.rank, c.country_name].filter(Boolean).join(' · ')}
+                {[RANGOS[c.rank] || c.rank, c.country_name].filter(Boolean).join(', ')}
               </div>
             </div>
           </div>
@@ -353,7 +353,7 @@ export default function ComisarioDetailPage() {
                     d.n_personas ? `${d.n_personas} personas` : null,
                   ]
                     .filter(Boolean)
-                    .join(' · ')}
+                    .join(', ')}
                 </div>
               </div>
               <i className="ti ti-chevron-right" style={{ color: '#d6d2ca', fontSize: 15, flexShrink: 0 }}></i>
@@ -414,7 +414,7 @@ export default function ComisarioDetailPage() {
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ fontSize: 13, lineHeight: 1.45, letterSpacing: '-.1px' }}>{e.title}</div>
                   <div style={{ fontSize: 11, color: '#a8a49c', marginTop: 4 }}>
-                    {[e.dg_code, e.act_type].filter(Boolean).join(' · ')}
+                    {[e.dg_code, e.act_type].filter(Boolean).join(', ')}
                   </div>
                 </div>
               </Link>

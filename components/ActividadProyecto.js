@@ -299,7 +299,7 @@ export default function ActividadProyecto({ projectId, userId }) {
                   }}
                 >
                   {etiquetaTipo(a.tipo)}
-                  {contraparte.length > 0 && ` · ${contraparte.map((p) => p.nombre).join(', ')}`}
+                  {contraparte.length > 0 && `, ${contraparte.map((p) => p.nombre).join(', ')}`}
                 </div>
                 {a.asunto && (
                   <div
@@ -328,7 +328,7 @@ export default function ActividadProyecto({ projectId, userId }) {
                         minWidth: 0,
                       }}
                     >
-                      · {asunto.etiqueta}
+                      {asunto.etiqueta}
                     </span>
                   )}
                 </div>

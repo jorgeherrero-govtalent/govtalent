@@ -183,7 +183,7 @@ export default function OrganismoPage() {
             <div style={{ fontSize: 12.5, color: '#888', marginTop: 4 }}>
               {[ETIQUETA_CATEGORIA[unidad.categoria] || unidad.categoria, unidad.raiz_nombre]
                 .filter(Boolean)
-                .join(' · ')}
+                .join(', ')}
             </div>
           </div>
 
@@ -283,7 +283,7 @@ export default function OrganismoPage() {
             >
               <div style={{ fontSize: 12.5, lineHeight: 1.5 }}>{d.titulo}</div>
               <div style={{ fontSize: 10.5, color: '#a8a49c', marginTop: 3 }}>
-                {[d.rango, fechaCorta(d.fecha_publicacion)].filter(Boolean).join(' · ')}
+                {[d.rango, fechaCorta(d.fecha_publicacion)].filter(Boolean).join(', ')}
               </div>
             </Link>
           ))}
@@ -314,7 +314,7 @@ export default function OrganismoPage() {
 
       {hijas.length > 0 && (
         <div className="card" style={{ padding: 20 }}>
-          <Etiqueta>UNIDADES DEPENDIENTES · {hijas.length}</Etiqueta>
+          <Etiqueta>UNIDADES DEPENDIENTES ({hijas.length})</Etiqueta>
           {hijas.map((h, i) => (
             <Link
               key={h.dir3_code}

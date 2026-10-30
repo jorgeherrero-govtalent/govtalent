@@ -160,7 +160,7 @@ export default function UsuariosDirectorio() {
             key={a.email}
             ini={iniciales(a.nombre || a.email)}
             titulo={a.nombre || a.email}
-            sub={a.con_cuenta ? a.email : `${a.email} · aún sin cuenta en GovTalent`}
+            sub={a.con_cuenta ? a.email : `${a.email}, aún sin cuenta en GovTalent`}
             derecha={
               <span style={{ display: 'inline-flex', alignItems: 'center', gap: 10 }}>
                 <span style={{ ...PILL, background: '#faf9f5', color: GRIS, border: '.5px solid #e0dfd8' }}>

@@ -82,7 +82,7 @@ export default function DisolucionPage() {
 
       <div style={{ margin: '14px 0 18px' }}>
         <div style={{ fontSize: 11, letterSpacing: '.06em', textTransform: 'uppercase', color: MORADO_O, fontWeight: 600 }}>
-          Disolución de las Cortes · {FECHA_DISOLUCION}
+          Disolución de las Cortes, {FECHA_DISOLUCION}
         </div>
         <h1 style={{ fontSize: 22, fontWeight: 600, margin: '6px 0 0', letterSpacing: '-.3px', textWrap: 'balance' }}>
           {leyes && leyes.length > 0
@@ -135,7 +135,7 @@ export default function DisolucionPage() {
                   <div style={{ fontSize: 12, color: GRIS, marginTop: 4 }}>
                     <span style={{ color: '#b8b4ac' }}>Se quedó en </span>
                     {l.seQuedo}
-                    {l.n_prorrogas > 0 && ` · ${l.n_prorrogas} ${l.n_prorrogas === 1 ? 'prórroga' : 'prórrogas'}`}
+                    {l.n_prorrogas > 0 && `, ${l.n_prorrogas} ${l.n_prorrogas === 1 ? 'prórroga' : 'prórrogas'}`}
                   </div>
                 )}
               </div>

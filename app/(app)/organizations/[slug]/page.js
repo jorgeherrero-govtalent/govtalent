@@ -70,10 +70,10 @@ export async function generateMetadata({ params }) {
   const { org } = await getOrgData(params.slug);
 
   if (!org) {
-    return { title: 'Organización no encontrada · GovTalent' };
+    return { title: 'Organización no encontrada | GovTalent' };
   }
 
-  const title = `${org.name} — Empleo en asuntos públicos · GovTalent`;
+  const title = `${org.name} — Empleo en asuntos públicos | GovTalent`;
   const description = (
     org.bio ||
     `Descubre las ofertas de empleo de ${org.name} en asuntos públicos, relaciones institucionales y comunicación.`
@@ -285,7 +285,7 @@ export default async function OrganizationPublicPage({ params }) {
               >
                 <div className="jt">{j.title}</div>
                 <div className="jo">
-                  {[j.location, MODALITY_LABELS[j.modality]].filter(Boolean).join(' · ')}
+                  {[j.location, MODALITY_LABELS[j.modality]].filter(Boolean).join(', ')}
                 </div>
                 {j.is_featured && (
                   <div style={{ marginTop: 5 }}>

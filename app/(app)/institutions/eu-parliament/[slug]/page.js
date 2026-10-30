@@ -428,7 +428,7 @@ export default function MepDetailPage() {
                 <span style={{ width: 9, height: 9, borderRadius: 2, background: groupColor, flexShrink: 0 }}></span>
                 <span style={{ fontSize: 12, color: '#555' }}>
                   {mep.political_group_code || '—'}
-                  {partyCode ? ` · ${partyCode}` : ''} · {countryName(mep.country_code)}
+                  {partyCode ? `, ${partyCode}` : ''}, {countryName(mep.country_code)}
                 </span>
               </div>
               {mep.mandate_start && (
@@ -474,7 +474,7 @@ export default function MepDetailPage() {
 
       {tab === 'actividad' && (
         <div style={CARD}>
-          <div style={LABEL}>Ahora mismo · 10ª legislatura</div>
+          <div style={LABEL}>Ahora mismo, 10ª legislatura</div>
           {current.length === 0 ? (
             <div style={{ fontSize: 12, color: '#aaa' }}>Sin comisiones ni delegaciones registradas.</div>
           ) : (
@@ -514,7 +514,7 @@ export default function MepDetailPage() {
             return (
               <div key={g.tipo} style={{ marginBottom: 18 }}>
                 <div style={LABEL}>
-                  {g.titulo} · {gente.length}
+                  {g.titulo} ({gente.length})
                 </div>
                 {g.nota ? <div style={{ fontSize: 11.5, color: '#a8a49c', margin: '-6px 0 8px' }}>{g.nota}</div> : null}
                 {visibles.map((e) => {
@@ -685,17 +685,17 @@ export default function MepDetailPage() {
             <div style={{ fontSize: 11.5, color: '#555', lineHeight: 1.9 }}>
               {mep.birth_date && (
                 <div>
-                  <span style={{ color: '#999' }}>Nacimiento</span> · {longDate(mep.birth_date)}
+                  <span style={{ color: '#999' }}>Nacimiento</span>, {longDate(mep.birth_date)}
                 </div>
               )}
               {mep.place_of_birth && (
                 <div>
-                  <span style={{ color: '#999' }}>Lugar</span> · {mep.place_of_birth}
+                  <span style={{ color: '#999' }}>Lugar</span>, {mep.place_of_birth}
                 </div>
               )}
               {mep.national_party?.name_es && (
                 <div>
-                  <span style={{ color: '#999' }}>Partido</span> · {mep.national_party.name_es}
+                  <span style={{ color: '#999' }}>Partido</span>, {mep.national_party.name_es}
                 </div>
               )}
               {!mep.birth_date && !mep.place_of_birth && !mep.national_party?.name_es && (

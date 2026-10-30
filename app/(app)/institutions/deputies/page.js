@@ -160,7 +160,7 @@ function Committees({ list }) {
       {shown.map((c, i) => (
         <div key={i} style={{ color: c.label ? '#555' : '#999' }}>
           {c.nombre}
-          {c.label ? <span style={{ color: '#aaa' }}> · {c.label}</span> : ''}
+          {c.label ? <span style={{ color: '#aaa' }}>, {c.label}</span> : ''}
         </div>
       ))}
       {rest > 0 && <div style={{ color: '#aaa' }}>+{rest} más</div>}
@@ -355,7 +355,7 @@ function DeputiesDirectoryInner() {
       <div style={{ marginBottom: 14 }}>
         <h1 style={{ fontSize: 18, fontWeight: 700, margin: 0 }}>Diputados</h1>
         <p style={{ fontSize: 12, color: '#888', margin: '3px 0 0' }}>
-          {deputies ? deputies.length : '—'} diputados · {groups.length} grupos · XV Legislatura{DISUELTA ? ' (Cortes disueltas)' : ''}
+          {deputies ? deputies.length : '—'} diputados, {groups.length} grupos, XV Legislatura{DISUELTA ? ' (Cortes disueltas)' : ''}
         </p>
       </div>
 
@@ -364,8 +364,8 @@ function DeputiesDirectoryInner() {
       {DISUELTA && (
         <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 12 }} role="group" aria-label="Estado del mandato">
           {[
-            [false, `Todos · ${deputies ? deputies.length : '—'}`],
-            [true, `En funciones (Diputación Permanente) · ${enFunciones ? enFunciones.size : '—'}`],
+            [false, `Todos (${deputies ? deputies.length : '—'})`],
+            [true, `En funciones (Diputación Permanente) (${enFunciones ? enFunciones.size : '—'})`],
           ].map(([v, texto]) => (
             <button
               key={String(v)}

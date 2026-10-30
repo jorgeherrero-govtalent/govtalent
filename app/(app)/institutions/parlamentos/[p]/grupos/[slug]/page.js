@@ -9,8 +9,8 @@ import { PARLAMENTOS_UI, base, useComposicion, limpiarComision, normalizar, fech
 
 /**
  * Ficha de un grupo parlamentario autonómico. Copia de la del Congreso:
- * cabecera con logo y cifras, y pestañas Resumen · Portavoces ·
- * Diputados · Equipo. El equipo son los técnicos del grupo que publica
+ * cabecera con logo y cifras, y pestañas Resumen, Portavoces,
+ * Diputados, Equipo. El equipo son los técnicos del grupo que publica
  * la Asamblea en sus datos abiertos (sin correo: no se publica).
  */
 
@@ -143,11 +143,11 @@ export default function GrupoAutonomicoPage() {
                 tecnicos.length ? `${tecnicos.length} ${tecnicos.length === 1 ? 'técnico' : 'técnicos'}` : null,
               ]
                 .filter(Boolean)
-                .join(' · ')}
+                .join(', ')}
             </div>
             <div style={{ fontSize: 11.5, color: '#999', marginTop: 2 }}>
-              {cfg.nombre} · {cfg.legislatura} Legislatura
-              {grupo.fecha_constitucion ? ` · constituido el ${fechaCorta(grupo.fecha_constitucion)}` : ''}
+              {cfg.nombre}, {cfg.legislatura} Legislatura
+              {grupo.fecha_constitucion ? `, constituido el ${fechaCorta(grupo.fecha_constitucion)}` : ''}
             </div>
           </div>
         </div>
@@ -231,7 +231,7 @@ export default function GrupoAutonomicoPage() {
 
           {diputados.length > 0 && (
             <div style={CARD}>
-              <div style={LABEL}>Quiénes son · {diputados.length}</div>
+              <div style={LABEL}>Quiénes son ({diputados.length})</div>
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
                 {diputados.slice(0, 24).map((d) => (
                   <Link key={d.id} href={`${base(p)}/diputados/${d.slug}`} title={d.nombre}>
@@ -327,7 +327,7 @@ export default function GrupoAutonomicoPage() {
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ fontSize: 12.5, fontWeight: 600 }}>{t.nombre}</div>
                     <div style={{ fontSize: 10.5, color: '#999', marginTop: 1 }}>
-                      {[t.cargo, t.fecha_inicio ? `desde ${fechaCorta(t.fecha_inicio)}` : null].filter(Boolean).join(' · ')}
+                      {[t.cargo, t.fecha_inicio ? `desde ${fechaCorta(t.fecha_inicio)}` : null].filter(Boolean).join(', ')}
                     </div>
                   </div>
                   <span style={{ fontSize: 11, color: '#a8a49c', flexShrink: 0 }}>sin correo publicado</span>

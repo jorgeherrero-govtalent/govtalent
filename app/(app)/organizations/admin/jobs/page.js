@@ -468,11 +468,11 @@ export default function AllJobsPage() {
                   <div style={{ fontSize: 14.5, fontWeight: 600 }}>{j.title}</div>
                   <div style={{ fontSize: 12.5, color: '#666', marginTop: 2 }}>{j.area}</div>
                   <div style={{ fontSize: 12, color: '#999', marginTop: 2 }}>
-                    {j.location} · {j.modality === 'presencial' ? 'Presencial' : j.modality === 'hibrido' ? 'Híbrido' : 'Remoto'}
+                    {j.location}, {j.modality === 'presencial' ? 'Presencial' : j.modality === 'hibrido' ? 'Híbrido' : 'Remoto'}
                   </div>
                   {j.application_mode === 'externa' && (
                     <div style={{ fontSize: 11.5, color: '#999', marginTop: 5 }}>
-                      Gestión externa · {j.external_apply_clicks || 0} clics a tu web
+                      Gestión externa: {j.external_apply_clicks || 0} clics a tu web
                     </div>
                   )}
                 </div>

@@ -4,8 +4,8 @@ import { normalizarFiltros, filtrosVacios } from '@/lib/contactosFiltros';
 
 // GET  /api/contactos/listas  → las listas que ve el usuario, con cifras y cambios
 // POST /api/contactos/listas  body: { nombre, ids?, filtros?, consulta?, todos? }
-//   · ids: crea la lista con esas personas (sin búsqueda guardada).
-//   · todos + filtros: guarda la búsqueda entera (hasta 2.000) y la
+//   - ids: crea la lista con esas personas (sin búsqueda guardada).
+//   - todos + filtros: guarda la búsqueda entera (hasta 2.000) y la
 //     recuerda: lo nuevo que cumpla los filtros saldrá como incorporación.
 
 export const dynamic = 'force-dynamic';

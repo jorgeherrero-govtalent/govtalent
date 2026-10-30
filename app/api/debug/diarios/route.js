@@ -143,7 +143,7 @@ const espera = (ms) => new Promise((r) => setTimeout(r, ms));
 
 function causa(e) {
   const c = e?.cause || e;
-  return [c?.code, c?.message || e?.message].filter(Boolean).join(' · ').slice(0, 200);
+  return [c?.code, c?.message || e?.message].filter(Boolean).join(', ').slice(0, 200);
 }
 
 async function pedir(url) {
@@ -168,13 +168,13 @@ function muestra(texto, tipo) {
   if (/<rss|<rdf:RDF|<feed/i.test(t.slice(0, 2000))) {
     const n = (t.match(/<item[\s>]/gi) || []).length || (t.match(/<entry[\s>]/gi) || []).length;
     const primero = (t.match(/<(?:item|entry)[\s\S]*?<title[^>]*>([\s\S]*?)<\/title>/i) || [])[1] || '';
-    return `RSS con ${n} elementos · ${limpiar(primero)}`.slice(0, MUESTRA_MAX);
+    return `RSS con ${n} elementos, ${limpiar(primero)}`.slice(0, MUESTRA_MAX);
   }
-  if (/json/i.test(tipo || '') || /^\s*[[{]/.test(t)) return `JSON · ${t.replace(/\s+/g, ' ').slice(0, 140)}`.slice(0, MUESTRA_MAX);
-  if (/^\s*<\?xml/i.test(t) || /xml/i.test(tipo || '')) return `XML · ${t.replace(/\s+/g, ' ').slice(0, 140)}`.slice(0, MUESTRA_MAX);
+  if (/json/i.test(tipo || '') || /^\s*[[{]/.test(t)) return `JSON, ${t.replace(/\s+/g, ' ').slice(0, 140)}`.slice(0, MUESTRA_MAX);
+  if (/^\s*<\?xml/i.test(t) || /xml/i.test(tipo || '')) return `XML, ${t.replace(/\s+/g, ' ').slice(0, 140)}`.slice(0, MUESTRA_MAX);
   const titulo = (t.match(/<title[^>]*>([\s\S]*?)<\/title>/i) || [])[1];
-  if (titulo) return `HTML · ${limpiar(titulo)}`.slice(0, MUESTRA_MAX);
-  return `${tipo || 'desconocido'} · ${t.replace(/\s+/g, ' ').slice(0, 100)}`.slice(0, MUESTRA_MAX);
+  if (titulo) return `HTML, ${limpiar(titulo)}`.slice(0, MUESTRA_MAX);
+  return `${tipo || 'desconocido'}, ${t.replace(/\s+/g, ' ').slice(0, 100)}`.slice(0, MUESTRA_MAX);
 }
 
 /** Fechas útiles para medir la hora de publicación de un RSS. */
@@ -246,7 +246,7 @@ function veredicto(sitios) {
   const ok = urls.filter((u) => u.status >= 200 && u.status < 300).length;
   const prohibidas = urls.filter((u) => u.robots === 'prohibido por robots.txt').length;
   const fallos = urls.length - ok - prohibidas;
-  return `${ok}/${urls.length} accesibles${prohibidas ? ` · ${prohibidas} prohibidas por robots.txt` : ''}${fallos ? ` · ${fallos} con error` : ''}`;
+  return `${ok}/${urls.length} accesibles${prohibidas ? `, ${prohibidas} prohibidas por robots.txt` : ''}${fallos ? `, ${fallos} con error` : ''}`;
 }
 
 export async function GET(request) {

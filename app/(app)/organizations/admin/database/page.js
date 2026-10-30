@@ -708,7 +708,7 @@ export default function OrganizationsDatabasePage() {
             <div style={{ padding: '20px 24px', borderRight: '1px solid #f0efe9', borderBottom: '1px solid #f0efe9' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 14 }}>
                 <div style={{ fontSize: 11.5, fontWeight: 600, color: '#a3a297', letterSpacing: '.04em' }}>
-                  TOP SECTORES <span style={{ color: '#d5d4c9' }}>· {biStats.topSectors.length}</span>
+                  TOP SECTORES <span style={{ color: '#d5d4c9' }}>({biStats.topSectors.length})</span>
                 </div>
                 {biStats.topSectors.length > 5 && (
                   <button
@@ -728,7 +728,7 @@ export default function OrganizationsDatabasePage() {
             <div style={{ padding: '20px 24px', borderBottom: '1px solid #f0efe9' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 14 }}>
                 <div style={{ fontSize: 11.5, fontWeight: 600, color: '#a3a297', letterSpacing: '.04em' }}>
-                  TOP UBICACIONES <span style={{ color: '#d5d4c9' }}>· {biStats.topLocations.length}</span>
+                  TOP UBICACIONES <span style={{ color: '#d5d4c9' }}>({biStats.topLocations.length})</span>
                 </div>
                 {biStats.topLocations.length > 5 && (
                   <button

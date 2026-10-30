@@ -429,13 +429,13 @@ export default function LeyesList() {
                 </div>
 
                 {/* "En" delante de la situación evita que se confunda con
-                    el autor: "Gobierno · Contestación" a secas parecía que
+                    el autor: "Gobierno, Contestación" a secas parecía que
                     lo presentaba el Gobierno, cuando es dónde está. */}
                 <div style={{ fontSize: 10.5, color: i.is_blocked || esCaducada(i) ? '#aaa' : '#999', marginTop: 4 }}>
                   {i.situacion && <span style={{ color: '#bbb' }}>{esCaducada(i) ? 'Se quedó en ' : 'En '}</span>}
                   {[i.situacion, i.fase, i.n_ponentes > 0 ? `${i.n_ponentes} ponentes` : null]
                     .filter(Boolean)
-                    .join(' · ')}
+                    .join(', ')}
                 </div>
 
                 {/* Los grupos proponentes con su color: en las coaliciones
@@ -459,7 +459,7 @@ export default function LeyesList() {
                     <i className="ti ti-clock-pause" style={{ fontSize: 12, color: '#b0aea6' }}></i>
                     <span style={{ fontSize: 10.5, color: '#999' }}>
                       {i.motivo_bloqueo === 'prorrogas'
-                        ? `Plazo prorrogado ${i.n_prorrogas} veces · sin actuación desde ${fechaLarga(i.ultima_actuacion)}`
+                        ? `Plazo prorrogado ${i.n_prorrogas} veces, sin actuación desde ${fechaLarga(i.ultima_actuacion)}`
                         : `Sin actuación desde ${fechaLarga(i.ultima_actuacion)}`}
                     </span>
                   </div>

@@ -134,7 +134,7 @@ export default function LoginPanel() {
                   Ley de gobernanza de la inteligencia artificial
                 </div>
                 <div style={{ fontSize: 10, color: '#8b8780', marginTop: 3, lineHeight: 1.4 }}>
-                  Congreso · Comisión de Economía, Comercio y Transformación Digital
+                  Congreso: Comisión de Economía, Comercio y Transformación Digital
                 </div>
               </div>
               <span
@@ -239,7 +239,7 @@ export default function LoginPanel() {
                 </div>
               </div>
 
-              <Oferta titulo="Consultor/a de asuntos públicos" meta="Madrid · Híbrido · Jornada completa" encaje="92%" />
+              <Oferta titulo="Consultor/a de asuntos públicos" meta="Madrid, Híbrido, Jornada completa" encaje="92%" />
 
               <div style={{ marginTop: 10 }}>
                 <span

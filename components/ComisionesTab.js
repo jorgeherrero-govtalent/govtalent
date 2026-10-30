@@ -237,7 +237,7 @@ export default function ComisionesTab() {
                       {c.reparto.map((g) => (
                         <span
                           key={g.sigla}
-                          title={`${nombreSigla(g.sigla)} · ${g.n}`}
+                          title={`${nombreSigla(g.sigla)} (${g.n})`}
                           style={{
                             background: colorSigla(g.sigla),
                             width: `${(g.n / c.reparto.reduce((t, x) => t + x.n, 0)) * 100}%`,
@@ -288,7 +288,7 @@ export default function ComisionesTab() {
                         margin: '10px 0 8px',
                       }}
                     >
-                      Portavoces · {c.n_portavoces}
+                      Portavoces ({c.n_portavoces})
                     </div>
                     <div style={{ display: 'flex', alignItems: 'center' }}>
                       {(c.portavoces_muestra || []).map((p, i) => (

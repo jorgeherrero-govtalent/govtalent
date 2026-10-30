@@ -46,7 +46,7 @@ export function PestanasParlamento({ p }) {
   );
 }
 
-/** Cabecera de las cuatro pestañas: «Asamblea de Madrid · 135 diputados · 4 grupos · … · XIII Legislatura». */
+/** Cabecera de las cuatro pestañas: «Asamblea de Madrid, 135 diputados, 4 grupos, …, XIII Legislatura». */
 export function CabeceraParlamento({ p, titulo, datos }) {
   const cfg = PARLAMENTOS_UI[p];
   const nCom = datos ? datos.comisiones.filter(esComision).length : null;
@@ -72,7 +72,7 @@ export function CabeceraParlamento({ p, titulo, datos }) {
         ) : null}
       </div>
       <p style={{ fontSize: 12, color: '#888', margin: '3px 0 0' }}>
-        {datos ? datos.diputados.length : '—'} diputados · {datos ? datos.grupos.length : '—'} grupos · {nCom ?? '—'} comisiones ·{' '}
+        {datos ? datos.diputados.length : '—'} diputados, {datos ? datos.grupos.length : '—'} grupos, {nCom ?? '—'} comisiones,{' '}
         {cfg.legislatura} Legislatura
       </p>
     </div>

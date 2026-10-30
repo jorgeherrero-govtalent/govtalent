@@ -300,7 +300,7 @@ function Contador({ usadas, limite, esPro }) {
         ))}
       </span>
       {usadas} de {limite}
-      {!esPro && ' · Free'}
+      {!esPro && ', Free'}
     </span>
   );
 }
@@ -502,7 +502,7 @@ function AgenteTrabajando({ p }) {
       {p.nombre && (
         <div style={{ fontSize: 12, color: GRIS, marginTop: 8 }}>
           Alarma: <b style={{ color: TINTA, fontWeight: 500 }}>{p.nombre}</b>
-          {(p.temas || []).length > 0 ? ` · ${p.temas.slice(0, 4).join(', ')}` : ''}
+          {(p.temas || []).length > 0 ? `, ${p.temas.slice(0, 4).join(', ')}` : ''}
         </div>
       )}
 
@@ -1393,7 +1393,7 @@ export default function AlarmasTab({ seccion = 'alarmas' }) {
     procedimiento: 'Parlamento Europeo',
     cargo: 'Gobierno',
   };
-  const fuenteCorta = (f, kind) => String(f || fuenteDeKind[kind] || 'Otras').split(' · ')[0];
+  const fuenteCorta = (f, kind) => String(f || fuenteDeKind[kind] || 'Otras').split(', ')[0];
 
   // Lo encontrado, una vez por asunto aunque lo hayan encontrado dos
   // alarmas: se guarda qué alarmas lo encontraron para poder filtrar.
@@ -1552,12 +1552,12 @@ export default function AlarmasTab({ seccion = 'alarmas' }) {
     x.tipo === 'enc' ? (
       <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 11, fontWeight: 500, color: MORADO_O, background: MORADO_S, borderRadius: 20, padding: '3px 9px', maxWidth: '100%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
         <i className="ti ti-sparkles" style={{ fontSize: 11 }} aria-hidden="true"></i>
-        {x.alertas.size > 1 ? `Encontrado por ${x.alertas.size} alarmas` : `Encontrado · ${x.alarma}`}
+        {x.alertas.size > 1 ? `Encontrado por ${x.alertas.size} alarmas` : `Encontrado por ${x.alarma}`}
       </span>
     ) : (
       <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 11, fontWeight: 500, color: '#3a3935', background: '#efeee9', borderRadius: 20, padding: '3px 9px', maxWidth: '100%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
         <i className="ti ti-check" style={{ fontSize: 11 }} aria-hidden="true"></i>
-        {x.proyecto ? `Proyecto · ${x.proyecto}` : 'Lo sigues'}
+        {x.proyecto ? `Proyecto: ${x.proyecto}` : 'Lo sigues'}
       </span>
     );
 
@@ -1641,9 +1641,9 @@ export default function AlarmasTab({ seccion = 'alarmas' }) {
               ? 'Revisa lo nuevo y decide: seguirlo o descartarlo. Lo revisado sale de la bandeja.'
               : alarmas.length === 0
                 ? 'Lo que el agente vigila por ti y cómo te avisa.'
-                : `${activas.length} de ${limites.alarmas} ${limites.alarmas === 1 ? 'activa' : 'activas'} · ${
+                : `${activas.length} de ${limites.alarmas} ${limites.alarmas === 1 ? 'activa' : 'activas'}, ${
                     correos ? `avisos a ${email}` : 'correos desactivados'
-                  }${esPro ? '' : ' · en Free, los lunes'}`}
+                  }${esPro ? '' : ', en Free, los lunes'}`}
             {enNovedades && revisada ? ` Revisado ${haceCuanto(revisada)}.` : ''}
           </p>
         </div>
@@ -2109,7 +2109,7 @@ export default function AlarmasTab({ seccion = 'alarmas' }) {
                     <div style={{ fontSize: 14, fontWeight: 600, color: a.activa ? TINTA : GRIS }}>{a.nombre}</div>
                     <div style={{ fontSize: 12.5, color: GRIS, marginTop: 3 }}>
                       {a.activa
-                        ? `${FRASE_FRECUENCIA[freq] || 'Los lunes'}${esPro && a.recordar_plazos !== false ? ' · plazos recordados' : ''}`
+                        ? `${FRASE_FRECUENCIA[freq] || 'Los lunes'}${esPro && a.recordar_plazos !== false ? ', plazos recordados' : ''}`
                         : a.pausada_por_plan
                           ? 'En pausa por tu plan'
                           : 'En pausa'}
@@ -2139,7 +2139,7 @@ export default function AlarmasTab({ seccion = 'alarmas' }) {
                           plazo || `${cuando.getDate()} ${['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'][cuando.getMonth()]}`,
                         ]
                           .filter(Boolean)
-                          .join(' · ');
+                          .join(', ');
                         const fila = (
                           <>
                             <span style={{ flex: 1, minWidth: 0, fontSize: 13, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{m.titulo}</span>

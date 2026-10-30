@@ -172,7 +172,7 @@ export default function ActividadDetailPage() {
           <div style={{ minWidth: 0 }}>
             <h1 style={{ fontSize: 16, fontWeight: 700, margin: 0, lineHeight: 1.35 }}>{item.titulo}</h1>
             <div style={{ fontSize: 11.5, color: '#666', marginTop: 6 }}>
-              {item.kind_label} · Congreso de los Diputados
+              {item.kind_label}, Congreso de los Diputados
             </div>
           </div>
           <div style={{ display: 'flex', gap: 4, flexShrink: 0, alignItems: 'center' }}>
@@ -302,7 +302,7 @@ export default function ActividadDetailPage() {
             <div style={{ flex: 1, minWidth: 0 }}>
               <div style={{ fontSize: 12.5, fontWeight: 600 }}>{comision.committee_name}</div>
               <div style={{ fontSize: 10.5, color: '#999', marginTop: 1 }}>
-                {comision.n_members} miembros · {portavoces.length} portavoces
+                {comision.n_members} miembros, {portavoces.length} portavoces
               </div>
             </div>
             <i className="ti ti-chevron-right" style={{ color: '#ccc', fontSize: 14, flexShrink: 0 }}></i>

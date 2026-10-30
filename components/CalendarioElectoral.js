@@ -126,7 +126,7 @@ export default function CalendarioElectoral() {
       <button type="button" className="ce-cabecera" onClick={() => setAbierta((v) => !v)} aria-expanded={abierta}>
         <span style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 3 }}>
           <span style={{ fontSize: 10.5, letterSpacing: '.06em', textTransform: 'uppercase', color: MORADO_O, fontWeight: 600 }}>
-            {ELECCIONES.nombre} · 29 de noviembre
+            {ELECCIONES.nombre}, 29 de noviembre
           </span>
           {siguiente && <span style={{ fontSize: 12.5, color: GRIS, lineHeight: 1.45 }}>{siguiente}</span>}
         </span>

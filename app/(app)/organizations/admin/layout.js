@@ -134,7 +134,7 @@ export default function OrganizationAdminLayout({ children }) {
             {org?.logo_url ? (
               <img src={org.logo_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
             ) : (
-              (org?.name || '·').charAt(0).toUpperCase()
+              (org?.name || '?').charAt(0).toUpperCase()
             )}
           </span>
 
@@ -146,7 +146,7 @@ export default function OrganizationAdminLayout({ children }) {
                 Free en gris y los de pago en lila: se distingue de un
                 vistazo sin gritar. */}
             <div style={{ display: 'flex', alignItems: 'center', gap: 9, flexWrap: 'wrap' }}>
-              <span style={{ fontSize: 19, fontWeight: 600, lineHeight: 1.3 }}>{org?.name || '·'}</span>
+              <span style={{ fontSize: 19, fontWeight: 600, lineHeight: 1.3 }}>{org?.name || ''}</span>
               {org && (
                 <span
                   style={{
@@ -170,7 +170,7 @@ export default function OrganizationAdminLayout({ children }) {
               ) : cifras ? (
                 <>
                   {cifras.ofertas} {cifras.ofertas === 1 ? 'oferta activa' : 'ofertas activas'}
-                  {' · '}
+                  {', '}
                   {cifras.candidaturas} {cifras.candidaturas === 1 ? 'candidatura' : 'candidaturas'}
                 </>
               ) : null}

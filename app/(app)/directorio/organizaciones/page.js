@@ -10,10 +10,10 @@ import { SECCIONES_DIRECTORIO, FUSIONES } from '@/lib/directorio';
  *
  * Dos bloques, con las mismas tarjetas que Instituciones (maqueta elegida
  * el 05-10-2026, opción 1):
- *   · Organizaciones: patronales y asociaciones sectoriales (una sola
+ *   - Organizaciones: patronales y asociaciones sectoriales (una sola
  *     tarjeta con dos pestañas), sociedades estatales y corporaciones de
  *     derecho público.
- *   · Medios y actores sociales: prensa, radio y televisión, partidos,
+ *   - Medios y actores sociales: prensa, radio y televisión, partidos,
  *     sindicatos, ONG y organismos internacionales.
  *
  * A diferencia de Instituciones, aquí las cifras se consultan en vivo: salen
@@ -52,7 +52,7 @@ const BLOQUES = [
 function etiqueta(seccion, cifra) {
   if (!cifra) return seccion.unidad;
   if (cifra.personas === null || cifra.personas === undefined) return seccion.unidad;
-  return `${seccion.unidad} · ${cifra.personas.toLocaleString('es-ES')} contactos`;
+  return `${seccion.unidad}, ${cifra.personas.toLocaleString('es-ES')} contactos`;
 }
 
 // Las secciones fusionadas (FUSIONES) se pintan como una sola tarjeta que

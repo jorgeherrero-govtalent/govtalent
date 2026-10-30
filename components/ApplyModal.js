@@ -146,7 +146,7 @@ export default function ApplyModal({ job, onClose, onSuccess }) {
         </div>
 
         <div style={{ fontSize: 13, color: '#666', marginBottom: 18 }}>
-          <b>{job.title}</b> · {job.organizations?.name}
+          <b>{job.title}</b>, {job.organizations?.name}
         </div>
 
         <div className="m-steps">

@@ -78,7 +78,7 @@ function Fila({ it, seccion, base, ultima }) {
     it.personas ? `${it.personas} ${it.personas === 1 ? 'persona' : 'personas'}` : null,
   ]
     .filter(Boolean)
-    .join(' · ');
+    .join(', ');
   return (
     <Link
       href={parl ? `/institutions/parlamentos/${parl}/comisiones` : `${base}/${it.id}`}
@@ -137,7 +137,7 @@ function Fila({ it, seccion, base, ultima }) {
 // aquí: la fila lleva su web.
 function FilaAsociacion({ it, seccion, ultima }) {
   const web = urlWeb(it.web);
-  const meta = [SECTOR_LABELS[it.sector] || null, it.ciudad].filter(Boolean).join(' · ');
+  const meta = [SECTOR_LABELS[it.sector] || null, it.ciudad].filter(Boolean).join(', ');
   return (
     <div
       style={{

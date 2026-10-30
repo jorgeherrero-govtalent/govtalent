@@ -255,7 +255,7 @@ function Resultados() {
                           whiteSpace: 'nowrap',
                         }}
                       >
-                        {[ETIQUETA_TIPO[f.kind] || f.grupo, f.contexto].filter(Boolean).join(' · ')}
+                        {[ETIQUETA_TIPO[f.kind] || f.grupo, f.contexto].filter(Boolean).join(', ')}
                       </div>
                     </div>
                     <i className="ti ti-chevron-right" style={{ fontSize: 15, color: '#c9c7bd', flexShrink: 0 }}></i>

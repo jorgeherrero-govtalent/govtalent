@@ -142,7 +142,7 @@ function QuienDecide({ e, actores }) {
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ fontSize: 12.5, fontWeight: 600 }}>{comision.nombre}</div>
                 <div style={{ fontSize: 10.5, color: '#999', marginTop: 1 }}>
-                  Comisión competente{mesa?.n_miembros ? ` · ${mesa.n_miembros} miembros` : ''}
+                  Comisión competente{mesa?.n_miembros ? `, ${mesa.n_miembros} miembros` : ''}
                 </div>
               </div>
               <span style={{ color: '#ccc', fontSize: 14, flexShrink: 0 }}>›</span>
@@ -151,11 +151,11 @@ function QuienDecide({ e, actores }) {
             <div style={{ ...FILA, fontSize: 12.5, fontWeight: 600 }}>{e.comision}</div>
           )}
           {mesa?.presidencia && <Persona c={mesa.presidencia} p={p} sub="Preside la comisión" size={34} />}
-          {resto.length > 0 && <div style={{ fontSize: 10.5, color: '#999', padding: '7px 0 2px', lineHeight: 1.5 }}>{resto.join(' · ')}</div>}
+          {resto.length > 0 && <div style={{ fontSize: 10.5, color: '#999', padding: '7px 0 2px', lineHeight: 1.5 }}>{resto.join(', ')}</div>}
 
           {mesa?.portavoces?.length > 0 && (
             <>
-              <div style={{ ...LABEL, marginTop: 16 }}>Portavoces en la comisión · {mesa.portavoces.length}</div>
+              <div style={{ ...LABEL, marginTop: 16 }}>Portavoces en la comisión ({mesa.portavoces.length})</div>
               {mesa.portavoces.map((c) => (
                 <Persona
                   key={c.id}
@@ -198,8 +198,8 @@ function QuienDecide({ e, actores }) {
 
       {comp.length > 0 && (
         <>
-          <div style={{ ...LABEL, marginTop: arriba() }}>Quién comparece · {comp.length}</div>
-          <div style={{ fontSize: 12, lineHeight: 1.6 }}>{comp.join(' · ')}</div>
+          <div style={{ ...LABEL, marginTop: arriba() }}>Quién comparece ({comp.length})</div>
+          <div style={{ fontSize: 12, lineHeight: 1.6 }}>{comp.join(', ')}</div>
         </>
       )}
 
@@ -258,7 +258,7 @@ function Fuente({ t }) {
       ) : (
         texto
       )}
-      {['boletin_ia', 'boletin_relectura'].includes(t.origen) && <span style={{ color: MORADO }}> · leído por GovTalent</span>}
+      {['boletin_ia', 'boletin_relectura'].includes(t.origen) && <span style={{ color: MORADO }}>, leído por GovTalent</span>}
     </>
   );
 }
@@ -364,7 +364,7 @@ export default function FichaParlamentoAutonomico() {
             Parlamentos autonómicos
           </Link>{' '}
           › {CCAA[e.parlamento]}
-          {numVisible ? ` · ${numVisible}` : ''}
+          {numVisible ? `, ${numVisible}` : ''}
         </span>
       </div>
 
@@ -372,7 +372,7 @@ export default function FichaParlamentoAutonomico() {
         <div style={{ display: 'flex', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap', alignItems: 'flex-start' }}>
           <div style={{ flex: '1 1 420px', minWidth: 0 }}>
             <div style={{ fontSize: 12, color: e.tipo_norm === 'presupuestos' || e.tipo_norm === 'acompanamiento' ? MORADO : GRIS }}>
-              {[ETIQUETA_TIPO[e.tipo_norm] || e.tipo, e.autor].filter(Boolean).join(' · ')}
+              {[ETIQUETA_TIPO[e.tipo_norm] || e.tipo, e.autor].filter(Boolean).join(', ')}
             </div>
             <h1 style={{ fontSize: 22, lineHeight: 1.3, fontWeight: 600, margin: '6px 0 0', letterSpacing: '-.3px' }}>{titulo}</h1>
           </div>
@@ -409,7 +409,7 @@ export default function FichaParlamentoAutonomico() {
                   <div>{t.descripcion || '—'}</div>
                   {t.plazo_hasta && <div style={{ fontSize: 12.5, color: '#4b3bc4', marginTop: 2 }}>Hasta el {finDePlazoTexto(t.plazo_hasta)}</div>}
                   <div style={{ fontSize: 12, color: GRIS, marginTop: 3 }}>
-                    {t.organo ? `${t.organo} · ` : ''}
+                    {t.organo ? `${t.organo}, ` : ''}
                     <Fuente t={t} />
                   </div>
                 </div>
@@ -475,7 +475,7 @@ export default function FichaParlamentoAutonomico() {
                   {leyes.map((l, i) => (
                     <li key={i} style={{ marginBottom: 4 }}>
                       {l.ley}
-                      {l.materia ? <span style={{ color: GRIS }}> · {l.materia}</span> : null}
+                      {l.materia ? <span style={{ color: GRIS }}>, {l.materia}</span> : null}
                     </li>
                   ))}
                 </ul>

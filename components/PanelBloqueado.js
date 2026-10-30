@@ -187,10 +187,10 @@ export const FILAS_COMISION_EU = [
 ];
 
 export const FILAS_EURODIPUTADOS = [
-  { iniciales: 'PO', nombre: 'Nombre del ponente', cargo: 'Ponente · Comisión competente' },
+  { iniciales: 'PO', nombre: 'Nombre del ponente', cargo: 'Ponente, Comisión competente' },
   { iniciales: 'PA', nombre: 'Nombre del ponente alternativo', cargo: 'Ponente alternativo' },
-  { iniciales: 'ED', nombre: 'Nombre del eurodiputado', cargo: 'Miembro titular · España' },
-  { iniciales: 'ES', nombre: 'Nombre del eurodiputado', cargo: 'Miembro suplente · España' },
+  { iniciales: 'ED', nombre: 'Nombre del eurodiputado', cargo: 'Miembro titular, España' },
+  { iniciales: 'ES', nombre: 'Nombre del eurodiputado', cargo: 'Miembro suplente, España' },
 ];
 
 // El Congreso no enseña correos en esta pestaña, así que este atrezo se
@@ -234,7 +234,7 @@ export const FILAS_DIRECCION_DG = [
   { iniciales: 'DG', nombre: 'Nombre del director general', cargo: 'Director-General' },
   { iniciales: 'DA', nombre: 'Nombre del director adjunto', cargo: 'Deputy Director-General' },
   { iniciales: 'AP', nombre: 'Nombre del asesor principal', cargo: 'Principal Adviser' },
-  { iniciales: 'DI', nombre: 'Nombre del director', cargo: 'Director · Dirección' },
+  { iniciales: 'DI', nombre: 'Nombre del director', cargo: 'Director, Dirección' },
 ];
 
 export const FILAS_MESA_PE = [
@@ -245,7 +245,7 @@ export const FILAS_MESA_PE = [
 ];
 
 export const FILAS_COMISIONES_PE = [
-  { iniciales: '····', nombre: 'Comisión competente para el fondo', cargo: 'Decide el texto' },
-  { iniciales: '····', nombre: 'Comisión para opinión', cargo: 'Emite opinión' },
-  { iniciales: '····', nombre: 'Comisión asociada', cargo: 'Revisión técnica' },
+  { iniciales: '—', nombre: 'Comisión competente para el fondo', cargo: 'Decide el texto' },
+  { iniciales: '—', nombre: 'Comisión para opinión', cargo: 'Emite opinión' },
+  { iniciales: '—', nombre: 'Comisión asociada', cargo: 'Revisión técnica' },
 ];

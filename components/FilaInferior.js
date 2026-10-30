@@ -46,9 +46,9 @@ const PROYECTO_EJEMPLO = {
 // que la de proyectos, que solo tiene un ejemplo; encogiendo avatar, texto
 // y separación caben las tres sin descuadrar la fila.
 const CARGOS_MUESTRA = [
-  { id: 'c1', nombre: 'Leire Iglesias Santiago', puesto: 'Secretaria de Estado · Vivienda', dominio: 'vivienda.gob.es' },
-  { id: 'c2', nombre: 'Esteban González Pons', puesto: 'Eurodiputado · Grupo PPE', dominio: 'europarl.europa.eu' },
-  { id: 'c3', nombre: 'Sara Hernández del Olmo', puesto: 'Secretaria General · Transportes', dominio: 'transportes.gob.es' },
+  { id: 'c1', nombre: 'Leire Iglesias Santiago', puesto: 'Secretaria de Estado de Vivienda', dominio: 'vivienda.gob.es' },
+  { id: 'c2', nombre: 'Esteban González Pons', puesto: 'Eurodiputado, Grupo PPE', dominio: 'europarl.europa.eu' },
+  { id: 'c3', nombre: 'Sara Hernández del Olmo', puesto: 'Secretaria General de Transportes', dominio: 'transportes.gob.es' },
 ];
 
 function iniciales(nombre) {

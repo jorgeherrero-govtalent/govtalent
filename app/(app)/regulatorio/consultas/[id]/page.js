@@ -291,8 +291,8 @@ export default function ConsultaDetallePage() {
           <div style={{ minWidth: 0 }}>
             <h1 style={{ fontSize: 16, fontWeight: 700, margin: 0, lineHeight: 1.35 }}>{item.titulo}</h1>
             <div style={{ fontSize: 11.5, color: '#666', marginTop: 5 }}>
-              {tipoLabel(item.tipo)} · {item.ministerio}
-              {unidad ? ` · ${unidad.nombre}` : ''}
+              {tipoLabel(item.tipo)}, {item.ministerio}
+              {unidad ? `, ${unidad.nombre}` : ''}
             </div>
             {item.referencia && (
               <div style={{ display: 'flex', gap: 6, marginTop: 8, flexWrap: 'wrap' }}>
@@ -520,7 +520,7 @@ export default function ConsultaDetallePage() {
               <Persona
                 av={<Avatar texto={iniciales(unidad.nombre)} cuadrado />}
                 nombre={unidad.nombre}
-                sub={[unidad.titular, item.buzon].filter(Boolean).join(' · ') || 'Titular no publicado'}
+                sub={[unidad.titular, item.buzon].filter(Boolean).join(', ') || 'Titular no publicado'}
               />
 
               {hijas.length > 0 && (
@@ -534,7 +534,7 @@ export default function ConsultaDetallePage() {
                       key={h.id}
                       av={<Avatar texto={iniciales(h.nombre)} cuadrado />}
                       nombre={h.nombre}
-                      sub={[h.titular, h.telefono].filter(Boolean).join(' · ') || 'Titular no publicado'}
+                      sub={[h.titular, h.telefono].filter(Boolean).join(', ') || 'Titular no publicado'}
                     />
                   ))}
                 </div>

@@ -28,7 +28,7 @@ function Committees({ list }) {
       {shown.map((c, i) => (
         <div key={i} style={{ color: c.label ? '#555' : '#999' }}>
           {c.nombre}
-          {c.label ? <span style={{ color: '#aaa' }}> · {c.label}</span> : ''}
+          {c.label ? <span style={{ color: '#aaa' }}>, {c.label}</span> : ''}
         </div>
       ))}
       {rest > 0 && <div style={{ color: '#aaa' }}>+{rest} más</div>}

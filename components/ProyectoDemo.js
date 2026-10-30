@@ -44,7 +44,7 @@ const ETIQUETA = { fontSize: 11, color: '#888', letterSpacing: '.3px' };
 const DEMO = {
   norma: {
     titulo: 'Ley de gobernanza de la inteligencia artificial',
-    organo: 'Congreso · Comisión de Economía, Comercio y Transformación Digital',
+    organo: 'Congreso: Comisión de Economía, Comercio y Transformación Digital',
     fases: [
       { nombre: 'Presentación', cuando: '12 feb', estado: 'hecha' },
       { nombre: 'Toma en consideración', cuando: '28 feb', estado: 'hecha' },
@@ -62,7 +62,7 @@ const DEMO = {
     { id: 'a6', kind: 'cargo', ref_id: 'subdir', nombre: 'Subdirección general', descripcion: 'Ministerio', posicion: 30, influencia: 22, relacion: 'sin_contactar' },
   ],
   agenda: [
-    { dia: '26', mes: 'feb', titulo: 'Enviar posición técnica a la Secretaría', pie: 'Con recordatorio · 2 días antes' },
+    { dia: '26', mes: 'feb', titulo: 'Enviar posición técnica a la Secretaría', pie: 'Con recordatorio, 2 días antes' },
     { dia: '03', mes: 'mar', titulo: 'Reunión con la ponencia', pie: 'Pendiente de confirmar' },
     { dia: '14', mes: 'mar', titulo: 'Cierre de enmiendas', pie: 'Del calendario de la norma', oficial: true },
   ],
@@ -70,13 +70,13 @@ const DEMO = {
   // otra a medias, que es como se ve en cuanto se empieza a usar.
   registro: [
     {
-      titulo: 'Reunión · Secretaría de Estado de Digitalización',
-      pie: '26 feb · Ley de gobernanza de la IA',
+      titulo: 'Reunión: Secretaría de Estado de Digitalización',
+      pie: '26 feb, Ley de gobernanza de la IA',
       cerrada: true,
     },
     {
-      titulo: 'Entrega de documentación · Ponencia',
-      pie: '03 mar · falta qué se trató',
+      titulo: 'Entrega de documentación: ponencia',
+      pie: '03 mar, falta qué se trató',
       cerrada: false,
     },
   ],
@@ -84,9 +84,9 @@ const DEMO = {
   // dónde vienen y cuánto queda de la fase actual. El primero abre la
   // ficha de la norma.
   asuntos: [
-    { titulo: 'Ley de gobernanza de la inteligencia artificial', origen: 'Congreso · proyecto de ley', estado: 'Quedan 13 días', comentarios: 2, ficha: true },
-    { titulo: 'Reglamento de IA: códigos de buenas prácticas', origen: 'Comisión Europea · expediente', estado: 'Consulta abierta' },
-    { titulo: 'Proyecto de real decreto del sandbox de IA', origen: 'Ministerios · consulta pública', estado: 'Quedan 6 días', comentarios: 1 },
+    { titulo: 'Ley de gobernanza de la inteligencia artificial', origen: 'Congreso, proyecto de ley', estado: 'Quedan 13 días', comentarios: 2, ficha: true },
+    { titulo: 'Reglamento de IA: códigos de buenas prácticas', origen: 'Comisión Europea, expediente', estado: 'Consulta abierta' },
+    { titulo: 'Proyecto de real decreto del sandbox de IA', origen: 'Ministerios, consulta pública', estado: 'Quedan 6 días', comentarios: 1 },
   ],
   documentos: [
     { nombre: 'posicion-interna-v3.pdf', cuando: 'hace 3 d' },
@@ -121,11 +121,11 @@ const SECCION_ACTA = {
 // NO LLEVA FRANJA DE METADATOS. Tenía una con referencia, tipo, autor y
 // fecha, y las cuatro se han recolocado o han desaparecido:
 //
-//   · "Presentada" repetía la primera entrada del recorrido.
-//   · "Tipo" ya está en la pastilla de la cabecera.
-//   · La referencia baja a monoespaciada junto a las pastillas: sigue
+//   - "Presentada" repetía la primera entrada del recorrido.
+//   - "Tipo" ya está en la pastilla de la cabecera.
+//   - La referencia baja a monoespaciada junto a las pastillas: sigue
 //     estando para citarla en un correo, pero deja de ocupar una banda.
-//   · El ministerio sube a la lista de quién está detrás, porque no es
+//   - El ministerio sube a la lista de quién está detrás, porque no es
 //     un metadato: es un actor, el que empuja la norma.
 //
 // Y esa sección ya no se llama "quién la tramita". El ministerio no la
@@ -139,8 +139,8 @@ const FICHA_DEMO = {
   diasPlazo: 13,
   recorrido: [
     { fase: 'Presentación', cuando: '12 feb', detalle: 'Publicado en el Boletín Oficial de las Cortes' },
-    { fase: 'Toma en consideración', cuando: '28 feb', detalle: 'Aprobada por el Pleno · 178 a favor' },
-    { fase: 'Enmiendas', cuando: 'hasta el 14 mar', detalle: 'Fase actual · plazo abierto', actual: true },
+    { fase: 'Toma en consideración', cuando: '28 feb', detalle: 'Aprobada por el Pleno, 178 a favor' },
+    { fase: 'Enmiendas', cuando: 'hasta el 14 mar', detalle: 'Fase actual, plazo abierto', actual: true },
   ],
   detras: [
     {
@@ -158,8 +158,8 @@ const FICHA_DEMO = {
     { sigla: 'DSyC', nombre: 'Comisión de Derechos Sociales y Consumo', papel: 'Emite opinión' },
   ],
   documentos: [
-    { nombre: 'Texto del proyecto de ley', origen: 'BOCG · 12 feb · PDF' },
-    { nombre: 'Memoria del análisis de impacto normativo', origen: 'BOCG · 12 feb · PDF' },
+    { nombre: 'Texto del proyecto de ley', origen: 'BOCG, 12 feb, PDF' },
+    { nombre: 'Memoria del análisis de impacto normativo', origen: 'BOCG, 12 feb, PDF' },
   ],
 };
 
@@ -174,7 +174,7 @@ const ACTA_DEMO = {
   ],
   actividad: [
     ['Fecha', '26 de febrero de 2026'],
-    ['Lugar', 'Presencial · Sede del Ministerio'],
+    ['Lugar', 'Presencial, sede del Ministerio'],
     ['Norma sobre la que se influye', 'Ley de gobernanza de la inteligencia artificial'],
   ],
   participantes: [
@@ -365,19 +365,19 @@ export default function ProyectoDemo() {
               <div style={{ position: 'absolute', left: '32%', right: '25%', top: 0, bottom: '50%', background: '#f6f5fe' }}></div>
 
               <div style={{ position: 'absolute', left: 9, top: 7, fontSize: 9.5, color: '#b8b4ac', letterSpacing: '.4px' }}>
-                BLOQUEAR · {cuenta(actores, 'bloquear')}
+                BLOQUEAR ({cuenta(actores, 'bloquear')})
               </div>
               <div style={{ position: 'absolute', left: '33%', top: 7, fontSize: 9.5, color: MORADO, letterSpacing: '.4px' }}>
-                CONVENCER · {cuenta(actores, 'convencer')}
+                CONVENCER ({cuenta(actores, 'convencer')})
               </div>
               <div style={{ position: 'absolute', right: 9, top: 7, fontSize: 9.5, color: '#b8b4ac', letterSpacing: '.4px' }}>
-                {cuenta(actores, 'apoyarse')} · APOYARSE
+                APOYARSE ({cuenta(actores, 'apoyarse')})
               </div>
               <div style={{ position: 'absolute', left: 9, bottom: 7, fontSize: 9.5, color: '#b8b4ac', letterSpacing: '.4px' }}>
-                VIGILAR · {cuenta(actores, 'vigilar')}
+                VIGILAR ({cuenta(actores, 'vigilar')})
               </div>
               <div style={{ position: 'absolute', right: 9, bottom: 7, fontSize: 9.5, color: '#b8b4ac', letterSpacing: '.4px' }}>
-                {cuenta(actores, 'informar')} · INFORMAR
+                INFORMAR ({cuenta(actores, 'informar')})
               </div>
 
               {actores.map((a) => {
@@ -503,7 +503,7 @@ export default function ProyectoDemo() {
               <ActorAvatar actor={actores[0]} size={34} fondo="#eeedfe" />
               <div style={{ minWidth: 0 }}>
                 <div style={{ fontSize: 13, fontWeight: 600 }}>{actores[0].nombre}</div>
-                <div style={{ fontSize: 11, color: '#888' }}>Decisor · relación iniciada</div>
+                <div style={{ fontSize: 11, color: '#888' }}>Decisor, relación iniciada</div>
               </div>
             </div>
             {/* Primero lo que defienden ELLOS, después lo nuestro: es el
@@ -511,7 +511,7 @@ export default function ProyectoDemo() {
             <div style={{ ...ETIQUETA, marginBottom: 5 }}>SU POSICIÓN</div>
             <div style={{ fontSize: 12, color: '#555', lineHeight: 1.6, marginBottom: 11 }}>
               Abierta al régimen simplificado, condicionada a datos de impacto en pymes.{' '}
-              <span style={{ color: MORADO }}>Comparecencia · 14 feb</span>
+              <span style={{ color: MORADO }}>Comparecencia, 14 feb</span>
             </div>
             <div style={{ ...ETIQUETA, marginBottom: 5 }}>NUESTROS ARGUMENTOS</div>
             <div style={{ fontSize: 12, color: '#555', lineHeight: 1.6 }}>
@@ -629,13 +629,13 @@ export default function ProyectoDemo() {
           Es lo primero que pulsa el usuario en la demo, así que carga
           con el peso de la primera impresión. Cuatro decisiones:
 
-          · El plazo sale junto al título. Es el dato por el que se abre
+          - El plazo sale junto al título. Es el dato por el que se abre
             una ficha; antes estaba en la tercera línea del recorrido.
-          · El recorrido es una línea de tiempo con hilo y puntos, y el
+          - El recorrido es una línea de tiempo con hilo y puntos, y el
             punto actual lleva halo. Se localiza sin leer.
-          · Los metadatos van en franja gris para que no compitan con el
+          - Los metadatos van en franja gris para que no compitan con el
             título, que era lo que pasaba con cuatro etiquetas sueltas.
-          · Los documentos son cajas con borde, porque en la ficha real
+          - Los documentos son cajas con borde, porque en la ficha real
             se pulsan. */}
       {ficha && (
         <EnElBody>

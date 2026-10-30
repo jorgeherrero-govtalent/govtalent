@@ -428,8 +428,8 @@ export default function DeputyProfilePage() {
               </div>
               <div style={{ fontSize: 11.5, color: '#999', marginTop: 4 }}>
                 Diputado/a por {deputy.constituency}
-                {legislature?.code ? ` · ${legislature.code} Legislatura` : ''}
-                {mandateYear ? ` · desde ${mandateYear}` : ''}
+                {legislature?.code ? `, ${legislature.code} Legislatura` : ''}
+                {mandateYear ? `, desde ${mandateYear}` : ''}
               </div>
               {enFunciones && deputy?.id ? (
                 <div style={{ marginTop: 6 }}>
@@ -574,7 +574,7 @@ export default function DeputyProfilePage() {
                     <div style={{ fontSize: 10.5, color: '#999', marginTop: 1 }}>
                       {[c.cargo, formatDate(c.fecha_alta) ? `desde ${formatDate(c.fecha_alta)}` : null]
                         .filter(Boolean)
-                        .join(' · ')}
+                        .join(', ')}
                     </div>
                   </div>
                   {c.n_leyes + c.n_actividad > 0 && (
@@ -594,7 +594,7 @@ export default function DeputyProfilePage() {
 
           {ponencias.length > 0 && (
             <div className="card" style={{ padding: 18 }}>
-              <div style={LABEL}>Leyes que ha llevado · {ponencias.length}</div>
+              <div style={LABEL}>Leyes que ha llevado ({ponencias.length})</div>
               {/* Todas, no las cuatro primeras: al quitar la pestaña ya
                   no hay dónde ver el resto, y son pocas. */}
               {ponencias.map((p) => (
@@ -615,7 +615,7 @@ export default function DeputyProfilePage() {
                     <div style={{ fontSize: 10.5, color: '#999', marginTop: 3 }}>
                       {[p.comision, p.fase, p.n_ponentes > 1 ? `${p.n_ponentes} ponentes` : null]
                         .filter(Boolean)
-                        .join(' · ')}
+                        .join(', ')}
                     </div>
                   </div>
                   <i className="ti ti-chevron-right" style={{ color: '#ccc', fontSize: 13, flexShrink: 0, marginTop: 3 }}></i>
@@ -707,7 +707,7 @@ export default function DeputyProfilePage() {
                   <div style={{ fontSize: 10.5, color: '#999', marginTop: 1 }}>
                     {[c.cargo, formatDate(c.fecha_alta) ? `desde ${formatDate(c.fecha_alta)}` : null]
                       .filter(Boolean)
-                      .join(' · ')}
+                      .join(', ')}
                   </div>
                 </div>
                 {c.n_leyes + c.n_actividad > 0 && <span style={CHIP}>{c.n_leyes + c.n_actividad} en trámite</span>}

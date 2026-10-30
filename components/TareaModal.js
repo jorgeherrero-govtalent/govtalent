@@ -489,7 +489,7 @@ export default function TareaModal({ tarea, miembros = [], yo, orgId, onClose, o
                 <div style={{ ...CAMPO, display: 'flex', alignItems: 'center', gap: 8, justifyContent: 'space-between' }}>
                   <span style={{ minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                     {vinculo.titulo}
-                    {vinculo.contexto && <span style={{ color: GRIS }}> · {vinculo.contexto}</span>}
+                    {vinculo.contexto && <span style={{ color: GRIS }}>, {vinculo.contexto}</span>}
                   </span>
                   {vinculo.ruta && (
                     <a href={vinculo.ruta} style={{ fontSize: 12.5, color: GRIS, whiteSpace: 'nowrap', textDecoration: 'none' }}>
@@ -501,7 +501,7 @@ export default function TareaModal({ tarea, miembros = [], yo, orgId, onClose, o
                 <div style={{ ...CAMPO, display: 'flex', alignItems: 'center', gap: 8, justifyContent: 'space-between' }}>
                   <span style={{ minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                     {vinculo.titulo}
-                    {vinculo.contexto && <span style={{ color: GRIS }}> · {vinculo.contexto}</span>}
+                    {vinculo.contexto && <span style={{ color: GRIS }}>, {vinculo.contexto}</span>}
                   </span>
                   <button
                     type="button"
@@ -566,7 +566,7 @@ export default function TareaModal({ tarea, miembros = [], yo, orgId, onClose, o
                           <div style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.titulo}</div>
                           <div style={{ fontSize: 11.5, color: GRIS, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                             {grupoVinculo(r.kind)}
-                            {r.contexto && r.contexto !== 'Proyecto' ? ` · ${r.contexto}` : ''}
+                            {r.contexto && r.contexto !== 'Proyecto' ? `, ${r.contexto}` : ''}
                           </div>
                         </button>
                       ))}
