@@ -126,12 +126,6 @@ export default function ParlamentosAutonomicosPage() {
     });
   }, []);
 
-  const abiertas = useMemo(() => (expedientes || []).filter((e) => !e.is_closed), [expedientes]);
-  const cuenta = useMemo(() => {
-    const c = {};
-    for (const e of abiertas) c[e.parlamento] = (c[e.parlamento] || 0) + 1;
-    return c;
-  }, [abiertas]);
 
   const visibles = useMemo(() => {
     const q = busca.trim().toLowerCase();
@@ -256,12 +250,11 @@ export default function ParlamentosAutonomicosPage() {
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, flexWrap: 'wrap', marginBottom: 12 }}>
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
           <button type="button" onClick={() => setParlamento('todos')} style={CHIP(parlamento === 'todos')}>
-            Todos · {abiertas.length}
+            Todos
           </button>
           {FASE1.map((p) => (
             <button key={p} type="button" onClick={() => setParlamento(p)} style={CHIP(parlamento === p)}>
               {CCAA[p]}
-              {cuenta[p] ? ` · ${cuenta[p]}` : ''}
             </button>
           ))}
         </div>
