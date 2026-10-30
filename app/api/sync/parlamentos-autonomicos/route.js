@@ -30,6 +30,11 @@
 //   ?key=<DEBUG_KEY>&soloia=1&ia=0              solo clasifica sectores (lib/ccaa/sectores.js)
 //   ?key=<DEBUG_KEY>&sectores=0                 sin clasificar sectores
 //   ?key=<DEBUG_KEY>&vigilar=0                  sin lanzar la pasada urgente
+//   ?key=<DEBUG_KEY>&plazos=todos[&dry=1]       reconstruye todos los plazos
+//                                               (ccaa_plazos, entrega C)
+//   ?key=<DEBUG_KEY>&dry=1&soloia=1&ia=0&recordatorios=1
+//                                               qué recordatorios de plazo saldrían
+//                                               hoy para lo que se sigue
 //   ?key=<DEBUG_KEY>&dry=1&soloia=1&ia=0&seguimiento_desde=2026-10-01
 //                                               simula el correo de seguimiento
 //                                               con los trámites desde esa fecha
@@ -51,7 +56,8 @@ import { leerBoletin, guardarActos, MAX_PDF_KB } from '@/lib/lectorBoletines';
 import { textoDePdf } from '@/lib/textoPdf';
 import { textoDeDocx, extractoTramitacion } from '@/lib/textoDocx';
 import { urlsDocx } from '@/lib/ccaa/madrid';
-import { eventosDeSeguimiento, eventosDiferidos, avisarSeguimientos } from '@/lib/ccaa/eventos';
+import { eventosDeSeguimiento, eventosDiferidos, avisarSeguimientos, recordatoriosSeguimiento } from '@/lib/ccaa/eventos';
+import { sincronizarPlazos, RECORDATORIOS_ACTIVOS } from '@/lib/ccaa/plazos';
 import { clasificarSectores } from '@/lib/ccaa/sectores';
 import { hayAlarmasDeLeyes } from '@/lib/ccaa/tramitesAlarmas';
 import * as andalucia from '@/lib/ccaa/andalucia';
@@ -105,6 +111,14 @@ async function handler(request) {
   if (!isCron && !isManual) return Response.json({ error: 'no autorizado' }, { status: 401 });
 
   const dry = sp.get('dry') === '1';
+  // Solo reconstruir los plazos (carga inicial o revisión).
+  if (isManual && sp.get('plazos') === 'todos') {
+    try {
+      return Response.json({ ok: true, dry, plazos: await sincronizarPlazos(admin(), { dry }) });
+    } catch (e) {
+      return Response.json({ ok: false, error: e.message }, { status: 500 });
+    }
+  }
   const sinIA = dry || sp.get('sinia') === '1';
   const soloIA = sp.get('soloia') === '1' || !!sp.get('boletin');
   const maxIA = Math.min(30, Math.max(0, parseInt(sp.get('ia') || IA_POR_DEFECTO, 10) || 0));
@@ -209,7 +223,18 @@ async function handler(request) {
     salida.sectores = await clasificarSectores(db, { hasta: t0 + FIN_TOTAL_MS - 60000 });
   }
 
+  // Plazos de las leyes con trámites nuevos (entrega C). Antes de los
+  // eventos y de la pasada urgente: los dos miran si un plazo está bloqueado.
+  if (!dry && nuevos.length) {
+    try {
+      salida.plazos = await sincronizarPlazos(db, { expedienteIds: nuevos.map((t) => t.expediente_id) });
+    } catch (e) {
+      salida.plazos = { error: e.message };
+    }
+  }
   if (!dry && nuevos.length) salida.seguimiento = await eventosDeSeguimiento(db, nuevos);
+  // Escalera de plazos de lo que se sigue (desde las 7:00 en Madrid).
+  if ((!dry && RECORDATORIOS_ACTIVOS) || (dry && isManual && sp.get('recordatorios') === '1')) salida.recordatorios_seguimiento = await recordatoriosSeguimiento(db, { dry });
   // Lo de la ficha que esperaba al boletín y no llegó (lib/ccaa/duplicados.js).
   if (!dry) salida.seguimiento_diferido = await eventosDiferidos(db);
 

@@ -78,6 +78,7 @@ import { nivelesAvisos } from '@/lib/nivelAvisos';
 import { limitesDe } from '@/lib/alarmas';
 import { alarmasEmail, alarmaPausadaEmail } from '@/lib/email/templates';
 import { avisosDeTramites } from '@/lib/ccaa/tramitesAlarmas';
+import { recordatoriosAlarmas, marcarHitos, RECORDATORIOS_ACTIVOS } from '@/lib/ccaa/plazos';
 
 export const dynamic = 'force-dynamic';
 // Con la lista partida en bloques, una pasada con mucho pendiente hace
@@ -464,9 +465,9 @@ async function handler(request) {
           .eq('descartado', false)
           // Relevancia 1 («contexto útil») no avisa: se ve en Novedades.
           .gte('relevancia', 2)
-          // Los trámites autonómicos no entran en esta escalera: el plazo
-          // ya lo recuerda la coincidencia de la ley (entrega C).
-          .neq('kind', 'ccaa_tramite')
+          // Las leyes autonómicas y sus trámites tienen su propia escalera,
+          // plazo a plazo (lib/ccaa/plazos.js, entrega C).
+          .not('kind', 'in', '(ccaa,ccaa_tramite)')
           .not('plazo', 'is', null);
         encontrados.push(...(data || []));
       }
@@ -513,6 +514,25 @@ async function handler(request) {
         }
         recordatorios.push({ ...m, plazo, dias, umbral });
       }
+
+      // Plazos de las leyes autonómicas que encontró cada alarma: totalidad,
+      // articulado, alegaciones y comparecencias, cada uno con su escalera.
+      // Con el interruptor apagado, solo en las pruebas en seco.
+      try {
+        if (RECORDATORIOS_ACTIVOS || dry) {
+          const ccaa = await recordatoriosAlarmas(db, conRecordatorio);
+          recordatorios.push(...ccaa);
+          if (dry) {
+            informe.recordatorios_ccaa = ccaa.slice(0, 40).map((r) => ({
+              alarma: conRecordatorio.find((a) => a.id === r.alert_id)?.nombre || r.alert_id,
+              titulo: r.titulo,
+              motivo: r.motivo,
+            }));
+          }
+        }
+      } catch (e) {
+        errores.push(`plazos autonómicos: ${e.message}`);
+      }
     }
     informe.recordatorios = recordatorios.length;
 
@@ -535,7 +555,7 @@ async function handler(request) {
       for (let i = 0; i < ids.length; i += 100) {
         const { data } = await db
           .from('sector_alert_matches')
-          .select('id, alert_id, user_id, kind, ref_id, titulo, fuente, ruta, motivo, plazo, relevancia')
+          .select('id, alert_id, user_id, kind, ref_id, titulo, fuente, ruta, motivo, plazo, relevancia, solo_resumen')
           .in('alert_id', ids.slice(i, i + 100))
           .is('avisado_at', null)
           .eq('descartado', false)
@@ -546,6 +566,8 @@ async function handler(request) {
         pendientes.push(...(data || []));
       }
       pendientes = pendientes.filter((m) => !soloConsejo(porId.get(m.alert_id)) || m.kind === 'consejo');
+      // Prórrogas de plazos bloqueados: solo en la pasada de la mañana.
+      pendientes = pendientes.filter((m) => esManana || !m.solo_resumen);
     }
 
     const porUsuario = new Map();
@@ -556,7 +578,18 @@ async function handler(request) {
     for (const m of pendientes) de(m.user_id).novedades.push(m);
     for (const r of recordatorios) {
       // Si el mismo asunto va como novedad, no se repite como recordatorio.
+      // En las leyes autonómicas cuenta cada plazo (totalidad, articulado…);
+      // el mismo plazo encontrado por dos alarmas va una vez, pero se apunta
+      // para las dos (u.hitosExtra) para que no vuelva a salir mañana.
       const u = de(r.user_id);
+      if (r.plazoId) {
+        if (u.plazos.some((p) => p.plazoId === r.plazoId)) {
+          (u.hitosExtra ||= []).push(r.hito);
+          continue;
+        }
+        u.plazos.push(r);
+        continue;
+      }
       if (u.novedades.some((n) => n.kind === r.kind && n.ref_id === r.ref_id)) continue;
       if (u.plazos.some((p) => p.kind === r.kind && p.ref_id === r.ref_id)) continue;
       u.plazos.push(r);
@@ -577,8 +610,9 @@ async function handler(request) {
       let enviados = 0;
       const marcados = [];
       const avisosPlazo = [];
+      const hitosCcaa = [];
       const fallos = [];
-      for (const [userId, { novedades, plazos }] of porUsuario) {
+      for (const [userId, { novedades, plazos, hitosExtra = [] }] of porUsuario) {
         if (novedades.length === 0 && plazos.length === 0) continue;
         const u = datosDe.get(userId);
         if (!u?.email || sinCorreo.has(userId)) continue;
@@ -612,6 +646,7 @@ async function handler(request) {
               title: r.titulo,
               fuente: r.fuente,
               ruta: r.ruta,
+              motivo: r.motivo || null,
               plazo: r.plazo,
               dias: r.dias,
               alarma: porId.get(r.alert_id)?.nombre || null,
@@ -628,8 +663,9 @@ async function handler(request) {
           enviados += 1;
           marcados.push(...novedades.map((m) => m.id));
           avisosPlazo.push(
-            ...plazos.map((r) => ({ alert_id: r.alert_id, kind: r.kind, ref_id: r.ref_id, deadline: r.plazo, umbral: r.umbral }))
+            ...plazos.filter((r) => !r.hito).map((r) => ({ alert_id: r.alert_id, kind: r.kind, ref_id: r.ref_id, deadline: r.plazo, umbral: r.umbral }))
           );
+          hitosCcaa.push(...plazos.filter((r) => r.hito).map((r) => r.hito), ...hitosExtra);
         } catch (e) {
           fallos.push(`${userId}: ${e.message}`);
         }
@@ -647,6 +683,13 @@ async function handler(request) {
         await db
           .from('sector_alert_plazo_avisos')
           .upsert(avisosPlazo, { onConflict: 'alert_id,kind,ref_id,deadline,umbral', ignoreDuplicates: true });
+      }
+      if (hitosCcaa.length > 0) {
+        try {
+          await marcarHitos(db, hitosCcaa);
+        } catch (e) {
+          informe.error_hitos = e.message;
+        }
       }
       informe.enviados = enviados;
       informe.marcados = marcados.length;
