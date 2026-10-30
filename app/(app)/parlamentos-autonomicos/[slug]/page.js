@@ -66,8 +66,8 @@ function Ahora({ e, tramites }) {
 }
 
 function Fuente({ t }) {
-  if (!t.url && t.origen !== 'boletin_ia') return <span>Ficha del parlamento</span>;
-  const texto = t.origen === 'boletin_ia' ? `Boletín${t.pagina ? `, pág. ${t.pagina}` : ''}` : 'Fuente';
+  if (!t.url && !['boletin_ia', 'boletin_relectura'].includes(t.origen)) return <span>Ficha del parlamento</span>;
+  const texto = ['boletin_ia', 'boletin_relectura'].includes(t.origen) ? `Boletín${t.pagina ? `, pág. ${t.pagina}` : ''}` : 'Fuente';
   return (
     <>
       {t.url ? (
@@ -77,7 +77,7 @@ function Fuente({ t }) {
       ) : (
         texto
       )}
-      {t.origen === 'boletin_ia' && <span style={{ color: MORADO }}> · leído por GovTalent</span>}
+      {['boletin_ia', 'boletin_relectura'].includes(t.origen) && <span style={{ color: MORADO }}> · leído por GovTalent</span>}
     </>
   );
 }
