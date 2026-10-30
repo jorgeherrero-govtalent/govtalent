@@ -50,10 +50,12 @@ export default function LoginPage() {
   const [error, setError] = useState('');
   const supabase = createClient();
 
-  async function handleGoogle() {
+  // Google y LinkedIn (OpenID Connect, proveedor «linkedin_oidc» de
+  // Supabase) comparten el mismo callback.
+  async function handleOAuth(provider) {
     setError('');
     const { error } = await supabase.auth.signInWithOAuth({
-      provider: 'google',
+      provider,
       options: { redirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent(redirectTo)}` },
     });
     if (error) setError(error.message);
@@ -169,7 +171,7 @@ export default function LoginPage() {
 
             <button
               type="button"
-              onClick={handleGoogle}
+              onClick={() => handleOAuth('google')}
               style={{
                 height: 46,
                 borderRadius: 10,
@@ -192,6 +194,31 @@ export default function LoginPage() {
                 <path fill="#EA4335" d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0A8.997 8.997 0 0 0 .957 4.961L3.964 6.293C4.672 4.166 6.656 3.58 9 3.58z" />
               </svg>
               Continuar con Google
+            </button>
+
+            <button
+              type="button"
+              onClick={() => handleOAuth('linkedin_oidc')}
+              style={{
+                height: 46,
+                borderRadius: 10,
+                border: `1px solid ${BORDE}`,
+                background: '#fff',
+                font: 'inherit',
+                fontSize: 14,
+                fontWeight: 500,
+                color: '#1a1a18',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: 10,
+                marginTop: -8,
+              }}
+            >
+              <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true">
+                <path fill="#0A66C2" d="M20.45 20.45h-3.56v-5.57c0-1.33-.02-3.04-1.85-3.04-1.85 0-2.14 1.45-2.14 2.94v5.67H9.34V9h3.42v1.56h.05c.48-.9 1.64-1.85 3.37-1.85 3.6 0 4.27 2.37 4.27 5.46v6.28zM5.34 7.43a2.06 2.06 0 1 1 0-4.13 2.06 2.06 0 0 1 0 4.13zM7.12 20.45H3.56V9h3.56v11.45zM22.22 0H1.77C.79 0 0 .77 0 1.73v20.54C0 23.23.79 24 1.77 24h20.45c.98 0 1.78-.77 1.78-1.73V1.73C24 .77 23.2 0 22.22 0z" />
+              </svg>
+              Continuar con LinkedIn
             </button>
 
             <div style={{ display: 'flex', alignItems: 'center', gap: 12, fontSize: 12, color: '#8b8780' }}>
@@ -289,7 +316,7 @@ export default function LoginPage() {
             </p>
 
             {/* El aviso legal va en las dos vistas: desde iniciar sesión
-                también se puede crear cuenta con Google. */}
+                también se puede crear cuenta con Google o LinkedIn. */}
             <p style={{ margin: '18px 0 0', fontSize: 11.5, lineHeight: 1.6, color: '#6f6b64' }}>
               Al continuar, aceptas las{' '}
               <a href="/condiciones" target="_blank" rel="noopener noreferrer" style={{ color: '#6f6b64' }}>
