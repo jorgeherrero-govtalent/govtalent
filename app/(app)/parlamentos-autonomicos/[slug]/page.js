@@ -6,7 +6,9 @@ import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
 import BackLink from '@/components/BackLink';
 import FollowButton from '@/components/FollowButton';
-import PanelBloqueado from '@/components/PanelBloqueado';
+import PanelBloqueado, { FILAS_CONGRESO } from '@/components/PanelBloqueado';
+import { colorGrupo, base } from '@/lib/ccaa/composicionUI';
+import { presentaLey, casarComision, enmendantes, comparecientes, cargosDeComision } from '@/lib/ccaa/actores';
 import usePlanPro from '@/lib/usePlanPro';
 import {
   MORADO, GRIS, CCAA, NOMBRE_PARLAMENTO, FASES, ETIQUETA_TIPO,
@@ -33,6 +35,185 @@ const FILAS_LEYES = [
   { iniciales: 'LEY', nombre: 'Ley autonómica modificada', cargo: 'Materia afectada' },
   { iniciales: 'LEY', nombre: 'Ley autonómica modificada', cargo: 'Materia afectada' },
 ];
+
+const SIGLA_VISIBLE = { VOX: 'Vox' };
+const sigla = (g) => (g ? SIGLA_VISIBLE[g.sigla] || g.sigla : null);
+const LABEL = { fontSize: 10.5, fontWeight: 600, letterSpacing: '.06em', textTransform: 'uppercase', color: GRIS, margin: '0 0 6px' };
+const FILA = { display: 'flex', alignItems: 'center', gap: 10, padding: '8px 0', borderBottom: '.5px solid #f0f0eb', textDecoration: 'none', color: 'inherit' };
+
+function iniciales(n) {
+  return String(n || '')
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((x) => x[0])
+    .join('')
+    .toUpperCase();
+}
+
+function Avatar({ nombre, url, size = 30 }) {
+  const [falla, setFalla] = useState(false);
+  const estilo = { width: size, height: size, borderRadius: '50%', flexShrink: 0, objectFit: 'cover', background: '#ece9e2' };
+  if (url && !falla) return <img src={url} alt="" width={size} height={size} style={estilo} onError={() => setFalla(true)} />;
+  return (
+    <div aria-hidden="true" style={{ ...estilo, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#8d8b83', fontSize: Math.round(size * 0.33), fontWeight: 700 }}>
+      {iniciales(nombre)}
+    </div>
+  );
+}
+
+function Sigla({ g }) {
+  if (!g) return null;
+  return (
+    <span style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0, fontSize: 10.5, color: '#888' }}>
+      <span style={{ width: 9, height: 9, borderRadius: 2, background: colorGrupo(g) }}></span>
+      {sigla(g)}
+    </span>
+  );
+}
+
+function Persona({ c, p, sub, size = 30 }) {
+  const d = c.diputado;
+  const cuerpo = (
+    <>
+      <Avatar nombre={c.nombre} url={d?.foto_storage_url || d?.foto_url} size={size} />
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ fontSize: 12.5, fontWeight: 600 }}>{c.nombre}</div>
+        {sub && <div style={{ fontSize: 10.5, color: '#999', marginTop: 1 }}>{sub}</div>}
+      </div>
+      <Sigla g={c.grupo} />
+      {d?.slug && <span style={{ color: '#ccc', fontSize: 14, flexShrink: 0 }}>›</span>}
+    </>
+  );
+  return d?.slug ? (
+    <Link href={`${base(p)}/diputados/${d.slug}`} style={FILA}>
+      {cuerpo}
+    </Link>
+  ) : (
+    <div style={FILA}>{cuerpo}</div>
+  );
+}
+
+function Chips({ grupos, p }) {
+  return (
+    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 6 }}>
+      {grupos.map((g) => (
+        <Link
+          key={g.id}
+          href={`${base(p)}/grupos/${g.slug}`}
+          style={{ display: 'inline-flex', alignItems: 'center', gap: 7, border: '.5px solid #e0dfd8', borderRadius: 20, padding: '5px 12px', fontSize: 11.5, textDecoration: 'none', color: 'inherit' }}
+        >
+          <span style={{ width: 9, height: 9, borderRadius: 2, background: colorGrupo(g) }}></span>
+          {sigla(g)}
+        </Link>
+      ))}
+    </div>
+  );
+}
+
+/**
+ * «Quién decide y quién presenta esta ley»: el mismo bloque que la ficha
+ * del Congreso (maqueta aprobada el 30-10-2026), más quién ha enmendado y
+ * quién comparece, que salen de los trámites del boletín.
+ */
+function QuienDecide({ e, actores }) {
+  const p = e.parlamento;
+  const { comision, mesa, presenta, enm, comp } = actores;
+  const pv = (g) => mesa?.[g] && `${mesa[g].nombre}${mesa[g].grupo ? ` (${sigla(mesa[g].grupo)})` : ''}`;
+  const resto = [pv('vicepresidencia') && `Vicepresidencia: ${pv('vicepresidencia')}`, pv('secretaria') && `Secretaría: ${pv('secretaria')}`].filter(Boolean);
+  let margen = 0;
+  const arriba = () => {
+    const m = margen;
+    margen = 16;
+    return m;
+  };
+  return (
+    <div style={{ ...CARD, padding: '18px 20px' }}>
+      <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 14 }}>Quién decide y quién presenta esta ley</div>
+
+      {(comision || e.comision) && (
+        <>
+          <div style={{ ...LABEL, marginTop: arriba() }}>Quién lo decide</div>
+          {comision ? (
+            <Link href={`${base(p)}/comisiones/${comision.slug}`} style={FILA}>
+              <div style={{ width: 34, height: 34, borderRadius: 8, background: '#EEEDFE', color: '#3C3489', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                <i className="ti ti-users" style={{ fontSize: 16 }} aria-hidden="true"></i>
+              </div>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontSize: 12.5, fontWeight: 600 }}>{comision.nombre}</div>
+                <div style={{ fontSize: 10.5, color: '#999', marginTop: 1 }}>
+                  Comisión competente{mesa?.n_miembros ? ` · ${mesa.n_miembros} miembros` : ''}
+                </div>
+              </div>
+              <span style={{ color: '#ccc', fontSize: 14, flexShrink: 0 }}>›</span>
+            </Link>
+          ) : (
+            <div style={{ ...FILA, fontSize: 12.5, fontWeight: 600 }}>{e.comision}</div>
+          )}
+          {mesa?.presidencia && <Persona c={mesa.presidencia} p={p} sub="Preside la comisión" size={34} />}
+          {resto.length > 0 && <div style={{ fontSize: 10.5, color: '#999', padding: '7px 0 2px', lineHeight: 1.5 }}>{resto.join(' · ')}</div>}
+
+          {mesa?.portavoces?.length > 0 && (
+            <>
+              <div style={{ ...LABEL, marginTop: 16 }}>Portavoces en la comisión · {mesa.portavoces.length}</div>
+              {mesa.portavoces.map((c) => (
+                <Persona
+                  key={c.id}
+                  c={c}
+                  p={p}
+                  sub={c.adjunto ? `${/a$/i.test(c.adjunto.cargo || '') ? 'Adjunta' : 'Adjunto'}: ${c.adjunto.nombre}` : null}
+                />
+              ))}
+            </>
+          )}
+        </>
+      )}
+
+      {presenta && (
+        <>
+          <div style={{ ...LABEL, marginTop: arriba() }}>Quién la presenta</div>
+          <div style={{ display: 'inline-flex', border: '.5px solid #e0dfd8', borderRadius: 20, padding: '5px 12px', fontSize: 11.5, marginBottom: 6 }}>{presenta}</div>
+        </>
+      )}
+
+      {(enm.totalidad.length > 0 || enm.articulado.length > 0) && (
+        <>
+          <div style={{ ...LABEL, marginTop: arriba() }}>Quién la ha enmendado</div>
+          {enm.totalidad.length > 0 && (
+            <>
+              <div style={{ fontSize: 10.5, color: '#999', margin: '0 0 6px' }}>
+                A la totalidad{enm.totalidadRechazada ? ' (rechazadas en el Pleno)' : ''}
+              </div>
+              <Chips grupos={enm.totalidad} p={p} />
+            </>
+          )}
+          {enm.articulado.length > 0 && (
+            <>
+              <div style={{ fontSize: 10.5, color: '#999', margin: '4px 0 6px' }}>Al articulado</div>
+              <Chips grupos={enm.articulado} p={p} />
+            </>
+          )}
+        </>
+      )}
+
+      {comp.length > 0 && (
+        <>
+          <div style={{ ...LABEL, marginTop: arriba() }}>Quién comparece · {comp.length}</div>
+          <div style={{ fontSize: 12, lineHeight: 1.6 }}>{comp.join(' · ')}</div>
+        </>
+      )}
+
+      {!e.is_closed && (
+        <>
+          <div style={{ ...LABEL, marginTop: arriba() }}>Ponencia</div>
+          <div style={{ fontSize: 11.5, color: '#999', lineHeight: 1.5 }}>
+            La ponencia aún no se ha publicado. Cuando aparezca en el boletín, sus miembros saldrán aquí con su ficha.
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
 
 const ORDEN_FASE = { admision: 0, enmiendas: 1, ponencia: 2, pleno: 3 };
 
@@ -89,6 +270,38 @@ export default function FichaParlamentoAutonomico() {
   const [e, setE] = useState(undefined);
   const [tramites, setTramites] = useState([]);
   const [hermana, setHermana] = useState(null);
+  const [actores, setActores] = useState(null);
+
+  // Solo lectura de la composición: comisión, cargos, diputados y grupos.
+  async function cargarActores(ley, tr) {
+    const p = ley.parlamento;
+    const [{ data: comisiones }, { data: grupos }] = await Promise.all([
+      supabase.from('ccaa_comisiones').select('id, nombre, slug').eq('parlamento', p).eq('activo', true),
+      supabase.from('ccaa_grupos').select('id, nombre, sigla, slug, color').eq('parlamento', p),
+    ]);
+    const gs = grupos || [];
+    const comision = casarComision(ley.comision, comisiones || []);
+    let mesa = null;
+    if (comision) {
+      const { data: cargos } = await supabase
+        .from('ccaa_cargos')
+        .select('id, nombre, diputado_id, grupo_id, cargo, cargo_norm, activo')
+        .eq('comision_id', comision.id)
+        .eq('activo', true);
+      const ids = [...new Set((cargos || []).map((c) => c.diputado_id).filter(Boolean))];
+      const { data: dips } = ids.length
+        ? await supabase.from('ccaa_diputados').select('id, slug, grupo_id, foto_url, foto_storage_url').in('id', ids)
+        : { data: [] };
+      const porId = new Map((dips || []).map((d) => [d.id, d]));
+      mesa = cargosDeComision(
+        (cargos || []).map((c) => {
+          const diputado = porId.get(c.diputado_id) || null;
+          return { ...c, diputado, grupo: gs.find((g) => g.id === (c.grupo_id || diputado?.grupo_id)) || null };
+        })
+      );
+    }
+    return { comision, mesa, presenta: presentaLey(ley), enm: enmendantes(tr, gs), comp: comparecientes(tr) };
+  }
 
   useEffect(() => {
     (async () => {
@@ -102,6 +315,7 @@ export default function FichaParlamentoAutonomico() {
         .order('fecha', { ascending: false, nullsFirst: false })
         .order('created_at', { ascending: false });
       setTramites(tr || []);
+      cargarActores(data, tr || []).then(setActores).catch(() => setActores(null));
       // Presupuestos y ley de acompañamiento del mismo año van juntos.
       const otra = data.tipo_norm === 'presupuestos' ? 'acompanamiento' : data.tipo_norm === 'acompanamiento' ? 'presupuestos' : null;
       const anio = String(data.titulo).match(/\b(20\d\d)\b/)?.[1];
@@ -216,7 +430,7 @@ export default function FichaParlamentoAutonomico() {
                 <div>{fechaLarga(e.fecha_presentacion)}</div>
               </div>
             )}
-            {e.comision && (
+            {e.comision && !esPro && (
               <div>
                 <div style={{ color: GRIS }}>Comisión</div>
                 <div>{e.comision}</div>
@@ -234,6 +448,17 @@ export default function FichaParlamentoAutonomico() {
               </a>
             )}
           </div>
+
+          {esPro === false && (
+            <div style={{ ...CARD, padding: '18px 20px' }}>
+              <PanelBloqueado
+                titulo="Quién decide y quién presenta esta ley"
+                descripcion="La comisión competente, sus portavoces por grupo, quién la ha enmendado y quién comparece. Con la ficha de cada uno a un solo clic."
+                filas={FILAS_CONGRESO}
+              />
+            </div>
+          )}
+          {esPro && actores && <QuienDecide e={e} actores={actores} />}
 
           {e.tipo_norm === 'acompanamiento' && (
             <div style={{ ...CARD, padding: '18px 20px', fontSize: 12.5, lineHeight: 1.5 }}>
