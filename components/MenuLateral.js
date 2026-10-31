@@ -296,7 +296,7 @@ export default function MenuLateral({
                       <small>
                         Alarmas: {miles(disponibles(alarmas.creditos, alarmas.creditosUsados))} disponibles
                         <br />
-                        Contacto: {miles(disponibles(contacto.total, contacto.usados))} disponibles
+                        Contactos: {miles(disponibles(contacto.total, contacto.usados))} disponibles
                       </small>
                     ) : (
                       <small>
@@ -314,7 +314,7 @@ export default function MenuLateral({
                       {contacto && (
                         <>
                           <br />
-                          Contacto: {miles(disponibles(contacto.total, contacto.usados))} créditos disponibles
+                          Contactos: {miles(disponibles(contacto.total, contacto.usados))} créditos disponibles
                         </>
                       )}
                     </small>
