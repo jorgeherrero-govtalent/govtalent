@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { toast } from '@/lib/toast';
 import BloquePlanCuenta from '@/components/BloquePlanCuenta';
+import CreditosPlan from '@/components/CreditosPlan';
 import BloqueSeguridad from '@/components/BloqueSeguridad';
 import SelectorFecha from '@/components/SelectorFecha';
 
@@ -864,7 +865,12 @@ export default function AccountPage() {
         ))}
 
       {/* --- Plan --------------------------------------------------------- */}
-      {tab === 'plan' && <BloquePlanCuenta user={user} />}
+      {tab === 'plan' && (
+        <>
+          <CreditosPlan user={user} />
+          <BloquePlanCuenta user={user} />
+        </>
+      )}
     </div>
   );
 }

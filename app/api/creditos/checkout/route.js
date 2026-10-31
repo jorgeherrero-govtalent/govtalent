@@ -27,6 +27,8 @@ export async function POST(request) {
 
   const body = await request.json().catch(() => ({}));
   const pack = packPorCreditos(body.creditos);
+  // Desde Configuración, pestaña Plan, se vuelve allí tras pagar.
+  const volverPlan = body.volver === 'plan';
   if (!pack) return NextResponse.json({ error: 'Pack no válido' }, { status: 400 });
 
   const admin = createAdminClient();
@@ -78,8 +80,8 @@ export async function POST(request) {
       client_reference_id: profile.id,
       metadata,
       payment_intent_data: { metadata },
-      success_url: `${APP_URL}/contactos?compra=ok`,
-      cancel_url: `${APP_URL}/contactos`,
+      success_url: volverPlan ? `${APP_URL}/account?tab=plan&compra=ok` : `${APP_URL}/contactos?compra=ok`,
+      cancel_url: volverPlan ? `${APP_URL}/account?tab=plan` : `${APP_URL}/contactos`,
     });
   } catch (err) {
     console.error('Error creando la sesión de Checkout de créditos:', err.message);

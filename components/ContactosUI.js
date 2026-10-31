@@ -253,7 +253,7 @@ export function avisarSaldo(saldo) {
   } catch {}
 }
 
-export function ModalComprar({ packs, onClose }) {
+export function ModalComprar({ packs, onClose, volver = null }) {
   const [enCurso, setEnCurso] = useState(null);
   const [error, setError] = useState('');
 
@@ -264,7 +264,7 @@ export function ModalComprar({ packs, onClose }) {
       const res = await fetch('/api/creditos/checkout', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ creditos }),
+        body: JSON.stringify(volver ? { creditos, volver } : { creditos }),
       });
       const json = await res.json().catch(() => ({}));
       if (!res.ok || !json.url) throw new Error(json.error || 'No se pudo iniciar el pago');
