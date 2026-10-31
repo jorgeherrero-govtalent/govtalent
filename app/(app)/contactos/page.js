@@ -456,7 +456,7 @@ function ContactosPagina() {
     <div className="gt-ct-cab">
       <div>
         <h1>Contactos</h1>
-        <p>Busca personas por cargo, institución o nombre, y encuentra su correo aunque no estén en el directorio. Buscar no consume créditos.</p>
+        <p>Busca personas por cargo, institución o nombre, y encuentra su correo aunque no estén en el directorio.</p>
       </div>
     </div>
   );
