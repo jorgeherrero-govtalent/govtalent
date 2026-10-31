@@ -3,45 +3,30 @@
 import { useEffect, useState } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { toast } from '@/lib/toast';
-import { euros, HORQUILLAS, MAX_USUARIOS, DIRECTORIO_ANUAL, horquillaPorUsuarios, miles } from '@/lib/precios';
+import { euros, HORQUILLAS, DIRECTORIO_ANUAL, horquillaPorUsuarios, miles } from '@/lib/precios';
 import UsuariosDirectorio from '@/components/UsuariosDirectorio';
 
 const CARD = { background: '#fff', borderRadius: 10, boxShadow: '0 1px 2px rgba(0,0,0,.04)' };
-const LABEL = { fontSize: 11, color: '#a8a49c', letterSpacing: '.4px', marginBottom: 14 };
-const BOTON = {
-  background: '#6d5aef',
-  color: '#fff',
-  border: 'none',
-  borderRadius: 8,
-  padding: '9px 16px',
-  fontSize: 12.5,
+const BOTON_FILA = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  border: '1px solid #dcdbd4',
+  background: '#fff',
+  color: '#1a1a18',
+  borderRadius: 9,
+  padding: '8px 14px',
+  fontSize: 13,
   fontWeight: 500,
+  fontFamily: 'inherit',
   cursor: 'pointer',
+  boxShadow: '0 1px 2px rgba(26,26,24,.06)',
+  whiteSpace: 'nowrap',
 };
-const BOTON_SEC = {
-  background: '#f5f4f1',
-  color: '#57534e',
-  border: 'none',
-  borderRadius: 8,
-  padding: '9px 16px',
-  fontSize: 12.5,
-  cursor: 'pointer',
-};
-const SEPARADOR = { borderTop: '.5px solid #f2f0ec', marginTop: 18, paddingTop: 14 };
 
 // Estados en los que la suscripción sigue dando servicio. `past_due` entra
 // a propósito: Stripe está reintentando el cobro y cortar el acceso por una
 // tarjeta caducada es la forma más rápida de perder a quien sí quería pagar.
 const SIRVIENDO = new Set(['active', 'trialing', 'past_due']);
-
-// Los verbos hacen el trabajo: Free consulta, Pro busca y sigue. La
-// diferencia entre mirar y vigilar es lo que se está vendiendo aquí.
-const BENEFICIOS_PRO = [
-  ['Vigila', ' el BOE, el Congreso, el Consejo de Ministros y más, con alarmas al momento'],
-  ['Sigue', ' normas, instituciones y personas, con aviso de sus cambios'],
-  [null, 'Avisos de plazo a 30, 14, 7, 3 y 1 días'],
-  [null, 'Proyectos y Tareas'],
-];
 
 function fecha(valor) {
   if (!valor) return null;
@@ -50,22 +35,6 @@ function fecha(valor) {
     month: 'long',
     year: 'numeric',
   });
-}
-
-function Beneficio({ verbo, texto }) {
-  return (
-    <div style={{ fontSize: 13, color: '#3a3a36', marginBottom: 9, display: 'flex', gap: 8 }}>
-      <i
-        className="ti ti-check"
-        style={{ color: '#1d6f5c', fontSize: 15, marginTop: 1, flexShrink: 0 }}
-        aria-hidden="true"
-      ></i>
-      <span>
-        {verbo && <strong style={{ fontWeight: 600 }}>{verbo}</strong>}
-        {texto}
-      </span>
-    </div>
-  );
 }
 
 /**
@@ -173,139 +142,101 @@ export default function BloquePlanCuenta({ user }) {
     setOcupado(false);
   }
 
-  return (
-    <div style={{ ...CARD, padding: 20, marginBottom: 14 }}>
-      <div style={LABEL}>SUSCRIPCIONES</div>
+  const textoVigilancia = esPro
+    ? impagado
+      ? 'No hemos podido cobrar la última renovación. Revisa tu método de pago para evitar la interrupción del servicio.'
+      : cancelaAlFinal
+      ? `Cancelada, no se renovará.${renovacion ? ` Mantienes el acceso hasta el ${renovacion}.` : ''}`
+      : `Activa${usuarios > 1 ? `, hasta ${usuarios} usuarios` : ''}, ${miles(horquillaPorUsuarios(usuarios).creditos)} créditos de alarmas al mes.${renovacion ? ` Se renueva el ${renovacion}.` : ''}`
+    : orgConTeams
+    ? `Incluida en el plan de ${orgConTeams.name}. La gestiona quien administre esa organización.`
+    : `Desde ${euros(HORQUILLAS[0].mensual)} / mes. Alarmas al momento sobre el BOE, el Congreso, el Consejo de Ministros y más, avisos de plazo, Proyectos y Tareas.`;
 
-      <div style={{ display: 'flex', alignItems: 'baseline', gap: 9, marginBottom: esPro ? 4 : 14 }}>
-        <span style={{ fontSize: 16, fontWeight: 600 }}>{esPro ? 'Vigilancia normativa' : 'Free'}</span>
-        {esPro && user?.is_founding_member && (
-          <span
-            style={{
-              fontSize: 10.5,
-              background: '#f0eefe',
-              color: '#3c3489',
-              borderRadius: 20,
-              padding: '2px 9px',
-              fontWeight: 600,
-            }}
-          >
-            Founding Member
-          </span>
-        )}
+  const textoDirectorio = directorioPropio
+    ? user?.directorio_status === 'past_due'
+      ? 'No hemos podido cobrar la última renovación. Revisa tu método de pago en Gestionar.'
+      : user?.directorio_cancel_at_period_end
+      ? `Cancelado, no se renovará.${directorioRenueva ? ` Mantienes el acceso hasta el ${directorioRenueva}.` : ''}`
+      : `Activo, 25 créditos de contactos al mes.${directorioRenueva ? ` Se renueva el ${directorioRenueva}.` : ''}`
+    : conDirectorio
+    ? orgConTeams?.name
+      ? `Incluido en el plan de ${orgConTeams.name}.`
+      : 'Tienes acceso como usuario adicional del Directorio de otra persona.'
+    : `${euros(DIRECTORIO_ANUAL)} / año. El correo y el teléfono de cargos, unidades, diputados y asesores, y la Base de datos con cerca de 27.000 contactos.`;
+
+  return (
+    <div style={{ ...CARD, marginBottom: 14, overflow: 'hidden' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, padding: '16px 22px', borderBottom: '1px solid #ececef' }}>
+        <span style={{ fontSize: 15, fontWeight: 600 }}>Suscripciones</span>
+        <a href="/precios" style={{ fontSize: 13, color: '#6d5aef', textDecoration: 'none', fontWeight: 500 }}>
+          Ver planes
+        </a>
       </div>
 
-      {/* --- Con Pro propio --------------------------------------------- */}
-      {esPro && (
+      {cargandoOrg ? (
+        <div style={{ padding: '18px 22px', fontSize: 13, color: '#8b8780' }}>Cargando…</div>
+      ) : (
         <>
-          {impagado ? (
-            <p style={{ fontSize: 12.5, color: '#8b8780', lineHeight: 1.6, margin: '0 0 16px' }}>
-              No hemos podido cobrar la última renovación. Revisa tu método de pago para evitar la
-              interrupción del servicio.
-            </p>
-          ) : cancelaAlFinal ? (
-            <p style={{ fontSize: 12.5, color: '#8b8780', lineHeight: 1.6, margin: '0 0 16px' }}>
-              Tu suscripción está cancelada y no se renovará.
-              {renovacion && ` Mantienes el acceso hasta el ${renovacion}.`}
-            </p>
-          ) : (
-            <p style={{ fontSize: 12.5, color: '#8b8780', lineHeight: 1.6, margin: '0 0 16px' }}>
-              Suscripción activa{usuarios > 1 ? `, hasta ${usuarios} usuarios` : ''}, {miles(horquillaPorUsuarios(usuarios).creditos)} créditos al mes.
-              {renovacion && ` Se renueva el ${renovacion}.`}
-            </p>
-          )}
-
-          <button type="button" style={BOTON} disabled={ocupado} onClick={abrirPortal}>
-            {ocupado ? 'Abriendo…' : 'Gestionar suscripción'}
-          </button>
-
-          <div style={SEPARADOR}>
-            <p style={{ fontSize: 13, color: '#3a3a36', lineHeight: 1.6, margin: '0 0 10px' }}>
-              <strong style={{ fontWeight: 600 }}>Para equipos</strong>, hay horquillas de hasta 3, 6, 10 y{' '}
-              {MAX_USUARIOS} usuarios, con créditos y proyectos compartidos; con más, a medida. El
-              directorio se contrata aparte.
-            </p>
-            <a
-              href="/precios"
-              style={{ ...BOTON_SEC, textDecoration: 'none', display: 'inline-block' }}
-            >
-              Ver planes
-            </a>
-          </div>
+          <FilaSuscripcion
+            titulo="Vigilancia normativa"
+            etiqueta={esPro && user?.is_founding_member ? 'Founding Member' : esPro || orgConTeams ? null : 'No contratada'}
+            texto={textoVigilancia}
+            accion={
+              esPro ? (
+                <button type="button" style={BOTON_FILA} disabled={ocupado} onClick={abrirPortal}>
+                  {ocupado ? 'Abriendo…' : 'Gestionar'}
+                </button>
+              ) : orgConTeams ? null : (
+                <a href="/precios" className="btn-ai" style={{ textDecoration: 'none' }}>
+                  Contratar
+                </a>
+              )
+            }
+          />
+          <FilaSuscripcion
+            titulo="Directorio"
+            etiqueta={conDirectorio ? null : 'No contratado'}
+            texto={textoDirectorio}
+            ultima
+            accion={
+              directorioPropio ? (
+                <button type="button" style={BOTON_FILA} disabled={ocupado} onClick={abrirPortal}>
+                  {ocupado ? 'Abriendo…' : 'Gestionar'}
+                </button>
+              ) : conDirectorio ? null : (
+                <button type="button" className="btn-ai" disabled={ocupado} onClick={contratarDirectorio}>
+                  {ocupado ? 'Abriendo el pago…' : 'Contratar'}
+                </button>
+              )
+            }
+          >
+            {directorioPropio && <UsuariosDirectorio />}
+          </FilaSuscripcion>
         </>
       )}
+    </div>
+  );
+}
 
-      {/* --- Pro heredado de una organización con Teams ------------------ */}
-      {!esPro && !cargandoOrg && orgConTeams && (
-        <>
-          <p style={{ fontSize: 12.5, color: '#8b8780', lineHeight: 1.6, margin: '0 0 6px' }}>
-            Tienes todas las funciones de la suscripción incluidas en el plan de{' '}
-            <strong style={{ fontWeight: 600, color: '#3f3d39' }}>{orgConTeams.name}</strong>. No
-            necesitas contratar nada.
-          </p>
-          <p style={{ fontSize: 11.5, color: '#a8a49c', margin: 0, lineHeight: 1.55 }}>
-            La suscripción la gestiona quien administre esa organización.
-          </p>
-        </>
-      )}
-
-      {/* --- Free sin organización con Teams ---------------------------- */}
-      {!esPro && !cargandoOrg && !orgConTeams && (
-        <div style={{ borderTop: '.5px solid #f2f0ec', paddingTop: 14 }}>
-          <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 11 }}>
-            <span style={{ fontSize: 14, fontWeight: 600, color: '#1a1a18' }}>Vigilancia normativa</span>
-            <span style={{ fontSize: 12.5, color: '#8b8780' }}>desde {euros(HORQUILLAS[0].mensual)} / mes</span>
-          </div>
-
-          {BENEFICIOS_PRO.map(([verbo, texto]) => (
-            <Beneficio key={texto} verbo={verbo} texto={texto} />
-          ))}
-
-          <div style={{ display: 'flex', gap: 9, flexWrap: 'wrap', marginTop: 16 }}>
-            <a href="/precios" style={{ ...BOTON, textDecoration: 'none', display: 'inline-block' }}>
-              Ver planes
-            </a>
-          </div>
-        </div>
-      )}
-
-      {/* --- Directorio, aparte ------------------------------------------- */}
-      {!cargandoOrg && (
-        <div style={{ ...SEPARADOR }}>
-          <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 6 }}>
-            <span style={{ fontSize: 14, fontWeight: 600, color: '#1a1a18' }}>Directorio</span>
-            {!conDirectorio && (
-              <span style={{ fontSize: 12.5, color: '#8b8780' }}>{euros(DIRECTORIO_ANUAL)} / año</span>
+/** Una fila del bloque de suscripciones: nombre, estado y acción a la derecha. */
+function FilaSuscripcion({ titulo, etiqueta, texto, accion, ultima = false, children }) {
+  return (
+    <div style={{ padding: '16px 22px', borderBottom: ultima ? 'none' : '1px solid #f2f2ef' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap' }}>
+        <div style={{ flex: '1 1 320px', minWidth: 0 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+            <b style={{ fontSize: 14, fontWeight: 600 }}>{titulo}</b>
+            {etiqueta && (
+              <span style={{ fontSize: 11, background: '#f2f1ee', color: '#57534e', borderRadius: 20, padding: '2px 9px', fontWeight: 500 }}>
+                {etiqueta}
+              </span>
             )}
           </div>
-          {directorioPropio ? (
-            <p style={{ fontSize: 12.5, color: '#8b8780', lineHeight: 1.6, margin: 0 }}>
-              {user?.directorio_status === 'past_due'
-                ? 'No hemos podido cobrar la última renovación. Revisa tu método de pago en Gestionar suscripción.'
-                : user?.directorio_cancel_at_period_end
-                ? `Cancelado: mantienes el acceso${directorioRenueva ? ` hasta el ${directorioRenueva}` : ''}.`
-                : `Activo.${directorioRenueva ? ` Se renueva el ${directorioRenueva}.` : ''}`}
-            </p>
-          ) : null}
-          {directorioPropio ? (
-            <UsuariosDirectorio />
-          ) : conDirectorio ? (
-            <p style={{ fontSize: 12.5, color: '#8b8780', lineHeight: 1.6, margin: 0 }}>
-              {orgConTeams?.name ? `Incluido en el plan de ${orgConTeams.name}.` : 'Tienes acceso como usuario adicional del Directorio de otra persona.'}
-            </p>
-          ) : (
-            <>
-              <p style={{ fontSize: 12.5, color: '#8b8780', lineHeight: 1.6, margin: '0 0 12px' }}>
-                El correo y el teléfono de cargos, unidades, diputados y asesores, y la Base de datos con cerca de
-                27.000 contactos para filtrar y exportar.
-              </p>
-              <button type="button" style={BOTON_SEC} disabled={ocupado} onClick={contratarDirectorio}>
-                {ocupado ? 'Abriendo el pago…' : 'Contratar el Directorio'}
-              </button>
-            </>
-          )}
+          <div style={{ fontSize: 12.5, color: '#6b6b70', lineHeight: 1.55, marginTop: 3 }}>{texto}</div>
         </div>
-      )}
+        {accion}
+      </div>
+      {children && <div style={{ marginTop: 12 }}>{children}</div>}
     </div>
   );
 }
