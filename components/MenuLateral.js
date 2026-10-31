@@ -190,6 +190,8 @@ export default function MenuLateral({
   const contacto = alarmas?.contacto || null;
   const creditosTotal = (alarmas?.creditos || 0) + (contacto?.total || 0);
   const usadosTotal = (alarmas?.creditosUsados || 0) + (contacto?.usados || 0);
+  const disponibles = (total, usados) => Math.max(0, (total || 0) - (usados || 0));
+  const disponiblesTotal = disponibles(creditosTotal, usadosTotal);
 
   return (
     <aside
@@ -272,7 +274,7 @@ export default function MenuLateral({
               className="gt-lat-anillo"
               title={
                 esPro
-                  ? `${miles(usadosTotal)} de ${miles(creditosTotal)} créditos usados este mes`
+                  ? `${miles(disponiblesTotal)} créditos disponibles`
                   : `${alarmas.usadas} de ${alarmas.limite} ${alarmas.limite === 1 ? 'alarma' : 'alarmas'}, Plan Free`
               }
             >
@@ -288,13 +290,13 @@ export default function MenuLateral({
                 {esPro ? (
                   <div>
                     <b>
-                      {miles(usadosTotal)} de {miles(creditosTotal)} créditos
+                      {miles(disponiblesTotal)} créditos disponibles
                     </b>
                     {contacto ? (
                       <small>
-                        Alarmas: {miles(alarmas.creditosUsados)} de {miles(alarmas.creditos)}
+                        Alarmas: {miles(disponibles(alarmas.creditos, alarmas.creditosUsados))} disponibles
                         <br />
-                        Contacto: {miles(contacto.usados)} de {miles(contacto.total)}
+                        Contacto: {miles(disponibles(contacto.total, contacto.usados))} disponibles
                       </small>
                     ) : (
                       <small>
@@ -312,7 +314,7 @@ export default function MenuLateral({
                       {contacto && (
                         <>
                           <br />
-                          Contacto: {miles(contacto.usados)} de {miles(contacto.total)} créditos
+                          Contacto: {miles(disponibles(contacto.total, contacto.usados))} créditos disponibles
                         </>
                       )}
                     </small>
