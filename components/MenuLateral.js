@@ -160,7 +160,7 @@ export default function MenuLateral({
   enOrganizacion = null,
   tieneOfertas = false,
   novedades = 0,
-  alarmas = null, // { usadas, limite, esPro, creditos, creditosUsados } o null mientras carga
+  alarmas = null, // { usadas, limite, esPro, creditos, creditosUsados, contacto? } o null mientras carga
   onSignOut,
   movilAbierto = false,
   onCerrarMovil,
@@ -186,6 +186,10 @@ export default function MenuLateral({
   }
 
   const esPro = !!alarmas?.esPro;
+  // Créditos de alarmas y de contacto, sumados; el desglose va debajo.
+  const contacto = alarmas?.contacto || null;
+  const creditosTotal = (alarmas?.creditos || 0) + (contacto?.total || 0);
+  const usadosTotal = (alarmas?.creditosUsados || 0) + (contacto?.usados || 0);
 
   return (
     <aside
@@ -268,12 +272,12 @@ export default function MenuLateral({
               className="gt-lat-anillo"
               title={
                 esPro
-                  ? `${miles(alarmas.creditosUsados)} de ${miles(alarmas.creditos)} créditos usados este mes`
+                  ? `${miles(usadosTotal)} de ${miles(creditosTotal)} créditos usados este mes`
                   : `${alarmas.usadas} de ${alarmas.limite} ${alarmas.limite === 1 ? 'alarma' : 'alarmas'}, Plan Free`
               }
             >
               {esPro ? (
-                <Anillo usadas={alarmas.creditosUsados} limite={alarmas.creditos} tam={34} />
+                <Anillo usadas={usadosTotal} limite={creditosTotal} tam={34} />
               ) : (
                 <Anillo usadas={alarmas.usadas} limite={alarmas.limite} tam={34} />
               )}
@@ -284,22 +288,38 @@ export default function MenuLateral({
                 {esPro ? (
                   <div>
                     <b>
-                      {miles(alarmas.creditosUsados)} de {miles(alarmas.creditos)} créditos
+                      {miles(usadosTotal)} de {miles(creditosTotal)} créditos
                     </b>
-                    <small>
-                      {alarmas.usadas} {alarmas.usadas === 1 ? 'alarma activa' : 'alarmas activas'}
-                    </small>
+                    {contacto ? (
+                      <small>
+                        Alarmas: {miles(alarmas.creditosUsados)} de {miles(alarmas.creditos)}
+                        <br />
+                        Contacto: {miles(contacto.usados)} de {miles(contacto.total)}
+                      </small>
+                    ) : (
+                      <small>
+                        {alarmas.usadas} {alarmas.usadas === 1 ? 'alarma activa' : 'alarmas activas'}
+                      </small>
+                    )}
                   </div>
                 ) : (
                   <div>
                     <b>
                       {alarmas.usadas} de {alarmas.limite} {alarmas.limite === 1 ? 'alarma' : 'alarmas'}
                     </b>
-                    <small>Plan Free, resumen los lunes</small>
+                    <small>
+                      Plan Free, resumen los lunes
+                      {contacto && (
+                        <>
+                          <br />
+                          Contacto: {miles(contacto.usados)} de {miles(contacto.total)} créditos
+                        </>
+                      )}
+                    </small>
                   </div>
                 )}
                 {esPro ? (
-                  <Anillo usadas={alarmas.creditosUsados} limite={alarmas.creditos} />
+                  <Anillo usadas={usadosTotal} limite={creditosTotal} />
                 ) : (
                   <Anillo usadas={alarmas.usadas} limite={alarmas.limite} />
                 )}

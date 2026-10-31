@@ -10,7 +10,7 @@ import {
   GRIS,
   miles,
   fecha,
-  TarjetaCreditos,
+  avisarSaldo,
   ModalComprar,
   Modal,
   CeldaContacto,
@@ -51,7 +51,21 @@ export default function ListaPage() {
   const [exportError, setExportError] = useState('');
   const [sel, setSel] = useState(() => new Set());
 
-  const { estado: enr, enMarcha, enriquecer, enriquecerVarios } = useEnriquecer({ onSaldo: setSaldo });
+  const { estado: enr, enMarcha, enriquecer, enriquecerVarios } = useEnriquecer({
+    onSaldo: setSaldo,
+    onSinCreditos: () => setModalComprar(true),
+  });
+
+  // El saldo se ve en la tarjeta del plan del menú lateral.
+  useEffect(() => {
+    avisarSaldo(saldo);
+  }, [saldo]);
+
+  // Enriquecer varios: sin créditos, directamente la compra.
+  function pedirEnriquecer(ids) {
+    if (!(saldo?.disponibles >= 1)) setModalComprar(true);
+    else setConfirmarEnr(ids);
+  }
 
   async function cargar() {
     try {
@@ -239,14 +253,11 @@ export default function ListaPage() {
             {l.filtros ? ', avisa de incorporaciones' : ''}
           </p>
         </div>
-        <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
-          <TarjetaCreditos saldo={saldo} onComprar={() => setModalComprar(true)} />
-        </div>
       </div>
 
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 14, alignItems: 'center' }}>
         {enriquecibles.length > 0 && (
-          <button type="button" className="btn-ai-o" style={{ padding: '7px 12px', fontSize: 12.5 }} onClick={() => setConfirmarEnr(enriquecibles)}>
+          <button type="button" className="btn-ai-o" style={{ padding: '7px 12px', fontSize: 12.5 }} onClick={() => pedirEnriquecer(enriquecibles)}>
             Enriquecer los que no tienen correo (máx. {miles(enriquecibles.length)} créditos)
           </button>
         )}
@@ -267,7 +278,7 @@ export default function ListaPage() {
                 <i className="ti ti-trash" aria-hidden="true"></i> Quitar de la lista
               </button>
               {enriqueciblesSel.length > 0 && (
-                <button type="button" style={sec} onClick={() => setConfirmarEnr(enriqueciblesSel)}>
+                <button type="button" style={sec} onClick={() => pedirEnriquecer(enriqueciblesSel)}>
                   <i className="ti ti-sparkles" aria-hidden="true"></i> Enriquecer (hasta {miles(enriqueciblesSel.length)} créditos)
                 </button>
               )}
@@ -460,6 +471,10 @@ export default function ListaPage() {
           cuantos={confirmarEnr.length}
           saldo={saldo}
           onClose={() => setConfirmarEnr(null)}
+          onComprar={() => {
+            setConfirmarEnr(null);
+            setModalComprar(true);
+          }}
           onConfirmar={() => {
             const ids = confirmarEnr;
             setConfirmarEnr(null);

@@ -16,6 +16,13 @@ import BuscadorGlobal from '@/components/BuscadorGlobal';
 import Logo from '@/components/Logo';
 import { limitesDe } from '@/lib/alarmas';
 
+// Saldo de /api/creditos → lo que pinta la tarjeta del plan: usados sobre
+// el total (los del mes más los comprados que quedan).
+function contactoDeSaldo(s) {
+  const total = (Number(s.mensuales) || 0) + (Number(s.comprados) || 0);
+  return { usados: Number(s.mensuales_usados) || 0, total };
+}
+
 export default function AppLayout({ children }) {
   const supabase = createClient();
   const pathname = usePathname();
@@ -128,12 +135,35 @@ export default function AppLayout({ children }) {
           creditosUsados: (activas || 0) * CREDITOS_POR_ALARMA,
         });
       }
+
+      // Los créditos de contacto (Directorio) se suman en la misma tarjeta,
+      // con el desglose debajo: son dos bolsas distintas.
+      try {
+        const r = await fetch('/api/creditos', { cache: 'no-store' });
+        const j = r.ok ? await r.json() : null;
+        if (active && j?.directorio && j.saldo) {
+          const contacto = contactoDeSaldo(j.saldo);
+          setAlarmas((prev) => (prev ? { ...prev, contacto } : prev));
+        }
+      } catch {}
     }
     load();
     return () => {
       active = false;
     };
   }, [pathname]);
+
+  // Contactos y Listas avisan con este evento cuando cambia el saldo de
+  // créditos de contacto, para que la tarjeta del plan se ponga al día.
+  useEffect(() => {
+    const poner = (e) => {
+      if (!e?.detail) return;
+      const contacto = contactoDeSaldo(e.detail);
+      setAlarmas((prev) => (prev ? { ...prev, contacto } : prev));
+    };
+    window.addEventListener('gt-creditos', poner);
+    return () => window.removeEventListener('gt-creditos', poner);
+  }, []);
 
   // La página de Alarmas avisa con este evento de lo que queda pendiente
   // (los cambios de lo que sigues aún sin «Visto»), para que el contador

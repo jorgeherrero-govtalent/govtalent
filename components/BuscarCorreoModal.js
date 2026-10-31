@@ -17,6 +17,7 @@ import {
   miles,
   Buscando,
   ESTILOS_CONTACTOS,
+  avisarSaldo,
 } from '@/components/ContactosUI';
 
 /**
@@ -43,6 +44,11 @@ export default function BuscarCorreoModal({ persona, onClose, onResultado }) {
   const [cobrado, setCobrado] = useState(false);
   const [error, setError] = useState('');
   const [comprar, setComprar] = useState(false);
+
+  // El saldo se ve en la tarjeta del plan del menú lateral.
+  useEffect(() => {
+    avisarSaldo(saldo);
+  }, [saldo]);
   // Añadir a una lista lo encontrado (también a quien no está en el directorio).
   const [personaId, setPersonaId] = useState(persona.libre ? null : persona.id);
   const [aLista, setALista] = useState(false);
@@ -81,6 +87,12 @@ export default function BuscarCorreoModal({ persona, onClose, onResultado }) {
       });
       const json = await res.json().catch(() => ({}));
       if (json.saldo) setSaldo(json.saldo);
+      if (json.sinCreditos) {
+        // Sin créditos suficientes: la compra, sin dejar un error.
+        setFase('inicio');
+        setComprar(true);
+        return;
+      }
       if (!res.ok) {
         setError(json.error || 'No se pudo completar la búsqueda. No se ha descontado ningún crédito.');
         setFase('error');
@@ -223,12 +235,7 @@ export default function BuscarCorreoModal({ persona, onClose, onResultado }) {
             <span style={{ fontSize: 12, color: GRIS }}>
               {disponibles === null ? '' : sinCreditos ? 'No te quedan créditos' : `Te quedan ${miles(disponibles)} ${disponibles === 1 ? 'crédito' : 'créditos'}`}
             </span>
-            {sinCreditos ? (
-              <button type="button" className="btn-ai" onClick={() => setComprar(true)}>
-                Comprar créditos
-              </button>
-            ) : (
-              <button type="button" className="btn-ai" onClick={buscar} disabled={buscando} style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+            <button type="button" className="btn-ai" onClick={sinCreditos ? () => setComprar(true) : buscar} disabled={buscando} style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
                 {buscando ? (
                   'Buscando…'
                 ) : (
@@ -237,7 +244,6 @@ export default function BuscarCorreoModal({ persona, onClose, onResultado }) {
                   </>
                 )}
               </button>
-            )}
           </div>
         ) : (
           <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: 8, marginTop: 16, flexWrap: 'wrap' }}>
