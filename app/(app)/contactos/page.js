@@ -17,7 +17,7 @@ import {
   GRIS,
   miles,
   fecha,
-  TarjetaCreditos,
+  avisarSaldo,
   ModalComprar,
   Modal,
   CeldaContacto,
@@ -226,7 +226,21 @@ function ContactosPagina() {
   const [confirmarEnr, setConfirmarEnr] = useState(null); // ids
   const [guardarLista, setGuardarLista] = useState(null); // 'busqueda' | 'seleccion'
 
-  const { estado: enr, enMarcha, enriquecer, enriquecerVarios } = useEnriquecer({ onSaldo: setSaldo });
+  const { estado: enr, enMarcha, enriquecer, enriquecerVarios } = useEnriquecer({
+    onSaldo: setSaldo,
+    onSinCreditos: () => setModalComprar(true),
+  });
+
+  // El saldo se ve en la tarjeta del plan del menú lateral.
+  useEffect(() => {
+    avisarSaldo(saldo);
+  }, [saldo]);
+
+  // Enriquecer varios: sin créditos, directamente la compra.
+  function pedirEnriquecer(ids) {
+    if (!(saldo?.disponibles >= 1)) setModalComprar(true);
+    else setConfirmarEnr(ids);
+  }
 
   const claveFiltros = useMemo(() => JSON.stringify(filtros), [filtros]);
   const pag = usePaginacion(total, [claveFiltros]);
@@ -444,7 +458,6 @@ function ContactosPagina() {
         <h1>Contactos</h1>
         <p>Busca personas por cargo, institución o nombre, y encuentra su correo aunque no estén en el directorio. Buscar no consume créditos.</p>
       </div>
-      {acceso && <TarjetaCreditos saldo={saldo} onComprar={() => setModalComprar(true)} />}
     </div>
   );
 
@@ -635,7 +648,7 @@ function ContactosPagina() {
             <span style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
               <span style={{ fontSize: 12, color: GRIS }}>Buscar no consume créditos</span>
               {enriqueciblesPagina.length > 0 && (
-                <button type="button" className="btn-ai-o" style={{ padding: '6px 12px', fontSize: 12.5 }} onClick={() => setConfirmarEnr(enriqueciblesPagina)}>
+                <button type="button" className="btn-ai-o" style={{ padding: '6px 12px', fontSize: 12.5 }} onClick={() => pedirEnriquecer(enriqueciblesPagina)}>
                   Enriquecer los de esta página (máx. {miles(enriqueciblesPagina.length)} créditos)
                 </button>
               )}
@@ -650,7 +663,7 @@ function ContactosPagina() {
                     <i className="ti ti-list-details" aria-hidden="true"></i> Añadir a lista
                   </button>
                   {enriqueciblesSeleccion.length > 0 && (
-                    <button type="button" style={sec} onClick={() => setConfirmarEnr(enriqueciblesSeleccion)}>
+                    <button type="button" style={sec} onClick={() => pedirEnriquecer(enriqueciblesSeleccion)}>
                       <i className="ti ti-sparkles" aria-hidden="true"></i> Enriquecer (hasta {miles(enriqueciblesSeleccion.length)} créditos)
                     </button>
                   )}
@@ -811,6 +824,10 @@ function ContactosPagina() {
           cuantos={confirmarEnr.length}
           saldo={saldo}
           onClose={() => setConfirmarEnr(null)}
+          onComprar={() => {
+            setConfirmarEnr(null);
+            setModalComprar(true);
+          }}
           onConfirmar={() => {
             const ids = confirmarEnr;
             setConfirmarEnr(null);

@@ -242,31 +242,15 @@ export const ESTILOS_CONTACTOS = `
 // ---------------------------------------------------------------------------
 // Créditos
 
-export function TarjetaCreditos({ saldo, onComprar }) {
-  if (!saldo) return null;
-  const pct = saldo.mensuales > 0 ? Math.round((saldo.mensuales_disponibles / saldo.mensuales) * 100) : 0;
-  return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 14, border: `1px solid ${BORDE}`, borderRadius: 12, padding: '9px 12px', background: '#fff', flexWrap: 'wrap' }}>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 5, minWidth: 170 }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, fontSize: 12.5 }}>
-          <span style={{ fontWeight: 600 }}>Créditos del mes</span>
-          <span style={{ color: GRIS }}>
-            {miles(saldo.mensuales_disponibles)} / {miles(saldo.mensuales)}
-          </span>
-        </div>
-        <div style={{ height: 5, background: '#efedfd', borderRadius: 999, overflow: 'hidden' }}>
-          <div style={{ width: `${pct}%`, height: 5, background: MORADO }}></div>
-        </div>
-        <span style={{ fontSize: 11.5, color: GRIS }}>
-          {saldo.comprados > 0 ? `+ ${miles(saldo.comprados)} comprados, ` : ''}
-          {saldo.compartida ? 'compartidos con tu equipo' : 'se renuevan el día 1'}
-        </span>
-      </div>
-      <button type="button" className="btn-ai-o" onClick={onComprar} style={{ padding: '6px 12px', fontSize: 12.5 }}>
-        Comprar créditos
-      </button>
-    </div>
-  );
+/**
+ * Avisa a la tarjeta del plan del menú lateral (app/(app)/layout.js) de
+ * que ha cambiado el saldo de créditos de contacto.
+ */
+export function avisarSaldo(saldo) {
+  if (!saldo || typeof window === 'undefined') return;
+  try {
+    window.dispatchEvent(new CustomEvent('gt-creditos', { detail: saldo }));
+  } catch {}
 }
 
 export function ModalComprar({ packs, onClose }) {
@@ -338,7 +322,7 @@ export function Modal({ titulo, onClose, children, ancho = 440, bloqueado = fals
  * Estado de los enriquecimientos en curso y lanzador con concurrencia.
  * estado: Map id → { fase: 'buscando' | 'hecho' | 'error', resultado?, error? }
  */
-export function useEnriquecer({ onSaldo }) {
+export function useEnriquecer({ onSaldo, onSinCreditos }) {
   const [estado, setEstado] = useState(() => new Map());
   const [enMarcha, setEnMarcha] = useState(0);
   const parar = useRef(false);
@@ -363,7 +347,11 @@ export function useEnriquecer({ onSaldo }) {
       if (json.saldo && onSaldo) onSaldo(json.saldo);
       if (!res.ok) {
         poner(id, { fase: 'error', error: json.error || 'No se pudo completar' });
-        if (json.sinCreditos) parar.current = true;
+        if (json.sinCreditos) {
+          // Se para la tanda y, una sola vez, se abre la compra de créditos.
+          if (!parar.current && onSinCreditos) onSinCreditos();
+          parar.current = true;
+        }
         return;
       }
       poner(id, { fase: 'hecho', resultado: json.resultado, cobrado: json.cobrado });
@@ -591,7 +579,7 @@ export function CeldaContacto({ f, estado, onEnriquecer, puedeEnriquecer = true,
   );
 }
 
-export function ModalEnriquecerVarios({ cuantos, saldo, onConfirmar, onClose }) {
+export function ModalEnriquecerVarios({ cuantos, saldo, onConfirmar, onClose, onComprar }) {
   const disponibles = saldo?.disponibles ?? 0;
   const llega = disponibles >= cuantos;
   return (
@@ -608,6 +596,11 @@ export function ModalEnriquecerVarios({ cuantos, saldo, onConfirmar, onClose }) 
         <button type="button" className="btn-g" onClick={onClose}>
           Cancelar
         </button>
+        {!llega && onComprar && (
+          <button type="button" className="btn-ai-o" onClick={onComprar}>
+            Comprar créditos
+          </button>
+        )}
         <button type="button" className="btn-ai" onClick={onConfirmar} disabled={disponibles < 1}>
           Enriquecer
         </button>
