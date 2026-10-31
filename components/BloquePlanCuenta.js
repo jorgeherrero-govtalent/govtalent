@@ -175,7 +175,7 @@ export default function BloquePlanCuenta({ user }) {
 
   return (
     <div style={{ ...CARD, padding: 20, marginBottom: 14 }}>
-      <div style={LABEL}>TU PLAN</div>
+      <div style={LABEL}>SUSCRIPCIONES</div>
 
       <div style={{ display: 'flex', alignItems: 'baseline', gap: 9, marginBottom: esPro ? 4 : 14 }}>
         <span style={{ fontSize: 16, fontWeight: 600 }}>{esPro ? 'Vigilancia normativa' : 'Free'}</span>
