@@ -549,7 +549,7 @@ function ContactosPagina() {
             </div>
             <div className="gt-ct-fuente ia">
               <b>Buscar correo</b>
-              <span>Encontramos el correo nominativo de cualquier persona, esté o no en el directorio, y lo comprobamos en el servidor de su organización. 1 crédito, solo si lo encontramos.</span>
+              <span>Encontramos el correo nominativo de cualquier persona, esté o no en el directorio, y lo comprobamos en el servidor de su organización.</span>
             </div>
           </div>
         </section>
