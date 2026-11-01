@@ -6,6 +6,8 @@ import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
 import FollowButton from '@/components/FollowButton';
 import BackLink from '@/components/BackLink';
+import UpgradeModal from '@/components/UpgradeModal';
+import CorreoCargo, { useCorreosCargos } from '@/components/CorreoCargo';
 
 /**
  * Ficha de un organismo de la Administración General del Estado.
@@ -80,6 +82,10 @@ export default function OrganismoPage() {
   const [personas, setPersonas] = useState([]);
   const [boe, setBoe] = useState([]);
   const [cargando, setCargando] = useState(true);
+  // Correo de quien lo dirige: difuminado sin el Directorio; con él, el
+  // correo o «Buscar correo».
+  const correos = useCorreosCargos(personas);
+  const [upsell, setUpsell] = useState(false);
 
   const cargar = useCallback(async () => {
     if (!code) return;
@@ -112,7 +118,7 @@ export default function OrganismoPage() {
         .order('nombre'),
       supabase
         .from('government_officials')
-        .select('full_name, slug, role')
+        .select('id, full_name, slug, role')
         .eq('dir3_code', code)
         .eq('active', true),
       // Lo último que ha publicado en el BOE. Es lo que convierte la
@@ -219,18 +225,20 @@ export default function OrganismoPage() {
           </div>
         ) : (
           personas.map((p, i) => (
-            <Link
+            <div
               key={p.slug || p.full_name}
-              href={`/institutions/ministries/persona/${p.slug}`}
               style={{
                 display: 'flex',
                 alignItems: 'center',
-                gap: 11,
+                gap: 12,
                 padding: i === 0 ? '0 0 9px' : '9px 0',
                 borderBottom: i === personas.length - 1 ? 'none' : '.5px solid #f0f0eb',
-                textDecoration: 'none',
-                color: 'inherit',
+                flexWrap: 'wrap',
               }}
+            >
+            <Link
+              href={`/institutions/ministries/persona/${p.slug}`}
+              style={{ display: 'flex', alignItems: 'center', gap: 11, flex: '1 1 260px', minWidth: 0, textDecoration: 'none', color: 'inherit' }}
             >
               <div
                 style={{
@@ -258,8 +266,14 @@ export default function OrganismoPage() {
                 <div style={{ fontSize: 12.5, fontWeight: 600 }}>{nombreDirecto(p.full_name)}</div>
                 <div style={{ fontSize: 11, color: '#a8a49c', marginTop: 1 }}>{p.role}</div>
               </div>
-              <i className="ti ti-chevron-right" style={{ color: '#ccc', fontSize: 14 }}></i>
             </Link>
+            <div style={{ marginLeft: 'auto', textAlign: 'right', minWidth: 0 }}>
+              <CorreoCargo
+                {...correos.props(p, nombreDirecto(p.full_name), [p.role, unidad ? limpiar(unidad.nombre) : null].filter(Boolean).join(', '))}
+                onUpsell={() => setUpsell(true)}
+              />
+            </div>
+            </div>
           ))
         )}
       </div>
@@ -345,6 +359,14 @@ export default function OrganismoPage() {
         Fuente: Directorio Común de Unidades Orgánicas y Oficinas (DIR3). Los titulares se actualizan con los
         nombramientos publicados en el BOE.
       </p>
+      {upsell && (
+        <UpgradeModal
+          title="Disponible con suscripción"
+          message="El correo y el teléfono de cada cargo, y «Buscar correo» para quien no lo tenga publicado. Con el Directorio."
+          href="/precios"
+          onClose={() => setUpsell(false)}
+        />
+      )}
     </div>
   );
 }

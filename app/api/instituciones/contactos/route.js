@@ -36,10 +36,9 @@ export async function GET(request) {
     .select('slug, email, unit_email, unit_phone, unit_website')
     .eq('active', true)
     .or(
-      // En la ficha de un cargo cuenta también su correo personal (para no
-      // ofrecer «Buscar correo» a quien ya lo tiene); en el listado, solo
-      // el contacto de la unidad, que es lo que enseña su columna.
-      slug ? 'email.not.is.null,unit_email.not.is.null,unit_phone.not.is.null,unit_website.not.is.null' : 'unit_email.not.is.null,unit_phone.not.is.null,unit_website.not.is.null'
+      // Cuenta también el correo personal: los listados de cargos lo
+      // enseñan y no ofrecen «Buscar correo» a quien ya lo tiene.
+      'email.not.is.null,unit_email.not.is.null,unit_phone.not.is.null,unit_website.not.is.null'
     );
   if (slug) query = query.eq('slug', slug).limit(1);
 
@@ -52,7 +51,7 @@ export async function GET(request) {
   const contactos = {};
   for (const fila of data || []) {
     contactos[fila.slug] = pro
-      ? { ...(slug ? { email: fila.email } : {}), unit_email: fila.unit_email, unit_phone: fila.unit_phone, unit_website: fila.unit_website }
+      ? { email: fila.email, unit_email: fila.unit_email, unit_phone: fila.unit_phone, unit_website: fila.unit_website }
       : true;
   }
 

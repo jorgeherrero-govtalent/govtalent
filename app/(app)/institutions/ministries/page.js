@@ -7,6 +7,7 @@ import MultiSelectFilter from '@/components/MultiSelectFilter';
 import UpgradeModal from '@/components/UpgradeModal';
 import usePlanPro from '@/lib/usePlanPro';
 import useDirectorio from '@/lib/useDirectorio';
+import CorreoCargo, { useCorreosCargos } from '@/components/CorreoCargo';
 
 // Deriva un "tipo de cargo" a partir del texto libre del cargo, para poder
 // filtrar sin depender de una lista cerrada mantenida a mano.
@@ -641,10 +642,15 @@ function BuscarTab({ members, officials }) {
           ? (o.age_units?.nombre || o.unit_name)
           : null,
         slug: o.slug,
+        id: o.id,
         isMember: false,
       }));
     return [...fromMembers, ...fromOfficials];
   }, [members, officials]);
+
+  // Correo de cada persona de la página: difuminado sin el Directorio;
+  // con él, el correo (personal o de la unidad) o «Buscar correo».
+  const correos = useCorreosCargos(allPeople.filter((p) => !p.isMember));
 
   const ministryOptions = useMemo(() => {
     const unique = [...new Set(allPeople.map((p) => p.ministry_name).filter(Boolean))].sort((a, b) => a.localeCompare(b));
@@ -805,23 +811,41 @@ function BuscarTab({ members, officials }) {
               <div style={{ fontSize: 12, color: '#666', minWidth: 0 }}>{p.role}</div>
               <div style={{ fontSize: 11.5, color: '#888', minWidth: 0 }}>{p.ministry_name}</div>
 
-              <CeldaContacto
-                valor={
-                  p.isMember
-                    ? null
-                    : typeof contactos[p.slug] === 'object'
-                    ? contactos[p.slug].unit_email || contactos[p.slug].unit_phone
-                    : contactos[p.slug] || null
-                }
-                esPro={conDirectorio}
-                onUpsell={() =>
-                  setUpsell({
-                    title: 'El contacto de la unidad',
-                    message:
-                      'El correo y el teléfono de la unidad que dirige cada persona, para escribir al sitio correcto a la primera. Disponible con el Directorio.',
-                  })
-                }
-              />
+              {p.isMember ? (
+                <CeldaContacto
+                  valor={null}
+                  esPro={conDirectorio}
+                  onUpsell={() => {}}
+                />
+              ) : (
+                <span
+                  style={{ minWidth: 0, textAlign: 'center', fontSize: 11.5 }}
+                  onClick={(e) => {
+                    // La fila es un enlace: el clic en el correo no navega.
+                    // Los del modal (en un portal) no están dentro del
+                    // enlace, así que solo se corta su propagación.
+                    e.stopPropagation();
+                    if (e.currentTarget.contains(e.target)) e.preventDefault();
+                  }}
+                >
+                  <CorreoCargo
+                    {...correos.props(p, p.full_name_display, [p.role, p.ministry_name].filter(Boolean).join(', '))}
+                    email={
+                      typeof contactos[p.slug] === 'object'
+                        ? contactos[p.slug].email || contactos[p.slug].unit_email || null
+                        : null
+                    }
+                    alinear="center"
+                    onUpsell={() =>
+                      setUpsell({
+                        title: 'El correo de cada cargo',
+                        message:
+                          'El correo y el teléfono de cada cargo y de su unidad, y «Buscar correo» para quien no lo tenga publicado. Disponible con el Directorio.',
+                      })
+                    }
+                  />
+                </span>
+              )}
             </Link>
           ))}
 
@@ -1131,7 +1155,7 @@ export default function MinistriesDirectoryPage() {
         .order('order_index', { ascending: true }),
       supabase
         .from('government_officials')
-        .select('full_name, slug, role, ministry_name, unit_name, dir3_code, age_units(nombre, categoria, nivel)')
+        .select('id, full_name, slug, role, ministry_name, unit_name, dir3_code, age_units(nombre, categoria, nivel)')
         .eq('active', true),
       // Organigramas oficiales cargados. Se piden las unidades en crudo y
       // se agregan aqui: son unos cientos de filas y sale mas barato que
