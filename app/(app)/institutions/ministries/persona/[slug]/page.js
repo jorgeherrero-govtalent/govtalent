@@ -251,23 +251,22 @@ export default function GovernmentOfficialProfilePage() {
             </div>
           )}
 
-          {/* Sin contacto real no hay nada que vender: se dice que no lo
-              tenemos, igual que con plan. Difuminar aquí prometería un
-              teléfono que tampoco aparece pagando. */}
-          {!hasContact ? (
+          {/* Sin el Directorio siempre se enseña el contacto bloqueado: con él,
+              quien no tiene correo publicado tiene «Buscar correo». */}
+          {esPro === false ? (
+            <PanelBloqueado
+              titulo="El contacto"
+              descripcion="Su correo, y el teléfono y la web de la unidad que dirige, para escribir al sitio correcto a la primera."
+              filas={FILAS_CONTACTO_UNIDAD}
+              onUpsell={() => setUpsell(true)}
+            />
+          ) : !hasContact ? (
             esPro === true && sinCorreo && idPro ? null : (
             <div className="empty-state">
               <i className="ti ti-address-book-off"></i>
               No tenemos datos de contacto para esta unidad.
             </div>
             )
-          ) : esPro === false ? (
-            <PanelBloqueado
-              titulo="El contacto de la unidad"
-              descripcion="El correo, el teléfono y la web de la unidad que dirige, para escribir al sitio correcto a la primera."
-              filas={FILAS_CONTACTO_UNIDAD}
-              onUpsell={() => setUpsell(true)}
-            />
           ) : esPro === null ? (
             <div style={{ minHeight: 90 }}></div>
           ) : (

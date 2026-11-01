@@ -7,6 +7,8 @@ import { createClient } from '@/lib/supabase/client';
 import { toast } from '@/lib/toast';
 import BackLink from '@/components/BackLink';
 import FollowButton from '@/components/FollowButton';
+import UpgradeModal from '@/components/UpgradeModal';
+import CorreoCargo, { useCorreosCargos } from '@/components/CorreoCargo';
 
 function initials(fullName) {
   const parts = (fullName || '').trim().split(' ');
@@ -140,7 +142,7 @@ export default function GovernmentMemberProfilePage() {
       const [{ data: offs }, { data: vps }] = await Promise.all([
         supabase
           .from('government_officials')
-          .select('full_name, slug, role, ministry_name, unit_name, dir3_code, age_units(nombre)')
+          .select('id, full_name, slug, role, ministry_name, unit_name, dir3_code, age_units(nombre)')
           .eq('active', true),
         // Solo hace falta para los vicepresidentes: su equipo vive en dos
         // secciones distintas de la fuente y hay que saber su ordinal.
@@ -228,6 +230,11 @@ export default function GovernmentMemberProfilePage() {
       return d !== 0 ? d : (a.full_name || '').localeCompare(b.full_name || '');
     });
   }, [member, officials, vicepresidents]);
+
+  // Correo de cada cargo del equipo: difuminado sin el Directorio; con él,
+  // el correo o «Buscar correo».
+  const correos = useCorreosCargos(team);
+  const [upsell, setUpsell] = useState(false);
 
 
   if (notFound) {
@@ -395,18 +402,20 @@ export default function GovernmentMemberProfilePage() {
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column' }}>
               {team.map((o, i) => (
-                <Link
+                <div
                   key={o.slug}
-                  href={`/institutions/ministries/persona/${o.slug}`}
                   style={{
                     display: 'flex',
                     alignItems: 'center',
-                    gap: 10,
+                    gap: 12,
                     padding: '9px 0',
                     borderBottom: i === team.length - 1 ? 'none' : '.5px solid #f0f0eb',
-                    textDecoration: 'none',
-                    color: 'inherit',
+                    flexWrap: 'wrap',
                   }}
+                >
+                <Link
+                  href={`/institutions/ministries/persona/${o.slug}`}
+                  style={{ display: 'flex', alignItems: 'center', gap: 10, flex: '1 1 260px', minWidth: 0, textDecoration: 'none', color: 'inherit' }}
                 >
                   <div
                     style={{
@@ -430,8 +439,14 @@ export default function GovernmentMemberProfilePage() {
                     <div style={{ fontSize: 12.5, fontWeight: 600 }}>{nameDisplay(o.full_name)}</div>
                     <div style={{ fontSize: 11, color: '#999' }}>{cargoExacto(o)}</div>
                   </div>
-                  <i className="ti ti-chevron-right" style={{ color: '#ccc', fontSize: 14 }}></i>
                 </Link>
+                <div style={{ marginLeft: 'auto', textAlign: 'right', minWidth: 0 }}>
+                  <CorreoCargo
+                    {...correos.props(o, nameDisplay(o.full_name), [cargoExacto(o), o.ministry_name].filter(Boolean).join(', '))}
+                    onUpsell={() => setUpsell(true)}
+                  />
+                </div>
+                </div>
               ))}
             </div>
           )}
@@ -530,6 +545,14 @@ export default function GovernmentMemberProfilePage() {
           Ver fuente oficial ↗
         </a>
       </div>
+      {upsell && (
+        <UpgradeModal
+          title="Disponible con suscripción"
+          message="El correo y el teléfono de cada cargo, y «Buscar correo» para quien no lo tenga publicado. Con el Directorio."
+          href="/precios"
+          onClose={() => setUpsell(false)}
+        />
+      )}
     </div>
   );
 }
