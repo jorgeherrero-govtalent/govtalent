@@ -72,6 +72,9 @@ export default function CorreoCargo({ acceso, email, persona, encontrado, probab
   if (acceso === null || acceso === undefined) return null;
 
   if (acceso === false) {
+    // Mismo aspecto que un correo de la plataforma (icono, color y
+    // subrayado); solo el texto va difuminado, y el candado dice que se
+    // desbloquea con el Directorio.
     return (
       <button
         type="button"
@@ -79,19 +82,31 @@ export default function CorreoCargo({ acceso, email, persona, encontrado, probab
         aria-label="Ver el correo con el Directorio"
         title="Disponible con el Directorio"
         style={{
+          display: 'inline-flex',
+          alignItems: 'center',
+          gap: 6,
           border: 'none',
           background: 'none',
           padding: 0,
           cursor: 'pointer',
           fontFamily: 'inherit',
-          fontSize: 12,
-          color: '#666',
-          filter: 'blur(3.5px)',
-          userSelect: 'none',
-          whiteSpace: 'nowrap',
+          maxWidth: '100%',
         }}
       >
-        nombre.apellido@organismo.es
+        <i className="ti ti-mail" style={{ fontSize: 14, color: '#6d5aef', flexShrink: 0 }} aria-hidden="true"></i>
+        <span
+          style={{
+            fontSize: 12,
+            color: '#3d3a35',
+            borderBottom: '1px solid #e0dfd8',
+            filter: 'blur(2.5px)',
+            userSelect: 'none',
+            whiteSpace: 'nowrap',
+          }}
+        >
+          nombre.apellido@organismo.es
+        </span>
+        <i className="ti ti-lock" style={{ fontSize: 13, color: '#8b8780', flexShrink: 0 }} aria-hidden="true"></i>
       </button>
     );
   }
