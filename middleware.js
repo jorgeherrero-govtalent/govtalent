@@ -93,7 +93,8 @@ export async function middleware(request) {
     !path.startsWith('/organizations/admin') &&
     !path.startsWith('/organizations/new');
   const isPublicUnsubscribe = path.startsWith('/api/alerts/unsubscribe');
-  const isPublicLegal = PUBLIC_LEGAL_PATHS.includes(path);
+  // Las páginas de provincia del 29N (/elecciones-29n/valencia…) también son públicas.
+  const isPublicLegal = PUBLIC_LEGAL_PATHS.includes(path) || path.startsWith('/elecciones-29n/');
   // Los calendarios de suscripción (.ics) los piden Google, Apple y
   // Outlook sin sesión cada pocas horas. Sin esto recibían el login.
   const isPublicCalendar = path.startsWith('/calendario/');
