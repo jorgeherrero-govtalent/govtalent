@@ -115,8 +115,24 @@ async function handler(request) {
     ofrecibles.push({ nombre: f.nombre, institucion: f.institucion, email, fiabilidad: p.fiabilidad });
   }
 
+  // En seco: dominios cuyo patrón cambiaría respecto al guardado.
+  let cambios;
+  if (dry) {
+    const antes = new Map();
+    for (let desde = 0; ; desde += 1000) {
+      const { data } = await supabase.from('email_patrones').select('dominio, patron, fiabilidad, muestras').range(desde, desde + 999);
+      for (const r of data || []) antes.set(r.dominio, r);
+      if (!data || data.length < 1000) break;
+    }
+    cambios = patrones
+      .filter((p) => (antes.get(p.dominio)?.patron || null) !== (p.patron || null))
+      .map((p) => ({ dominio: p.dominio, antes: antes.get(p.dominio)?.patron || null, fiab_antes: antes.get(p.dominio) ? Number(antes.get(p.dominio).fiabilidad) : null, ahora: p.patron, fiab_ahora: p.fiabilidad, muestras: p.muestras }))
+      .sort((a, b) => b.muestras - a.muestras);
+  }
+
   const informe = {
     dry_run: dry,
+    ...(cambios ? { cambios_patron: cambios.length, cambios: cambios.slice(0, 200) } : {}),
     n_leidos: filas.length,
     dominios_con_muestras: patrones.length,
     dominios_fiables: fiables.size,
