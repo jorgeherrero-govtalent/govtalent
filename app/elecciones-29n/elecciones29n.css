@@ -188,3 +188,30 @@
 .e29 .dir{border-radius:16px 0 0 0}
 .e29 .nb-cifra{font-size:60px}
 }
+/* Índice de candidatos por provincia */
+.e29 .ip{margin-top:18px}
+.e29 .ip-fila{background:#fff;border:1px solid #e6e4dc;border-radius:14px;margin-top:8px}
+.e29 .ip-fila summary{list-style:none;cursor:pointer;display:flex;align-items:center;gap:14px;padding:13px 16px}
+.e29 .ip-fila summary::-webkit-details-marker{display:none}
+.e29 .ip-z{width:150px;flex-shrink:0;font-weight:600;font-size:14.5px;line-height:1.25}
+.e29 .ip-z small{display:block;font-weight:400;color:#8b8780;font-size:11.5px}
+.e29 .ip-cabs{flex:1;display:flex;flex-wrap:wrap;gap:4px 14px;font-size:12.5px;color:#3a3a36;min-width:0}
+.e29 .ip-cab{display:inline-flex;align-items:center;gap:5px}
+.e29 .ip-cab i,.e29 .ip-listas h3 i{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+.e29 .ip-ver{color:#3c3489;font-size:12.5px;white-space:nowrap}
+.e29 .ip-ver::after{content:' ▾'}
+.e29 .ip-fila[open] .ip-ver::after{content:' ▴'}
+.e29 .ip-listas{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:4px 18px;padding:4px 16px 14px;border-top:1px solid #f0efe9}
+.e29 .ip-listas h3{margin:12px 0 6px;font-size:12.5px;display:flex;gap:6px;align-items:center;letter-spacing:0}
+.e29 .ip-listas ol{margin:0;padding-left:22px;font-size:12.5px;line-height:1.75;color:#3a3a36}
+.e29 .ip-ir{grid-column:1/-1;margin:10px 0 0;font-size:13px}
+.e29 .ip-ir a{color:#3c3489;text-decoration:none}
+.e29 .etq-m{display:inline-block;font-size:10.5px;border-radius:6px;padding:0 6px;margin-left:5px;line-height:17px;vertical-align:1px}
+.e29 .etq-m.si{background:#f0eefe;color:#3c3489}
+.e29 .etq-m.nu{background:#e7f2ee;color:#1d6f5c}
+.e29 .ip-ley{display:flex;gap:16px;flex-wrap:wrap;font-size:12px;color:#6b6862;margin-top:10px}
+@media(max-width:700px){.e29 .ip-fila summary{flex-wrap:wrap}.e29 .ip-z{width:auto;flex:1}.e29 .ip-cabs{order:3;flex-basis:100%}}
+/* Cabecera con la trama de puntos de la portada (landing.css, .l-hero-dots) */
+.e29{overflow-x:clip}
+.e29 .hero{position:relative;isolation:isolate}
+.e29 .hero::before{content:'';position:absolute;top:-56px;right:calc(50% - 50vw);width:62vw;height:820px;z-index:-1;pointer-events:none;background-image:radial-gradient(circle,rgba(109,90,239,.75) 1.5px,transparent 1.8px),radial-gradient(circle,rgba(29,111,92,.65) 1.5px,transparent 1.7px);background-size:24px 24px,24px 24px;background-position:0 0,12px 12px;-webkit-mask-image:radial-gradient(70% 70% at 100% 10%,#000 0%,transparent 75%);mask-image:radial-gradient(70% 70% at 100% 10%,#000 0%,transparent 75%)}

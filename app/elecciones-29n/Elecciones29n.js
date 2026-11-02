@@ -78,7 +78,7 @@ function Cabecera({ onVideo }) {
 // `inicial` es el explorador ya pintado en el servidor (lib/elecciones29nSsr.js),
 // para que buscadores y asistentes de IA lean la página sin ejecutar JavaScript.
 // Al montarse, el explorador se vuelve a pintar igual y queda interactivo.
-export default function Elecciones29n({ datos, inicial }) {
+export default function Elecciones29n({ datos, inicial, children }) {
   const ref = useRef(null);
   const [video, setVideo] = useState(false);
   const cerrarVideo = useCallback(() => setVideo(false), []);
@@ -103,6 +103,7 @@ export default function Elecciones29n({ datos, inicial }) {
     <>
       <Cabecera onVideo={() => setVideo(true)} />
       {explorador}
+      {children}
       <PieLanding />
       {video && <Video onCerrar={cerrarVideo} />}
     </>

@@ -9,6 +9,7 @@ import { PieLanding } from '../../landing/LandingClient';
 import '../../landing/landing.css';
 import '../elecciones29n.css';
 import datos from '@/lib/data/elecciones29n.json';
+import cand from '@/lib/data/candidatos29n.json';
 import { fechaLarga } from '@/lib/elecciones29nTexto';
 import {
   COLORES,
@@ -122,7 +123,7 @@ export default function PaginaProvincia({ params }) {
   if (!z) notFound();
   const { c, titulo, descripcion } = textos(z);
   const url = `${SITE_URL}/elecciones-29n/${params.provincia}`;
-  const listas = listasProvincia(datos, z);
+  const listas = listasProvincia(datos, cand, z);
   const salen = datos.d
     .filter((d) => d.z === z && !(d.d === 'congreso' && d.x?.z === z && !d.x?.p))
     .sort((a, b) => a.n.localeCompare(b.n, 'es'));
@@ -214,7 +215,7 @@ export default function PaginaProvincia({ params }) {
           <section style={{ marginTop: 28 }}>
             <h2 style={{ fontSize: 24, letterSpacing: -0.6, margin: 0 }}>Las listas de cada partido</h2>
             <p className="lead" style={{ fontSize: 14.5, marginTop: 6 }}>
-              En cada lista, los diputados que repiten y los candidatos nuevos en puestos con opciones, por su número en la lista.
+              Todos los candidatos de los partidos con representación hoy, por su número en la lista. «Repite»: es diputado hoy. «Nuevo»: no lo es.
             </p>
             <div className="listas">
               {listas.map((l) => (

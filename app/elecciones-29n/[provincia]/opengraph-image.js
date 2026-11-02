@@ -2,6 +2,7 @@
 // Titular con la provincia y los primeros candidatos nuevos de sus listas.
 import { ImageResponse } from 'next/og';
 import datos from '@/lib/data/elecciones29n.json';
+import cand from '@/lib/data/candidatos29n.json';
 import { COLORES, provincias, provinciaPorSlug, slugProvincia, cifrasProvincia, listasProvincia } from '@/lib/elecciones29nProvincias';
 
 export const size = { width: 1200, height: 630 };
@@ -18,9 +19,9 @@ const iniciales = (n) =>
 export default function Imagen({ params }) {
   const z = provinciaPorSlug(datos, params.provincia) || 'España';
   const c = cifrasProvincia(datos, z);
-  // Primero los nuevos; si no hay, los primeros de cada lista.
-  const filas = listasProvincia(datos, z).flatMap((l) => l.filas.map((f) => ({ ...f, siglas: l.grupo })));
-  const destacados = [...filas.filter((f) => f.nuevo), ...filas.filter((f) => !f.nuevo)].slice(0, 4);
+    const filas = listasProvincia(datos, cand, z).flatMap((l) => l.filas.filter((f) => f.o <= Math.max(l.escanos, 1)).map((f) => ({ ...f, siglas: l.grupo })));
+  // Primero los nuevos con cargo conocido, luego los nuevos y luego los que repiten.
+  const destacados = [...filas.filter((f) => f.nuevo && f.cargo), ...filas.filter((f) => f.nuevo && !f.cargo), ...filas.filter((f) => !f.nuevo)].slice(0, 4);
   const subtitulo =
     c.no === 0 ? `Los ${c.total} diputados vuelven a presentarse.` : `${c.no} de ${c.total} diputados se van. Quién llega en su lugar.`;
   return new ImageResponse(

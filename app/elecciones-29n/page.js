@@ -1,11 +1,11 @@
 import Elecciones29n from './Elecciones29n';
 import datosBase from '@/lib/data/elecciones29n.json';
-import mapa from '@/lib/data/mapaProvincias.json';
+import cand from '@/lib/data/candidatos29n.json';
+import IndiceProvincias from './IndiceProvincias';
 import { htmlInicial } from '@/lib/elecciones29nSsr';
 import { cifras, preguntas, URL_PAGINA, URL_MD } from '@/lib/elecciones29nTexto';
 
-// Provincias: es-atlas (IGN, MIT), proyectadas con d3-geo y Canarias en recuadro.
-const datos = { ...datosBase, mapa };
+const datos = datosBase;
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://govtalent.app';
 
@@ -120,7 +120,25 @@ export default function Elecciones29nPage() {
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(datosEstructurados()).replace(/</g, '\\u003c') }}
       />
-      <Elecciones29n datos={datos} inicial={htmlInicial(datos)} />
+      <Elecciones29n datos={datos} inicial={htmlInicial(datos)}>
+        <div className="e29">
+          <div className="wrap">
+            <IndiceProvincias datos={datos} cand={cand} />
+            <section className="banda banda-c">
+              <div className="ante-dk">Elecciones generales del 29 de noviembre</div>
+              <h2>
+                Toda la actividad legislativa e institucional, <span>en un mismo lugar</span>
+              </h2>
+              <p>Vigilancia normativa con IA, avisos en tiempo real y la mayor base de datos del sector público, con más de 27.000 cargos y su contacto.</p>
+              <div className="banda-btns" style={{ justifyContent: 'center' }}>
+                <a className="btn-ai e29-btn" href="/login?view=signup">
+                  Crear cuenta gratis
+                </a>
+              </div>
+            </section>
+          </div>
+        </div>
+      </Elecciones29n>
     </div>
   );
 }
