@@ -35,6 +35,7 @@ const NIVELES = {
   instituciones: [
     'Administración General del Estado',
     'Congreso de los Diputados',
+    'Senado',
     'Comunidades autónomas',
     'Administración local',
     'Altas instituciones del Estado',
@@ -103,6 +104,8 @@ function clasificar(f) {
     return POR_CATEGORIA[f.categoria_unidad] || ['instituciones', 'Otros organismos públicos'];
   }
   // Parlamentos autonómicos (sql/92): diputados y técnicos de grupo.
+  // El Senado comparte tablas con ellos (sql/118): sus ids son 'ccaa-legislativo:senado:…'.
+  if (id.startsWith('ccaa-legislativo:senado:')) return ['instituciones', 'Senado'];
   if (id.startsWith('ccaa-legislativo')) return ['instituciones', 'Comunidades autónomas'];
   if (id.startsWith('es-legislativo')) return ['instituciones', 'Congreso de los Diputados'];
   return ['instituciones', 'Administración General del Estado'];

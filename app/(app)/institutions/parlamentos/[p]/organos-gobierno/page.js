@@ -5,7 +5,7 @@ import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import MultiSelectFilter from '@/components/MultiSelectFilter';
 import { PestanasParlamento, CabeceraParlamento, Avatar, Vacio } from '@/components/ParlamentoAutonomico';
-import { PARLAMENTOS_UI, base, useComposicion, normalizar, pesoCargo } from '@/lib/ccaa/composicionUI';
+import { PARLAMENTOS_UI, base, seg, miembro, useComposicion, normalizar, pesoCargo } from '@/lib/ccaa/composicionUI';
 
 /**
  * Órganos de gobierno de un parlamento autonómico: Mesa, Junta de
@@ -21,7 +21,7 @@ function Miembro({ m, p, grupo, ultimo }) {
   const preside = m.cargo_norm === 'presidencia';
   return (
     <Link
-      href={`${base(p)}/diputados/${m.d.slug}`}
+      href={`${base(p)}/${seg(p)}/${m.d.slug}`}
       style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 0', borderBottom: ultimo ? 'none' : '.5px solid #f0f0eb', textDecoration: 'none', color: 'inherit' }}
     >
       <Avatar nombre={m.d.nombre} url={m.d.foto_url} />

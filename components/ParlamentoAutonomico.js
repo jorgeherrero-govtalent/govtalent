@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { PARLAMENTOS_UI, base, colorGrupo, esComision } from '@/lib/ccaa/composicionUI';
+import { PARLAMENTOS_UI, base, seg, miembro, colorGrupo, esComision } from '@/lib/ccaa/composicionUI';
 
 /**
  * Piezas comunes de las pantallas de un parlamento autonómico. Son copia
@@ -16,14 +16,19 @@ import { PARLAMENTOS_UI, base, colorGrupo, esComision } from '@/lib/ccaa/composi
 const VERDE = '#1d6f5c';
 
 export function PestanasParlamento({ p }) {
-  const pathname = usePathname();
+  // Con las reescrituras del Senado (next.config.js) la ruta puede llegar
+  // como /institutions/parlamentos/senado/diputados: se lleva a la visible.
+  const pathname = (usePathname() || '')
+    .replace(/^\/institutions\/parlamentos\/senado\/diputados/, '/institutions/senado/senadores')
+    .replace(/^\/institutions\/parlamentos\/senado\//, '/institutions/senado/');
   const b = base(p);
+  const visibles = PARLAMENTOS_UI[p]?.pestanas;
   const PESTANAS = [
-    { href: `${b}/comisiones`, label: 'Comisiones' },
-    { href: `${b}/diputados`, label: 'Diputados' },
-    { href: `${b}/organos-gobierno`, label: 'Órganos de gobierno' },
-    { href: `${b}/grupos`, label: 'Grupos parlamentarios' },
-  ];
+    { id: 'comisiones', href: `${b}/comisiones`, label: 'Comisiones' },
+    { id: 'miembros', href: `${b}/${seg(p)}`, label: miembro(p).plural },
+    { id: 'organos', href: `${b}/organos-gobierno`, label: 'Órganos de gobierno' },
+    { id: 'grupos', href: `${b}/grupos`, label: 'Grupos parlamentarios' },
+  ].filter((t) => !visibles || visibles.includes(t.id));
   return (
     <div style={{ display: 'flex', gap: 16, borderBottom: '.5px solid #e0dfd8', marginBottom: 14, flexWrap: 'wrap' }}>
       {PESTANAS.map((t) => {
@@ -57,10 +62,14 @@ export function CabeceraParlamento({ p, titulo, datos }) {
           Instituciones
         </Link>
         {' › '}
-        <Link href="/institutions/comunidades" style={{ color: '#999', textDecoration: 'none' }}>
-          Comunidades autónomas
-        </Link>
-        {' › '}
+        {!cfg.camara && (
+          <>
+            <Link href="/institutions/comunidades" style={{ color: '#999', textDecoration: 'none' }}>
+              Comunidades autónomas
+            </Link>
+            {' › '}
+          </>
+        )}
         <span style={{ color: '#666' }}>{cfg.nombre}</span>
       </div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 12, flexWrap: 'wrap' }}>
@@ -72,9 +81,11 @@ export function CabeceraParlamento({ p, titulo, datos }) {
         ) : null}
       </div>
       <p style={{ fontSize: 12, color: '#888', margin: '3px 0 0' }}>
-        {datos ? datos.diputados.length : '—'} diputados, {datos ? datos.grupos.length : '—'} grupos, {nCom ?? '—'} comisiones,{' '}
+        {datos ? datos.diputados.length : '—'} {miembro(p).minPlural}, {datos ? datos.grupos.length : '—'} grupos,{' '}
+        {cfg.pestanas && !cfg.pestanas.includes('comisiones') ? '' : `${nCom ?? '—'} comisiones, `}
         {cfg.legislatura} Legislatura
       </p>
+      {cfg.aviso && <p style={{ fontSize: 12, color: '#888', margin: '3px 0 0' }}>{cfg.aviso}</p>}
     </div>
   );
 }

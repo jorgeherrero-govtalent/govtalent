@@ -4,7 +4,7 @@ import { useMemo, useState } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import { PestanasParlamento, CabeceraParlamento, LogoGrupoCcaa, Vacio } from '@/components/ParlamentoAutonomico';
-import { PARLAMENTOS_UI, base, useComposicion, normalizar, fechaCorta, esComision } from '@/lib/ccaa/composicionUI';
+import { PARLAMENTOS_UI, base, miembro, useComposicion, normalizar, fechaCorta, esComision } from '@/lib/ccaa/composicionUI';
 
 /**
  * Grupos parlamentarios de un parlamento autonómico. Copia de la de
@@ -14,6 +14,7 @@ import { PARLAMENTOS_UI, base, useComposicion, normalizar, fechaCorta, esComisio
 export default function GruposAutonomicosPage() {
   const { p } = useParams();
   const cfg = PARLAMENTOS_UI[p];
+  const m = miembro(p);
   const { datos, error } = useComposicion(p);
   const [search, setSearch] = useState('');
 
@@ -73,12 +74,14 @@ export default function GruposAutonomicosPage() {
               <div style={{ display: 'flex', gap: 16, paddingTop: 12, borderTop: '.5px solid #f0f0eb' }}>
                 <div>
                   <div style={{ fontSize: 15, fontWeight: 700, color: '#1d6f5c' }}>{g.diputados.toLocaleString('es-ES')}</div>
-                  <div style={{ fontSize: 10, color: '#999' }}>{g.diputados === 1 ? 'diputado' : 'diputados'}</div>
+                  <div style={{ fontSize: 10, color: '#999' }}>{g.diputados === 1 ? m.min : m.minPlural}</div>
                 </div>
-                <div>
-                  <div style={{ fontSize: 15, fontWeight: 700 }}>{g.tecnicos.toLocaleString('es-ES')}</div>
-                  <div style={{ fontSize: 10, color: '#999' }}>{g.tecnicos === 1 ? 'técnico' : 'técnicos'}</div>
-                </div>
+                {!cfg.camara && (
+                  <div>
+                    <div style={{ fontSize: 15, fontWeight: 700 }}>{g.tecnicos.toLocaleString('es-ES')}</div>
+                    <div style={{ fontSize: 10, color: '#999' }}>{g.tecnicos === 1 ? 'técnico' : 'técnicos'}</div>
+                  </div>
+                )}
               </div>
             </Link>
           ))}

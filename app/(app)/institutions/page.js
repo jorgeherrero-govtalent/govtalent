@@ -65,6 +65,8 @@ const CIFRAS = {
   // parlamentarios: activos y sin objeción. Si esa cifra se mueve, hay
   // que tocarla aquí también.
   congreso: { n: 350, etiqueta: 'diputados, 321 asesores' },
+  // Senadores en activo con la Cámara disuelta (sql/118, 02-11-2026).
+  senado: { n: 71, etiqueta: 'senadores en activo, 7 grupos' },
   organismos: { n: 77, etiqueta: 'organismos' },
   // Solo los parlamentos desde el 14-10-2026: los 17 y las asambleas de
   // Ceuta y Melilla. Gobiernos y TSJ, en la Base de datos.
@@ -166,6 +168,14 @@ export default function InstitutionsPage() {
           etiqueta={CIFRAS.congreso.etiqueta}
         />
         <Modulo
+          href="/institutions/senado"
+          pais="es"
+          titulo="Senado"
+          descripcion="Senadores electos y designados por las comunidades, y grupos parlamentarios."
+          cifra={CIFRAS.senado.n}
+          etiqueta={CIFRAS.senado.etiqueta}
+        />
+        <Modulo
           href="/institutions/ministries"
           pais="es"
           titulo="Ministerios"
@@ -218,7 +228,7 @@ export default function InstitutionsPage() {
           tarjeta pesaba lo mismo que una sección real y prometía más de
           lo que es. */}
       <div style={{ fontSize: 11.5, color: '#a8a49c', paddingTop: 16 }}>
-        Próximamente: Senado, y organismos y agencias de la UE
+        Próximamente: organismos y agencias de la UE
       </div>
 
 

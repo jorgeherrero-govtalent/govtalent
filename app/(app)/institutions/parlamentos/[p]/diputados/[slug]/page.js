@@ -9,7 +9,7 @@ import { toast } from '@/lib/toast';
 import BackLink from '@/components/BackLink';
 import UpgradeModal from '@/components/UpgradeModal';
 import { Vacio } from '@/components/ParlamentoAutonomico';
-import { PARLAMENTOS_UI, base, useComposicion, colorGrupo, limpiarComision, fechaCorta, esComision } from '@/lib/ccaa/composicionUI';
+import { PARLAMENTOS_UI, base, seg, miembro, useComposicion, colorGrupo, limpiarComision, fechaCorta, esComision } from '@/lib/ccaa/composicionUI';
 
 /**
  * Ficha de un diputado autonómico. Copia de la del Congreso: cabecera con
@@ -17,6 +17,10 @@ import { PARLAMENTOS_UI, base, useComposicion, colorGrupo, limpiarComision, fech
  * servidor), y pestañas Resumen, Comisiones, Actividad. La Asamblea no
  * publica biografía; en su lugar va la actividad parlamentaria que sí
  * publica en la ficha (iniciativas por tipo y legislaturas).
+ *
+ * El Senado usa esta misma ficha: solo Resumen (el Senado no publica en
+ * datos abiertos ni sus comisiones ni la actividad de cada senador), con
+ * la procedencia (electo o designado), el partido y sus redes sociales.
  */
 
 const TABS = [
@@ -54,6 +58,8 @@ function lista(partes) {
 export default function DiputadoAutonomicoPage() {
   const { p, slug } = useParams();
   const cfg = PARLAMENTOS_UI[p];
+  const m = miembro(p);
+  const camara = !!cfg?.camara;
   const { datos, error } = useComposicion(p);
   const [tab, setTab] = useState('resumen');
   const [upsell, setUpsell] = useState(null);
@@ -98,9 +104,9 @@ export default function DiputadoAutonomicoPage() {
   if (!d) {
     return (
       <div className="sec">
-        <Vacio icono="ti-user-off" texto="No hemos encontrado a este diputado.">
+        <Vacio icono="ti-user-off" texto={`No hemos encontrado a este ${m.min}.`}>
           <div style={{ marginTop: 10 }}>
-            <Link href={`${base(p)}/diputados`} className="btn-o" style={{ textDecoration: 'none' }}>
+            <Link href={`${base(p)}/${seg(p)}`} className="btn-o" style={{ textDecoration: 'none' }}>
               Volver al directorio
             </Link>
           </div>
@@ -121,12 +127,26 @@ export default function DiputadoAutonomicoPage() {
   const actividad = d.datos?.actividad || {};
   const legislaturas = d.datos?.legislaturas || [];
   const groupName = grupo?.nombre || 'Sin grupo asignado';
-  const diputadoA = d.sexo === 'M' ? 'Diputada' : d.sexo === 'H' ? 'Diputado' : 'Diputado/a';
+  const diputadoA = d.sexo === 'M' ? m.M : d.sexo === 'H' ? m.H : m.N;
+  // Senado: «Senador electo por Madrid» o «Senadora designada por el
+  // Parlamento de Andalucía».
+  const x = d.datos || {};
+  const procedencia = !camara || !x.procedencia
+    ? null
+    : x.procedencia === 'Designado'
+      ? `${d.sexo === 'M' ? 'designada' : 'designado'} por ${x.designado_por_texto || x.designado_por || d.circunscripcion}`
+      : `${d.sexo === 'M' ? 'electa' : 'electo'} por ${d.circunscripcion}`;
+  const redes = x.redes || {};
   const desde = d.fecha_alta ? new Date(d.fecha_alta).getFullYear() : null;
 
   // La frase del perfil, de los datos: cargo en el grupo, portavocías,
   // comisiones e iniciativas. Sin nada, no hay bloque.
   const frase = (() => {
+    if (camara) {
+      if (!procedencia) return null;
+      const fecha = fechaCorta(d.fecha_alta);
+      return `${diputadoA} ${procedencia}${fecha ? ` desde el ${fecha}` : ''}${x.partido ? `, del ${x.partido}` : ''}${grupo ? `. Forma parte del ${grupo.nombre}` : ''}.`;
+    }
     const partes = [];
     const gob = fuera.find((c) => /^(gobierno|consejer)/i.test(c.com.nombre));
     if (gob) partes.push(/^gobierno$/i.test(gob.com.nombre) ? `Es ${gob.cargo} ${cfg.deCcaa}` : `Es ${gob.cargo} de ${gob.com.nombre.replace(/^Consejer[ií]a de\s*/i, '')}`);
@@ -147,23 +167,27 @@ export default function DiputadoAutonomicoPage() {
   return (
     <div className="sec" style={{ maxWidth: 900 }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 12, flexWrap: 'wrap' }}>
-        <BackLink fallbackHref={`${base(p)}/diputados`} fallbackLabel="Diputados" />
+        <BackLink fallbackHref={`${base(p)}/${seg(p)}`} fallbackLabel={m.plural} />
         <span style={{ fontSize: 11.5, color: '#ddd' }}>|</span>
         <span style={{ fontSize: 11.5, color: '#999' }}>
           <Link href="/institutions" style={{ color: '#999', textDecoration: 'none' }}>
             Instituciones
           </Link>
           {' › '}
-          <Link href="/institutions/comunidades" style={{ color: '#999', textDecoration: 'none' }}>
-            Comunidades autónomas
-          </Link>
-          {' › '}
-          <Link href={`${base(p)}/comisiones`} style={{ color: '#999', textDecoration: 'none' }}>
+          {!camara && (
+            <>
+              <Link href="/institutions/comunidades" style={{ color: '#999', textDecoration: 'none' }}>
+                Comunidades autónomas
+              </Link>
+              {' › '}
+            </>
+          )}
+          <Link href={camara ? `${base(p)}/${seg(p)}` : `${base(p)}/comisiones`} style={{ color: '#999', textDecoration: 'none' }}>
             {cfg.nombre}
           </Link>
           {' › '}
-          <Link href={`${base(p)}/diputados`} style={{ color: '#999', textDecoration: 'none' }}>
-            Diputados
+          <Link href={`${base(p)}/${seg(p)}`} style={{ color: '#999', textDecoration: 'none' }}>
+            {m.plural}
           </Link>
           {' › '}
           <span style={{ color: '#666' }}>{d.nombre}</span>
@@ -194,8 +218,9 @@ export default function DiputadoAutonomicoPage() {
                 )}
               </div>
               <div style={{ fontSize: 11.5, color: '#999', marginTop: 4 }}>
-                {diputadoA} {cfg.deNombre}, {cfg.legislatura} Legislatura
+                {procedencia ? `${diputadoA} ${procedencia}` : `${diputadoA} ${cfg.deNombre}`}, {cfg.legislatura} Legislatura
                 {desde ? `, desde ${desde}` : ''}
+                {x.partido && camara ? `, ${x.partido}` : ''}
               </div>
 
               {contacto.estado !== 'cargando' && (
@@ -224,7 +249,7 @@ export default function DiputadoAutonomicoPage() {
 
                   {contacto.estado === 'sin-correo' && (
                     <BuscarCorreo
-                      persona={{ id: idPro, nombre: d.nombre, cargo: `${diputadoA} ${cfg.deNombre}` }}
+                      persona={{ id: idPro, nombre: d.nombre, cargo: procedencia ? `${diputadoA} ${procedencia}` : `${diputadoA} ${cfg.deNombre}` }}
                       encontrado={encontrados[idPro]}
                       probable={probables[idPro]}
                       onResultado={(r) => apuntar(idPro, r)}
@@ -240,8 +265,10 @@ export default function DiputadoAutonomicoPage() {
                         type="button"
                         onClick={() =>
                           setUpsell({
-                            title: 'El correo de cada diputado',
-                            message: `El correo institucional que publica ${cfg.elNombre}, en la ficha de cada diputado. Disponible con el Directorio.`,
+                            title: `El correo de cada ${m.min}`,
+                            message: camara
+                              ? `El correo institucional de cada ${m.min}, en su ficha. Disponible con el Directorio.`
+                              : `El correo institucional que publica ${cfg.elNombre}, en la ficha de cada ${m.min}. Disponible con el Directorio.`,
                           })
                         }
                         className="btn-ai"
@@ -263,6 +290,17 @@ export default function DiputadoAutonomicoPage() {
                       <i className="ti ti-brand-x" style={{ fontSize: 15 }} aria-hidden="true"></i>
                     </a>
                   )}
+                  {[
+                    ['linkedin', 'ti-brand-linkedin', 'Perfil en LinkedIn'],
+                    ['facebook', 'ti-brand-facebook', 'Perfil en Facebook'],
+                    ['instagram', 'ti-brand-instagram', 'Perfil en Instagram'],
+                  ]
+                    .filter(([k]) => redes[k])
+                    .map(([k, icono, etiqueta]) => (
+                      <a key={k} href={redes[k]} target="_blank" rel="noreferrer" aria-label={etiqueta} style={{ ...BOTON_ICONO, textDecoration: 'none' }}>
+                        <i className={`ti ${icono}`} style={{ fontSize: 15 }} aria-hidden="true"></i>
+                      </a>
+                    ))}
                 </div>
               )}
             </div>
@@ -275,7 +313,7 @@ export default function DiputadoAutonomicoPage() {
       </div>
 
       <div style={{ display: 'flex', gap: 16, borderBottom: '.5px solid #e0dfd8', margin: '18px 0', overflowX: 'auto' }}>
-        {TABS.map((t) => (
+        {TABS.filter((t) => !camara || t.id === 'resumen').map((t) => (
           <button
             key={t.id}
             onClick={() => setTab(t.id)}
@@ -378,7 +416,7 @@ export default function DiputadoAutonomicoPage() {
           )}
 
           {!frase && portavocias.length === 0 && organos.length === 0 && fuera.length === 0 && (
-            <Vacio icono="ti-file-off" texto="Aún no tenemos actividad parlamentaria registrada de este diputado." />
+            <Vacio icono="ti-file-off" texto={`Aún no tenemos actividad parlamentaria registrada de este ${m.min}.`} />
           )}
         </div>
       )}
@@ -428,7 +466,7 @@ export default function DiputadoAutonomicoPage() {
           ) : (
             <div className="empty-state">
               <i className="ti ti-file-off"></i>
-              {d.ficha_leida_at ? 'No consta actividad en esta legislatura.' : 'Aún no hemos leído la actividad de este diputado.'}
+              {d.ficha_leida_at ? 'No consta actividad en esta legislatura.' : `Aún no hemos leído la actividad de este ${m.min}.`}
             </div>
           )}
           {legislaturas.length > 0 && (

@@ -5,7 +5,7 @@ import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import BackLink from '@/components/BackLink';
 import { Avatar, Vacio } from '@/components/ParlamentoAutonomico';
-import { PARLAMENTOS_UI, base, useComposicion, colorGrupo, TIPOS_COMISION, pesoCargo } from '@/lib/ccaa/composicionUI';
+import { PARLAMENTOS_UI, base, seg, miembro, useComposicion, colorGrupo, TIPOS_COMISION, pesoCargo } from '@/lib/ccaa/composicionUI';
 
 /**
  * Ficha de una comisión autonómica. Copia de la del Congreso: cabecera
@@ -20,7 +20,7 @@ const LABEL = { fontSize: 10.5, fontWeight: 700, color: '#999', textTransform: '
 function Miembro({ m, p, grupo, size = 34 }) {
   return (
     <Link
-      href={`${base(p)}/diputados/${m.d.slug}`}
+      href={`${base(p)}/${seg(p)}/${m.d.slug}`}
       style={{ display: 'flex', alignItems: 'center', gap: 11, padding: '9px 0', borderBottom: '.5px solid #f0f0eb', textDecoration: 'none', color: 'inherit' }}
     >
       <Avatar nombre={m.d.nombre} url={m.d.foto_url} size={size} />

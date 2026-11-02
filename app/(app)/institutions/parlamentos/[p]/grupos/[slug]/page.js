@@ -5,7 +5,7 @@ import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import BackLink from '@/components/BackLink';
 import { Avatar, LogoGrupoCcaa, Vacio } from '@/components/ParlamentoAutonomico';
-import { PARLAMENTOS_UI, base, useComposicion, limpiarComision, normalizar, fechaCorta, esComision } from '@/lib/ccaa/composicionUI';
+import { PARLAMENTOS_UI, base, seg, miembro, useComposicion, limpiarComision, normalizar, fechaCorta, esComision } from '@/lib/ccaa/composicionUI';
 
 /**
  * Ficha de un grupo parlamentario autonómico. Copia de la del Congreso:
@@ -50,6 +50,8 @@ function Buscador({ value, onChange, placeholder }) {
 export default function GrupoAutonomicoPage() {
   const { p, slug } = useParams();
   const cfg = PARLAMENTOS_UI[p];
+  const m = miembro(p);
+  const camara = !!cfg?.camara;
   const { datos, error } = useComposicion(p);
   const [tab, setTab] = useState('resumen');
   const [buscarPortavoz, setBuscarPortavoz] = useState('');
@@ -119,10 +121,14 @@ export default function GrupoAutonomicoPage() {
             Instituciones
           </Link>
           {' › '}
-          <Link href="/institutions/comunidades" style={{ color: '#999', textDecoration: 'none' }}>
-            Comunidades autónomas
-          </Link>
-          {' › '}
+          {!camara && (
+            <>
+              <Link href="/institutions/comunidades" style={{ color: '#999', textDecoration: 'none' }}>
+                Comunidades autónomas
+              </Link>
+              {' › '}
+            </>
+          )}
           <Link href={`${base(p)}/grupos`} style={{ color: '#999', textDecoration: 'none' }}>
             {cfg.nombre}
           </Link>
@@ -138,7 +144,7 @@ export default function GrupoAutonomicoPage() {
             <h1 style={{ fontSize: 17, fontWeight: 700, margin: 0, lineHeight: 1.3 }}>{grupo.nombre}</h1>
             <div style={{ fontSize: 12, color: '#555', marginTop: 5, lineHeight: 1.6 }}>
               {[
-                `${diputados.length} ${diputados.length === 1 ? 'diputado' : 'diputados'}`,
+                `${diputados.length} ${diputados.length === 1 ? m.min : m.minPlural}`,
                 portavoces.length ? `portavoz en ${portavoces.length} ${portavoces.length === 1 ? 'comisión' : 'comisiones'}` : null,
                 tecnicos.length ? `${tecnicos.length} ${tecnicos.length === 1 ? 'técnico' : 'técnicos'}` : null,
               ]
@@ -154,7 +160,7 @@ export default function GrupoAutonomicoPage() {
       </div>
 
       <div style={{ display: 'flex', gap: 20, borderBottom: '.5px solid #e0dfd8', marginBottom: 15, overflowX: 'auto' }}>
-        {TABS.map((t) => {
+        {TABS.filter((t) => !camara || t.id === 'resumen' || t.id === 'diputados').map((t) => {
           const n = t.id === 'portavoces' ? portavoces.length : t.id === 'diputados' ? diputados.length : t.id === 'equipo' ? tecnicos.length : null;
           return (
             <button
@@ -173,7 +179,7 @@ export default function GrupoAutonomicoPage() {
                 whiteSpace: 'nowrap',
               }}
             >
-              {t.label}{' '}
+              {t.id === 'diputados' ? m.plural : t.label}{' '}
               {n !== null && n > 0 && <span style={{ color: tab === t.id ? '#9cc4b8' : '#bbb' }}>{n.toLocaleString('es-ES')}</span>}
             </button>
           );
@@ -186,7 +192,7 @@ export default function GrupoAutonomicoPage() {
             <div style={CARD}>
               <div style={LABEL}>A quién dirigirte</div>
               {cargosGrupo.slice(0, 3).map((c) => (
-                <Link key={c.id} href={`${base(p)}/diputados/${c.d.slug}`} style={FILA}>
+                <Link key={c.id} href={`${base(p)}/${seg(p)}/${c.d.slug}`} style={FILA}>
                   <Avatar nombre={c.d.nombre} url={c.d.foto_url} size={28} tono="gris" />
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ fontSize: 12, fontWeight: 600 }}>{c.d.nombre}</div>
@@ -195,7 +201,7 @@ export default function GrupoAutonomicoPage() {
                 </Link>
               ))}
               {portavoces.slice(0, Math.max(0, 4 - Math.min(3, cargosGrupo.length))).map((x) => (
-                <Link key={x.id} href={`${base(p)}/diputados/${x.d.slug}`} style={FILA}>
+                <Link key={x.id} href={`${base(p)}/${seg(p)}/${x.d.slug}`} style={FILA}>
                   <Avatar nombre={x.d.nombre} url={x.d.foto_url} size={28} tono="gris" />
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ fontSize: 12, fontWeight: 600 }}>{x.d.nombre}</div>
@@ -234,7 +240,7 @@ export default function GrupoAutonomicoPage() {
               <div style={LABEL}>Quiénes son ({diputados.length})</div>
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
                 {diputados.slice(0, 24).map((d) => (
-                  <Link key={d.id} href={`${base(p)}/diputados/${d.slug}`} title={d.nombre}>
+                  <Link key={d.id} href={`${base(p)}/${seg(p)}/${d.slug}`} title={d.nombre}>
                     <Avatar nombre={d.nombre} url={d.foto_url} size={34} tono="gris" />
                   </Link>
                 ))}
@@ -262,7 +268,7 @@ export default function GrupoAutonomicoPage() {
               </div>
             ) : (
               portavocesFiltrados.map((x) => (
-                <Link key={x.id} href={`${base(p)}/diputados/${x.d.slug}`} style={FILA}>
+                <Link key={x.id} href={`${base(p)}/${seg(p)}/${x.d.slug}`} style={FILA}>
                   <Avatar nombre={x.d.nombre} url={x.d.foto_url} size={32} tono="gris" />
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ fontSize: 12.5, fontWeight: 600 }}>{x.d.nombre}</div>
@@ -280,19 +286,21 @@ export default function GrupoAutonomicoPage() {
         <>
           <div style={{ display: 'flex', gap: 8, marginBottom: 12, flexWrap: 'wrap' }}>
             <Buscador value={buscarDiputado} onChange={setBuscarDiputado} placeholder="Buscar por nombre..." />
-            <span onClick={() => setSoloDestacados((v) => !v)} style={chip(soloDestacados)}>
-              Con portavocía ({conPortavocia.size})
-            </span>
+            {!camara && (
+              <span onClick={() => setSoloDestacados((v) => !v)} style={chip(soloDestacados)}>
+                Con portavocía ({conPortavocia.size})
+              </span>
+            )}
           </div>
           <div style={CARD}>
             {diputadosFiltrados.length === 0 ? (
               <div className="empty-state">
                 <i className="ti ti-user-off"></i>
-                {diputados.length === 0 ? 'No hay diputados registrados en este grupo.' : 'Ningún diputado con estos filtros.'}
+                {diputados.length === 0 ? `No hay ${m.minPlural} registrados en este grupo.` : `Ningún ${m.min} con estos filtros.`}
               </div>
             ) : (
               diputadosFiltrados.map((d) => (
-                <Link key={d.id} href={`${base(p)}/diputados/${d.slug}`} style={FILA}>
+                <Link key={d.id} href={`${base(p)}/${seg(p)}/${d.slug}`} style={FILA}>
                   <Avatar nombre={d.nombre} url={d.foto_url} size={32} tono="gris" />
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ fontSize: 12.5, fontWeight: 600 }}>{d.nombre}</div>

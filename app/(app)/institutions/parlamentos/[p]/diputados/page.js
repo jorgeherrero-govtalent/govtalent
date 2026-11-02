@@ -7,13 +7,18 @@ import MultiSelectFilter from '@/components/MultiSelectFilter';
 import UpgradeModal from '@/components/UpgradeModal';
 import usePlanPro from '@/lib/usePlanPro';
 import { PestanasParlamento, CabeceraParlamento, Photo, GroupTag, Vacio } from '@/components/ParlamentoAutonomico';
-import { PARLAMENTOS_UI, base, useComposicion, limpiarComision, etiquetaCargo, normalizar, esComision } from '@/lib/ccaa/composicionUI';
+import { PARLAMENTOS_UI, base, seg, miembro, useComposicion, limpiarComision, etiquetaCargo, normalizar, esComision } from '@/lib/ccaa/composicionUI';
 
 /**
  * Diputados de un parlamento autonómico. Copia del directorio de
  * diputados del Congreso: misma rejilla, mismos filtros (Grupo libre,
  * Comisión con plan) y misma paginación. Sin filtro de circunscripción:
  * la Asamblea de Madrid tiene una sola.
+ *
+ * El Senado usa esta misma pantalla (lib/ccaa/parlamentosUI.js): en vez
+ * de Comisiones, que el Senado no publica, la columna y el filtro son la
+ * procedencia (electo por su circunscripción o designado por su
+ * parlamento autonómico).
  */
 
 const PAGE_SIZES = [20, 50, 100, 200];
@@ -36,9 +41,22 @@ function Committees({ list }) {
   );
 }
 
+/** «Electo» o «Designada por el Parlamento de Andalucía» (Senado). */
+function Procedencia({ d }) {
+  const x = d.datos || {};
+  if (!x.procedencia) return <span style={{ fontSize: 11.5, color: '#ccc' }}>—</span>;
+  const designado = x.procedencia === 'Designado';
+  const texto = designado
+    ? `${d.sexo === 'M' ? 'Designada' : 'Designado'}${x.designado_por ? ` por ${x.designado_por_texto || x.designado_por}` : ''}`
+    : d.sexo === 'M' ? 'Electa' : 'Electo';
+  return <span style={{ fontSize: 11.5, color: '#555', lineHeight: 1.5 }}>{texto}</span>;
+}
+
 export default function DiputadosAutonomicosPage() {
   const { p } = useParams();
   const cfg = PARLAMENTOS_UI[p];
+  const m = miembro(p);
+  const camara = !!cfg?.camara;
   const esPro = usePlanPro();
   const [upsell, setUpsell] = useState(false);
   const { datos, error } = useComposicion(p);
@@ -47,6 +65,7 @@ export default function DiputadosAutonomicosPage() {
   const [groupFilter, setGroupFilter] = useState(new Set());
   const [constituencyFilter, setConstituencyFilter] = useState(new Set());
   const [comisionFilter, setComisionFilter] = useState(new Set());
+  const [procedenciaFilter, setProcedenciaFilter] = useState(new Set());
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
 
@@ -110,25 +129,27 @@ export default function DiputadosAutonomicosPage() {
     if (groupFilter.size > 0) list = list.filter((d) => groupFilter.has(d.grupo_id));
     if (constituencyFilter.size > 0) list = list.filter((d) => constituencyFilter.has(d.circunscripcion));
     if (comisionFilter.size > 0) list = list.filter((d) => (comisionesPorDiputado[d.id] || []).some((c) => comisionFilter.has(c.nombre)));
+    if (procedenciaFilter.size > 0) list = list.filter((d) => procedenciaFilter.has(d.datos?.procedencia));
     return list;
-  }, [datos, search, groupFilter, constituencyFilter, comisionFilter, comisionesPorDiputado]);
+  }, [datos, search, groupFilter, constituencyFilter, comisionFilter, procedenciaFilter, comisionesPorDiputado]);
 
   useEffect(() => {
     setPage(1);
-  }, [search, groupFilter, constituencyFilter, comisionFilter]);
+  }, [search, groupFilter, constituencyFilter, comisionFilter, procedenciaFilter]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
   const current = Math.min(page, totalPages);
   const slice = filtered.slice((current - 1) * pageSize, current * pageSize);
   const from = filtered.length === 0 ? 0 : (current - 1) * pageSize + 1;
   const to = Math.min(current * pageSize, filtered.length);
-  const activeCount = groupFilter.size + constituencyFilter.size + comisionFilter.size;
+  const activeCount = groupFilter.size + constituencyFilter.size + comisionFilter.size + procedenciaFilter.size;
 
   function clearFilters() {
     setSearch('');
     setGroupFilter(new Set());
     setConstituencyFilter(new Set());
     setComisionFilter(new Set());
+    setProcedenciaFilter(new Set());
   }
 
   const pageNumbers = useMemo(() => {
@@ -142,7 +163,7 @@ export default function DiputadosAutonomicosPage() {
 
   return (
     <div className="sec" style={{ maxWidth: 1080 }}>
-      <CabeceraParlamento p={p} titulo="Diputados" datos={datos} />
+      <CabeceraParlamento p={p} titulo={m.plural} datos={datos} />
       <PestanasParlamento p={p} />
 
       <div style={{ display: 'flex', gap: 8, marginBottom: 12, flexWrap: 'wrap' }}>
@@ -163,22 +184,34 @@ export default function DiputadosAutonomicosPage() {
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Buscar por nombre..."
-            aria-label="Buscar diputado por nombre"
+            aria-label={`Buscar ${m.min} por nombre`}
             style={{ border: 'none', outline: 'none', background: 'transparent', fontSize: 12.5, width: '100%' }}
           />
         </div>
         <MultiSelectFilter label="Grupo" values={groupOptions} selected={groupFilter} onApply={setGroupFilter} />
         {constituencyOptions.length > 0 && (
-          <MultiSelectFilter label="Circunscripción" values={constituencyOptions} selected={constituencyFilter} onApply={setConstituencyFilter} />
+          <MultiSelectFilter label={cfg.filtroLugar || 'Circunscripción'} values={constituencyOptions} selected={constituencyFilter} onApply={setConstituencyFilter} />
         )}
-        <MultiSelectFilter
-          label="Comisión"
-          values={comisionOptions}
-          selected={comisionFilter}
-          onApply={setComisionFilter}
-          bloqueado={esPro === false}
-          onBloqueado={() => setUpsell(true)}
-        />
+        {camara ? (
+          <MultiSelectFilter
+            label="Procedencia"
+            values={[
+              { value: 'Electo', label: 'Electos' },
+              { value: 'Designado', label: 'Designados por su comunidad' },
+            ]}
+            selected={procedenciaFilter}
+            onApply={setProcedenciaFilter}
+          />
+        ) : (
+          <MultiSelectFilter
+            label="Comisión"
+            values={comisionOptions}
+            selected={comisionFilter}
+            onApply={setComisionFilter}
+            bloqueado={esPro === false}
+            onBloqueado={() => setUpsell(true)}
+          />
+        )}
       </div>
 
       {activeCount > 0 && (
@@ -191,6 +224,11 @@ export default function DiputadosAutonomicosPage() {
           {[...constituencyFilter].map((v) => (
             <span key={`c${v}`} style={{ fontSize: 11, background: '#f0efe9', color: '#666', padding: '3px 10px', borderRadius: 14 }}>
               {v}
+            </span>
+          ))}
+          {[...procedenciaFilter].map((v) => (
+            <span key={`p${v}`} style={{ fontSize: 11, background: '#f0efe9', color: '#666', padding: '3px 10px', borderRadius: 14 }}>
+              {v === 'Electo' ? 'Electos' : 'Designados'}
             </span>
           ))}
           {[...comisionFilter].map((v) => (
@@ -209,9 +247,9 @@ export default function DiputadosAutonomicosPage() {
       ) : !datos ? (
         <div className="spinner"></div>
       ) : datos.diputados.length === 0 ? (
-        <Vacio icono="ti-user-off" texto={`Aún no hemos cargado los diputados ${cfg.deNombre}.`} />
+        <Vacio icono="ti-user-off" texto={`Aún no hemos cargado los ${m.minPlural} ${cfg.deNombre}.`} />
       ) : filtered.length === 0 ? (
-        <Vacio icono="ti-user-off" texto="No hay diputados con estos filtros.">
+        <Vacio icono="ti-user-off" texto={`No hay ${m.minPlural} con estos filtros.`}>
           <div style={{ marginTop: 10 }}>
             <button className="btn-o" onClick={clearFilters}>
               Limpiar filtros
@@ -232,16 +270,16 @@ export default function DiputadosAutonomicosPage() {
               textTransform: 'uppercase',
             }}
           >
-            <div>Diputado</div>
+            <div>{m.N}</div>
             <div>Grupo</div>
-            <div>Comisiones</div>
+            <div>{camara ? 'Procedencia' : 'Comisiones'}</div>
             <div></div>
           </div>
 
           {slice.map((d) => (
             <Link
               key={d.id}
-              href={`${base(p)}/diputados/${d.slug}`}
+              href={`${base(p)}/${seg(p)}/${d.slug}`}
               style={{
                 display: 'grid',
                 gridTemplateColumns: GRID,
@@ -262,7 +300,7 @@ export default function DiputadosAutonomicosPage() {
               <div>
                 <GroupTag grupo={datos.grupoPorId[d.grupo_id]} />
               </div>
-              <Committees list={comisionesPorDiputado[d.id]} />
+              {camara ? <Procedencia d={d} /> : <Committees list={comisionesPorDiputado[d.id]} />}
               <i className="ti ti-chevron-right" style={{ color: '#ccc', fontSize: 14 }}></i>
             </Link>
           ))}
