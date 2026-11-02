@@ -3,6 +3,7 @@ import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { puedeVerContactos } from '@/lib/accesoContactos';
 import { saldoCreditos, consumirCreditos } from '@/lib/creditos';
+import { CREDITOS_CORREO, CREDITOS_CORREO_FUERA } from '@/lib/costesCreditos';
 import { enriquecerPersona, buscarCorreoPublicado } from '@/lib/enriquecer';
 import { enriquecidoPublico } from '@/lib/enriquecidoPublico';
 import { correoPorServidor, dominioDe } from '@/lib/correoPorServidor';
@@ -19,12 +20,13 @@ import { reveladosDe, revelar } from '@/lib/revelados';
 //
 // 1. Caché compartida (sql/76): si alguien ya la enriqueció hace poco, se
 //    devuelve gratis.
-// 2. Si no, hace falta al menos 1 crédito disponible.
+// 2. Si no, hacen falta los créditos disponibles: 1 si está en el
+//    directorio, 6 si no (CREDITOS_CORREO_FUERA, 02-11-2026).
 // 3. Primero se deduce con el patrón de su dominio y se comprueba en su
 //    servidor de correo (lib/correoPorServidor.js); si no se confirma,
 //    Claude busca en fuentes oficiales (lib/enriquecer.js).
 // 4. Se guarda en la caché y, solo si ha encontrado un correo, se
-//    descuenta 1 crédito.
+//    descuentan esos créditos.
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 180;
@@ -108,12 +110,13 @@ export async function POST(request) {
     libre = { id: `libre:${clave(nombre)}|${clave(institucion)}`.slice(0, 120), nombre, institucion, cargo: null };
   }
   const id = libre ? libre.id : String(body.id || '').slice(0, 120);
+  const coste = libre ? CREDITOS_CORREO_FUERA : CREDITOS_CORREO;
   if (!id) return NextResponse.json({ error: 'Falta la persona' }, { status: 400 });
 
   // 1. Caché compartida.
   const { data: cache } = await admin.from('contactos_enriquecidos').select('*').eq('persona_id', id).maybeSingle();
   // Con correo nominativo: sale al momento. Gratis si su equipo ya lo pagó;
-  // si no, 1 crédito (sql/88: cada equipo paga la primera vez que lo ve).
+  // si no, sus créditos (sql/88: cada equipo paga la primera vez que lo ve).
   // Con un correo genérico (comunicacion@, prensa@…) o sin correo: no se
   // repite la IA, pero sí se busca el nominativo en el servidor de correo,
   // que es barato. Si no aparece, se devuelve lo que había.
@@ -127,10 +130,10 @@ export async function POST(request) {
     let cobrado = false;
     if (!pagado) {
       const saldo0 = await saldoCreditos(admin, userId);
-      if (!(saldo0.disponibles >= 1)) {
+      if (!(saldo0.disponibles >= coste)) {
         return NextResponse.json({ error: 'No te quedan créditos este mes', sinCreditos: true, saldo: saldo0 }, { status: 402 });
       }
-      const c = await consumirCreditos(admin, userId, 1, `Enriquecer: ${cache.nombre || id}`, `enr:${id}:${userId}:${Date.now()}`);
+      const c = await consumirCreditos(admin, userId, coste, `Enriquecer: ${cache.nombre || id}`, `enr:${id}:${userId}:${Date.now()}`);
       if (c?.ok !== true) {
         return NextResponse.json({ error: 'No te quedan créditos este mes', sinCreditos: true, saldo: await saldoCreditos(admin, userId) }, { status: 402 });
       }
@@ -144,7 +147,7 @@ export async function POST(request) {
 
   // 2. Saldo.
   const saldo = await saldoCreditos(admin, userId);
-  if (!(saldo.disponibles >= 1)) {
+  if (!(saldo.disponibles >= coste)) {
     return NextResponse.json({ error: 'No te quedan créditos este mes', sinCreditos: true, saldo }, { status: 402 });
   }
 
@@ -238,7 +241,7 @@ export async function POST(request) {
   // centralita) se enseña, pero no cuesta un crédito.
   let cobrado = false;
   if (r.estado === 'encontrado' && r.email) {
-    const c = await consumirCreditos(admin, userId, 1, `Enriquecer: ${persona.nombre || id}`, `enr:${id}:${userId}:${Date.now()}`);
+    const c = await consumirCreditos(admin, userId, coste, `Enriquecer: ${persona.nombre || id}`, `enr:${id}:${userId}:${Date.now()}`);
     cobrado = c?.ok === true;
     if (cobrado) await revelar(admin, userId, id);
   }

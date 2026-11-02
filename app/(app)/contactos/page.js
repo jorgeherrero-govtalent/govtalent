@@ -9,6 +9,7 @@ import UpgradeModal from '@/components/UpgradeModal';
 import BuscarCorreoModal from '@/components/BuscarCorreoModal';
 import DescubrirPanel from '@/components/DescubrirPanel';
 import { useTotalDirectorio, masDe } from '@/lib/useTotalDirectorio';
+import { CREDITOS_CORREO_FUERA } from '@/lib/costesCreditos';
 import { BANDAS, TIPOS_INSTITUCION, FILTROS_VACIOS } from '@/lib/contactosFiltros';
 import {
   ESTILOS_CONTACTOS,
@@ -621,7 +622,7 @@ function ContactosPagina() {
         <div className="gt-ct-fuera">
           <div>
             <b>{personaFuera.nombre} no está en el directorio</b>
-            <span>Lo buscamos en fuentes oficiales y te damos su correo: el publicado o, si no hay, el deducido del patrón de {personaFuera.organizacion}. 1 crédito.</span>
+            <span>Lo buscamos en fuentes oficiales y te damos su correo: el publicado o, si no hay, el deducido del patrón de {personaFuera.organizacion}. {CREDITOS_CORREO_FUERA} créditos.</span>
           </div>
           <button type="button" className="btn-ai-o" onClick={() => setCorreoLibre(true)} style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
             <i className="ti ti-search" aria-hidden="true"></i> Buscar correo

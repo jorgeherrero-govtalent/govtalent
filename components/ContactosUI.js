@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 import * as XLSX from 'xlsx';
 import { BANDAS } from '@/lib/contactosFiltros';
+import { CREDITOS_VERIFICAR, creditosTexto } from '@/lib/costesCreditos';
 
 /**
  * Piezas comunes de Buscar y enriquecer (Contactos y Listas, sql/75-76):
@@ -44,7 +45,7 @@ export function estiloEtiquetaProbable(p) {
 }
 
 /**
- * «Verificar, 1 crédito» (gris) de un correo probable, con el resultado
+ * «Verificar, 3 créditos» (gris) de un correo probable, con el resultado
  * (decisión de Jorge, 13-10-2026). Solo se cobra si queda verificado.
  * id: de directorio_pro; o persona: { nombre, institucion, dominio } para
  * alguien que no está en el directorio.
@@ -106,7 +107,7 @@ export function VerificarCorreo({ id, persona, p, onCambio, onSaldo, onSinCredit
           fontFamily: 'inherit',
         }}
       >
-        {verificando ? 'Verificando…' : 'Verificar (1 crédito)'}
+        {verificando ? 'Verificando…' : `Verificar (${creditosTexto(CREDITOS_VERIFICAR)})`}
       </button>
       {aviso && <span style={texto}>{aviso}</span>}
     </span>

@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { CREDITOS_BUSCAR_FUERA } from '@/lib/costesCreditos';
 import { MORADO, BORDE, GRIS, miles, Buscando, ESTILOS_CONTACTOS } from '@/components/ContactosUI';
 
 const PASOS_DESCUBRIR = [
@@ -17,7 +18,7 @@ const PASOS_DESCUBRIR = [
  *
  * Tras una búsqueda por cargo («secretarios del Departament de Territori de
  * la Generalitat»), ofrece buscar en fuentes oficiales quién ocupa hoy esos
- * cargos. 2 créditos, solo si encuentra a alguien nuevo. Lo encontrado se
+ * cargos. 10 créditos, solo si encuentra a alguien nuevo. Lo encontrado se
  * revisa con casillas (los dudosos, sin marcar) y «Añadir a la selección»
  * da de alta a los nuevos y los pasa a la selección de la página, donde ya
  * están «Añadir a lista» y «Enriquecer».
@@ -103,7 +104,7 @@ export default function DescubrirPanel({ consulta, onSeleccionar, onSaldo, onSin
         <div>
           <b style={{ display: 'block', fontSize: 13.5, fontWeight: 600 }}>¿Faltan personas?</b>
           <span style={{ display: 'block', fontSize: 12, color: GRIS, marginTop: 2 }}>
-            {fase === 'error' ? error : 'Buscamos en fuentes oficiales quién ocupa hoy esos cargos. 2 créditos, solo si encontramos a alguien que no esté en GovTalent.'}
+            {fase === 'error' ? error : `Buscamos en fuentes oficiales quién ocupa hoy esos cargos. ${CREDITOS_BUSCAR_FUERA} créditos, solo si encontramos a alguien que no esté en GovTalent.`}
           </span>
         </div>
         <button type="button" className="btn-ai-o" onClick={buscar} style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>

@@ -4,6 +4,7 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { puedeVerContactos } from '@/lib/accesoContactos';
 import { checkAndLogAiUsage } from '@/lib/aiRateLimit';
 import { saldoCreditos, consumirCreditos } from '@/lib/creditos';
+import { CREDITOS_BUSCAR_FUERA } from '@/lib/costesCreditos';
 import { descubrirPorCargo, palabrasNombre } from '@/lib/descubrir';
 import { normalizarFiltros, FILTROS_VACIOS } from '@/lib/contactosFiltros';
 
@@ -13,13 +14,13 @@ import { normalizarFiltros, FILTROS_VACIOS } from '@/lib/contactosFiltros';
 // marca a quien ya está en el directorio y guarda el resultado (sql/97)
 // para dar de alta después solo a quien el usuario seleccione
 // (/api/contactos/descubrir/alta).
-// 2 créditos por búsqueda, solo si encuentra a alguien nuevo (decisión de
-// Jorge, 13-10-2026). Solo con el Directorio.
+// 10 créditos por búsqueda, solo si encuentra a alguien nuevo (decisión de
+// Jorge, 02-11-2026; antes 2). Solo con el Directorio.
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 200;
 
-const CREDITOS_BUSQUEDA = 2;
+const CREDITOS_BUSQUEDA = CREDITOS_BUSCAR_FUERA;
 
 export async function POST(request) {
   const supabase = createClient();

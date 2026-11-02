@@ -7,6 +7,7 @@ import { comprobar, PATRONES_HABITUALES, MIN_ALTERNATIVA } from '@/lib/correoPor
 import { hayVerificador } from '@/lib/verificarCorreo';
 import { aplicarPatron, DESCRIPCION, limpiar } from '@/lib/patronesCorreo';
 import { saldoCreditos, consumirCreditos } from '@/lib/creditos';
+import { CREDITOS_VERIFICAR } from '@/lib/costesCreditos';
 
 // POST /api/contactos/verificar
 //   body: { id }                                  (id de directorio_pro)
@@ -14,9 +15,9 @@ import { saldoCreditos, consumirCreditos } from '@/lib/creditos';
 //
 // Verifica en su servidor de correo el correo probable de una persona
 // (decisión de Jorge, 13-10-2026):
-// - Existe → «Verificado» para todos. 1 crédito.
+// - Existe → «Verificado» para todos. 3 créditos (CREDITOS_VERIFICAR).
 // - No existe → se prueban las otras formas del patrón dentro de la misma
-//   verificación; si una existe, verificada. 1 crédito.
+//   verificación; si una existe, verificada. 3 créditos.
 // - No existe ninguna → se deja la más probable como «No confirmado». Sin coste.
 // - No se pudo (servidor lento, acepta cualquier dirección…) → sigue
 //   probable. Sin coste.
@@ -78,8 +79,8 @@ export async function POST(request) {
   if (!hayVerificador()) return NextResponse.json({ resultado: 'no_se_pudo', probable: p, cobrado: false });
 
   const saldo = await saldoCreditos(admin, userId);
-  if ((saldo?.disponibles ?? 0) < 1) {
-    return NextResponse.json({ error: 'No te quedan créditos este mes', sinCreditos: true, saldo }, { status: 402 });
+  if ((saldo?.disponibles ?? 0) < CREDITOS_VERIFICAR) {
+    return NextResponse.json({ error: `Verificar cuesta ${CREDITOS_VERIFICAR} créditos`, sinCreditos: true, saldo }, { status: 402 });
   }
 
   // Formas a probar, por orden: la que se enseña, las alternativas del
@@ -114,7 +115,7 @@ export async function POST(request) {
   const ok = probados.find((x) => x.resultado === 'ok');
   if (ok) {
     await guardar({ email: ok.email, resultado: 'ok', patron: ok.patron });
-    const c = await consumirCreditos(admin, userId, 1, 'Verificar correo', id);
+    const c = await consumirCreditos(admin, userId, CREDITOS_VERIFICAR, 'Verificar correo', id);
     return NextResponse.json({
       resultado: 'ok',
       probable: { ...p, email: ok.email, patron: ok.patron, descripcion: DESCRIPCION[ok.patron] || ok.patron, verificado: true, baja: false, origen: 'verificado' },

@@ -15,6 +15,7 @@ import {
   euros,
 } from '@/lib/precios';
 import { PACKS_CREDITOS } from '@/lib/creditos';
+import { CREDITOS_CORREO, CREDITOS_CORREO_FUERA, CREDITOS_VERIFICAR, CREDITOS_BUSCAR_FUERA } from '@/lib/costesCreditos';
 
 export const metadata = {
   title: 'Condiciones generales de contratación y uso | GovTalent',
@@ -34,7 +35,7 @@ export default async function CondicionesPage() {
 
   return (
     <LegalPageShell title="Condiciones generales de contratación y uso">
-      <p style={{ fontSize: 13, color: '#8b8780', marginTop: -10 }}>Última actualización: 15 de octubre de 2026.</p>
+      <p style={{ fontSize: 13, color: '#8b8780', marginTop: -10 }}>Última actualización: 2 de noviembre de 2026.</p>
       <h3>Información del prestador</h3>
       <p>El sitio web https://govtalent.app y los servicios ofrecidos a través de él son prestados por Jorge Rafael
       Herrero Vidal, con NIF 20455625T, quien desarrolla su actividad profesional bajo el nombre comercial
@@ -232,12 +233,20 @@ export default async function CondicionesPage() {
       {CREDITOS_CONTACTO_MES} créditos de contacto al mes.</p>
 
       <h4 style={sub}>6.2. Créditos de contacto</h4>
-      <p>Los créditos de contacto permiten buscar en fuentes públicas el dato de contacto de una persona que no
-      figura en el Directorio. Se consume un crédito por persona únicamente cuando la búsqueda encuentra una
-      dirección de correo electrónico; si no la encuentra, no se consume ningún crédito. El crédito se consume
-      también cuando el correo ya se había encontrado antes en la Plataforma, la primera vez que el Cliente lo
-      obtiene; después, volver a consultarlo no tiene coste para ninguno de sus Usuarios. Buscar y filtrar en el
-      Directorio no consume créditos.</p>
+      <p>Los créditos de contacto permiten obtener datos de contacto que no están publicados en el Directorio.
+      Cada acción consume los siguientes créditos:</p>
+      <ul>
+        <li>Buscar el correo de una persona que figura en el Directorio: {CREDITOS_CORREO} crédito.</li>
+        <li>Buscar el correo de una persona que no figura en el Directorio: {CREDITOS_CORREO_FUERA} créditos.</li>
+        <li>Verificar un correo probable: {CREDITOS_VERIFICAR} créditos.</li>
+        <li>Buscar en fuentes públicas quién ocupa unos cargos: {CREDITOS_BUSCAR_FUERA} créditos por búsqueda.</li>
+      </ul>
+      <p>Los créditos solo se consumen cuando la acción da resultado: cuando se encuentra una dirección de correo
+      electrónico, cuando el correo queda verificado o cuando la búsqueda encuentra a alguna persona que no figuraba
+      en la Plataforma. En caso contrario, no se consume ningún crédito. La búsqueda de un correo consume créditos
+      también cuando ya se había encontrado antes en la Plataforma, la primera vez que el Cliente lo obtiene;
+      después, volver a consultarlo no tiene coste para ninguno de sus Usuarios. Buscar y filtrar en el Directorio
+      no consume créditos.</p>
       <p>Los {CREDITOS_CONTACTO_MES} créditos de contacto mensuales corresponden a la suscripción, no a cada
       Usuario, y son compartidos por todos los Usuarios con acceso al Directorio. Se renuevan al inicio de cada mes
       y los no utilizados no se acumulan para meses posteriores.</p>

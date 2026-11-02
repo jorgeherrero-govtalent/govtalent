@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import Link from 'next/link';
+import { CREDITOS_CORREO, CREDITOS_CORREO_FUERA, creditosTexto } from '@/lib/costesCreditos';
 import {
   ModalComprar,
   ModalGuardarLista,
@@ -24,7 +25,7 @@ import {
  *
  * Usa el mismo motor que «Enriquecer» en Contactos (/api/contactos/enriquecer):
  * Claude busca en fuentes oficiales y cita de dónde sale el dato. Cuesta
- * 1 crédito y solo se descuenta si lo encuentra; si alguien ya lo había
+ * 1 crédito (6 si no está en el directorio) y solo se descuenta si lo encuentra; si alguien ya lo había
  * buscado, sale al momento y gratis (caché compartida, sql/76).
  *
  * persona: { id (de directorio_pro), nombre, cargo }
@@ -136,8 +137,9 @@ export default function BuscarCorreoModal({ persona, onClose, onResultado }) {
     );
   }
 
+  const coste = persona.libre ? CREDITOS_CORREO_FUERA : CREDITOS_CORREO;
   const disponibles = saldo?.disponibles ?? null;
-  const sinCreditos = disponibles !== null && disponibles < 1;
+  const sinCreditos = disponibles !== null && disponibles < coste;
   const email = probable?.email || (resultado?.estado === 'encontrado' ? limpiarEmail(resultado.email) : null);
   const buscando = fase === 'buscando';
 
@@ -212,7 +214,7 @@ export default function BuscarCorreoModal({ persona, onClose, onResultado }) {
                 {resultado.tipo !== 'personal' ? (
                   <div style={{ fontSize: 12, color: GRIS }}>No hemos encontrado su correo nominativo; este es el contacto publicado.</div>
                 ) : null}
-                <div style={{ fontSize: 11.5, color: GRIS }}>{cobrado ? 'Se ha descontado 1 crédito.' : 'Tu equipo ya lo tenía: sin coste.'}</div>
+                <div style={{ fontSize: 11.5, color: GRIS }}>{cobrado ? `${coste === 1 ? 'Se ha descontado' : 'Se han descontado'} ${creditosTexto(coste)}.` : 'Tu equipo ya lo tenía: sin coste.'}</div>
               </>
             ) : (
               <div style={{ fontSize: 13, color: '#3a3a3d', lineHeight: 1.55 }}>
@@ -222,7 +224,7 @@ export default function BuscarCorreoModal({ persona, onClose, onResultado }) {
           </div>
         ) : (
           <p style={{ fontSize: 13, color: '#555', margin: '14px 0 0', lineHeight: 1.6 }}>
-            Buscamos su correo y lo comprobamos. Cuesta 1 crédito y solo se descuenta si lo encontramos.
+            Buscamos su correo y lo comprobamos. Cuesta {creditosTexto(coste)} y solo se {coste === 1 ? 'descuenta' : 'descuentan'} si lo encontramos.
           </p>
         )}
 
@@ -231,14 +233,14 @@ export default function BuscarCorreoModal({ persona, onClose, onResultado }) {
         {fase !== 'hecho' ? (
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, marginTop: 18, flexWrap: 'wrap' }}>
             <span style={{ fontSize: 12, color: GRIS }}>
-              {disponibles === null ? '' : sinCreditos ? 'No te quedan créditos' : `Te quedan ${miles(disponibles)} ${disponibles === 1 ? 'crédito' : 'créditos'}`}
+              {disponibles === null ? '' : sinCreditos ? (disponibles > 0 ? `Te quedan ${miles(disponibles)}: no llegan` : 'No te quedan créditos') : `Te quedan ${miles(disponibles)} ${disponibles === 1 ? 'crédito' : 'créditos'}`}
             </span>
             <button type="button" className="btn-ai" onClick={sinCreditos ? () => setComprar(true) : buscar} disabled={buscando} style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
                 {buscando ? (
                   'Buscando…'
                 ) : (
                   <>
-                    <i className="ti ti-search" aria-hidden="true"></i> Buscar correo (1 crédito)
+                    <i className="ti ti-search" aria-hidden="true"></i> Buscar correo ({creditosTexto(coste)})
                   </>
                 )}
               </button>
