@@ -65,9 +65,13 @@ export function CorreoEncontrado({ r, alinear = 'right' }) {
 }
 
 /** Un correo probable: deducido del patrón del organismo, con «Verificar». */
-export function CorreoProbable({ id, p: inicial, alinear = 'right' }) {
+export function CorreoProbable({ id, p: inicial, alinear = 'right', onCambio }) {
   const [p, setP] = useState(inicial || null);
   useEffect(() => setP(inicial || null), [inicial]);
+  const cambiar = (n) => {
+    setP(n);
+    if (onCambio) onCambio(n);
+  };
   if (!p?.email) return null;
   return (
     <span
@@ -81,7 +85,7 @@ export function CorreoProbable({ id, p: inicial, alinear = 'right' }) {
       </span>
       {id ? (
         <span style={{ marginTop: 4 }}>
-          <VerificarCorreo id={id} p={p} onCambio={setP} alinear={alinear} />
+          <VerificarCorreo id={id} p={p} onCambio={cambiar} alinear={alinear} />
         </span>
       ) : null}
     </span>
@@ -94,7 +98,13 @@ export default function BuscarCorreo({ persona, encontrado, probable, onResultad
   // El resultado se pasa a la ficha al cerrar el modal: si se pasara al
   // llegar, el botón se cambiaría por el correo y el modal se cerraría solo.
   const [pendiente, setPendiente] = useState(null);
+  const [prob, setProb] = useState(probable || null);
+  useEffect(() => setProb(probable || null), [probable]);
   if (!persona?.id) return null;
+  // Con un correo probable que se puede verificar (o ya verificado), solo
+  // «Verificar»: «Buscar correo» solo si no hay probable o si su servidor
+  // no deja comprobarlo (decisión de Jorge, 02-11-2026).
+  const conBuscar = !prob || (!prob.verificado && (prob.noConfirmado || !prob.verificable));
   // Un correo genérico (comunicacion@, prensa@…): se enseña y se ofrece
   // buscar el nominativo.
   const generico = !!encontrado && encontrado.tipo !== 'personal';
@@ -102,8 +112,9 @@ export default function BuscarCorreo({ persona, encontrado, probable, onResultad
   return (
     <span style={{ display: 'inline-flex', flexDirection: 'column', alignItems: alinear === 'right' ? 'flex-end' : 'flex-start', gap: 6 }}>
       {generico ? <CorreoEncontrado r={encontrado} alinear={alinear} /> : null}
-      {probable ? <CorreoProbable id={persona.id} p={probable} alinear={alinear} /> : null}
-      <button
+      {probable ? <CorreoProbable id={persona.id} p={probable} alinear={alinear} onCambio={setProb} /> : null}
+      {conBuscar ? (
+        <button
         type="button"
         onClick={() => setAbierto(true)}
         title="Buscar correo"
@@ -126,7 +137,8 @@ export default function BuscarCorreo({ persona, encontrado, probable, onResultad
       >
         <i className="ti ti-search" style={{ fontSize: 13 }} aria-hidden="true"></i>
         {generico ? 'Buscar su correo nominativo' : 'Buscar correo'}
-      </button>
+        </button>
+      ) : null}
       {abierto ? (
         <BuscarCorreoModal
           persona={persona}

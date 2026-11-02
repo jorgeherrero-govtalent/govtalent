@@ -498,6 +498,8 @@ export function CeldaContacto({ f, estado, onEnriquecer, puedeEnriquecer = true,
   const enr = enriquecimientoDe(f, estado);
   const enrEmail = enr?.estado === 'encontrado' ? limpiarEmail(enr.email) : null;
   const nada = !email && !emailUnidad && !f.telefono;
+  // Con un probable que se puede verificar (o ya verificado), solo «Verificar».
+  const probVerificable = !email && !!prob?.email && (prob.verificado || (prob.verificable && !prob.noConfirmado));
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
@@ -548,7 +550,7 @@ export function CeldaContacto({ f, estado, onEnriquecer, puedeEnriquecer = true,
       {(enr?.estado === 'no_encontrado' || (enr?.estado === 'encontrado' && !enrEmail)) && (
         <span style={{ fontSize: 12, color: GRIS }}>Sin correo publicado, sin coste</span>
       )}
-      {puedeEnriquecer && onEnriquecer && enriquecible(f, estado) && enCurso?.fase !== 'buscando' && (
+      {puedeEnriquecer && onEnriquecer && enriquecible(f, estado) && !probVerificable && enCurso?.fase !== 'buscando' && (
         <button type="button" className="gt-ct-enr" onClick={() => onEnriquecer(f.id)}>
           Enriquecer (1 crédito)
         </button>
