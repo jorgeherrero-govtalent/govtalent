@@ -48,7 +48,9 @@ import * as castillayleon from '@/lib/ccaa/composicion/castillayleon';
 const LECTORES = { valencia, rioja, andalucia, aragon, canarias, castillayleon };
 
 export const dynamic = 'force-dynamic';
-export const maxDuration = 300;
+// 600 s: los órganos de Canarias (Crawl-delay de 3 s, ~45 páginas) pueden
+// empezar cerca del corte de FIN_MS y no se guardan hasta el final.
+export const maxDuration = 600;
 
 const FIN_MS = 260000;
 const DIAS_FICHA = 6;
