@@ -451,7 +451,7 @@ export default function GovernmentMemberProfilePage() {
             </div>
           )}
           <div style={{ fontSize: 11, color: '#aaa', marginTop: 14, paddingTop: 11, borderTop: '.5px solid #f0f0eb' }}>
-            Fuente: Agenda de la Comunicación 2025, La Moncloa
+            Datos obtenidos de La Moncloa, DIR3, organigrama y fuentes oficiales.
           </div>
         </div>
       )}
@@ -535,15 +535,7 @@ export default function GovernmentMemberProfilePage() {
 
       <div style={{ marginTop: 20, fontSize: 11, color: '#999', display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
         <i className="ti ti-shield-check" style={{ fontSize: 13 }}></i>
-        Datos obtenidos de La Moncloa — Gobierno de España.{' '}
-        <a
-          href="https://www.lamoncloa.gob.es/gobierno/composiciondelgobierno/Paginas/index.aspx"
-          target="_blank"
-          rel="noreferrer"
-          style={{ color: '#1d6f5c' }}
-        >
-          Ver fuente oficial ↗
-        </a>
+        Datos obtenidos de La Moncloa, DIR3, organigrama y fuentes oficiales.
       </div>
       {upsell && (
         <UpgradeModal

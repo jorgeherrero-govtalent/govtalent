@@ -382,7 +382,7 @@ export default function GovernmentOfficialProfilePage() {
 
       <div style={{ marginTop: 20, fontSize: 11, color: '#999', display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
         <i className="ti ti-shield-check" style={{ fontSize: 13 }}></i>
-        Datos obtenidos de la Agenda de la Comunicación (lamoncloa.gob.es), edición 2025 — actualización anual.
+        Datos obtenidos de La Moncloa, DIR3, organigrama y fuentes oficiales.
       </div>
 
       {upsell && (
