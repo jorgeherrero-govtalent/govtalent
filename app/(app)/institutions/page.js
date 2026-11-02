@@ -183,6 +183,16 @@ export default function InstitutionsPage() {
           cifra={CIFRAS.ministerios.n}
           etiqueta={CIFRAS.ministerios.etiqueta}
         />
+        {/* Las comunidades: solo sus parlamentos (14-10-2026). Gobiernos y
+            TSJ, en la Base de datos. También cuadra la rejilla. */}
+        <Modulo
+          href="/institutions/comunidades"
+          pais="es"
+          titulo="Comunidades autónomas"
+          descripcion="Parlamentos de las 17 comunidades, Ceuta y Melilla. Gobiernos y tribunales, en la Base de datos."
+          cifra={CIFRAS.comunidades.n}
+          etiqueta={CIFRAS.comunidades.etiqueta}
+        />
         {/* Los organismos van aparte de Ministerios: no son parte de un
             ministerio sino entes con personalidad jurídica propia, y
             varios —CNMC, AEPD— son autoridades independientes. */}
@@ -193,16 +203,6 @@ export default function InstitutionsPage() {
           descripcion="CNMC, AEPD, agencias estatales y organismos autónomos que regulan tu sector."
           cifra={CIFRAS.organismos.n}
           etiqueta={CIFRAS.organismos.etiqueta}
-        />
-        {/* Las comunidades: solo sus parlamentos (14-10-2026). Gobiernos y
-            TSJ, en la Base de datos. También cuadra la rejilla. */}
-        <Modulo
-          href="/institutions/comunidades"
-          pais="es"
-          titulo="Comunidades autónomas"
-          descripcion="Parlamentos de las 17 comunidades, Ceuta y Melilla. Gobiernos y tribunales, en la Base de datos."
-          cifra={CIFRAS.comunidades.n}
-          etiqueta={CIFRAS.comunidades.etiqueta}
         />
         <Modulo
           href="/institutions/eu-parliament"
