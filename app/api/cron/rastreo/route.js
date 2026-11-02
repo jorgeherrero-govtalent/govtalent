@@ -1,6 +1,6 @@
 // =====================================================================
 // RUTA TEMPORAL DE DESARROLLO — cola de páginas que leer
-// app/api/debug/rastreo/route.js
+// app/api/cron/rastreo/route.js
 //
 // Para escribir los lectores de composición de Aragón, Canarias,
 // Castilla y León y Castilla-La Mancha hace falta ver el HTML real, y
