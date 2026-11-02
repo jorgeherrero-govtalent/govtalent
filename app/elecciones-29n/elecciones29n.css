@@ -217,5 +217,7 @@
 .e29 .bc-etq.nu{background:#f0eefe;color:#3c3489}
 .e29 .bc-movil{display:none!important}
 .e29 .bc-vacio{padding:22px 14px;margin:0;color:#8b8780;font-size:13px;text-align:center}
-.e29 .bc-nota{font-size:12px;color:#8b8780;margin-top:10px}
+.e29 .bc-cab{display:flex;justify-content:space-between;align-items:flex-start;gap:20px;flex-wrap:wrap}
+.e29 .bc-ir{display:inline-flex;align-items:center;gap:7px;text-decoration:none;white-space:nowrap;margin-top:22px}
+@media(max-width:700px){.e29 .bc-ir{white-space:normal;margin-top:0}}
 @media(max-width:700px){.e29 .bc-c-par,.e29 .bc-c-pro{display:none}.e29 .bc-movil{display:block!important}.e29 .bc-sel{flex:1}}

@@ -44,11 +44,19 @@ export default function BuscadorCandidatos({ filas, provincias, partidos }) {
 
   return (
     <section className="blk" id="candidatos">
-      <div className="ante">Candidatos al Congreso</div>
-      <h2>Busca en las listas</h2>
-      <p className="lead">
-        Los {miles(filas.length)} candidatos de los partidos con representación hoy, en las 52 provincias.
-      </p>
+      <div className="bc-cab">
+        <div>
+          <div className="ante">Candidatos al Congreso</div>
+          <h2>Busca en las listas</h2>
+          <p className="lead">
+            Los {miles(filas.length)} candidatos de los partidos con representación hoy, en las 52 provincias.
+          </p>
+        </div>
+        <a className="btn-ai-o bc-ir" href="/login?view=signup">
+          Consulta el directorio y las fichas completas en GovTalent
+          <i className="ti ti-arrow-right" aria-hidden="true"></i>
+        </a>
+      </div>
 
       <div className="bc-filtros">
         <label className="bc-busca">
@@ -129,9 +137,6 @@ export default function BuscadorCandidatos({ filas, provincias, partidos }) {
         {visibles.length === 0 && <p className="bc-vacio">No hay candidatos con estos filtros.</p>}
         <Paginacion pag={pag} dentro />
       </div>
-      <p className="bc-nota">
-        «Repite»: es diputado en el Congreso hoy. «Nuevo»: no lo es. Cada provincia tiene su página con las listas en columnas y la línea de los escaños de hoy.
-      </p>
     </section>
   );
 }
