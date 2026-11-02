@@ -1,0 +1,12 @@
+# GovTalent
+
+> GovTalent (govtalent.app) es una plataforma española de vigilancia normativa con IA, avisos en tiempo real y directorio del sector público, para equipos de asuntos públicos, comunicación corporativa y ventas B2G.
+
+## Elecciones generales del 29 de noviembre de 2026
+
+- [Quién repite y quién llegará al Congreso el 29N](https://govtalent.app/elecciones-29n): explorador interactivo con el destino de los 350 diputados de la XV Legislatura en las candidaturas publicadas en el BOE (repiten, pasan al Senado, suplentes o no se presentan), los candidatos que pueden llegar nuevos al Congreso con su cargo actual y los miembros del Gobierno que van en las listas.
+- [Datos completos en Markdown](https://govtalent.app/elecciones-29n.md): los mismos datos en texto, por grupo y por provincia. Fuente: candidaturas publicadas en el BOE, cruzadas con el Congreso de la XV Legislatura. Elaboración de GovTalent.
+
+## GovTalent
+
+- [Portada](https://govtalent.app/): vigilancia normativa (Congreso, parlamentos autonómicos, BOE y boletines autonómicos, consultas públicas, Consejo de Ministros, Unión Europea) y base de datos de más de 27.000 cargos del sector público con su contacto.

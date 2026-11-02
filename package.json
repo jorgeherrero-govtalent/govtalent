@@ -12,6 +12,7 @@
     "@supabase/ssr": "^0.5.2",
     "@supabase/supabase-js": "^2.45.4",
     "fflate": "^0.8.2",
+    "linkedom": "^0.18.15",
     "mupdf": "^1.28.1",
     "next": "14.2.35",
     "papaparse": "^5.4.1",
