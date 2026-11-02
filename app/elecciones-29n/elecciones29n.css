@@ -157,3 +157,34 @@
 .e29 .otras a{color:#3c3489;text-decoration:none}
 @media(max-width:960px){.e29 .listas{columns:2}}
 @media(max-width:620px){.e29 .listas{columns:1}}
+/* Banner del directorio (después de «Quién llegará al Congreso») */
+.e29 .nb{margin-top:56px;border-radius:24px;overflow:hidden;position:relative;isolation:isolate}
+.e29 .nbA{background:#0e0d18;color:#fff;display:grid;grid-template-columns:1fr 1fr;min-height:420px;align-items:center}
+.e29 .nbA::before{content:'';position:absolute;inset:0;z-index:-1;background:radial-gradient(55% 80% at 100% 0%,rgba(109,90,239,.55),transparent 70%),radial-gradient(45% 70% at 0% 100%,rgba(29,111,92,.35),transparent 70%)}
+.e29 .nb-tx{padding:48px 0 48px 48px}
+.e29 .nb h2{font-size:32px;letter-spacing:-1px;line-height:1.1;margin:12px 0 10px;font-weight:700;color:#fff}
+.e29 .nb p{margin:0;font-size:15.5px;line-height:1.55;max-width:470px;color:#b9b5cc}
+.e29 .nb-cifra{font-size:76px;font-weight:800;letter-spacing:-3px;line-height:1;background:linear-gradient(90deg,#8f7ff5,#7fd1b9);-webkit-background-clip:text;background-clip:text;color:transparent;margin:18px 0 2px}
+.e29 .nb-cifra-t{color:#b9b5cc;font-size:14px}
+.e29 .nb-ui{transform:perspective(1400px) rotateY(-14deg) rotateZ(-4deg) translateX(60px);transform-origin:left center;pointer-events:none;user-select:none}
+.e29 .dir{background:#fbfaf7;border-radius:16px;box-shadow:0 30px 80px -20px rgba(0,0,0,.55);color:#1a1a18;padding:18px 0 4px;font-size:12.5px;width:640px}
+.e29 .dir-h{padding:0 20px}
+.e29 .dir-h b{display:block;font-size:19px;letter-spacing:-.4px}
+.e29 .dir-h span{color:#8b8780;font-size:12px}
+.e29 .dir-tabs{display:flex;gap:6px;padding:12px 20px 0}
+.e29 .dir-tabs span{border:1px solid #e6e4dc;border-radius:8px;padding:6px 10px;font-size:12px;color:#55534e;background:#fff;white-space:nowrap}
+.e29 .dir-tabs span.on{background:#f0eefe;color:#3c3489;border-color:#e0dbfb;font-weight:600}
+.e29 .dir-tabs i{font-style:normal;color:#8b8780;font-weight:400;margin-left:3px}
+.e29 .dir-busca{margin:10px 20px;border:1px solid #e6e4dc;border-radius:8px;padding:8px 10px;color:#a8a49c;background:#fff}
+.e29 .dir table{width:100%;border-collapse:collapse}
+.e29 .dir th{font-size:10.5px;text-transform:uppercase;letter-spacing:.06em;color:#8b8780;text-align:left;padding:8px 20px;background:#f3f2ee;font-weight:600}
+.e29 .dir td{padding:10px 20px;border-top:1px solid #efeee8;white-space:nowrap}
+.e29 .ia{display:inline-flex;width:26px;height:26px;border-radius:50%;border:1.5px solid;align-items:center;justify-content:center;font-size:10px;font-weight:700;margin-right:8px;background:#fff;vertical-align:middle}
+.e29 .mail{filter:blur(3.5px);color:#3c3489}
+@media(max-width:960px){
+.e29 .nbA{grid-template-columns:1fr}
+.e29 .nb-tx{padding:36px 24px 8px}
+.e29 .nb-ui{transform:none;padding:20px 0 0 24px;overflow:hidden}
+.e29 .dir{border-radius:16px 0 0 0}
+.e29 .nb-cifra{font-size:60px}
+}
