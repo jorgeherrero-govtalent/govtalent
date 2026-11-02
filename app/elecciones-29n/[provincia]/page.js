@@ -226,7 +226,7 @@ export default function PaginaProvincia({ params }) {
 
           <nav className="otras" aria-label="Otras provincias">
             <a href={`/elecciones-29n/${slugProvincia(anterior)}`}>← {anterior}</a>
-            <a href="/elecciones-29n#indice">Todas las provincias</a>
+            <a href="/elecciones-29n#candidatos">Todas las provincias</a>
             <a href={`/elecciones-29n/${slugProvincia(siguiente)}`}>{siguiente} →</a>
           </nav>
 

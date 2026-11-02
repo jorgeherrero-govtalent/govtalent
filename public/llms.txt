@@ -5,7 +5,7 @@
 ## Elecciones generales del 29 de noviembre de 2026
 
 - [Quién repite y quién llegará al Congreso el 29N](https://govtalent.app/elecciones-29n): explorador interactivo con el destino de los 350 diputados de la XV Legislatura en las candidaturas publicadas en el BOE (repiten, pasan al Senado, suplentes o no se presentan), los candidatos que pueden llegar nuevos al Congreso con su cargo actual y los miembros del Gobierno que van en las listas.
-- Una página por provincia con las listas de cada partido al Congreso (diputados que repiten y candidatos nuevos con su cargo): https://govtalent.app/elecciones-29n/{provincia}, por ejemplo [Valencia](https://govtalent.app/elecciones-29n/valencia) o [Madrid](https://govtalent.app/elecciones-29n/madrid). El índice completo está al final de la página principal.
+- Una página por provincia con las listas de cada partido al Congreso (diputados que repiten y candidatos nuevos con su cargo): https://govtalent.app/elecciones-29n/{provincia}, por ejemplo [Valencia](https://govtalent.app/elecciones-29n/valencia) o [Madrid](https://govtalent.app/elecciones-29n/madrid). Al final de la página principal hay un buscador con todos los candidatos.
 - [Datos completos en Markdown](https://govtalent.app/elecciones-29n.md): los mismos datos en texto, por grupo y por provincia. Fuente: candidaturas publicadas en el BOE, cruzadas con el Congreso de la XV Legislatura. Elaboración de GovTalent.
 
 ## GovTalent

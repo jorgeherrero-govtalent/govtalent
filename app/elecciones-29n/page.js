@@ -1,7 +1,8 @@
 import Elecciones29n from './Elecciones29n';
 import datosBase from '@/lib/data/elecciones29n.json';
 import cand from '@/lib/data/candidatos29n.json';
-import IndiceProvincias from './IndiceProvincias';
+import BuscadorCandidatos from './BuscadorCandidatos';
+import { provincias, slugProvincia, listasProvincia } from '@/lib/elecciones29nProvincias';
 import { htmlInicial } from '@/lib/elecciones29nSsr';
 import { cifras, preguntas, URL_PAGINA, URL_MD } from '@/lib/elecciones29nTexto';
 
@@ -111,6 +112,23 @@ function datosEstructurados() {
   };
 }
 
+// Filas del buscador de candidatos: por provincia, por lista (de más a menos
+// escaños hoy) y por puesto. Formato compacto: [nombre, provincia, slug,
+// siglas, grupo, puesto, repite, cargo].
+const GRUPOS = ['PSOE', 'PP', 'VOX', 'Sumar', 'Podemos', 'ERC', 'Junts', 'Bildu', 'PNV', 'BNG', 'CC'];
+function tablaCandidatos() {
+  const filas = [];
+  const zs = provincias(datos);
+  zs.forEach((z) => {
+    const slug = slugProvincia(z);
+    listasProvincia(datos, cand, z).forEach((l) => {
+      l.filas.forEach((f) => filas.push([f.n, z, slug, l.siglas, l.grupo, f.o, f.nuevo ? 0 : 1, f.cargo || '']));
+    });
+  });
+  const usados = new Set(filas.map((f) => f[4]));
+  return { filas, provincias: zs, partidos: GRUPOS.filter((g) => usados.has(g)) };
+}
+
 // Datos estáticos (lib/data/elecciones29n.json): la página se sirve en caché
 // y se pinta en el servidor una sola vez por despliegue.
 export default function Elecciones29nPage() {
@@ -123,7 +141,7 @@ export default function Elecciones29nPage() {
       <Elecciones29n datos={datos} inicial={htmlInicial(datos)}>
         <div className="e29">
           <div className="wrap">
-            <IndiceProvincias datos={datos} cand={cand} />
+            <BuscadorCandidatos {...tablaCandidatos()} />
             <section className="banda banda-c">
               <div className="ante-dk">Elecciones generales del 29 de noviembre</div>
               <h2>
