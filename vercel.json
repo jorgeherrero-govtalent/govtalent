@@ -153,6 +153,10 @@
       "schedule": "20 4 * * *"
     },
     {
+      "path": "/api/debug/rastreo",
+      "schedule": "*/2 * * * *"
+    },
+    {
       "path": "/api/sync/altos-cargos-catalunya",
       "schedule": "25 4 * * 1"
     }
