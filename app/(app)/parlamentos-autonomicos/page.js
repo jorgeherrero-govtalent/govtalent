@@ -28,6 +28,14 @@ import {
 
 const PAGE_SIZES = [20, 50, 100, 200];
 
+// Presupuestos ya registrados en el parlamento que aún no tenemos como ley
+// porque no se han publicado en el boletín. Se ponen a mano y, en cuanto
+// llega la ley de verdad, manda ella (este dato deja de usarse solo).
+// Madrid 2027: registrados el 30-10-2026; la Asamblea los publica días después.
+const REGISTRADOS_SIN_FICHA = {
+  2027: { madrid: '2026-10-30' },
+};
+
 const CARD = { background: '#fff', borderRadius: 16, boxShadow: '0 1px 2px rgba(0,0,0,.04)' };
 const CHIP = (on) => ({
   font: 'inherit',
@@ -209,14 +217,22 @@ export default function ParlamentosAutonomicosPage() {
         <div className="ccaa-presu" style={{ display: 'grid', gridTemplateColumns: `repeat(${FASE1.length}, minmax(0, 1fr))`, gap: 8, fontSize: 12.5 }}>
           {FASE1.map((p) => {
             const e = presupuestos[p];
+            const sinFicha = !e ? REGISTRADOS_SIN_FICHA[anio]?.[p] : null;
             const contenido = (
               <>
                 <div style={{ fontWeight: 600 }}>{CCAA[p]}</div>
-                <div style={{ color: e ? '#d5ece5' : '#b9b6ad', marginTop: 3 }}>
-                  {e ? `Registrados ${fechaCorta(e.fecha_presentacion) || ''}` : 'Sin registrar'}
+                <div style={{ color: e || sinFicha ? '#d5ece5' : '#b9b6ad', marginTop: 3 }}>
+                  {e ? `Registrados ${fechaCorta(e.fecha_presentacion) || ''}` : sinFicha ? `Registrados ${fechaCorta(sinFicha)}` : 'Sin registrar'}
                 </div>
               </>
             );
+            if (sinFicha) {
+              return (
+                <div key={p} title="Registrados en el parlamento; la ficha aparece cuando se publique en el boletín" style={{ background: VERDE, borderRadius: 10, padding: 10, color: '#fff' }}>
+                  {contenido}
+                </div>
+              );
+            }
             return e ? (
               <Link key={p} href={`/parlamentos-autonomicos/${e.slug}`} style={{ background: VERDE, borderRadius: 10, padding: 10, color: '#fff', textDecoration: 'none' }}>
                 {contenido}
