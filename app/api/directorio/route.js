@@ -199,14 +199,24 @@ async function listadoAgenda(admin, cat, subcategoria = null) {
   if (cat === 'ccaa') {
     for (const f of filas.values()) {
       const p = parlamentoPorNombre(f.organizacion);
+      f.completitud = 3;
       if (!p) continue;
-      const [{ count: dip }, { count: tec }] = await Promise.all([
+      const [{ count: dip }, { count: tec }, { count: conCorreo }, { count: comisiones }] = await Promise.all([
         admin.from('ccaa_diputados').select('id', { count: 'exact', head: true }).eq('parlamento', p).eq('activo', true),
         admin.from('ccaa_cargos').select('id', { count: 'exact', head: true }).eq('parlamento', p).eq('activo', true).is('diputado_id', null).eq('cargo_norm', 'tecnico'),
+        admin.from('ccaa_diputados').select('id', { count: 'exact', head: true }).eq('parlamento', p).eq('activo', true).not('email', 'is', null),
+        admin.from('ccaa_comisiones').select('id', { count: 'exact', head: true }).eq('parlamento', p).eq('activo', true).in('tipo', ['permanente', 'estudio', 'investigacion']),
       ]);
       f.diputados = dip || 0;
       f.personas += (dip || 0) + (tec || 0);
+      // Lo más completo primero (02-11-2026): 0 composición completa y
+      // correo de casi todos; 1 composición completa; 2 parcial (sin
+      // comisiones); 3 sin composición. Dentro, más correos antes.
+      const cuota = dip ? (conCorreo || 0) / dip : 0;
+      f.cuotaCorreo = cuota;
+      f.completitud = !dip ? 3 : !comisiones ? 2 : cuota >= 0.9 ? 0 : 1;
     }
+    return [...filas.values()].sort((a, b) => a.completitud - b.completitud || (b.cuotaCorreo || 0) - (a.cuotaCorreo || 0) || (b.diputados || 0) - (a.diputados || 0));
   }
   return [...filas.values()];
 }
