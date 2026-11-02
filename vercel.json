@@ -153,6 +153,18 @@
       "schedule": "20 4 * * *"
     },
     {
+      "path": "/api/sync/composicion-autonomica?p=aragon",
+      "schedule": "30 4 * * *"
+    },
+    {
+      "path": "/api/sync/composicion-autonomica?p=canarias",
+      "schedule": "40 4 * * *"
+    },
+    {
+      "path": "/api/sync/composicion-autonomica?p=castillayleon",
+      "schedule": "50 4 * * *"
+    },
+    {
       "path": "/api/cron/rastreo",
       "schedule": "*/2 * * * *"
     },
