@@ -9,7 +9,6 @@ import {
   etiquetaEnriquecido,
   etiquetaProbable,
   estiloEtiquetaProbable,
-  textoAcierto,
   VerificarCorreo,
   TIPO_CONTACTO,
   AYUDA_PROBABLE,
@@ -176,7 +175,6 @@ export default function BuscarCorreoModal({ persona, onClose, onResultado }) {
                 ) : null}
                 {probable ? (
                   <>
-                    <div style={{ fontSize: 12, color: GRIS }}>{textoAcierto(probable)}</div>
                     <div>
                       <VerificarCorreo
                         id={alta && personaId ? personaId : null}

@@ -38,21 +38,6 @@ export function etiquetaProbable(p) {
   return p?.baja ? 'Probable (baja)' : 'Probable';
 }
 
-/** La línea de debajo de un correo probable: de dónde sale y cuánto acierta. */
-export function textoAcierto(p) {
-  if (!p) return '';
-  if (p.verificado) return `Patrón de ${p.dominio}, comprobado en su servidor`;
-  if (p.origen === 'familia') {
-    return `Sin correos conocidos de ${p.dominio}, ${p.familia ? `patrón habitual en .${p.familia}` : 'patrón más común'}`;
-  }
-  const m = Number(p.muestras) || 0;
-  const f = Number(p.fiabilidad) || 0;
-  const acierto = m < 20
-    ? `acierta en ${Math.round(f * m)} de ${m} correos conocidos`
-    : `acierta en el ${Math.round(f * 100)} % de ${miles(m)}`;
-  return `Patrón de ${p.dominio}, ${acierto}`;
-}
-
 /** Estilo de la etiqueta de un correo probable: gris si no se confirmó. */
 export function estiloEtiquetaProbable(p) {
   return p?.noConfirmado ? { background: '#f1f1f3', color: '#3a3a3d' } : { background: '#efedfd', color: '#3d2fb3' };
@@ -535,14 +520,7 @@ export function CeldaContacto({ f, estado, onEnriquecer, puedeEnriquecer = true,
       )}
       {!email && !enrEmail && prob?.email && (
         <span style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-          <span
-            className="gt-ct-cto"
-            title={
-              prob.verificado
-                ? `Deducido del patrón de ${prob.dominio} y comprobado en su servidor de correo: la dirección existe.`
-                : `Deducido (${prob.descripcion}). ${textoAcierto(prob)}. Sin verificar.`
-            }
-          >
+          <span className="gt-ct-cto">
             <a href={`mailto:${prob.email}`} style={{ borderBottom: prob.verificado ? '1px solid #cfc9f8' : '1px dashed #cfc9f8' }}>
               {prob.email}
             </a>
@@ -550,7 +528,6 @@ export function CeldaContacto({ f, estado, onEnriquecer, puedeEnriquecer = true,
               {etiquetaProbable(prob)}
             </span>
           </span>
-          <span className="gt-ct-fte">{textoAcierto(prob)}</span>
           <span style={{ marginTop: 3 }}>
             <VerificarCorreo id={f.id} p={prob} onCambio={setProb} onSaldo={onSaldo} onSinCreditos={onSinCreditos} />
           </span>
@@ -729,7 +706,7 @@ export function exportarExcel(filas, nombreArchivo = 'contactos', estado = null)
         'Estado del email deducido': !limpiarEmail(f.email) && !ok && f.probable?.email
           ? f.probable.verificado
             ? 'Verificado en el servidor'
-            : `${etiquetaProbable(f.probable)}, ${textoAcierto(f.probable)}`
+            : etiquetaProbable(f.probable)
           : '',
         'Teléfono enriquecido': ok ? enr.telefono || '' : '',
         'Tipo de contacto enriquecido': ok ? etiquetaEnriquecido(enr) : '',
