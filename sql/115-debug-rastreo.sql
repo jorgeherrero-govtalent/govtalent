@@ -1,5 +1,5 @@
 -- =====================================================================
--- 115 · Tabla TEMPORAL de desarrollo: cola de páginas que lee
+-- 115. Tabla TEMPORAL de desarrollo: cola de páginas que lee
 --       /api/cron/rastreo (composición de Aragón, Canarias, Castilla y
 --       León y Castilla-La Mancha). Solo el servidor. BORRAR al terminar:
 --       drop table public.debug_rastreo;

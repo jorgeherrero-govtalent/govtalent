@@ -1,5 +1,5 @@
 -- =====================================================================
--- 117 · Cortes de Castilla-La Mancha: composición desde el directorio
+-- 117. Cortes de Castilla-La Mancha: composición desde el directorio
 --
 -- La web de las Cortes (cortesclm.es) sirve toda la composición en
 -- marcos que cargan /web2/paginas/, ruta que su robots.txt prohíbe. Hasta

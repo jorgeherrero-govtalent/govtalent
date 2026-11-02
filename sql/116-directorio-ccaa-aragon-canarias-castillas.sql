@@ -1,5 +1,5 @@
 -- =====================================================================
--- 116 · Cortes de Aragón, Parlamento de Canarias, Cortes de Castilla y
+-- 116. Cortes de Aragón, Parlamento de Canarias, Cortes de Castilla y
 --       León y Cortes de Castilla-La Mancha en el Directorio
 --
 -- La vista de filas autonómicas (sql/93-95) pasa a cubrir los nueve
@@ -19,7 +19,7 @@ with cargos as (
 principal as (
   select distinct on (x.diputado_id) x.diputado_id, x.texto, x.peso
   from (
-    -- 1 · Mesa de la Asamblea
+    -- 1 Mesa de la Asamblea
     select diputado_id, case
         when cargo ~* '(parlament|asamblea|corts|cortes)' then cargo
         when parlamento = 'madrid' then cargo || ' de la Asamblea'
@@ -29,28 +29,28 @@ principal as (
         else cargo || ' del Parlamento' end as texto, 1 as peso
     from cargos where organo ~* '^mesa (de la asamblea|del parlament|de les corts|del parlamento|de las cortes)'
     union all
-    -- 2 · Gobierno de la Comunidad
+    -- 2 Gobierno de la Comunidad
     select diputado_id,
       case when organo ~* '^gobierno$' then cargo || ' de la Comunidad de Madrid'
            else cargo || ' de ' || regexp_replace(organo, '^Consejer[ií]a de\s*', '') end, 2
     from cargos where organo ~* '^(gobierno$|consejer)'
     union all
-    -- 3 · Portavoz del grupo (Junta de Portavoces)
+    -- 3 Portavoz del grupo (Junta de Portavoces)
     select c.diputado_id, c.cargo || ' del ' || coalesce(g.nombre, 'grupo'), case when c.cargo_norm = 'portavoz' then 3 else 4 end
     from cargos c
     join ccaa_diputados d on d.id = c.diputado_id
     left join ccaa_grupos g on g.id = d.grupo_id
     where c.organo ~* 'junta de (portav(oces|eus)|s[ií]ndics)' and c.cargo_norm in ('portavoz', 'portavoz_adjunto')
     union all
-    -- 5 · Presidencia o vicepresidencia de comisión
+    -- 5 Presidencia o vicepresidencia de comisión
     select diputado_id, cargo || ' de la ' || organo, case when cargo_norm = 'presidencia' then 5 else 6 end
     from cargos where tipo in ('permanente', 'estudio', 'investigacion') and cargo_norm in ('presidencia', 'vicepresidencia')
     union all
-    -- 7 · Portavocía en comisión
+    -- 7 Portavocía en comisión
     select diputado_id, case when organo ~* '^comissió' then 'Portaveu a la ' else 'Portavoz en la ' end || organo, 7
     from cargos where tipo in ('permanente', 'estudio', 'investigacion') and cargo_norm = 'portavoz'
     union all
-    -- 8 · Senado (designación autonómica)
+    -- 8 Senado (designación autonómica)
     select diputado_id, cargo || ' por designación autonómica', 8
     from cargos where organo ~* '^senado$'
   ) x
@@ -64,7 +64,7 @@ principal as (
     COALESCE(g.nombre, 'Sin grupo') AS unidad,
     'grupo_parlamentario'::text AS categoria_unidad,
     d.nombre,
-    COALESCE(p.texto, CASE WHEN d.parlamento = 'castillayleon' THEN CASE d.sexo WHEN 'M' THEN 'Procuradora' WHEN 'H' THEN 'Procurador' ELSE 'Procurador' END WHEN d.sexo = 'M' THEN 'Diputada' ELSE 'Diputado' END) AS cargo,
+    COALESCE(p.texto, CASE WHEN d.parlamento = 'castillayleon' THEN CASE d.sexo WHEN 'M' THEN 'Procuradora' ELSE 'Procurador' END WHEN d.sexo = 'M' THEN 'Diputada' ELSE 'Diputado' END) AS cargo,
     'Diputado autonómico'::text AS cargo_canonico,
     'electo'::text AS banda,
     0::smallint AS orden,
