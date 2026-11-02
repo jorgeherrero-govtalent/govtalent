@@ -26,6 +26,8 @@
 //   ?key=<DEBUG_KEY>&p=madrid&paso=fichas&n=40
 //   ?key=<DEBUG_KEY>&p=cataluna[&paso=listado|fichas|organos][&dry=1]  Parlament de Catalunya
 //   ?key=<DEBUG_KEY>&p=madrid&dry=1          lee el listado y 2 fichas, sin guardar
+//   ?key=<DEBUG_KEY>&p=valencia|rioja|andalucia|aragon|canarias|castillayleon
+//                                            lectores de lib/ccaa/composicion/comun.js
 // =====================================================================
 
 import { createClient } from '@supabase/supabase-js';
@@ -38,9 +40,12 @@ import * as comun from '@/lib/ccaa/composicion/comun';
 import * as valencia from '@/lib/ccaa/composicion/valencia';
 import * as rioja from '@/lib/ccaa/composicion/rioja';
 import * as andalucia from '@/lib/ccaa/composicion/andalucia';
+import * as aragon from '@/lib/ccaa/composicion/aragon';
+import * as canarias from '@/lib/ccaa/composicion/canarias';
+import * as castillayleon from '@/lib/ccaa/composicion/castillayleon';
 
 // Lectores que se guardan con la sincronización común (lib/ccaa/composicion/comun.js).
-const LECTORES = { valencia, rioja, andalucia };
+const LECTORES = { valencia, rioja, andalucia, aragon, canarias, castillayleon };
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 300;
@@ -113,7 +118,7 @@ async function handler(request) {
       return Response.json({ ok: false, p: pedido, error: String(e.message || e).slice(0, 500), ms: Date.now() - t0 }, { status: 500 });
     }
   }
-  if (pedido !== P) return Response.json({ error: 'p=madrid, cataluna, valencia, rioja o andalucia' }, { status: 400 });
+  if (pedido !== P) return Response.json({ error: 'p=madrid, cataluna, valencia, rioja, andalucia, aragon, canarias o castillayleon' }, { status: 400 });
 
   const dry = sp.get('dry') === '1';
   const paso = sp.get('paso');

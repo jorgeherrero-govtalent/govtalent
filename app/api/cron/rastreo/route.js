@@ -12,7 +12,9 @@
 // no se pide: queda en estado «robots».
 //
 // Las URL se encolan a mano en Supabase. Un cron la lanza cada 2
-// minutos mientras dure el desarrollo.
+// minutos mientras dure el desarrollo. Una URL de la propia GovTalent
+// (https://govtalent.app/api/sync/…) se llama con el CRON_SECRET y se
+// guarda su respuesta JSON: sirve para probar los lectores en seco.
 //
 // Uso: cron (CRON_SECRET) o ?key=<DEBUG_KEY>[&n=40]
 // BORRAR (ruta, cron y tabla) al terminar los lectores.
@@ -22,10 +24,11 @@ import { createClient } from '@supabase/supabase-js';
 import { crearWeb, enlacesDe } from '@/lib/ccaa/web';
 
 export const dynamic = 'force-dynamic';
-export const maxDuration = 300;
+export const maxDuration = 800;
 
 const FIN_MS = 240000;
 const MAX_HTML = 600000;
+const PROPIA = 'https://govtalent.app';
 
 function admin() {
   return createClient(process.env.NEXT_PUBLIC_SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY, {
@@ -45,7 +48,7 @@ export async function GET(request) {
   const t0 = Date.now();
   const db = admin();
   const n = Math.min(200, Number(sp.get('n')) || 80);
-  const { data: pendientes, error } = await db.from('debug_rastreo').select('id, url').eq('estado', 'pendiente').order('id').limit(n);
+  const { data: pendientes, error } = await db.from('debug_rastreo').select('id, url').eq('estado', 'pendiente').is('leido_en', null).order('id').limit(n);
   if (error) return Response.json({ error: error.message }, { status: 500 });
   if (!pendientes?.length) return Response.json({ pendientes: 0 });
 
@@ -59,6 +62,29 @@ export async function GET(request) {
   }
   const web = crearWeb();
   const hechos = { hecho: 0, robots: 0, error: 0 };
+
+  // Llamadas a la propia GovTalent: una cada vez, sin pasar por la web.
+  const propias = porOrigen.get(PROPIA) || [];
+  porOrigen.delete(PROPIA);
+  for (const p of propias.slice(0, 1)) {
+    const u = new URL(p.url);
+    const fila = { leido_en: new Date().toISOString() };
+    // Se marca antes de llamar: el cron siguiente no la repite aunque tarde.
+    await db.from('debug_rastreo').update({ leido_en: fila.leido_en }).eq('id', p.id);
+    if (!u.pathname.startsWith('/api/sync/')) {
+      Object.assign(fila, { estado: 'error', error: 'solo /api/sync/' });
+    } else {
+      try {
+        const r = await fetch(p.url, { headers: { authorization: `Bearer ${process.env.CRON_SECRET}` }, cache: 'no-store', signal: AbortSignal.timeout(700000) });
+        const t = await r.text();
+        Object.assign(fila, { estado: 'hecho', status: r.status, tipo: 'json', bytes: t.length, html: t.slice(0, MAX_HTML) });
+      } catch (e) {
+        Object.assign(fila, { estado: 'error', error: String(e.message || e).slice(0, 500) });
+      }
+    }
+    hechos[fila.estado] += 1;
+    await db.from('debug_rastreo').update(fila).eq('id', p.id);
+  }
   await Promise.all([...porOrigen.values()].map(async (lista) => {
     for (const p of lista) {
       if (Date.now() - t0 > FIN_MS) return;
