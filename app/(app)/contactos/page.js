@@ -244,6 +244,10 @@ function ContactosPagina() {
 
   const claveFiltros = useMemo(() => JSON.stringify(filtros), [filtros]);
   const pag = usePaginacion(total, [claveFiltros]);
+  // Registro de búsquedas (sql/114): de dónde vienen los filtros y cuáles se
+  // registraron ya, para no contar la paginación ni repetir la misma búsqueda.
+  const origenRef = useRef('filtros');
+  const claveRegistrada = useRef(null);
 
   async function cargarSaldo() {
     try {
@@ -279,12 +283,25 @@ function ContactosPagina() {
     let vivo = true;
     setBuscando(true);
     setError('');
+    const registrar = pag.desde === 0 && claveRegistrada.current !== claveFiltros;
+    const origen = origenRef.current;
+    if (registrar) {
+      claveRegistrada.current = claveFiltros;
+      origenRef.current = 'filtros';
+    }
     (async () => {
       try {
         const res = await fetch('/api/contactos/buscar', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ filtros, desde: pag.desde, cuantos: pag.pageSize }),
+          body: JSON.stringify({
+            filtros,
+            desde: pag.desde,
+            cuantos: pag.pageSize,
+            ...(registrar
+              ? { registrar: true, origen, consulta: origen === 'filtros' ? null : consulta, persona: personaBuscada?.nombre || null }
+              : {}),
+          }),
         });
         const json = await res.json().catch(() => ({}));
         if (!vivo) return;
@@ -348,6 +365,8 @@ function ContactosPagina() {
       });
       const json = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(json.error || 'No se pudo interpretar la búsqueda');
+      origenRef.current = 'frase';
+      claveRegistrada.current = null;
       setFiltros({ ...FILTROS_VACIOS, ...json.filtros });
       setPersonaBuscada(json.persona || null);
       setResumen(json.resumen || '');
@@ -371,6 +390,8 @@ function ContactosPagina() {
     setSeleccion(new Map());
     setResumen(idea.resumen);
     setPersonaBuscada(null);
+    origenRef.current = 'idea';
+    claveRegistrada.current = null;
     setFiltros({ ...FILTROS_VACIOS, ...idea.filtros });
   }
 

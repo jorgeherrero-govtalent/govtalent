@@ -21,6 +21,42 @@ const COLUMNAS = [
   'slug', 'fuente', 'fuente_fecha', 'contactabilidad',
 ];
 
+const ORIGENES = ['frase', 'idea', 'filtros'];
+const sinTildes = (t) => String(t || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
+
+// ¿Sale la persona que se buscaba por nombre? Mismo criterio que la página:
+// todas las palabras de su nombre (de más de 2 letras) en el de algún resultado.
+function personaEncontrada(nombre, filas) {
+  const palabras = sinTildes(nombre).split(/[^a-z]+/).filter((w) => w.length > 2);
+  if (!palabras.length) return null;
+  return filas.some((f) => {
+    const n = sinTildes(f.nombre);
+    return palabras.every((w) => n.includes(w));
+  });
+}
+
+async function registrarBusqueda(admin, userId, body, filtros, total, filas) {
+  try {
+    const persona = body.persona ? String(body.persona).trim().slice(0, 200) : null;
+    const { error } = await admin.from('contactos_busquedas').insert({
+      user_id: userId,
+      consulta: body.consulta ? String(body.consulta).trim().slice(0, 500) : null,
+      origen: ORIGENES.includes(body.origen) ? body.origen : 'filtros',
+      filtros,
+      persona,
+      persona_encontrada: persona ? personaEncontrada(persona, filas) : null,
+      total,
+      en_pagina: filas.length,
+      con_correo: filas.filter((f) => f.email).length,
+      con_enriquecido: filas.filter((f) => f.enriquecido?.email).length,
+      con_probable: filas.filter((f) => f.probable).length,
+    });
+    if (error) console.error('[contactos/buscar] registrar:', error.message);
+  } catch (e) {
+    console.error('[contactos/buscar] registrar:', e.message);
+  }
+}
+
 export async function POST(request) {
   const supabase = createClient();
   const { data: authData } = await supabase.auth.getUser();
@@ -70,6 +106,12 @@ export async function POST(request) {
     const sin = filas.filter((f) => !f.email && !(f.enriquecido?.estado === 'encontrado' && f.enriquecido?.email));
     const prob = await correosProbables(admin, sin).catch(() => ({}));
     for (const f of filas) f.probable = prob[f.id] || null;
+  }
+
+  // Registro de la búsqueda (sql/114): solo la primera página de unos filtros
+  // nuevos, que es cuando el cliente manda registrar. Si falla, no se nota.
+  if (body.registrar === true && desde === 0) {
+    await registrarBusqueda(admin, authData.user.id, body, filtros, Number(data?.total) || 0, filas);
   }
 
   return NextResponse.json({ total: Number(data?.total) || 0, filas }, { headers: { 'Cache-Control': 'no-store' } });
