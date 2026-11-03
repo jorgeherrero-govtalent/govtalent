@@ -233,3 +233,9 @@
 .e29 .fila .nom small.m23-sube{color:#1d6f5c}
 .e29 .fila .nom small.m23-provincia{color:#3c3489}
 @media(max-width:700px){.e29 .bc-c-23{display:none}}
+.e29 .bc-movil-filtros{display:none}
+@media(max-width:700px){
+.e29 .bc-movil-filtros{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
+.e29 .bc-chip{display:inline-flex;align-items:center;border:1px solid #e0dfd8;background:#fff;border-radius:999px;padding:7px 12px}
+.e29 .bc-chip button{font-family:inherit}
+}

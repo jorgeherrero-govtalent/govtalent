@@ -72,7 +72,7 @@ export default function BuscadorCandidatos({ filas, provincias, partidos }) {
     return m;
   }, [visibles, pag.desde, pag.hasta]);
 
-  const cabecera = (label, key, values, selected, onApply) => (
+  const cabecera = (label, key, values, selected, onApply, prefijo = '') => (
     <FilterableHeader
       label={label}
       columnKey={key}
@@ -81,11 +81,19 @@ export default function BuscadorCandidatos({ filas, provincias, partidos }) {
       onApply={onApply}
       sortConfig={orden}
       onSort={(k, dir) => setOrden({ key: k, dir })}
-      isOpen={abierto === key}
-      onToggle={() => setAbierto(abierto === key ? null : key)}
+      isOpen={abierto === prefijo + key}
+      onToggle={() => setAbierto(abierto === prefijo + key ? null : prefijo + key)}
       onClose={() => setAbierto(null)}
     />
   );
+
+  const vPartido = partidos.map((p) => ({ value: p, label: p }));
+  const vProv = provincias.map((z) => ({ value: z, label: z }));
+  const v2023 = TIPOS_2023.map(([value, label]) => ({ value, label }));
+  const vEstado = [
+    { value: 'repite', label: 'Repite' },
+    { value: 'nuevo', label: 'Nuevo' },
+  ];
 
   const hayFiltros = fProv.size || fPartido.size || f2023.size || fEstado.size || q || orden.key;
   const limpiar = () => {
@@ -136,6 +144,13 @@ export default function BuscadorCandidatos({ filas, provincias, partidos }) {
             Quitar filtros
           </button>
         ) : null}
+      </div>
+      {/* En el móvil las columnas de partido, provincia y 2023 se ocultan: sus filtros pasan aquí. */}
+      <div className="bc-movil-filtros">
+        <span className="bc-chip">{cabecera('Partido', 'partido', vPartido, fPartido, setFPartido, 'm:')}</span>
+        <span className="bc-chip">{cabecera('Provincia', 'provincia', vProv, fProv, setFProv, 'm:')}</span>
+        <span className="bc-chip">{cabecera('2023', 'a2023', v2023, f2023, setF2023, 'm:')}</span>
+        <span className="bc-chip">{cabecera('Estado', 'estado', vEstado, fEstado, setFEstado, 'm:')}</span>
       </div>
       <div className="bc-cuenta" aria-live="polite">
         {miles(visibles.length)} {visibles.length === 1 ? 'candidato' : 'candidatos'}
