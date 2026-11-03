@@ -22,10 +22,17 @@ const MORADO = '#6d5aef';
 
 // La misma foto que en la Comisión Europea: cae a las iniciales si no
 // hay imagen o si falla al cargar.
-function Photo({ url, name, size = 56, radius = 10 }) {
+function Photo({ url, name, size = 56, radius = 10, vacante = false }) {
   const [failed, setFailed] = useState(false);
   const base = { width: size, height: size, borderRadius: radius, flexShrink: 0, objectFit: 'cover', background: '#ece9e2' };
 
+  if (vacante) {
+    return (
+      <div style={{ ...base, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#aaa8a0' }} aria-hidden="true">
+        <i className="ti ti-user" style={{ fontSize: Math.round(size * 0.5) }}></i>
+      </div>
+    );
+  }
   if (!url || failed) {
     return (
       <div
@@ -132,6 +139,9 @@ function cargoExacto(o) {
     .trim();
   return `${role} de ${limpio}`;
 }
+
+// Cartera sin titular («Pendiente de nombramiento»): ver syncGovernment.js.
+const esVacante = (m) => (m?.slug || '').startsWith('vacante-');
 
 function initials(fullName) {
   const parts = fullName.trim().split(' ');
@@ -332,7 +342,7 @@ function TarjetaCargo({ member }) {
       }}
     >
       <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start', flex: 1 }}>
-        <Photo url={member.photo_url} name={member.full_name} />
+        <Photo url={member.photo_url} name={member.full_name} vacante={esVacante(member)} />
         <div style={{ minWidth: 0, flex: 1 }}>
           <div style={{ fontSize: 13, fontWeight: 700, lineHeight: 1.3 }}>{nameDisplay(member.full_name)}</div>
           <div style={{ fontSize: 10.5, color: '#999', marginTop: 2 }}>{member.role}</div>
@@ -619,7 +629,8 @@ function BuscarTab({ members, officials }) {
   // Unimos ministros + resto del equipo en una sola lista para poder buscar
   // a cualquiera, sin importar su nivel.
   const allPeople = useMemo(() => {
-    const fromMembers = members.map((m) => ({
+    // Una cartera vacante no es una persona: fuera del buscador.
+    const fromMembers = members.filter((m) => !esVacante(m)).map((m) => ({
       full_name_display: m.full_name,
       role: m.role,
       ministry_name: m.ministry_name || m.role,

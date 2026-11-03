@@ -10,6 +10,9 @@ import FollowButton from '@/components/FollowButton';
 import UpgradeModal from '@/components/UpgradeModal';
 import CorreoCargo, { useCorreosCargos } from '@/components/CorreoCargo';
 
+// Cartera sin titular («Pendiente de nombramiento»): ver syncGovernment.js.
+const esVacante = (m) => (m?.slug || '').startsWith('vacante-');
+
 function initials(fullName) {
   const parts = (fullName || '').trim().split(' ');
   return `${parts[0]?.[0] || ''}${parts[parts.length - 1]?.[0] || ''}`.toUpperCase();
@@ -298,7 +301,14 @@ export default function GovernmentMemberProfilePage() {
       <div className="card" style={{ padding: 18 }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 14, flexWrap: 'wrap' }}>
           <div style={{ display: 'flex', gap: 14, alignItems: 'flex-start', minWidth: 200, flex: 1 }}>
-            {member.photo_url && !photoFailed ? (
+            {esVacante(member) ? (
+              <div
+                style={{ ...avatarStyle, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#aaa8a0' }}
+                aria-hidden="true"
+              >
+                <i className="ti ti-user" style={{ fontSize: 34 }}></i>
+              </div>
+            ) : member.photo_url && !photoFailed ? (
               <img
                 src={member.photo_url}
                 alt=""
@@ -344,7 +354,7 @@ export default function GovernmentMemberProfilePage() {
                 llegan por el mismo camino. Va con kind "cargo": se
                 comprobó que ningún slug se repite entre
                 government_members y government_officials. */}
-            <FollowButton kind="cargo" refId={member.slug} label={member.full_name} />
+            {!esVacante(member) && <FollowButton kind="cargo" refId={member.slug} label={member.full_name} />}
           </div>
         </div>
 
@@ -383,7 +393,7 @@ export default function GovernmentMemberProfilePage() {
           ) : (
             <div className="empty-state">
               <i className="ti ti-file-off"></i>
-              Aún no tenemos la trayectoria de esta persona.
+              {esVacante(member) ? 'El cargo está pendiente de nombramiento.' : 'Aún no tenemos la trayectoria de esta persona.'}
             </div>
           )}
         </div>
