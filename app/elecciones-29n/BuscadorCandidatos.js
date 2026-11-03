@@ -179,8 +179,8 @@ export default function BuscadorCandidatos({ filas, provincias, partidos }) {
                   'Estado',
                   'estado',
                   [
-                    { value: 'repite', label: 'Repite (diputado hoy)' },
-                    { value: 'nuevo', label: 'Nuevo (no es diputado hoy)' },
+                    { value: 'repite', label: 'Repite' },
+                    { value: 'nuevo', label: 'Nuevo' },
                   ],
                   fEstado,
                   setFEstado
