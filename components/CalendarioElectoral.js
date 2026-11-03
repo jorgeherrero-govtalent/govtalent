@@ -4,7 +4,8 @@
  * Franja del calendario electoral, arriba de Novedades.
  *
  * Plegada en una línea (próximo hito y días que faltan); al pulsarla se
- * despliega la línea de hitos con «Añadir a mi calendario» y «Ocultar».
+ * despliega la línea de hitos con «Explorar las candidaturas» (03-11-2026: se
+ * quitaron «Añadir a mi calendario» y «Ocultar»).
  * Ocultar se guarda en usuario_marcas, así no vuelve a salir en otro
  * dispositivo. Desaparece sola el 30 de noviembre.
  *
@@ -159,17 +160,10 @@ export default function CalendarioElectoral() {
             ))}
           </div>
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', padding: '0 16px 14px' }}>
-            <button type="button" onClick={() => setModal(true)} style={boton(true)}>
-              <i className="ti ti-calendar-plus" style={{ fontSize: 14 }} aria-hidden="true"></i>
-              Añadir a mi calendario
-            </button>
-            <a href="/elecciones-29n" style={boton(false)}>
+            <a href="/elecciones-29n" style={boton(true)}>
               Explorar las candidaturas
               <i className="ti ti-arrow-right" aria-hidden="true" style={{ fontSize: 13 }}></i>
             </a>
-            <button type="button" onClick={ocultar} style={boton(false)}>
-              Ocultar
-            </button>
           </div>
         </>
       )}
