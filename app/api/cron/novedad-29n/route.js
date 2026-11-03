@@ -7,6 +7,10 @@
 // salvo a quien ha pedido borrar su cuenta o ya lo recibió
 // (users.novedad_29n_sent_at, sql/106).
 //
+// Segundo envío (03-11-2026), candidaturas proclamadas: añade
+// &envio=proclamadas (plantilla novedad29nProclamadasEmail y marca
+// users.novedad_29n_proclamadas_sent_at, sql/120).
+//
 // Uso:
 //   ?key=<DEBUG_KEY>&dry=1                    a quién saldría, sin enviar
 //   ?key=<DEBUG_KEY>&para=a@x.com             prueba a esas direcciones
@@ -17,7 +21,7 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { resend, EMAIL_FROM } from '@/lib/resend';
-import { novedad29nEmail } from '@/lib/email/templates';
+import { novedad29nEmail, novedad29nProclamadasEmail } from '@/lib/email/templates';
 import datos from '@/lib/data/elecciones29n.json';
 import { conRegistro } from '@/lib/syncLog';
 
@@ -33,21 +37,29 @@ function admin() {
   });
 }
 
-function correo(firstName) {
+function correo(firstName, envio) {
+  if (envio === 'proclamadas') {
+    return novedad29nProclamadasEmail({
+      firstName,
+      repiten: datos.d.filter((d) => d.d === 'congreso').length,
+      seVan: datos.d.filter((d) => d.d === 'no').length,
+      entran: datos.nu.length,
+    });
+  }
   return novedad29nEmail({
     firstName,
     seVan: datos.d.filter((d) => d.d === 'no').length,
   });
 }
 
-async function enviarLote(usuarios) {
+async function enviarLote(usuarios, envio) {
   const enviados = [];
   const fallos = [];
   for (let i = 0; i < usuarios.length; i += LOTE) {
     const lote = usuarios.slice(i, i + LOTE);
     const { error } = await resend.batch.send(
       lote.map((u) => {
-        const { subject, html } = correo(u.first_name || '');
+        const { subject, html } = correo(u.first_name || '', envio);
         return { from: EMAIL_FROM, to: u.email, subject, html };
       })
     );
@@ -63,7 +75,17 @@ async function handler(request) {
   const t0 = Date.now();
   const sp = new URL(request.url).searchParams;
   const isManual = !!process.env.DEBUG_KEY && sp.get('key') === process.env.DEBUG_KEY;
-  if (!isManual) return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
+  // Con CRON_SECRET solo se permite la prueba a direcciones internas
+  // (@govtalent.app o @apinstitute.com); nunca el envío ni la lista de usuarios.
+  const conSecreto = !!process.env.CRON_SECRET && request.headers.get('authorization') === `Bearer ${process.env.CRON_SECRET}`;
+  const paraInternos = String(sp.get('para') || '')
+    .split(',')
+    .map((e) => e.trim().toLowerCase())
+    .filter(Boolean);
+  const soloPrueba = paraInternos.length > 0 && paraInternos.every((e) => /@(govtalent\.app|apinstitute\.com)$/.test(e));
+  if (!isManual && !(conSecreto && soloPrueba)) return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
+  const envio = sp.get('envio') === 'proclamadas' ? 'proclamadas' : 'presentadas';
+  const marca = envio === 'proclamadas' ? 'novedad_29n_proclamadas_sent_at' : 'novedad_29n_sent_at';
 
   const supabase = admin();
   const informe = { inicio: new Date().toISOString() };
@@ -77,7 +99,7 @@ async function handler(request) {
     if (para.length) {
       const { data: us } = await supabase.from('users').select('email, first_name').in('email', para);
       const nombres = Object.fromEntries((us || []).map((u) => [String(u.email).toLowerCase(), u.first_name]));
-      const r = await enviarLote(para.map((email) => ({ email, first_name: nombres[email] || '' })));
+      const r = await enviarLote(para.map((email) => ({ email, first_name: nombres[email] || '' })), envio);
       return NextResponse.json({ ...informe, prueba: true, enviados: r.enviados.map((u) => u.email), fallidos: r.fallos, ms_total: Date.now() - t0 });
     }
 
@@ -86,7 +108,7 @@ async function handler(request) {
       .select('id, first_name, email')
       .eq('marketing_emails_enabled', true)
       .is('deletion_requested_at', null)
-      .is('novedad_29n_sent_at', null)
+      .is(marca, null)
       .not('email', 'is', null);
     if (error) throw new Error(`No se pudieron leer los usuarios: ${error.message}`);
     informe.pendientes = usuarios.length;
@@ -98,11 +120,11 @@ async function handler(request) {
       return NextResponse.json(informe);
     }
 
-    const r = await enviarLote(usuarios);
+    const r = await enviarLote(usuarios, envio);
     if (r.enviados.length) {
       await supabase
         .from('users')
-        .update({ novedad_29n_sent_at: new Date().toISOString() })
+        .update({ [marca]: new Date().toISOString() })
         .in('id', r.enviados.map((u) => u.id));
     }
     informe.enviados = r.enviados.length;
