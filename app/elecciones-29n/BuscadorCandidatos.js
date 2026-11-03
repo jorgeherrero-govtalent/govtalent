@@ -111,11 +111,11 @@ export default function BuscadorCandidatos({ filas, provincias, partidos }) {
           <div className="ante">Candidatos al Congreso</div>
           <h2>Busca en las listas</h2>
           <p className="lead">
-            Los {miles(filas.length)} candidatos de los partidos con representación hoy, en las 52 provincias, y su puesto en 2023.
+            {miles(filas.length)} candidatos al Congreso de los partidos con escaño, provincia a provincia, y quién sube o baja respecto a 2023.
           </p>
         </div>
         <a className="btn-ai-o bc-ir" href="/login?view=signup">
-          Consulta el directorio y las fichas completas en GovTalent
+          Ver directorio y fichas
           <i className="ti ti-arrow-right" aria-hidden="true"></i>
         </a>
       </div>
