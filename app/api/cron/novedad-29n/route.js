@@ -75,15 +75,7 @@ async function handler(request) {
   const t0 = Date.now();
   const sp = new URL(request.url).searchParams;
   const isManual = !!process.env.DEBUG_KEY && sp.get('key') === process.env.DEBUG_KEY;
-  // Con CRON_SECRET solo se permite la prueba a direcciones internas
-  // (@govtalent.app o @apinstitute.com); nunca el envío ni la lista de usuarios.
-  const conSecreto = !!process.env.CRON_SECRET && request.headers.get('authorization') === `Bearer ${process.env.CRON_SECRET}`;
-  const paraInternos = String(sp.get('para') || '')
-    .split(',')
-    .map((e) => e.trim().toLowerCase())
-    .filter(Boolean);
-  const soloPrueba = paraInternos.length > 0 && paraInternos.every((e) => /@(govtalent\.app|apinstitute\.com)$/.test(e));
-  if (!isManual && !(conSecreto && soloPrueba)) return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
+  if (!isManual) return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
   const envio = sp.get('envio') === 'proclamadas' ? 'proclamadas' : 'presentadas';
   const marca = envio === 'proclamadas' ? 'novedad_29n_proclamadas_sent_at' : 'novedad_29n_sent_at';
 
