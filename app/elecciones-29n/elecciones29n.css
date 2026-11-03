@@ -221,3 +221,15 @@
 .e29 .bc-ir{display:inline-flex;align-items:center;gap:7px;text-decoration:none;white-space:nowrap;margin-top:22px}
 @media(max-width:700px){.e29 .bc-ir{white-space:normal;margin-top:0}}
 @media(max-width:700px){.e29 .bc-c-par,.e29 .bc-c-pro{display:none}.e29 .bc-movil{display:block!important}.e29 .bc-sel{flex:1}}
+/* Comparación con 2023 */
+.e29 .bc-m{font-size:12px;white-space:nowrap;color:#8b8780}
+.e29 .bc-m-sube{color:#1d6f5c}
+.e29 .bc-m-provincia{color:#3c3489}
+.e29 .bc-m-nuevo{color:#b5b1a8}
+.e29 .bc-limpiar{border:0;background:none;color:#3c3489;font-size:12.5px;cursor:pointer;font-family:inherit;padding:6px 4px}
+.e29 .bc-tabla th button{font-family:inherit}
+.e29 .lista-ren{font-size:11.5px;color:#8b8780;margin:-4px 0 6px}
+.e29 .fila .nom small.m23{color:#8b8780}
+.e29 .fila .nom small.m23-sube{color:#1d6f5c}
+.e29 .fila .nom small.m23-provincia{color:#3c3489}
+@media(max-width:700px){.e29 .bc-c-23{display:none}}

@@ -1,8 +1,9 @@
 import Elecciones29n from './Elecciones29n';
 import datosBase from '@/lib/data/elecciones29n.json';
 import cand from '@/lib/data/candidatos29n.json';
+import cruce2023 from '@/lib/data/cruce2023.json';
 import BuscadorCandidatos from './BuscadorCandidatos';
-import { provincias, slugProvincia, listasProvincia } from '@/lib/elecciones29nProvincias';
+import { provincias, slugProvincia, listasProvincia, movimiento2023 } from '@/lib/elecciones29nProvincias';
 import { htmlInicial } from '@/lib/elecciones29nSsr';
 import { cifras, preguntas, URL_PAGINA, URL_MD } from '@/lib/elecciones29nTexto';
 
@@ -114,15 +115,18 @@ function datosEstructurados() {
 
 // Filas del buscador de candidatos: por provincia, por lista (de más a menos
 // escaños hoy) y por puesto. Formato compacto: [nombre, provincia, slug,
-// siglas, grupo, puesto, repite, cargo].
+// siglas, grupo, puesto, repite, cargo, tipo 2023, texto 2023].
 const GRUPOS = ['PSOE', 'PP', 'VOX', 'Sumar', 'Podemos', 'ERC', 'Junts', 'Bildu', 'PNV', 'BNG', 'CC'];
 function tablaCandidatos() {
   const filas = [];
   const zs = provincias(datos);
   zs.forEach((z) => {
     const slug = slugProvincia(z);
-    listasProvincia(datos, cand, z).forEach((l) => {
-      l.filas.forEach((f) => filas.push([f.n, z, slug, l.siglas, l.grupo, f.o, f.nuevo ? 0 : 1, f.cargo || '']));
+    listasProvincia(datos, cand, z, cruce2023).forEach((l) => {
+      l.filas.forEach((f) => {
+        const m = movimiento2023(f.o, f.a23);
+        filas.push([f.n, z, slug, l.siglas, l.grupo, f.o, f.nuevo ? 0 : 1, f.cargo || '', m.tipo, m.texto]);
+      });
     });
   });
   const usados = new Set(filas.map((f) => f[4]));

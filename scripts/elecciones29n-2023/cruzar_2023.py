@@ -1,6 +1,9 @@
 import json,re,unicodedata,collections,sys
-c23=[r for r in json.load(open('c23.json')) if r['c']=='congreso' and not r['sup']]
-cand=json.load(open(sys.argv[1] if len(sys.argv)>1 else '/home/claude/repo2/lib/data/candidatos29n.json'))
+import os
+AQUI=os.path.dirname(os.path.abspath(__file__))
+c23=[dict(z=r[0],c=r[1],s=r[2],o=r[3],n=r[4],sup=bool(r[5])) for r in json.load(open(os.path.join(AQUI,'candidatos2023.json')))]
+c23=[r for r in c23 if r['c']=='congreso' and not r['sup']]
+cand=None
 def a(s): return unicodedata.normalize('NFD',s).encode('ascii','ignore').decode().lower()
 def k(n):
     n=re.sub(r'[-.,()]',' ',a(n)); return ' '.join(x for x in n.split() if x not in('de','del','la','las','los','y','i','da','do'))
@@ -19,6 +22,7 @@ def fam23(s):
     if S=='CCA': return 'CC'
     return None
 def compatible(g26,f23): return f23==g26 or (g26=='Podemos' and f23=='Sumar')
+cand=json.load(open(sys.argv[1] if len(sys.argv)>1 else os.path.join(AQUI,'..','..','lib','data','candidatos29n.json')))
 Z23={}
 for r in c23: Z23.setdefault(a(r['z']),[]).append(r)
 byk=collections.defaultdict(list)
@@ -44,7 +48,8 @@ for z,ls in cand['p'].items():
         res[f'{z}|{l["s"]}|{i+1}']=dict(z=m['z'].title() if m['z'].isupper() else m['z'],s=m['s'],o=m['o'],como=how)
         st[how]+=1
       else: st['sin 2023']+=1
-json.dump(res,open('cruce.json','w'),ensure_ascii=False)
+salida={k:[v['o'], (v['z'] if v['como']=='otra provincia' else None), v['s']] for k,v in res.items()}
+json.dump(salida,open(os.path.join(AQUI,'..','..','lib','data','cruce2023.json'),'w'),ensure_ascii=False,separators=(',',':'))
 print(st, len(res))
 for kk,v in list(res.items()):
     if v['como']=='otra provincia': print(kk,v)

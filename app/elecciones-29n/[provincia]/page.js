@@ -10,6 +10,7 @@ import '../../landing/landing.css';
 import '../elecciones29n.css';
 import datos from '@/lib/data/elecciones29n.json';
 import cand from '@/lib/data/candidatos29n.json';
+import cruce2023 from '@/lib/data/cruce2023.json';
 import { fechaLarga } from '@/lib/elecciones29nTexto';
 import {
   COLORES,
@@ -19,6 +20,7 @@ import {
   cifrasProvincia,
   destinoDiputado,
   listasProvincia,
+  movimiento2023,
 } from '@/lib/elecciones29nProvincias';
 
 const SITE_URL = (process.env.NEXT_PUBLIC_SITE_URL || 'https://govtalent.app').replace(/\/$/, '');
@@ -87,12 +89,16 @@ function Foto({ p }) {
 
 function Lista({ l }) {
   const ultimo = l.filas.length ? l.filas[l.filas.length - 1].o : 0;
+  const estrenan = l.filas.filter((f) => f.nuevo && !f.a23).length;
   return (
     <div className="lista">
       <h3>
         <i style={{ background: l.color }} />
         {l.siglas}
       </h3>
+      <div className="lista-ren">
+        {estrenan} de {l.filas.length} se estrenan como candidatos
+      </div>
       {l.filas.map((f, k) => (
         <div key={`${f.o}-${f.n}`}>
           <div className="fila">
@@ -101,6 +107,9 @@ function Lista({ l }) {
             <span className="nom">
               {f.n}
               {(f.cargo || f.vieneDe) && <small>{f.cargo || `Diputado por ${f.vieneDe}`}</small>}
+              {f.a23 && (
+                <small className={`m23 m23-${movimiento2023(f.o, f.a23).tipo}`}>En 2023: {movimiento2023(f.o, f.a23).texto}</small>
+              )}
             </span>
             <span className={`etq ${f.nuevo ? 'nu' : 'si'}`}>{f.nuevo ? 'Nuevo' : 'Repite'}</span>
           </div>
@@ -123,7 +132,7 @@ export default function PaginaProvincia({ params }) {
   if (!z) notFound();
   const { c, titulo, descripcion } = textos(z);
   const url = `${SITE_URL}/elecciones-29n/${params.provincia}`;
-  const listas = listasProvincia(datos, cand, z);
+  const listas = listasProvincia(datos, cand, z, cruce2023);
   const salen = datos.d
     .filter((d) => d.z === z && !(d.d === 'congreso' && d.x?.z === z && !d.x?.p))
     .sort((a, b) => a.n.localeCompare(b.n, 'es'));
@@ -215,7 +224,7 @@ export default function PaginaProvincia({ params }) {
           <section style={{ marginTop: 28 }}>
             <h2 style={{ fontSize: 24, letterSpacing: -0.6, margin: 0 }}>Las listas de cada partido</h2>
             <p className="lead" style={{ fontSize: 14.5, marginTop: 6 }}>
-              Todos los candidatos de los partidos con representación hoy, por su número en la lista. «Repite»: es diputado hoy. «Nuevo»: no lo es.
+              Todos los candidatos de los partidos con representación hoy, por su número en la lista, y su puesto en 2023. «Repite»: es diputado hoy. «Nuevo»: no lo es.
             </p>
             <div className="listas">
               {listas.map((l) => (
