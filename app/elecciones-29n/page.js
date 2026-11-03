@@ -11,9 +11,9 @@ const datos = datosBase;
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://govtalent.app';
 
-const TITULO = 'Cómo quedará el nuevo Congreso tras el 29N: quién repite y quién llega';
+const TITULO = '¿Cómo será el Congreso tras el 29N?';
 const C = cifras(datos);
-const DESCRIPCION = `Al menos ${C.total - C.repiten} de los 350 diputados del nuevo Congreso serán nuevos: solo ${C.repiten} de los actuales repiten en las listas. Explora el hemiciclo, los candidatos que pueden entrar y los cargos del Gobierno en las listas.`;
+const DESCRIPCION = `Qué diputados repiten, quiénes se van y qué candidatos pueden llegar: ${C.repiten} de los 350 diputados actuales vuelven a presentarse al Congreso. Hemiciclo, listas por provincia y cargos del Gobierno en las candidaturas.`;
 const IMAGEN = `${SITE_URL}/og/elecciones-29n.png`;
 const PUBLICADA = '2026-10-28';
 const ACTUALIZADA = datos.meta?.fecha || PUBLICADA;

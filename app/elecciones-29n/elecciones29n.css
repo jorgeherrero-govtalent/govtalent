@@ -248,3 +248,5 @@
 .e29 svg.hemi{margin-left:-6px;margin-right:-6px;width:calc(100% + 12px)}
 .e29 svg.hemi circle{r:10.6px}
 }
+.e29 .h-sec{font-size:30px;letter-spacing:-1px;margin:28px 0 0;line-height:1.1}
+@media(max-width:700px){.e29 .h-sec{font-size:24px;margin-top:18px}}
