@@ -239,3 +239,12 @@
 .e29 .bc-chip{display:inline-flex;align-items:center;border:1px solid #e0dfd8;background:#fff;border-radius:999px;padding:7px 12px}
 .e29 .bc-chip button{font-family:inherit}
 }
+/* Móvil: partidos en chips con desplazamiento horizontal y hemiciclo más grande */
+@media(max-width:700px){
+.e29 .gtabs{display:flex;flex-wrap:nowrap;overflow-x:auto;gap:6px;margin:0 -14px;padding:0 14px 4px;scrollbar-width:none;-webkit-overflow-scrolling:touch}
+.e29 .gtabs::-webkit-scrollbar{display:none}
+.e29 .gt{flex:0 0 auto;padding:7px 11px;border-radius:999px}
+.e29 .stage>.panel:first-child{margin:0 -22px;border-radius:0;border-left:0;border-right:0;padding:14px}
+.e29 svg.hemi{margin-left:-6px;margin-right:-6px;width:calc(100% + 12px)}
+.e29 svg.hemi circle{r:10.6px}
+}
