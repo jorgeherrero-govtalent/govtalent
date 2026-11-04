@@ -354,7 +354,7 @@ export default function GovernmentMemberProfilePage() {
                 llegan por el mismo camino. Va con kind "cargo": se
                 comprobó que ningún slug se repite entre
                 government_members y government_officials. */}
-            {!esVacante(member) && <FollowButton kind="cargo" refId={member.slug} label={member.full_name} />}
+            {!esVacante(member) && !member.slug.startsWith('encargo-') && <FollowButton kind="cargo" refId={member.slug} label={member.full_name} />}
           </div>
         </div>
 

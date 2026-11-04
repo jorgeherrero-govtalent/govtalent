@@ -142,6 +142,9 @@ function cargoExacto(o) {
 
 // Cartera sin titular («Pendiente de nombramiento»): ver syncGovernment.js.
 const esVacante = (m) => (m?.slug || '').startsWith('vacante-');
+// Cartera que asume otro miembro del Gobierno de forma transitoria: sale
+// con su nombre y foto, pero la persona ya está en el buscador por su ficha.
+const esEncargo = (m) => (m?.slug || '').startsWith('encargo-');
 
 function initials(fullName) {
   const parts = fullName.trim().split(' ');
@@ -630,7 +633,7 @@ function BuscarTab({ members, officials }) {
   // a cualquiera, sin importar su nivel.
   const allPeople = useMemo(() => {
     // Una cartera vacante no es una persona: fuera del buscador.
-    const fromMembers = members.filter((m) => !esVacante(m)).map((m) => ({
+    const fromMembers = members.filter((m) => !esVacante(m) && !esEncargo(m)).map((m) => ({
       full_name_display: m.full_name,
       role: m.role,
       ministry_name: m.ministry_name || m.role,
@@ -638,7 +641,7 @@ function BuscarTab({ members, officials }) {
       slug: m.slug,
       isMember: true,
     }));
-    const memberKeys = new Set(members.map((m) => normalizePerson(m.full_name)));
+    const memberKeys = new Set(members.filter((m) => !esVacante(m)).map((m) => normalizePerson(m.full_name)));
     const fromOfficials = officials
       // Los ministros ya entran por government_members: si la Agenda los
       // repite, no deben salir dos veces en el buscador.
