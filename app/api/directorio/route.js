@@ -93,7 +93,11 @@ async function resumen(admin) {
   const porCat = Object.fromEntries((filas || []).map((f) => [f.categoria, f]));
   const cifras = {};
   for (const s of [...SECCIONES_DIRECTORIO, SECCION_CCAA]) {
-    if (s.cat) {
+    if (s.cat && s.grupo) {
+      // Secciones que comparten categoría: directorio_resumen agrupa por
+      // categoría, así que se cuentan aparte por grupo.
+      cifras[s.slug] = await cifrasDeGrupo(admin, s.cat, s.grupo);
+    } else if (s.cat) {
       const f = porCat[s.cat];
       cifras[s.slug] = f ? { organizaciones: f.organizaciones, personas: f.personas } : null;
     } else if (s.slug === 'asociaciones') {
@@ -101,6 +105,35 @@ async function resumen(admin) {
     }
   }
   return cifras;
+}
+
+// Mismas cuentas que directorio_resumen, para una categoría y un grupo.
+async function cifrasDeGrupo(admin, cat, grupo) {
+  const entidades = await todas(() =>
+    admin
+      .from('directorio_entidades')
+      .select('id, organizacion')
+      .eq('categoria', cat)
+      .eq('grupo', grupo)
+      .eq('activo', true)
+      .order('id', { ascending: true })
+  );
+  if (!entidades.length) return null;
+  const ids = entidades.map((e) => e.id);
+  let personas = 0;
+  for (let i = 0; i < ids.length; i += 300) {
+    const { count, error } = await admin
+      .from('directorio_contactos')
+      .select('id', { count: 'exact', head: true })
+      .in('entidad_id', ids.slice(i, i + 300))
+      .eq('activo', true)
+      .eq('objecion', false)
+      .not('nombre', 'is', null)
+      .neq('nombre', '');
+    if (error) throw new Error(error.message);
+    personas += count || 0;
+  }
+  return { organizaciones: new Set(entidades.map((e) => clave(e.organizacion))).size, personas };
 }
 
 async function listadoAsociaciones(admin) {
@@ -149,7 +182,7 @@ async function contactosDe(admin, ids, columnas) {
 
 // Una fila por organización. El id de la fila es el de su primer bloque en
 // la Agenda: es lo que lleva la URL de la ficha.
-async function listadoAgenda(admin, cat, subcategoria = null) {
+async function listadoAgenda(admin, cat, subcategoria = null, grupo = null) {
   const entidades = await todas(() => {
     let q = admin
       .from('directorio_entidades')
@@ -157,6 +190,7 @@ async function listadoAgenda(admin, cat, subcategoria = null) {
       .eq('categoria', cat)
       .eq('activo', true);
     if (subcategoria) q = q.eq('subcategoria', subcategoria);
+    if (grupo) q = q.eq('grupo', grupo);
     return q.order('orden', { ascending: true });
   });
   const contactos = await contactosDe(
@@ -221,16 +255,17 @@ async function listadoAgenda(admin, cat, subcategoria = null) {
   return [...filas.values()];
 }
 
-async function ficha(admin, cat, id, conContacto, subcategoria = null) {
+async function ficha(admin, cat, id, conContacto, subcategoria = null, grupo = null) {
   const { data: base, error } = await admin
     .from('directorio_entidades')
-    .select('organizacion, subcategoria')
+    .select('organizacion, subcategoria, grupo')
     .eq('id', id)
     .eq('categoria', cat)
     .maybeSingle();
   if (error) throw new Error(error.message);
   if (!base) return null;
   if (subcategoria && base.subcategoria !== subcategoria) return null;
+  if (grupo && base.grupo !== grupo) return null;
 
   const entidades = await todas(() =>
     admin
@@ -301,7 +336,7 @@ export async function GET(request) {
     if (!seccion) return NextResponse.json({ error: 'Sección desconocida' }, { status: 404 });
 
     if (vista === 'listado') {
-      const items = seccion.cat ? await listadoAgenda(admin, seccion.cat, seccion.subcategoria) : await listadoAsociaciones(admin);
+      const items = seccion.cat ? await listadoAgenda(admin, seccion.cat, seccion.subcategoria, seccion.grupo) : await listadoAsociaciones(admin);
       return NextResponse.json({ items }, { headers: CABECERAS });
     }
 
@@ -311,7 +346,7 @@ export async function GET(request) {
 
       const conContacto = await puedeVerContactos(admin, authData.user.id);
 
-      const datos = await ficha(admin, seccion.cat, id, conContacto, seccion.subcategoria);
+      const datos = await ficha(admin, seccion.cat, id, conContacto, seccion.subcategoria, seccion.grupo);
       if (!datos) return NextResponse.json({ error: 'Ficha desconocida' }, { status: 404 });
       // Sin caché: la ficha cambia según quién la pida (con o sin correos).
       // Con max-age, el navegador servía la de una cuenta con Directorio a
