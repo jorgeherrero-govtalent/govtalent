@@ -42,7 +42,7 @@ function contar(items, campo, etiqueta = (v) => v) {
   for (const it of items) if (it[campo]) n[it[campo]] = (n[it[campo]] || 0) + 1;
   return Object.entries(n)
     .sort((a, b) => b[1] - a[1])
-    .map(([v, k]) => ({ value: v, label: `${etiqueta(v)} (${k})` }));
+    .map(([v, k]) => ({ value: v, label: `${etiqueta(v)} (${k})`, nombre: etiqueta(v), n: k }));
 }
 
 function Icono({ nombre }) {
@@ -167,6 +167,51 @@ const PESTANAS = { display: 'flex', gap: 22, fontSize: 14, borderBottom: '1px so
 const PESTANA = { color: '#6b6b70', textDecoration: 'none', paddingBottom: 10 };
 const PESTANA_ON = { ...PESTANA, color: '#1a1a18', fontWeight: 600, borderBottom: '2px solid #6d5aef' };
 
+// Botones de tipo a la vista (maqueta B, 05-11-2026): solo cuando hay pocas
+// opciones; con más, el desplegable de siempre. Activo en morado, como la
+// pestaña seleccionada.
+const MAX_TIPOS_VISIBLES = 6;
+const TIPO_BTN = {
+  height: 30,
+  display: 'inline-flex',
+  alignItems: 'center',
+  gap: 6,
+  padding: '0 12px',
+  borderRadius: 15,
+  fontSize: 12,
+  border: `.5px solid ${BORDE}`,
+  background: '#fff',
+  color: '#555',
+  cursor: 'pointer',
+  whiteSpace: 'nowrap',
+};
+const TIPO_BTN_ON = { ...TIPO_BTN, background: '#f0eefd', borderColor: '#6d5aef', color: '#6d5aef' };
+
+function TiposVisibles({ valores, total, seleccion, onCambio }) {
+  const todos = seleccion.size === 0;
+  const alternar = (v) => {
+    const next = new Set(seleccion);
+    if (next.has(v)) next.delete(v);
+    else next.add(v);
+    onCambio(next.size === valores.length ? new Set() : next);
+  };
+  return (
+    <div role="group" aria-label="Tipo" style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 14 }}>
+      <button type="button" aria-pressed={todos} onClick={() => onCambio(new Set())} style={todos ? TIPO_BTN_ON : TIPO_BTN}>
+        Todos <span style={{ fontWeight: 500, color: todos ? '#6d5aef' : '#999' }}>{total}</span>
+      </button>
+      {valores.map((v) => {
+        const on = seleccion.has(v.value);
+        return (
+          <button key={v.value} type="button" aria-pressed={on} onClick={() => alternar(v.value)} style={on ? TIPO_BTN_ON : TIPO_BTN}>
+            {v.nombre} <span style={{ fontWeight: 500, color: on ? '#6d5aef' : '#999' }}>{v.n}</span>
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
 const CHIP = { fontSize: 11, padding: '3px 10px', borderRadius: 12, background: '#f5f4f1', color: '#666', border: 'none', cursor: 'pointer' };
 
 export default function DirectorioListado({ slug, base, volverA, volverEtiqueta }) {
@@ -208,6 +253,7 @@ export default function DirectorioListado({ slug, base, volverA, volverEtiqueta 
     [items, campoTipo, esAsociaciones]
   );
   const valoresLugar = useMemo(() => contar(items, campoLugar), [items, campoLugar]);
+  const tiposVisibles = valoresTipo.length > 1 && valoresTipo.length <= MAX_TIPOS_VISIBLES;
 
   const filtradas = useMemo(() => {
     const texto = norm(q.trim());
@@ -253,10 +299,10 @@ export default function DirectorioListado({ slug, base, volverA, volverEtiqueta 
         </nav>
       ) : null}
 
-      <div style={{ display: 'flex', gap: 8, marginBottom: 14, flexWrap: 'wrap', alignItems: 'center' }}>
+      <div style={{ display: 'flex', gap: 8, marginBottom: tiposVisibles ? 10 : 14, flexWrap: 'wrap', alignItems: 'center' }}>
         <div
           style={{
-            flex: 1,
+            flex: tiposVisibles ? '0 1 520px' : 1,
             minWidth: 200,
             display: 'flex',
             alignItems: 'center',
@@ -276,7 +322,7 @@ export default function DirectorioListado({ slug, base, volverA, volverEtiqueta 
             style={{ border: 'none', outline: 'none', flex: 1, fontSize: 12.5, background: 'transparent' }}
           />
         </div>
-        {valoresTipo.length > 1 ? (
+        {valoresTipo.length > 1 && !tiposVisibles ? (
           <MultiSelectFilter
             label={esAsociaciones ? 'Sector' : 'Tipo'}
             values={valoresTipo}
@@ -294,9 +340,13 @@ export default function DirectorioListado({ slug, base, volverA, volverEtiqueta 
         ) : null}
       </div>
 
-      {(tipos.size > 0 || lugares.size > 0) && (
+      {tiposVisibles ? (
+        <TiposVisibles valores={valoresTipo} total={items.length} seleccion={tipos} onCambio={setTipos} />
+      ) : null}
+
+      {((tipos.size > 0 && !tiposVisibles) || lugares.size > 0) && (
         <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap', marginBottom: 12, alignItems: 'center' }}>
-          {[...tipos].map((t) => (
+          {(tiposVisibles ? [] : [...tipos]).map((t) => (
             <button key={`t-${t}`} type="button" onClick={() => setTipos((prev) => new Set([...prev].filter((x) => x !== t)))} style={CHIP}>
               {esAsociaciones ? SECTOR_LABELS[t] || t : t} ×
             </button>
