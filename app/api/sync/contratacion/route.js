@@ -7,8 +7,9 @@
 // las tablas de sql/123.
 //
 // Cómo avanza, gastando lo mínimo:
-//   1. Pide solo la cabecera HTTP del feed. Si su Last-Modified es el de
-//      la última pasada completa, no descarga nada. (Los feeds se rehacen
+//   1. Pide la primera página con If-Modified-Since (el Last-Modified de
+//      la última pasada completa): si no cambió, el servidor da 304 y no
+//      se descarga nada. (Los feeds se rehacen
 //      una vez al día; el cron pasa cada hora y casi siempre sale aquí.)
 //   2. Si cambió, empieza una pasada: baja página a página (rel="next",
 //      ~5 MB cada una) guardando todo lo posterior a la marca (lo más
@@ -33,7 +34,7 @@
 
 import { createClient } from '@supabase/supabase-js';
 import { conRegistro } from '@/lib/syncLog';
-import { FEEDS, cabecera, descargar, leerCabecera, leerEntradas, leerBajas, idFuente, aFilas } from '@/lib/contratacion/placsp';
+import { FEEDS, descargar, leerCabecera, leerEntradas, leerBajas, idFuente, aFilas } from '@/lib/contratacion/placsp';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -98,17 +99,22 @@ async function leerFeed({ db, feed, url, dry, forzar, desde, t0 }) {
   let lmPasada = estado.pendiente_last_modified;
   let nuevaMarca = estado.nueva_marca ? new Date(estado.nueva_marca) : null;
 
+  let primera = null; // la primera página, si ya se ha descargado al comprobar
   if (!pagina || dry) {
-    const cab = await cabecera(url).catch(() => ({ status: 0, modificado: null }));
-    salida.last_modified = cab.modificado;
-    if (!dry && !forzar && cab.modificado && cab.modificado === estado.last_modified) {
+    // Descarga condicional: si el feed no ha cambiado desde la última
+    // pasada completa, el servidor responde 304 sin enviar nada. (La
+    // Plataforma no da Last-Modified en las peticiones HEAD.)
+    const r = await descargar(url, { siModificadoDesde: !dry && !forzar ? estado.last_modified : null });
+    salida.last_modified = r.modificado;
+    if (r.status === 304 || (!dry && !forzar && r.modificado && r.modificado === estado.last_modified)) {
       salida.sin_cambios = true;
       await db.from('contratacion_lectura').upsert({ feed, ultima_ejecucion: new Date().toISOString(), ultimo_error: null }, { onConflict: 'feed' });
       return salida;
     }
+    primera = r;
     pagina = url;
     marca = estado.marca ? new Date(estado.marca) : (desde || new Date(Date.now() - 36 * 3600 * 1000));
-    lmPasada = cab.modificado;
+    lmPasada = r.modificado;
     nuevaMarca = null;
     salida.pasada_nueva = true;
   } else {
@@ -120,7 +126,8 @@ async function leerFeed({ db, feed, url, dry, forzar, desde, t0 }) {
   let terminada = false;
   while (pagina) {
     if (Date.now() - t0 > PRESUPUESTO_MS - MARGEN_PAGINA_MS) break;
-    const r = await descargar(pagina);
+    const r = primera || (await descargar(pagina));
+    primera = null;
     if (r.status !== 200) throw new Error(`HTTP ${r.status} en ${pagina}: ${r.texto.slice(0, 200)}`);
     const cab = leerCabecera(r.texto);
     const entradas = leerEntradas(r.texto);
