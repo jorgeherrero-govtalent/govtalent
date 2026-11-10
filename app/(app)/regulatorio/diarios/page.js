@@ -131,8 +131,8 @@ function Diarios() {
     fontSize: 12.5,
     cursor: 'pointer',
     border: 'none',
-    background: activo ? '#f0eefe' : 'transparent',
-    color: activo ? '#6d5aef' : '#8b8780',
+    background: activo ? '#eceae4' : 'transparent',
+    color: activo ? '#1a1a18' : '#8b8780',
     whiteSpace: 'nowrap',
   });
 
