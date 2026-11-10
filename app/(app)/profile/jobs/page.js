@@ -155,8 +155,8 @@ export default function MyJobsPage() {
                 padding: '10px 14px',
                 fontSize: 13.5,
                 fontWeight: tab === 'solicitados' ? 600 : 400,
-                color: tab === 'solicitados' ? '#1d6f5c' : '#888',
-                borderBottom: tab === 'solicitados' ? '2px solid #1d6f5c' : '2px solid transparent',
+                color: tab === 'solicitados' ? '#1a1a18' : '#888',
+                borderBottom: tab === 'solicitados' ? '2px solid #1a1a18' : '2px solid transparent',
               }}
             >
               Solicitados ({activeApplications.length})
@@ -169,8 +169,8 @@ export default function MyJobsPage() {
                 padding: '10px 14px',
                 fontSize: 13.5,
                 fontWeight: tab === 'guardados' ? 600 : 400,
-                color: tab === 'guardados' ? '#1d6f5c' : '#888',
-                borderBottom: tab === 'guardados' ? '2px solid #1d6f5c' : '2px solid transparent',
+                color: tab === 'guardados' ? '#1a1a18' : '#888',
+                borderBottom: tab === 'guardados' ? '2px solid #1a1a18' : '2px solid transparent',
               }}
             >
               Guardados ({saved.length})
@@ -183,8 +183,8 @@ export default function MyJobsPage() {
                 padding: '10px 14px',
                 fontSize: 13.5,
                 fontWeight: tab === 'cerrados' ? 600 : 400,
-                color: tab === 'cerrados' ? '#1d6f5c' : '#888',
-                borderBottom: tab === 'cerrados' ? '2px solid #1d6f5c' : '2px solid transparent',
+                color: tab === 'cerrados' ? '#1a1a18' : '#888',
+                borderBottom: tab === 'cerrados' ? '2px solid #1a1a18' : '2px solid transparent',
               }}
             >
               Cerrados ({closedApplications.length})

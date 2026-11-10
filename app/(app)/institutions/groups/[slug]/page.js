@@ -487,9 +487,9 @@ export default function GroupDetailPage() {
               style={{
                 fontSize: 12.5,
                 fontWeight: tab === t.id ? 600 : 400,
-                color: tab === t.id ? '#1d6f5c' : '#888',
+                color: tab === t.id ? '#1a1a18' : '#888',
                 border: 'none',
-                borderBottom: `2px solid ${tab === t.id ? '#1d6f5c' : 'transparent'}`,
+                borderBottom: `2px solid ${tab === t.id ? '#1a1a18' : 'transparent'}`,
                 background: 'none',
                 padding: '0 0 9px',
                 cursor: 'pointer',
@@ -498,7 +498,7 @@ export default function GroupDetailPage() {
             >
               {t.label}{' '}
               {n !== null && n > 0 && (
-                <span style={{ color: tab === t.id ? '#9cc4b8' : '#bbb' }}>{n.toLocaleString('es-ES')}</span>
+                <span style={{ color: tab === t.id ? '#8b8780' : '#bbb' }}>{n.toLocaleString('es-ES')}</span>
               )}
             </button>
           );

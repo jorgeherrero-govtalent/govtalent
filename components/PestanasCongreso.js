@@ -29,7 +29,6 @@ const PESTANAS = [
   { href: '/institutions/groups', label: 'Grupos parlamentarios' },
 ];
 
-const VERDE = '#1d6f5c';
 
 export default function PestanasCongreso() {
   const pathname = usePathname();
@@ -60,8 +59,8 @@ export default function PestanasCongreso() {
               style={{
                 fontSize: 13,
                 fontWeight: 600,
-                color: VERDE,
-                borderBottom: `2px solid ${VERDE}`,
+                color: '#1a1a18',
+                borderBottom: `2px solid #1a1a18`,
                 paddingBottom: 8,
               }}
             >

@@ -37,7 +37,7 @@ export function PestanasParlamento({ p }) {
           <span
             key={t.href}
             aria-current="page"
-            style={{ fontSize: 13, fontWeight: 600, color: VERDE, borderBottom: `2px solid ${VERDE}`, paddingBottom: 8 }}
+            style={{ fontSize: 13, fontWeight: 600, color: '#1a1a18', borderBottom: `2px solid #1a1a18`, paddingBottom: 8 }}
           >
             {t.label}
           </span>

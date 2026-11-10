@@ -167,7 +167,7 @@ function FilaAsociacion({ it, seccion, ultima }) {
 // Pestañas de las secciones fusionadas: mismo estilo que las de Contactos.
 const PESTANAS = { display: 'flex', gap: 22, fontSize: 14, borderBottom: '1px solid #ececef', marginBottom: 18 };
 const PESTANA = { color: '#6b6b70', textDecoration: 'none', paddingBottom: 10 };
-const PESTANA_ON = { ...PESTANA, color: '#1a1a18', fontWeight: 600, borderBottom: '2px solid #6d5aef' };
+const PESTANA_ON = { ...PESTANA, color: '#1a1a18', fontWeight: 600, borderBottom: '2px solid #1a1a18' };
 
 // Botones de tipo a la vista (maqueta B, 05-11-2026): solo cuando hay pocas
 // opciones; con más, el desplegable de siempre. Activo en morado, como la

@@ -1825,10 +1825,10 @@ export default function AlarmasTab({ seccion = 'alarmas' }) {
                   style={{
                     fontSize: 13.5,
                     fontWeight: on ? 600 : 500,
-                    color: on ? MORADO : '#57534e',
+                    color: on ? '#1a1a18' : '#57534e',
                     background: 'none',
                     border: 'none',
-                    borderBottom: `2px solid ${on ? MORADO : 'transparent'}`,
+                    borderBottom: `2px solid ${on ? '#1a1a18' : 'transparent'}`,
                     marginBottom: -1,
                     padding: '9px 12px',
                     cursor: 'pointer',
@@ -1836,7 +1836,7 @@ export default function AlarmasTab({ seccion = 'alarmas' }) {
                     whiteSpace: 'nowrap',
                   }}
                 >
-                  {t.label} <span style={{ fontWeight: 600, color: on ? MORADO : GRIS2 }}>{t.lista.length}</span>
+                  {t.label} <span style={{ fontWeight: 600, color: on ? '#1a1a18' : GRIS2 }}>{t.lista.length}</span>
                 </button>
               );
             })}
