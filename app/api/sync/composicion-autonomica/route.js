@@ -53,6 +53,9 @@ export const dynamic = 'force-dynamic';
 export const maxDuration = 600;
 
 const FIN_MS = 260000;
+// Cataluña lee unas 35 páginas de comisión que tardan (hasta 9 s cada una):
+// con 260 s no terminan y la lectura incompleta no se guarda.
+const FIN_MS_CATALUNA = 520000;
 const DIAS_FICHA = 6;
 const CSV_OCUPACIONES = 'https://ctyp.asambleamadrid.es/static/doc/opendata/SGP_ADMIN.OPENDATA_OCUPACIONES_ASAMBLEA.csv';
 
@@ -98,7 +101,7 @@ async function handler(request) {
         n: parseInt(sp.get('n') || '0', 10) || 0,
         soloId: sp.get('diputado'),
         forzar: sp.get('forzar') === '1',
-        tiempo: () => Date.now() - t0 > FIN_MS,
+        tiempo: () => Date.now() - t0 > FIN_MS_CATALUNA,
       });
       return Response.json({ ok: true, p: 'cataluna', dry: sp.get('dry') === '1', ms: Date.now() - t0, ...r });
     } catch (e) {
