@@ -73,7 +73,8 @@ export function usePaginacion(total, reinicio = []) {
 
 const BOTON = { border: 'none', background: 'transparent', fontFamily: 'inherit', cursor: 'pointer' };
 
-export default function Paginacion({ pag, dentro }) {
+// `acento` cambia el verde (Licitaciones la usa en negro, 10-11-2026).
+export default function Paginacion({ pag, dentro, acento = VERDE }) {
   const { pageSize, changePageSize, from, to, total, current, totalPages, setPage, pageNumbers } = pag;
   if (total === 0) return null;
   return (
@@ -103,7 +104,7 @@ export default function Paginacion({ pag, dentro }) {
                 fontSize: 11,
                 padding: '3px 8px',
                 borderRadius: 5,
-                background: pageSize === n ? VERDE : 'transparent',
+                background: pageSize === n ? acento : 'transparent',
                 color: pageSize === n ? '#fff' : '#666',
               }}
             >
@@ -142,7 +143,7 @@ export default function Paginacion({ pag, dentro }) {
                 borderRadius: 6,
                 padding: '4px 10px',
                 fontSize: 11.5,
-                background: n === current ? VERDE : 'transparent',
+                background: n === current ? acento : 'transparent',
                 color: n === current ? '#fff' : '#555',
                 border: n === current ? 'none' : `.5px solid ${BORDE}`,
               }}
