@@ -58,6 +58,8 @@ export default function SelectorFecha({
   hastaAno,
   atajos = [],
   ancho,
+  // Capa del panel: más alta cuando va dentro de otro desplegable.
+  capa = 300,
 }) {
   const [abierto, setAbierto] = useState(false);
   const [pos, setPos] = useState(null);
@@ -173,7 +175,7 @@ export default function SelectorFecha({
               borderRadius: 10,
               boxShadow: '0 6px 20px rgba(0,0,0,.12)',
               padding: 12,
-              zIndex: 300,
+              zIndex: capa,
             }}
           >
             {atajos.length > 0 && (
