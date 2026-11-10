@@ -130,7 +130,6 @@ export default function OrganizacionesPage() {
             ) : (
               <h2 style={{ fontSize: 21, fontWeight: 600, margin: 0, letterSpacing: '-.3px' }}>{b.titulo}</h2>
             )}
-            <p style={{ fontSize: 13, color: '#8b8780', margin: '4px 0 0' }}>{b.subtitulo}</p>
           </div>
           <div
             className="reg-grid"

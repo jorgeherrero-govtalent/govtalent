@@ -1636,16 +1636,6 @@ export default function AlarmasTab({ seccion = 'alarmas' }) {
       <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: 16, marginBottom: 16, flexWrap: 'wrap' }}>
         <div>
           <h1 style={{ fontSize: 22, fontWeight: 600, margin: 0, letterSpacing: '-.3px' }}>{enNovedades ? 'Novedades' : 'Alarmas'}</h1>
-          <p style={{ fontSize: 13, color: GRIS, margin: '5px 0 0', lineHeight: 1.5 }}>
-            {enNovedades
-              ? 'Revisa lo nuevo y decide: seguirlo o descartarlo. Lo revisado sale de la bandeja.'
-              : alarmas.length === 0
-                ? 'Lo que el agente vigila por ti y cómo te avisa.'
-                : `${activas.length} de ${limites.alarmas} ${limites.alarmas === 1 ? 'activa' : 'activas'}, ${
-                    correos ? `avisos a ${email}` : 'correos desactivados'
-                  }${esPro ? '' : ', en Free, los lunes'}`}
-            {enNovedades && revisada ? ` Revisado ${haceCuanto(revisada)}.` : ''}
-          </p>
         </div>
         {enNovedades && (
           <Link

@@ -292,11 +292,7 @@ export default function OrganismosPage() {
         <BackLink fallbackHref="/institutions" fallbackLabel="Directorio institucional" />
       </div>
 
-      <h1 style={{ fontSize: 19, fontWeight: 700, margin: 0 }}>Organismos y reguladores</h1>
-      <p style={{ fontSize: 12.5, color: '#888', margin: '3px 0 16px', lineHeight: 1.55 }}>
-        Organismos autónomos, agencias estatales y entidades de derecho público de la Administración
-        General del Estado.
-      </p>
+      <h1 style={{ fontSize: 19, fontWeight: 700, margin: '0 0 16px' }}>Organismos y reguladores</h1>
 
       <div style={{ display: 'flex', gap: 8, marginBottom: 14, flexWrap: 'wrap', alignItems: 'center' }}>
         <div

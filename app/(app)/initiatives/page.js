@@ -189,9 +189,6 @@ export default function InitiativesDirectoryPage() {
           </span>
           <h1 style={{ fontSize: 18, fontWeight: 700, margin: 0 }}>Expedientes</h1>
         </div>
-        <p style={{ fontSize: 12, color: '#888', margin: 0 }}>
-          {items ? `${items.length} iniciativas de la Comisión Europea, ${abiertas} con ventana abierta` : '—'}
-        </p>
       </div>
 
       <div style={{ display: 'flex', gap: 8, marginBottom: 12, flexWrap: 'wrap' }}>

@@ -80,11 +80,6 @@ export function CabeceraParlamento({ p, titulo, datos }) {
           </Link>
         ) : null}
       </div>
-      <p style={{ fontSize: 12, color: '#888', margin: '3px 0 0' }}>
-        {datos ? datos.diputados.length : '—'} {miembro(p).minPlural}, {datos ? datos.grupos.length : '—'} grupos,{' '}
-        {cfg.pestanas && !cfg.pestanas.includes('comisiones') ? '' : `${nCom ?? '—'} comisiones, `}
-        {cfg.legislatura} Legislatura
-      </p>
       {cfg.aviso && <p style={{ fontSize: 12, color: '#888', margin: '3px 0 0' }}>{cfg.aviso}</p>}
     </div>
   );

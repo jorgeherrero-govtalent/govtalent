@@ -354,9 +354,6 @@ function DeputiesDirectoryInner() {
     <div className="sec" style={{ maxWidth: 1080 }}>
       <div style={{ marginBottom: 14 }}>
         <h1 style={{ fontSize: 18, fontWeight: 700, margin: 0 }}>Diputados</h1>
-        <p style={{ fontSize: 12, color: '#888', margin: '3px 0 0' }}>
-          {deputies ? deputies.length : '—'} diputados, {groups.length} grupos, XV Legislatura{DISUELTA ? ' (Cortes disueltas)' : ''}
-        </p>
       </div>
 
       <PestanasCongreso />

@@ -481,15 +481,6 @@ function Seguimiento() {
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', gap: 16, flexWrap: 'wrap', marginBottom: 16 }}>
         <div>
           <h1 style={{ fontSize: 21, fontWeight: 600, margin: 0, letterSpacing: '-.3px' }}>Seguimiento</h1>
-          <p style={{ fontSize: 13, color: GRIS, margin: '4px 0 0' }}>
-            {items === null
-              ? '—'
-              : todos.length === 0
-                ? 'Aún no sigues nada.'
-                : `${todos.length} ${todos.length === 1 ? 'asunto' : 'asuntos'}${
-                    conCambios.length ? `, ${conCambios.length} con cambios desde tu última visita` : ''
-                  }`}
-          </p>
         </div>
         {todos.length > 0 && (
           <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
