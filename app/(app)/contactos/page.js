@@ -465,15 +465,6 @@ function ContactosPagina() {
 
   if (acceso === null) return <div className="spinner"></div>;
 
-  const pestanas = (
-    <nav className="gt-ct-tabs" aria-label="Buscar y enriquecer">
-      <Link href="/contactos" className="on" aria-current="page">
-        Buscador
-      </Link>
-      <Link href="/contactos/listas">Listas</Link>
-    </nav>
-  );
-
   const cabecera = (
     <div className="gt-ct-cab">
       <div>
@@ -511,7 +502,6 @@ function ContactosPagina() {
       <div className="gt-ct">
         <style>{ESTILOS_CONTACTOS}</style>
         {cabecera}
-        {pestanas}
         {comunes}
         <section className="gt-ct-portada">
           <h2>¿A quién estás buscando?</h2>
@@ -583,7 +573,6 @@ function ContactosPagina() {
     <div className="gt-ct">
       <style>{ESTILOS_CONTACTOS}</style>
       {cabecera}
-      {pestanas}
       {comunes}
 
       <div className="gt-ct-consulta">

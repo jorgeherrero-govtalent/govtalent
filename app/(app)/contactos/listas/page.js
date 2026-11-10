@@ -85,12 +85,6 @@ export default function ListasPage() {
           </Link>
         )}
       </div>
-      <nav className="gt-ct-tabs" aria-label="Buscar y enriquecer">
-        <Link href="/contactos">Buscador</Link>
-        <Link href="/contactos/listas" className="on" aria-current="page">
-          Listas
-        </Link>
-      </nav>
 
       {listas === null && <div className="spinner"></div>}
 
