@@ -414,13 +414,6 @@ export default function InitiativesDirectoryPage() {
         </div>
       )}
 
-      <div style={{ marginTop: 20, fontSize: 11, color: '#999', display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
-        <i className="ti ti-shield-check" style={{ fontSize: 13 }}></i>
-        Datos de la Comisión Europea — portal de participación pública.{' '}
-        <a href="https://have-your-say.ec.europa.eu" target="_blank" rel="noreferrer" style={{ color: '#6d5aef' }}>
-          Ver fuente oficial ↗
-        </a>
-      </div>
 
       {upsell && (
         <UpgradeModal

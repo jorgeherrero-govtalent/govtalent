@@ -904,12 +904,6 @@ export default function GroupDetailPage() {
         </>
       )}
 
-      <div style={{ marginTop: 20, fontSize: 11, color: '#999', display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
-        <i className="ti ti-shield-check" style={{ fontSize: 13 }}></i>
-        {tab === 'equipo'
-          ? 'Nombramientos publicados en el Boletín Oficial de las Cortes Generales.'
-          : 'Datos abiertos del Congreso de los Diputados.'}
-      </div>
 
       {upsell && (
         <UpgradeModal title={upsell.title} message={upsell.message} onClose={() => setUpsell(null)} />

@@ -568,7 +568,6 @@ export default function MepDetailPage() {
               </div>
             );
           })}
-          <div style={{ fontSize: 11, color: '#a8a49c' }}>Fuente: ficha del eurodiputado en europarl.europa.eu.</div>
         </div>
       )}
 

@@ -739,10 +739,6 @@ export default function EuCommissionPage() {
         <PersonasTab people={people} bodies={bodies} bodyFilter={bodyFilter} setBodyFilter={setBodyFilter} />
       )}
 
-      <div style={{ marginTop: 20, fontSize: 11, color: '#999', display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
-        <i className="ti ti-shield-check" style={{ fontSize: 13 }}></i>
-        Comisarios: Comisión Europea. Personal: EU Whoiswho, edición de agosto de 2026 — actualización anual.
-      </div>
     </div>
   );
 }

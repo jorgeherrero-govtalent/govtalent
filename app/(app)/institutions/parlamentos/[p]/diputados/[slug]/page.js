@@ -479,7 +479,7 @@ export default function DiputadoAutonomicoPage() {
 
       <div style={{ marginTop: 20, fontSize: 11, color: '#999', display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
         <i className="ti ti-shield-check" style={{ fontSize: 13 }}></i>
-        Datos obtenidos {cfg.deNombre}. Última actualización: {fechaCorta(d.ficha_leida_at || d.fuente_fecha) || '—'}.{' '}
+        Última actualización: {fechaCorta(d.ficha_leida_at || d.fuente_fecha) || '—'}.{' '}
         {d.url_ficha && (
           <a href={d.url_ficha.replace('ctyp.asambleamadrid.es/es/web/guest', 'www.asambleamadrid.es')} target="_blank" rel="noreferrer" style={{ color: '#1d6f5c' }}>
             Ver su ficha oficial ↗

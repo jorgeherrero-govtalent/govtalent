@@ -491,7 +491,6 @@ export default function OrganigramaMinisterioPage() {
       ) : null}
 
       <p style={{ fontSize: 11, color: '#aaa', margin: '12px 0 0' }}>
-        Estructura tomada del organigrama oficial publicado por el propio ministerio.
         Las unidades marcadas como sin revisar proceden de una lectura del diagrama
         pendiente de contrastar.
       </p>

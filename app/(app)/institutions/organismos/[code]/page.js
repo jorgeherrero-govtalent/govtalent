@@ -355,10 +355,6 @@ export default function OrganismoPage() {
         </div>
       )}
 
-      <p style={{ fontSize: 10.5, color: '#a8a49c', marginTop: 14, lineHeight: 1.6 }}>
-        Fuente: Directorio Común de Unidades Orgánicas y Oficinas (DIR3). Los titulares se actualizan con los
-        nombramientos publicados en el BOE.
-      </p>
       {upsell && (
         <UpgradeModal
           title="Disponible con suscripción"

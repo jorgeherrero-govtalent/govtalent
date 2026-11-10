@@ -352,8 +352,6 @@ export default function GrupoAutonomicoPage() {
       )}
 
       <div style={{ marginTop: 20, fontSize: 11, color: '#999', display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
-        <i className="ti ti-shield-check" style={{ fontSize: 13 }}></i>
-        {tab === 'equipo' && p === 'madrid' ? `Datos abiertos ${cfg.deNombre} (ocupaciones).` : `Datos ${cfg.deNombre}.`}
         {(grupo.url || grupo.id_fuente) && (
           <a href={grupo.id_fuente ? cfg.fichaGrupo(grupo.id_fuente) : grupo.url} target="_blank" rel="noreferrer" style={{ color: '#1d6f5c' }}>
             Ver la ficha oficial ↗

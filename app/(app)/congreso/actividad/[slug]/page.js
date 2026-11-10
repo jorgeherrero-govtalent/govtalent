@@ -387,10 +387,6 @@ export default function ActividadDetailPage() {
         </div>
       </a>
 
-      <div style={{ marginTop: 18, fontSize: 11, color: '#999', display: 'flex', alignItems: 'center', gap: 6 }}>
-        <i className="ti ti-shield-check" style={{ fontSize: 13 }}></i>
-        Datos abiertos del Congreso de los Diputados.
-      </div>
     </div>
   );
 }

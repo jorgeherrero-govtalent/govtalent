@@ -304,11 +304,9 @@ export default function ComisionDetailPage() {
         </div>
       )}
 
-      <div style={{ marginTop: 20, fontSize: 11, color: '#999', display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
-        <i className="ti ti-shield-check" style={{ fontSize: 13 }}></i>
-        Datos abiertos del Congreso de los Diputados.
-        {comision.n_senadores > 0 && ' Los miembros del Senado aún no tienen ficha en el directorio.'}
-      </div>
+      {comision.n_senadores > 0 && (
+        <div style={{ marginTop: 20, fontSize: 11, color: '#999' }}>Los miembros del Senado aún no tienen ficha en el directorio.</div>
+      )}
     </div>
   );
 }
