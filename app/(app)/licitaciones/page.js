@@ -6,8 +6,7 @@ import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
 import { toast } from '@/lib/toast';
 import UpgradeModal from '@/components/UpgradeModal';
-import MultiSelectFilter from '@/components/MultiSelectFilter';
-import SelectorFecha, { fechaLegible } from '@/components/SelectorFecha';
+import SelectorFecha from '@/components/SelectorFecha';
 import {
   ADJUDICADAS,
   EN_PLAZO,
@@ -23,12 +22,11 @@ import {
 /**
  * Licitaciones (BETA, 10-11-2026).
  *
- * Maqueta L5 del canvas «GovTalent: navegación con tres productos»
- * (10-11-2026): buscador pequeño y los filtros arriba, en botones estilo
- * Airtable (MultiSelectFilter en morado; las fechas con SelectorFecha,
- * como en Tareas). Ninguno bloqueado: los filtros son lo que nos
- * diferencia. Por defecto solo licitaciones, sin contratos menores.
- * Debajo, las pestañas Todas / En plazo /
+ * Maqueta L4 del canvas «GovTalent: navegación con tres productos»: la
+ * estructura del buscador de Tendios con lo nuestro. Arriba, un buscador
+ * pequeño y el conmutador Licitaciones / Contratos menores (los menores
+ * no se licitan, se adjudican directamente); las fechas, con
+ * SelectorFecha como en Tareas. Filtros a la izquierda (ninguno bloqueado), pestañas Todas / En plazo /
  * Adjudicaciones / Vencimientos y una tarjeta por licitación con el
  * presupuesto a la derecha, «Seguir» (va a Seguimiento) y «No me
  * interesa» (no se vuelve a enseñar).
@@ -56,19 +54,30 @@ const PESTANAS = [
   { v: 'vencimientos', label: 'Vencimientos', pronto: true },
 ];
 
+// Arriba del todo, antes que cualquier filtro: los contratos menores no
+// se licitan (se adjudican directamente), así que van aparte.
+const EXPEDIENTES = [
+  { v: 'licitaciones', label: 'Licitaciones' },
+  { v: 'menores', label: 'Contratos menores' },
+];
+
+// Fechas en local (no toISOString, que pasa a UTC).
+function isoDia(desplazamiento = 0) {
+  const d = new Date();
+  d.setDate(d.getDate() + desplazamiento);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
 const ORDENES = [
   { v: 'fin', label: 'Fin de presentación' },
   { v: 'recientes', label: 'Más recientes' },
   { v: 'importe', label: 'Mayor importe' },
 ];
 
-const EXPEDIENTES = [
-  { value: 'licitaciones', label: 'Licitaciones' },
-  { value: 'menores', label: 'Contratos menores' },
-];
-
 const FILTROS_VACIOS = {
-  expediente: [],
+  publicadas24: false,
+  actualizadas24: false,
+  ocultarSeguidas: false,
   sectores: [],
   territorios: [],
   organo: '',
@@ -78,13 +87,7 @@ const FILTROS_VACIOS = {
   importeMax: '',
   finDesde: '',
   finHasta: '',
-  pubDesde: '',
-  pubHasta: '',
 };
-
-// Al entrar se ven solo las licitaciones: los contratos menores no se
-// licitan (se adjudican directamente) y llenarían Todas y Adjudicaciones.
-const FILTROS_INICIALES = { ...FILTROS_VACIOS, expediente: ['licitaciones'] };
 
 const COLUMNAS =
   'id, fuente, expediente, titulo, url, estado, tipo, procedimiento, organo_nombre, organo_ubicacion, nuts, importe_sin_iva, valor_estimado, fin_ofertas, detectado_en, es_menor';
@@ -152,101 +155,47 @@ function EnElBody({ children }) {
   return createPortal(children, document.body);
 }
 
-// Fechas en local (no toISOString, que pasa a UTC y en España devuelve
-// el día anterior de madrugada).
-function isoDia(desplazamiento = 0) {
-  const d = new Date();
-  d.setDate(d.getDate() + desplazamiento);
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-}
-
-function inicioDia(iso, finDeDia = false) {
-  const [a, m, d] = iso.split('-').map(Number);
-  const f = finDeDia ? new Date(a, m - 1, d, 23, 59, 59) : new Date(a, m - 1, d);
-  return f.toISOString();
-}
-
-/**
- * Botón de filtro con desplegable, en la misma familia que
- * MultiSelectFilter (estilo Airtable), para lo que no es una lista de
- * casillas: importe, fechas y órgano. Se edita un borrador y se aplica
- * con «Aplicar», como en los demás filtros.
- */
-function FiltroBoton({ label, activo, resumen, valor, vacio, onApply, ancho = 290, children }) {
-  const [abierto, setAbierto] = useState(false);
-  const [borrador, setBorrador] = useState(valor);
-  const [pos, setPos] = useState({ top: 0, left: 0 });
-  const boton = useRef(null);
-
-  useEffect(() => {
-    if (!abierto) return;
-    setBorrador(valor);
-    const r = boton.current.getBoundingClientRect();
-    setPos({ top: r.bottom + 6, left: Math.max(12, Math.min(r.left, window.innerWidth - ancho - 12)) });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [abierto]);
-
+function Grupo({ titulo, n, abierto, onToggle, children }) {
   return (
-    <>
-      <button ref={boton} type="button" className={`gt-lic-chip${activo ? ' on' : ''}`} onClick={() => setAbierto((v) => !v)} aria-expanded={abierto}>
-        {label}
-        {activo && resumen ? `: ${resumen}` : ''}
-        <i className={`ti ${activo ? 'ti-filter-filled' : 'ti-chevron-down'}`} aria-hidden="true" />
+    <div className="gt-lic-grupo">
+      <button type="button" className="gt-lic-grupo-cab" onClick={onToggle} aria-expanded={abierto}>
+        <span>
+          {titulo}
+          {n > 0 && <span className="gt-lic-n"> ({n})</span>}
+        </span>
+        <i className={`ti ti-chevron-${abierto ? 'up' : 'down'}`} aria-hidden="true" />
       </button>
-      {abierto && (
-        <EnElBody>
-          <div onClick={() => setAbierto(false)} style={{ position: 'fixed', inset: 0, zIndex: 300 }} />
-          <div className="gt-lic-pop" style={{ top: pos.top, left: pos.left, width: ancho }} role="dialog" aria-label={label}>
-            <div className="gt-lic-pop-cuerpo">{children(borrador, setBorrador)}</div>
-            <div className="gt-lic-pop-pie">
-              <button type="button" className="gt-lic-pop-sec" onClick={() => setBorrador(vacio)}>
-                Borrar
-              </button>
-              <button type="button" className="gt-lic-pop-sec" onClick={() => setAbierto(false)}>
-                Cancelar
-              </button>
-              <button
-                type="button"
-                className="gt-lic-pop-ok"
-                onClick={() => {
-                  setAbierto(false);
-                  onApply(borrador);
-                }}
-              >
-                Aplicar
-              </button>
-            </div>
-          </div>
-        </EnElBody>
-      )}
-    </>
-  );
-}
-
-function RangoFechas({ valor, onChange, atajosDesde, atajosHasta }) {
-  return (
-    <div className="gt-lic-rango">
-      <label>
-        Desde
-        <SelectorFecha value={valor.desde} onChange={(v) => onChange({ ...valor, desde: v })} atajos={atajosDesde} capa={320} />
-      </label>
-      <label>
-        Hasta
-        <SelectorFecha value={valor.hasta} onChange={(v) => onChange({ ...valor, hasta: v })} atajos={atajosHasta} capa={320} />
-      </label>
+      {abierto && <div className="gt-lic-grupo-cuerpo">{children}</div>}
     </div>
   );
 }
 
-function resumenFechas(desde, hasta) {
-  if (desde && hasta) return `${fechaLegible(desde)} a ${fechaLegible(hasta)}`;
-  if (desde) return `desde ${fechaLegible(desde)}`;
-  if (hasta) return `hasta ${fechaLegible(hasta)}`;
-  return '';
-}
-
-function miles(n) {
-  return Number(n).toLocaleString('es-ES');
+function Casillas({ opciones, elegidos, onChange, buscar }) {
+  const [q, setQ] = useState('');
+  const lista = q ? opciones.filter((o) => o.label.toLowerCase().includes(q.toLowerCase())) : opciones;
+  const alternar = (v) => onChange(elegidos.includes(v) ? elegidos.filter((x) => x !== v) : [...elegidos, v]);
+  return (
+    <>
+      {buscar && (
+        <input
+          type="text"
+          className="gt-lic-mini"
+          placeholder="Filtrar"
+          aria-label="Filtrar opciones"
+          value={q}
+          onChange={(e) => setQ(e.target.value)}
+        />
+      )}
+      <div className={buscar ? 'gt-lic-scroll' : undefined}>
+        {lista.map((o) => (
+          <label key={o.v} className="gt-lic-check">
+            <input type="checkbox" checked={elegidos.includes(o.v)} onChange={() => alternar(o.v)} />
+            {o.label}
+          </label>
+        ))}
+      </div>
+    </>
+  );
 }
 
 function Adjudicacion({ adj }) {
@@ -381,25 +330,33 @@ const ESTILOS = `
 .gt-lic { max-width: 1240px; }
 .gt-lic-cab { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-bottom: 16px; }
 .gt-lic-cab h1 { font-size: 21px; font-weight: 600; margin: 0; letter-spacing: -.3px; }
+.gt-lic-arriba { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 16px; }
+.gt-lic-buscar { display: flex; align-items: center; gap: 8px; width: 300px; max-width: 100%; box-sizing: border-box; background: #fff; border: .5px solid #e0dfd8; border-radius: 20px; padding: 8px 14px; }
+.gt-lic-buscar i { color: #999; font-size: 15px; }
+.gt-lic-buscar input { border: none; outline: none; background: none; font: inherit; flex: 1; min-width: 0; font-size: 12.5px; }
+.gt-lic-exp { display: inline-flex; gap: 2px; background: #fff; border: .5px solid #e0dfd8; border-radius: 9px; padding: 2px; }
+.gt-lic-exp button { border: none; background: none; font: inherit; font-size: 12.5px; padding: 6px 11px; border-radius: 7px; color: #55524c; cursor: pointer; }
+.gt-lic-exp button.on { background: ${NEGRO}; color: #fff; }
 .gt-lic-cuerpo { display: flex; gap: 18px; align-items: flex-start; }
-.gt-lic-barra-filtros { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 16px; }
-.gt-lic-caja { display: flex; align-items: center; gap: 8px; width: 300px; max-width: 100%; background: #fff; border: .5px solid #e0dfd8; border-radius: 20px; padding: 8px 14px; box-sizing: border-box; }
-.gt-lic-caja i { color: #999; font-size: 15px; }
-.gt-lic-caja input { border: none; outline: none; flex: 1; min-width: 0; font: inherit; font-size: 12.5px; background: transparent; }
-.gt-lic-chip { display: inline-flex; align-items: center; gap: 6px; background: #faf9f5; border: .5px solid #e0dfd8; border-radius: 8px; padding: 8px 12px; font: inherit; font-size: 12.5px; color: #666; cursor: pointer; white-space: nowrap; max-width: 320px; overflow: hidden; text-overflow: ellipsis; }
-.gt-lic-chip i { font-size: 12px; }
-.gt-lic-chip.on { background: #f3f1fe; border-color: ${MORADO}; color: ${MORADO}; font-weight: 600; }
-.gt-lic-pop { position: fixed; z-index: 301; background: #fff; border-radius: 12px; box-shadow: 0 8px 28px rgba(0,0,0,.15); border: .5px solid #e0dfd8; }
-.gt-lic-pop-cuerpo { padding: 12px; display: flex; flex-direction: column; gap: 8px; }
-.gt-lic-pop-pie { display: flex; gap: 8px; padding: 10px; border-top: .5px solid #e0dfd8; }
-.gt-lic-pop-sec { flex: 1; padding: 7px 8px; border-radius: 7px; border: .5px solid #e0dfd8; background: #fff; font: inherit; font-size: 12.5px; color: #666; cursor: pointer; }
-.gt-lic-pop-ok { flex: 1; padding: 7px 8px; border-radius: 7px; border: none; background: ${NEGRO}; color: #fff; font: inherit; font-size: 12.5px; font-weight: 600; cursor: pointer; }
-.gt-lic-rango { display: flex; flex-direction: column; gap: 10px; }
-.gt-lic-rango label { display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: ${GRIS}; }
-.gt-lic-campo { width: 100%; box-sizing: border-box; font: inherit; font-size: 13px; border: .5px solid #e0dfd8; border-radius: 9px; background: #fafaf7; padding: 9px 12px; outline: none; }
-.gt-lic-campo:focus { border-color: ${MORADO}; }
+.gt-lic-filtros { width: 250px; flex: 0 0 250px; background: #fff; border: 1px solid #e5e4de; border-radius: 12px; overflow: hidden; position: sticky; top: 16px; max-height: calc(100vh - 32px); overflow-y: auto; }
+.gt-lic-filtros-cab { padding: 13px 16px; display: flex; justify-content: space-between; align-items: center; }
+.gt-lic-filtros-cab b { font-size: 14.5px; }
 .gt-lic-limpiar { border: none; background: none; font: inherit; font-size: 12.5px; color: #55524c; cursor: pointer; padding: 0; }
 .gt-lic-limpiar:hover { color: #1a1a18; text-decoration: underline; }
+.gt-lic-grupo { border-top: 1px solid #efeee8; }
+.gt-lic-grupo-cab { width: 100%; display: flex; align-items: center; justify-content: space-between; border: none; background: none; font: inherit; font-size: 13.5px; font-weight: 600; color: #1a1a18; padding: 12px 16px; cursor: pointer; text-align: left; }
+.gt-lic-grupo-cab i { color: #767670; font-size: 15px; }
+.gt-lic-n { color: ${GRIS}; font-weight: 400; }
+.gt-lic-grupo-cuerpo { padding: 0 16px 13px; }
+.gt-lic-check { display: flex; gap: 8px; align-items: flex-start; font-size: 13px; padding: 4px 0; cursor: pointer; line-height: 1.35; }
+.gt-lic-check input { margin: 2px 0 0; accent-color: ${MORADO}; flex-shrink: 0; }
+.gt-lic-scroll { max-height: 220px; overflow-y: auto; margin-top: 4px; }
+.gt-lic-mini { width: 100%; box-sizing: border-box; font: inherit; font-size: 13px; border: 1px solid #e0dfd8; border-radius: 8px; padding: 6px 9px; outline: none; }
+.gt-lic-mini:focus { border-color: ${MORADO}; }
+.gt-lic-dos { display: flex; gap: 8px; }
+.gt-lic-dos label { flex: 1; display: flex; flex-direction: column; gap: 3px; font-size: 12px; color: ${GRIS}; min-width: 0; }
+.gt-lic-fechas { display: flex; flex-direction: column; gap: 8px; }
+.gt-lic-fechas label { display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: ${GRIS}; }
 .gt-lic-res { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 14px; }
 .gt-lic-seg { display: flex; gap: 4px; background: #ecebe5; border-radius: 10px; padding: 4px; }
 .gt-lic-seg button { flex: 1; border: none; font: inherit; font-size: 13.5px; padding: 8px 10px; border-radius: 8px; background: transparent; color: #57534e; font-weight: 500; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 6px; }
@@ -450,9 +407,13 @@ const ESTILOS = `
 .gt-lic-vacio { background: #fff; border: 1px dashed #dcdbd4; border-radius: 12px; padding: 32px; text-align: center; color: #55524c; font-size: 14px; }
 .gt-lic-esqueleto { height: 170px; border-radius: 12px; background: linear-gradient(90deg, #f1f0eb 0%, #f7f6f2 50%, #f1f0eb 100%); background-size: 200% 100%; animation: gt-lic-brillo 1.2s infinite linear; }
 @keyframes gt-lic-brillo { from { background-position: 200% 0; } to { background-position: -200% 0; } }
+.gt-lic-abrir-filtros { display: none; }
 .gt-sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 @media (max-width: 900px) {
   .gt-lic-cuerpo { flex-direction: column; }
+  .gt-lic-filtros { width: 100%; flex: none; position: static; max-height: none; display: none; }
+  .gt-lic-filtros.abierto { display: block; }
+  .gt-lic-abrir-filtros { display: inline-flex; align-items: center; gap: 6px; font: inherit; font-size: 13.5px; border: 1px solid #dcdbd4; border-radius: 9px; background: #fff; padding: 7px 12px; cursor: pointer; }
   .gt-lic-card { flex-direction: column; }
   .gt-lic-card-lado { width: auto; flex: none; border-left: none; border-top: 1px solid #efeee8; flex-direction: row; text-align: left; }
   .gt-lic-importe { margin-top: 0; }
@@ -470,11 +431,14 @@ export default function Licitaciones() {
   const [listoUsuario, setListoUsuario] = useState(false);
 
   const [texto, setTexto] = useState('');
+  const [expediente, setExpediente] = useState('licitaciones');
   const [busqueda, setBusqueda] = useState('');
   const [pestana, setPestana] = useState('plazo');
   const [orden, setOrden] = useState('fin');
   const [vista, setVista] = useState('tarjetas');
-  const [f, setF] = useState(FILTROS_INICIALES);
+  const [f, setF] = useState(FILTROS_VACIOS);
+  const [abiertos, setAbiertos] = useState(new Set(['comunes']));
+  const [filtrosMovil, setFiltrosMovil] = useState(false);
 
   const [filas, setFilas] = useState([]);
   const [adjs, setAdjs] = useState({});
@@ -530,7 +494,11 @@ export default function Licitaciones() {
 
   const consulta = useCallback(
     (desde) => {
-      let q = supabase.from('contratacion_expedientes').select(COLUMNAS, { count: 'exact' }).eq('eliminado', false);
+      let q = supabase
+        .from('contratacion_expedientes')
+        .select(COLUMNAS, { count: 'exact' })
+        .eq('eliminado', false)
+        .eq('es_menor', expediente === 'menores');
       // Varias condiciones «o» a la vez (plazo, cada palabra, territorio)
       // tienen que cumplirse todas: se juntan en un solo or(and(...)) para
       // no depender de cómo trata PostgREST un parámetro or repetido.
@@ -547,9 +515,9 @@ export default function Licitaciones() {
         oes.push(`titulo.ilike.*${palabra}*,organo_nombre.ilike.*${palabra}*,expediente.ilike.*${palabra}*`);
       }
 
-      if (f.expediente.length === 1) q = q.eq('es_menor', f.expediente[0] === 'menores');
-      if (f.pubDesde) q = q.gte('detectado_en', inicioDia(f.pubDesde));
-      if (f.pubHasta) q = q.lte('detectado_en', inicioDia(f.pubHasta, true));
+      const dia = new Date(Date.now() - 864e5).toISOString();
+      if (f.publicadas24) q = q.gte('detectado_en', dia);
+      if (f.actualizadas24) q = q.gte('actualizado_fuente', dia);
       if (f.sectores.length) q = q.overlaps('cpv_div', f.sectores);
       if (f.territorios.length) oes.push(f.territorios.map((t) => `nuts.ilike.${t}*`).join(','));
       const organo = limpiar(f.organo);
@@ -564,8 +532,8 @@ export default function Licitaciones() {
       if (oes.length === 1) q = q.or(oes[0]);
       else if (oes.length > 1) q = q.or(`and(${oes.map((o) => `or(${o})`).join(',')})`);
 
-      const { descartadas: d } = ocultasRef.current;
-      const ocultas = [...d];
+      const { seguidas: s, descartadas: d } = ocultasRef.current;
+      const ocultas = [...d, ...(f.ocultarSeguidas ? s : [])];
       if (ocultas.length) q = q.not('id', 'in', `(${ocultas.map((i) => `"${i}"`).join(',')})`);
 
       if (orden === 'fin') q = q.order('fin_ofertas', { ascending: true, nullsFirst: false });
@@ -574,7 +542,7 @@ export default function Licitaciones() {
 
       return q.range(desde, desde + POR_PAGINA - 1);
     },
-    [supabase, pestana, busqueda, f, orden],
+    [supabase, pestana, busqueda, f, orden, expediente],
   );
 
   const traerAdjudicaciones = useCallback(
@@ -616,7 +584,7 @@ export default function Licitaciones() {
       setCargando(false);
     })();
     // seguidas solo cuenta si se piden ocultas.
-  }, [listoUsuario, userId, consulta, traerAdjudicaciones, pestana]);
+  }, [listoUsuario, userId, consulta, traerAdjudicaciones, pestana, f.ocultarSeguidas ? seguidas : null]);
 
   async function cargarMas() {
     const n = pedido.current;
@@ -695,28 +663,19 @@ export default function Licitaciones() {
   }
 
   const cambiar = (k, v) => setF((prev) => ({ ...prev, [k]: v }));
-  const conjunto = (k) => (sel) => cambiar(k, [...sel]);
-  const hayImporte = f.importeMin !== '' || f.importeMax !== '';
-  const resumenImporte =
-    f.importeMin !== '' && f.importeMax !== ''
-      ? `${miles(f.importeMin)} a ${miles(f.importeMax)} €`
-      : f.importeMin !== ''
-        ? `desde ${miles(f.importeMin)} €`
-        : f.importeMax !== ''
-          ? `hasta ${miles(f.importeMax)} €`
-          : '';
+  const alternarGrupo = (k) =>
+    setAbiertos((prev) => {
+      const s = new Set(prev);
+      if (s.has(k)) s.delete(k);
+      else s.add(k);
+      return s;
+    });
+
+  const nComunes = [f.publicadas24, f.actualizadas24, f.ocultarSeguidas].filter(Boolean).length;
+  const nImporte = [f.importeMin, f.importeMax].filter((x) => x !== '').length;
+  const nFechas = [f.finDesde, f.finHasta].filter(Boolean).length;
   const nFiltros =
-    f.expediente.length +
-    f.sectores.length +
-    f.territorios.length +
-    (f.organo ? 1 : 0) +
-    f.tipos.length +
-    f.procedimientos.length +
-    (hayImporte ? 1 : 0) +
-    (f.finDesde || f.finHasta ? 1 : 0) +
-    (f.pubDesde || f.pubHasta ? 1 : 0);
-  const sinFiltros = nFiltros === 0;
-  const acento = { acento: MORADO, fondoActivo: '#f3f1fe', aplicarColor: NEGRO };
+    nComunes + f.sectores.length + f.territorios.length + (f.organo ? 1 : 0) + f.tipos.length + f.procedimientos.length + nImporte + nFechas;
 
   if (userId === null) {
     return (
@@ -741,10 +700,14 @@ export default function Licitaciones() {
 
       <div className="gt-lic-cab">
         <h1>Licitaciones</h1>
+        <button type="button" className="gt-lic-abrir-filtros" onClick={() => setFiltrosMovil((v) => !v)} aria-expanded={filtrosMovil}>
+          <i className="ti ti-adjustments-horizontal" aria-hidden="true" />
+          Filtros{nFiltros ? ` (${nFiltros})` : ''}
+        </button>
       </div>
 
-      <div className="gt-lic-barra-filtros">
-        <label className="gt-lic-caja">
+      <div className="gt-lic-arriba">
+        <label className="gt-lic-buscar">
           <i className="ti ti-search" aria-hidden="true" />
           <input
             type="search"
@@ -754,127 +717,105 @@ export default function Licitaciones() {
             aria-label="Buscar licitaciones"
           />
         </label>
-        <MultiSelectFilter label="Licitaciones y menores" values={EXPEDIENTES} selected={new Set(f.expediente)} onApply={conjunto('expediente')} {...acento} />
-        <MultiSelectFilter
-          label="Sector (CPV)"
-          values={SECTORES.map((o) => ({ value: o.v, label: o.label }))}
-          selected={new Set(f.sectores)}
-          onApply={conjunto('sectores')}
-          {...acento}
-        />
-        <MultiSelectFilter
-          label="Territorio"
-          values={TERRITORIOS.map((o) => ({ value: o.v, label: o.label }))}
-          selected={new Set(f.territorios)}
-          onApply={conjunto('territorios')}
-          {...acento}
-        />
-        <FiltroBoton
-          label="Órgano de contratación"
-          activo={!!f.organo}
-          resumen={f.organo}
-          valor={f.organo}
-          vacio=""
-          onApply={(v) => cambiar('organo', v.trim())}
-        >
-          {(v, set) => (
-            <input
-              autoFocus
-              type="text"
-              className="gt-lic-campo"
-              placeholder="Ayuntamiento de…, Ministerio de…"
-              aria-label="Órgano de contratación"
-              value={v}
-              onChange={(e) => set(e.target.value)}
-            />
-          )}
-        </FiltroBoton>
-        <MultiSelectFilter
-          label="Tipo de contrato"
-          values={TIPOS.map((o) => ({ value: o.v, label: o.label }))}
-          selected={new Set(f.tipos)}
-          onApply={conjunto('tipos')}
-          {...acento}
-        />
-        <MultiSelectFilter
-          label="Procedimiento"
-          values={PROCEDIMIENTOS.map((o) => ({ value: o.v, label: o.label }))}
-          selected={new Set(f.procedimientos)}
-          onApply={conjunto('procedimientos')}
-          {...acento}
-        />
-        <FiltroBoton
-          label="Importe"
-          activo={hayImporte}
-          resumen={resumenImporte}
-          valor={{ min: f.importeMin, max: f.importeMax }}
-          vacio={{ min: '', max: '' }}
-          onApply={(v) => setF((prev) => ({ ...prev, importeMin: v.min, importeMax: v.max }))}
-          ancho={260}
-        >
-          {(v, set) => (
-            <div className="gt-lic-rango">
-              <label>
-                Desde (€, sin IVA)
-                <input type="number" min="0" inputMode="numeric" className="gt-lic-campo" value={v.min} onChange={(e) => set({ ...v, min: e.target.value })} />
-              </label>
-              <label>
-                Hasta (€, sin IVA)
-                <input type="number" min="0" inputMode="numeric" className="gt-lic-campo" value={v.max} onChange={(e) => set({ ...v, max: e.target.value })} />
-              </label>
-            </div>
-          )}
-        </FiltroBoton>
-        <FiltroBoton
-          label="Fin de presentación"
-          activo={!!(f.finDesde || f.finHasta)}
-          resumen={resumenFechas(f.finDesde, f.finHasta)}
-          valor={{ desde: f.finDesde, hasta: f.finHasta }}
-          vacio={{ desde: '', hasta: '' }}
-          onApply={(v) => setF((prev) => ({ ...prev, finDesde: v.desde || '', finHasta: v.hasta || '' }))}
-        >
-          {(v, set) => (
-            <RangoFechas
-              valor={v}
-              onChange={set}
-              atajosDesde={[{ label: 'Hoy', iso: isoDia() }]}
-              atajosHasta={[
-                { label: 'En 7 días', iso: isoDia(7) },
-                { label: 'En 15 días', iso: isoDia(15) },
-                { label: 'En 30 días', iso: isoDia(30) },
-              ]}
-            />
-          )}
-        </FiltroBoton>
-        <FiltroBoton
-          label="Publicada"
-          activo={!!(f.pubDesde || f.pubHasta)}
-          resumen={resumenFechas(f.pubDesde, f.pubHasta)}
-          valor={{ desde: f.pubDesde, hasta: f.pubHasta }}
-          vacio={{ desde: '', hasta: '' }}
-          onApply={(v) => setF((prev) => ({ ...prev, pubDesde: v.desde || '', pubHasta: v.hasta || '' }))}
-        >
-          {(v, set) => (
-            <RangoFechas
-              valor={v}
-              onChange={set}
-              atajosDesde={[
-                { label: 'Hoy', iso: isoDia() },
-                { label: 'Hace 7 días', iso: isoDia(-7) },
-                { label: 'Hace 30 días', iso: isoDia(-30) },
-              ]}
-              atajosHasta={[{ label: 'Hoy', iso: isoDia() }]}
-            />
-          )}
-        </FiltroBoton>
-        {!sinFiltros && (
-          <button type="button" className="gt-lic-limpiar" onClick={() => setF(FILTROS_VACIOS)}>
-            Limpiar filtros
-          </button>
-        )}
+        <span className="gt-lic-exp" role="group" aria-label="Licitaciones o contratos menores">
+          {EXPEDIENTES.map((o) => (
+            <button key={o.v} type="button" className={expediente === o.v ? 'on' : undefined} aria-pressed={expediente === o.v} onClick={() => setExpediente(o.v)}>
+              {o.label}
+            </button>
+          ))}
+        </span>
       </div>
 
       <div className="gt-lic-cuerpo">
+        <aside className={`gt-lic-filtros${filtrosMovil ? ' abierto' : ''}`} aria-label="Filtros">
+          <div className="gt-lic-filtros-cab">
+            <b>Filtros</b>
+            {nFiltros > 0 && (
+              <button type="button" className="gt-lic-limpiar" onClick={() => setF(FILTROS_VACIOS)}>
+                Limpiar
+              </button>
+            )}
+          </div>
+
+          <Grupo titulo="Más comunes" n={nComunes} abierto={abiertos.has('comunes')} onToggle={() => alternarGrupo('comunes')}>
+            <label className="gt-lic-check">
+              <input type="checkbox" checked={f.publicadas24} onChange={(e) => cambiar('publicadas24', e.target.checked)} />
+              Publicadas en las últimas 24 h
+            </label>
+            <label className="gt-lic-check">
+              <input type="checkbox" checked={f.actualizadas24} onChange={(e) => cambiar('actualizadas24', e.target.checked)} />
+              Actualizadas en las últimas 24 h
+            </label>
+            <label className="gt-lic-check">
+              <input type="checkbox" checked={f.ocultarSeguidas} onChange={(e) => cambiar('ocultarSeguidas', e.target.checked)} />
+              Ocultar las que ya sigo
+            </label>
+          </Grupo>
+
+          <Grupo titulo="Sector (CPV)" n={f.sectores.length} abierto={abiertos.has('sector')} onToggle={() => alternarGrupo('sector')}>
+            <Casillas opciones={SECTORES} elegidos={f.sectores} onChange={(v) => cambiar('sectores', v)} buscar />
+          </Grupo>
+
+          <Grupo titulo="Territorio" n={f.territorios.length} abierto={abiertos.has('territorio')} onToggle={() => alternarGrupo('territorio')}>
+            <Casillas opciones={TERRITORIOS} elegidos={f.territorios} onChange={(v) => cambiar('territorios', v)} buscar />
+          </Grupo>
+
+          <Grupo titulo="Órgano de contratación" n={f.organo ? 1 : 0} abierto={abiertos.has('organo')} onToggle={() => alternarGrupo('organo')}>
+            <input
+              type="text"
+              className="gt-lic-mini"
+              placeholder="Ayuntamiento de…, Ministerio de…"
+              aria-label="Órgano de contratación"
+              value={f.organo}
+              onChange={(e) => cambiar('organo', e.target.value)}
+            />
+          </Grupo>
+
+          <Grupo titulo="Tipo de contrato" n={f.tipos.length} abierto={abiertos.has('tipo')} onToggle={() => alternarGrupo('tipo')}>
+            <Casillas opciones={TIPOS} elegidos={f.tipos} onChange={(v) => cambiar('tipos', v)} />
+          </Grupo>
+
+          <Grupo titulo="Procedimiento" n={f.procedimientos.length} abierto={abiertos.has('proc')} onToggle={() => alternarGrupo('proc')}>
+            <Casillas opciones={PROCEDIMIENTOS} elegidos={f.procedimientos} onChange={(v) => cambiar('procedimientos', v)} />
+          </Grupo>
+
+          <Grupo titulo="Importe" n={nImporte} abierto={abiertos.has('importe')} onToggle={() => alternarGrupo('importe')}>
+            <div className="gt-lic-dos">
+              <label>
+                Desde (€)
+                <input type="number" min="0" inputMode="numeric" className="gt-lic-mini" value={f.importeMin} onChange={(e) => cambiar('importeMin', e.target.value)} />
+              </label>
+              <label>
+                Hasta (€)
+                <input type="number" min="0" inputMode="numeric" className="gt-lic-mini" value={f.importeMax} onChange={(e) => cambiar('importeMax', e.target.value)} />
+              </label>
+            </div>
+            <small style={{ display: 'block', color: GRIS, fontSize: 11.5, marginTop: 6 }}>Presupuesto sin IVA.</small>
+          </Grupo>
+
+          <Grupo titulo="Fechas" n={nFechas} abierto={abiertos.has('fechas')} onToggle={() => alternarGrupo('fechas')}>
+            <small style={{ display: 'block', color: GRIS, fontSize: 12, marginBottom: 6 }}>Fin de presentación</small>
+            <div className="gt-lic-fechas">
+              <label>
+                Desde
+                <SelectorFecha value={f.finDesde} onChange={(v) => cambiar('finDesde', v || '')} atajos={[{ label: 'Hoy', iso: isoDia() }]} />
+              </label>
+              <label>
+                Hasta
+                <SelectorFecha
+                  value={f.finHasta}
+                  onChange={(v) => cambiar('finHasta', v || '')}
+                  atajos={[
+                    { label: 'En 7 días', iso: isoDia(7) },
+                    { label: 'En 15 días', iso: isoDia(15) },
+                    { label: 'En 30 días', iso: isoDia(30) },
+                  ]}
+                />
+              </label>
+            </div>
+          </Grupo>
+        </aside>
+
         <div className="gt-lic-res">
           <div role="tablist" aria-label="Licitaciones" className="gt-lic-seg">
             {PESTANAS.map((p) => (
