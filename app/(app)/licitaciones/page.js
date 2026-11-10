@@ -344,25 +344,10 @@ function ModalVencimientos({ onClose }) {
             <i className="ti ti-x" aria-hidden="true"></i>
           </button>
         </div>
-        <div style={{ fontSize: 13.5, color: '#3d3a35', lineHeight: 1.6, display: 'flex', flexDirection: 'column', gap: 12, margin: '4px 0 20px' }}>
-          <p style={{ margin: 0 }}>
-            Los contratos públicos ya adjudicados que terminan en los próximos meses. Cuando un contrato está a punto de acabar, lo
-            habitual es que el organismo vuelva a licitarlo, y aquí lo sabrás con meses de antelación, antes de que se publique el
-            anuncio.
-          </p>
-          <div>
-            <b style={{ fontSize: 13, fontWeight: 600 }}>De cada contrato verás:</b>
-            <ul style={{ margin: '6px 0 0', paddingLeft: 18, display: 'flex', flexDirection: 'column', gap: 4 }}>
-              <li>Cuándo termina, calculado con su duración y las prórrogas previstas.</li>
-              <li>Quién lo tiene hoy adjudicado y por qué importe.</li>
-              <li>El órgano de contratación que lo volverá a licitar.</li>
-            </ul>
-          </div>
-          <p style={{ margin: 0 }}>
-            Así podrás preparar la oferta y ponerte en contacto con el organismo con tiempo, en lugar de enterarte cuando el plazo ya
-            está corriendo.
-          </p>
-        </div>
+        <p style={{ fontSize: 13.5, color: '#3d3a35', lineHeight: 1.6, margin: '4px 0 20px' }}>
+          Los contratos adjudicados que terminan en los próximos meses, con quién los tiene y por cuánto. Así sabrás qué se va a
+          volver a licitar antes de que se publique.
+        </p>
         <button type="button" className="btn-ai" onClick={onClose}>
           Entendido
         </button>
