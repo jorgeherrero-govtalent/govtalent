@@ -358,7 +358,7 @@ export default function ParlamentosAutonomicosPage() {
                     key={n}
                     type="button"
                     onClick={() => changePageSize(n)}
-                    style={{ font: 'inherit', fontSize: 11, padding: '3px 8px', borderRadius: 5, border: 'none', cursor: 'pointer', background: pageSize === n ? '#6d5aef' : 'transparent', color: pageSize === n ? '#fff' : '#666' }}
+                    style={{ font: 'inherit', fontSize: 11, padding: '3px 8px', borderRadius: 5, border: 'none', cursor: 'pointer', background: pageSize === n ? '#ecebe5' : 'transparent', color: pageSize === n ? '#1a1a18' : '#666' }}
                   >
                     {n}
                   </button>
@@ -389,7 +389,7 @@ export default function ParlamentosAutonomicosPage() {
                       type="button"
                       aria-current={n === current ? 'page' : undefined}
                       onClick={() => setPage(n)}
-                      style={{ font: 'inherit', borderRadius: 6, padding: '4px 10px', fontSize: 11.5, cursor: 'pointer', background: n === current ? '#6d5aef' : 'transparent', color: n === current ? '#fff' : '#555', border: n === current ? 'none' : '.5px solid #e0dfd8' }}
+                      style={{ font: 'inherit', borderRadius: 6, padding: '4px 10px', fontSize: 11.5, cursor: 'pointer', background: n === current ? '#ecebe5' : 'transparent', color: n === current ? '#1a1a18' : '#555', border: n === current ? 'none' : '.5px solid #e0dfd8' }}
                     >
                       {n}
                     </button>
