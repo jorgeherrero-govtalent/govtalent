@@ -477,7 +477,7 @@ function ContactosPagina() {
   const cabecera = (
     <div className="gt-ct-cab">
       <div>
-        <h1>Contactos</h1>
+        <h1>Buscador</h1>
         <p>Busca personas por cargo, institución o nombre, y encuentra su correo aunque no estén en el directorio.</p>
       </div>
     </div>
