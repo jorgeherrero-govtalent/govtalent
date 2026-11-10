@@ -321,6 +321,56 @@ function Tabla({ filas, adjs, seguidas, onSeguir, onDescartar }) {
   );
 }
 
+/**
+ * Vencimientos aún no está: falta leer la duración y las prórrogas de
+ * los contratos. La pestaña abre esta explicación en vez de una lista
+ * vacía.
+ */
+function ModalVencimientos({ onClose }) {
+  useEffect(() => {
+    const tecla = (e) => e.key === 'Escape' && onClose();
+    window.addEventListener('keydown', tecla);
+    return () => window.removeEventListener('keydown', tecla);
+  }, [onClose]);
+  return (
+    <div className="modal-ov on" onClick={(e) => e.target === e.currentTarget && onClose()}>
+      <div className="modal-box" style={{ maxWidth: 480 }} role="dialog" aria-modal="true" aria-labelledby="gt-lic-venc-titulo">
+        <div className="modal-head">
+          <h2 id="gt-lic-venc-titulo" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <i className="ti ti-calendar-time" style={{ color: MORADO }} aria-hidden="true"></i> Vencimientos
+            <span className="gt-lic-pronto">Próximamente</span>
+          </h2>
+          <button type="button" className="modal-x" onClick={onClose} aria-label="Cerrar" style={{ border: 'none', background: 'none' }}>
+            <i className="ti ti-x" aria-hidden="true"></i>
+          </button>
+        </div>
+        <div style={{ fontSize: 13.5, color: '#3d3a35', lineHeight: 1.6, display: 'flex', flexDirection: 'column', gap: 12, margin: '4px 0 20px' }}>
+          <p style={{ margin: 0 }}>
+            Los contratos públicos ya adjudicados que terminan en los próximos meses. Cuando un contrato está a punto de acabar, lo
+            habitual es que el organismo vuelva a licitarlo, y aquí lo sabrás con meses de antelación, antes de que se publique el
+            anuncio.
+          </p>
+          <div>
+            <b style={{ fontSize: 13, fontWeight: 600 }}>De cada contrato verás:</b>
+            <ul style={{ margin: '6px 0 0', paddingLeft: 18, display: 'flex', flexDirection: 'column', gap: 4 }}>
+              <li>Cuándo termina, calculado con su duración y las prórrogas previstas.</li>
+              <li>Quién lo tiene hoy adjudicado y por qué importe.</li>
+              <li>El órgano de contratación que lo volverá a licitar.</li>
+            </ul>
+          </div>
+          <p style={{ margin: 0 }}>
+            Así podrás preparar la oferta y ponerte en contacto con el organismo con tiempo, en lugar de enterarte cuando el plazo ya
+            está corriendo.
+          </p>
+        </div>
+        <button type="button" className="btn-ai" onClick={onClose}>
+          Entendido
+        </button>
+      </div>
+    </div>
+  );
+}
+
 const ESTILOS = `
 .gt-lic { max-width: 1240px; }
 .gt-lic-cab { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-bottom: 16px; }
@@ -443,6 +493,7 @@ export default function Licitaciones() {
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState(null);
   const [upsell, setUpsell] = useState(false);
+  const [infoVencimientos, setInfoVencimientos] = useState(false);
   const pedido = useRef(0);
   // La paginación de la plataforma (la de Organismos). Vuelve a la
   // primera página al cambiar la búsqueda, los filtros o la pestaña.
@@ -851,20 +902,15 @@ export default function Licitaciones() {
                 role="tab"
                 aria-selected={pestana === p.v}
                 className={pestana === p.v ? 'on' : undefined}
-                onClick={() => setPestana(p.v)}
+                onClick={() => (p.pronto ? setInfoVencimientos(true) : setPestana(p.v))}
               >
                 {p.label}
-                {p.pronto && <span className="gt-lic-pronto">Pronto</span>}
+                {p.pronto && <span className="gt-lic-pronto">Próximamente</span>}
               </button>
             ))}
           </div>
 
-          {pestana === 'vencimientos' ? (
-            <div className="gt-lic-vacio">
-              Muy pronto: los contratos que vencen en los próximos meses, para preparar la siguiente licitación antes de que se
-              publique.
-            </div>
-          ) : (
+          {pestana !== 'vencimientos' && (
             <>
               {activos.length > 0 && (
                 <div className="gt-lic-activos" aria-label="Filtros aplicados">
@@ -946,6 +992,12 @@ export default function Licitaciones() {
           )}
         </div>
       </div>
+
+      {infoVencimientos && (
+        <EnElBody>
+          <ModalVencimientos onClose={() => setInfoVencimientos(false)} />
+        </EnElBody>
+      )}
 
       {upsell && (
         <EnElBody>
