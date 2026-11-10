@@ -410,7 +410,7 @@ export default function MepDetailPage() {
         <BackLink fallbackHref="/institutions/eu-parliament" fallbackLabel="Parlamento Europeo" />
         <span style={{ fontSize: 11.5, color: '#ddd' }}>|</span>
         <span style={{ fontSize: 11.5, color: '#999' }}>
-          <Link href="/institutions" style={{ color: '#999', textDecoration: 'none' }}>Instituciones</Link>
+          <Link href="/institutions/union-europea" style={{ color: '#999', textDecoration: 'none' }}>Instituciones</Link>
           {' › '}
           <Link href="/institutions/eu-parliament" style={{ color: '#999', textDecoration: 'none' }}>Parlamento Europeo</Link>
           {' › '}
