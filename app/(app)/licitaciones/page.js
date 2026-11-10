@@ -400,7 +400,7 @@ const ESTILOS = `
 .gt-lic-barra b { font-size: 14.5px; }
 .gt-lic-pill { font-size: 12px; color: ${MORADO}; background: #f3f1fe; border-radius: 6px; padding: 2px 8px; font-weight: 600; }
 .gt-lic-barra-der { margin-left: auto; display: flex; gap: 8px; align-items: center; }
-.gt-lic-sel { font: inherit; font-size: 13px; border: 1px solid #dcdbd4; border-radius: 9px; background: #fff; padding: 6px 9px; color: #1a1a18; }
+.gt-lic-sel { font: inherit; font-size: 13px; border: 1px solid #e0dfd8; border-radius: 9px; background: #fff; padding: 6px 9px; min-height: 38px; box-sizing: border-box; color: #1a1a18; }
 .gt-lic-vista { display: inline-flex; border: 1px solid #dcdbd4; border-radius: 9px; overflow: hidden; background: #fff; }
 .gt-lic-vista button { border: none; background: none; font: inherit; font-size: 13px; padding: 6px 11px; cursor: pointer; color: #57534e; }
 .gt-lic-vista button.on { background: #1a1a18; color: #fff; }
@@ -779,9 +779,9 @@ export default function Licitaciones() {
           placeholder="Buscar licitación, órgano o expediente"
           aria-label="Buscar licitaciones"
         />
-        <span className="gt-lic-exp" role="group" aria-label="Licitaciones o contratos menores">
+        <span className="gt-seg" role="group" aria-label="Licitaciones o contratos menores">
           {EXPEDIENTES.map((o) => (
-            <button key={o.v} type="button" className={expediente === o.v ? 'on' : undefined} aria-pressed={expediente === o.v} onClick={() => setExpediente(o.v)}>
+            <button key={o.v} type="button" className={expediente === o.v ? 'gt-seg-it on' : 'gt-seg-it'} aria-pressed={expediente === o.v} onClick={() => setExpediente(o.v)}>
               {o.label}
             </button>
           ))}

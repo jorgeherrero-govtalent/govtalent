@@ -225,19 +225,7 @@ function Boe() {
         <button
           type="button"
           onClick={() => setOrden((o) => (o === 'reciente' ? 'antiguo' : 'reciente'))}
-          style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: 6,
-            background: '#fff',
-            border: '.5px solid #e0dfd8',
-            borderRadius: 20,
-            padding: '8px 14px',
-            fontSize: 12,
-            color: '#57534e',
-            cursor: 'pointer',
-            whiteSpace: 'nowrap',
-          }}
+          className="gt-filtro"
         >
           <i className={`ti ti-arrow-${orden === 'reciente' ? 'down' : 'up'}`} style={{ fontSize: 14 }}></i>
           {orden === 'reciente' ? 'Más recientes' : 'Más antiguas'}

@@ -66,9 +66,10 @@ function pestanaDe(t, ahora) {
 }
 
 const BOTON_FILTRO = {
-  height: 36,
+  height: 38,
+  boxSizing: 'border-box',
   padding: '0 12px',
-  border: `.5px solid ${BORDE}`,
+  border: `1px solid ${BORDE}`,
   borderRadius: 9,
   background: '#fff',
   font: 'inherit',
@@ -310,7 +311,7 @@ export default function TareasPage() {
             type="button"
             aria-pressed={soloMias}
             onClick={() => setSoloMias((v) => !v)}
-            style={{ ...BOTON_FILTRO, borderColor: soloMias ? MORADO : BORDE, color: soloMias ? '#4b3bc4' : '#1a1a18' }}
+            style={{ ...BOTON_FILTRO, borderColor: soloMias ? '#1a1a18' : BORDE, background: soloMias ? '#f4f3ef' : '#fff', fontWeight: soloMias ? 600 : 400 }}
           >
             <i className="ti ti-user" aria-hidden="true"></i>
             Asignadas a mí

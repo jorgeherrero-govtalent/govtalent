@@ -73,20 +73,7 @@ export default function MultiSelectFilter({ label, values, selected, onApply, bl
         ref={btnRef}
         type="button"
         onClick={() => setIsOpen((v) => !v)}
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: 6,
-          background: active ? fondoActivo : '#faf9f5',
-          border: `.5px solid ${active ? acento : '#e0dfd8'}`,
-          borderRadius: 8,
-          padding: '8px 12px',
-          fontSize: 12.5,
-          color: active ? acento : '#666',
-          fontWeight: active ? 600 : 400,
-          cursor: 'pointer',
-          whiteSpace: 'nowrap',
-        }}
+        className={`gt-filtro${active ? ' on' : ''}`}
       >
         {label}
         {active ? ` (${selected.size})` : ''}

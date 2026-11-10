@@ -175,16 +175,7 @@ export default function ConsultasPublicasPage() {
 
         <span
           onClick={() => setSoloAbiertas((v) => !v)}
-          style={{
-            background: soloAbiertas ? '#EEEDFE' : '#fff',
-            border: `.5px solid ${soloAbiertas ? '#6d5aef' : '#e0dfd8'}`,
-            color: soloAbiertas ? '#3C3489' : '#555',
-            borderRadius: 20,
-            padding: '7px 12px',
-            fontSize: 12,
-            cursor: 'pointer',
-            whiteSpace: 'nowrap',
-          }}
+          className={`gt-filtro${soloAbiertas ? ' on' : ''}`}
         >
           Solo abiertas {soloAbiertas && <i className="ti ti-x" style={{ fontSize: 11 }}></i>}
         </span>
@@ -207,23 +198,11 @@ export default function ConsultasPublicasPage() {
         <span
           onClick={() => setOrden((o) => (o === 'asc' ? 'desc' : 'asc'))}
           title={orden === 'asc' ? 'Primero lo que antes cierra' : 'Primero lo que más tarde cierra'}
-          style={{
-            background: '#fff',
-            border: '.5px solid #e0dfd8',
-            borderRadius: 20,
-            padding: '7px 12px',
-            fontSize: 12,
-            color: '#555',
-            cursor: 'pointer',
-            whiteSpace: 'nowrap',
-            display: 'flex',
-            alignItems: 'center',
-            gap: 6,
-          }}
+          className="gt-filtro"
         >
           <i
             className={`ti ti-sort-${orden === 'asc' ? 'ascending' : 'descending'}-2`}
-            style={{ fontSize: 14, color: '#6d5aef' }}
+            style={{ fontSize: 14 }}
           ></i>
           {orden === 'asc' ? 'Cierra antes' : 'Cierra después'}
         </span>

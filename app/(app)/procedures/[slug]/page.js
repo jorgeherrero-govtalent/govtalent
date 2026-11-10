@@ -538,15 +538,7 @@ export default function ProcedureDetailPage() {
               <button
                 type="button"
                 onClick={() => setSoloEspanoles((v) => !v)}
-                style={{
-                  fontSize: 11,
-                  color: soloEspanoles ? '#fff' : '#6d5aef',
-                  background: soloEspanoles ? '#6d5aef' : 'none',
-                  border: `.5px solid ${soloEspanoles ? '#6d5aef' : 'transparent'}`,
-                  borderRadius: 20,
-                  padding: '4px 11px',
-                  cursor: 'pointer',
-                }}
+                className={`gt-filtro${soloEspanoles ? ' on' : ''}`}
               >
                 {item.n_espanoles} españoles de {item.n_ponentes}
               </button>

@@ -870,15 +870,7 @@ export default function InitiativeDetailPage() {
             <button
               type="button"
               onClick={() => cargarMeps('todos')}
-              style={{
-                background: filtroMeps === 'todos' ? '#6d5aef' : '#fff',
-                color: filtroMeps === 'todos' ? '#fff' : '#555',
-                border: `.5px solid ${filtroMeps === 'todos' ? '#6d5aef' : '#e0dfd8'}`,
-                borderRadius: 20,
-                padding: '6px 13px',
-                fontSize: 11.5,
-                cursor: 'pointer',
-              }}
+              className={`gt-filtro${filtroMeps === 'todos' ? ' on' : ''}`}
             >
               Todos ({resumenMeps.total})
             </button>

@@ -172,16 +172,7 @@ function ComisariosTab({ comisarios }) {
             setSoloES((v) => !v);
             setPaisFilter(new Set());
           }}
-          style={{
-            background: soloES ? '#e8f4f0' : '#fff',
-            border: `.5px solid ${soloES ? '#1d6f5c' : '#e0dfd8'}`,
-            color: soloES ? '#1d6f5c' : '#555',
-            borderRadius: 20,
-            padding: '7px 12px',
-            fontSize: 12,
-            cursor: 'pointer',
-            whiteSpace: 'nowrap',
-          }}
+          className={`gt-filtro${soloES ? ' on' : ''}`}
         >
           Solo España {soloES && <i className="ti ti-x" style={{ fontSize: 11 }}></i>}
         </span>

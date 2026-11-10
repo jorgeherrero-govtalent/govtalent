@@ -740,7 +740,7 @@ a{color:inherit}
 @media (prefers-reduced-motion:reduce){.gt-lat{transition:none}}
 
 /* Buscador de la plataforma (components/CampoBusqueda.js): el mismo aspecto que el del menú lateral. */
-.gt-campo{display:flex;align-items:center;gap:7px;box-sizing:border-box;min-width:0;max-width:100%;background:#fff;border:1px solid #e0dfd8;border-radius:9px;padding:8px 10px;cursor:text}
+.gt-campo{display:flex;align-items:center;gap:7px;box-sizing:border-box;min-height:38px;min-width:0;max-width:100%;background:#fff;border:1px solid #e0dfd8;border-radius:9px;padding:8px 10px;cursor:text}
 .gt-campo:focus-within{border-color:#c9c7bd}
 .gt-campo>i{font-size:14px;color:#a8a49c;flex-shrink:0}
 .gt-campo input{flex:1;min-width:0;width:100%;border:none;outline:none;background:transparent;font-family:inherit;font-size:13.5px;color:#1a1a18;padding:0;margin:0;box-shadow:none;-webkit-appearance:none;appearance:none}
@@ -749,3 +749,14 @@ a{color:inherit}
 .gt-campo-x i{font-size:13px}
 .gt-campo-kbd{font-size:11px;color:#8b8780;border:1px solid #e6e4dc;border-radius:5px;padding:1px 6px;background:#f7f6f2;white-space:nowrap;flex-shrink:0;line-height:16px}
 @media (max-width:720px){.gt-campo-kbd{display:none}}
+
+/* Botones de la barra de filtros: misma caja que el buscador (9px, 38px de alto). .on = activo, en negro. */
+.gt-filtro{display:inline-flex;align-items:center;gap:6px;box-sizing:border-box;min-height:38px;padding:8px 12px;background:#fff;border:1px solid #e0dfd8;border-radius:9px;font-family:inherit;font-size:13px;line-height:1.2;font-weight:400;color:#57534e;cursor:pointer;white-space:nowrap;user-select:none;margin:0}
+.gt-filtro:hover{border-color:#c9c7bd}
+.gt-filtro.on{background:#f4f3ef;border-color:#1a1a18;color:#1a1a18;font-weight:600}
+.gt-filtro>i{color:#8b8780}
+.gt-filtro.on>i{color:#1a1a18}
+/* Selector de opciones excluyentes dentro de una misma caja. */
+.gt-seg{display:inline-flex;align-items:stretch;gap:2px;box-sizing:border-box;min-height:38px;padding:3px;background:#fff;border:1px solid #e0dfd8;border-radius:9px}
+.gt-seg-it{display:inline-flex;align-items:center;padding:0 11px;border:none;border-radius:6px;background:transparent;font-family:inherit;font-size:13px;color:#57534e;cursor:pointer;white-space:nowrap;user-select:none}
+.gt-seg-it.on{background:#1a1a18;color:#fff}
