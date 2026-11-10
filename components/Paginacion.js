@@ -4,7 +4,8 @@ import { useEffect, useMemo, useState } from 'react';
 
 /**
  * La paginación de los directorios, la misma que Organismos y Ministerios:
- * selector de filas (20, 50, 100, 200) en verde, «1–20 de N», números de
+ * selector de filas (20, 50, 100, 200) con la elegida en gris
+ * (10-11-2026, en toda la plataforma), «1–20 de N», números de
  * página con elipsis y flechas.
  *
  * Copiada de app/(app)/institutions/organismos/page.js, que la tiene
@@ -16,7 +17,6 @@ import { useEffect, useMemo, useState } from 'react';
  */
 
 const BORDE = '#e0dfd8';
-const VERDE = '#1d6f5c';
 export const PAGE_SIZES = [20, 50, 100, 200];
 
 /** Estado de la paginación de una lista ya filtrada. */
@@ -73,8 +73,7 @@ export function usePaginacion(total, reinicio = []) {
 
 const BOTON = { border: 'none', background: 'transparent', fontFamily: 'inherit', cursor: 'pointer' };
 
-// `acento` cambia el verde (Licitaciones la usa en negro, 10-11-2026).
-export default function Paginacion({ pag, dentro, acento = VERDE }) {
+export default function Paginacion({ pag, dentro }) {
   const { pageSize, changePageSize, from, to, total, current, totalPages, setPage, pageNumbers } = pag;
   if (total === 0) return null;
   return (
@@ -104,8 +103,8 @@ export default function Paginacion({ pag, dentro, acento = VERDE }) {
                 fontSize: 11,
                 padding: '3px 8px',
                 borderRadius: 5,
-                background: pageSize === n ? acento : 'transparent',
-                color: pageSize === n ? '#fff' : '#666',
+                background: pageSize === n ? '#ecebe5' : 'transparent',
+                color: pageSize === n ? '#1a1a18' : '#666',
               }}
             >
               {n}
@@ -143,8 +142,8 @@ export default function Paginacion({ pag, dentro, acento = VERDE }) {
                 borderRadius: 6,
                 padding: '4px 10px',
                 fontSize: 11.5,
-                background: n === current ? acento : 'transparent',
-                color: n === current ? '#fff' : '#555',
+                background: n === current ? '#ecebe5' : 'transparent',
+                color: n === current ? '#1a1a18' : '#555',
                 border: n === current ? 'none' : `.5px solid ${BORDE}`,
               }}
             >

@@ -376,8 +376,8 @@ function Boe() {
                       padding: '3px 8px',
                       borderRadius: 5,
                       cursor: 'pointer',
-                      background: pageSize === n ? '#f0eefe' : 'transparent',
-                      color: pageSize === n ? '#6d5aef' : '#8b8780',
+                      background: pageSize === n ? '#ecebe5' : 'transparent',
+                      color: pageSize === n ? '#1a1a18' : '#8b8780',
                     }}
                   >
                     {n}

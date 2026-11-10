@@ -353,8 +353,8 @@ export default function OrganizationsDirectory() {
                           padding: '3px 8px',
                           borderRadius: 5,
                           cursor: 'pointer',
-                          background: pageSize === n ? '#1d6f5c' : 'transparent',
-                          color: pageSize === n ? '#fff' : '#666',
+                          background: pageSize === n ? '#ecebe5' : 'transparent',
+                          color: pageSize === n ? '#1a1a18' : '#666',
                         }}
                       >
                         {n}
@@ -387,8 +387,8 @@ export default function OrganizationsDirectory() {
                           padding: '4px 10px',
                           fontSize: 11.5,
                           cursor: 'pointer',
-                          background: n === currentPage + 1 ? '#1d6f5c' : 'transparent',
-                          color: n === currentPage + 1 ? '#fff' : '#555',
+                          background: n === currentPage + 1 ? '#ecebe5' : 'transparent',
+                          color: n === currentPage + 1 ? '#1a1a18' : '#555',
                           border: n === currentPage + 1 ? 'none' : '.5px solid #e0dfd8',
                         }}
                       >

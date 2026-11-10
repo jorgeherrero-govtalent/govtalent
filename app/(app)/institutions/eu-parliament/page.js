@@ -342,8 +342,8 @@ function MepsTab({ meps }) {
                       padding: '3px 8px',
                       borderRadius: 5,
                       cursor: 'pointer',
-                      background: pageSize === n ? '#1d6f5c' : 'transparent',
-                      color: pageSize === n ? '#fff' : '#666',
+                      background: pageSize === n ? '#ecebe5' : 'transparent',
+                      color: pageSize === n ? '#1a1a18' : '#666',
                     }}
                   >
                     {n}
@@ -374,8 +374,8 @@ function MepsTab({ meps }) {
                       padding: '4px 10px',
                       fontSize: 11.5,
                       cursor: 'pointer',
-                      background: n === current ? '#1d6f5c' : 'transparent',
-                      color: n === current ? '#fff' : '#555',
+                      background: n === current ? '#ecebe5' : 'transparent',
+                      color: n === current ? '#1a1a18' : '#555',
                       border: n === current ? 'none' : '.5px solid #e0dfd8',
                     }}
                   >
