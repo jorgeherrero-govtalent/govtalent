@@ -769,7 +769,7 @@ export default function DirectorioInstitucionalPage() {
         style={{ padding: '24px 28px', maxWidth: 1320, margin: '0 auto' }}
       >
         <div style={{ marginBottom: 16 }}>
-          <h1 style={{ fontSize: 19, fontWeight: 700, margin: 0 }}>Directorio institucional</h1>
+          <h1 style={{ fontSize: 19, fontWeight: 700, margin: 0 }}>Base de datos</h1>
         </div>
 
         <div onClick={() => setModalUpsell(true)} style={{ cursor: 'pointer' }}>
@@ -800,7 +800,7 @@ export default function DirectorioInstitucionalPage() {
       }}
     >
       <div style={{ marginBottom: 16 }}>
-        <h1 style={{ fontSize: 19, fontWeight: 700, margin: 0 }}>Directorio institucional</h1>
+        <h1 style={{ fontSize: 19, fontWeight: 700, margin: 0 }}>Base de datos</h1>
       </div>
 
       {loadError && (
