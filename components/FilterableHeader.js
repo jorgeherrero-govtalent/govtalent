@@ -74,7 +74,7 @@ export default function FilterableHeader({ label, columnKey, values, selected, o
           background: 'transparent',
           fontWeight: 700,
           fontSize: 11,
-          color: active ? '#1d6f5c' : '#666',
+          color: active ? '#1a1a18' : '#666',
           textTransform: 'uppercase',
           letterSpacing: '.03em',
           cursor: 'pointer',
@@ -117,8 +117,8 @@ export default function FilterableHeader({ label, columnKey, values, selected, o
                     padding: '7px 6px',
                     borderRadius: 7,
                     border: '.5px solid #e0dfd8',
-                    background: sortConfig.key === columnKey && sortConfig.dir === 'asc' ? '#f0f8f5' : '#fff',
-                    color: sortConfig.key === columnKey && sortConfig.dir === 'asc' ? '#1d6f5c' : '#555',
+                    background: sortConfig.key === columnKey && sortConfig.dir === 'asc' ? '#f4f3ef' : '#fff',
+                    color: sortConfig.key === columnKey && sortConfig.dir === 'asc' ? '#1a1a18' : '#555',
                   }}
                 >
                   A→Z
@@ -135,8 +135,8 @@ export default function FilterableHeader({ label, columnKey, values, selected, o
                     padding: '7px 6px',
                     borderRadius: 7,
                     border: '.5px solid #e0dfd8',
-                    background: sortConfig.key === columnKey && sortConfig.dir === 'desc' ? '#f0f8f5' : '#fff',
-                    color: sortConfig.key === columnKey && sortConfig.dir === 'desc' ? '#1d6f5c' : '#555',
+                    background: sortConfig.key === columnKey && sortConfig.dir === 'desc' ? '#f4f3ef' : '#fff',
+                    color: sortConfig.key === columnKey && sortConfig.dir === 'desc' ? '#1a1a18' : '#555',
                   }}
                 >
                   Z→A
@@ -145,8 +145,8 @@ export default function FilterableHeader({ label, columnKey, values, selected, o
 
               <div style={{ padding: 10, borderBottom: '.5px solid #e0dfd8' }}>
                 <CampoBusqueda atajo={false} autoFocus placeholder={`Buscar ${label.toLowerCase()}...`} value={search} onChange={(e) => setSearch(e.target.value)} />
-                <div style={{ display: 'flex', gap: 10, marginTop: 6, fontSize: 11, color: '#1d6f5c' }}>
-                  <button type="button" onClick={() => setDraft(new Set(values.map((v) => v.value)))} style={{ background: 'none', border: 'none', color: '#1d6f5c', cursor: 'pointer', padding: 0 }}>
+                <div style={{ display: 'flex', gap: 10, marginTop: 6, fontSize: 11, color: '#1a1a18' }}>
+                  <button type="button" onClick={() => setDraft(new Set(values.map((v) => v.value)))} style={{ background: 'none', border: 'none', color: '#1a1a18', cursor: 'pointer', padding: 0 }}>
                     Seleccionar todos
                   </button>
                   <button type="button" onClick={() => setDraft(new Set())} style={{ background: 'none', border: 'none', color: '#999', cursor: 'pointer', padding: 0 }}>
@@ -201,7 +201,7 @@ export default function FilterableHeader({ label, columnKey, values, selected, o
                     onApply(draft);
                     onClose();
                   }}
-                  style={{ flex: 1, padding: '7px 8px', borderRadius: 7, border: 'none', background: '#1d6f5c', color: '#fff', fontSize: 12.5, fontWeight: 600 }}
+                  style={{ flex: 1, padding: '7px 8px', borderRadius: 7, border: 'none', background: '#1a1a18', color: '#fff', fontSize: 12.5, fontWeight: 600 }}
                 >
                   Aplicar
                 </button>
