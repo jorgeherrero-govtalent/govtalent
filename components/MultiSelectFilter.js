@@ -17,9 +17,9 @@ import { createPortal } from 'react-dom';
  * upsell sabiendo exactamente qué se estaba perdiendo, en lugar de
  * chocar con un candado antes de haber visto nada.
  */
-// `acento` y `fondoActivo` cambian el verde por otro color (Licitaciones
-// los usa en morado, 10-11-2026). Sin ellos, todo queda como estaba.
-export default function MultiSelectFilter({ label, values, selected, onApply, bloqueado, onBloqueado, acento = '#1d6f5c', fondoActivo = '#f0f8f5', aplicarColor }) {
+// En negro, sin verde (10-11-2026). `acento` y `fondoActivo` permiten
+// cambiarlo en un sitio concreto.
+export default function MultiSelectFilter({ label, values, selected, onApply, bloqueado, onBloqueado, acento = '#1a1a18', fondoActivo = '#f4f3ef', aplicarColor }) {
   const [isOpen, setIsOpen] = useState(false);
   const [draft, setDraft] = useState(selected);
   const [search, setSearch] = useState('');

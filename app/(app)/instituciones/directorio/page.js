@@ -273,7 +273,7 @@ function FiltroBarra({ icono, label, values, selected, onApply }) {
                 <button
                   type="button"
                   onClick={() => setDraft(new Set(values.map((v) => v.value)))}
-                  style={{ background: 'none', border: 'none', color: '#1d6f5c', cursor: 'pointer', padding: 0 }}
+                  style={{ background: 'none', border: 'none', color: '#1a1a18', cursor: 'pointer', padding: 0 }}
                 >
                   Seleccionar todos
                 </button>
@@ -340,7 +340,7 @@ function FiltroBarra({ icono, label, values, selected, onApply }) {
                   onApply(draft);
                   setAbierto(false);
                 }}
-                style={{ flex: 1, padding: '7px 8px', borderRadius: 7, border: 'none', background: '#1d6f5c', color: '#fff', fontSize: 12.5, fontWeight: 600 }}
+                style={{ flex: 1, padding: '7px 8px', borderRadius: 7, border: 'none', background: '#1a1a18', color: '#fff', fontSize: 12.5, fontWeight: 600 }}
               >
                 Aplicar
               </button>
