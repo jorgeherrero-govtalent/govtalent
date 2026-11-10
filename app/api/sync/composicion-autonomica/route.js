@@ -24,7 +24,7 @@
 //   cron (CRON_SECRET)                       listado + fichas + equipo, hasta agotar el tiempo
 //   ?key=<DEBUG_KEY>&p=madrid                igual, a mano
 //   ?key=<DEBUG_KEY>&p=madrid&paso=fichas&n=40
-//   ?key=<DEBUG_KEY>&p=cataluna[&paso=listado|fichas|organos][&dry=1]  Parlament de Catalunya
+//   ?key=<DEBUG_KEY>&p=cataluna[&paso=listado|organos|comisiones|fichas][&dry=1]  Parlament de Catalunya
 //   ?key=<DEBUG_KEY>&p=madrid&dry=1          lee el listado y 2 fichas, sin guardar
 //   ?key=<DEBUG_KEY>&p=valencia|rioja|andalucia|aragon|canarias|castillayleon
 //                                            lectores de lib/ccaa/composicion/comun.js
