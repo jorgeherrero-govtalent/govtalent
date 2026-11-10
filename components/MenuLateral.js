@@ -103,7 +103,7 @@ const SECCIONES = [
   {
     titulo: 'Contratación pública',
     items: [
-      { href: '/licitaciones', etiqueta: 'Licitaciones', icono: 'ti-file-dollar', activo: (p) => p.startsWith('/licitaciones'), beta: true },
+      { href: '/licitaciones', etiqueta: 'Licitaciones', icono: 'ti-file-description', activo: (p) => p.startsWith('/licitaciones'), beta: true },
     ],
   },
 ];
