@@ -1,6 +1,9 @@
 @import url('https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css');
 *{box-sizing:border-box;margin:0;padding:0}
 html,body{height:100%}
+/* Sin barra de desplazamiento a la vista en la página: se sigue desplazando con la rueda, el trackpad, el teclado o el dedo. */
+html{scrollbar-width:none;-ms-overflow-style:none}
+html::-webkit-scrollbar,body::-webkit-scrollbar{display:none;width:0;height:0}
 body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#f0efe9;color:#1a1a18;font-size:14px}
 button{cursor:pointer;font-family:inherit}
 a{color:inherit}
