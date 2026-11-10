@@ -755,10 +755,6 @@ export default function EuCommissionPage() {
           <FlagEU />
           <h1 style={{ fontSize: 18, fontWeight: 700, margin: 0 }}>Comisión Europea</h1>
         </div>
-        <p style={{ fontSize: 12, color: '#888', margin: 0 }}>
-          {people.length ? `${people.length} personas` : '—'}, {comisarios ? comisarios.length : '—'} comisarios,{' '}
-          {bodies.length} direcciones generales
-        </p>
       </div>
 
       <div style={{ display: 'flex', gap: 16, borderBottom: '.5px solid #e0dfd8', marginBottom: 14, overflowX: 'auto' }}>

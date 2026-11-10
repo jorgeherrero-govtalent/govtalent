@@ -1234,10 +1234,6 @@ export default function MinistriesDirectoryPage() {
           <FlagES />
           <h1 style={{ fontSize: 18, fontWeight: 700, margin: 0 }}>Ministerios</h1>
         </div>
-        <p style={{ fontSize: 12, color: '#888', margin: 0 }}>
-          {members ? members.length + officials.length : '—'} personas, {members ? members.length : '—'} miembros del
-          Gobierno, {ministeriosDistintos} ministerios
-        </p>
       </div>
 
       <div style={{ display: 'flex', gap: 16, borderBottom: '.5px solid #e0dfd8', marginBottom: 14 }}>

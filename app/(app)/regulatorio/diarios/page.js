@@ -167,11 +167,6 @@ function Diarios() {
             Boletines oficiales autonómicos
           </h1>
         </div>
-        <p style={{ fontSize: 12.5, color: '#8b8780', margin: 0 }}>
-          {items === null
-            ? '—'
-            : `${items.length.toLocaleString('es-ES')} disposiciones${hoy > 0 ? `, ${hoy} publicadas hoy` : ''}`}
-        </p>
       </div>
 
       <div style={{ display: 'flex', gap: 8, marginBottom: 12, flexWrap: 'wrap' }}>

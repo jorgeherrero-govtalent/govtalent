@@ -754,9 +754,6 @@ export default function EuParliamentPage() {
           </span>
           <h1 style={{ fontSize: 18, fontWeight: 700, margin: 0 }}>Parlamento Europeo</h1>
         </div>
-        <p style={{ fontSize: 12, color: '#888', margin: 0 }}>
-          {meps ? `${meps.length} eurodiputados` : '—'}, 10ª legislatura
-        </p>
       </div>
 
       <div style={{ display: 'flex', gap: 16, borderBottom: '.5px solid #e0dfd8', marginBottom: 14 }}>

@@ -194,9 +194,6 @@ export default function ParlamentosAutonomicosPage() {
       <div style={{ marginBottom: 18, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', gap: 16, flexWrap: 'wrap' }}>
         <div>
           <h1 style={{ fontSize: 21, fontWeight: 600, margin: 0, letterSpacing: '-.3px' }}>Parlamentos autonómicos</h1>
-          <p style={{ fontSize: 13, color: GRIS, margin: '4px 0 0' }}>
-            Leyes en tramitación en {FASE1.length} parlamentos, actualizado 3 veces al día
-          </p>
         </div>
         <label style={{ display: 'flex', alignItems: 'center', gap: 8, background: '#fff', border: '1px solid #e0dfd8', borderRadius: 9, padding: '8px 12px', minWidth: 260 }}>
           <i className="ti ti-search" aria-hidden="true" style={{ color: GRIS }}></i>

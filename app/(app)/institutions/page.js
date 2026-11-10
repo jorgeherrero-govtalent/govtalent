@@ -146,9 +146,6 @@ export default function InstitutionsPage() {
       <DirectorioPestanasMovil activa="instituciones" />
       <div style={{ marginBottom: 18 }}>
         <h1 style={{ fontSize: 21, fontWeight: 600, margin: 0, letterSpacing: '-.3px' }}>Instituciones</h1>
-        <p style={{ fontSize: 13, color: '#8b8780', margin: '4px 0 0' }}>
-          Quién decide, dónde se sienta y de quién depende
-        </p>
       </div>
 
       <div className="reg-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 14 }}>

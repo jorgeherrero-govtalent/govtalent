@@ -196,9 +196,6 @@ export default function ProceduresDirectoryPage() {
           <FlagEU />
           <h1 style={{ fontSize: 18, fontWeight: 700, margin: 0 }}>Procedimientos legislativos</h1>
         </div>
-        <p style={{ fontSize: 12, color: '#888', margin: 0 }}>
-          {items ? `${items.length} procedimientos del Parlamento Europeo, ${vivos} en tramitación` : '—'}
-        </p>
       </div>
 
       <div style={{ display: 'flex', gap: 8, marginBottom: 12, flexWrap: 'wrap' }}>

@@ -276,10 +276,7 @@ export default function DirectorioListado({ slug, base, volverA, volverEtiqueta 
         <BackLink fallbackHref={volverA} fallbackLabel={volverEtiqueta} />
       </div>
 
-      <h1 style={{ fontSize: 19, fontWeight: 700, margin: 0 }}>{fusion ? fusion.titulo : seccion.titulo}</h1>
-      <p style={{ fontSize: 12.5, color: '#888', margin: '3px 0 16px', lineHeight: 1.55 }}>
-        {fusion ? fusion.descripcion : seccion.descripcion}
-      </p>
+      <h1 style={{ fontSize: 19, fontWeight: 700, margin: '0 0 16px' }}>{fusion ? fusion.titulo : seccion.titulo}</h1>
 
       {fusion ? (
         <nav aria-label={fusion.titulo} style={PESTANAS}>

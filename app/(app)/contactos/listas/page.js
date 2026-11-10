@@ -74,7 +74,6 @@ export default function ListasPage() {
       <div className="gt-ct-cab">
         <div>
           <h1>Listas</h1>
-          <p>Tus listas y las de tu equipo. Te avisan cuando alguien cambia de cargo, deja de figurar o aparece alguien nuevo.</p>
         </div>
         {bloqueado ? (
           <button type="button" className="btn-ai" onClick={() => setUpsell(true)}>
