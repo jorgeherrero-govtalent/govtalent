@@ -129,9 +129,9 @@ function Actividad() {
             style={{
               fontSize: 13,
               fontWeight: tab === p.id ? 600 : 400,
-              color: tab === p.id ? '#6d5aef' : '#888',
+              color: tab === p.id ? '#1a1a18' : '#888',
               border: 'none',
-              borderBottom: `2px solid ${tab === p.id ? '#6d5aef' : 'transparent'}`,
+              borderBottom: `2px solid ${tab === p.id ? '#1a1a18' : 'transparent'}`,
               background: 'none',
               padding: '0 0 9px',
               cursor: 'pointer',
@@ -139,7 +139,7 @@ function Actividad() {
             }}
           >
             {p.label}{' '}
-            <span style={{ color: tab === p.id ? '#a99ff0' : '#bbb' }}>
+            <span style={{ color: tab === p.id ? '#8b8780' : '#bbb' }}>
               {cifras[p.id] === null ? '' : cifras[p.id].toLocaleString('es-ES')}
             </span>
           </button>

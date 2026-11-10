@@ -461,8 +461,8 @@ export default function MepDetailPage() {
             style={{
               fontSize: 13,
               fontWeight: tab === t.id ? 600 : 400,
-              color: tab === t.id ? '#1d6f5c' : '#999',
-              borderBottom: tab === t.id ? '2px solid #1d6f5c' : '2px solid transparent',
+              color: tab === t.id ? '#1a1a18' : '#999',
+              borderBottom: tab === t.id ? '2px solid #1a1a18' : '2px solid transparent',
               paddingBottom: 8,
               cursor: 'pointer',
             }}

@@ -273,7 +273,7 @@ export default function TareasPage() {
               style={{
                 background: 'none',
                 border: 'none',
-                borderBottom: `2px solid ${on ? MORADO : 'transparent'}`,
+                borderBottom: `2px solid ${on ? '#1a1a18' : 'transparent'}`,
                 padding: '9px 2px',
                 marginBottom: -1,
                 font: 'inherit',

@@ -1225,8 +1225,8 @@ export default function MinistriesDirectoryPage() {
           style={{
             fontSize: 13,
             fontWeight: tab === 'organigrama' ? 600 : 400,
-            color: tab === 'organigrama' ? '#1d6f5c' : '#999',
-            borderBottom: tab === 'organigrama' ? '2px solid #1d6f5c' : '2px solid transparent',
+            color: tab === 'organigrama' ? '#1a1a18' : '#999',
+            borderBottom: tab === 'organigrama' ? '2px solid #1a1a18' : '2px solid transparent',
             paddingBottom: 8,
             cursor: 'pointer',
           }}
@@ -1238,8 +1238,8 @@ export default function MinistriesDirectoryPage() {
           style={{
             fontSize: 13,
             fontWeight: tab === 'ministerios' ? 600 : 400,
-            color: tab === 'ministerios' ? '#1d6f5c' : '#999',
-            borderBottom: tab === 'ministerios' ? '2px solid #1d6f5c' : '2px solid transparent',
+            color: tab === 'ministerios' ? '#1a1a18' : '#999',
+            borderBottom: tab === 'ministerios' ? '2px solid #1a1a18' : '2px solid transparent',
             paddingBottom: 8,
             cursor: 'pointer',
           }}
@@ -1251,8 +1251,8 @@ export default function MinistriesDirectoryPage() {
           style={{
             fontSize: 13,
             fontWeight: tab === 'buscar' ? 600 : 400,
-            color: tab === 'buscar' ? '#1d6f5c' : '#999',
-            borderBottom: tab === 'buscar' ? '2px solid #1d6f5c' : '2px solid transparent',
+            color: tab === 'buscar' ? '#1a1a18' : '#999',
+            borderBottom: tab === 'buscar' ? '2px solid #1a1a18' : '2px solid transparent',
             paddingBottom: 8,
             cursor: 'pointer',
           }}

@@ -411,8 +411,8 @@ export default function AllJobsPage() {
                 padding: '10px 14px',
                 fontSize: 13.5,
                 fontWeight: tab === 'activos' ? 600 : 400,
-                color: tab === 'activos' ? '#1d6f5c' : '#888',
-                borderBottom: tab === 'activos' ? '2px solid #1d6f5c' : '2px solid transparent',
+                color: tab === 'activos' ? '#1a1a18' : '#888',
+                borderBottom: tab === 'activos' ? '2px solid #1a1a18' : '2px solid transparent',
               }}
             >
               Activos ({activos.length})
@@ -425,8 +425,8 @@ export default function AllJobsPage() {
                 padding: '10px 14px',
                 fontSize: 13.5,
                 fontWeight: tab === 'cerrados' ? 600 : 400,
-                color: tab === 'cerrados' ? '#1d6f5c' : '#888',
-                borderBottom: tab === 'cerrados' ? '2px solid #1d6f5c' : '2px solid transparent',
+                color: tab === 'cerrados' ? '#1a1a18' : '#888',
+                borderBottom: tab === 'cerrados' ? '2px solid #1a1a18' : '2px solid transparent',
               }}
             >
               Cerrados ({cerrados.length})

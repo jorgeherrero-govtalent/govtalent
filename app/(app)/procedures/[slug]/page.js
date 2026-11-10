@@ -438,9 +438,9 @@ export default function ProcedureDetailPage() {
             style={{
               fontSize: 12.5,
               fontWeight: tab === p.id ? 600 : 400,
-              color: !p.activa ? '#ccc' : tab === p.id ? '#6d5aef' : '#999',
+              color: !p.activa ? '#ccc' : tab === p.id ? '#1a1a18' : '#999',
               border: 'none',
-              borderBottom: `2px solid ${tab === p.id && p.activa ? '#6d5aef' : 'transparent'}`,
+              borderBottom: `2px solid ${tab === p.id && p.activa ? '#1a1a18' : 'transparent'}`,
               background: 'none',
               padding: '0 0 8px',
               cursor: p.activa ? 'pointer' : 'not-allowed',

@@ -222,7 +222,7 @@ export const ESTILOS_CONTACTOS = `
   .gt-ct-pill { display: inline-flex; font-size: 12px; background: #f4f4f5; border: 1px solid #ececef; border-radius: 8px; padding: 2px 8px; }
   .gt-ct-tabs { display: flex; gap: 22px; font-size: 14px; border-bottom: 1px solid #ececef; margin-bottom: 18px; }
   .gt-ct-tabs a { color: ${GRIS}; text-decoration: none; padding-bottom: 10px; }
-  .gt-ct-tabs a.on { color: #1a1a18; font-weight: 600; border-bottom: 2px solid ${MORADO}; }
+  .gt-ct-tabs a.on { color: #1a1a18; font-weight: 600; border-bottom: 2px solid #1a1a18; }
   @media (max-width: 900px) { .gt-ct-fuentes { grid-template-columns: repeat(2, minmax(0, 1fr)); } .gt-ct-aside, .gt-ct-panel { max-width: none; } .gt-ct-aside { position: static; max-height: none; overflow: visible; } }
   @media (max-width: 720px) { .gt-ct { padding: 18px 16px 96px; } .gt-ct-portada { margin-top: 20px; } .gt-ct-portada h2 { font-size: 21px; } }
 `;
