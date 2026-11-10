@@ -1,5 +1,7 @@
 'use client';
 
+import CampoBusqueda from '@/components/CampoBusqueda';
+
 import BuscarCorreo, { useCorreosEncontrados } from '@/components/BuscarCorreo';
 import { useEffect, useMemo, useState } from 'react';
 import * as XLSX from 'xlsx';
@@ -266,21 +268,7 @@ function FiltroBarra({ icono, label, values, selected, onApply }) {
             }}
           >
             <div style={{ padding: 10, borderBottom: '.5px solid #e0dfd8' }}>
-              <input
-                autoFocus
-                placeholder={`Buscar ${label.toLowerCase()}...`}
-                value={busqueda}
-                onChange={(e) => setBusqueda(e.target.value)}
-                style={{
-                  width: '100%',
-                  padding: '7px 10px',
-                  border: '.5px solid #e0dfd8',
-                  borderRadius: 7,
-                  fontSize: 12.5,
-                  outline: 'none',
-                  boxSizing: 'border-box',
-                }}
-              />
+              <CampoBusqueda atajo={false} autoFocus placeholder={`Buscar ${label.toLowerCase()}...`} value={busqueda} onChange={(e) => setBusqueda(e.target.value)} />
               <div style={{ display: 'flex', gap: 10, marginTop: 6, fontSize: 11 }}>
                 <button
                   type="button"
@@ -854,35 +842,14 @@ export default function DirectorioInstitucionalPage() {
       </div>
 
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14, flexWrap: 'wrap' }}>
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 8,
-            border: '.5px solid #e0dfd8',
-            background: '#fff',
-            borderRadius: 9,
-            padding: '8px 12px',
-            minWidth: 250,
-            flex: 1,
-            maxWidth: 340,
-          }}
-        >
-          <i className="ti ti-search" style={{ fontSize: 15, color: '#a8a79c' }}></i>
-          <input
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Buscar por nombre, cargo o unidad"
-            style={{ border: 'none', outline: 'none', fontSize: 13, flex: 1, background: 'transparent' }}
-          />
-          {search && (
-            <i
-              className="ti ti-x"
-              onClick={() => setSearch('')}
-              style={{ fontSize: 14, color: '#a8a79c', cursor: 'pointer' }}
-            ></i>
-          )}
-        </div>
+        <CampoBusqueda
+          estilo={{ minWidth: 250, flex: 1, maxWidth: 340 }}
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          onLimpiar={() => setSearch('')}
+          placeholder="Buscar por nombre, cargo o unidad"
+          aria-label="Buscar por nombre, cargo o unidad"
+        />
 
 
         {bloque !== 'todas' && nivelValues.length > 1 && (

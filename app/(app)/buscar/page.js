@@ -1,5 +1,7 @@
 'use client';
 
+import CampoBusqueda from '@/components/CampoBusqueda';
+
 import { Suspense, useCallback, useEffect, useMemo, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
@@ -175,28 +177,15 @@ function Resultados() {
 
   return (
     <div className="sec" style={{ maxWidth: 900 }}>
-      <form
-        onSubmit={buscar}
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: 9,
-          background: '#fff',
-          border: '.5px solid #e0dfd8',
-          borderRadius: 22,
-          padding: '10px 16px',
-          marginBottom: 16,
-        }}
-      >
-        <i className="ti ti-search" style={{ color: '#a8a49c', fontSize: 15 }} aria-hidden="true"></i>
-        <input
-          value={q}
-          onChange={(e) => setQ(e.target.value)}
-          placeholder="Buscar en todo GovTalent"
-          aria-label="Buscar"
-          style={{ border: 'none', outline: 'none', background: 'transparent', fontSize: 13, width: '100%' }}
-        />
-      </form>
+      <CampoBusqueda
+        como="form"
+        cajaProps={{ onSubmit: buscar, role: 'search' }}
+        estilo={{ marginBottom: 16 }}
+        value={q}
+        onChange={(e) => setQ(e.target.value)}
+        placeholder="Buscar en todo GovTalent"
+        aria-label="Buscar"
+      />
 
       {filas === null ? (
         <div className="spinner"></div>

@@ -1,5 +1,7 @@
 'use client';
 
+import CampoBusqueda from '@/components/CampoBusqueda';
+
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
@@ -206,27 +208,7 @@ function MepsTab({ meps }) {
   return (
     <>
       <div style={{ display: 'flex', gap: 8, marginBottom: 12, flexWrap: 'wrap' }}>
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 8,
-            background: '#fff',
-            border: '.5px solid #e0dfd8',
-            borderRadius: 20,
-            padding: '7px 14px',
-            flex: '1 1 180px',
-          }}
-        >
-          <i className="ti ti-search" style={{ color: '#999', fontSize: 14 }}></i>
-          <input
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Buscar por nombre..."
-            aria-label="Buscar eurodiputado por nombre"
-            style={{ border: 'none', outline: 'none', background: 'transparent', fontSize: 12.5, width: '100%' }}
-          />
-        </div>
+        <CampoBusqueda estilo={{ flex: '1 1 180px' }} value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Buscar por nombre..." aria-label="Buscar eurodiputado por nombre" />
         <MultiSelectFilter label="País" values={countryOptions} selected={countryFilter} onApply={setCountryFilter} />
         <MultiSelectFilter label="Grupo" values={groupOptions} selected={groupFilter} onApply={setGroupFilter} />
         <MultiSelectFilter
@@ -608,27 +590,7 @@ function GobiernoTab({ governance, chairs }) {
   return (
     <>
       <div style={{ display: 'flex', gap: 8, marginBottom: 13, flexWrap: 'wrap' }}>
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 8,
-            background: '#fff',
-            border: '.5px solid #e0dfd8',
-            borderRadius: 20,
-            padding: '7px 14px',
-            flex: '1 1 180px',
-          }}
-        >
-          <i className="ti ti-search" style={{ color: '#999', fontSize: 14 }}></i>
-          <input
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Buscar por nombre u órgano..."
-            aria-label="Buscar cargo"
-            style={{ border: 'none', outline: 'none', background: 'transparent', fontSize: 12.5, width: '100%' }}
-          />
-        </div>
+        <CampoBusqueda estilo={{ flex: '1 1 180px' }} value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Buscar por nombre u órgano..." aria-label="Buscar cargo" />
         <MultiSelectFilter label="País" values={countryOptions} selected={countryFilter} onApply={setCountryFilter} />
         <MultiSelectFilter label="Grupo" values={groupOptions} selected={groupFilter} onApply={setGroupFilter} />
         <MultiSelectFilter label="Comisión" values={bodyOptions} selected={bodyFilter} onApply={setBodyFilter} />

@@ -1,5 +1,7 @@
 'use client';
 
+import CampoBusqueda from '@/components/CampoBusqueda';
+
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
@@ -296,17 +298,7 @@ export default function TareasPage() {
 
       <div style={{ background: '#fff', borderRadius: 14, boxShadow: '0 1px 2px rgba(0,0,0,.04)' }}>
         <div style={{ display: 'flex', gap: 8, padding: 12, flexWrap: 'wrap', alignItems: 'center', borderBottom: '1px solid #efeee8' }}>
-          <label style={{ ...BOTON_FILTRO, minWidth: 220, cursor: 'text' }}>
-            <i className="ti ti-search" style={{ color: GRIS }} aria-hidden="true"></i>
-            <input
-              type="search"
-              value={busca}
-              onChange={(e) => setBusca(e.target.value)}
-              placeholder="Buscar tareas"
-              aria-label="Buscar tareas"
-              style={{ border: 'none', outline: 'none', font: 'inherit', fontSize: 13, width: '100%', background: 'transparent' }}
-            />
-          </label>
+          <CampoBusqueda estilo={{ minWidth: 220 }} value={busca} onChange={(e) => setBusca(e.target.value)} placeholder="Buscar tareas" aria-label="Buscar tareas" />
           <MultiSelectFilter
             label="Tipo"
             values={[...TIPOS.map((t) => ({ value: t.v, label: t.label })), { value: '', label: 'Sin tipo' }]}

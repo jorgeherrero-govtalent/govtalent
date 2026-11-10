@@ -663,6 +663,9 @@ a{color:inherit}
 .gt-lat-busca{padding:14px 12px 4px}
 .gt-lat.plegado .gt-lat-busca{padding:12px 10px 0}
 .gt-lat-scroll{flex:1;overflow-y:auto;padding:8px 12px 12px;display:flex;flex-direction:column;gap:2px}
+/* Sin barra de desplazamiento a la vista: el menú sigue moviéndose con la rueda, el trackpad o el dedo. */
+.gt-lat-scroll{scrollbar-width:none;-ms-overflow-style:none}
+.gt-lat-scroll::-webkit-scrollbar{display:none;width:0;height:0}
 .gt-lat.plegado .gt-lat-scroll{padding:8px 10px 12px}
 .gt-lat-principal{margin-bottom:4px}
 .gt-lat-it{display:flex;align-items:center;gap:11px;width:100%;padding:8px 10px;border-radius:9px;border:1px solid transparent;background:none;color:#1a1a18;font-size:14px;text-decoration:none;cursor:pointer;font-family:inherit;text-align:left;white-space:nowrap}
@@ -735,3 +738,14 @@ a{color:inherit}
   .gt-acciones{padding:12px 16px 0}
 }
 @media (prefers-reduced-motion:reduce){.gt-lat{transition:none}}
+
+/* Buscador de la plataforma (components/CampoBusqueda.js): el mismo aspecto que el del menú lateral. */
+.gt-campo{display:flex;align-items:center;gap:7px;box-sizing:border-box;min-width:0;max-width:100%;background:#fff;border:1px solid #e0dfd8;border-radius:9px;padding:8px 10px;cursor:text}
+.gt-campo:focus-within{border-color:#c9c7bd}
+.gt-campo>i{font-size:14px;color:#a8a49c;flex-shrink:0}
+.gt-campo input{flex:1;min-width:0;width:100%;border:none;outline:none;background:transparent;font-family:inherit;font-size:13.5px;color:#1a1a18;padding:0;margin:0;box-shadow:none;-webkit-appearance:none;appearance:none}
+.gt-campo input::-webkit-search-cancel-button{-webkit-appearance:none;display:none}
+.gt-campo-x{border:none;background:none;padding:0;cursor:pointer;color:#a8a49c;display:inline-flex;flex-shrink:0}
+.gt-campo-x i{font-size:13px}
+.gt-campo-kbd{font-size:11px;color:#8b8780;border:1px solid #e6e4dc;border-radius:5px;padding:1px 6px;background:#f7f6f2;white-space:nowrap;flex-shrink:0;line-height:16px}
+@media (max-width:720px){.gt-campo-kbd{display:none}}

@@ -1,5 +1,7 @@
 'use client';
 
+import CampoBusqueda from '@/components/CampoBusqueda';
+
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { toast } from '@/lib/toast';
@@ -977,14 +979,7 @@ function BuscadorActores({ projectId, categorias, yaEnMapa, onClose, onAdded }) 
           </div>
         </div>
 
-        <div className="field">
-          <input
-            autoFocus
-            value={q}
-            onChange={(e) => setQ(e.target.value)}
-            placeholder="Busca un diputado, una comisión, una organización…"
-          />
-        </div>
+        <CampoBusqueda atajo={false} estilo={{ marginBottom: 12 }} autoFocus value={q} onChange={(e) => setQ(e.target.value)} placeholder="Busca un diputado, una comisión, una organización…" />
 
         <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 12 }}>
           {Object.entries(FAMILIAS).map(([clave, cfg]) => (

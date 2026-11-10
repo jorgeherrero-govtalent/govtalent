@@ -1,5 +1,7 @@
 'use client';
 
+import CampoBusqueda from '@/components/CampoBusqueda';
+
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { toast } from '@/lib/toast';
@@ -752,14 +754,7 @@ function BuscadorAsuntos({ projectId, yaEn, onClose, onAdded }) {
           </div>
         </div>
 
-        <div className="field">
-          <input
-            autoFocus
-            value={q}
-            onChange={(e) => setQ(e.target.value)}
-            placeholder="Busca una ley, un expediente o un procedimiento…"
-          />
-        </div>
+        <CampoBusqueda atajo={false} estilo={{ marginBottom: 12 }} autoFocus value={q} onChange={(e) => setQ(e.target.value)} placeholder="Busca una ley, un expediente o un procedimiento…" />
 
         {/* Sin filtros, buscar "movilidad" mezcla leyes del Congreso,
             expedientes europeos y disposiciones del BOE, y encontrar el

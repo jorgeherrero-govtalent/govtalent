@@ -1,5 +1,7 @@
 'use client';
 
+import CampoBusqueda from '@/components/CampoBusqueda';
+
 import { useEffect, useMemo, useState } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
@@ -167,27 +169,7 @@ export default function DiputadosAutonomicosPage() {
       <PestanasParlamento p={p} />
 
       <div style={{ display: 'flex', gap: 8, marginBottom: 12, flexWrap: 'wrap' }}>
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 8,
-            background: '#fff',
-            border: '.5px solid #e0dfd8',
-            borderRadius: 20,
-            padding: '7px 14px',
-            flex: '1 1 180px',
-          }}
-        >
-          <i className="ti ti-search" style={{ color: '#999', fontSize: 14 }}></i>
-          <input
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Buscar por nombre..."
-            aria-label={`Buscar ${m.min} por nombre`}
-            style={{ border: 'none', outline: 'none', background: 'transparent', fontSize: 12.5, width: '100%' }}
-          />
-        </div>
+        <CampoBusqueda estilo={{ flex: '1 1 180px' }} value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Buscar por nombre..." aria-label={`Buscar ${m.min} por nombre`} />
         <MultiSelectFilter label="Grupo" values={groupOptions} selected={groupFilter} onApply={setGroupFilter} />
         {constituencyOptions.length > 0 && (
           <MultiSelectFilter label={cfg.filtroLugar || 'Circunscripción'} values={constituencyOptions} selected={constituencyFilter} onApply={setConstituencyFilter} />

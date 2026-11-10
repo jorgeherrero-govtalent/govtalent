@@ -1,5 +1,7 @@
 'use client';
 
+import CampoBusqueda from '@/components/CampoBusqueda';
+
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { parlamentoPorNombre } from '@/lib/ccaa/parlamentosUI';
@@ -297,28 +299,7 @@ export default function DirectorioListado({ slug, base, volverA, volverEtiqueta 
       ) : null}
 
       <div style={{ display: 'flex', gap: 8, marginBottom: tiposVisibles ? 10 : 14, flexWrap: 'wrap', alignItems: 'center' }}>
-        <div
-          style={{
-            flex: tiposVisibles ? '0 1 520px' : 1,
-            minWidth: 200,
-            display: 'flex',
-            alignItems: 'center',
-            gap: 8,
-            background: '#fff',
-            border: `.5px solid ${BORDE}`,
-            borderRadius: 20,
-            padding: '9px 16px',
-          }}
-        >
-          <i className="ti ti-search" style={{ color: '#999', fontSize: 15 }} aria-hidden="true"></i>
-          <input
-            value={q}
-            onChange={(e) => setQ(e.target.value)}
-            placeholder={`Buscar en ${seccion.titulo.toLowerCase()}…`}
-            aria-label={`Buscar en ${seccion.titulo}`}
-            style={{ border: 'none', outline: 'none', flex: 1, fontSize: 12.5, background: 'transparent' }}
-          />
-        </div>
+        <CampoBusqueda estilo={{ flex: tiposVisibles ? '0 1 520px' : 1, minWidth: 200 }} value={q} onChange={(e) => setQ(e.target.value)} placeholder={`Buscar en ${seccion.titulo.toLowerCase()}…`} aria-label={`Buscar en ${seccion.titulo}`} />
         {valoresTipo.length > 1 && !tiposVisibles ? (
           <MultiSelectFilter
             label={esAsociaciones ? 'Sector' : 'Tipo'}

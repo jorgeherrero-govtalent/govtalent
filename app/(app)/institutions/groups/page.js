@@ -1,5 +1,7 @@
 'use client';
 
+import CampoBusqueda from '@/components/CampoBusqueda';
+
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
@@ -71,27 +73,7 @@ export default function GroupsDirectoryPage() {
 
       <PestanasCongreso />
 
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: 8,
-          background: '#fff',
-          border: '.5px solid #e0dfd8',
-          borderRadius: 20,
-          padding: '8px 16px',
-          marginBottom: 16,
-          maxWidth: 380,
-        }}
-      >
-        <i className="ti ti-search" style={{ color: '#999', fontSize: 14 }}></i>
-        <input
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          placeholder="Buscar grupo parlamentario..."
-          style={{ border: 'none', outline: 'none', background: 'transparent', fontSize: 12.5, width: '100%' }}
-        />
-      </div>
+      <CampoBusqueda estilo={{ marginBottom: 16, maxWidth: 380 }} value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Buscar grupo parlamentario..." />
 
       {groups === null ? (
         <div className="spinner"></div>

@@ -1,5 +1,7 @@
 'use client';
 
+import CampoBusqueda from '@/components/CampoBusqueda';
+
 import BuscarCorreo, { useCorreosEncontrados } from '@/components/BuscarCorreo';
 import { useEffect, useMemo, useState } from 'react';
 import { useParams } from 'next/navigation';
@@ -100,19 +102,6 @@ const FILA = {
   textDecoration: 'none',
   color: 'inherit',
 };
-const BUSCADOR = {
-  display: 'flex',
-  alignItems: 'center',
-  gap: 8,
-  background: '#fff',
-  border: '.5px solid #e0dfd8',
-  borderRadius: 20,
-  padding: '7px 14px',
-  flex: '1 1 180px',
-};
-
-const INPUT = { border: 'none', outline: 'none', background: 'transparent', fontSize: 12.5, width: '100%' };
-
 const chip = (activo) => ({
   background: activo ? '#e8f4f0' : '#fff',
   border: `.5px solid ${activo ? '#1d6f5c' : '#e0dfd8'}`,
@@ -615,16 +604,7 @@ export default function GroupDetailPage() {
           {/* Con 74 portavocías en el PP, buscar por comisión es la
               forma normal de llegar al interlocutor. */}
           <div style={{ display: 'flex', gap: 8, marginBottom: 12, flexWrap: 'wrap' }}>
-            <div style={BUSCADOR}>
-              <i className="ti ti-search" style={{ color: '#999', fontSize: 14 }}></i>
-              <input
-                value={buscarPortavoz}
-                onChange={(e) => setBuscarPortavoz(e.target.value)}
-                placeholder="Buscar por nombre o comisión..."
-                aria-label="Buscar portavoz"
-                style={INPUT}
-              />
-            </div>
+            <CampoBusqueda estilo={{ flex: '1 1 180px' }} value={buscarPortavoz} onChange={(e) => setBuscarPortavoz(e.target.value)} placeholder="Buscar por nombre o comisión..." aria-label="Buscar portavoz" />
             {/* Desplegable además del buscador: así se ve de entrada en
                 qué comisiones tiene portavoz el grupo, sin adivinar. */}
             {comisionesConPortavoz.length > 1 && (
@@ -737,16 +717,7 @@ export default function GroupDetailPage() {
       {tab === 'diputados' && (
         <>
           <div style={{ display: 'flex', gap: 8, marginBottom: 12, flexWrap: 'wrap' }}>
-            <div style={BUSCADOR}>
-              <i className="ti ti-search" style={{ color: '#999', fontSize: 14 }}></i>
-              <input
-                value={buscarDiputado}
-                onChange={(e) => setBuscarDiputado(e.target.value)}
-                placeholder="Buscar por nombre o circunscripción..."
-                aria-label="Buscar diputado"
-                style={INPUT}
-              />
-            </div>
+            <CampoBusqueda estilo={{ flex: '1 1 180px' }} value={buscarDiputado} onChange={(e) => setBuscarDiputado(e.target.value)} placeholder="Buscar por nombre o circunscripción..." aria-label="Buscar diputado" />
             {circunscripciones.length > 1 && (
               <select
                 value={circunscripcion}
@@ -828,16 +799,7 @@ export default function GroupDetailPage() {
       {tab === 'equipo' && (
         <>
           <div style={{ display: 'flex', gap: 8, marginBottom: 12, flexWrap: 'wrap' }}>
-            <div style={BUSCADOR}>
-              <i className="ti ti-search" style={{ color: '#999', fontSize: 14 }}></i>
-              <input
-                value={buscarAsesor}
-                onChange={(e) => setBuscarAsesor(e.target.value)}
-                placeholder="Buscar por nombre o cargo..."
-                aria-label="Buscar asesor"
-                style={INPUT}
-              />
-            </div>
+            <CampoBusqueda estilo={{ flex: '1 1 180px' }} value={buscarAsesor} onChange={(e) => setBuscarAsesor(e.target.value)} placeholder="Buscar por nombre o cargo..." aria-label="Buscar asesor" />
             {/* Desplegable y no chips: el BOCG distingue hasta ocho
                 categorías y en fila no caben. */}
             {categoriasAsesor.length > 1 && (

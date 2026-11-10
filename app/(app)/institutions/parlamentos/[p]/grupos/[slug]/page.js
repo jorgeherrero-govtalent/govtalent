@@ -1,5 +1,7 @@
 'use client';
 
+import CampoBusqueda from '@/components/CampoBusqueda';
+
 import { useMemo, useState } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
@@ -24,8 +26,6 @@ const TABS = [
 const CARD = { background: '#fff', border: '.5px solid #e0dfd8', borderRadius: 12, padding: 18 };
 const LABEL = { fontSize: 10.5, fontWeight: 700, color: '#999', textTransform: 'uppercase', letterSpacing: '.3px', marginBottom: 13 };
 const FILA = { display: 'flex', alignItems: 'center', gap: 10, padding: '7px 0', borderBottom: '.5px solid #f0f0eb', textDecoration: 'none', color: 'inherit' };
-const BUSCADOR = { display: 'flex', alignItems: 'center', gap: 8, background: '#fff', border: '.5px solid #e0dfd8', borderRadius: 20, padding: '7px 14px', flex: '1 1 180px' };
-const INPUT = { border: 'none', outline: 'none', background: 'transparent', fontSize: 12.5, width: '100%' };
 const VER_MAS = { fontSize: 11, color: '#1d6f5c', fontWeight: 600, paddingTop: 10, cursor: 'pointer' };
 const chip = (activo) => ({
   background: activo ? '#e8f4f0' : '#fff',
@@ -40,10 +40,7 @@ const chip = (activo) => ({
 
 function Buscador({ value, onChange, placeholder }) {
   return (
-    <div style={BUSCADOR}>
-      <i className="ti ti-search" style={{ color: '#999', fontSize: 14 }}></i>
-      <input value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder} aria-label={placeholder} style={INPUT} />
-    </div>
+    <CampoBusqueda estilo={{ flex: '1 1 180px' }} value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder} aria-label={placeholder} />
   );
 }
 

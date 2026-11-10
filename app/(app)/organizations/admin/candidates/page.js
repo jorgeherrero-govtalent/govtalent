@@ -1,5 +1,7 @@
 'use client';
 
+import CampoBusqueda from '@/components/CampoBusqueda';
+
 import { useEffect, useState, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
@@ -347,13 +349,7 @@ function CandidatesBoardInner() {
             recuento de lo seleccionado y buscador dentro. Antes eran
             desplegables sueltos, con otro aspecto. */}
         <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-          <input
-            className="fsel"
-            placeholder="Buscar por nombre..."
-            value={nameFilter}
-            onChange={(e) => setNameFilter(e.target.value)}
-            style={{ minWidth: 150 }}
-          />
+          <CampoBusqueda estilo={{ minWidth: 150 }} placeholder="Buscar por nombre..." value={nameFilter} onChange={(e) => setNameFilter(e.target.value)} />
           <MultiSelectFilter
             label="Oferta"
             values={jobs.map((j) => ({ value: j.id, label: j.title }))}

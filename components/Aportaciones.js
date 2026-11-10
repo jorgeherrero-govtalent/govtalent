@@ -1,5 +1,7 @@
 'use client';
 
+import CampoBusqueda from '@/components/CampoBusqueda';
+
 import { useEffect, useMemo, useState } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { frasePlazo } from '@/lib/plazos';
@@ -214,36 +216,15 @@ export default function Aportaciones({ initiativeId, diasRestantes }) {
       {/* Con 250 organizaciones, buscar una concreta es lo primero que
           se necesita. */}
       {(items || []).length > 12 && (
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 8,
-            background: '#faf9f7',
-            borderRadius: 8,
-            padding: '8px 12px',
-            marginBottom: 14,
-          }}
-        >
-          <i className="ti ti-search" style={{ color: '#a8a49c', fontSize: 13 }}></i>
-          <input
-            value={busca}
-            onChange={(e) => setBusca(e.target.value)}
-            placeholder="Buscar una organización…"
-            aria-label="Buscar organización"
-            style={{ border: 'none', outline: 'none', background: 'transparent', fontSize: 12.5, width: '100%', fontFamily: 'inherit' }}
-          />
-          {busca && (
-            <button
-              type="button"
-              onClick={() => setBusca('')}
-              aria-label="Limpiar"
-              style={{ background: 'none', border: 'none', color: '#b8b4ac', cursor: 'pointer', padding: 0, fontSize: 14 }}
-            >
-              ×
-            </button>
-          )}
-        </div>
+        <CampoBusqueda
+          atajo={false}
+          estilo={{ marginBottom: 14 }}
+          value={busca}
+          onChange={(e) => setBusca(e.target.value)}
+          onLimpiar={() => setBusca('')}
+          placeholder="Buscar una organización…"
+          aria-label="Buscar organización"
+        />
       )}
 
       {filtradas.length === 0 ? (

@@ -1,5 +1,7 @@
 'use client';
 
+import CampoBusqueda from '@/components/CampoBusqueda';
+
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
@@ -195,17 +197,7 @@ export default function ParlamentosAutonomicosPage() {
         <div>
           <h1 style={{ fontSize: 21, fontWeight: 600, margin: 0, letterSpacing: '-.3px' }}>Parlamentos autonómicos</h1>
         </div>
-        <label style={{ display: 'flex', alignItems: 'center', gap: 8, background: '#fff', border: '1px solid #e0dfd8', borderRadius: 9, padding: '8px 12px', minWidth: 260 }}>
-          <i className="ti ti-search" aria-hidden="true" style={{ color: GRIS }}></i>
-          <input
-            type="search"
-            value={busca}
-            onChange={(ev) => setBusca(ev.target.value)}
-            placeholder="Buscar por título o número"
-            aria-label="Buscar por título o número"
-            style={{ border: 'none', outline: 'none', font: 'inherit', fontSize: 13, background: 'transparent', width: '100%' }}
-          />
-        </label>
+        <CampoBusqueda estilo={{ minWidth: 260 }} value={busca} onChange={(ev) => setBusca(ev.target.value)} placeholder="Buscar por título o número" aria-label="Buscar por título o número" />
       </div>
 
       {/* Presupuestos del año: lo primero que se mira en otoño. */}

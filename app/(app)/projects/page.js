@@ -1,5 +1,7 @@
 'use client';
 
+import CampoBusqueda from '@/components/CampoBusqueda';
+
 import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
@@ -509,25 +511,7 @@ function Proyectos() {
 
         {proyectos.length > 0 && (
           <div style={{ display: 'flex', gap: 8, marginBottom: 14, flexWrap: 'wrap' }}>
-            <div
-              style={{
-                flex: 1,
-                minWidth: 200,
-                display: 'flex',
-                alignItems: 'center',
-                gap: 8,
-                ...CARD,
-                padding: '9px 12px',
-              }}
-            >
-              <i className="ti ti-search" style={{ fontSize: 15, color: '#a8a49c' }}></i>
-              <input
-                value={busqueda}
-                onChange={(e) => setBusqueda(e.target.value)}
-                placeholder="Buscar por nombre…"
-                style={{ border: 'none', outline: 'none', fontSize: 12.5, fontFamily: 'inherit', flex: 1, background: 'none' }}
-              />
-            </div>
+            <CampoBusqueda estilo={{ flex: 1, minWidth: 200 }} atajo={false} value={busqueda} onChange={(e) => setBusqueda(e.target.value)} placeholder="Buscar por nombre…" />
             {/* Con la etiqueta del plan y sin candado: ya usas ese
                 distintivo en Configuración y en la cabecera de la
                 organización, y además dice qué plan lo abre. Un candado

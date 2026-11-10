@@ -1,5 +1,7 @@
 'use client';
 
+import CampoBusqueda from '@/components/CampoBusqueda';
+
 import { useMemo, useState } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
@@ -77,27 +79,7 @@ export default function ComisionesAutonomicasPage() {
       <PestanasParlamento p={p} />
 
       <div style={{ display: 'flex', gap: 9, marginBottom: 16, flexWrap: 'wrap', alignItems: 'center' }}>
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 8,
-            background: '#fff',
-            border: '.5px solid #e0dfd8',
-            borderRadius: 22,
-            padding: '8px 15px',
-            flex: '1 1 220px',
-          }}
-        >
-          <i className="ti ti-search" style={{ color: '#999', fontSize: 14 }}></i>
-          <input
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Buscar comisión o quien la preside..."
-            aria-label="Buscar comisión"
-            style={{ border: 'none', outline: 'none', background: 'transparent', fontSize: 12.5, width: '100%' }}
-          />
-        </div>
+        <CampoBusqueda estilo={{ flex: '1 1 220px' }} value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Buscar comisión o quien la preside..." aria-label="Buscar comisión" />
         <MultiSelectFilter label="Grupo" values={grupos} selected={grupoFilter} onApply={setGrupoFilter} />
         <MultiSelectFilter label="Tipo" values={tipos} selected={tipoFilter} onApply={setTipoFilter} />
         {(grupoFilter.size > 0 || tipoFilter.size > 0 || search) && (

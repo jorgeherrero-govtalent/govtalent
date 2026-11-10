@@ -1,5 +1,7 @@
 'use client';
 
+import CampoBusqueda from '@/components/CampoBusqueda';
+
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
@@ -260,12 +262,7 @@ export default function OrganizationsDatabasePage() {
       ) : (
         <>
           <div style={{ display: 'flex', gap: 8, marginBottom: 12, flexWrap: 'wrap', alignItems: 'center' }}>
-            <input
-              placeholder="Buscar por nombre, sector o ubicación..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              style={{ flex: 1, minWidth: 220, padding: '8px 12px', border: '.5px solid #e0dfd8', borderRadius: 8, fontSize: 13, outline: 'none' }}
-            />
+            <CampoBusqueda estilo={{ flex: 1, minWidth: 220 }} placeholder="Buscar por nombre, sector o ubicación..." value={search} onChange={(e) => setSearch(e.target.value)} />
             {[
               ['todas', 'Todas'],
               ['verificadas', 'Verificadas'],
