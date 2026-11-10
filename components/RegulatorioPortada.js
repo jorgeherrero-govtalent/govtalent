@@ -302,13 +302,39 @@ export default function RegulatorioPortada({ ambito }) {
 
   return (
     <div className="sec" style={{ maxWidth: 1080 }}>
-      <div style={{ marginBottom: 18 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <Bandera pais={a.pais} size={18} />
-          <h1 style={{ fontSize: 21, fontWeight: 600, margin: 0, letterSpacing: '-.3px' }}>{a.titulo}</h1>
-        </div>
-        <p style={{ fontSize: 13, color: '#8b8780', margin: '4px 0 0' }}>{a.subtitulo}</p>
-      </div>
+      {/* Regulatorio es una sola entrada del menú desde el 10-11-2026:
+          España y Unión Europea pasan a ser pestañas. Sin subtítulo. */}
+      <h1 style={{ fontSize: 21, fontWeight: 600, margin: '0 0 12px', letterSpacing: '-.3px' }}>Regulatorio</h1>
+      <nav aria-label="Ámbito" style={{ display: 'flex', gap: 4, borderBottom: '1px solid #e5e4de', marginBottom: 18 }}>
+        {[
+          ['espana', '/regulatorio/espana'],
+          ['ue', '/regulatorio/union-europea'],
+        ].map(([id, href]) => {
+          const on = id === ambito;
+          return (
+            <Link
+              key={id}
+              href={href}
+              aria-current={on ? 'page' : undefined}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 7,
+                fontSize: 13.5,
+                fontWeight: on ? 600 : 500,
+                color: on ? '#1a1a18' : '#57534e',
+                borderBottom: `2px solid ${on ? '#1a1a18' : 'transparent'}`,
+                marginBottom: -1,
+                padding: '9px 12px',
+                textDecoration: 'none',
+              }}
+            >
+              <Bandera pais={AMBITOS[id].pais} size={15} />
+              {AMBITOS[id].titulo}
+            </Link>
+          );
+        })}
+      </nav>
 
       <div className="reg-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 14 }}>
         {ambito === 'ue' ? (

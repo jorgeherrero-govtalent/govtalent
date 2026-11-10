@@ -48,53 +48,44 @@ const PRINCIPALES = [
   { href: '/seguimiento', etiqueta: 'Seguimiento', icono: 'ti-eye', activo: (p) => p.startsWith('/seguimiento') },
 ];
 
-// Organizaciones y Empleos están ocultos desde el 04-10-2026 (y sus rutas
-// redirigen a la portada: ver RUTAS_OCULTAS en middleware.js).
+// Menú del 10-11-2026 (canvas «GovTalent: navegación con tres productos»,
+// maqueta F): como mucho 15 entradas. Regulatorio es una sola entrada con
+// pestañas España y Unión Europea; Directorio es una portada que lleva a
+// Instituciones y Organizaciones; Contactos pasa a llamarse Buscador.
+// Licitaciones irá al final, en «Contratación pública», cuando el módulo
+// tenga pantallas (los datos ya entran: sql/123).
+const enDirectorio = (p) =>
+  p === '/directorio' ||
+  p.startsWith('/directorio/') ||
+  p.startsWith('/institutions') ||
+  (p.startsWith('/instituciones') && !p.startsWith('/instituciones/directorio'));
+
 const SECCIONES = [
   {
-    titulo: 'Regulatorio',
+    titulo: 'Vigilancia',
     items: [
-      { href: '/regulatorio/union-europea', etiqueta: 'Unión Europea', icono: 'ti-world', activo: enUnionEuropea },
-      { href: '/regulatorio/espana', etiqueta: 'España', icono: 'ti-building-community', activo: enEspana },
+      {
+        href: '/regulatorio/espana',
+        etiqueta: 'Regulatorio',
+        icono: 'ti-timeline-event',
+        activo: (p) => enEspana(p) || enUnionEuropea(p),
+      },
     ],
   },
   {
-    titulo: 'Directorio',
+    titulo: 'Directorio y contactos',
     items: [
-      // Tres entradas desde el 05-10-2026: Instituciones, Organizaciones
-      // (patronales, asociaciones, empresa pública, medios y actores
-      // sociales) y la Base de datos de cargos, que antes era la tarjeta
-      // negra de Instituciones.
-      {
-        href: '/institutions',
-        etiqueta: 'Instituciones',
-        icono: 'ti-building-bank',
-        activo: (p) =>
-          p.startsWith('/institutions') || (p.startsWith('/instituciones') && !p.startsWith('/instituciones/directorio')),
-      },
-      {
-        href: '/directorio/organizaciones',
-        etiqueta: 'Organizaciones',
-        icono: 'ti-users',
-        activo: (p) => p.startsWith('/directorio/organizaciones'),
-      },
+      { href: '/directorio', etiqueta: 'Directorio', icono: 'ti-building-bank', activo: enDirectorio },
       {
         href: '/instituciones/directorio',
         etiqueta: 'Base de datos',
         icono: 'ti-database',
         activo: (p) => p.startsWith('/instituciones/directorio'),
       },
-    ],
-  },
-  // Buscar y enriquecer (07-10-2026, sql/75-76): el buscador de contactos
-  // en lenguaje natural, con créditos para enriquecer, y las listas que
-  // avisan de los cambios.
-  {
-    titulo: 'Buscar y enriquecer',
-    items: [
+      // El buscador de contactos en lenguaje natural (antes «Contactos»).
       {
         href: '/contactos',
-        etiqueta: 'Contactos',
+        etiqueta: 'Buscador',
         icono: 'ti-user-search',
         activo: (p) => p.startsWith('/contactos') && !p.startsWith('/contactos/listas'),
       },

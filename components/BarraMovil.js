@@ -45,11 +45,11 @@ const MODULOS = [
     activo: (p) => p.startsWith('/novedades') || p.startsWith('/alarmas') || p.startsWith('/seguimiento'),
   },
   {
-    href: '/institutions',
-    etiqueta: 'Instituciones',
+    href: '/directorio',
+    etiqueta: 'Directorio',
     icono: 'ti-building-bank',
-    // En el móvil una sola entrada para todo el Directorio: Instituciones,
-    // Organizaciones y Base de datos se alcanzan desde ahí.
+    // En el móvil una sola entrada para todo el Directorio: su portada lleva
+    // a Instituciones y Organizaciones, y Base de datos se alcanza desde ahí.
     activo: (p) => p.startsWith('/institutions') || p.startsWith('/instituciones') || p.startsWith('/directorio'),
   },
   { href: '/tareas', etiqueta: 'Tareas', icono: 'ti-checkbox', activo: (p) => p.startsWith('/tareas') },
