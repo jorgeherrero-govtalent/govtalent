@@ -7,6 +7,7 @@ import { createClient } from '@/lib/supabase/client';
 import { toast } from '@/lib/toast';
 import UpgradeModal from '@/components/UpgradeModal';
 import SelectorFecha from '@/components/SelectorFecha';
+import Paginacion, { usePaginacion } from '@/components/Paginacion';
 import {
   ADJUDICADAS,
   EN_PLAZO,
@@ -41,7 +42,6 @@ import {
  * la duración de los contratos).
  */
 
-const POR_PAGINA = 20;
 const MORADO = '#6d5aef';
 const NEGRO = '#1a1a18';
 const GRIS = '#6e6a63';
@@ -363,6 +363,11 @@ const ESTILOS = `
 .gt-lic-seg button.on { background: #fff; box-shadow: 0 1px 2px rgba(26,26,24,.08); font-weight: 600; color: #1a1a18; }
 .gt-lic-seg button:disabled { cursor: default; color: #9a968e; }
 .gt-lic-pronto { font-size: 10px; font-weight: 600; color: ${GRIS}; background: #f1f0eb; border-radius: 5px; padding: 1px 6px; }
+.gt-lic-activos { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.gt-lic-activo { display: inline-flex; align-items: center; gap: 4px; font-size: 12.5px; font-weight: 500; color: ${MORADO}; background: #f3f1fe; border: .5px solid #ddd8fc; border-radius: 8px; padding: 4px 4px 4px 10px; max-width: 360px; }
+.gt-lic-activo button { border: none; background: none; color: ${MORADO}; cursor: pointer; padding: 2px 4px; border-radius: 5px; display: inline-flex; line-height: 1; }
+.gt-lic-activo button:hover { background: #e7e3fd; }
+.gt-lic-activo button i { font-size: 13px; }
 .gt-lic-barra { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
 .gt-lic-barra b { font-size: 14.5px; }
 .gt-lic-pill { font-size: 12px; color: ${MORADO}; background: #f3f1fe; border-radius: 6px; padding: 2px 8px; font-weight: 600; }
@@ -403,7 +408,6 @@ const ESTILOS = `
 .gt-lic-tabla tr:last-child td { border-bottom: none; }
 .gt-lic-tabla a { color: #1a1a18; font-weight: 500; text-decoration: none; }
 .gt-lic-tabla a:hover { text-decoration: underline; }
-.gt-lic-mas { align-self: center; font: inherit; font-size: 13.5px; border: 1px solid #dcdbd4; border-radius: 9px; background: #fff; padding: 8px 16px; cursor: pointer; }
 .gt-lic-vacio { background: #fff; border: 1px dashed #dcdbd4; border-radius: 12px; padding: 32px; text-align: center; color: #55524c; font-size: 14px; }
 .gt-lic-esqueleto { height: 170px; border-radius: 12px; background: linear-gradient(90deg, #f1f0eb 0%, #f7f6f2 50%, #f1f0eb 100%); background-size: 200% 100%; animation: gt-lic-brillo 1.2s infinite linear; }
 @keyframes gt-lic-brillo { from { background-position: 200% 0; } to { background-position: -200% 0; } }
@@ -447,6 +451,9 @@ export default function Licitaciones() {
   const [error, setError] = useState(null);
   const [upsell, setUpsell] = useState(false);
   const pedido = useRef(0);
+  // La paginación de la plataforma (la de Organismos). Vuelve a la
+  // primera página al cambiar la búsqueda, los filtros o la pestaña.
+  const pag = usePaginacion(total ?? 0, [pestana, busqueda, f, orden, expediente]);
 
   // El usuario, su plan y lo que ya sigue o ha descartado.
   useEffect(() => {
@@ -493,7 +500,7 @@ export default function Licitaciones() {
   ocultasRef.current = { seguidas, descartadas };
 
   const consulta = useCallback(
-    (desde) => {
+    (desde, tam) => {
       let q = supabase
         .from('contratacion_expedientes')
         .select(COLUMNAS, { count: 'exact' })
@@ -540,7 +547,7 @@ export default function Licitaciones() {
       else if (orden === 'importe') q = q.order('importe_sin_iva', { ascending: false, nullsFirst: false });
       q = q.order('detectado_en', { ascending: false }).order('id');
 
-      return q.range(desde, desde + POR_PAGINA - 1);
+      return q.range(desde, desde + tam - 1);
     },
     [supabase, pestana, busqueda, f, orden, expediente],
   );
@@ -567,7 +574,7 @@ export default function Licitaciones() {
     setCargando(true);
     setError(null);
     (async () => {
-      const { data, count, error: e } = await consulta(0);
+      const { data, count, error: e } = await consulta(pag.desde, pag.pageSize);
       if (n !== pedido.current) return;
       if (e) {
         setError('No se han podido cargar las licitaciones. Vuelve a intentarlo en un momento.');
@@ -584,26 +591,17 @@ export default function Licitaciones() {
       setCargando(false);
     })();
     // seguidas solo cuenta si se piden ocultas.
-  }, [listoUsuario, userId, consulta, traerAdjudicaciones, pestana, f.ocultarSeguidas ? seguidas : null]);
+  }, [listoUsuario, userId, consulta, traerAdjudicaciones, pestana, pag.desde, pag.pageSize, f.ocultarSeguidas ? seguidas : null]);
 
-  async function cargarMas() {
-    const n = pedido.current;
-    setCargando(true);
-    const { data, error: e } = await consulta(filas.length);
-    if (n !== pedido.current) return;
-    if (e) {
-      toast.error('No se han podido cargar más');
-      setCargando(false);
+  // Al cambiar de página, arriba del todo.
+  const primeraCarga = useRef(true);
+  useEffect(() => {
+    if (primeraCarga.current) {
+      primeraCarga.current = false;
       return;
     }
-    const m = await traerAdjudicaciones(data || []);
-    setFilas((prev) => {
-      const ya = new Set(prev.map((x) => x.id));
-      return [...prev, ...(data || []).filter((x) => !ya.has(x.id))];
-    });
-    setAdjs((prev) => ({ ...prev, ...m }));
-    setCargando(false);
-  }
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }, [pag.current]);
 
   async function seguir(l) {
     if (!userId) return;
@@ -676,6 +674,44 @@ export default function Licitaciones() {
   const nFechas = [f.finDesde, f.finHasta].filter(Boolean).length;
   const nFiltros =
     nComunes + f.sectores.length + f.territorios.length + (f.organo ? 1 : 0) + f.tipos.length + f.procedimientos.length + nImporte + nFechas;
+
+  // Lo que está filtrando, en etiquetas que se quitan de una en una.
+  const quitarDe = (k, v) => () => cambiar(k, f[k].filter((x) => x !== v));
+  const nombre = (lista, v) => lista.find((o) => o.v === v)?.label || v;
+  const fechaCorta = (iso) => {
+    const [a, m, d] = iso.split('-').map(Number);
+    return `${d} ${MESES[m - 1]} ${a}`;
+  };
+  const activos = [
+    f.publicadas24 && { k: 'p24', label: 'Publicadas en las últimas 24 h', quitar: () => cambiar('publicadas24', false) },
+    f.actualizadas24 && { k: 'a24', label: 'Actualizadas en las últimas 24 h', quitar: () => cambiar('actualizadas24', false) },
+    f.ocultarSeguidas && { k: 'oc', label: 'Sin las que ya sigo', quitar: () => cambiar('ocultarSeguidas', false) },
+    ...f.sectores.map((v) => ({ k: `s${v}`, label: nombre(SECTORES, v), quitar: quitarDe('sectores', v) })),
+    ...f.territorios.map((v) => ({ k: `t${v}`, label: nombre(TERRITORIOS, v), quitar: quitarDe('territorios', v) })),
+    f.organo && { k: 'org', label: `Órgano: ${f.organo}`, quitar: () => cambiar('organo', '') },
+    ...f.tipos.map((v) => ({ k: `ti${v}`, label: nombre(TIPOS, v), quitar: quitarDe('tipos', v) })),
+    ...f.procedimientos.map((v) => ({ k: `pr${v}`, label: nombre(PROCEDIMIENTOS, v), quitar: quitarDe('procedimientos', v) })),
+    nImporte > 0 && {
+      k: 'imp',
+      label:
+        f.importeMin !== '' && f.importeMax !== ''
+          ? `Importe: ${Number(f.importeMin).toLocaleString('es-ES')} a ${Number(f.importeMax).toLocaleString('es-ES')} €`
+          : f.importeMin !== ''
+            ? `Importe desde ${Number(f.importeMin).toLocaleString('es-ES')} €`
+            : `Importe hasta ${Number(f.importeMax).toLocaleString('es-ES')} €`,
+      quitar: () => setF((prev) => ({ ...prev, importeMin: '', importeMax: '' })),
+    },
+    nFechas > 0 && {
+      k: 'fin',
+      label:
+        f.finDesde && f.finHasta
+          ? `Fin de presentación: ${fechaCorta(f.finDesde)} a ${fechaCorta(f.finHasta)}`
+          : f.finDesde
+            ? `Fin de presentación desde ${fechaCorta(f.finDesde)}`
+            : `Fin de presentación hasta ${fechaCorta(f.finHasta)}`,
+      quitar: () => setF((prev) => ({ ...prev, finDesde: '', finHasta: '' })),
+    },
+  ].filter(Boolean);
 
   if (userId === null) {
     return (
@@ -840,6 +876,24 @@ export default function Licitaciones() {
             </div>
           ) : (
             <>
+              {activos.length > 0 && (
+                <div className="gt-lic-activos" aria-label="Filtros aplicados">
+                  {activos.map((a) => (
+                    <span key={a.k} className="gt-lic-activo">
+                      {a.label}
+                      <button type="button" onClick={a.quitar} aria-label={`Quitar ${a.label}`} title="Quitar">
+                        <i className="ti ti-x" aria-hidden="true" />
+                      </button>
+                    </span>
+                  ))}
+                  {activos.length > 1 && (
+                    <button type="button" className="gt-lic-limpiar" onClick={() => setF(FILTROS_VACIOS)}>
+                      Quitar todos
+                    </button>
+                  )}
+                </div>
+              )}
+
               <div className="gt-lic-barra">
                 <b>
                   {total == null ? (cargando ? 'Buscando…' : '') : `${total.toLocaleString('es-ES')} ${total === 1 ? 'licitación' : 'licitaciones'}`}
@@ -897,16 +951,7 @@ export default function Licitaciones() {
                   ))
                 ))}
 
-              {filas.length > 0 && total != null && filas.length < total && (
-                <button type="button" className="gt-lic-mas" onClick={cargarMas} disabled={cargando}>
-                  {cargando ? 'Cargando…' : 'Ver más'}
-                </button>
-              )}
-
-              <small style={{ color: GRIS, fontSize: 12 }}>
-                Fuentes: Plataforma de Contratación del Sector Público (datos abiertos, se actualiza cada día) y Diario Oficial de la
-                Unión Europea (TED).
-              </small>
+              {filas.length > 0 && total != null && <Paginacion pag={pag} acento={NEGRO} />}
             </>
           )}
         </div>
