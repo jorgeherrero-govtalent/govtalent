@@ -15,7 +15,9 @@ import { createPortal } from 'react-dom';
  * upsell sabiendo exactamente qué se estaba perdiendo, en lugar de
  * chocar con un candado antes de haber visto nada.
  */
-export default function MultiSelectFilter({ label, values, selected, onApply, bloqueado, onBloqueado }) {
+// `acento` y `fondoActivo` cambian el verde por otro color (Licitaciones
+// los usa en morado, 10-11-2026). Sin ellos, todo queda como estaba.
+export default function MultiSelectFilter({ label, values, selected, onApply, bloqueado, onBloqueado, acento = '#1d6f5c', fondoActivo = '#f0f8f5', aplicarColor }) {
   const [isOpen, setIsOpen] = useState(false);
   const [draft, setDraft] = useState(selected);
   const [search, setSearch] = useState('');
@@ -73,12 +75,12 @@ export default function MultiSelectFilter({ label, values, selected, onApply, bl
           display: 'flex',
           alignItems: 'center',
           gap: 6,
-          background: active ? '#f0f8f5' : '#faf9f5',
-          border: `.5px solid ${active ? '#1d6f5c' : '#e0dfd8'}`,
+          background: active ? fondoActivo : '#faf9f5',
+          border: `.5px solid ${active ? acento : '#e0dfd8'}`,
           borderRadius: 8,
           padding: '8px 12px',
           fontSize: 12.5,
-          color: active ? '#1d6f5c' : '#666',
+          color: active ? acento : '#666',
           fontWeight: active ? 600 : 400,
           cursor: 'pointer',
           whiteSpace: 'nowrap',
@@ -123,16 +125,16 @@ export default function MultiSelectFilter({ label, values, selected, onApply, bl
                     outline: 'none',
                     fontFamily: 'inherit',
                   }}
-                  onFocus={(e) => (e.target.style.borderColor = '#1d6f5c')}
+                  onFocus={(e) => (e.target.style.borderColor = acento)}
                   onBlur={(e) => (e.target.style.borderColor = '#e0dfd8')}
                 />
               </div>
 
-              <div style={{ padding: 10, borderBottom: '.5px solid #e0dfd8', display: 'flex', gap: 10, fontSize: 11, color: '#1d6f5c' }}>
+              <div style={{ padding: 10, borderBottom: '.5px solid #e0dfd8', display: 'flex', gap: 10, fontSize: 11, color: acento }}>
                 <button
                   type="button"
                   onClick={() => setDraft(new Set(values.map((v) => v.value)))}
-                  style={{ background: 'none', border: 'none', color: '#1d6f5c', cursor: 'pointer', padding: 0 }}
+                  style={{ background: 'none', border: 'none', color: acento, cursor: 'pointer', padding: 0 }}
                 >
                   Seleccionar todos
                 </button>
@@ -204,7 +206,7 @@ export default function MultiSelectFilter({ label, values, selected, onApply, bl
                     border: 'none',
                     // Morado cuando lleva al upsell: en el sistema el
                     // morado es Pro, y así el botón anticipa adónde va.
-                    background: bloqueado ? '#6d5aef' : '#1d6f5c',
+                    background: bloqueado ? '#6d5aef' : aplicarColor || acento,
                     color: '#fff',
                     fontSize: 12.5,
                     fontWeight: 600,
