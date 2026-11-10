@@ -371,16 +371,7 @@ function DeputiesDirectoryInner() {
               type="button"
               aria-pressed={soloEnFunciones === v}
               onClick={() => setSoloEnFunciones(v)}
-              style={{
-                fontSize: 12,
-                padding: '5px 12px',
-                borderRadius: 999,
-                fontFamily: 'inherit',
-                cursor: 'pointer',
-                border: soloEnFunciones === v ? '.5px solid #6d5aef' : '.5px solid #e0dfd8',
-                background: soloEnFunciones === v ? '#f1effe' : '#fff',
-                color: soloEnFunciones === v ? '#3d2fb3' : '#3d3a35',
-              }}
+              className={`gt-filtro${soloEnFunciones === v ? ' on' : ''}`}
             >
               {texto}
             </button>

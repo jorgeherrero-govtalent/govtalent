@@ -39,15 +39,23 @@ const REGISTRADOS_SIN_FICHA = {
 };
 
 const CARD = { background: '#fff', borderRadius: 16, boxShadow: '0 1px 2px rgba(0,0,0,.04)' };
+// Mismo aspecto que .gt-filtro (globals.css).
 const CHIP = (on) => ({
-  font: 'inherit',
-  fontSize: 12.5,
-  padding: '7px 12px',
-  borderRadius: 999,
+  display: 'inline-flex',
+  alignItems: 'center',
+  gap: 6,
+  boxSizing: 'border-box',
+  minHeight: 38,
+  padding: '8px 12px',
+  background: on ? '#f4f3ef' : '#fff',
   border: `1px solid ${on ? '#1a1a18' : '#e0dfd8'}`,
-  background: on ? '#1a1a18' : '#fff',
-  color: on ? '#fff' : '#1a1a18',
+  borderRadius: 9,
+  fontFamily: 'inherit',
+  fontSize: 13,
+  color: on ? '#1a1a18' : '#57534e',
+  fontWeight: on ? 600 : 400,
   cursor: 'pointer',
+  whiteSpace: 'nowrap',
 });
 
 function Etiqueta({ tipo }) {

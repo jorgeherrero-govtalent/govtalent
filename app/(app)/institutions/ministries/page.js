@@ -1017,18 +1017,7 @@ function MinisteriosTab({ members, officials, organigramas }) {
               <button
                 key={o.id}
                 onClick={() => setOrden(o.id)}
-                style={{
-                  fontSize: 12,
-                  fontFamily: 'inherit',
-                  padding: '7px 13px',
-                  borderRadius: 20,
-                  cursor: 'pointer',
-                  border: `.5px solid ${on ? '#1d6f5c' : '#e0dfd8'}`,
-                  background: on ? '#e8f4f0' : '#fff',
-                  color: on ? '#1d6f5c' : '#666',
-                  fontWeight: on ? 600 : 400,
-                  whiteSpace: 'nowrap',
-                }}
+                className={`gt-filtro${on ? ' on' : ''}`}
               >
                 {o.label}
               </button>

@@ -205,16 +205,7 @@ export default function ProceduresDirectoryPage() {
 
         <span
           onClick={() => setSoloVivos((v) => !v)}
-          style={{
-            background: soloVivos ? '#EEEDFE' : '#fff',
-            border: `.5px solid ${soloVivos ? '#6d5aef' : '#e0dfd8'}`,
-            color: soloVivos ? '#3C3489' : '#555',
-            borderRadius: 20,
-            padding: '7px 12px',
-            fontSize: 12,
-            cursor: 'pointer',
-            whiteSpace: 'nowrap',
-          }}
+          className={`gt-filtro${soloVivos ? ' on' : ''}`}
         >
           En tramitación {soloVivos && <i className="ti ti-x" style={{ fontSize: 11 }}></i>}
         </span>
@@ -235,16 +226,7 @@ export default function ProceduresDirectoryPage() {
             }
             setSoloEspanoles((v) => !v);
           }}
-          style={{
-            background: soloEspanoles ? '#e8f4f0' : '#fff',
-            border: `.5px solid ${soloEspanoles ? '#1d6f5c' : '#e0dfd8'}`,
-            color: soloEspanoles ? '#1d6f5c' : '#555',
-            borderRadius: 20,
-            padding: '7px 12px',
-            fontSize: 12,
-            cursor: 'pointer',
-            whiteSpace: 'nowrap',
-          }}
+          className={`gt-filtro${soloEspanoles ? ' on' : ''}`}
         >
           Con españoles {soloEspanoles && <i className="ti ti-x" style={{ fontSize: 11 }}></i>}
         </span>

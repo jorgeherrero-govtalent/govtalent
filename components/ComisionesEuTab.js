@@ -157,16 +157,7 @@ export default function ComisionesEuTab() {
         <button
           type="button"
           onClick={() => setMinEspanoles((v) => !v)}
-          style={{
-            background: minEspanoles ? '#e8f4f0' : '#fff',
-            border: `.5px solid ${minEspanoles ? '#1d6f5c' : '#e0dfd8'}`,
-            color: minEspanoles ? '#1d6f5c' : '#555',
-            borderRadius: 20,
-            padding: '8px 14px',
-            fontSize: 12,
-            cursor: 'pointer',
-            whiteSpace: 'nowrap',
-          }}
+          className={`gt-filtro${minEspanoles ? ' on' : ''}`}
         >
           Con españoles
         </button>

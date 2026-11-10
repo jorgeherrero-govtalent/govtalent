@@ -214,16 +214,24 @@ export default function LeyesList() {
 
   const activeCount = comisionFilter.size + tipoFilter.size;
 
-  const chip = (activo) => ({
-    background: activo ? '#EEEDFE' : '#fff',
-    border: `.5px solid ${activo ? '#6d5aef' : '#e0dfd8'}`,
-    color: activo ? '#3C3489' : '#555',
-    borderRadius: 20,
-    padding: '7px 12px',
-    fontSize: 12,
-    cursor: 'pointer',
-    whiteSpace: 'nowrap',
-  });
+  // Mismo aspecto que .gt-filtro (globals.css).
+const chip = (activo) => ({
+  display: 'inline-flex',
+  alignItems: 'center',
+  gap: 6,
+  boxSizing: 'border-box',
+  minHeight: 38,
+  padding: '8px 12px',
+  background: activo ? '#f4f3ef' : '#fff',
+  border: `1px solid ${activo ? '#1a1a18' : '#e0dfd8'}`,
+  borderRadius: 9,
+  fontFamily: 'inherit',
+  fontSize: 13,
+  color: activo ? '#1a1a18' : '#57534e',
+  fontWeight: activo ? 600 : 400,
+  cursor: 'pointer',
+  whiteSpace: 'nowrap',
+});
 
   return (
     <>
@@ -234,7 +242,7 @@ export default function LeyesList() {
             selector. Antes solo había dos botones y no se podía volver a
             "todas": los 50 decretos-ley, que están todos concluidos,
             quedaban invisibles al filtrar por tipo. */}
-        <div style={{ display: 'flex', gap: 2, background: '#fff', border: '.5px solid #e0dfd8', borderRadius: 22, padding: 3 }}>
+        <div className="gt-seg">
           {[
             { id: 'progreso', label: `En progreso (${enProgreso})` },
             { id: 'bloqueadas', label: `Bloqueadas (${bloqueadas})` },
@@ -244,15 +252,7 @@ export default function LeyesList() {
             <span
               key={e.id}
               onClick={() => setEstado(e.id)}
-              style={{
-                fontSize: 12,
-                padding: '5px 11px',
-                borderRadius: 18,
-                cursor: 'pointer',
-                whiteSpace: 'nowrap',
-                background: estado === e.id ? '#6d5aef' : 'transparent',
-                color: estado === e.id ? '#fff' : '#666',
-              }}
+              className={`gt-seg-it${estado === e.id ? ' on' : ''}`}
             >
               {e.label}
             </span>

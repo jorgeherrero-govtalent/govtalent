@@ -198,16 +198,7 @@ export default function InitiativesDirectoryPage() {
 
         <span
           onClick={() => setOnlyOpen((v) => !v)}
-          style={{
-            background: onlyOpen ? '#EEEDFE' : '#fff',
-            border: `.5px solid ${onlyOpen ? '#6d5aef' : '#e0dfd8'}`,
-            color: onlyOpen ? '#3C3489' : '#555',
-            borderRadius: 20,
-            padding: '7px 12px',
-            fontSize: 12,
-            cursor: 'pointer',
-            whiteSpace: 'nowrap',
-          }}
+          className={`gt-filtro${onlyOpen ? ' on' : ''}`}
         >
           Solo ventana abierta {onlyOpen && <i className="ti ti-x" style={{ fontSize: 11 }}></i>}
         </span>
@@ -225,19 +216,7 @@ export default function InitiativesDirectoryPage() {
         <span
           onClick={() => setOrden((o) => (o === 'asc' ? 'desc' : 'asc'))}
           title={orden === 'asc' ? 'Primero lo que antes cierra' : 'Primero lo que más tarde cierra'}
-          style={{
-            background: '#fff',
-            border: '.5px solid #e0dfd8',
-            borderRadius: 20,
-            padding: '7px 12px',
-            fontSize: 12,
-            color: '#555',
-            cursor: 'pointer',
-            whiteSpace: 'nowrap',
-            display: 'flex',
-            alignItems: 'center',
-            gap: 6,
-          }}
+          className="gt-filtro"
         >
           <i
             className={`ti ti-sort-${orden === 'asc' ? 'ascending' : 'descending'}-2`}

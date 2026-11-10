@@ -102,13 +102,21 @@ const FILA = {
   textDecoration: 'none',
   color: 'inherit',
 };
+// Mismo aspecto que .gt-filtro (globals.css).
 const chip = (activo) => ({
-  background: activo ? '#e8f4f0' : '#fff',
-  border: `.5px solid ${activo ? '#1d6f5c' : '#e0dfd8'}`,
-  color: activo ? '#1d6f5c' : '#555',
-  borderRadius: 20,
-  padding: '7px 13px',
-  fontSize: 12,
+  display: 'inline-flex',
+  alignItems: 'center',
+  gap: 6,
+  boxSizing: 'border-box',
+  minHeight: 38,
+  padding: '8px 12px',
+  background: activo ? '#f4f3ef' : '#fff',
+  border: `1px solid ${activo ? '#1a1a18' : '#e0dfd8'}`,
+  borderRadius: 9,
+  fontFamily: 'inherit',
+  fontSize: 13,
+  color: activo ? '#1a1a18' : '#57534e',
+  fontWeight: activo ? 600 : 400,
   cursor: 'pointer',
   whiteSpace: 'nowrap',
 });

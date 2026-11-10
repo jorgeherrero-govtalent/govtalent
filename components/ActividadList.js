@@ -152,16 +152,7 @@ export default function ActividadList({ kind }) {
 
         <span
           onClick={() => setSoloVivas((v) => !v)}
-          style={{
-            background: soloVivas ? '#EEEDFE' : '#fff',
-            border: `.5px solid ${soloVivas ? '#6d5aef' : '#e0dfd8'}`,
-            color: soloVivas ? '#3C3489' : '#555',
-            borderRadius: 22,
-            padding: '8px 13px',
-            fontSize: 12,
-            cursor: 'pointer',
-            whiteSpace: 'nowrap',
-          }}
+          className={`gt-filtro${soloVivas ? ' on' : ''}`}
         >
           En trámite ({vivas.toLocaleString('es-ES')})
         </span>

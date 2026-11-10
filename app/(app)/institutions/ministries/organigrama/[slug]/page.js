@@ -445,17 +445,7 @@ export default function OrganigramaMinisterioPage() {
         />
         <button
           onClick={abiertos.size ? () => setAbiertos(new Set()) : expandirTodo}
-          style={{
-            fontSize: 12,
-            fontFamily: 'inherit',
-            padding: '8px 13px',
-            borderRadius: 8,
-            cursor: 'pointer',
-            border: `.5px solid ${VERDE}`,
-            background: '#fff',
-            color: VERDE,
-            whiteSpace: 'nowrap',
-          }}
+          className="gt-filtro"
         >
           {abiertos.size ? 'Plegar todo' : 'Desplegar todo'}
         </button>

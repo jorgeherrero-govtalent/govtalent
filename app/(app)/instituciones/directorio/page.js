@@ -217,19 +217,7 @@ function FiltroBarra({ icono, label, values, selected, onApply }) {
       <button
         type="button"
         onClick={() => setAbierto((v) => !v)}
-        style={{
-          display: 'inline-flex',
-          alignItems: 'center',
-          gap: 7,
-          border: '.5px solid #e0dfd8',
-          background: '#fff',
-          borderRadius: 9,
-          padding: '8px 13px',
-          fontSize: 12.5,
-          color: '#3a3a36',
-          fontWeight: 600,
-          cursor: 'pointer',
-        }}
+        className={`gt-filtro${selected.size > 0 ? ' on' : ''}`}
       >
         <i className={`ti ${icono}`} style={{ fontSize: 15, color: '#a8a79c' }}></i>
         {label}
