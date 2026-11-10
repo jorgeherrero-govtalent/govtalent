@@ -951,7 +951,7 @@ export default function Licitaciones() {
                   ))
                 ))}
 
-              {filas.length > 0 && total != null && <Paginacion pag={pag} acento={NEGRO} />}
+              {filas.length > 0 && total != null && <Paginacion pag={pag} />}
             </>
           )}
         </div>
