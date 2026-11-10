@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import DirectorioCaras from '@/components/DirectorioCaras';
 
 /**
  * Portada de Directorio (10-11-2026; canvas «GovTalent: navegación con
@@ -8,7 +9,8 @@ import Link from 'next/link';
  * y Organizaciones, con una ilustración sobre fondo de puntos en la mitad
  * de arriba (estilo del modal «Crear campaña» de Enginy), y una fila «Más
  * consultados». Sin subtítulo (decisión de Jorge). Las ilustraciones son
- * dibujos fijos, no datos: no llevan nombres reales.
+ * dibujos con ejemplos reales: el Gobierno con sus caras (leídas en vivo,
+ * components/DirectorioCaras.js) y tres organizaciones del directorio.
  */
 
 const PUNTOS = {
@@ -24,17 +26,6 @@ const MAS_CONSULTADOS = [
   { href: '/directorio/organizaciones/patronales', icono: 'ti-building-factory-2', titulo: 'Patronales y asociaciones', texto: 'Quién representa a cada sector.' },
 ];
 
-function Caras() {
-  const tonos = ['#d9d6cc', '#c9c5b9', '#e1ded5', '#bfbbae', '#d2cec3'];
-  return (
-    <span style={{ display: 'flex', paddingLeft: 7 }} aria-hidden="true">
-      {tonos.map((c) => (
-        <span key={c} style={{ width: 26, height: 26, borderRadius: '50%', background: c, border: '2px solid #fff', marginLeft: -7 }} />
-      ))}
-    </span>
-  );
-}
-
 function IlustracionInstituciones() {
   return (
     <div className="gt-dir-ilu" style={PUNTOS} aria-hidden="true">
@@ -44,14 +35,14 @@ function IlustracionInstituciones() {
           <span style={{ width: 30, height: 30, borderRadius: 8, background: '#f0efe9', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
             <i className="ti ti-building-bank" style={{ fontSize: 17, color: '#1a1a18' }} />
           </span>
-          <b style={{ fontSize: 14.5 }}>Ministerio</b>
+          <b style={{ fontSize: 14.5 }}>Gobierno de España</b>
         </div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 6, paddingLeft: 14, borderLeft: '2px solid #e5e4de', marginLeft: 14 }}>
-          <span style={{ fontSize: 12.5, color: '#55524c' }}>Secretaría de Estado</span>
-          <span style={{ fontSize: 12.5, color: '#55524c' }}>Dirección General</span>
+          <span style={{ fontSize: 12.5, color: '#55524c' }}>Presidencia y vicepresidencias</span>
+          <span style={{ fontSize: 12.5, color: '#55524c' }}>22 ministerios</span>
         </div>
         <div style={{ borderTop: '1px solid #efeee8', paddingTop: 10 }}>
-          <Caras />
+          <DirectorioCaras />
         </div>
       </div>
     </div>
@@ -59,20 +50,23 @@ function IlustracionInstituciones() {
 }
 
 function IlustracionOrganizaciones() {
+  // Ejemplos reales del directorio (directorio_entidades).
   const filas = [
-    ['Patronal', '#e6e4dc'],
-    ['Asociación sectorial', '#dedcd2'],
-    ['Cámara de Comercio', '#ebe9e2'],
+    ['CEOE', 'Patronal', 'ti-building-factory-2'],
+    ['Cámara de Comercio de España', 'Cámara de Comercio', 'ti-building-store'],
+    ['Consejo General de la Abogacía Española', 'Consejo General', 'ti-scale'],
   ];
   return (
     <div className="gt-dir-ilu" style={PUNTOS} aria-hidden="true">
       <div className="gt-dir-mini" style={{ padding: '8px 14px', gap: 0 }}>
-        {filas.map(([t, c], i) => (
+        {filas.map(([t, tipo, icono], i) => (
           <div key={t} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 0', borderTop: i ? '1px solid #efeee8' : 'none' }}>
-            <span style={{ width: 26, height: 26, borderRadius: 7, background: c, flexShrink: 0 }} />
-            <span style={{ display: 'flex', flexDirection: 'column', gap: 5, flex: 1 }}>
-              <span style={{ fontSize: 13, fontWeight: 600 }}>{t}</span>
-              <span style={{ height: 6, width: '60%', borderRadius: 3, background: '#efeee8' }} />
+            <span style={{ width: 28, height: 28, borderRadius: 7, background: '#f0efe9', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <i className={`ti ${icono}`} style={{ fontSize: 15, color: '#55524c' }} />
+            </span>
+            <span style={{ display: 'flex', flexDirection: 'column', gap: 1, flex: 1, minWidth: 0 }}>
+              <span style={{ fontSize: 13, fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{t}</span>
+              <span style={{ fontSize: 11.5, color: '#6e6a63' }}>{tipo}</span>
             </span>
           </div>
         ))}
