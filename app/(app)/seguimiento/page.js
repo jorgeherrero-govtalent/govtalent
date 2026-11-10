@@ -37,7 +37,7 @@ const CARD = { background: '#fff', borderRadius: 14, boxShadow: '0 1px 2px rgba(
 const POR_BLOQUE = 3;
 
 // El orden de los bloques: primero dónde se tramita, luego lo publicado.
-const ORDEN_FUENTES = ['Congreso', 'Parlamentos autonómicos', 'Consultas públicas', 'BOE', 'Parlamento Europeo', 'Comisión Europea', 'Gobierno'];
+const ORDEN_FUENTES = ['Congreso', 'Parlamentos autonómicos', 'Consultas públicas', 'BOE', 'Parlamento Europeo', 'Comisión Europea', 'Gobierno', 'Contratación pública'];
 const PERSONAS = 'Personas e instituciones';
 const CONSEJO = 'Consejo de Ministros';
 
