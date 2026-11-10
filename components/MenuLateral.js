@@ -52,8 +52,8 @@ const PRINCIPALES = [
 // maqueta F): como mucho 15 entradas. Regulatorio es una sola entrada con
 // pestañas España y Unión Europea; Directorio es una portada que lleva a
 // Instituciones y Organizaciones; Contactos pasa a llamarse Buscador.
-// Licitaciones irá al final, en «Contratación pública», cuando el módulo
-// tenga pantallas (los datos ya entran: sql/123).
+// Licitaciones va al final, en «Contratación pública», marcada BETA
+// (10-11-2026).
 const enDirectorio = (p) =>
   p === '/directorio' ||
   p.startsWith('/directorio/') ||
@@ -100,6 +100,12 @@ const SECCIONES = [
       { href: '/projects', etiqueta: 'Proyectos', icono: 'ti-folder', activo: (p) => p.startsWith('/projects') },
     ],
   },
+  {
+    titulo: 'Contratación pública',
+    items: [
+      { href: '/licitaciones', etiqueta: 'Licitaciones', icono: 'ti-file-dollar', activo: (p) => p.startsWith('/licitaciones'), beta: true },
+    ],
+  },
 ];
 
 /** El anillo de la tarjeta del plan: créditos usados (o alarmas en Free) sobre el total. */
@@ -140,6 +146,7 @@ function Entrada({ item, pathname, plegado, novedades }) {
     >
       <i className={`ti ${item.icono}`} aria-hidden="true"></i>
       <span className="gt-lat-txt">{item.etiqueta}</span>
+      {item.beta && <span className="gt-lat-beta">BETA</span>}
       {n > 0 && <span className="gt-lat-bd">{n > 99 ? '99+' : n}</span>}
     </Link>
   );
