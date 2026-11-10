@@ -446,7 +446,7 @@ export default function ProceduresDirectoryPage() {
 
       <div style={{ marginTop: 20, fontSize: 11, color: '#999', display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
         <i className="ti ti-shield-check" style={{ fontSize: 13 }}></i>
-        Datos abiertos del Parlamento Europeo. Procedimientos legislativos ordinarios desde 2014.
+        Procedimientos legislativos ordinarios desde 2014.
       </div>
 
       {upsell && (

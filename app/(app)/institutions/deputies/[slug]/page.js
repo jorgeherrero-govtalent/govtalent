@@ -735,7 +735,7 @@ export default function DeputyProfilePage() {
 
       <div style={{ marginTop: 20, fontSize: 11, color: '#999', display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
         <i className="ti ti-shield-check" style={{ fontSize: 13 }}></i>
-        Datos obtenidos del Congreso de los Diputados. Última actualización:{' '}
+        Última actualización:{' '}
         {deputy.source_updated_at ? formatDate(deputy.source_updated_at) : '—'}.{' '}
         <a href={officialFichaUrl} target="_blank" rel="noreferrer" style={{ color: '#1d6f5c' }}>
           Ver su ficha oficial ↗

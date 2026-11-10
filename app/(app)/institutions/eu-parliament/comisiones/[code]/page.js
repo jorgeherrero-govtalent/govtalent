@@ -557,10 +557,6 @@ export default function EuCommitteeDetailPage() {
         </div>
       )}
 
-      <div style={{ marginTop: 18, fontSize: 11, color: '#a8a49c', display: 'flex', alignItems: 'center', gap: 6 }}>
-        <i className="ti ti-shield-check" style={{ fontSize: 13 }}></i>
-        Datos abiertos del Parlamento Europeo.
-      </div>
 
       {upsell && (
         <UpgradeModal title={upsell.title} message={upsell.message} onClose={() => setUpsell(null)} />

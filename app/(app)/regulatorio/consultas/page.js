@@ -394,8 +394,7 @@ export default function ConsultasPublicasPage() {
 
       <div style={{ marginTop: 20, fontSize: 11, color: '#999', display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
         <i className="ti ti-shield-check" style={{ fontSize: 13 }}></i>
-        Datos tomados de las secciones de participación pública de cada ministerio. Los plazos se
-        cuentan en días naturales.
+        Los plazos se cuentan en días naturales.
       </div>
 
       {upsell && (

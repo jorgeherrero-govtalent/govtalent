@@ -682,7 +682,7 @@ export default function ProcedureDetailPage() {
 
       <div style={{ marginTop: 20, fontSize: 11, color: '#999', display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
         <i className="ti ti-shield-check" style={{ fontSize: 13 }}></i>
-        Datos abiertos del Parlamento Europeo. El grupo político mostrado es el que tenía cada eurodiputado al participar.
+        El grupo político mostrado es el que tenía cada eurodiputado al participar.
       </div>
     </div>
   );

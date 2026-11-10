@@ -380,10 +380,6 @@ function Boe() {
         </div>
       )}
 
-      <div style={{ marginTop: 18, fontSize: 11, color: '#a8a49c', display: 'flex', alignItems: 'center', gap: 6 }}>
-        <i className="ti ti-shield-check" style={{ fontSize: 13 }}></i>
-        Datos abiertos del Boletín Oficial del Estado.
-      </div>
     </div>
   );
 }

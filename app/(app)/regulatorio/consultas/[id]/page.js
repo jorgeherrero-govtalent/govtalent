@@ -601,8 +601,7 @@ export default function ConsultaDetallePage() {
         }}
       >
         <i className="ti ti-shield-check" style={{ fontSize: 13 }}></i>
-        Datos de la web del {item.ministerio}. Verifica el plazo en el trámite original antes de
-        presentar nada.
+        Verifica el plazo en el trámite original antes de presentar nada.
       </div>
 
       {upsell && (

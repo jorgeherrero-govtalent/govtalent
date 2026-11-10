@@ -424,8 +424,6 @@ export default function ComisarioDetailPage() {
       )}
 
       <div style={{ marginTop: 18, fontSize: 11, color: '#a8a49c', display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
-        <i className="ti ti-shield-check" style={{ fontSize: 13 }}></i>
-        Datos del directorio oficial de la Comisión Europea.
         {c.profile_url && (
           <a href={c.profile_url} target="_blank" rel="noreferrer" style={{ color: '#8b8780' }}>
             Ver su perfil oficial
