@@ -1,5 +1,7 @@
 'use client';
 
+import CampoBusqueda from '@/components/CampoBusqueda';
+
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import Link from 'next/link';
@@ -885,26 +887,7 @@ export default function OrganizationsDatabasePage() {
             </button>
           </div>
         ) : (
-          <div style={{ position: 'relative', maxWidth: 520, margin: '0 auto' }}>
-            <i
-              className="ti ti-search"
-              style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', color: '#8a897f', fontSize: 15 }}
-            ></i>
-            <input
-              placeholder="Buscar por nombre, sector o ubicación..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              style={{
-                width: '100%',
-                padding: '13px 18px 13px 38px',
-                border: '1px solid #e0dfd8',
-                borderRadius: 12,
-                fontSize: 13.5,
-                outline: 'none',
-                background: '#fff',
-              }}
-            />
-          </div>
+          <CampoBusqueda estilo={{ maxWidth: 520, margin: '0 auto' }} placeholder="Buscar por nombre, sector o ubicación..." value={search} onChange={(e) => setSearch(e.target.value)} />
         )}
 
         <div style={{ fontSize: 11.5, color: '#8a897f', marginTop: 11 }}>

@@ -1,5 +1,7 @@
 'use client';
 
+import CampoBusqueda from '@/components/CampoBusqueda';
+
 import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 
@@ -111,23 +113,7 @@ export default function MultiSelectFilter({ label, values, selected, onApply, bl
               }}
             >
               <div style={{ padding: 10, borderBottom: '.5px solid #e0dfd8' }}>
-                <input
-                  autoFocus
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                  placeholder={`Buscar ${label.toLowerCase()}...`}
-                  style={{
-                    width: '100%',
-                    padding: '7px 10px',
-                    border: '.5px solid #e0dfd8',
-                    borderRadius: 7,
-                    fontSize: 12.5,
-                    outline: 'none',
-                    fontFamily: 'inherit',
-                  }}
-                  onFocus={(e) => (e.target.style.borderColor = acento)}
-                  onBlur={(e) => (e.target.style.borderColor = '#e0dfd8')}
-                />
+                <CampoBusqueda atajo={false} autoFocus value={search} onChange={(e) => setSearch(e.target.value)} placeholder={`Buscar ${label.toLowerCase()}...`} />
               </div>
 
               <div style={{ padding: 10, borderBottom: '.5px solid #e0dfd8', display: 'flex', gap: 10, fontSize: 11, color: acento }}>

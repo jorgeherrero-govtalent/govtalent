@@ -1,5 +1,7 @@
 'use client';
 
+import CampoBusqueda from '@/components/CampoBusqueda';
+
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
@@ -434,20 +436,12 @@ export default function OrganigramaMinisterioPage() {
 
       {/* Detalle: el árbol sangrado. */}
       <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 12, flexWrap: 'wrap' }}>
-        <input
+        <CampoBusqueda
+          estilo={{ flex: 1, minWidth: 200 }}
           value={filtro}
           onChange={(e) => setFiltro(e.target.value)}
           placeholder="Buscar unidad o titular..."
-          style={{
-            flex: 1,
-            minWidth: 200,
-            fontSize: 13,
-            fontFamily: 'inherit',
-            padding: '8px 12px',
-            borderRadius: 8,
-            border: '.5px solid #e0dfd8',
-            background: '#fff',
-          }}
+          aria-label="Buscar unidad o titular"
         />
         <button
           onClick={abiertos.size ? () => setAbiertos(new Set()) : expandirTodo}

@@ -1,5 +1,7 @@
 'use client';
 
+import CampoBusqueda from '@/components/CampoBusqueda';
+
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
@@ -114,27 +116,7 @@ export default function OrganizationsDirectory() {
 
       {/* La misma barra que Ministerios, Organismos y el Congreso. */}
       <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 12, flexWrap: 'wrap' }}>
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 8,
-            background: '#fff',
-            border: '.5px solid #e0dfd8',
-            borderRadius: 20,
-            padding: '7px 14px',
-            flex: '1 1 220px',
-          }}
-        >
-          <i className="ti ti-search" style={{ color: '#999', fontSize: 14 }}></i>
-          <input
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            placeholder="Buscar organización..."
-            aria-label="Buscar organización"
-            style={{ border: 'none', outline: 'none', background: 'transparent', fontSize: 12.5, width: '100%' }}
-          />
-        </div>
+        <CampoBusqueda estilo={{ flex: '1 1 220px' }} value={name} onChange={(e) => setName(e.target.value)} placeholder="Buscar organización..." aria-label="Buscar organización" />
         <MultiSelectFilter
           label="Tipo"
           values={ORG_TYPES.map(([k, v]) => ({ value: k, label: v }))}

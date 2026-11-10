@@ -1,5 +1,7 @@
 'use client';
 
+import CampoBusqueda from '@/components/CampoBusqueda';
+
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
@@ -295,28 +297,7 @@ export default function OrganismosPage() {
       <h1 style={{ fontSize: 19, fontWeight: 700, margin: '0 0 16px' }}>Organismos y reguladores</h1>
 
       <div style={{ display: 'flex', gap: 8, marginBottom: 14, flexWrap: 'wrap', alignItems: 'center' }}>
-        <div
-          style={{
-            flex: 1,
-            minWidth: 200,
-            display: 'flex',
-            alignItems: 'center',
-            gap: 8,
-            background: '#fff',
-            border: `.5px solid ${BORDE}`,
-            borderRadius: 20,
-            padding: '9px 16px',
-          }}
-        >
-          <i className="ti ti-search" style={{ color: '#999', fontSize: 15 }}></i>
-          <input
-            value={q}
-            onChange={(e) => setQ(e.target.value)}
-            placeholder="Buscar organismo…"
-            aria-label="Buscar organismo"
-            style={{ border: 'none', outline: 'none', flex: 1, fontSize: 12.5, background: 'transparent' }}
-          />
-        </div>
+        <CampoBusqueda estilo={{ flex: 1, minWidth: 200 }} value={q} onChange={(e) => setQ(e.target.value)} placeholder="Buscar organismo…" aria-label="Buscar organismo" />
         <MultiSelectFilter
           label="Tipo"
           values={categorias}

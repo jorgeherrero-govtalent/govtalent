@@ -1,5 +1,7 @@
 'use client';
 
+import CampoBusqueda from '@/components/CampoBusqueda';
+
 import { useEffect, useRef, useState } from 'react';
 import * as XLSX from 'xlsx';
 import { BANDAS } from '@/lib/contactosFiltros';
@@ -929,7 +931,7 @@ export function ValoresColumna({ campo, filtros, titulo, seleccion, onCambiar })
     <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
       {titulo ? <span style={{ fontSize: 11.5, color: GRIS }}>{titulo}</span> : null}
       {valores.length > 8 ? (
-        <input className="gt-ct-in" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Buscar" aria-label={`Buscar en ${titulo || campo}`} />
+        <CampoBusqueda atajo={false} value={q} onChange={(e) => setQ(e.target.value)} placeholder="Buscar" aria-label={`Buscar en ${titulo || campo}`} />
       ) : null}
       <div style={{ maxHeight: 220, overflowY: 'auto', display: 'flex', flexDirection: 'column' }}>
         {visibles.map((x) => (

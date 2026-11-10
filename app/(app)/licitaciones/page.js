@@ -1,5 +1,7 @@
 'use client';
 
+import CampoBusqueda from '@/components/CampoBusqueda';
+
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import Link from 'next/link';
@@ -177,14 +179,7 @@ function Casillas({ opciones, elegidos, onChange, buscar }) {
   return (
     <>
       {buscar && (
-        <input
-          type="text"
-          className="gt-lic-mini"
-          placeholder="Filtrar"
-          aria-label="Filtrar opciones"
-          value={q}
-          onChange={(e) => setQ(e.target.value)}
-        />
+        <CampoBusqueda atajo={false} estilo={{ marginBottom: 6 }} type="text" placeholder="Filtrar" aria-label="Filtrar opciones" value={q} onChange={(e) => setQ(e.target.value)} />
       )}
       <div className={buscar ? 'gt-lic-scroll' : undefined}>
         {lista.map((o) => (
@@ -331,9 +326,7 @@ const ESTILOS = `
 .gt-lic-cab { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-bottom: 16px; }
 .gt-lic-cab h1 { font-size: 21px; font-weight: 600; margin: 0; letter-spacing: -.3px; }
 .gt-lic-arriba { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 16px; }
-.gt-lic-buscar { display: flex; align-items: center; gap: 8px; width: 300px; max-width: 100%; box-sizing: border-box; background: #fff; border: .5px solid #e0dfd8; border-radius: 20px; padding: 8px 14px; }
-.gt-lic-buscar i { color: #999; font-size: 15px; }
-.gt-lic-buscar input { border: none; outline: none; background: none; font: inherit; flex: 1; min-width: 0; font-size: 12.5px; }
+.gt-lic-buscar { width: 340px; }
 .gt-lic-exp { display: inline-flex; gap: 2px; background: #fff; border: .5px solid #e0dfd8; border-radius: 9px; padding: 2px; }
 .gt-lic-exp button { border: none; background: none; font: inherit; font-size: 12.5px; padding: 6px 11px; border-radius: 7px; color: #55524c; cursor: pointer; }
 .gt-lic-exp button.on { background: ${NEGRO}; color: #fff; }
@@ -743,16 +736,13 @@ export default function Licitaciones() {
       </div>
 
       <div className="gt-lic-arriba">
-        <label className="gt-lic-buscar">
-          <i className="ti ti-search" aria-hidden="true" />
-          <input
-            type="search"
-            value={texto}
-            onChange={(e) => setTexto(e.target.value)}
-            placeholder="Buscar licitación, órgano o expediente"
-            aria-label="Buscar licitaciones"
-          />
-        </label>
+        <CampoBusqueda
+          className="gt-lic-buscar"
+          value={texto}
+          onChange={(e) => setTexto(e.target.value)}
+          placeholder="Buscar licitación, órgano o expediente"
+          aria-label="Buscar licitaciones"
+        />
         <span className="gt-lic-exp" role="group" aria-label="Licitaciones o contratos menores">
           {EXPEDIENTES.map((o) => (
             <button key={o.v} type="button" className={expediente === o.v ? 'on' : undefined} aria-pressed={expediente === o.v} onClick={() => setExpediente(o.v)}>

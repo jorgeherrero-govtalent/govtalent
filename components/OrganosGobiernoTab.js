@@ -1,5 +1,7 @@
 'use client';
 
+import CampoBusqueda from '@/components/CampoBusqueda';
+
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
@@ -300,27 +302,7 @@ export default function OrganosGobiernoTab() {
   return (
     <>
       <div style={{ display: 'flex', gap: 8, marginBottom: 12, flexWrap: 'wrap' }}>
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 8,
-            background: '#fff',
-            border: '.5px solid #e0dfd8',
-            borderRadius: 20,
-            padding: '7px 14px',
-            flex: '1 1 180px',
-          }}
-        >
-          <i className="ti ti-search" style={{ color: '#999', fontSize: 14 }}></i>
-          <input
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Buscar por nombre..."
-            aria-label="Buscar miembro de un órgano de gobierno"
-            style={{ border: 'none', outline: 'none', background: 'transparent', fontSize: 12.5, width: '100%' }}
-          />
-        </div>
+        <CampoBusqueda estilo={{ flex: '1 1 180px' }} value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Buscar por nombre..." aria-label="Buscar miembro de un órgano de gobierno" />
         <MultiSelectFilter label="Grupo" values={grupoOptions} selected={grupoFilter} onApply={setGrupoFilter} />
         <MultiSelectFilter label="Cargo" values={cargoOptions} selected={cargoFilter} onApply={setCargoFilter} />
       </div>

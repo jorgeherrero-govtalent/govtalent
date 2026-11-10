@@ -1,5 +1,7 @@
 'use client';
 
+import CampoBusqueda from '@/components/CampoBusqueda';
+
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
@@ -226,28 +228,7 @@ function UnidadesTab({ bodies, onSelect }) {
 
   return (
     <>
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: 8,
-          background: '#fff',
-          border: '.5px solid #e0dfd8',
-          borderRadius: 20,
-          padding: '7px 14px',
-          marginBottom: 14,
-          maxWidth: 340,
-        }}
-      >
-        <i className="ti ti-search" style={{ color: '#999', fontSize: 14 }}></i>
-        <input
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          placeholder="Buscar dirección general..."
-          aria-label="Buscar dirección general"
-          style={{ border: 'none', outline: 'none', background: 'transparent', fontSize: 12.5, width: '100%' }}
-        />
-      </div>
+      <CampoBusqueda estilo={{ marginBottom: 14, maxWidth: 340 }} value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Buscar dirección general..." aria-label="Buscar dirección general" />
 
       {filtered.length === 0 ? (
         <div className="card">
@@ -465,27 +446,7 @@ function PersonasTab({ people, bodies, bodyFilter, setBodyFilter }) {
   return (
     <>
       <div style={{ display: 'flex', gap: 8, marginBottom: 12, flexWrap: 'wrap' }}>
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 8,
-            background: '#fff',
-            border: '.5px solid #e0dfd8',
-            borderRadius: 20,
-            padding: '7px 14px',
-            flex: '1 1 180px',
-          }}
-        >
-          <i className="ti ti-search" style={{ color: '#999', fontSize: 14 }}></i>
-          <input
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Buscar por nombre, cargo o unidad..."
-            aria-label="Buscar persona"
-            style={{ border: 'none', outline: 'none', background: 'transparent', fontSize: 12.5, width: '100%' }}
-          />
-        </div>
+        <CampoBusqueda estilo={{ flex: '1 1 180px' }} value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Buscar por nombre, cargo o unidad..." aria-label="Buscar persona" />
         <MultiSelectFilter
           label="Dirección general"
           values={bodyOptions}

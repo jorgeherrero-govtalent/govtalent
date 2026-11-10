@@ -1,5 +1,7 @@
 'use client';
 
+import CampoBusqueda from '@/components/CampoBusqueda';
+
 import { useMemo, useState } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
@@ -38,15 +40,7 @@ export default function GruposAutonomicosPage() {
       <CabeceraParlamento p={p} titulo="Grupos parlamentarios" datos={datos} />
       <PestanasParlamento p={p} />
 
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: '#fff', border: '.5px solid #e0dfd8', borderRadius: 20, padding: '8px 16px', marginBottom: 16, maxWidth: 380 }}>
-        <i className="ti ti-search" style={{ color: '#999', fontSize: 14 }}></i>
-        <input
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          placeholder="Buscar grupo parlamentario..."
-          style={{ border: 'none', outline: 'none', background: 'transparent', fontSize: 12.5, width: '100%' }}
-        />
-      </div>
+      <CampoBusqueda estilo={{ marginBottom: 16, maxWidth: 380 }} value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Buscar grupo parlamentario..." />
 
       {error ? (
         <Vacio icono="ti-alert-circle" texto="No se ha podido cargar la composición. Inténtalo de nuevo en un momento." />

@@ -1,5 +1,7 @@
 'use client';
 
+import CampoBusqueda from '@/components/CampoBusqueda';
+
 import { useEffect, useMemo, useState } from 'react';
 
 const FIELDS = [
@@ -154,19 +156,7 @@ export default function UsersBackofficePage() {
       )}
 
       <div style={{ display: 'flex', gap: 10, marginBottom: 16 }}>
-        <input
-          placeholder="Buscar por nombre, email, empresa, ciudad..."
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          style={{
-            flex: 1,
-            padding: '9px 13px',
-            border: '.5px solid #e0dfd8',
-            borderRadius: 9,
-            fontSize: 13,
-            outline: 'none',
-          }}
-        />
+        <CampoBusqueda estilo={{ flex: 1 }} placeholder="Buscar por nombre, email, empresa, ciudad..." value={search} onChange={(e) => setSearch(e.target.value)} />
         <button
           onClick={exportCsv}
           disabled={!filtered.length}

@@ -1,5 +1,7 @@
 'use client';
 
+import CampoBusqueda from '@/components/CampoBusqueda';
+
 import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 
@@ -142,20 +144,7 @@ export default function FilterableHeader({ label, columnKey, values, selected, o
               </div>
 
               <div style={{ padding: 10, borderBottom: '.5px solid #e0dfd8' }}>
-                <input
-                  autoFocus
-                  placeholder={`Buscar ${label.toLowerCase()}...`}
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                  style={{
-                    width: '100%',
-                    padding: '7px 10px',
-                    border: '.5px solid #e0dfd8',
-                    borderRadius: 7,
-                    fontSize: 12.5,
-                    outline: 'none',
-                  }}
-                />
+                <CampoBusqueda atajo={false} autoFocus placeholder={`Buscar ${label.toLowerCase()}...`} value={search} onChange={(e) => setSearch(e.target.value)} />
                 <div style={{ display: 'flex', gap: 10, marginTop: 6, fontSize: 11, color: '#1d6f5c' }}>
                   <button type="button" onClick={() => setDraft(new Set(values.map((v) => v.value)))} style={{ background: 'none', border: 'none', color: '#1d6f5c', cursor: 'pointer', padding: 0 }}>
                     Seleccionar todos

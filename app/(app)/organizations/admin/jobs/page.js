@@ -1,5 +1,7 @@
 'use client';
 
+import CampoBusqueda from '@/components/CampoBusqueda';
+
 import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
@@ -380,26 +382,7 @@ export default function AllJobsPage() {
           </div>
 
           <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginBottom: 16 }}>
-            <div
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: 8,
-                background: '#faf9f5',
-                border: '.5px solid #e0dfd8',
-                borderRadius: 8,
-                padding: '8px 12px',
-                flex: '1 1 200px',
-              }}
-            >
-              <i className="ti ti-search" style={{ color: '#999', fontSize: 15 }}></i>
-              <input
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                placeholder="Buscar oferta..."
-                style={{ border: 'none', background: 'transparent', outline: 'none', fontSize: 12.5, width: '100%' }}
-              />
-            </div>
+            <CampoBusqueda estilo={{ flex: '1 1 200px' }} value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Buscar oferta..." />
             <MultiSelectFilter
               label="Área"
               values={AREAS.map((a) => ({ value: a, label: a }))}

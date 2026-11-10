@@ -1,5 +1,7 @@
 'use client';
 
+import CampoBusqueda from '@/components/CampoBusqueda';
+
 import { Suspense, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
@@ -170,27 +172,7 @@ function Diarios() {
       </div>
 
       <div style={{ display: 'flex', gap: 8, marginBottom: 12, flexWrap: 'wrap' }}>
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 8,
-            background: '#fff',
-            border: '.5px solid #e0dfd8',
-            borderRadius: 20,
-            padding: '8px 15px',
-            flex: '1 1 220px',
-          }}
-        >
-          <i className="ti ti-search" style={{ color: '#a8a49c', fontSize: 14 }}></i>
-          <input
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Buscar por título u organismo..."
-            aria-label="Buscar en los boletines autonómicos"
-            style={{ border: 'none', outline: 'none', background: 'transparent', fontSize: 12.5, width: '100%' }}
-          />
-        </div>
+        <CampoBusqueda estilo={{ flex: '1 1 220px' }} value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Buscar por título u organismo..." aria-label="Buscar en los boletines autonómicos" />
 
         {ccaaOptions.length > 0 && (
           <MultiSelectFilter label="Comunidad" values={ccaaOptions} selected={ccaaFilter} onApply={setCcaaFilter} />

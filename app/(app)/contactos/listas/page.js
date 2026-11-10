@@ -1,5 +1,7 @@
 'use client';
 
+import CampoBusqueda from '@/components/CampoBusqueda';
+
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import Paginacion, { usePaginacion } from '@/components/Paginacion';
@@ -114,7 +116,7 @@ export default function ListasPage() {
       {listas && listas.length > 0 && (
         <>
           <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginBottom: 12, alignItems: 'center' }}>
-            <input className="gt-ct-in" style={{ maxWidth: 260, fontSize: 13, padding: '8px 10px' }} placeholder="Buscar" value={q} onChange={(e) => setQ(e.target.value)} aria-label="Buscar listas" />
+            <CampoBusqueda estilo={{ maxWidth: 260, flex: 1 }} placeholder="Buscar" value={q} onChange={(e) => setQ(e.target.value)} aria-label="Buscar listas" />
             <label className="gt-ct-chk">
               <input type="checkbox" checked={soloCambios} onChange={(e) => setSoloCambios(e.target.checked)} />
               Con cambios

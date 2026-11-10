@@ -1,5 +1,7 @@
 'use client';
 
+import CampoBusqueda from '@/components/CampoBusqueda';
+
 import { Suspense, useEffect, useMemo, useState } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
@@ -131,29 +133,15 @@ function Buscar() {
         <span style={{ color: '#8b8780' }}>Buscar</span>
       </div>
 
-      <div
+      <CampoBusqueda
+        estilo={{ marginBottom: 16 }}
+        value={q}
+        onChange={(e) => setQ(e.target.value)}
         onKeyDown={(e) => e.key === 'Enter' && buscar(e)}
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: 9,
-          background: '#fff',
-          border: '.5px solid #e0dfd8',
-          borderRadius: 22,
-          padding: '10px 16px',
-          marginBottom: 16,
-        }}
-      >
-        <i className="ti ti-search" style={{ color: '#a8a49c', fontSize: 15 }}></i>
-        <input
-          value={q}
-          onChange={(e) => setQ(e.target.value)}
-          placeholder="Buscar una norma, un expediente o un procedimiento..."
-          aria-label="Buscar en Regulatorio"
-          autoFocus
-          style={{ border: 'none', outline: 'none', background: 'transparent', fontSize: 13, width: '100%' }}
-        />
-      </div>
+        placeholder="Buscar una norma, un expediente o un procedimiento..."
+        aria-label="Buscar en Regulatorio"
+        autoFocus
+      />
 
       {termino && (
         <>

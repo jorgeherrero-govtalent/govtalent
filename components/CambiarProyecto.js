@@ -118,11 +118,11 @@ export default function CambiarProyecto({ proyectos, actual, novedades = {}, onE
               display: 'flex',
               alignItems: 'center',
               gap: 7,
-              border: `.5px solid ${BORDE}`,
-              borderRadius: 8,
-              padding: '6px 9px',
+              border: '1px solid #e0dfd8',
+              borderRadius: 9,
+              padding: '8px 10px',
               marginBottom: 7,
-              background: '#fafaf7',
+              background: '#fff',
             }}
           >
             <i className="ti ti-search" style={{ fontSize: 14, color: '#a8a49c' }}></i>
@@ -143,21 +143,11 @@ export default function CambiarProyecto({ proyectos, actual, novedades = {}, onE
                 border: 'none',
                 outline: 'none',
                 background: 'none',
-                fontSize: 12,
+                fontSize: 13.5,
                 fontFamily: 'inherit',
               }}
             />
-            <span
-              style={{
-                fontSize: 10,
-                color: '#a8a49c',
-                border: `.5px solid ${BORDE}`,
-                borderRadius: 4,
-                padding: '1px 5px',
-                fontFamily: 'ui-monospace, monospace',
-                flexShrink: 0,
-              }}
-            >
+            <span className="gt-campo-kbd">
               ⌘K
             </span>
           </div>

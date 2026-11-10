@@ -1,5 +1,7 @@
 'use client';
 
+import CampoBusqueda from '@/components/CampoBusqueda';
+
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
@@ -251,26 +253,7 @@ function teamFor(member, officials, vicepresidenteOrdinal) {
  */
 function Buscador({ value, onChange, placeholder, ancho = '1 1 220px' }) {
   return (
-    <div
-      style={{
-        display: 'flex',
-        alignItems: 'center',
-        gap: 8,
-        background: '#fff',
-        border: '.5px solid #e0dfd8',
-        borderRadius: 20,
-        padding: '7px 14px',
-        flex: ancho,
-      }}
-    >
-      <i className="ti ti-search" style={{ color: '#999', fontSize: 14 }}></i>
-      <input
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        placeholder={placeholder}
-        style={{ border: 'none', outline: 'none', background: 'transparent', fontSize: 12.5, width: '100%' }}
-      />
-    </div>
+    <CampoBusqueda estilo={{ flex: ancho }} value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder} />
   );
 }
 
