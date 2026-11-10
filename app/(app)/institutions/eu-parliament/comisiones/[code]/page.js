@@ -220,7 +220,7 @@ export default function EuCommitteeDetailPage() {
         <BackLink fallbackHref="/institutions/eu-parliament" fallbackLabel="Parlamento Europeo" />
         <span style={{ fontSize: 11.5, color: '#e0dfd8' }}>|</span>
         <span style={{ fontSize: 11.5, color: '#a8a49c' }}>
-          <Link href="/institutions" style={{ color: '#a8a49c', textDecoration: 'none' }}>
+          <Link href="/institutions/union-europea" style={{ color: '#a8a49c', textDecoration: 'none' }}>
             Instituciones
           </Link>
           {' › '}
