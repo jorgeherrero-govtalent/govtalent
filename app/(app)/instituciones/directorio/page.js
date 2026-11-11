@@ -986,7 +986,7 @@ function DirectorioInstitucional() {
       <div style={{ marginBottom: 16, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
         <h1 style={{ fontSize: 19, fontWeight: 700, margin: 0 }}>Base de datos</h1>
         <button type="button" className="gt-filtro" onClick={() => setNueva(true)}>
-          <i className="ti ti-sparkles" style={{ color: '#6d5aef' }} aria-hidden="true"></i> Nueva búsqueda
+          <i className="ti ti-sparkles" style={{ color: '#6d5aef' }} aria-hidden="true"></i> Búsqueda de contactos
         </button>
       </div>
 
