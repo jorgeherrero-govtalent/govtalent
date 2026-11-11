@@ -179,8 +179,8 @@ export default function BuscarCorreoModal({ persona, onClose, onResultado }) {
                   <>
                     <div>
                       <VerificarCorreo
-                        id={alta && personaId ? personaId : null}
-                        persona={alta && personaId ? null : { nombre: persona.nombre, institucion: persona.institucion, dominio: probable.dominio }}
+                        id={(alta || !persona.libre) && personaId ? personaId : null}
+                        persona={(alta || !persona.libre) && personaId ? null : { nombre: persona.nombre, institucion: persona.institucion, dominio: probable.dominio }}
                         p={probable}
                         onCambio={setProbable}
                         onSaldo={setSaldo}
@@ -214,7 +214,13 @@ export default function BuscarCorreoModal({ persona, onClose, onResultado }) {
                 {resultado.tipo !== 'personal' ? (
                   <div style={{ fontSize: 12, color: GRIS }}>No hemos encontrado su correo nominativo; este es el contacto publicado.</div>
                 ) : null}
-                <div style={{ fontSize: 11.5, color: GRIS }}>{cobrado ? `${coste === 1 ? 'Se ha descontado' : 'Se han descontado'} ${creditosTexto(coste)}.` : 'Tu equipo ya lo tenía: sin coste.'}</div>
+                <div style={{ fontSize: 11.5, color: GRIS }}>
+                  {cobrado
+                    ? `${coste === 1 ? 'Se ha descontado' : 'Se han descontado'} ${creditosTexto(coste)}.`
+                    : probable && !persona.libre
+                      ? 'No tiene un correo publicado: este es el más probable. No se ha descontado ningún crédito.'
+                      : 'Tu equipo ya lo tenía: sin coste.'}
+                </div>
               </>
             ) : (
               <div style={{ fontSize: 13, color: '#3a3a3d', lineHeight: 1.55 }}>
