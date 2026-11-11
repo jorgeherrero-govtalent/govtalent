@@ -15,7 +15,7 @@ import {
   euros,
 } from '@/lib/precios';
 import { PACKS_CREDITOS } from '@/lib/creditos';
-import { CREDITOS_CORREO, CREDITOS_CORREO_FUERA, CREDITOS_VERIFICAR, CREDITOS_BUSCAR_FUERA } from '@/lib/costesCreditos';
+import { CREDITOS_CORREO_FUERA, CREDITOS_VERIFICAR, CREDITOS_BUSCAR_FUERA } from '@/lib/costesCreditos';
 
 export const metadata = {
   title: 'Condiciones generales de contratación y uso | GovTalent',
@@ -35,7 +35,7 @@ export default async function CondicionesPage() {
 
   return (
     <LegalPageShell title="Condiciones generales de contratación y uso">
-      <p style={{ fontSize: 13, color: '#8b8780', marginTop: -10 }}>Última actualización: 2 de noviembre de 2026.</p>
+      <p style={{ fontSize: 13, color: '#8b8780', marginTop: -10 }}>Última actualización: 11 de noviembre de 2026.</p>
       <h3>Información del prestador</h3>
       <p>El sitio web https://govtalent.app y los servicios ofrecidos a través de él son prestados por Jorge Rafael
       Herrero Vidal, con NIF 20455625T, quien desarrolla su actividad profesional bajo el nombre comercial
@@ -236,8 +236,7 @@ export default async function CondicionesPage() {
       <p>Los créditos de contacto permiten obtener datos de contacto que no están publicados en el Directorio.
       Cada acción consume los siguientes créditos:</p>
       <ul>
-        <li>Buscar el correo de una persona que figura en el Directorio: {CREDITOS_CORREO} crédito.</li>
-        <li>Buscar el correo de una persona que no figura en el Directorio: {CREDITOS_CORREO_FUERA} créditos.</li>
+        <li>Buscar el correo de una persona, figure o no en el Directorio: {CREDITOS_CORREO_FUERA} créditos.</li>
         <li>Verificar un correo probable: {CREDITOS_VERIFICAR} créditos.</li>
         <li>Buscar en fuentes públicas quién ocupa unos cargos: {CREDITOS_BUSCAR_FUERA} créditos por búsqueda.</li>
       </ul>

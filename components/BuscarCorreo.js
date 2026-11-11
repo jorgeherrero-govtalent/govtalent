@@ -101,13 +101,14 @@ export default function BuscarCorreo({ persona, encontrado, probable, onResultad
   const [prob, setProb] = useState(probable || null);
   useEffect(() => setProb(probable || null), [probable]);
   if (!persona?.id) return null;
-  // Con un correo probable que se puede verificar (o ya verificado), solo
-  // «Verificar»: «Buscar correo» solo si no hay probable o si su servidor
-  // no deja comprobarlo (decisión de Jorge, 02-11-2026).
-  const conBuscar = !prob || (!prob.verificado && (prob.noConfirmado || !prob.verificable));
-  // Un correo genérico (comunicacion@, prensa@…): se enseña y se ofrece
-  // buscar el nominativo.
+  // Un correo genérico (comunicacion@, prensa@…): se enseña.
   const generico = !!encontrado && encontrado.tipo !== 'personal';
+  // «Buscar correo» solo sale cuando no hay ningún correo que enseñar, ni
+  // probable ni encontrado: entonces es una búsqueda fuera de GovTalent, a
+  // 6 créditos. Si hay correo, se enseña y ya está (decisión de Jorge,
+  // 11-11-2026; antes salía también con un probable no verificable o con
+  // un correo genérico).
+  const conBuscar = !prob && !generico;
   if (encontrado && !generico) return <CorreoEncontrado r={encontrado} alinear={alinear} />;
   return (
     <span style={{ display: 'inline-flex', flexDirection: 'column', alignItems: alinear === 'right' ? 'flex-end' : 'flex-start', gap: 6 }}>

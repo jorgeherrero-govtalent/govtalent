@@ -5,7 +5,7 @@ import CampoBusqueda from '@/components/CampoBusqueda';
 import { useEffect, useRef, useState } from 'react';
 import * as XLSX from 'xlsx';
 import { BANDAS } from '@/lib/contactosFiltros';
-import { CREDITOS_VERIFICAR, creditosTexto } from '@/lib/costesCreditos';
+import { CREDITOS_CORREO, CREDITOS_VERIFICAR, creditosTexto } from '@/lib/costesCreditos';
 
 /**
  * Piezas comunes de Buscar y enriquecer (Contactos y Listas, sql/75-76):
@@ -564,7 +564,7 @@ export function CeldaContacto({ f, estado, onEnriquecer, puedeEnriquecer = true,
       )}
       {puedeEnriquecer && onEnriquecer && enriquecible(f, estado) && !probVerificable && enCurso?.fase !== 'buscando' && (
         <button type="button" className="gt-ct-enr" onClick={() => onEnriquecer(f.id)}>
-          Enriquecer (1 crédito)
+          Enriquecer ({creditosTexto(CREDITOS_CORREO)})
         </button>
       )}
     </div>
@@ -573,11 +573,12 @@ export function CeldaContacto({ f, estado, onEnriquecer, puedeEnriquecer = true,
 
 export function ModalEnriquecerVarios({ cuantos, saldo, onConfirmar, onClose, onComprar }) {
   const disponibles = saldo?.disponibles ?? 0;
-  const llega = disponibles >= cuantos;
+  const maximo = cuantos * CREDITOS_CORREO;
+  const llega = disponibles >= maximo;
   return (
     <Modal titulo={`Enriquecer ${miles(cuantos)} ${cuantos === 1 ? 'contacto' : 'contactos'}`} onClose={onClose}>
       <p style={{ fontSize: 13, color: '#555', margin: '4px 0 12px', lineHeight: 1.6 }}>
-        Buscamos su contacto en fuentes oficiales. Como máximo {miles(cuantos)} {cuantos === 1 ? 'crédito' : 'créditos'}: solo se
+        Buscamos su contacto en fuentes oficiales. {creditosTexto(CREDITOS_CORREO)} por persona, como máximo {miles(maximo)}: solo se
         cobran los que encontremos, y los que ya estén enriquecidos por otro usuario salen gratis. Tarda unos segundos por persona.
       </p>
       <p style={{ fontSize: 13, margin: '0 0 16px' }}>

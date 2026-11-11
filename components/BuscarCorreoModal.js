@@ -25,7 +25,7 @@ import {
  *
  * Usa el mismo motor que «Enriquecer» en Contactos (/api/contactos/enriquecer):
  * Claude busca en fuentes oficiales y cita de dónde sale el dato. Cuesta
- * 1 crédito (6 si no está en el directorio) y solo se descuenta si lo encuentra; si alguien ya lo había
+ * 6 créditos, esté o no en el directorio (11-11-2026), y solo se descuentan si lo encuentra; si alguien ya lo había
  * buscado, sale al momento y gratis (caché compartida, sql/76).
  *
  * persona: { id (de directorio_pro), nombre, cargo }

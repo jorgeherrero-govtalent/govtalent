@@ -19,7 +19,7 @@ import { seccionPorSlug } from '@/lib/directorio';
  *
  * Maqueta A con los ajustes del 05-10-2026: sin morado, sin fuentes, solo
  * con el botón de proyecto (sin Seguir: no hay avisos que dar de ellas) y,
- * en las personas sin correo, «Buscar correo» (1 crédito, solo si lo
+ * en las personas sin ningún correo, «Buscar correo» (6 créditos, solo si lo
  * encuentra; components/BuscarCorreo).
  *
  * Correos y teléfonos solo llegan si el plan incluye la Base de datos: lo
