@@ -5,7 +5,7 @@ import { puedeVerContactos } from '@/lib/accesoContactos';
 import { saldoCreditos } from '@/lib/creditos';
 import { correosProbables, puedeVerProbables } from '@/lib/correosProbables';
 
-// POST /api/extension/persona  body: { nombre, organizacion? }
+// POST /api/extension/persona  body: { nombre, organizacion?, titular? }
 //
 // La extensión de Chrome (carpeta /extension, 12-11-2026) pregunta si la
 // persona del perfil que el usuario tiene abierto está en el directorio.
@@ -58,6 +58,7 @@ export async function POST(request) {
   const body = await request.json().catch(() => ({}));
   const nombre = String(body.nombre || '').slice(0, 160);
   const organizacion = String(body.organizacion || '').slice(0, 200);
+  const titular = String(body.titular || '').slice(0, 300);
   const palabras = sinTildes(nombre).split(' ').filter((w) => w.length > 2).slice(0, 6);
 
   const admin = createAdminClient();
@@ -80,7 +81,18 @@ export async function POST(request) {
   // perfil; a igualdad, la de más rango. Con homónimos y sin ninguna
   // coincidencia de organización no se elige a nadie: se enseñan todas.
   const orgPalabras = sinTildes(organizacion).split(' ').filter((w) => w.length > 2 && !VACIAS.has(w));
-  const puntos = (f) => orgPalabras.filter((w) => (f.institucion_norm || '').includes(w) || sinTildes(f.unidad).includes(w)).length;
+  // El titular del perfil («Director General de Desarrollo de Negocio
+  // Internacional») suele ser su cargo: también cuenta, contra el cargo.
+  const cargoPalabras = sinTildes(titular).split(' ').filter((w) => w.length > 3 && !VACIAS.has(w));
+  const puntos = (f) => {
+    const cargo = sinTildes(f.cargo);
+    const deCargo = cargoPalabras.filter((w) => cargo.includes(w)).length;
+    return (
+      orgPalabras.filter((w) => (f.institucion_norm || '').includes(w) || sinTildes(f.unidad).includes(w)).length +
+      // Dos palabras del cargo en común, para que «director» a secas no baste.
+      (deCargo >= 2 ? deCargo : 0)
+    );
+  };
   const ordenadas = (filas || [])
     .map((f) => ({ f, p: puntos(f) }))
     .sort((a, b) => b.p - a.p || (a.f.orden ?? 99) - (b.f.orden ?? 99));
