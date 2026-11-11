@@ -15,6 +15,7 @@ import NuevaBusquedaContactos, { etiquetasContactos } from '@/components/contact
 import BuscarCorreoModal from '@/components/BuscarCorreoModal';
 import { ModalGuardarLista, ModalEnriquecerVarios, ModalComprar, BarraSeleccion, useEnriquecer, avisarSaldo, ESTILOS_CONTACTOS } from '@/components/ContactosUI';
 import { filtrosVacios } from '@/lib/contactosFiltros';
+import FotoPersona, { useFotos } from '@/components/FotoPersona';
 import { CREDITOS_CORREO, CREDITOS_CORREO_FUERA, creditosTexto } from '@/lib/costesCreditos';
 
 const PAGE_SIZE_OPTIONS = [25, 50, 100, 200];
@@ -483,6 +484,7 @@ function DirectorioInstitucional() {
   // ?b=… trae la caja de la tabla ya escrita (lo usa la extensión de Chrome
   // para abrir a una persona en Base de datos).
   const [search, setSearch] = useState(() => params.get('b') || '');
+  const fotos = useFotos();
   const [bloque, setBloque] = useState('todas');
   const [nivelFilter, setNivelFilter] = useState(new Set());
   const [institucionFilter, setInstitucionFilter] = useState(new Set());
@@ -1303,24 +1305,26 @@ function DirectorioInstitucional() {
                 </td>
                 <td style={{ padding: '11px 18px' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 9 }}>
-                    <span
-                      style={{
-                        width: 24,
-                        height: 24,
-                        borderRadius: '50%',
-                        background: f.es_titular ? '#eeecfd' : '#f0efe9',
-                        color: f.es_titular ? '#6d5aef' : '#a8a79c',
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        fontSize: 10.5,
-                        fontWeight: 600,
-                        flexShrink: 0,
-                      }}
-                      title={f.es_titular ? 'Titular de la unidad' : ''}
-                    >
-                      {iniciales(f.nombre)}
-                    </span>
+                    <FotoPersona url={fotos[f.id]} lado={24}>
+                      <span
+                        style={{
+                          width: 24,
+                          height: 24,
+                          borderRadius: '50%',
+                          background: f.es_titular ? '#eeecfd' : '#f0efe9',
+                          color: f.es_titular ? '#6d5aef' : '#a8a79c',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          fontSize: 10.5,
+                          fontWeight: 600,
+                          flexShrink: 0,
+                        }}
+                        title={f.es_titular ? 'Titular de la unidad' : ''}
+                      >
+                        {iniciales(f.nombre)}
+                      </span>
+                    </FotoPersona>
                     <span style={{ fontWeight: 600, color: '#1a1a18' }}>{f.nombre}</span>
                   </div>
                 </td>

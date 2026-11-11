@@ -2,14 +2,14 @@
   "manifest_version": 3,
   "name": "GovTalent",
   "description": "Consulta en GovTalent a la persona del perfil que tienes abierto: su cargo, su correo y su organización.",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "minimum_chrome_version": "116",
   "icons": { "16": "icons/icono-16.png", "32": "icons/icono-32.png", "48": "icons/icono-48.png", "128": "icons/icono-128.png" },
   "action": { "default_title": "Abrir GovTalent" },
   "side_panel": { "default_path": "panel.html" },
   "background": { "service_worker": "fondo.js" },
   "permissions": ["sidePanel", "tabs"],
-  "host_permissions": ["https://govtalent.app/*", "https://www.linkedin.com/*"],
+  "host_permissions": ["https://govtalent.app/*", "https://www.linkedin.com/*", "https://media.licdn.com/*"],
   "content_scripts": [
     {
       "matches": ["https://www.linkedin.com/*"],

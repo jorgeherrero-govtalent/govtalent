@@ -285,8 +285,26 @@ function bloqueLista(personaId, nombre, alCerrar) {
   return caja;
 }
 
+/** Guarda en el directorio la foto del perfil de quien ya está en GovTalent. */
+async function guardarFoto(perfil, p) {
+  // Solo la foto de perfil de verdad: la silueta gris de LinkedIn no vale.
+  if (!p.guardar_foto || !/^https:\/\/media\.licdn\.com\/.*profile-displayphoto/.test(perfil.foto || '')) return;
+  try {
+    const img = await fetch(perfil.foto);
+    if (!img.ok) return;
+    const blob = await img.blob();
+    if (!blob.type.startsWith('image/') || blob.size > 1024 * 1024) return;
+    const form = new FormData();
+    form.append('persona_id', p.id);
+    form.append('origen_url', perfil.url || '');
+    form.append('foto', blob, 'foto');
+    await fetch(`${WEB}/api/extension/foto`, { method: 'POST', credentials: 'include', body: form });
+  } catch {}
+}
+
 function pantallaEncontrada(perfil, d) {
   const p = d.persona;
+  guardarFoto(perfil, p);
   const hueco = h('div');
   const botonLista = h('button', { type: 'button', class: 'boton negro' }, icono('lista', '#fff'), 'Añadir a lista');
   botonLista.addEventListener('click', () => {
@@ -337,7 +355,7 @@ function pantallaEncontrada(perfil, d) {
       : null;
 
   pintar(
-    cabeceraPersona({ nombre: p.nombre, cargo: p.cargo, organizacion: p.institucion, foto: perfil.foto, etiqueta: 'En GovTalent' }),
+    cabeceraPersona({ nombre: p.nombre, cargo: p.cargo, organizacion: p.institucion, foto: p.foto_url || perfil.foto, etiqueta: 'En GovTalent' }),
     contacto,
     h('div', { class: 'acciones' }, botonLista, ficha),
     hueco,

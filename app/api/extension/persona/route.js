@@ -12,7 +12,8 @@ import { correosProbables, puedeVerProbables } from '@/lib/correosProbables';
 // Va con la sesión de GovTalent del navegador: no hay token aparte.
 //
 // De LinkedIn solo llegan el nombre y la organización que el usuario ve
-// en pantalla, para buscar. Aquí no se guarda nada de lo que llega.
+// en pantalla, para buscar. Aquí no se guarda nada de lo que llega; la
+// foto del perfil se guarda aparte, en /api/extension/foto.
 //
 // Sin el Directorio se dice si está y su cargo, pero no su correo ni su
 // teléfono: es la misma regla que en las fichas.
@@ -110,6 +111,12 @@ export async function POST(request) {
     admin.from('directorio_pro_mat').select('id', { count: 'exact', head: true }).eq('institucion', mejor.institucion),
   ]);
 
+  // La foto que ya tenga guardada. Y si la coincidencia es segura como para
+  // guardarle la del perfil: su organización coincide con la del perfil, o
+  // no hay nadie más con ese nombre en el directorio.
+  const { data: fotoFila } = await admin.from('directorio_fotos').select('url').eq('persona_id', mejor.id).maybeSingle();
+  const segura = (ordenadas[0]?.p || 0) > 0 || (personasDistintas === 1 && palabras.length >= 3);
+
   // Sin correo publicado: el probable de su organismo, como en las fichas.
   let probable = null;
   if (directorio && !mejor.email && puedeVerProbables()) {
@@ -120,7 +127,7 @@ export async function POST(request) {
   return NextResponse.json(
     {
       ...base,
-      persona: { ...publica(mejor, directorio), probable },
+      persona: { ...publica(mejor, directorio), probable, foto_url: fotoFila?.url || null, guardar_foto: directorio && segura && !fotoFila?.url },
       colegas: (colegas || []).map((c) => ({ id: c.id, nombre: c.nombre, cargo: c.cargo })),
       total_organizacion: count ?? 0,
     },
