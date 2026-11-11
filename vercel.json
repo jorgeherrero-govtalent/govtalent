@@ -182,7 +182,7 @@
     },
     {
       "path": "/api/sync/contratacion-historico",
-      "schedule": "7,22,37,52 * * * *"
+      "schedule": "7,22,37,52 0-5 * * *"
     }
   ]
 }

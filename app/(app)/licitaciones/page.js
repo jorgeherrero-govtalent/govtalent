@@ -515,7 +515,7 @@ export default function Licitaciones() {
         ocultas: [...d, ...(f.ocultarSeguidas ? s : [])],
       });
 
-      if (orden === 'fin') q = q.order('fin_ofertas', { ascending: true, nullsFirst: false });
+      if (orden === 'fin') q = q.order('fin_orden', { ascending: true });
       else if (orden === 'importe') q = q.order('importe_sin_iva', { ascending: false, nullsFirst: false });
       q = q.order('detectado_en', { ascending: false }).order('id');
 
