@@ -547,9 +547,9 @@ export default function NuevaBusquedaContactos({ bloqueado = false, inicial = ''
     <div className="modal-ov on" onClick={(e) => e.target === e.currentTarget && onClose()}>
       <style>{ESTILOS}</style>
       <style>{ESTILOS_CORREO}</style>
-      <div className="gt-nb" role="dialog" aria-modal="true" aria-label="Nueva búsqueda de contactos">
+      <div className="gt-nb" role="dialog" aria-modal="true" aria-label="Búsqueda de contactos">
         <nav className="gt-nb-izq" aria-label="Formas de buscar">
-          <b className="gt-nb-h">Nueva búsqueda</b>
+          <b className="gt-nb-h">Búsqueda de contactos</b>
           {OPCIONES.map((o) => (
             <button key={o.v} type="button" className={`gt-nb-op${opcion === o.v ? ' on' : ''}`} onClick={() => setOpcion(o.v)} aria-current={opcion === o.v ? 'true' : undefined}>
               <span className="gt-nb-op-ic">
