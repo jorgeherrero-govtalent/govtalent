@@ -402,12 +402,29 @@ export function Buscando({ pasos = PASOS_BUSQUEDA }) {
  * La barra de selección, fija abajo y centrada, igual que la de la Base
  * de datos: el contador con su aspa y la acción principal en morado.
  */
+// La barra de la selección (Base de datos y Listas). Solo negro y gris, sin
+// colores ni botón destacado, y en una sola fila: nada baja a una segunda
+// línea (11-11-2026).
 export function BarraSeleccion({ cuantas, onQuitar, onExportar, children }) {
+  // Se centra en la zona de la página, no en la ventana: si no, el menú
+  // lateral (que puede estar plegado o no) le tapa el principio.
+  const [izq, setIzq] = useState(0);
+  useEffect(() => {
+    if (!cuantas) return;
+    const medir = () => setIzq(Math.max(0, Math.round(document.querySelector('.gt-lienzo')?.getBoundingClientRect().left || 0)));
+    medir();
+    window.addEventListener('resize', medir);
+    const t = setInterval(medir, 600);
+    return () => {
+      window.removeEventListener('resize', medir);
+      clearInterval(t);
+    };
+  }, [cuantas > 0]); // eslint-disable-line react-hooks/exhaustive-deps
   if (!cuantas) return null;
   const secundario = {
     background: 'transparent',
     color: '#fff',
-    border: '.5px solid rgba(255,255,255,.28)',
+    border: '1px solid #55524c',
     padding: '7px 12px',
     borderRadius: 7,
     fontSize: 12.5,
@@ -417,6 +434,8 @@ export function BarraSeleccion({ cuantas, onQuitar, onExportar, children }) {
     alignItems: 'center',
     gap: 6,
     fontFamily: 'inherit',
+    whiteSpace: 'nowrap',
+    flexShrink: 0,
   };
   return (
     <div
@@ -425,34 +444,42 @@ export function BarraSeleccion({ cuantas, onQuitar, onExportar, children }) {
       style={{
         position: 'fixed',
         bottom: 24,
-        left: '50%',
-        transform: 'translateX(-50%)',
+        // Centrada con márgenes, no con left: 50%: así puede ocupar todo el
+        // ancho que necesite en vez de quedarse en media pantalla y partirse.
+        left: izq + 16,
+        right: 16,
+        margin: '0 auto',
+        width: 'max-content',
+        maxWidth: `calc(100vw - ${izq + 32}px)`,
+        boxSizing: 'border-box',
         background: '#1a1a18',
         borderRadius: 12,
         padding: '10px 14px',
         display: 'flex',
         alignItems: 'center',
-        gap: 12,
+        gap: 10,
         color: '#fff',
         fontSize: 13,
         boxShadow: '0 8px 24px rgba(0,0,0,.25)',
         zIndex: 40,
-        flexWrap: 'wrap',
-        justifyContent: 'center',
-        maxWidth: 'calc(100vw - 32px)',
+        flexWrap: 'nowrap',
+        overflowX: 'auto',
+        scrollbarWidth: 'none',
       }}
     >
       <span
         style={{
-          background: '#1d6f5c',
+          background: '#3a3a36',
           color: '#fff',
-          padding: '4px 10px',
-          borderRadius: 20,
+          padding: '5px 10px',
+          borderRadius: 7,
           fontWeight: 600,
-          fontSize: 12,
+          fontSize: 12.5,
           display: 'inline-flex',
           alignItems: 'center',
           gap: 6,
+          whiteSpace: 'nowrap',
+          flexShrink: 0,
         }}
       >
         {miles(cuantas)} seleccionada{cuantas === 1 ? '' : 's'}
@@ -466,24 +493,7 @@ export function BarraSeleccion({ cuantas, onQuitar, onExportar, children }) {
         </button>
       </span>
       {typeof children === 'function' ? children(secundario) : children}
-      <button
-        type="button"
-        onClick={onExportar}
-        style={{
-          background: '#6d5aef',
-          color: '#fff',
-          border: 'none',
-          padding: '7px 14px',
-          borderRadius: 7,
-          fontSize: 12.5,
-          fontWeight: 500,
-          cursor: 'pointer',
-          display: 'inline-flex',
-          alignItems: 'center',
-          gap: 6,
-          fontFamily: 'inherit',
-        }}
-      >
+      <button type="button" onClick={onExportar} style={secundario}>
         <i className="ti ti-download" aria-hidden="true"></i> Exportar seleccionadas
       </button>
     </div>

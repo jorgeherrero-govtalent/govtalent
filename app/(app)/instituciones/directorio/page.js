@@ -13,7 +13,7 @@ import DirectorioDemo from '@/components/DirectorioDemo';
 import { useTotalDirectorio, masDe } from '@/lib/useTotalDirectorio';
 import NuevaBusquedaContactos, { etiquetasContactos } from '@/components/contactos/NuevaBusquedaContactos';
 import BuscarCorreoModal from '@/components/BuscarCorreoModal';
-import { ModalGuardarLista, ModalEnriquecerVarios, ModalComprar, useEnriquecer, avisarSaldo, ESTILOS_CONTACTOS } from '@/components/ContactosUI';
+import { ModalGuardarLista, ModalEnriquecerVarios, ModalComprar, BarraSeleccion, useEnriquecer, avisarSaldo, ESTILOS_CONTACTOS } from '@/components/ContactosUI';
 import { filtrosVacios } from '@/lib/contactosFiltros';
 import { CREDITOS_CORREO_FUERA, creditosTexto } from '@/lib/costesCreditos';
 
@@ -1565,106 +1565,20 @@ function DirectorioInstitucional() {
         />
       )}
 
-      {selectedIds.size > 0 && (
-        <div
-          style={{
-            position: 'fixed',
-            bottom: 24,
-            left: '50%',
-            transform: 'translateX(-50%)',
-            background: '#1a1a18',
-            borderRadius: 12,
-            padding: '10px 14px',
-            display: 'flex',
-            alignItems: 'center',
-            gap: 14,
-            color: '#fff',
-            fontSize: 13,
-            boxShadow: '0 8px 24px rgba(0,0,0,.25)',
-            zIndex: 40,
-          }}
-        >
-          <span
-            style={{
-              background: '#1d6f5c',
-              color: '#fff',
-              padding: '4px 10px',
-              borderRadius: 20,
-              fontWeight: 600,
-              fontSize: 12,
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: 6,
-            }}
-          >
-            {selectedIds.size} seleccionada{selectedIds.size === 1 ? '' : 's'}
-            <i
-              className="ti ti-x"
-              onClick={() => setSelectedIds(new Set())}
-              style={{ cursor: 'pointer', fontSize: 13 }}
-              aria-label="Quitar selección"
-            ></i>
-          </span>
-          <button
-            type="button"
-            onClick={abrirGuardarLista}
-            style={{
-              background: 'transparent',
-              color: '#fff',
-              border: '1px solid #55524c',
-              padding: '7px 14px',
-              borderRadius: 7,
-              fontSize: 12.5,
-              fontWeight: 500,
-              cursor: 'pointer',
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: 6,
-            }}
-          >
-            <i className="ti ti-list-details" aria-hidden="true"></i> Añadir a lista
-          </button>
-          {enriqueciblesSeleccion.length > 0 && (
-            <button
-              type="button"
-              onClick={() => pedirEnriquecer(enriqueciblesSeleccion)}
-              style={{
-                background: 'transparent',
-                color: '#fff',
-                border: '1px solid #55524c',
-                padding: '7px 14px',
-                borderRadius: 7,
-                fontSize: 12.5,
-                fontWeight: 500,
-                cursor: 'pointer',
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: 6,
-              }}
-            >
-              <i className="ti ti-sparkles" aria-hidden="true"></i> Enriquecer (hasta {creditosTexto(enriqueciblesSeleccion.length)})
+      <BarraSeleccion cuantas={selectedIds.size} onQuitar={() => setSelectedIds(new Set())} onExportar={() => abrirExportacion(seleccionadas)}>
+        {(sec) => (
+          <>
+            <button type="button" style={sec} onClick={abrirGuardarLista}>
+              <i className="ti ti-list-details" aria-hidden="true"></i> Añadir a lista
             </button>
-          )}
-          <button
-            onClick={() => abrirExportacion(seleccionadas)}
-            style={{
-              background: '#6d5aef',
-              color: '#fff',
-              border: 'none',
-              padding: '7px 14px',
-              borderRadius: 7,
-              fontSize: 12.5,
-              fontWeight: 500,
-              cursor: 'pointer',
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: 6,
-            }}
-          >
-            <i className="ti ti-download"></i> Exportar seleccionadas
-          </button>
-        </div>
-      )}
+            {enriqueciblesSeleccion.length > 0 && (
+              <button type="button" style={sec} onClick={() => pedirEnriquecer(enriqueciblesSeleccion)}>
+                <i className="ti ti-sparkles" aria-hidden="true"></i> Enriquecer (hasta {creditosTexto(enriqueciblesSeleccion.length)})
+              </button>
+            )}
+          </>
+        )}
+      </BarraSeleccion>
 
       {showExportConfirm && (
         <div className="modal-ov" onClick={() => !exportBusy && setShowExportConfirm(false)}>
