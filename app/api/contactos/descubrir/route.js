@@ -30,7 +30,7 @@ export async function POST(request) {
 
   const admin = createAdminClient();
   if (!(await puedeVerContactos(admin, userId))) {
-    return NextResponse.json({ error: 'Buscar fuera de GovTalent es del Directorio, que se contrata aparte' }, { status: 403 });
+    return NextResponse.json({ error: 'Esta búsqueda es del Directorio, que se contrata aparte' }, { status: 403 });
   }
 
   const body = await request.json().catch(() => ({}));
@@ -39,7 +39,7 @@ export async function POST(request) {
 
   const saldo = await saldoCreditos(admin, userId);
   if (!(saldo.disponibles >= CREDITOS_BUSQUEDA)) {
-    return NextResponse.json({ error: `Buscar fuera de GovTalent cuesta ${CREDITOS_BUSQUEDA} créditos`, sinCreditos: true, saldo }, { status: 402 });
+    return NextResponse.json({ error: `Esta búsqueda cuesta ${CREDITOS_BUSQUEDA} créditos`, sinCreditos: true, saldo }, { status: 402 });
   }
 
   const uso = await checkAndLogAiUsage(userId, 'contactos-descubrir');
@@ -84,7 +84,7 @@ export async function POST(request) {
 
   let cobrado = false;
   if (nuevos > 0) {
-    const c = await consumirCreditos(admin, userId, CREDITOS_BUSQUEDA, `Buscar fuera de GovTalent: ${q.slice(0, 80)}`, `desc:${userId}:${Date.now()}`);
+    const c = await consumirCreditos(admin, userId, CREDITOS_BUSQUEDA, `Personas que no están en la base de datos: ${q.slice(0, 80)}`, `desc:${userId}:${Date.now()}`);
     cobrado = c?.ok === true;
   }
 
