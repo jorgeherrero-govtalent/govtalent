@@ -48,6 +48,7 @@ Responde SOLO con un objeto JSON, sin texto antes ni después:
   "importeMax": número en euros sin IVA o null,
   "menores": true solo si pide contratos menores,
   "previos": true solo si pide anuncios previos o consultas preliminares al mercado,
+  "ue": true solo si pide licitaciones de instituciones, órganos o agencias de la Unión Europea (Comisión, Parlamento…),
   "palabras": "una o dos palabras clave muy concretas para buscar en el título si los filtros no bastan (p. ej. «limpieza», «ciberseguridad»), o null",
   "frase": "la búsqueda resumida en una frase corta en español, sin comillas"
 }
@@ -158,6 +159,7 @@ export async function POST(request) {
       importeMax,
       menores: p.menores === true,
       previos: p.previos === true,
+      ue: p.ue === true,
       palabras: texto(p.palabras, 40),
     },
   });

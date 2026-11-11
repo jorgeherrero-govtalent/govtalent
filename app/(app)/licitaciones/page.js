@@ -17,6 +17,7 @@ import {
   SECTORES,
   TERRITORIOS,
   TIPOS,
+  AMBITOS,
   territorio,
 } from '@/lib/contratacion/etiquetas';
 import { FILTROS_VACIOS, ahoraMadrid, consultaLicitaciones, limpiar } from '@/lib/contratacion/consulta';
@@ -78,7 +79,7 @@ const ORDENES = [
 
 
 const COLUMNAS =
-  'id, fuente, expediente, titulo, url, estado, tipo, procedimiento, organo_nombre, organo_ubicacion, nuts, importe_sin_iva, valor_estimado, fin_ofertas, detectado_en, es_menor';
+  'id, fuente, ambito, expediente, titulo, url, estado, tipo, procedimiento, organo_nombre, organo_ubicacion, nuts, importe_sin_iva, valor_estimado, fin_ofertas, detectado_en, es_menor';
 
 function euros(n) {
   if (n == null || Number.isNaN(Number(n))) return null;
@@ -191,7 +192,11 @@ function Tarjeta({ l, adj, siguiendo, onSeguir, onDescartar }) {
           {ref && <span className="gt-lic-ref">{ref}</span>}
           {cuando(l.detectado_en) && <span className="gt-lic-tag">{cuando(l.detectado_en)}</span>}
           {l.es_menor && <span className="gt-lic-tag">Contrato menor</span>}
-          {l.fuente === 'ted' && <span className="gt-lic-tag">Diario Oficial de la UE</span>}
+          {l.ambito === 'ue' ? (
+            <span className="gt-lic-tag">Institución de la UE</span>
+          ) : (
+            l.fuente === 'ted' && <span className="gt-lic-tag">Diario Oficial de la UE</span>
+          )}
           {ESTADOS[l.estado] && <span className="gt-lic-estado">{ESTADOS[l.estado]}</span>}
         </div>
         <a href={l.url} target="_blank" rel="noopener noreferrer" className="gt-lic-titulo">
@@ -648,6 +653,7 @@ export default function Licitaciones() {
   const nFechas = [f.finDesde, f.finHasta].filter(Boolean).length;
   const nFiltros =
     nComunes +
+    f.ambitos.length +
     f.sectores.length +
     f.territorios.length +
     (f.organo ? 1 : 0) +
@@ -670,6 +676,7 @@ export default function Licitaciones() {
     f.actualizadas24 && { k: 'a24', label: 'Actualizadas en las últimas 24 h', quitar: () => cambiar('actualizadas24', false) },
     f.ocultarSeguidas && { k: 'oc', label: 'Sin las que ya sigo', quitar: () => cambiar('ocultarSeguidas', false) },
     ...f.sectores.map((v) => ({ k: `s${v}`, label: nombre(SECTORES, v), quitar: quitarDe('sectores', v) })),
+    ...(f.ambitos || []).map((v) => ({ k: `am${v}`, label: nombre(AMBITOS, v), quitar: quitarDe('ambitos', v) })),
     ...f.territorios.map((v) => ({ k: `t${v}`, label: nombre(TERRITORIOS, v), quitar: quitarDe('territorios', v) })),
     f.previos && { k: 'prev', label: 'Anuncios previos', quitar: () => cambiar('previos', false) },
     f.organo && { k: 'org', label: `Órgano: ${f.organo}`, quitar: () => cambiar('organo', '') },
@@ -771,6 +778,10 @@ export default function Licitaciones() {
               <input type="checkbox" checked={f.ocultarSeguidas} onChange={(e) => cambiar('ocultarSeguidas', e.target.checked)} />
               Ocultar las que ya sigo
             </label>
+          </Grupo>
+
+          <Grupo titulo="Ámbito" n={f.ambitos.length} abierto={abiertos.has('ambito')} onToggle={() => alternarGrupo('ambito')}>
+            <Casillas opciones={AMBITOS} elegidos={f.ambitos} onChange={(v) => cambiar('ambitos', v)} />
           </Grupo>
 
           <Grupo titulo="Sector (CPV)" n={f.sectores.length} abierto={abiertos.has('sector')} onToggle={() => alternarGrupo('sector')}>
