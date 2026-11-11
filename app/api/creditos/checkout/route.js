@@ -80,8 +80,8 @@ export async function POST(request) {
       client_reference_id: profile.id,
       metadata,
       payment_intent_data: { metadata },
-      success_url: volverPlan ? `${APP_URL}/account?tab=plan&compra=ok` : `${APP_URL}/contactos?compra=ok`,
-      cancel_url: volverPlan ? `${APP_URL}/account?tab=plan` : `${APP_URL}/contactos`,
+      success_url: volverPlan ? `${APP_URL}/account?tab=plan&compra=ok` : `${APP_URL}/instituciones/directorio?compra=ok`,
+      cancel_url: volverPlan ? `${APP_URL}/account?tab=plan` : `${APP_URL}/instituciones/directorio`,
     });
   } catch (err) {
     console.error('Error creando la sesión de Checkout de créditos:', err.message);

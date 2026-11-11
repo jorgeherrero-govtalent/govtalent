@@ -3,16 +3,19 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ESTILOS, Etiqueta, Trabajando } from '@/components/licitaciones/NuevaBusqueda';
 import { BANDAS, FILTROS_VACIOS, TIPOS_INSTITUCION, TIPO_LABEL, filtrosVacios } from '@/lib/contactosFiltros';
+import { CREDITOS_CORREO_FUERA, creditosTexto } from '@/lib/costesCreditos';
 
 /**
  * «Nueva búsqueda» del Buscador de contactos (11-11-2026). Es el mismo
  * modal que el de Licitaciones (components/licitaciones/NuevaBusqueda.js):
  * mismas piezas, mismos estilos y los mismos efectos mientras trabaja la
- * IA. Sustituye a la portada del Buscador.
+ * IA. Se abre desde la Base de datos, con el botón «Nueva búsqueda».
  *
  * A la izquierda, las formas de buscar; a la derecha, la elegida. Todas
  * terminan igual: unos filtros que se aplican a la página con
  * onAplicar({ filtros, consulta, resumen, persona, aviso, origen }).
+ * La excepción es «El correo de una persona concreta», que no filtra la
+ * tabla: pide nombre y organización y llama a onCorreo({ nombre, institucion }).
  *
  * Sin el Directorio se ve igual; al usarlo, onUpsell.
  */
@@ -24,6 +27,7 @@ const OPCIONES = [
   { v: 'ia', label: 'Describe a quién buscas', icono: 'ti-sparkles' },
   { v: 'tipo', label: 'Por tipo de institución', icono: 'ti-building-bank' },
   { v: 'nivel', label: 'Por nivel del cargo', icono: 'ti-hierarchy-2' },
+  { v: 'correo', label: 'El correo de una persona concreta', icono: 'ti-mail-search' },
 ];
 
 // Búsquedas recomendadas: con filtros fijos (no pasan por la IA), así que
@@ -145,8 +149,8 @@ function Resultado({ b, setFiltros, total, ejemplos, contando, onAplicar }) {
 
 /* ---------- Búsqueda con IA ---------- */
 
-function PanelIA({ bloqueado, onUpsell, onAplicar }) {
-  const [texto, setTexto] = useState('');
+function PanelIA({ bloqueado, onUpsell, onAplicar, inicial = '' }) {
+  const [texto, setTexto] = useState(inicial);
   const [estado, setEstado] = useState('inicio'); // inicio | trabajando | resultado | error
   const [fase, setFase] = useState('entender');
   const [b, setB] = useState(null); // { filtros, consulta, resumen, persona, aviso, origen }
@@ -249,6 +253,15 @@ function PanelIA({ bloqueado, onUpsell, onAplicar }) {
     e?.preventDefault();
     if (texto.trim().length >= 3) lanzar(texto.trim());
   };
+
+  // Si se llega con la frase ya escrita (buscador de arriba), se busca sola.
+  const arrancado = useRef(false);
+  useEffect(() => {
+    if (arrancado.current || inicial.trim().length < 3) return;
+    arrancado.current = true;
+    lanzar(inicial.trim());
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const nChips = b ? etiquetasContactos(b.filtros).length : 0;
   const fraseTrabajo =
@@ -402,9 +415,74 @@ function PanelLista({ titulo, opciones, clave, bloqueado, onUpsell, onAplicar })
   );
 }
 
+/* ---------- El correo de una persona concreta ---------- */
+
+function PanelCorreo({ bloqueado, onUpsell, onCorreo }) {
+  const [nombre, setNombre] = useState('');
+  const [institucion, setInstitucion] = useState('');
+  const [creditos, setCreditos] = useState(null);
+
+  useEffect(() => {
+    let vivo = true;
+    fetch('/api/creditos', { cache: 'no-store' })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((j) => vivo && j?.directorio && j.saldo && setCreditos(Number(j.saldo.disponibles) || 0))
+      .catch(() => {});
+    return () => {
+      vivo = false;
+    };
+  }, []);
+
+  const listo = nombre.trim().split(/\s+/).filter((w) => w.length > 1).length >= 2 && institucion.trim().length >= 2;
+  const enviar = (e) => {
+    e.preventDefault();
+    if (bloqueado) {
+      onUpsell();
+      return;
+    }
+    if (listo) onCorreo({ nombre: nombre.trim(), institucion: institucion.trim() });
+  };
+
+  return (
+    <div className="gt-nb-centro">
+      <b className="gt-nb-pregunta">¿De quién necesitas el correo?</b>
+      <form onSubmit={enviar} className="gt-nb-caja" style={{ maxWidth: 520, gap: 12, padding: 18 }}>
+        <label className="gt-nb-campo">
+          Nombre y apellidos
+          <input autoFocus value={nombre} onChange={(e) => setNombre(e.target.value)} placeholder="Ana López García" maxLength={120} />
+        </label>
+        <label className="gt-nb-campo">
+          Organización
+          <input value={institucion} onChange={(e) => setInstitucion(e.target.value)} placeholder="CNMC" maxLength={160} />
+        </label>
+        <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, marginTop: 4 }}>
+          <span style={{ fontSize: 12.5, color: '#5443d6', fontWeight: 600 }}>
+            {creditosTexto(CREDITOS_CORREO_FUERA)}, solo si lo encontramos
+          </span>
+          <button type="submit" className="gt-nb-ok" disabled={!listo}>
+            Buscar correo
+          </button>
+        </span>
+      </form>
+      {creditos != null && (
+        <span style={{ fontSize: 13, color: '#57534e' }}>
+          {creditos === 1 ? 'Te queda 1 crédito este mes' : `Te quedan ${miles(creditos)} créditos este mes`}
+        </span>
+      )}
+    </div>
+  );
+}
+
+const ESTILOS_CORREO = `
+.gt-nb-campo { display: flex; flex-direction: column; gap: 5px; font-size: 12.5px; color: #57534e; }
+.gt-nb-campo input { font: inherit; font-size: 14px; color: #1a1a18; border: 1px solid #e0dfd8; border-radius: 9px; padding: 9px 11px; outline: none; background: #fff; }
+.gt-nb-campo input:focus { border-color: #c9c7bd; }
+.gt-nb-campo input::placeholder { color: #a8a49c; }
+`;
+
 /* ---------- El modal ---------- */
 
-export default function NuevaBusquedaContactos({ bloqueado = false, onUpsell, onAplicar, onClose }) {
+export default function NuevaBusquedaContactos({ bloqueado = false, inicial = '', onUpsell, onAplicar, onCorreo, onClose }) {
   const [opcion, setOpcion] = useState('ia');
 
   useEffect(() => {
@@ -428,9 +506,20 @@ export default function NuevaBusquedaContactos({ bloqueado = false, onUpsell, on
 
   let panel;
   if (opcion === 'ia') {
-    panel = <PanelIA bloqueado={bloqueado} onUpsell={onUpsell} onAplicar={aplicar} />;
+    panel = <PanelIA bloqueado={bloqueado} onUpsell={onUpsell} onAplicar={aplicar} inicial={inicial} />;
   } else if (opcion === 'tipo') {
     panel = <PanelLista key="tipo" titulo="Por tipo de institución" opciones={OPCIONES_TIPO} clave="tipos" bloqueado={bloqueado} onUpsell={onUpsell} onAplicar={aplicar} />;
+  } else if (opcion === 'correo') {
+    panel = (
+      <PanelCorreo
+        bloqueado={bloqueado}
+        onUpsell={onUpsell}
+        onCorreo={(p) => {
+          onCorreo(p);
+          onClose();
+        }}
+      />
+    );
   } else {
     panel = <PanelLista key="nivel" titulo="Por nivel del cargo" opciones={OPCIONES_NIVEL} clave="bandas" bloqueado={bloqueado} onUpsell={onUpsell} onAplicar={aplicar} />;
   }
@@ -438,6 +527,7 @@ export default function NuevaBusquedaContactos({ bloqueado = false, onUpsell, on
   return (
     <div className="modal-ov on" onClick={(e) => e.target === e.currentTarget && onClose()}>
       <style>{ESTILOS}</style>
+      <style>{ESTILOS_CORREO}</style>
       <div className="gt-nb" role="dialog" aria-modal="true" aria-label="Nueva búsqueda de contactos">
         <nav className="gt-nb-izq" aria-label="Formas de buscar">
           <b className="gt-nb-h">Nueva búsqueda</b>

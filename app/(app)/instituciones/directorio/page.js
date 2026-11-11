@@ -3,15 +3,23 @@
 import CampoBusqueda from '@/components/CampoBusqueda';
 
 import BuscarCorreo, { useCorreosEncontrados } from '@/components/BuscarCorreo';
-import { useEffect, useMemo, useState } from 'react';
+import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import * as XLSX from 'xlsx';
 import { createClient } from '@/lib/supabase/client';
 import FilterableHeader from '@/components/FilterableHeader';
 import UpgradeModal from '@/components/UpgradeModal';
 import DirectorioDemo from '@/components/DirectorioDemo';
 import { useTotalDirectorio, masDe } from '@/lib/useTotalDirectorio';
+import NuevaBusquedaContactos, { etiquetasContactos } from '@/components/contactos/NuevaBusquedaContactos';
+import BuscarCorreoModal from '@/components/BuscarCorreoModal';
+import { ModalGuardarLista, ESTILOS_CONTACTOS } from '@/components/ContactosUI';
+import { filtrosVacios } from '@/lib/contactosFiltros';
+import { CREDITOS_CORREO_FUERA, creditosTexto } from '@/lib/costesCreditos';
 
 const PAGE_SIZE_OPTIONS = [25, 50, 100, 200];
+// Lo máximo que admite una lista (lib/listas.js).
+const MAX_LISTA = 2000;
 
 // La vista tiene unas 18.200 filas desde que entró la Agenda de la
 // Comunicación (sql/70, 05-10-2026).
@@ -356,7 +364,7 @@ function cifraCabecera(total) {
 }
 
 // Un filtro aplicado, junto al número de resultados, con su aspa para quitarlo.
-function ChipFiltro({ texto, onQuitar }) {
+function ChipFiltro({ texto, onQuitar, ia = false }) {
   return (
     <span
       style={{
@@ -371,6 +379,7 @@ function ChipFiltro({ texto, onQuitar }) {
         maxWidth: 320,
       }}
     >
+      {ia && <i className="ti ti-sparkles" style={{ fontSize: 12, color: '#6d5aef' }} aria-hidden="true"></i>}
       <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{texto}</span>
       <button
         type="button"
@@ -386,7 +395,85 @@ function ChipFiltro({ texto, onQuitar }) {
 }
 
 export default function DirectorioInstitucionalPage() {
+  return (
+    <Suspense fallback={<div className="spinner"></div>}>
+      <DirectorioInstitucional />
+    </Suspense>
+  );
+}
+
+function DirectorioInstitucional() {
   const supabase = createClient();
+  const router = useRouter();
+  const params = useSearchParams();
+
+  // EL BUSCADOR, DENTRO (11-11-2026). El Buscador de contactos deja de ser
+  // una página aparte: se abre aquí con el botón «Nueva búsqueda», en el
+  // mismo modal que Licitaciones. Lo que sale del modal son unos filtros;
+  // /api/contactos/ids dice qué personas los cumplen y la tabla se queda
+  // con esas filas. Los filtros de siempre (pestañas, institución, área…)
+  // siguen funcionando encima.
+  const qInicial = params.get('q') || '';
+  const [nueva, setNueva] = useState(() => qInicial.trim().length >= 3);
+  const cerrarNueva = useCallback(() => setNueva(false), []);
+  const [ia, setIa] = useState(null); // { filtros, consulta, origen, persona }
+  const [iaIds, setIaIds] = useState(null); // Set de ids, o null sin búsqueda
+  const [iaCargando, setIaCargando] = useState(false);
+  const [iaError, setIaError] = useState('');
+  const iaRegistrada = useRef(null);
+  const [correoLibre, setCorreoLibre] = useState(null); // { nombre, institucion }
+  const [correoNombre, setCorreoNombre] = useState('');
+  const [correoOrg, setCorreoOrg] = useState('');
+  const [guardarLista, setGuardarLista] = useState(null); // { modo, ids, cuantos }
+
+  const aplicarBusqueda = useCallback((b) => {
+    iaRegistrada.current = null;
+    setIa({ filtros: b.filtros, consulta: b.consulta || '', origen: b.origen || 'filtros', persona: b.persona || null });
+  }, []);
+
+  const claveIa = ia ? JSON.stringify(ia.filtros) : '';
+  useEffect(() => {
+    if (!ia || filtrosVacios(ia.filtros)) {
+      setIaIds(null);
+      setIaCargando(false);
+      setIaError('');
+      return;
+    }
+    let vivo = true;
+    setIaCargando(true);
+    setIaError('');
+    // Solo se registra la búsqueda tal como sale del modal, no cada vez
+    // que se quita una etiqueta.
+    const registrar = iaRegistrada.current === null;
+    iaRegistrada.current = claveIa;
+    fetch('/api/contactos/ids', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        filtros: ia.filtros,
+        ...(registrar ? { registrar: true, origen: ia.origen, consulta: ia.consulta || null, persona: ia.persona?.nombre || null } : {}),
+      }),
+    })
+      .then(async (r) => {
+        const j = await r.json().catch(() => ({}));
+        if (!r.ok) throw new Error(j.error || 'No se pudo hacer la búsqueda');
+        return j;
+      })
+      .then((j) => {
+        if (!vivo) return;
+        setIaIds(Array.isArray(j.ids) ? new Set(j.ids) : null);
+      })
+      .catch((e) => {
+        if (!vivo) return;
+        setIaError(e.message);
+        setIaIds(new Set());
+      })
+      .finally(() => vivo && setIaCargando(false));
+    return () => {
+      vivo = false;
+    };
+  }, [claveIa]); // eslint-disable-line react-hooks/exhaustive-deps
+
 
   const [filas, setFilas] = useState(null);
   const [loadError, setLoadError] = useState(null);
@@ -514,9 +601,12 @@ export default function DirectorioInstitucionalPage() {
 
   useEffect(() => {
     setPage(0);
-  }, [search, bloque, nivelFilter, institucionFilter, areaFilter, paisFilter, bandaFilter, contactoFilter, pageSize]);
+  }, [iaIds, search, bloque, nivelFilter, institucionFilter, areaFilter, paisFilter, bandaFilter, contactoFilter, pageSize]);
 
-  const base = filas || [];
+  const base = useMemo(() => {
+    const todas = filas || [];
+    return iaIds ? todas.filter((f) => iaIds.has(f.id)) : todas;
+  }, [filas, iaIds]);
 
   const enBloque = (f) => bloque === 'todas' || f.bloque === bloque;
   const enNivel = (f) => nivelFilter.size === 0 || nivelFilter.has(f.nivel);
@@ -692,6 +782,31 @@ export default function DirectorioInstitucionalPage() {
     [filtered, selectedIds]
   );
 
+  // GUARDAR COMO LISTA. Tres casos, por este orden:
+  //  - hay filas marcadas: se añaden esas a una lista (nueva o existente);
+  //  - hay una búsqueda del modal y ningún filtro de la tabla encima: se
+  //    guarda la búsqueda, que avisará de quien entre después;
+  //  - hay filtros de la tabla: se guardan las personas que se ven ahora
+  //    (hasta 2.000), sin búsqueda guardada, porque esos filtros viven en
+  //    el navegador y la lista no podría repetirlos.
+  const hayFiltrosTabla =
+    !!search.trim() ||
+    bloque !== 'todas' ||
+    nivelFilter.size + institucionFilter.size + areaFilter.size + paisFilter.size + bandaFilter.size + contactoFilter.size > 0;
+  const puedeGuardarLista = !iaCargando && filtered.length > 0 && (selectedIds.size > 0 || !!ia || hayFiltrosTabla);
+  function abrirGuardarLista() {
+    if (selectedIds.size > 0) {
+      setGuardarLista({ modo: 'seleccion', ids: [...selectedIds], cuantos: selectedIds.size });
+    } else if (ia && !hayFiltrosTabla) {
+      setGuardarLista({ modo: 'busqueda', ids: [], cuantos: Math.min(iaIds?.size ?? filtered.length, MAX_LISTA) });
+    } else {
+      const ids = filtered.slice(0, MAX_LISTA).map((f) => f.id);
+      setGuardarLista({ modo: 'seleccion', ids, cuantos: ids.length });
+    }
+  }
+
+  const correoListo = correoNombre.trim().split(/\s+/).filter((w) => w.length > 1).length >= 2 && correoOrg.trim().length >= 2;
+
   async function abrirExportacion(rows) {
     setExportRows(rows);
     setExportError('');
@@ -815,8 +930,12 @@ export default function DirectorioInstitucionalPage() {
         margin: '0 auto',
       }}
     >
-      <div style={{ marginBottom: 16 }}>
+      <style>{ESTILOS_CONTACTOS}</style>
+      <div style={{ marginBottom: 16, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
         <h1 style={{ fontSize: 19, fontWeight: 700, margin: 0 }}>Base de datos</h1>
+        <button type="button" className="gt-filtro" onClick={() => setNueva(true)}>
+          <i className="ti ti-sparkles" style={{ color: '#6d5aef' }} aria-hidden="true"></i> Nueva búsqueda
+        </button>
       </div>
 
       {loadError && (
@@ -944,6 +1063,15 @@ export default function DirectorioInstitucionalPage() {
           <i className="ti ti-file-spreadsheet" style={{ fontSize: 15, color: '#a8a79c' }}></i>
           Exportar{selectedIds.size > 0 ? ` (${selectedIds.size})` : ''}
         </button>
+        <button
+          type="button"
+          className="btn-ai"
+          onClick={abrirGuardarLista}
+          disabled={!puedeGuardarLista}
+          title={puedeGuardarLista ? '' : 'Haz una búsqueda, filtra o marca filas para guardarlas como lista'}
+        >
+          {selectedIds.size > 0 ? 'Añadir a lista' : 'Guardar como lista'}
+        </button>
       </div>
 
       {(() => {
@@ -952,7 +1080,19 @@ export default function DirectorioInstitucionalPage() {
           n.delete(v);
           setter(n);
         };
+        const chipsIa = ia
+          ? etiquetasContactos(ia.filtros).map((c) => ({
+              k: `ia-${c.k}`,
+              t: c.label,
+              ia: true,
+              f: () => {
+                const filtros = c.quitar(ia.filtros);
+                setIa(filtrosVacios(filtros) ? null : { ...ia, filtros });
+              },
+            }))
+          : [];
         const chips = [
+          ...chipsIa,
           ...(search.trim() ? [{ k: 'q', t: `«${search.trim()}»`, f: () => setSearch('') }] : []),
           ...[...nivelFilter].map((v) => ({ k: `n-${v}`, t: v, f: () => quitar(nivelFilter, setNivelFilter, v) })),
           ...[...institucionFilter].map((v) => ({ k: `i-${v}`, t: v, f: () => quitar(institucionFilter, setInstitucionFilter, v) })),
@@ -968,15 +1108,17 @@ export default function DirectorioInstitucionalPage() {
         return (
           <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap', minHeight: 26, marginBottom: 8 }}>
             <span style={{ fontSize: 12, color: '#999', marginRight: 4 }}>
-              {filtered.length.toLocaleString('es-ES')} resultados
+              {iaCargando ? 'Buscando…' : `${filtered.length.toLocaleString('es-ES')} resultados`}
             </span>
             {chips.map((c) => (
-              <ChipFiltro key={c.k} texto={c.t} onQuitar={c.f} />
+              <ChipFiltro key={c.k} texto={c.t} onQuitar={c.f} ia={c.ia} />
             ))}
+            {iaError && <span style={{ fontSize: 12, color: '#57534e' }}>{iaError}</span>}
             {chips.length > 1 && (
               <button
                 type="button"
                 onClick={() => {
+                  setIa(null);
                   setSearch('');
                   setNivelFilter(new Set());
                   setInstitucionFilter(new Set());
@@ -1263,6 +1405,87 @@ export default function DirectorioInstitucionalPage() {
         </div>
       </div>
 
+      {/* El correo de una persona concreta: para quien no sale en la tabla.
+          Abre el mismo modal que «Buscar correo», con la persona escrita a mano. */}
+      <form
+        aria-label="El correo de una persona concreta"
+        onSubmit={(e) => {
+          e.preventDefault();
+          if (correoListo) setCorreoLibre({ nombre: correoNombre.trim(), institucion: correoOrg.trim() });
+        }}
+        style={{
+          marginTop: 14,
+          background: '#f7f5ff',
+          border: '1px solid #cfc8fa',
+          borderRadius: 12,
+          padding: '14px 16px',
+          display: 'flex',
+          alignItems: 'flex-end',
+          gap: 14,
+          flexWrap: 'wrap',
+        }}
+      >
+        <div style={{ flex: '1 1 320px', display: 'flex', flexDirection: 'column', gap: 4 }}>
+          <b style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 14, color: '#1a1a18' }}>
+            <i className="ti ti-sparkles" style={{ color: '#6d5aef' }} aria-hidden="true"></i>
+            El correo de una persona concreta
+          </b>
+          <span style={{ fontSize: 12.5, color: '#3d3a35', lineHeight: 1.45 }}>
+            ¿No aparece en la tabla? Escribe su nombre y su organización y te damos su correo. {creditosTexto(CREDITOS_CORREO_FUERA)}, solo si lo encontramos.
+          </span>
+        </div>
+        <label style={{ display: 'flex', flexDirection: 'column', gap: 4, fontSize: 12, color: '#57534e', flex: '0 1 230px' }}>
+          Nombre y apellidos
+          <input
+            value={correoNombre}
+            onChange={(e) => setCorreoNombre(e.target.value)}
+            placeholder="Ana López García"
+            maxLength={120}
+            style={{ font: 'inherit', fontSize: 13, border: '1px solid #e0dfd8', borderRadius: 9, padding: '8px 11px', background: '#fff', outline: 'none' }}
+          />
+        </label>
+        <label style={{ display: 'flex', flexDirection: 'column', gap: 4, fontSize: 12, color: '#57534e', flex: '0 1 200px' }}>
+          Organización
+          <input
+            value={correoOrg}
+            onChange={(e) => setCorreoOrg(e.target.value)}
+            placeholder="CNMC"
+            maxLength={160}
+            style={{ font: 'inherit', fontSize: 13, border: '1px solid #e0dfd8', borderRadius: 9, padding: '8px 11px', background: '#fff', outline: 'none' }}
+          />
+        </label>
+        <button type="submit" className="btn-ai" disabled={!correoListo}>
+          Buscar correo
+        </button>
+      </form>
+
+      {nueva && (
+        <NuevaBusquedaContactos
+          inicial={qInicial}
+          onUpsell={() => setModalUpsell(true)}
+          onAplicar={aplicarBusqueda}
+          onCorreo={setCorreoLibre}
+          onClose={cerrarNueva}
+        />
+      )}
+      {correoLibre && (
+        <BuscarCorreoModal
+          persona={{ libre: true, id: 'libre', nombre: correoLibre.nombre, institucion: correoLibre.institucion }}
+          onClose={() => setCorreoLibre(null)}
+        />
+      )}
+      {guardarLista && (
+        <ModalGuardarLista
+          modo={guardarLista.modo}
+          cuantos={guardarLista.cuantos}
+          filtros={ia?.filtros}
+          consulta={ia?.consulta || ''}
+          ids={guardarLista.ids}
+          onClose={() => setGuardarLista(null)}
+          onHecho={(id) => router.push(`/contactos/listas/${id}`)}
+        />
+      )}
+
       {selectedIds.size > 0 && (
         <div
           style={{
@@ -1303,6 +1526,25 @@ export default function DirectorioInstitucionalPage() {
               aria-label="Quitar selección"
             ></i>
           </span>
+          <button
+            type="button"
+            onClick={abrirGuardarLista}
+            style={{
+              background: 'transparent',
+              color: '#fff',
+              border: '1px solid #55524c',
+              padding: '7px 14px',
+              borderRadius: 7,
+              fontSize: 12.5,
+              fontWeight: 500,
+              cursor: 'pointer',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 6,
+            }}
+          >
+            <i className="ti ti-list-details" aria-hidden="true"></i> Añadir a lista
+          </button>
           <button
             onClick={() => abrirExportacion(seleccionadas)}
             style={{
