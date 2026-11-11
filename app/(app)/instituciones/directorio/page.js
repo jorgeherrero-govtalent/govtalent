@@ -2,7 +2,7 @@
 
 import CampoBusqueda from '@/components/CampoBusqueda';
 
-import BuscarCorreo, { useCorreosEncontrados } from '@/components/BuscarCorreo';
+import BuscarCorreo, { useCorreosEncontrados, CorreoEncontrado } from '@/components/BuscarCorreo';
 import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import * as XLSX from 'xlsx';
@@ -13,7 +13,7 @@ import DirectorioDemo from '@/components/DirectorioDemo';
 import { useTotalDirectorio, masDe } from '@/lib/useTotalDirectorio';
 import NuevaBusquedaContactos, { etiquetasContactos } from '@/components/contactos/NuevaBusquedaContactos';
 import BuscarCorreoModal from '@/components/BuscarCorreoModal';
-import { ModalGuardarLista, ESTILOS_CONTACTOS } from '@/components/ContactosUI';
+import { ModalGuardarLista, ModalEnriquecerVarios, ModalComprar, useEnriquecer, avisarSaldo, ESTILOS_CONTACTOS } from '@/components/ContactosUI';
 import { filtrosVacios } from '@/lib/contactosFiltros';
 import { CREDITOS_CORREO_FUERA, creditosTexto } from '@/lib/costesCreditos';
 
@@ -753,9 +753,58 @@ function DirectorioInstitucional() {
   const pageEnd = Math.min(filtered.length, (currentPage + 1) * pageSize);
   const paginated = filtered.slice(currentPage * pageSize, currentPage * pageSize + pageSize);
 
-  // «Buscar correo» en las filas de esta página que no traen ningún correo.
-  const idsSinCorreo = paginated.filter((f) => !limpiarEmail(f.email) && !limpiarEmail(f.email_unidad)).map((f) => f.id);
+  // Lo ya encontrado para las filas de esta página que no traen correo
+  // nominativo (antes solo las que no traían ninguno: al enriquecer varias
+  // a la vez también entran las que solo tienen el correo de la unidad).
+  const idsSinCorreo = paginated.filter((f) => !limpiarEmail(f.email)).map((f) => f.id);
   const { encontrados, probables, apuntar } = useCorreosEncontrados(idsSinCorreo, planAllowed);
+
+  // ENRIQUECER VARIOS A LA VEZ (11-11-2026), como en el Buscador: de las
+  // filas marcadas, las que no tienen correo nominativo. 1 crédito por
+  // persona, solo si se encuentra; lo ya encontrado por otro sale gratis.
+  const [saldoEnr, setSaldoEnr] = useState(null);
+  const [packsEnr, setPacksEnr] = useState([]);
+  const [confirmarEnr, setConfirmarEnr] = useState(null); // ids
+  const [comprarEnr, setComprarEnr] = useState(false);
+  const { estado: enr, enMarcha, enriquecerVarios } = useEnriquecer({
+    onSaldo: (sal) => {
+      setSaldoEnr(sal);
+      avisarSaldo(sal);
+    },
+    onSinCreditos: () => setComprarEnr(true),
+  });
+  // Lo encontrado para una fila: lo recién enriquecido o lo que ya había.
+  const hallado = (f) => {
+    const e = enr.get(f.id);
+    return e?.fase === 'hecho' && e.resultado?.estado === 'encontrado' && e.resultado.email ? e.resultado : encontrados[f.id] || null;
+  };
+  // Solo el nominativo sustituye al correo de la unidad.
+  const correoHallado = (f) => {
+    const r = hallado(f);
+    return r && r.tipo === 'personal' ? r : null;
+  };
+  async function abrirCompra() {
+    try {
+      const res = await fetch('/api/creditos', { cache: 'no-store' });
+      const j = res.ok ? await res.json() : null;
+      if (j?.packs) setPacksEnr(j.packs);
+    } catch {}
+    setComprarEnr(true);
+  }
+  async function pedirEnriquecer(ids) {
+    let sal = saldoEnr;
+    try {
+      const res = await fetch('/api/creditos', { cache: 'no-store' });
+      const j = res.ok ? await res.json() : null;
+      if (j?.saldo) {
+        sal = j.saldo;
+        setSaldoEnr(j.saldo);
+        setPacksEnr(j.packs || []);
+      }
+    } catch {}
+    if (!((sal?.disponibles ?? 0) >= 1)) setComprarEnr(true);
+    else setConfirmarEnr(ids);
+  }
 
   const allPageSelected = paginated.length > 0 && paginated.every((f) => selectedIds.has(f.id));
 
@@ -781,6 +830,9 @@ function DirectorioInstitucional() {
     () => filtered.filter((f) => selectedIds.has(f.id)),
     [filtered, selectedIds]
   );
+  const enriqueciblesSeleccion = seleccionadas
+    .filter((f) => !limpiarEmail(f.email) && !correoHallado(f) && !enr.has(f.id))
+    .map((f) => f.id);
 
   // GUARDAR COMO LISTA. Tres casos, por este orden:
   //  - hay filas marcadas: se añaden esas a una lista (nueva o existente);
@@ -1109,6 +1161,7 @@ function DirectorioInstitucional() {
           <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap', minHeight: 26, marginBottom: 8 }}>
             <span style={{ fontSize: 12, color: '#999', marginRight: 4 }}>
               {iaCargando ? 'Buscando…' : `${filtered.length.toLocaleString('es-ES')} resultados`}
+              {enMarcha > 0 && <span style={{ color: '#5443d6' }}>, enriqueciendo {enMarcha.toLocaleString('es-ES')}…</span>}
             </span>
             {chips.map((c) => (
               <ChipFiltro key={c.k} texto={c.t} onQuitar={c.f} ia={c.ia} />
@@ -1302,6 +1355,10 @@ function DirectorioInstitucional() {
                     >
                       {limpiarEmail(f.email)}
                     </a>
+                  ) : enr.get(f.id)?.fase === 'buscando' ? (
+                    <span style={{ fontSize: 12, color: '#5443d6' }}>Buscando…</span>
+                  ) : correoHallado(f) ? (
+                    <CorreoEncontrado r={correoHallado(f)} alinear="left" />
                   ) : limpiarEmail(f.email_unidad) ? (
                     <a
                       href={`mailto:${limpiarEmail(f.email_unidad)}`}
@@ -1312,7 +1369,7 @@ function DirectorioInstitucional() {
                   ) : (
                     <BuscarCorreo
                       persona={{ id: f.id, nombre: f.nombre, cargo: [f.cargo, f.institucion].filter(Boolean).join(', ') }}
-                      encontrado={encontrados[f.id]}
+                      encontrado={hallado(f) || undefined}
                       probable={probables[f.id]}
                       onResultado={(r) => apuntar(f.id, r)}
                       alinear="left"
@@ -1465,6 +1522,11 @@ function DirectorioInstitucional() {
           onUpsell={() => setModalUpsell(true)}
           onAplicar={aplicarBusqueda}
           onCorreo={setCorreoLibre}
+          onDescubiertos={(nuevas) => {
+            const ids = (nuevas || []).map((f) => f.id).filter(Boolean);
+            if (ids.length) setGuardarLista({ modo: 'seleccion', ids, cuantos: ids.length });
+          }}
+          onSinCreditos={abrirCompra}
           onClose={cerrarNueva}
         />
       )}
@@ -1474,6 +1536,23 @@ function DirectorioInstitucional() {
           onClose={() => setCorreoLibre(null)}
         />
       )}
+      {confirmarEnr && (
+        <ModalEnriquecerVarios
+          cuantos={confirmarEnr.length}
+          saldo={saldoEnr}
+          onClose={() => setConfirmarEnr(null)}
+          onComprar={() => {
+            setConfirmarEnr(null);
+            setComprarEnr(true);
+          }}
+          onConfirmar={() => {
+            const ids = confirmarEnr;
+            setConfirmarEnr(null);
+            enriquecerVarios(ids);
+          }}
+        />
+      )}
+      {comprarEnr && <ModalComprar packs={packsEnr} onClose={() => setComprarEnr(false)} />}
       {guardarLista && (
         <ModalGuardarLista
           modo={guardarLista.modo}
@@ -1545,6 +1624,27 @@ function DirectorioInstitucional() {
           >
             <i className="ti ti-list-details" aria-hidden="true"></i> Añadir a lista
           </button>
+          {enriqueciblesSeleccion.length > 0 && (
+            <button
+              type="button"
+              onClick={() => pedirEnriquecer(enriqueciblesSeleccion)}
+              style={{
+                background: 'transparent',
+                color: '#fff',
+                border: '1px solid #55524c',
+                padding: '7px 14px',
+                borderRadius: 7,
+                fontSize: 12.5,
+                fontWeight: 500,
+                cursor: 'pointer',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 6,
+              }}
+            >
+              <i className="ti ti-sparkles" aria-hidden="true"></i> Enriquecer (hasta {creditosTexto(enriqueciblesSeleccion.length)})
+            </button>
+          )}
           <button
             onClick={() => abrirExportacion(seleccionadas)}
             style={{

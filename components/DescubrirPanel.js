@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { CREDITOS_BUSCAR_FUERA } from '@/lib/costesCreditos';
 import { MORADO, BORDE, GRIS, miles, Buscando, ESTILOS_CONTACTOS } from '@/components/ContactosUI';
 
@@ -25,8 +25,10 @@ const PASOS_DESCUBRIR = [
  *
  * consulta: la frase buscada, onSeleccionar(filas): mete filas de
  * directorio_pro en la selección, onSaldo(saldo), onSinCreditos()
+ * auto: empieza a buscar al montarse (modal «Nueva búsqueda» de Base de
+ * datos, 11-11-2026); destino: a dónde van los elegidos, para el botón.
  */
-export default function DescubrirPanel({ consulta, onSeleccionar, onSaldo, onSinCreditos }) {
+export default function DescubrirPanel({ consulta, onSeleccionar, onSaldo, onSinCreditos, auto = false, destino = 'la selección' }) {
   const [fase, setFase] = useState('inicio'); // inicio | buscando | hecho | error | anadido
   const [res, setRes] = useState(null);
   const [marcados, setMarcados] = useState(() => new Set());
@@ -59,6 +61,15 @@ export default function DescubrirPanel({ consulta, onSeleccionar, onSaldo, onSin
       setFase('error');
     }
   }
+
+  // Desde el modal ya se ha pulsado «Buscar»: no se pide otra vez.
+  const arrancado = useRef(false);
+  useEffect(() => {
+    if (!auto || arrancado.current) return;
+    arrancado.current = true;
+    buscar();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   function alternar(i) {
     setMarcados((prev) => {
@@ -102,13 +113,13 @@ export default function DescubrirPanel({ consulta, onSeleccionar, onSaldo, onSin
     return (
       <div style={{ ...caja, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
         <div>
-          <b style={{ display: 'block', fontSize: 13.5, fontWeight: 600 }}>¿Faltan personas?</b>
+          <b style={{ display: 'block', fontSize: 13.5, fontWeight: 600 }}>{auto && fase === 'error' ? 'No se pudo completar la búsqueda' : '¿Faltan personas?'}</b>
           <span style={{ display: 'block', fontSize: 12, color: GRIS, marginTop: 2 }}>
             {fase === 'error' ? error : `Buscamos en fuentes oficiales quién ocupa hoy esos cargos. ${CREDITOS_BUSCAR_FUERA} créditos, solo si encontramos a alguien que no esté en GovTalent.`}
           </span>
         </div>
         <button type="button" className="btn-ai-o" onClick={buscar} style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-          <i className="ti ti-world-search" aria-hidden="true"></i> Buscar fuera de GovTalent
+          <i className="ti ti-world-search" aria-hidden="true"></i> {auto && fase === 'error' ? 'Volver a intentarlo' : 'Buscar fuera de GovTalent'}
         </button>
       </div>
     );
@@ -164,7 +175,7 @@ export default function DescubrirPanel({ consulta, onSeleccionar, onSaldo, onSin
         </div>
         {personas.length > 0 && (
           <button type="button" className="btn-ai" onClick={anadir} disabled={anadiendo || !marcados.size}>
-            {anadiendo ? 'Añadiendo…' : `Añadir ${miles(marcados.size)} a la selección`}
+            {anadiendo ? 'Añadiendo…' : `Añadir ${miles(marcados.size)} a ${destino}`}
           </button>
         )}
       </div>
