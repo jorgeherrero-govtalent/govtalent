@@ -4,11 +4,13 @@
 //
 // Recorre la cola contratacion_historico (sql/127): un trabajo por feed y
 // periodo (un año, AAAA, o un mes, AAAAMM), cada uno con su ZIP de datos
-// abiertos. De cada ZIP se lee el índice y luego los ficheros ATOM de uno
-// en uno con descargas parciales (lib/contratacion/zipRemoto.js), y se
-// guardan con la misma función que el sync diario, que nunca pisa una
+// abiertos. La Plataforma no admite descargas parciales, así que cada ZIP
+// se descarga en flujo y se descomprime al vuelo
+// (lib/contratacion/zipRemoto.js): cada fichero ATOM se guarda en cuanto
+// termina, con la misma función que el sync diario, que nunca pisa una
 // versión más reciente. El cursor (siguiente) avanza fichero a fichero:
-// si se acaba el tiempo, la pasada siguiente sigue por ahí.
+// si se acaba el tiempo, la pasada siguiente vuelve a descargar el ZIP y
+// atraviesa sin descomprimir lo que ya se hizo.
 //
 // Uso:
 //   cron (CRON_SECRET)                          avanza la cola
@@ -20,7 +22,7 @@ import { createClient } from '@supabase/supabase-js';
 import { conRegistro } from '@/lib/syncLog';
 import { leerEntradas, leerBajas } from '@/lib/contratacion/placsp';
 import { guardar, aplicarBajas } from '@/lib/contratacion/guardar';
-import { indice, leerFichero } from '@/lib/contratacion/zipRemoto';
+import { recorrerZip } from '@/lib/contratacion/zipRemoto';
 import { fetchGob } from '@/lib/fetchGob';
 import { HEADERS_BOT } from '@/lib/govtalentBot';
 
@@ -51,14 +53,13 @@ function admin() {
   });
 }
 
-/** El índice del ZIP, probando los dominios conocidos. */
-async function abrir(feed, periodo, urlGuardada) {
+/** Recorre el ZIP del trabajo, probando los dominios conocidos. */
+async function recorrer(feed, periodo, urlGuardada, opciones) {
   const urls = urlGuardada ? [urlGuardada] : urlsDe(feed, periodo);
   let ultimo;
   for (const url of urls) {
     try {
-      const idx = await indice(url);
-      return { url, ...idx };
+      return { url, ...(await recorrerZip(url, opciones)) };
     } catch (e) {
       ultimo = e;
       if (e.status !== 404) break;
@@ -97,32 +98,26 @@ async function handler(request) {
     return Response.json({ out, ms: Date.now() - t0 });
   }
 
-  // ---- Pruebas, sin guardar nada ----
-  if (sp.get('probar') === '1' || sp.get('muestra') === '1') {
+  // ---- Muestra: la n-ésima entrada del primer fichero, sin guardar ----
+  if (sp.get('muestra') === '1') {
     const feed = sp.get('feed') || 'perfiles';
     const periodo = sp.get('periodo') || '202601';
+    let out = {};
     try {
-      const z = await abrir(feed, periodo);
-      const out = { url: z.url, bytes: z.total, ficheros: z.entradas.length, primeros: z.entradas.slice(0, 3), ms: 0 };
-      if (sp.get('muestra') === '1' && z.entradas.length) {
-        const xml = await leerFichero(z.url, z.entradas[0]);
-        const i = xml.indexOf('<entry');
-        const j = xml.indexOf('</entry>', i);
-        out.entradas_en_fichero = (xml.match(/<entry[\s>]/g) || []).length;
-        const n = Math.max(0, Number(sp.get('n') || 0));
-        // La n-ésima entrada, para ver una con adjudicación o con lotes.
-        let a = i;
-        let b = j;
-        for (let k = 0; k < n && a >= 0; k++) {
-          a = xml.indexOf('<entry', b);
-          b = xml.indexOf('</entry>', a);
-        }
-        out.entrada = a >= 0 ? xml.slice(a, Math.min(b + 8, a + 30000)) : null;
-      }
-      out.ms = Date.now() - t0;
-      return Response.json(out);
+      let visto = false;
+      const r = await recorrer(feed, periodo, null, {
+        desde: 0,
+        debeParar: () => visto || Date.now() - t0 > 200000,
+        onFichero: async ({ nombre, texto }) => {
+          visto = true;
+          const entradas = texto.split('<entry').slice(1);
+          const n = Math.min(Math.max(0, Number(sp.get('n') || 0)), entradas.length - 1);
+          out = { nombre, entradas_en_fichero: entradas.length, entrada: entradas.length ? `<entry${entradas[n].split('</entry>')[0].slice(0, 30000)}</entry>` : null };
+        },
+      });
+      return Response.json({ url: r.url, mb_leidos: Math.round(r.bytes / 1e5) / 10, ...out, ms: Date.now() - t0 });
     } catch (e) {
-      return Response.json({ ok: false, error: String(e.message || e), status: e.status || null }, { status: 200 });
+      return Response.json({ ok: false, error: String(e.message || e), status: e.status || null });
     }
   }
 
@@ -142,61 +137,54 @@ async function handler(request) {
 
     const salida = { feed: t.feed, periodo: t.periodo, ficheros: 0, entradas: 0, guardadas: 0, omitidas: 0, bajas: 0 };
     res.trabajos.push(salida);
-    let z;
+    await db.from('contratacion_historico').update({ estado: 'en_curso', actualizado_en: new Date().toISOString() }).eq('id', t.id);
+    let r;
     try {
-      z = await abrir(t.feed, t.periodo, t.url);
+      r = await recorrer(t.feed, t.periodo, t.url, {
+        desde: t.siguiente || 0,
+        debeParar: () => Date.now() - t0 > PRESUPUESTO_MS - MARGEN_MS,
+        onFichero: async ({ indice, texto }) => {
+          const entradas = leerEntradas(texto);
+          const g = await guardar(db, t.feed, entradas);
+          const bajas = await aplicarBajas(db, t.feed, leerBajas(texto));
+          salida.ficheros += 1;
+          salida.entradas += entradas.length;
+          salida.guardadas += g.guardadas;
+          salida.omitidas += g.omitidas;
+          salida.bajas += bajas;
+          await db
+            .from('contratacion_historico')
+            .update({
+              siguiente: indice + 1,
+              entradas: (t.entradas || 0) + salida.entradas,
+              guardadas: (t.guardadas || 0) + salida.guardadas,
+              error: null,
+              actualizado_en: new Date().toISOString(),
+            })
+            .eq('id', t.id);
+        },
+      });
     } catch (e) {
       const noExiste = e.status === 404;
+      salida.error = String(e.message || e).slice(0, 500);
       await db
         .from('contratacion_historico')
-        .update({ estado: noExiste ? 'no_existe' : 'error', error: String(e.message || e).slice(0, 500), actualizado_en: new Date().toISOString() })
+        .update({ estado: noExiste ? 'no_existe' : 'en_curso', error: salida.error, actualizado_en: new Date().toISOString() })
         .eq('id', t.id);
-      salida.error = String(e.message || e);
-      if (!noExiste) {
-        res.ok = false;
-        break;
-      }
-      continue;
-    }
-
-    const ficheros = z.entradas.filter((e) => /\.atom$/i.test(e.nombre));
-    let i = t.siguiente || 0;
-    await db
-      .from('contratacion_historico')
-      .update({ estado: 'en_curso', url: z.url, ficheros: ficheros.length, bytes: z.total, actualizado_en: new Date().toISOString() })
-      .eq('id', t.id);
-
-    try {
-      while (i < ficheros.length && Date.now() - t0 < PRESUPUESTO_MS - MARGEN_MS) {
-        const xml = await leerFichero(z.url, ficheros[i]);
-        const entradas = leerEntradas(xml);
-        const g = await guardar(db, t.feed, entradas);
-        const bajas = await aplicarBajas(db, t.feed, leerBajas(xml));
-        i += 1;
-        salida.ficheros += 1;
-        salida.entradas += entradas.length;
-        salida.guardadas += g.guardadas;
-        salida.omitidas += g.omitidas;
-        salida.bajas += bajas;
-        await db
-          .from('contratacion_historico')
-          .update({
-            siguiente: i,
-            entradas: (t.entradas || 0) + salida.entradas,
-            guardadas: (t.guardadas || 0) + salida.guardadas,
-            estado: i >= ficheros.length ? 'hecho' : 'en_curso',
-            error: null,
-            actualizado_en: new Date().toISOString(),
-          })
-          .eq('id', t.id);
-      }
-    } catch (e) {
+      if (noExiste) continue;
       res.ok = false;
-      salida.error = String(e.message || e).slice(0, 500);
-      await db.from('contratacion_historico').update({ error: salida.error, actualizado_en: new Date().toISOString() }).eq('id', t.id);
       break;
     }
-    if (i < ficheros.length) break; // sin tiempo: sigue en la próxima pasada
+    salida.mb = Math.round(r.bytes / 1e5) / 10;
+    await db
+      .from('contratacion_historico')
+      .update({
+        url: r.url,
+        ...(r.terminado ? { estado: 'hecho', ficheros: r.ficheros_vistos } : {}),
+        actualizado_en: new Date().toISOString(),
+      })
+      .eq('id', t.id);
+    if (!r.terminado) break; // sin tiempo: sigue en la próxima pasada
   }
   res.ms = Date.now() - t0;
   return Response.json(res);
