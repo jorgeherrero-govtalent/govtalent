@@ -177,7 +177,8 @@ async function handler(request) {
         debeParar: () => Date.now() - t0 > PRESUPUESTO_MS - MARGEN_MS,
         onFichero: async ({ indice, texto }) => {
           const entradas = leerEntradas(texto);
-          const g = await guardar(db, t.feed, entradas);
+          // Años anteriores y menores, sin documentos (lo que más pesa).
+          const g = await guardar(db, t.feed, entradas, { ligero: t.periodo.length === 4 || t.feed === 'menores' });
           const bajas = await aplicarBajas(db, t.feed, leerBajas(texto));
           salida.ficheros += 1;
           salida.entradas += entradas.length;
