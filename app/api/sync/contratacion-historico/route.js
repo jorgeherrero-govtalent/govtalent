@@ -21,6 +21,8 @@ import { conRegistro } from '@/lib/syncLog';
 import { leerEntradas, leerBajas } from '@/lib/contratacion/placsp';
 import { guardar, aplicarBajas } from '@/lib/contratacion/guardar';
 import { indice, leerFichero } from '@/lib/contratacion/zipRemoto';
+import { fetchGob } from '@/lib/fetchGob';
+import { HEADERS_BOT } from '@/lib/govtalentBot';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -73,6 +75,27 @@ async function handler(request) {
   const isCron = request.headers.get('authorization') === `Bearer ${process.env.CRON_SECRET}`;
   const isManual = !!process.env.DEBUG_KEY && String(sp.get('key') || '').toLowerCase() === process.env.DEBUG_KEY.toLowerCase();
   if (!isCron && !isManual) return Response.json({ error: 'no autorizado' }, { status: 401 });
+
+  // ---- Tamaños: HEAD de cada ZIP de una lista de periodos ----
+  if (sp.get('tamanos') === '1') {
+    const feeds = (sp.get('feeds') || 'perfiles,agregacion,menores').split(',');
+    const periodos = (sp.get('periodos') || '2022,2023,2024,2025,202601,202610').split(',');
+    const out = [];
+    for (const feed of feeds) {
+      for (const periodo of periodos) {
+        for (const url of urlsDe(feed, periodo)) {
+          try {
+            const r = await fetchGob(url, { method: 'HEAD', headers: HEADERS_BOT, cache: 'no-store', redirect: 'follow', signal: AbortSignal.timeout(30000) });
+            out.push({ feed, periodo, url, status: r.status, mb: Math.round(Number(r.headers.get('content-length') || 0) / 1e5) / 10, ranges: r.headers.get('accept-ranges') });
+            if (r.status === 200) break;
+          } catch (e) {
+            out.push({ feed, periodo, url, error: String(e.message || e) });
+          }
+        }
+      }
+    }
+    return Response.json({ out, ms: Date.now() - t0 });
+  }
 
   // ---- Pruebas, sin guardar nada ----
   if (sp.get('probar') === '1' || sp.get('muestra') === '1') {
