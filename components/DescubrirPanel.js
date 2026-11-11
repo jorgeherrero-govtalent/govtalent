@@ -119,7 +119,7 @@ export default function DescubrirPanel({ consulta, onSeleccionar, onSaldo, onSin
           </span>
         </div>
         <button type="button" className="btn-ai-o" onClick={buscar} style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-          <i className="ti ti-world-search" aria-hidden="true"></i> {auto && fase === 'error' ? 'Volver a intentarlo' : 'Buscar fuera de GovTalent'}
+          <i className="ti ti-world-search" aria-hidden="true"></i> {auto && fase === 'error' ? 'Volver a intentarlo' : 'Buscar personas'}
         </button>
       </div>
     );
@@ -169,7 +169,7 @@ export default function DescubrirPanel({ consulta, onSeleccionar, onSaldo, onSin
         <div>
           <b style={{ fontSize: 13.5, fontWeight: 600 }}>Encontrados en fuentes oficiales ({miles(personas.length)})</b>
           <span style={{ display: 'block', fontSize: 12, color: GRIS, marginTop: 2 }}>
-            {res.nuevos ? `${miles(res.nuevos)} no estaban en GovTalent` : 'Todos estaban ya en GovTalent'}
+            {res.nuevos ? `${miles(res.nuevos)} no estaban en la base de datos` : 'Todos estaban ya en la base de datos'}
             {res.cobrado ? `, ${res.creditos} créditos` : ', sin coste'}
           </span>
         </div>

@@ -18,7 +18,8 @@ import DescubrirPanel from '@/components/DescubrirPanel';
  * onAplicar({ filtros, consulta, resumen, persona, aviso, origen }).
  * «El correo de una persona concreta» no filtra la tabla: pide nombre y
  * organización y llama a onCorreo({ nombre, institucion }).
- * «Buscar fuera de GovTalent» pide unos cargos, busca en fuentes oficiales
+ * «Personas que no están en la base de datos» (antes «Buscar fuera de
+ * GovTalent», nombre que no se entendía) pide unos cargos, busca en fuentes oficiales
  * a quien los ocupa y aún no está en el directorio, y lo elegido sale por
  * onDescubiertos(filas) para guardarlo en una lista.
  *
@@ -31,7 +32,7 @@ const GRIS = '#8b8780';
 const OPCIONES = [
   { v: 'ia', label: 'Describe a quién buscas', icono: 'ti-sparkles' },
   { v: 'correo', label: 'El correo de una persona concreta', icono: 'ti-mail-search' },
-  { v: 'fuera', label: 'Buscar fuera de GovTalent', icono: 'ti-world-search' },
+  { v: 'fuera', label: 'Personas que no están en la base de datos', icono: 'ti-world-search' },
 ];
 
 // Búsquedas recomendadas: con filtros fijos (no pasan por la IA), así que
@@ -393,7 +394,7 @@ function PanelCorreo({ bloqueado, onUpsell, onCorreo }) {
   );
 }
 
-/* ---------- Buscar fuera de GovTalent ---------- */
+/* ---------- Personas que no están en la base de datos ---------- */
 
 function useCreditos() {
   const [creditos, setCreditos] = useState(null);
@@ -429,7 +430,7 @@ function PanelFuera({ bloqueado, onUpsell, onDescubiertos, onSinCreditos }) {
   if (consulta) {
     return (
       <div style={{ display: 'flex', flexDirection: 'column', gap: 14, marginTop: 8, minHeight: 0 }}>
-        <b className="gt-nb-titulo">Buscar fuera de GovTalent</b>
+        <b className="gt-nb-titulo">Personas que no están en la base de datos</b>
         <span style={{ fontSize: 13.5, color: '#3d3a35' }}>{consulta}</span>
         <div style={{ overflowY: 'auto', minHeight: 0 }}>
           <DescubrirPanel
@@ -453,7 +454,7 @@ function PanelFuera({ bloqueado, onUpsell, onDescubiertos, onSinCreditos }) {
 
   return (
     <div className="gt-nb-centro">
-      <b className="gt-nb-pregunta">¿A quién no encuentras en GovTalent?</b>
+      <b className="gt-nb-pregunta">¿Quién falta en la base de datos?</b>
       <span style={{ fontSize: 13.5, color: '#3d3a35', textAlign: 'center', maxWidth: 520, lineHeight: 1.55, marginTop: -8 }}>
         Dinos qué cargos buscas y de qué institución. Los buscamos en sus fuentes oficiales y te enseñamos a quién hemos encontrado.
       </span>
