@@ -286,3 +286,218 @@ begin
   return v_res;
 end;
 $function$;
+
+-- ---------------------------------------------------------------------
+-- 6. Los bloques de la Base de datos, ya montados
+-- ---------------------------------------------------------------------
+-- Cada visita a la Base de datos hacía que la base montara seis JSON de
+-- unos 2 MB a la vez. Sola tarda 0,1 s por bloque; con seis a la vez y el
+-- resto de peticiones de la página, los registros de producción dan entre
+-- 1 y 10 s por bloque, y alguno caía por tiempo. Ahora los bloques se
+-- montan una vez, al refrescar la tabla precalculada, y cada visita solo
+-- los lee.
+create table if not exists public.directorio_pro_bloques (
+  n integer primary key,
+  datos json not null,
+  actualizado timestamptz not null default now()
+);
+alter table public.directorio_pro_bloques enable row level security;
+revoke all on public.directorio_pro_bloques from public, anon, authenticated;
+grant select on public.directorio_pro_bloques to service_role;
+
+-- El montaje de un bloque (lo que antes hacía directorio_pro_bloque).
+create or replace function public.directorio_pro_bloque_montar(p_desde integer, p_cuantos integer)
+ returns json
+ language sql
+ stable
+ set search_path to 'public'
+ set work_mem to '64MB'
+as $function$
+  select json_build_object(
+    'c', json_build_array('id', 'jurisdiccion', 'tipo_institucion', 'pais', 'institucion', 'unidad',
+                          'nombre', 'cargo', 'cargo_canonico', 'banda', 'orden', 'es_titular', 'area',
+                          'email', 'email_unidad', 'telefono', 'direccion_postal', 'slug', 'contactabilidad',
+                          'categoria_unidad'),
+    'f', coalesce(json_agg(json_build_array(
+           d.id, d.jurisdiccion, d.tipo_institucion, d.pais, d.institucion, d.unidad,
+           d.nombre, d.cargo, d.cargo_canonico, d.banda, d.orden, d.es_titular, d.area,
+           d.email, d.email_unidad, d.telefono, d.direccion_postal, d.slug, d.contactabilidad,
+           d.categoria_unidad
+         ) order by d.orden, d.id), '[]'::json)
+  )
+  from (
+    select *
+    from public.directorio_pro_mat
+    order by orden, id
+    offset greatest(p_desde, 0)
+    limit least(greatest(p_cuantos, 0), 5000)
+  ) d;
+$function$;
+revoke all on function public.directorio_pro_bloque_montar(integer, integer) from public, anon, authenticated;
+grant execute on function public.directorio_pro_bloque_montar(integer, integer) to service_role;
+
+-- Lo que pide la página: el bloque ya montado; si no está, se monta.
+create or replace function public.directorio_pro_bloque(p_desde integer, p_cuantos integer)
+ returns json
+ language plpgsql
+ stable
+ set search_path to 'public'
+as $function$
+declare
+  v json;
+begin
+  if p_cuantos = 5000 and p_desde >= 0 and p_desde % 5000 = 0 then
+    select b.datos into v from directorio_pro_bloques b where b.n = p_desde / 5000;
+    if v is not null then return v; end if;
+  end if;
+  return directorio_pro_bloque_montar(p_desde, p_cuantos);
+end;
+$function$;
+
+-- Guarda los bloques. Solo escribe el que ha cambiado.
+create or replace function public.directorio_pro_bloques_guardar()
+ returns void
+ language plpgsql
+ security definer
+ set search_path to 'public'
+as $function$
+declare
+  v_n integer;
+begin
+  select ceil(count(*) / 5000.0)::int into v_n from directorio_pro_mat;
+  insert into directorio_pro_bloques (n, datos, actualizado)
+  select g, directorio_pro_bloque_montar(g * 5000, 5000), now()
+    from generate_series(0, greatest(v_n, 1) - 1) g
+  on conflict (n) do update
+    set datos = excluded.datos, actualizado = excluded.actualizado
+    where directorio_pro_bloques.datos::text is distinct from excluded.datos::text;
+  delete from directorio_pro_bloques where n >= greatest(v_n, 1);
+end;
+$function$;
+revoke all on function public.directorio_pro_bloques_guardar() from public, anon, authenticated;
+
+create or replace function public.refrescar_directorio_pro()
+ returns void
+ language plpgsql
+ security definer
+ set search_path to 'public'
+ set work_mem to '64MB'
+ set statement_timeout to '120s'
+as $function$
+begin
+  refresh materialized view concurrently public.directorio_pro_mat;
+  analyze public.directorio_pro_mat;
+  perform directorio_pro_bloques_guardar();
+end;
+$function$;
+
+select public.directorio_pro_bloques_guardar();
+
+-- ---------------------------------------------------------------------
+-- 7. La página de Listas cuenta sin montar cada lista entera
+-- ---------------------------------------------------------------------
+-- listas_resumen llamaba a lista_estado, que monta el JSON completo de
+-- todos los miembros (2 MB en una lista de 1.261) solo para contarlos.
+-- lista_cifras hace las mismas cuentas directamente. lista_estado sigue
+-- siendo la referencia y la que usa la ficha de cada lista.
+create or replace function public.lista_cifras(p_lista uuid)
+ returns jsonb
+ language plpgsql
+ stable security definer
+ set search_path to 'public'
+as $function$
+declare
+  l contactos_listas;
+  v_estado jsonb;
+  v_ids text[];
+  v_n integer; v_email integer; v_cambios integer; v_inc integer := 0;
+begin
+  select * into l from contactos_listas where id = p_lista;
+  if not found then return null; end if;
+
+  -- Casos raros: se calculan por el camino largo, que es el de referencia.
+  if nullif(l.filtros->>'orden', '') is not null
+     or exists (select 1 from contactos_lista_miembros m
+                 where m.lista_id = p_lista and m.added_at > now() - interval '10 minutes') then
+    v_estado := lista_estado(p_lista, 0);
+    return jsonb_build_object(
+      'n_miembros', jsonb_array_length(v_estado->'miembros'),
+      'n_con_email', (select count(*) from jsonb_array_elements(v_estado->'miembros') m
+                       where coalesce(m->'actual'->>'email', m->'actual'->>'email_unidad', m->'enriquecido'->>'email',
+                                      m->'snapshot'->>'email', m->'snapshot'->>'email_unidad') is not null),
+      'n_cambios', (select count(*) from jsonb_array_elements(v_estado->'miembros') m where m->>'cambio' is not null)
+                   + coalesce((v_estado->>'n_incorporaciones')::int, 0));
+  end if;
+
+  select array_agg(persona_id) into v_ids from contactos_lista_miembros where lista_id = p_lista;
+
+  select count(*),
+         count(*) filter (where coalesce(a.email, a.email_unidad, e.email, m.snapshot->>'email', m.snapshot->>'email_unidad') is not null),
+         count(*) filter (where case
+             when a.id is null then m.mantener_salida is not true
+             else coalesce(a.cargo, '') <> coalesce(m.snapshot->>'cargo', '')
+               or coalesce(a.unidad, '') <> coalesce(m.snapshot->>'unidad', '')
+               or coalesce(a.institucion, '') <> coalesce(m.snapshot->>'institucion', '')
+               or coalesce(a.email, '') <> coalesce(m.snapshot->>'email', '')
+               or coalesce(a.email_unidad, '') <> coalesce(m.snapshot->>'email_unidad', '')
+               or coalesce(a.telefono, '') <> coalesce(m.snapshot->>'telefono', '')
+           end)
+    into v_n, v_email, v_cambios
+    from contactos_lista_miembros m
+    left join directorio_pro_mat a on a.id = m.persona_id
+    left join contactos_enriquecidos e on e.persona_id = m.persona_id and e.estado = 'encontrado'
+   where m.lista_id = p_lista;
+
+  if l.filtros is not null then
+    select count(*) into v_inc
+      from (select f.id from contactos_filtrados(l.filtros) f
+             order by f.es_titular desc nulls last, f.contactabilidad desc nulls last, f.orden asc nulls last, f.nombre asc, f.id asc
+             limit 2000) x
+     where not (x.id = any(coalesce(v_ids, '{}')))
+       and not (x.id = any(l.descartados));
+  end if;
+
+  return jsonb_build_object('n_miembros', v_n, 'n_con_email', v_email, 'n_cambios', v_cambios + v_inc);
+end;
+$function$;
+revoke all on function public.lista_cifras(uuid) from public, anon, authenticated;
+grant execute on function public.lista_cifras(uuid) to service_role;
+
+create or replace function public.listas_resumen(p_user uuid)
+ returns jsonb
+ language plpgsql
+ stable security definer
+ set search_path to 'public'
+as $function$
+declare
+  r record;
+  v_c jsonb;
+  v_out jsonb := '[]'::jsonb;
+begin
+  for r in
+    select l.id, l.nombre, l.owner_id, l.created_at, l.updated_at, l.filtros is not null as con_busqueda,
+           coalesce(nullif(trim(concat_ws(' ', u.first_name, u.last_name)), ''), u.email) as creada_por
+      from contactos_listas l
+      left join users u on u.id = l.owner_id
+     where l.owner_id = p_user
+        or (l.organization_id is not null and exists (
+              select 1 from organization_members m where m.organization_id = l.organization_id and m.user_id = p_user))
+     order by l.updated_at desc
+  loop
+    v_c := lista_cifras(r.id);
+    v_out := v_out || jsonb_build_object(
+      'id', r.id,
+      'nombre', r.nombre,
+      'creada_por', r.creada_por,
+      'mia', r.owner_id = p_user,
+      'con_busqueda', r.con_busqueda,
+      'created_at', r.created_at,
+      'updated_at', r.updated_at,
+      'n_miembros', (v_c->>'n_miembros')::int,
+      'n_con_email', (v_c->>'n_con_email')::int,
+      'n_cambios', (v_c->>'n_cambios')::int
+    );
+  end loop;
+  return v_out;
+end;
+$function$;

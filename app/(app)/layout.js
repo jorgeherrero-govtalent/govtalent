@@ -60,21 +60,31 @@ export default function AppLayout({ children }) {
     };
   }, [menuMovil]);
 
+  // CARGA DEL MENÚ (11-11-2026). Esto se repetía entero en cada cambio de
+  // página: once peticiones (quién eres, tu perfil, tus organizaciones, tus
+  // ofertas, cuatro contadores y los créditos) que competían con las de la
+  // propia página. Ahora el perfil y las organizaciones se guardan un
+  // minuto y los contadores quince segundos; al salir de Configuración o
+  // de la organización se vuelven a pedir, por si se han cambiado ahí.
+  const identidad = useRef(null); // { en, userId, profile }
+  const contadoEn = useRef(0);
+  const rutaAnterior = useRef(pathname);
+
   useEffect(() => {
     let active = true;
-    async function load() {
+    async function cargarIdentidad() {
       const { data } = await supabase.auth.getUser();
-      if (!active) return;
+      if (!active) return null;
       if (!data.user) {
         setAuthChecked(true);
-        return;
+        return null;
       }
       const { data: profile } = await supabase
         .from('users')
         .select('*')
         .eq('id', data.user.id)
         .single();
-      if (!active) return;
+      if (!active) return null;
       setUser(profile);
       setAuthChecked(true);
       setNeedsOnboarding(!!profile && !profile.onboarding_completed);
@@ -99,6 +109,30 @@ export default function AppLayout({ children }) {
           if (active) setTieneOfertas((count || 0) > 0);
         }
       }
+      identidad.current = { en: Date.now(), userId: data.user.id, profile };
+      return { data, profile };
+    }
+
+    async function load() {
+      const anterior = rutaAnterior.current || '';
+      rutaAnterior.current = pathname;
+      const vieneDeAjustes = /^\/(account|organizations)/.test(anterior);
+      // Donde se crean alarmas o se marca lo visto: al salir, se recuenta.
+      const vieneDeAlarmas = anterior === '/' || /^\/(alarmas|novedades|seguimiento)/.test(anterior);
+      const vale = identidad.current && !vieneDeAjustes && Date.now() - identidad.current.en < 60000;
+      let data;
+      let profile;
+      if (vale) {
+        data = { user: { id: identidad.current.userId } };
+        profile = identidad.current.profile;
+      } else {
+        const cargada = await cargarIdentidad();
+        if (!cargada) return;
+        ({ data, profile } = cargada);
+      }
+
+      if (!vieneDeAjustes && !vieneDeAlarmas && Date.now() - contadoEn.current < 15000) return;
+      contadoEn.current = Date.now();
 
       // El contador de Alarmas: lo nuevo que han encontrado las alarmas y
       // lo que ha cambiado en lo que sigues, sumado. Es el único contador
