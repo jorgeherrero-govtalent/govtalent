@@ -1,5 +1,6 @@
 // =====================================================================
-// SYNC — Licitaciones en TED (poderes adjudicadores españoles)
+// SYNC — Licitaciones en TED (poderes adjudicadores españoles e
+// instituciones de la UE, desde el 11-11-2026)
 // app/api/sync/contratacion-ted/route.js
 //
 // Cada pasada pide a la Search API de TED lo publicado desde el día de la

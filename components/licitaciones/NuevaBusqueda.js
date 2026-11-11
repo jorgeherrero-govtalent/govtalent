@@ -74,6 +74,7 @@ function aBusqueda(r) {
       importeMin: r.importeMin === '' || r.importeMin == null ? '' : String(r.importeMin),
       importeMax: r.importeMax === '' || r.importeMax == null ? '' : String(r.importeMax),
       previos: !!r.previos,
+      ambitos: r.ue ? ['ue'] : [],
     },
     pestana: r.previos ? 'todas' : r.menores ? 'todas' : 'plazo',
     busqueda: r.palabras || '',
@@ -89,6 +90,7 @@ function etiquetas(b) {
   if (b.expediente === 'menores') out.push({ k: 'men', label: 'Contratos menores', quitar: (x) => ({ ...x, expediente: 'licitaciones', pestana: 'plazo' }) });
   if (f.previos) out.push({ k: 'prev', label: 'Anuncios previos', quitar: (x) => ({ ...x, pestana: 'plazo', f: { ...x.f, previos: false } }) });
   else if (b.pestana === 'plazo') out.push({ k: 'plazo', label: 'En plazo', quitar: (x) => ({ ...x, pestana: 'todas' }) });
+  if (f.ambitos?.includes('ue') && f.ambitos.length === 1) out.push({ k: 'ue', label: 'Instituciones de la UE', quitar: quitar(() => ({ ambitos: [] })) });
   f.sectores.forEach((v) => out.push({ k: `s${v}`, label: nombre(SECTORES, v), quitar: quitar((y) => ({ sectores: y.sectores.filter((z) => z !== v) })) }));
   f.territorios.forEach((v) => out.push({ k: `t${v}`, label: nombre(TERRITORIOS, v), quitar: quitar((y) => ({ territorios: y.territorios.filter((z) => z !== v) })) }));
   if (f.organo) out.push({ k: 'org', label: `Órgano: ${f.organo}`, quitar: quitar(() => ({ organo: '' })) });
