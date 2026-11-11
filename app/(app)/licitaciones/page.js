@@ -12,15 +12,15 @@ import SelectorFecha from '@/components/SelectorFecha';
 import Paginacion, { usePaginacion } from '@/components/Paginacion';
 import {
   ADJUDICADAS,
-  EN_PLAZO,
   ESTADOS,
   PROCEDIMIENTOS,
   SECTORES,
   TERRITORIOS,
   TIPOS,
-  codigos,
   territorio,
 } from '@/lib/contratacion/etiquetas';
+import { FILTROS_VACIOS, ahoraMadrid, consultaLicitaciones, limpiar } from '@/lib/contratacion/consulta';
+import NuevaBusqueda from '@/components/licitaciones/NuevaBusqueda';
 
 /**
  * Licitaciones (BETA, 10-11-2026).
@@ -76,45 +76,9 @@ const ORDENES = [
   { v: 'importe', label: 'Mayor importe' },
 ];
 
-const FILTROS_VACIOS = {
-  publicadas24: false,
-  actualizadas24: false,
-  ocultarSeguidas: false,
-  sectores: [],
-  territorios: [],
-  organo: '',
-  tipos: [],
-  procedimientos: [],
-  importeMin: '',
-  importeMax: '',
-  finDesde: '',
-  finHasta: '',
-};
 
 const COLUMNAS =
   'id, fuente, expediente, titulo, url, estado, tipo, procedimiento, organo_nombre, organo_ubicacion, nuts, importe_sin_iva, valor_estimado, fin_ofertas, detectado_en, es_menor';
-
-// La hora de Madrid en el formato de fin_ofertas (timestamp sin zona).
-function ahoraMadrid() {
-  return new Intl.DateTimeFormat('sv-SE', {
-    timeZone: 'Europe/Madrid',
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
-    second: '2-digit',
-    hourCycle: 'h23',
-  })
-    .format(new Date())
-    .replace(' ', 'T');
-}
-
-// Lo que se escribe en el buscador va dentro de un filtro or() de
-// PostgREST: fuera las comas, paréntesis y comodines.
-function limpiar(t) {
-  return String(t || '').replace(/[,.()*%\\:"]/g, ' ').trim();
-}
 
 function euros(n) {
   if (n == null || Number.isNaN(Number(n))) return null;
@@ -479,6 +443,7 @@ export default function Licitaciones() {
   const [error, setError] = useState(null);
   const [upsell, setUpsell] = useState(false);
   const [infoVencimientos, setInfoVencimientos] = useState(false);
+  const [nueva, setNueva] = useState(false);
   const pedido = useRef(0);
   // La paginación de la plataforma (la de Organismos). Vuelve a la
   // primera página al cambiar la búsqueda, los filtros o la pestaña.
@@ -530,47 +495,16 @@ export default function Licitaciones() {
 
   const consulta = useCallback(
     (desde, tam) => {
-      let q = supabase
-        .from('contratacion_expedientes')
-        .select(COLUMNAS, { count: 'exact' })
-        .eq('eliminado', false)
-        .eq('es_menor', expediente === 'menores');
-      // Varias condiciones «o» a la vez (plazo, cada palabra, territorio)
-      // tienen que cumplirse todas: se juntan en un solo or(and(...)) para
-      // no depender de cómo trata PostgREST un parámetro or repetido.
-      const oes = [];
-
-      if (pestana === 'plazo') {
-        q = q.in('estado', EN_PLAZO);
-        oes.push(`fin_ofertas.is.null,fin_ofertas.gte."${ahoraMadrid()}"`);
-      } else if (pestana === 'adjudicaciones') {
-        q = q.in('estado', ADJUDICADAS);
-      }
-
-      for (const palabra of busqueda.split(/\s+/).filter((p) => p.length > 1).slice(0, 6)) {
-        oes.push(`titulo.ilike.*${palabra}*,organo_nombre.ilike.*${palabra}*,expediente.ilike.*${palabra}*`);
-      }
-
-      const dia = new Date(Date.now() - 864e5).toISOString();
-      if (f.publicadas24) q = q.gte('detectado_en', dia);
-      if (f.actualizadas24) q = q.gte('actualizado_fuente', dia);
-      if (f.sectores.length) q = q.overlaps('cpv_div', f.sectores);
-      if (f.territorios.length) oes.push(f.territorios.map((t) => `nuts.ilike.${t}*`).join(','));
-      const organo = limpiar(f.organo);
-      if (organo) q = q.ilike('organo_nombre', `%${organo}%`);
-      if (f.tipos.length) q = q.in('tipo', codigos(TIPOS, f.tipos));
-      if (f.procedimientos.length) q = q.in('procedimiento', codigos(PROCEDIMIENTOS, f.procedimientos));
-      if (f.importeMin !== '' && !Number.isNaN(Number(f.importeMin))) q = q.gte('importe_sin_iva', Number(f.importeMin));
-      if (f.importeMax !== '' && !Number.isNaN(Number(f.importeMax))) q = q.lte('importe_sin_iva', Number(f.importeMax));
-      if (f.finDesde) q = q.gte('fin_ofertas', `${f.finDesde}T00:00:00`);
-      if (f.finHasta) q = q.lte('fin_ofertas', `${f.finHasta}T23:59:59`);
-
-      if (oes.length === 1) q = q.or(oes[0]);
-      else if (oes.length > 1) q = q.or(`and(${oes.map((o) => `or(${o})`).join(',')})`);
-
       const { seguidas: s, descartadas: d } = ocultasRef.current;
-      const ocultas = [...d, ...(f.ocultarSeguidas ? s : [])];
-      if (ocultas.length) q = q.not('id', 'in', `(${ocultas.map((i) => `"${i}"`).join(',')})`);
+      let q = consultaLicitaciones(supabase, {
+        columnas: COLUMNAS,
+        opciones: { count: 'exact' },
+        pestana,
+        busqueda,
+        f,
+        expediente,
+        ocultas: [...d, ...(f.ocultarSeguidas ? s : [])],
+      });
 
       if (orden === 'fin') q = q.order('fin_ofertas', { ascending: true, nullsFirst: false });
       else if (orden === 'importe') q = q.order('importe_sin_iva', { ascending: false, nullsFirst: false });
@@ -690,6 +624,17 @@ export default function Licitaciones() {
   }
 
   const cambiar = (k, v) => setF((prev) => ({ ...prev, [k]: v }));
+
+  // «Nueva búsqueda»: lo que se elige en el modal pasa a la página.
+  const ocultasModal = useMemo(() => [...descartadas], [descartadas]);
+  const cerrarNueva = useCallback(() => setNueva(false), []);
+  const aplicarBusqueda = useCallback((b) => {
+    setF({ ...FILTROS_VACIOS, ...b.f });
+    setExpediente(b.expediente);
+    setPestana(b.pestana);
+    setTexto(b.busqueda || '');
+    setBusqueda(limpiar(b.busqueda || ''));
+  }, []);
   const alternarGrupo = (k) =>
     setAbiertos((prev) => {
       const s = new Set(prev);
@@ -702,7 +647,16 @@ export default function Licitaciones() {
   const nImporte = [f.importeMin, f.importeMax].filter((x) => x !== '').length;
   const nFechas = [f.finDesde, f.finHasta].filter(Boolean).length;
   const nFiltros =
-    nComunes + f.sectores.length + f.territorios.length + (f.organo ? 1 : 0) + f.tipos.length + f.procedimientos.length + nImporte + nFechas;
+    nComunes +
+    f.sectores.length +
+    f.territorios.length +
+    (f.organo ? 1 : 0) +
+    (f.adjudicatario ? 1 : 0) +
+    (f.previos ? 1 : 0) +
+    f.tipos.length +
+    f.procedimientos.length +
+    nImporte +
+    nFechas;
 
   // Lo que está filtrando, en etiquetas que se quitan de una en una.
   const quitarDe = (k, v) => () => cambiar(k, f[k].filter((x) => x !== v));
@@ -717,7 +671,9 @@ export default function Licitaciones() {
     f.ocultarSeguidas && { k: 'oc', label: 'Sin las que ya sigo', quitar: () => cambiar('ocultarSeguidas', false) },
     ...f.sectores.map((v) => ({ k: `s${v}`, label: nombre(SECTORES, v), quitar: quitarDe('sectores', v) })),
     ...f.territorios.map((v) => ({ k: `t${v}`, label: nombre(TERRITORIOS, v), quitar: quitarDe('territorios', v) })),
+    f.previos && { k: 'prev', label: 'Anuncios previos', quitar: () => cambiar('previos', false) },
     f.organo && { k: 'org', label: `Órgano: ${f.organo}`, quitar: () => cambiar('organo', '') },
+    f.adjudicatario && { k: 'adj', label: `Ganadas por: ${f.adjudicatario}`, quitar: () => cambiar('adjudicatario', '') },
     ...f.tipos.map((v) => ({ k: `ti${v}`, label: nombre(TIPOS, v), quitar: quitarDe('tipos', v) })),
     ...f.procedimientos.map((v) => ({ k: `pr${v}`, label: nombre(PROCEDIMIENTOS, v), quitar: quitarDe('procedimientos', v) })),
     nImporte > 0 && {
@@ -786,6 +742,9 @@ export default function Licitaciones() {
             </button>
           ))}
         </span>
+        <button type="button" className="gt-filtro" onClick={() => setNueva(true)}>
+          <i className="ti ti-sparkles" style={{ color: MORADO }} aria-hidden="true" /> Nueva búsqueda
+        </button>
       </div>
 
       <div className="gt-lic-cuerpo">
@@ -977,6 +936,12 @@ export default function Licitaciones() {
           )}
         </div>
       </div>
+
+      {nueva && (
+        <EnElBody>
+          <NuevaBusqueda supabase={supabase} ocultas={ocultasModal} onAplicar={aplicarBusqueda} onClose={cerrarNueva} />
+        </EnElBody>
+      )}
 
       {infoVencimientos && (
         <EnElBody>
