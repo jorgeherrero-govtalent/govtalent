@@ -8,6 +8,8 @@ const nextConfig = {
     const escondidas = ['company', 'jobs', 'candidates', 'registro', 'settings'];
     return [
       { source: '/organizations/admin', destination: '/account', permanent: false },
+      // El Buscador vive dentro de Base de datos (11-11-2026). Las listas siguen en /contactos/listas.
+      { source: '/contactos', destination: '/instituciones/directorio', permanent: false },
       { source: '/institutions/senado', destination: '/institutions/senado/senadores', permanent: false },
       { source: '/organizations/admin/plan', destination: '/account?tab=plan', permanent: false },
       ...escondidas.map((s) => ({

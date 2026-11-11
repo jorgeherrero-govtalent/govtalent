@@ -300,7 +300,7 @@ export default function BuscadorGlobal({ variante = 'barra' }) {
       <button
         type="button"
         className="gt-buscador-pie"
-        onClick={() => irA(`/contactos?q=${encodeURIComponent(consultaCorreo)}`)}
+        onClick={() => irA(`/instituciones/directorio?q=${encodeURIComponent(consultaCorreo)}`)}
         // Fija abajo: con muchos resultados el panel tiene scroll y quedaba oculta.
         style={{
           display: 'flex',

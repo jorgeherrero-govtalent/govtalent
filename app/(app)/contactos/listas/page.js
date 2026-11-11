@@ -82,7 +82,7 @@ export default function ListasPage() {
             <i className="ti ti-plus" aria-hidden="true"></i> Nueva lista
           </button>
         ) : (
-          <Link href="/contactos" className="btn-ai" style={{ textDecoration: 'none' }}>
+          <Link href="/instituciones/directorio" className="btn-ai" style={{ textDecoration: 'none' }}>
             <i className="ti ti-plus" aria-hidden="true"></i> Nueva lista
           </Link>
         )}
@@ -105,10 +105,10 @@ export default function ListasPage() {
         <div style={{ maxWidth: 560, margin: '32px auto 0', textAlign: 'center', display: 'flex', flexDirection: 'column', gap: 10, alignItems: 'center' }}>
           <span style={{ fontSize: 15, fontWeight: 600 }}>Todavía no tienes listas</span>
           <p style={{ margin: 0, fontSize: 13.5, color: GRIS, lineHeight: 1.6 }}>
-            Busca en Contactos y pulsa «Guardar como lista», o selecciona personas y «Añadir a lista».
+            En Base de datos, haz una búsqueda y pulsa «Guardar como lista», o marca personas y pulsa «Añadir a lista».
           </p>
-          <Link href="/contactos" className="btn-ai" style={{ textDecoration: 'none' }}>
-            Ir al buscador
+          <Link href="/instituciones/directorio" className="btn-ai" style={{ textDecoration: 'none' }}>
+            Ir a Base de datos
           </Link>
         </div>
       )}

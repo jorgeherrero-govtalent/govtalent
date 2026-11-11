@@ -82,13 +82,8 @@ const SECCIONES = [
         icono: 'ti-database',
         activo: (p) => p.startsWith('/instituciones/directorio'),
       },
-      // El buscador de contactos en lenguaje natural (antes «Contactos»).
-      {
-        href: '/contactos',
-        etiqueta: 'Buscador',
-        icono: 'ti-user-search',
-        activo: (p) => p.startsWith('/contactos') && !p.startsWith('/contactos/listas'),
-      },
+      // El Buscador ya no tiene entrada propia (11-11-2026): se abre desde
+      // Base de datos, con el botón «Nueva búsqueda».
       { href: '/contactos/listas', etiqueta: 'Listas', icono: 'ti-list-details', activo: (p) => p.startsWith('/contactos/listas') },
     ],
   },
