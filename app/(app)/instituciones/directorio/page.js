@@ -480,7 +480,9 @@ function DirectorioInstitucional() {
   const [planChecked, setPlanChecked] = useState(false);
   const [planAllowed, setPlanAllowed] = useState(true);
 
-  const [search, setSearch] = useState('');
+  // ?b=… trae la caja de la tabla ya escrita (lo usa la extensión de Chrome
+  // para abrir a una persona en Base de datos).
+  const [search, setSearch] = useState(() => params.get('b') || '');
   const [bloque, setBloque] = useState('todas');
   const [nivelFilter, setNivelFilter] = useState(new Set());
   const [institucionFilter, setInstitucionFilter] = useState(new Set());
