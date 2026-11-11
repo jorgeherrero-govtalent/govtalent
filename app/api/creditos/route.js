@@ -17,8 +17,10 @@ export async function GET() {
   if (!authData?.user) return NextResponse.json({ error: 'No autenticado' }, { status: 401 });
 
   const admin = createAdminClient();
-  const directorio = await puedeVerContactos(admin, authData.user.id);
-  const saldo = await saldoCreditos(admin, authData.user.id);
+  const [directorio, saldo] = await Promise.all([
+    puedeVerContactos(admin, authData.user.id),
+    saldoCreditos(admin, authData.user.id),
+  ]);
   return NextResponse.json(
     { directorio, saldo, packs: PACKS_CREDITOS },
     { headers: { 'Cache-Control': 'no-store' } }

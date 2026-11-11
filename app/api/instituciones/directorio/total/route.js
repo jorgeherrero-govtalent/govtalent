@@ -23,6 +23,9 @@ import { createAdminClient } from '@/lib/supabase/admin';
  * ve quien paga, y quien ejerció su derecho de oposición seguiría
  * sumando en un reclamo comercial.
  *
+ * Se cuenta sobre la tabla precalculada (directorio_pro_mat, sql/129), que
+ * ya viene sin las objeciones: contar la vista en vivo costaba 3 segundos.
+ *
  * Pide sesión pero no plan: es para usuarios dentro de la aplicación,
  * no para cualquiera que encuentre la URL.
  */
@@ -38,9 +41,8 @@ export async function GET() {
 
   const admin = createAdminClient();
   const { count, error } = await admin
-    .from('directorio_pro')
-    .select('id', { count: 'exact', head: true })
-    .eq('objecion', false);
+    .from('directorio_pro_mat')
+    .select('id', { count: 'exact', head: true });
 
   if (error) {
     console.error('[directorio/total]', error.message);

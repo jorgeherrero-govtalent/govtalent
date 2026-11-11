@@ -67,7 +67,7 @@ export async function GET(request) {
   }
 
   const { data, error } = await admin
-    .from('directorio_pro')
+    .from('directorio_pro_rapido')
     .select(COLUMNAS)
     .eq('objecion', false)
     .order('orden', { ascending: true })
