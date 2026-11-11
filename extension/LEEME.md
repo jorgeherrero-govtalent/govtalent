@@ -17,5 +17,7 @@ está en GovTalent y enseña su cargo, su correo y su organización.
 - `panel.*`: el panel. Habla con `/api/extension/persona`,
   `/api/contactos/enriquecer` y `/api/contactos/listas` con la sesión del
   navegador.
-- De LinkedIn no se guarda nada: el nombre y la organización solo se usan
-  para buscar, y la foto se enseña en el panel sin salir del navegador.
+- De LinkedIn se usan el nombre y la organización para buscar. Si la
+  persona ya está en GovTalent y la coincidencia es segura, su foto de
+  perfil se guarda en el directorio (`/api/extension/foto`, sql/131); la
+  primera que llega se queda.

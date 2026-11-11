@@ -7,6 +7,7 @@ import { parlamentoPorNombre } from '@/lib/ccaa/parlamentosUI';
 import { BotonSoloProyecto } from '@/components/FollowButton';
 import UpgradeModal from '@/components/UpgradeModal';
 import BuscarCorreo, { useCorreosEncontrados } from '@/components/BuscarCorreo';
+import FotoPersona, { useFotos } from '@/components/FotoPersona';
 import CorreoCargo from '@/components/CorreoCargo';
 import Paginacion, { usePaginacion } from '@/components/Paginacion';
 import { seccionPorSlug } from '@/lib/directorio';
@@ -76,25 +77,28 @@ function Dato({ titulo, children }) {
 }
 
 function Persona({ p, contacto, ultima, encontrados, probables, apuntar, onUpsell }) {
+  const fotos = useFotos();
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 11, padding: '9px 0', borderBottom: ultima ? 'none' : LINEA, flexWrap: 'wrap' }}>
-      <div
-        style={{
-          width: 30,
-          height: 30,
-          borderRadius: '50%',
-          background: '#f5f4f1',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          flexShrink: 0,
-          fontSize: 11,
-          color: '#888',
-          fontWeight: 600,
-        }}
-      >
-        {iniciales(p.nombre)}
-      </div>
+      <FotoPersona url={fotos[p.id]} lado={30}>
+        <div
+          style={{
+            width: 30,
+            height: 30,
+            borderRadius: '50%',
+            background: '#f5f4f1',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            flexShrink: 0,
+            fontSize: 11,
+            color: '#888',
+            fontWeight: 600,
+          }}
+        >
+          {iniciales(p.nombre)}
+        </div>
+      </FotoPersona>
       <div style={{ flex: '1 1 220px', minWidth: 0 }}>
         <div style={{ fontSize: 12.5, fontWeight: 600 }}>{p.nombre}</div>
         {p.cargo ? <div style={{ fontSize: 11, color: '#a8a49c', marginTop: 1 }}>{p.cargo}</div> : null}
