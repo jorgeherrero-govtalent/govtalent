@@ -123,7 +123,7 @@ async function contar(supabase, b, ocultas) {
     expediente: b.expediente,
     ocultas,
   });
-  q = b.pestana === 'plazo' ? q.order('fin_ofertas', { ascending: true, nullsFirst: false }) : q.order('detectado_en', { ascending: false });
+  q = b.pestana === 'plazo' ? q.order('fin_orden', { ascending: true }) : q.order('detectado_en', { ascending: false });
   const { data, count, error } = await q.order('id').range(0, 2);
   if (error) throw error;
   return { total: count ?? 0, ejemplos: data || [] };

@@ -13,7 +13,9 @@
 // atraviesa sin descomprimir lo que ya se hizo.
 //
 // Uso:
-//   cron (CRON_SECRET)                          avanza la cola
+//   cron (CRON_SECRET)                          avanza la cola (solo de
+//                                               madrugada, de 1 a 7 en Madrid:
+//                                               de día saturaba la base de datos)
 //   ?probar=1&feed=perfiles&periodo=202601      índice del ZIP, sin guardar
 //   ?muestra=1&feed=perfiles&periodo=202601     XML de la primera entrada
 // =====================================================================
