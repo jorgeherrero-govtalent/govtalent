@@ -1,9 +1,10 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { ESTILOS, Etiqueta, Trabajando } from '@/components/licitaciones/NuevaBusqueda';
-import { BANDAS, FILTROS_VACIOS, TIPOS_INSTITUCION, TIPO_LABEL, filtrosVacios } from '@/lib/contactosFiltros';
-import { CREDITOS_CORREO_FUERA, creditosTexto } from '@/lib/costesCreditos';
+import { BANDAS, FILTROS_VACIOS, TIPO_LABEL, filtrosVacios } from '@/lib/contactosFiltros';
+import { CREDITOS_BUSCAR_FUERA, CREDITOS_CORREO_FUERA, creditosTexto } from '@/lib/costesCreditos';
+import DescubrirPanel from '@/components/DescubrirPanel';
 
 /**
  * «Nueva búsqueda» del Buscador de contactos (11-11-2026). Es el mismo
@@ -11,11 +12,15 @@ import { CREDITOS_CORREO_FUERA, creditosTexto } from '@/lib/costesCreditos';
  * mismas piezas, mismos estilos y los mismos efectos mientras trabaja la
  * IA. Se abre desde la Base de datos, con el botón «Nueva búsqueda».
  *
- * A la izquierda, las formas de buscar; a la derecha, la elegida. Todas
- * terminan igual: unos filtros que se aplican a la página con
+ * A la izquierda, las tres formas de buscar (11-11-2026: solo estas);
+ * a la derecha, la elegida. «Describe a quién buscas» termina en unos
+ * filtros que se aplican a la página con
  * onAplicar({ filtros, consulta, resumen, persona, aviso, origen }).
- * La excepción es «El correo de una persona concreta», que no filtra la
- * tabla: pide nombre y organización y llama a onCorreo({ nombre, institucion }).
+ * «El correo de una persona concreta» no filtra la tabla: pide nombre y
+ * organización y llama a onCorreo({ nombre, institucion }).
+ * «Buscar fuera de GovTalent» pide unos cargos, busca en fuentes oficiales
+ * a quien los ocupa y aún no está en el directorio, y lo elegido sale por
+ * onDescubiertos(filas) para guardarlo en una lista.
  *
  * Sin el Directorio se ve igual; al usarlo, onUpsell.
  */
@@ -25,9 +30,8 @@ const GRIS = '#8b8780';
 
 const OPCIONES = [
   { v: 'ia', label: 'Describe a quién buscas', icono: 'ti-sparkles' },
-  { v: 'tipo', label: 'Por tipo de institución', icono: 'ti-building-bank' },
-  { v: 'nivel', label: 'Por nivel del cargo', icono: 'ti-hierarchy-2' },
   { v: 'correo', label: 'El correo de una persona concreta', icono: 'ti-mail-search' },
+  { v: 'fuera', label: 'Buscar fuera de GovTalent', icono: 'ti-world-search' },
 ];
 
 // Búsquedas recomendadas: con filtros fijos (no pasan por la IA), así que
@@ -45,9 +49,6 @@ const IDEAS = [
     filtros: { jurisdiccion: 'UE', tipos: ['legislativo'], paises: ['ES'] },
   },
 ];
-
-const OPCIONES_TIPO = TIPOS_INSTITUCION.map((t) => ({ v: t, label: TIPO_LABEL[t] || t }));
-const OPCIONES_NIVEL = Object.entries(BANDAS).map(([v, label]) => ({ v, label }));
 
 function miles(n) {
   return Number(n || 0).toLocaleString('es-ES');
@@ -345,93 +346,12 @@ function PanelIA({ bloqueado, onUpsell, onAplicar, inicial = '' }) {
   );
 }
 
-/* ---------- Atajos: tipo de institución y nivel del cargo ---------- */
-
-function PanelLista({ titulo, opciones, clave, bloqueado, onUpsell, onAplicar }) {
-  const [elegidos, setElegidos] = useState([]);
-  const [res, setRes] = useState({ total: null, ejemplos: [] });
-
-  const filtros = useMemo(() => ({ ...FILTROS_VACIOS, [clave]: elegidos }), [clave, elegidos]);
-
-  useEffect(() => {
-    if (!elegidos.length) {
-      setRes({ total: null, ejemplos: [] });
-      return;
-    }
-    let vivo = true;
-    setRes({ total: null, ejemplos: [] });
-    const h = setTimeout(() => {
-      contar(filtros)
-        .then((c) => vivo && setRes(c))
-        .catch(() => vivo && setRes({ total: 0, ejemplos: [] }));
-    }, 200);
-    return () => {
-      vivo = false;
-      clearTimeout(h);
-    };
-  }, [filtros, elegidos.length]);
-
-  const alternar = (v) => {
-    if (bloqueado) {
-      onUpsell();
-      return;
-    }
-    setElegidos((xs) => (xs.includes(v) ? xs.filter((x) => x !== v) : [...xs, v]));
-  };
-
-  return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 12, flex: 1, minHeight: 0 }}>
-      <b className="gt-nb-titulo">{titulo}</b>
-      <div className="gt-nb-lista">
-        {opciones.map((o) => (
-          <label key={o.v} className={`gt-nb-fila${elegidos.includes(o.v) ? ' on' : ''}`}>
-            <input type="checkbox" checked={elegidos.includes(o.v)} onChange={() => alternar(o.v)} />
-            <span style={{ flex: 1 }}>{o.label}</span>
-          </label>
-        ))}
-      </div>
-      <div className="gt-nb-pie">
-        <span style={{ fontSize: 13.5, color: '#3d3a35' }}>
-          {elegidos.length === 0 ? (
-            'Elige uno o varios.'
-          ) : res.total == null ? (
-            'Contando…'
-          ) : (
-            <>
-              <b>{miles(res.total)}</b> {res.total === 1 ? 'persona' : 'personas'}
-            </>
-          )}
-        </span>
-        <button
-          type="button"
-          className="gt-nb-ok"
-          disabled={!elegidos.length || !res.total}
-          onClick={() => onAplicar({ filtros, consulta: '', resumen: '', persona: null, aviso: '', origen: 'filtros' })}
-        >
-          Ver contactos
-        </button>
-      </div>
-    </div>
-  );
-}
-
 /* ---------- El correo de una persona concreta ---------- */
 
 function PanelCorreo({ bloqueado, onUpsell, onCorreo }) {
   const [nombre, setNombre] = useState('');
   const [institucion, setInstitucion] = useState('');
-  const [creditos, setCreditos] = useState(null);
-
-  useEffect(() => {
-    let vivo = true;
-    fetch('/api/creditos', { cache: 'no-store' })
-      .then((r) => (r.ok ? r.json() : null))
-      .then((j) => vivo && j?.directorio && j.saldo && setCreditos(Number(j.saldo.disponibles) || 0))
-      .catch(() => {});
-    return () => {
-      vivo = false;
-    };
-  }, []);
+  const [creditos] = useCreditos();
 
   const listo = nombre.trim().split(/\s+/).filter((w) => w.length > 1).length >= 2 && institucion.trim().length >= 2;
   const enviar = (e) => {
@@ -473,6 +393,93 @@ function PanelCorreo({ bloqueado, onUpsell, onCorreo }) {
   );
 }
 
+/* ---------- Buscar fuera de GovTalent ---------- */
+
+function useCreditos() {
+  const [creditos, setCreditos] = useState(null);
+  useEffect(() => {
+    let vivo = true;
+    fetch('/api/creditos', { cache: 'no-store' })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((j) => vivo && j?.directorio && j.saldo && setCreditos(Number(j.saldo.disponibles) || 0))
+      .catch(() => {});
+    return () => {
+      vivo = false;
+    };
+  }, []);
+  return [creditos, setCreditos];
+}
+
+function PanelFuera({ bloqueado, onUpsell, onDescubiertos, onSinCreditos }) {
+  const [texto, setTexto] = useState('');
+  const [consulta, setConsulta] = useState('');
+  const [creditos, setCreditos] = useCreditos();
+  const listo = texto.trim().length >= 8;
+
+  const enviar = (e) => {
+    e.preventDefault();
+    if (bloqueado) {
+      onUpsell();
+      return;
+    }
+    if (listo) setConsulta(texto.trim());
+  };
+
+  // Ya se ha pedido: la búsqueda y lo encontrado, en el mismo panel.
+  if (consulta) {
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 14, marginTop: 8, minHeight: 0 }}>
+        <b className="gt-nb-titulo">Buscar fuera de GovTalent</b>
+        <span style={{ fontSize: 13.5, color: '#3d3a35' }}>{consulta}</span>
+        <div style={{ overflowY: 'auto', minHeight: 0 }}>
+          <DescubrirPanel
+            key={consulta}
+            auto
+            destino="una lista"
+            consulta={consulta}
+            onSeleccionar={onDescubiertos}
+            onSaldo={(sal) => setCreditos(Number(sal?.disponibles) || 0)}
+            onSinCreditos={onSinCreditos}
+          />
+        </div>
+        <span>
+          <button type="button" className="gt-filtro" onClick={() => setConsulta('')}>
+            Buscar otros cargos
+          </button>
+        </span>
+      </div>
+    );
+  }
+
+  return (
+    <div className="gt-nb-centro">
+      <b className="gt-nb-pregunta">¿A quién no encuentras en GovTalent?</b>
+      <span style={{ fontSize: 13.5, color: '#3d3a35', textAlign: 'center', maxWidth: 520, lineHeight: 1.55, marginTop: -8 }}>
+        Dinos qué cargos buscas y de qué institución. Los buscamos en sus fuentes oficiales y te enseñamos a quién hemos encontrado.
+      </span>
+      <form onSubmit={enviar} className="gt-nb-caja" style={{ maxWidth: 520, gap: 12, padding: 18 }}>
+        <label className="gt-nb-campo">
+          Cargos e institución
+          <input autoFocus value={texto} onChange={(e) => setTexto(e.target.value)} placeholder="Secretarios del Departament de Territori de la Generalitat" maxLength={300} />
+        </label>
+        <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, marginTop: 4 }}>
+          <span style={{ fontSize: 12.5, color: '#5443d6', fontWeight: 600 }}>
+            {creditosTexto(CREDITOS_BUSCAR_FUERA)}, solo si encontramos a alguien nuevo
+          </span>
+          <button type="submit" className="gt-nb-ok" disabled={!listo}>
+            Buscar personas
+          </button>
+        </span>
+      </form>
+      {creditos != null && (
+        <span style={{ fontSize: 13, color: '#57534e' }}>
+          {creditos === 1 ? 'Te queda 1 crédito este mes' : `Te quedan ${miles(creditos)} créditos este mes`}
+        </span>
+      )}
+    </div>
+  );
+}
+
 const ESTILOS_CORREO = `
 .gt-nb-campo { display: flex; flex-direction: column; gap: 5px; font-size: 12.5px; color: #57534e; }
 .gt-nb-campo input { font: inherit; font-size: 14px; color: #1a1a18; border: 1px solid #e0dfd8; border-radius: 9px; padding: 9px 11px; outline: none; background: #fff; }
@@ -482,7 +489,7 @@ const ESTILOS_CORREO = `
 
 /* ---------- El modal ---------- */
 
-export default function NuevaBusquedaContactos({ bloqueado = false, inicial = '', onUpsell, onAplicar, onCorreo, onClose }) {
+export default function NuevaBusquedaContactos({ bloqueado = false, inicial = '', onUpsell, onAplicar, onCorreo, onDescubiertos, onSinCreditos, onClose }) {
   const [opcion, setOpcion] = useState('ia');
 
   useEffect(() => {
@@ -507,9 +514,22 @@ export default function NuevaBusquedaContactos({ bloqueado = false, inicial = ''
   let panel;
   if (opcion === 'ia') {
     panel = <PanelIA bloqueado={bloqueado} onUpsell={onUpsell} onAplicar={aplicar} inicial={inicial} />;
-  } else if (opcion === 'tipo') {
-    panel = <PanelLista key="tipo" titulo="Por tipo de institución" opciones={OPCIONES_TIPO} clave="tipos" bloqueado={bloqueado} onUpsell={onUpsell} onAplicar={aplicar} />;
-  } else if (opcion === 'correo') {
+  } else if (opcion === 'fuera') {
+    panel = (
+      <PanelFuera
+        bloqueado={bloqueado}
+        onUpsell={onUpsell}
+        onDescubiertos={(filas) => {
+          onDescubiertos(filas);
+          onClose();
+        }}
+        onSinCreditos={() => {
+          onSinCreditos();
+          onClose();
+        }}
+      />
+    );
+  } else {
     panel = (
       <PanelCorreo
         bloqueado={bloqueado}
@@ -520,8 +540,6 @@ export default function NuevaBusquedaContactos({ bloqueado = false, inicial = ''
         }}
       />
     );
-  } else {
-    panel = <PanelLista key="nivel" titulo="Por nivel del cargo" opciones={OPCIONES_NIVEL} clave="bandas" bloqueado={bloqueado} onUpsell={onUpsell} onAplicar={aplicar} />;
   }
 
   return (
