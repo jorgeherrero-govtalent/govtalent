@@ -1,16 +1,16 @@
 'use client';
 
-import { Suspense, useEffect, useMemo, useRef, useState } from 'react';
+import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
-import TextoCreciente, { enviarConIntro } from '@/components/TextoCreciente';
 import Paginacion, { usePaginacion } from '@/components/Paginacion';
 import UpgradeModal from '@/components/UpgradeModal';
 import BuscarCorreoModal from '@/components/BuscarCorreoModal';
 import DescubrirPanel from '@/components/DescubrirPanel';
+import NuevaBusquedaContactos from '@/components/contactos/NuevaBusquedaContactos';
 import { useTotalDirectorio, masDe } from '@/lib/useTotalDirectorio';
 import { CREDITOS_CORREO_FUERA } from '@/lib/costesCreditos';
-import { BANDAS, TIPOS_INSTITUCION, FILTROS_VACIOS } from '@/lib/contactosFiltros';
+import { BANDAS, TIPOS_INSTITUCION, TIPO_LABEL, FILTROS_VACIOS } from '@/lib/contactosFiltros';
 import {
   ESTILOS_CONTACTOS,
   Buscando,
@@ -42,9 +42,10 @@ const PASOS_INTERPRETAR = ['Entendiendo tu búsqueda…', 'Identificando cargos 
 /**
  * Contactos (Buscar y enriquecer, 07-10-2026).
  *
- * Una caja en lenguaje natural, como el Asistente. La IA convierte la
- * frase en filtros (sin ver datos de personas) y la tabla sale de
- * directorio_pro (sql/75). Los filtros se editan a mano y la búsqueda se
+ * Se busca desde el modal «Nueva búsqueda» (11-11-2026), el mismo que el
+ * de Licitaciones: sustituye a la portada con la caja central. La IA
+ * convierte la frase en filtros (sin ver datos de personas) y la tabla
+ * sale de directorio_pro (sql/75). Los filtros se editan a mano y la búsqueda se
  * repite al momento. Buscar es gratis.
  *
  * «Enriquecer» (sql/76) busca con IA el contacto que falta en fuentes
@@ -54,38 +55,6 @@ const PASOS_INTERPRETAR = ['Entendiendo tu búsqueda…', 'Identificando cargos 
  *
  * Maquetas aprobadas: canvas «Buscador de contactos — maquetas».
  */
-
-// Búsquedas recomendadas: con filtros fijos (no pasan por la IA), así que
-// siempre dan el mismo resultado. Comprobadas contra los datos el
-// 07-10-2026; si cambia una fuente, revisar que sigan devolviendo gente.
-const IDEAS = [
-  {
-    texto: 'Embajadores y cuerpo diplomático en España',
-    resumen: 'Personal de las embajadas extranjeras acreditadas en España (Lista del Cuerpo Diplomático).',
-    filtros: { tipos: ['diplomático'] },
-  },
-  {
-    texto: 'Eurodiputados españoles y sus asistentes',
-    resumen: 'Los 60 eurodiputados elegidos en España y los asistentes de sus equipos.',
-    filtros: { jurisdiccion: 'UE', tipos: ['legislativo'], paises: ['ES'] },
-  },
-];
-
-const TIPO_LABEL = {
-  ejecutivo: 'Gobierno y administración',
-  legislativo: 'Parlamentos',
-  autonómico: 'Comunidades autónomas',
-  local: 'Administración local',
-  institucional: 'Altas instituciones',
-  'sector público': 'Sector público',
-  medios: 'Medios',
-  partidos: 'Partidos',
-  'agentes sociales': 'Sindicatos y patronales',
-  'tercer sector': 'Tercer sector',
-  internacional: 'Organismos internacionales',
-  diplomático: 'Embajadas en España',
-  'órganos UE': 'Agencias y órganos de la UE',
-};
 
 // ---------------------------------------------------------------------------
 // Filtros editables
@@ -193,7 +162,6 @@ function ContactosPagina() {
   const params = useSearchParams();
   const cuantosDirectorio = masDe(useTotalDirectorio());
   const router = useRouter();
-  const cajaRef = useRef(null);
   const [acceso, setAcceso] = useState(null); // null cargando, true, false
   const [saldo, setSaldo] = useState(null);
   const [packs, setPacks] = useState([]);
@@ -204,7 +172,11 @@ function ContactosPagina() {
 
   const [texto, setTexto] = useState('');
   const [consulta, setConsulta] = useState('');
-  const [filtros, setFiltros] = useState(null); // null = portada
+  const [filtros, setFiltros] = useState(null); // null = sin búsqueda todavía
+  // El modal «Nueva búsqueda»: abierto al llegar, salvo que se venga con
+  // la búsqueda ya escrita desde el buscador de arriba (/contactos?q=…).
+  const [nueva, setNueva] = useState(() => !params.get('q'));
+  const cerrarNueva = useCallback(() => setNueva(false), []);
   const [resumen, setResumen] = useState('');
   const [aviso, setAviso] = useState('');
   const [interpretando, setInterpretando] = useState(false);
@@ -348,10 +320,7 @@ function ContactosPagina() {
       return;
     }
     const q = String(t || '').trim();
-    if (!q) {
-      cajaRef.current?.focus();
-      return;
-    }
+    if (!q) return;
     setInterpretando(true);
     setAviso('');
     setError('');
@@ -378,33 +347,24 @@ function ContactosPagina() {
     setInterpretando(false);
   }
 
-  // Una búsqueda recomendada: filtros fijos, sin pasar por la IA.
-  function usarIdea(idea) {
-    if (acceso === false) {
-      setUpsell(true);
-      return;
-    }
-    setTexto(idea.texto);
-    setConsulta(idea.texto);
-    setAviso('');
+  // Lo que sale del modal «Nueva búsqueda»: los filtros ya preparados.
+  const aplicarBusqueda = useCallback((b) => {
+    setTexto(b.consulta || '');
+    setConsulta(b.consulta || '');
+    setAviso(b.aviso || '');
     setError('');
     setSeleccion(new Map());
-    setResumen(idea.resumen);
-    setPersonaBuscada(null);
-    origenRef.current = 'idea';
+    setResumen(b.resumen || '');
+    setPersonaBuscada(b.persona || null);
+    origenRef.current = b.origen || 'filtros';
     claveRegistrada.current = null;
-    setFiltros({ ...FILTROS_VACIOS, ...idea.filtros });
-  }
+    setFiltros({ ...FILTROS_VACIOS, ...b.filtros });
+  }, []);
 
-  function volverAPortada() {
-    setFiltros(null);
-    setPersonaBuscada(null);
-    setFilas([]);
-    setTotal(0);
-    setResumen('');
-    setAviso('');
-    setSeleccion(new Map());
-  }
+  const abrirUpsell = useCallback(() => {
+    setNueva(false);
+    setUpsell(true);
+  }, []);
 
   const todasMarcadas = filas.length > 0 && filas.every((f) => seleccion.has(f.id));
   function marcar(f) {
@@ -484,6 +444,7 @@ function ContactosPagina() {
         </div>
       )}
       {modalComprar && <ModalComprar packs={packs} onClose={() => setModalComprar(false)} />}
+      {nueva && <NuevaBusquedaContactos bloqueado={acceso === false} onUpsell={abrirUpsell} onAplicar={aplicarBusqueda} onClose={cerrarNueva} />}
       {upsell && (
         <UpgradeModal
           title="Disponible con suscripción"
@@ -495,74 +456,26 @@ function ContactosPagina() {
     </>
   );
 
-  // --- Portada --------------------------------------------------------------
+  // --- Sin búsqueda todavía -------------------------------------------------
+  // Se busca desde el modal. Si se cierra sin buscar, queda el botón.
   if (!filtros) {
-    const listo = texto.trim().length > 0;
     return (
       <div className="gt-ct">
         <style>{ESTILOS_CONTACTOS}</style>
         {cabecera}
         {comunes}
-        <section className="gt-ct-portada">
-          <h2>¿A quién estás buscando?</h2>
-          <p>Crea una lista de contactos o encuentra el correo de una persona concreta.</p>
-          <form
-            className="gt-ct-caja"
-            onSubmit={(e) => {
-              e.preventDefault();
-              enviar();
-            }}
-          >
-            <label className="gt-ct-entrada">
-              <i className="ti ti-sparkles" aria-hidden="true"></i>
-              <TextoCreciente
-                id="gt-ct-caja"
-                ref={cajaRef}
-                value={texto}
-                onChange={(e) => setTexto(e.target.value)}
-                onKeyDown={enviarConIntro(() => enviar())}
-                placeholder="Subdirectores generales del Ministerio de Industria, o Ana López de la CNMC"
-                aria-label="Describe los contactos que estás buscando"
-                rows={2}
-                maxAltura={200}
-              />
-            </label>
-            <div className="gt-ct-pie">
-              {interpretando ? <Buscando pasos={PASOS_INTERPRETAR} /> : <small>{error || ' '}</small>}
-              <button type="submit" className={`gt-ct-enviar${listo ? ' listo' : ''}`} aria-label="Buscar" title="Buscar" disabled={interpretando}>
-                <i className={`ti ${interpretando ? 'ti-loader-2' : 'ti-arrow-up'}`} aria-hidden="true"></i>
+        <section style={{ maxWidth: 760, margin: '72px auto 0', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 16, textAlign: 'center' }}>
+          {interpretando ? (
+            <Buscando pasos={PASOS_INTERPRETAR} />
+          ) : (
+            <>
+              <h2 style={{ margin: 0, fontSize: 22, fontWeight: 600, letterSpacing: '-.3px', color: '#3d3a35' }}>¿A quién estás buscando?</h2>
+              {error && <div className="gt-ct-aviso">{error}</div>}
+              <button type="button" className="gt-filtro" onClick={() => setNueva(true)}>
+                <i className="ti ti-sparkles" style={{ color: MORADO }} aria-hidden="true"></i> Nueva búsqueda
               </button>
-            </div>
-          </form>
-          <div className="gt-ct-ideas">
-            {IDEAS.map((idea) => (
-              <button key={idea.texto} type="button" className="gt-ct-idea" onClick={() => usarIdea(idea)}>
-                <i className="ti ti-sparkles" aria-hidden="true"></i>
-                {idea.texto}
-              </button>
-            ))}
-          </div>
-        </section>
-
-        <section style={{ maxWidth: 1040, margin: '8px auto 0' }}>
-          <div className="gt-ct-fuentes">
-            <div className="gt-ct-fuente">
-              <b>Instituciones de España</b>
-              <span>Gobierno, AGE y organismos, Congreso, comunidades autónomas y ayuntamientos</span>
-            </div>
-            <div className="gt-ct-fuente">
-              <b>Unión Europea</b>
-              <span>Comisión, Parlamento, agencias, CESE, Tribunal de Cuentas y Consejo Europeo (EU Whoiswho)</span>
-            </div>
-            <div className="gt-ct-fuente">
-              <b>Diplomacia, organizaciones y medios</b>
-              <span>Cuerpo Diplomático, embajadores de España y Agenda de la Comunicación</span>
-            </div>
-            <div className="gt-ct-fuente ia">
-              <b>Buscar correo</b>
-              <span>Encontramos el correo nominativo de cualquier persona, esté o no en el directorio, y lo comprobamos en el servidor de su organización.</span>
-            </div>
-          </div>
+            </>
+          )}
         </section>
       </div>
     );
@@ -576,8 +489,8 @@ function ContactosPagina() {
       {comunes}
 
       <div className="gt-ct-consulta">
-        <button type="button" className="btn-g" onClick={volverAPortada} aria-label="Nueva búsqueda" title="Nueva búsqueda">
-          <i className="ti ti-arrow-left" aria-hidden="true"></i>
+        <button type="button" className="gt-filtro" onClick={() => setNueva(true)}>
+          <i className="ti ti-sparkles" style={{ color: MORADO }} aria-hidden="true"></i> Nueva búsqueda
         </button>
         <form
           onSubmit={(e) => {

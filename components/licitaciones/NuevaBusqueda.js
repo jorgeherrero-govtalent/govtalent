@@ -131,7 +131,7 @@ async function contar(supabase, b, ocultas) {
 
 /* ---------- Piezas ---------- */
 
-function Etiqueta({ children, onQuitar, encendida = true, latiendo = false }) {
+export function Etiqueta({ children, onQuitar, encendida = true, latiendo = false }) {
   return (
     <span
       className={latiendo ? 'gt-nb-anim' : undefined}
@@ -160,7 +160,8 @@ function Etiqueta({ children, onQuitar, encendida = true, latiendo = false }) {
   );
 }
 
-function Trabajando({ fase, frase, chips, encendidas, total }) {
+// La usa también el modal del Buscador de contactos, con otra unidad.
+export function Trabajando({ fase, frase, chips, encendidas, total, unidad = 'licitaciones' }) {
   const actual = fase === 'entender' ? 0 : fase === 'traducir' ? 1 : 2;
   return (
     <div role="status" aria-live="polite" className="gt-nb-tarjeta" style={{ boxShadow: '0 6px 24px rgba(109,90,239,.08)' }}>
@@ -207,7 +208,7 @@ function Trabajando({ fase, frase, chips, encendidas, total }) {
           <span className={total == null ? 'gt-nb-anim' : undefined} style={{ fontSize: 22, fontWeight: 600, color: MORADO, lineHeight: 1, fontVariantNumeric: 'tabular-nums', animation: total == null ? 'gt-nb-latido 1.1s ease-in-out infinite' : 'none' }}>
             {total == null ? '…' : miles(total)}
           </span>
-          <span style={{ fontSize: 12.5, color: GRIS }}>licitaciones</span>
+          <span style={{ fontSize: 12.5, color: GRIS }}>{unidad}</span>
         </div>
       )}
     </div>
@@ -765,7 +766,7 @@ export default function NuevaBusqueda({ supabase, ocultas, onAplicar, onClose })
   );
 }
 
-const ESTILOS = `
+export const ESTILOS = `
 @keyframes gt-nb-latido { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: .45; transform: scale(.82); } }
 @keyframes gt-nb-brillo { 0%, 100% { background: ${MORADO_S}; } 50% { background: #ddd6fd; } }
 @media (prefers-reduced-motion: reduce) { .gt-nb-anim { animation: none !important; } }
