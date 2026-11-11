@@ -254,7 +254,10 @@ export default function FollowButton({ kind, refId, label, variant = 'button', c
     if (!silencioso) {
       // El mensaje explica qué va a pasar: es la pedagogía en el momento
       // en que importa, sin necesidad de tooltips permanentes.
-      toast(`Te avisaremos ${QUE_AVISAMOS[kind] || 'cuando haya novedades'}.`);
+      // Las licitaciones aún no tienen avisos (llegarán con sus alarmas):
+      // no se promete lo que todavía no se envía.
+      if (kind === 'licitacion') toast('La tienes en Seguimiento.');
+      else toast(`Te avisaremos ${QUE_AVISAMOS[kind] || 'cuando haya novedades'}.`);
     }
   }
 

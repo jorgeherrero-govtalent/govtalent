@@ -81,6 +81,12 @@ const ORDENES = [
 const COLUMNAS =
   'id, fuente, ambito, expediente, titulo, url, estado, tipo, procedimiento, organo_nombre, organo_ubicacion, nuts, importe_sin_iva, valor_estimado, fin_ofertas, detectado_en, es_menor';
 
+// La ficha: /licitaciones/<fuente>/<id de la fuente>.
+function rutaFicha(l) {
+  const [fuente, ...resto] = String(l.id).split(':');
+  return `/licitaciones/${fuente}/${encodeURIComponent(resto.join(':'))}`;
+}
+
 function euros(n) {
   if (n == null || Number.isNaN(Number(n))) return null;
   return new Intl.NumberFormat('es-ES', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(Number(n));
@@ -199,9 +205,9 @@ function Tarjeta({ l, adj, siguiendo, onSeguir, onDescartar }) {
           )}
           {ESTADOS[l.estado] && <span className="gt-lic-estado">{ESTADOS[l.estado]}</span>}
         </div>
-        <a href={l.url} target="_blank" rel="noopener noreferrer" className="gt-lic-titulo">
+        <Link href={rutaFicha(l)} className="gt-lic-titulo">
           {l.titulo || 'Sin título'}
-        </a>
+        </Link>
         <span className="gt-lic-organo">
           <span>{l.organo_nombre || 'Órgano sin identificar'}</span>
           {lugar && <small>{lugar}</small>}
@@ -254,9 +260,7 @@ function Tabla({ filas, adjs, seguidas, onSeguir, onDescartar }) {
             return (
               <tr key={l.id}>
                 <td style={{ maxWidth: 380 }}>
-                  <a href={l.url} target="_blank" rel="noopener noreferrer">
-                    {l.titulo || 'Sin título'}
-                  </a>
+                  <Link href={rutaFicha(l)}>{l.titulo || 'Sin título'}</Link>
                   {a && (a.adjudicatario || a.persona_fisica) && (
                     <small style={{ display: 'block', color: GRIS }}>
                       Adjudicada a {a.persona_fisica ? 'una persona física' : a.adjudicatario}
