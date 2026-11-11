@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { puedeVerContactos } from '@/lib/accesoContactos';
-import { normalizarFiltros, filtrosVacios } from '@/lib/contactosFiltros';
+import { normalizarFiltros } from '@/lib/contactosFiltros';
 
 // POST /api/contactos/facetas  body: { filtros, campo: 'cargo' | 'grupo' | 'institucion' }
 // Los valores de una columna con su recuento, para los filtros de las
@@ -24,7 +24,6 @@ export async function POST(request) {
   const campo = ['cargo', 'grupo', 'institucion'].includes(body.campo) ? body.campo : null;
   if (!campo) return NextResponse.json({ valores: [] });
   const filtros = normalizarFiltros(body.filtros || {});
-  if (filtrosVacios(filtros)) return NextResponse.json({ valores: [] });
 
   const { data, error } = await admin.rpc('facetas_contactos', { p_filtros: filtros, p_campo: campo });
   if (error) {

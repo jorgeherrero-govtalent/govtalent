@@ -10,7 +10,7 @@ import DescubrirPanel from '@/components/DescubrirPanel';
 import NuevaBusquedaContactos from '@/components/contactos/NuevaBusquedaContactos';
 import { useTotalDirectorio, masDe } from '@/lib/useTotalDirectorio';
 import { CREDITOS_CORREO_FUERA } from '@/lib/costesCreditos';
-import { BANDAS, TIPOS_INSTITUCION, TIPO_LABEL, FILTROS_VACIOS } from '@/lib/contactosFiltros';
+import { BANDAS, TIPOS_INSTITUCION, TIPO_LABEL, FILTROS_VACIOS, filtrosVacios } from '@/lib/contactosFiltros';
 import {
   ESTILOS_CONTACTOS,
   Buscando,
@@ -103,7 +103,7 @@ function PanelFiltros({ filtros, setFiltros, resumen }) {
     <aside className="gt-ct-aside" aria-label="Filtros">
       <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, fontWeight: 600, color: MORADO }}>
         <i className="ti ti-sparkles" aria-hidden="true"></i>
-        Filtros generados por IA
+        {resumen ? 'Filtros generados por IA' : 'Filtros'}
       </div>
       {resumen && <p style={{ margin: 0, fontSize: 12.5, color: GRIS, lineHeight: 1.5 }}>{resumen}</p>}
 
@@ -172,7 +172,9 @@ function ContactosPagina() {
 
   const [texto, setTexto] = useState('');
   const [consulta, setConsulta] = useState('');
-  const [filtros, setFiltros] = useState(null); // null = sin búsqueda todavía
+  // Sin búsqueda todavía, la tabla enseña el directorio entero: es lo que
+  // queda detrás del modal y lo que se ve al cerrarlo.
+  const [filtros, setFiltros] = useState(FILTROS_VACIOS);
   // El modal «Nueva búsqueda»: abierto al llegar, salvo que se venga con
   // la búsqueda ya escrita desde el buscador de arriba (/contactos?q=…).
   const [nueva, setNueva] = useState(() => !params.get('q'));
@@ -252,11 +254,13 @@ function ContactosPagina() {
   }, []);
 
   useEffect(() => {
-    if (!filtros) return;
+    // Sin el Directorio no hay datos que pedir (ver más abajo).
+    if (acceso !== true) return;
     let vivo = true;
     setBuscando(true);
     setError('');
-    const registrar = pag.desde === 0 && claveRegistrada.current !== claveFiltros;
+    // El directorio entero, sin filtros, no es una búsqueda: no se registra.
+    const registrar = pag.desde === 0 && claveRegistrada.current !== claveFiltros && !filtrosVacios(filtros);
     const origen = origenRef.current;
     if (registrar) {
       claveRegistrada.current = claveFiltros;
@@ -290,7 +294,7 @@ function ContactosPagina() {
     return () => {
       vivo = false;
     };
-  }, [claveFiltros, pag.desde, pag.pageSize]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [acceso, claveFiltros, pag.desde, pag.pageSize]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Desde el buscador de arriba: /contactos?q=…
   const qURL = params.get('q');
@@ -424,6 +428,7 @@ function ContactosPagina() {
   }
 
   if (acceso === null) return <div className="spinner"></div>;
+  const sinFiltros = filtrosVacios(filtros);
 
   const cabecera = (
     <div className="gt-ct-cab">
@@ -456,9 +461,9 @@ function ContactosPagina() {
     </>
   );
 
-  // --- Sin búsqueda todavía -------------------------------------------------
-  // Se busca desde el modal. Si se cierra sin buscar, queda el botón.
-  if (!filtros) {
+  // --- Sin el Directorio ------------------------------------------------------
+  // No hay tabla que enseñar: queda el botón, que lleva al aviso de suscripción.
+  if (acceso === false) {
     return (
       <div className="gt-ct">
         <style>{ESTILOS_CONTACTOS}</style>
@@ -507,7 +512,7 @@ function ContactosPagina() {
         <button type="button" className="btn-g" onClick={() => abrirExportacion(false)} disabled={total === 0}>
           Exportar
         </button>
-        <button type="button" className="btn-ai" onClick={() => setGuardarLista('busqueda')} disabled={total === 0}>
+        <button type="button" className="btn-ai" onClick={() => setGuardarLista('busqueda')} disabled={total === 0 || sinFiltros}>
           Guardar como lista
         </button>
       </div>
@@ -599,7 +604,7 @@ function ContactosPagina() {
 
           {!buscando && !error && total === 0 ? (
             <div className="gt-ct-aviso" style={{ padding: '18px 16px' }}>
-              No hay nadie con estos filtros. Prueba a quitar alguno o a describir la búsqueda de otra forma.
+              {sinFiltros ? 'No hay nadie en el directorio.' : 'No hay nadie con estos filtros. Prueba a quitar alguno o a describir la búsqueda de otra forma.'}
             </div>
           ) : (
             <div className="gt-ct-tabla">

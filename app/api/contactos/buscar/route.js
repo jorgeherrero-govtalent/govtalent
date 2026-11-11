@@ -4,7 +4,7 @@ import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { puedeVerContactos } from '@/lib/accesoContactos';
-import { normalizarFiltros, filtrosVacios } from '@/lib/contactosFiltros';
+import { normalizarFiltros } from '@/lib/contactosFiltros';
 import { correosProbables, puedeVerProbables } from '@/lib/correosProbables';
 
 // POST /api/contactos/buscar  body: { filtros, desde?, cuantos? }
@@ -69,7 +69,8 @@ export async function POST(request) {
 
   const body = await request.json().catch(() => ({}));
   const filtros = normalizarFiltros(body.filtros || {});
-  if (filtrosVacios(filtros)) return NextResponse.json({ total: 0, filas: [] });
+  // Sin filtros se enseña el directorio entero, paginado: es lo que queda
+  // detrás del modal «Nueva búsqueda» del Buscador (11-11-2026).
 
   const desde = Math.max(0, Math.floor(Number(body.desde) || 0));
   const cuantos = Math.min(2000, Math.max(1, Math.floor(Number(body.cuantos) || 50)));
