@@ -15,7 +15,7 @@ import NuevaBusquedaContactos, { etiquetasContactos } from '@/components/contact
 import BuscarCorreoModal from '@/components/BuscarCorreoModal';
 import { ModalGuardarLista, ModalEnriquecerVarios, ModalComprar, BarraSeleccion, useEnriquecer, avisarSaldo, ESTILOS_CONTACTOS } from '@/components/ContactosUI';
 import { filtrosVacios } from '@/lib/contactosFiltros';
-import { CREDITOS_CORREO_FUERA, creditosTexto } from '@/lib/costesCreditos';
+import { CREDITOS_CORREO, CREDITOS_CORREO_FUERA, creditosTexto } from '@/lib/costesCreditos';
 
 const PAGE_SIZE_OPTIONS = [25, 50, 100, 200];
 // Lo máximo que admite una lista (lib/listas.js).
@@ -760,7 +760,7 @@ function DirectorioInstitucional() {
   const { encontrados, probables, apuntar } = useCorreosEncontrados(idsSinCorreo, planAllowed);
 
   // ENRIQUECER VARIOS A LA VEZ (11-11-2026), como en el Buscador: de las
-  // filas marcadas, las que no tienen correo nominativo. 1 crédito por
+  // filas marcadas, las que no tienen correo nominativo. 6 créditos por
   // persona, solo si se encuentra; lo ya encontrado por otro sale gratis.
   const [saldoEnr, setSaldoEnr] = useState(null);
   const [packsEnr, setPacksEnr] = useState([]);
@@ -802,7 +802,7 @@ function DirectorioInstitucional() {
         setPacksEnr(j.packs || []);
       }
     } catch {}
-    if (!((sal?.disponibles ?? 0) >= 1)) setComprarEnr(true);
+    if (!((sal?.disponibles ?? 0) >= CREDITOS_CORREO)) setComprarEnr(true);
     else setConfirmarEnr(ids);
   }
 
@@ -1573,7 +1573,7 @@ function DirectorioInstitucional() {
             </button>
             {enriqueciblesSeleccion.length > 0 && (
               <button type="button" style={sec} onClick={() => pedirEnriquecer(enriqueciblesSeleccion)}>
-                <i className="ti ti-sparkles" aria-hidden="true"></i> Enriquecer (hasta {creditosTexto(enriqueciblesSeleccion.length)})
+                <i className="ti ti-sparkles" aria-hidden="true"></i> Enriquecer (hasta {creditosTexto(enriqueciblesSeleccion.length * CREDITOS_CORREO)})
               </button>
             )}
           </>

@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { creditosIncluidos, CREDITOS_POR_ALARMA, miles } from '@/lib/precios';
 import { ModalComprar } from '@/components/ContactosUI';
-import { CREDITOS_CORREO, CREDITOS_CORREO_FUERA, CREDITOS_VERIFICAR, CREDITOS_BUSCAR_FUERA } from '@/lib/costesCreditos';
+import { CREDITOS_CORREO_FUERA, CREDITOS_VERIFICAR, CREDITOS_BUSCAR_FUERA } from '@/lib/costesCreditos';
 
 /**
  * Configuración, pestaña Plan: los créditos disponibles, sumados, con el
@@ -186,7 +186,7 @@ export default function CreditosPlan({ user }) {
                 <td style={TD}>{miles(contactoComprados)}</td>
                 <td style={{ ...TD, fontWeight: 600 }}>{miles(contactoDisp)}</td>
                 <td style={{ ...TD, color: GRIS }}>
-                  {CREDITOS_CORREO} por correo del directorio, {CREDITOS_CORREO_FUERA} fuera de él, {CREDITOS_VERIFICAR} por verificar y {CREDITOS_BUSCAR_FUERA} por búsqueda de cargos
+                  {CREDITOS_CORREO_FUERA} por buscar un correo, {CREDITOS_VERIFICAR} por verificar y {CREDITOS_BUSCAR_FUERA} por búsqueda de cargos
                 </td>
                 <td style={{ ...TD, textAlign: 'right' }}>
                   <button type="button" style={BOTON_FILA} onClick={() => setComprar(true)}>

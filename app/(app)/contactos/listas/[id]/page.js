@@ -1,5 +1,6 @@
 'use client';
 
+import { CREDITOS_CORREO } from '@/lib/costesCreditos';
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
@@ -63,7 +64,7 @@ export default function ListaPage() {
 
   // Enriquecer varios: sin créditos, directamente la compra.
   function pedirEnriquecer(ids) {
-    if (!(saldo?.disponibles >= 1)) setModalComprar(true);
+    if (!(saldo?.disponibles >= CREDITOS_CORREO)) setModalComprar(true);
     else setConfirmarEnr(ids);
   }
 
@@ -258,7 +259,7 @@ export default function ListaPage() {
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 14, alignItems: 'center' }}>
         {enriquecibles.length > 0 && (
           <button type="button" className="btn-ai-o" style={{ padding: '7px 12px', fontSize: 12.5 }} onClick={() => pedirEnriquecer(enriquecibles)}>
-            Enriquecer los que no tienen correo (máx. {miles(enriquecibles.length)} créditos)
+            Enriquecer los que no tienen correo (máx. {miles(enriquecibles.length * CREDITOS_CORREO)} créditos)
           </button>
         )}
         {enMarcha > 0 && <span style={{ fontSize: 12.5, color: '#5443d6' }}>Enriqueciendo {miles(enMarcha)}…</span>}
@@ -279,7 +280,7 @@ export default function ListaPage() {
               </button>
               {enriqueciblesSel.length > 0 && (
                 <button type="button" style={sec} onClick={() => pedirEnriquecer(enriqueciblesSel)}>
-                  <i className="ti ti-sparkles" aria-hidden="true"></i> Enriquecer (hasta {miles(enriqueciblesSel.length)} créditos)
+                  <i className="ti ti-sparkles" aria-hidden="true"></i> Enriquecer (hasta {miles(enriqueciblesSel.length * CREDITOS_CORREO)} créditos)
                 </button>
               )}
             </>
@@ -338,7 +339,7 @@ export default function ListaPage() {
                           f={f}
                           estado={enr}
                           puedeEnriquecer={!f._salida}
-                          onEnriquecer={(pid) => (saldo?.disponibles >= 1 ? enriquecer(pid) : setModalComprar(true))}
+                          onEnriquecer={(pid) => (saldo?.disponibles >= CREDITOS_CORREO ? enriquecer(pid) : setModalComprar(true))}
                           onSaldo={setSaldo}
                           onSinCreditos={() => setModalComprar(true)}
                         />
