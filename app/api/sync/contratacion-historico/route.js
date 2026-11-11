@@ -20,7 +20,7 @@
 
 import { createClient } from '@supabase/supabase-js';
 import { conRegistro } from '@/lib/syncLog';
-import { leerEntradas, leerBajas } from '@/lib/contratacion/placsp';
+import { FEEDS, descargar, leerCabecera, leerEntradas, leerBajas } from '@/lib/contratacion/placsp';
 import { guardar, aplicarBajas } from '@/lib/contratacion/guardar';
 import { recorrerZip } from '@/lib/contratacion/zipRemoto';
 import { fetchGob } from '@/lib/fetchGob';
@@ -96,6 +96,38 @@ async function handler(request) {
       }
     }
     return Response.json({ out, ms: Date.now() - t0 });
+  }
+
+  // ---- Rehacer lo reciente desde el ATOM vivo (una vez, a mano) ----
+  // ?vivo=1&feed=perfiles[&pagina=URL]&hasta=AAAA-MM-DD: lee páginas del
+  // feed vivo desde la primera (o desde pagina) hasta llegar a entradas
+  // anteriores a hasta, y las guarda: así las versiones actuales reciben
+  // los datos de la ficha. Devuelve siguiente para encadenar.
+  if (sp.get('vivo') === '1') {
+    const feed = sp.get('feed') || 'perfiles';
+    const hasta = new Date(`${sp.get('hasta') || '2026-11-01'}T00:00:00+01:00`);
+    let pagina = sp.get('pagina') || FEEDS[feed];
+    const db = admin();
+    const out = { feed, paginas: 0, entradas: 0, guardadas: 0, omitidas: 0 };
+    try {
+      while (pagina && Date.now() - t0 < PRESUPUESTO_MS - 160000) {
+        const r = await descargar(pagina);
+        if (r.status !== 200) throw new Error(`HTTP ${r.status}`);
+        const entradas = leerEntradas(r.texto);
+        const g = await guardar(db, feed, entradas);
+        out.paginas += 1;
+        out.entradas += entradas.length;
+        out.guardadas += g.guardadas;
+        out.omitidas += g.omitidas;
+        const masAntigua = entradas.map((e) => new Date(e.actualizado)).sort((a, b) => a - b)[0];
+        pagina = masAntigua && masAntigua < hasta ? null : leerCabecera(r.texto).siguiente;
+      }
+    } catch (e) {
+      out.error = String(e.message || e);
+    }
+    out.siguiente = pagina;
+    out.ms = Date.now() - t0;
+    return Response.json(out);
   }
 
   // ---- Muestra: la n-ésima entrada del primer fichero, sin guardar ----
