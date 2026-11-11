@@ -86,7 +86,7 @@ async function contactoDeOtraFuente(admin, slug) {
   const apellido = palabras[palabras.length - 1];
   if (!apellido || palabras.length < 2) return null;
   const { data: filas } = await admin
-    .from('directorio_pro')
+    .from('directorio_pro_rapido')
     .select('id, nombre, institucion, unidad, email, email_unidad, telefono, fuente')
     .ilike('nombre', `%${apellido}%`)
     .not('id', 'like', 'es-ejecutivo:%')

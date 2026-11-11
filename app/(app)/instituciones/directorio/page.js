@@ -20,6 +20,14 @@ const PAGE_SIZE_OPTIONS = [25, 50, 100, 200];
 // /data). Si el total falla, 7 bloques (35.000 filas).
 const BLOQUE_FILAS = 5000;
 const MAX_BLOQUES = 12;
+// Los que se piden de entrada, sin esperar a saber el total (30.000 filas).
+const BLOQUES_INICIALES = 6;
+
+// Lo ya descargado, para volver a la página sin esperar. Vive en la memoria
+// de la pestaña (no en el disco ni en la caché del navegador), se guarda
+// por usuario y caduca a los 10 minutos.
+const MEMORIA_MS = 10 * 60 * 1000;
+const memoria = { userId: null, filas: null, en: 0 };
 
 // Tres bloques, como el menú del Directorio (05-10-2026). Sustituyen a las
 // pestañas España / UE: desde que entraron los medios y los ayuntamientos,
@@ -409,51 +417,42 @@ export default function DirectorioInstitucionalPage() {
   const [exportError, setExportError] = useState('');
   const [exportRows, setExportRows] = useState([]);
 
-  useEffect(() => {
-    async function comprobarPlan() {
-      const { data: authData } = await supabase.auth.getUser();
-      if (!authData?.user) {
-        setPlanAllowed(false);
-        setPlanChecked(true);
-        return;
-      }
-      // El Directorio, propio o por una organización Teams (sql/73).
-      const { data: tiene } = await supabase.rpc('tiene_directorio');
-      setPlanAllowed(tiene === true);
-      setPlanChecked(true);
-    }
-    comprobarPlan();
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
-
-  // La descarga espera a saber el plan, y solo ocurre si hay acceso.
+  // CARGA (11-11-2026). Antes iba todo en fila: quién eres, si tienes el
+  // Directorio, cuántas personas hay y, solo entonces, los datos. Ahora el
+  // plan y el total se piden a la vez, y los bloques salen en cuanto se
+  // sabe que hay acceso, sin esperar al total.
   //
-  // Antes se lanzaba siempre, así que quien no tiene Teams se tragaba
-  // hasta veinte mil filas en bloques de mil, uno detrás de otro, para
-  // acabar viendo una demo que no las usa. Y esas filas traen email,
-  // email_unidad, telefono y direccion_postal: los contactos que se
-  // venden con Teams llegaban al navegador de cualquiera y se leían en la
-  // pestaña de red. No era lentitud, era una fuga.
+  // La descarga solo ocurre si hay acceso: quien no tiene el Directorio no
+  // pide los bloques (y si los pidiera, el servidor no se los daría).
+  //
+  // Al volver a la página dentro de la misma pestaña se pinta lo que ya se
+  // bajó (hasta 10 minutos), sin volver a pedirlo.
   useEffect(() => {
-    if (!planChecked || !planAllowed) return;
+    let vivo = true;
 
-    // Los 5 bloques de 5.000 filas a la vez (sql/67 y sql/70). Cada bloque llega
-    // compacto —las columnas una vez y cada fila como lista— y aquí se
-    // vuelve a montar como objetos, que es lo que usa el resto de la
-    // página. Antes eran 13 peticiones de 1.000, una detrás de otra.
-    async function cargar() {
+    async function pedirBloque(i) {
+      const res = await fetch(`/api/instituciones/directorio/data?bloque=${i}`);
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(json.error || 'No se pudo cargar el directorio');
+      return json;
+    }
+
+    async function cargar(userId) {
       try {
-        const tot = await fetch('/api/instituciones/directorio/total')
+        const totalP = fetch('/api/instituciones/directorio/total')
           .then((r) => (r.ok ? r.json() : null))
           .catch(() => null);
-        const nBloques = tot?.total ? Math.min(MAX_BLOQUES, Math.ceil(tot.total / BLOQUE_FILAS)) : 7;
-        const bloques = await Promise.all(
-          Array.from({ length: nBloques }, async (_, i) => {
-            const res = await fetch(`/api/instituciones/directorio/data?bloque=${i}`);
-            const json = await res.json().catch(() => ({}));
-            if (!res.ok) throw new Error(json.error || 'No se pudo cargar el directorio');
-            return json;
-          })
-        );
+        const inicialesP = Promise.all(Array.from({ length: BLOQUES_INICIALES }, (_, i) => pedirBloque(i)));
+        inicialesP.catch(() => {});
+        // Si el directorio ha crecido por encima de lo que cubren los
+        // bloques iniciales, se piden los que falten.
+        const tot = await totalP;
+        const nBloques = tot?.total
+          ? Math.min(MAX_BLOQUES, Math.ceil(tot.total / BLOQUE_FILAS))
+          : BLOQUES_INICIALES + 1;
+        const extra = [];
+        for (let i = BLOQUES_INICIALES; i < nBloques; i += 1) extra.push(pedirBloque(i));
+        const bloques = [...(await inicialesP), ...(await Promise.all(extra))];
         const acumulado = [];
         for (const { c = [], f = [] } of bloques) {
           for (const valores of f) {
@@ -463,14 +462,55 @@ export default function DirectorioInstitucionalPage() {
             acumulado.push(fila);
           }
         }
-        setFilas(acumulado);
+        memoria.userId = userId;
+        memoria.filas = acumulado;
+        memoria.en = Date.now();
+        if (vivo) setFilas(acumulado);
       } catch (e) {
+        if (!vivo) return;
         setLoadError(e.message || 'No se pudo cargar el directorio');
         setFilas([]);
       }
     }
-    cargar();
-  }, [planChecked, planAllowed]); // eslint-disable-line react-hooks/exhaustive-deps
+
+    (async () => {
+      // La sesión se lee del navegador, sin viaje al servidor: aquí solo
+      // sirve para saber de quién es lo guardado. El acceso lo decide la base.
+      const { data: sesion } = await supabase.auth.getSession();
+      const userId = sesion?.session?.user?.id || null;
+      if (!vivo) return;
+      if (!userId) {
+        setPlanAllowed(false);
+        setPlanChecked(true);
+        return;
+      }
+
+      const enMemoria = memoria.userId === userId && memoria.filas && Date.now() - memoria.en < MEMORIA_MS;
+      if (enMemoria) {
+        setFilas(memoria.filas);
+        setPlanAllowed(true);
+        setPlanChecked(true);
+      }
+
+      // El Directorio, propio o por una organización Teams (sql/73).
+      const { data: tiene } = await supabase.rpc('tiene_directorio');
+      if (!vivo) return;
+      if (tiene !== true) {
+        memoria.userId = null;
+        memoria.filas = null;
+        setPlanAllowed(false);
+        setPlanChecked(true);
+        return;
+      }
+      setPlanAllowed(true);
+      setPlanChecked(true);
+      if (!enMemoria) cargar(userId);
+    })();
+
+    return () => {
+      vivo = false;
+    };
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     setPage(0);
