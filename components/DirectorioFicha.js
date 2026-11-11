@@ -75,7 +75,7 @@ function Dato({ titulo, children }) {
   );
 }
 
-function Persona({ p, contacto, ultima, encontrados, apuntar, onUpsell }) {
+function Persona({ p, contacto, ultima, encontrados, probables, apuntar, onUpsell }) {
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 11, padding: '9px 0', borderBottom: ultima ? 'none' : LINEA, flexWrap: 'wrap' }}>
       <div
@@ -106,7 +106,7 @@ function Persona({ p, contacto, ultima, encontrados, apuntar, onUpsell }) {
               <Correos valor={p.email} />
             </div>
           ) : (
-            <BuscarCorreo persona={p} encontrado={encontrados[p.id]}
+            <BuscarCorreo persona={p} encontrado={encontrados[p.id]} probable={probables?.[p.id]}
                       onResultado={(r) => apuntar(p.id, r)} />
           )}
           {p.telefono ? <div style={{ color: '#888' }}>{separar(p.telefono).join(', ')}</div> : null}
@@ -153,7 +153,7 @@ function AvisoContacto({ onUpsell }) {
 
 // Delegaciones, emisoras o instituciones dentro de la organización. Una
 // cadena de radio puede tener casi doscientas: van paginadas.
-function Unidades({ unidades, contacto, encontrados, apuntar, onUpsell }) {
+function Unidades({ unidades, contacto, encontrados, probables, apuntar, onUpsell }) {
   const pag = usePaginacion(unidades.length);
   const slice = unidades.slice(pag.desde, pag.hasta);
   return (
@@ -184,7 +184,7 @@ function Unidades({ unidades, contacto, encontrados, apuntar, onUpsell }) {
           {u.personas.length > 0 ? (
             <div style={{ marginTop: 4 }}>
               {u.personas.map((p, j) => (
-                <Persona key={j} p={p} contacto={contacto} ultima={j === u.personas.length - 1} encontrados={encontrados} apuntar={apuntar} onUpsell={onUpsell} />
+                <Persona key={j} p={p} contacto={contacto} ultima={j === u.personas.length - 1} encontrados={encontrados} probables={probables} apuntar={apuntar} onUpsell={onUpsell} />
               ))}
             </div>
           ) : null}
@@ -204,7 +204,9 @@ export default function DirectorioFicha({ slug, id, volverA, volverEtiqueta }) {
   const [estado, setEstado] = useState('cargando');
   const [upsell, setUpsell] = useState(false);
   const sinCorreo = contacto && ficha ? ficha.unidades.flatMap((u) => u.personas).filter((p) => !p.email && p.id).map((p) => p.id) : [];
-  const { encontrados, apuntar } = useCorreosEncontrados(sinCorreo, contacto);
+  // También el correo probable (11-11-2026): estas fichas eran las únicas
+  // que no lo enseñaban, y quien no tenía correo publicado se quedaba sin nada.
+  const { encontrados, probables, apuntar } = useCorreosEncontrados(sinCorreo, contacto);
 
   useEffect(() => {
     let vivo = true;
@@ -329,12 +331,12 @@ export default function DirectorioFicha({ slug, id, volverA, volverEtiqueta }) {
           <div style={{ fontSize: 12.5, color: '#999', lineHeight: 1.6 }}>No tenemos todavía las personas de esta sede.</div>
         ) : (
           equipo.map((p, i) => (
-            <Persona key={i} p={p} contacto={contacto} ultima={i === equipo.length - 1} encontrados={encontrados} apuntar={apuntar} onUpsell={contacto ? null : () => setUpsell(true)} />
+            <Persona key={i} p={p} contacto={contacto} ultima={i === equipo.length - 1} encontrados={encontrados} probables={probables} apuntar={apuntar} onUpsell={contacto ? null : () => setUpsell(true)} />
           ))
         )}
       </div>
 
-      {resto.length > 0 ? <Unidades unidades={resto} contacto={contacto} encontrados={encontrados} apuntar={apuntar} onUpsell={contacto ? null : () => setUpsell(true)} /> : null}
+      {resto.length > 0 ? <Unidades unidades={resto} contacto={contacto} encontrados={encontrados} probables={probables} apuntar={apuntar} onUpsell={contacto ? null : () => setUpsell(true)} /> : null}
 
       {upsell ? (
         <UpgradeModal

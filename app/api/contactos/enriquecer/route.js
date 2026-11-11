@@ -7,7 +7,7 @@ import { CREDITOS_CORREO, CREDITOS_CORREO_FUERA } from '@/lib/costesCreditos';
 import { enriquecerPersona, buscarCorreoPublicado } from '@/lib/enriquecer';
 import { enriquecidoPublico } from '@/lib/enriquecidoPublico';
 import { correoPorServidor, dominioDe } from '@/lib/correoPorServidor';
-import { probableParaDominio } from '@/lib/correosProbables';
+import { probableParaDominio, correosProbables, puedeVerProbables } from '@/lib/correosProbables';
 import { limpiar } from '@/lib/patronesCorreo';
 import { reveladosDe, revelar } from '@/lib/revelados';
 
@@ -215,9 +215,18 @@ export async function POST(request) {
     }
   }
 
+  // Dentro del directorio, tampoco se queda nadie sin correo (11-11-2026):
+  // si no hay uno nominativo publicado, se devuelve el probable de su
+  // organismo, el mismo que enseñan las fichas. No cuesta créditos: lo que
+  // se cobra es verificarlo.
+  let probableDir = null;
+  if (!libre && !(r?.email && r.tipo === 'personal') && puedeVerProbables()) {
+    probableDir = (await correosProbables(admin, [persona]).catch(() => ({})))[id] || null;
+  }
+
   if (!r) {
     if (cacheGenerico) return devolverCache();
-    return NextResponse.json({ resultado: publico(cache), cobrado: false, cache: true, persona_id: id, saldo: await saldoCreditos(admin, userId) });
+    return NextResponse.json({ resultado: publico(cache), cobrado: false, cache: true, persona_id: id, probable: probableDir, saldo: await saldoCreditos(admin, userId) });
   }
 
   // 4. Caché y cobro.
@@ -272,7 +281,7 @@ export async function POST(request) {
     alta,
     cargo: alta ? ident.cargo : null,
     institucion: alta ? ident.organizacion : null,
-    probable: probable ? { ...probable } : null,
+    probable: probable ? { ...probable } : probableDir,
     respaldo: respaldo ? { email: respaldo.email, tipo: respaldo.tipo } : null,
     saldo: await saldoCreditos(admin, userId),
   });
