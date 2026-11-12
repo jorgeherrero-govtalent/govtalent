@@ -74,11 +74,6 @@ async function handler(request) {
         const unicas = [...new Map(filas.map((f) => [f.id, f])).values()];
         const { error } = await db.from('contratacion_expedientes').upsert(unicas, { onConflict: 'id' });
         if (error) throw new Error(`guardar: ${error.message}`);
-        const { error: e2 } = await db.from('contratacion_eventos').upsert(
-          unicas.filter((f) => f.actualizado_fuente).map((f) => ({ expediente_id: f.id, actualizado_fuente: f.actualizado_fuente, estado: f.estado, anuncios: f.anuncios })),
-          { onConflict: 'expediente_id,actualizado_fuente', ignoreDuplicates: true },
-        );
-        if (e2) throw new Error(`eventos: ${e2.message}`);
         res.guardados += unicas.length;
       }
       token = r.notices.length ? r.token : null;
