@@ -18,7 +18,7 @@
 //   3. Cada página guardada se apunta en contratacion_lectura: si Vercel
 //      corta, la siguiente ejecución sigue por la misma página.
 //   Una entrada solo pisa el expediente si es más reciente que lo
-//   guardado; cada versión queda en contratacion_eventos.
+//   guardado. Solo se conserva la última versión de cada expediente.
 //
 // La primera vez no hay marca: se empieza por lo publicado en las últimas
 // 36 horas (?desde=AAAA-MM-DD para otra fecha). El histórico irá desde
@@ -92,7 +92,7 @@ async function handler(request) {
 async function leerFeed({ db, feed, url, dry, forzar, desde, t0 }) {
   const { data: fila } = await db.from('contratacion_lectura').select('*').eq('feed', feed).maybeSingle();
   const estado = fila || { feed };
-  const salida = { paginas: 0, entradas: 0, guardadas: 0, omitidas_antiguas: 0, eventos: 0, adjudicaciones: 0, bajas: 0 };
+  const salida = { paginas: 0, entradas: 0, guardadas: 0, omitidas_antiguas: 0, adjudicaciones: 0, bajas: 0 };
 
   // ---- 1. ¿Hay algo nuevo? -------------------------------------------
   let pagina = estado.pendiente_url;
@@ -152,7 +152,6 @@ async function leerFeed({ db, feed, url, dry, forzar, desde, t0 }) {
     const g = await guardar(db, feed, nuevas);
     salida.guardadas += g.guardadas;
     salida.omitidas_antiguas += g.omitidas;
-    salida.eventos += g.eventos;
     salida.adjudicaciones += g.adjudicaciones;
     salida.bajas += await aplicarBajas(db, feed, leerBajas(r.texto));
 
