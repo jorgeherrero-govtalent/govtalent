@@ -11,8 +11,8 @@
 // <style>), el código HTTP y los enlaces. Lo que prohíbe el robots.txt
 // no se pide: queda en estado «robots».
 //
-// Las URL se encolan a mano en Supabase. Un cron la lanza cada 2
-// minutos mientras dure el desarrollo. Una URL de la propia GovTalent
+// Las URL se encolan a mano en Supabase. Ya no tiene cron (quitado el
+// 12-11-2026): se lanza a mano con ?key=<DEBUG_KEY>. Una URL de la propia GovTalent
 // (https://govtalent.app/api/sync/…) se llama con el CRON_SECRET y se
 // guarda su respuesta JSON: sirve para probar los lectores en seco.
 //
