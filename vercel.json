@@ -165,10 +165,6 @@
       "schedule": "50 4 * * *"
     },
     {
-      "path": "/api/cron/rastreo",
-      "schedule": "*/2 * * * *"
-    },
-    {
       "path": "/api/sync/altos-cargos-catalunya",
       "schedule": "25 4 * * 1"
     },
