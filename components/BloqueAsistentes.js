@@ -104,8 +104,27 @@ const MARCA = { boxShadow: `0 0 0 2px ${MORADO}, 0 0 0 6px rgba(109,90,239,.18)`
 
 // Los nombres de los menús de cada asistente.
 const MENUS = {
-  claude: { lateral: ['General', 'Perfil', 'Conectores', 'Skills'], titulo: 'Conectores', boton: 'Añadir', opciones: ['Explorar conectores', 'Añadir conector personalizado'], ventana: 'Añadir conector personalizado', aceptar: 'Añadir' },
-  chatgpt: { lateral: ['General', 'Notificaciones', 'Aplicaciones y conectores', 'Seguridad'], titulo: 'Aplicaciones y conectores', boton: 'Crear', opciones: ['Explorar aplicaciones', 'Crear'], ventana: 'Nuevo conector', aceptar: 'Crear' },
+  claude: {
+    cabecera: 'Ajustes',
+    lateral: ['General', 'Perfil', 'Conectores', 'Skills'],
+    titulo: 'Conectores',
+    boton: 'Añadir',
+    opciones: ['Explorar conectores', 'Añadir conector personalizado'],
+    ventana: 'Añadir conector personalizado',
+    aceptar: 'Añadir',
+    lista: 'Conectores',
+  },
+  // ChatGPT los llama complementos y se añaden desde su catálogo.
+  chatgpt: {
+    cabecera: 'ChatGPT',
+    lateral: ['Nuevo chat', 'Buscar chats', 'Complementos', 'Proyectos'],
+    titulo: 'Complementos',
+    boton: '',
+    opciones: [null, 'Añadir servidor MCP personalizado'],
+    ventana: 'Añadir servidor MCP personalizado',
+    aceptar: 'Crear como complemento',
+    lista: 'Complementos',
+  },
 };
 
 function Cursor({ style }) {
@@ -163,7 +182,7 @@ function Dibujo({ tipo, asistente }) {
       <Ventana asistente={asistente}>
         <div style={{ display: 'flex', minHeight: 150 }}>
           <div style={{ width: 168, padding: '12px 10px', borderRight: `1px solid ${BORDE}`, display: 'flex', flexDirection: 'column', gap: 4, flexShrink: 0, position: 'relative' }}>
-            <div style={{ fontSize: 10.5, color: GRIS, padding: '0 8px 4px' }}>Ajustes</div>
+            <div style={{ fontSize: 10.5, color: GRIS, padding: '0 8px 4px' }}>{m.cabecera}</div>
             {m.lateral.map((t, i) => (
               <div key={t} style={{ padding: '6px 8px', borderRadius: 8, fontWeight: i === 2 ? 600 : 400, color: i === 2 ? TINTA : '#57534e', ...(i === 2 ? MARCA : {}) }}>
                 {t}
@@ -196,10 +215,10 @@ function Dibujo({ tipo, asistente }) {
             <FilaConector icono={<Cuadro />} nombre={<span style={{ ...LINEA, width: 80, display: 'block' }}></span>} />
             <FilaConector icono={<Cuadro />} nombre={<span style={{ ...LINEA, width: 60, display: 'block' }}></span>} />
           </div>
-          <div style={{ position: 'absolute', right: 14, top: 46, width: 214, background: '#fff', border: `1px solid ${BORDE}`, borderRadius: 10, boxShadow: '0 10px 24px rgba(0,0,0,.14)', padding: 6, display: 'flex', flexDirection: 'column', gap: 4 }}>
-            <div style={{ padding: '7px 9px', color: '#57534e' }}>{m.opciones[0]}</div>
+          <div style={{ position: 'absolute', right: 14, top: 46, width: 236, background: '#fff', border: `1px solid ${BORDE}`, borderRadius: 10, boxShadow: '0 10px 24px rgba(0,0,0,.14)', padding: 6, display: 'flex', flexDirection: 'column', gap: 4 }}>
+            {m.opciones[0] && <div style={{ padding: '7px 9px', color: '#57534e' }}>{m.opciones[0]}</div>}
             <div style={{ padding: '7px 9px', fontWeight: 600, ...MARCA }}>{m.opciones[1]}</div>
-            <Cursor style={{ right: -4, top: 62 }} />
+            <Cursor style={{ right: -4, bottom: -12 }} />
           </div>
         </div>
       </Ventana>
@@ -232,7 +251,7 @@ function Dibujo({ tipo, asistente }) {
         <div style={{ padding: 14, display: 'flex', flexDirection: 'column', gap: 10, position: 'relative' }}>
           <div style={{ alignSelf: 'flex-end', maxWidth: '82%', background: '#f0efe9', borderRadius: '12px 12px 3px 12px', padding: '8px 11px', lineHeight: 1.4 }}>{EJEMPLOS[0]}</div>
           <div style={{ border: `1px solid ${BORDE}`, borderRadius: 10, padding: 6, boxShadow: '0 8px 20px rgba(0,0,0,.1)', display: 'flex', flexDirection: 'column', gap: 4 }}>
-            <div style={{ fontSize: 10.5, color: GRIS, padding: '2px 9px' }}>Conectores</div>
+            <div style={{ fontSize: 10.5, color: GRIS, padding: '2px 9px' }}>{m.lista}</div>
             <FilaConector icono={<Isotipo size={13} />} nombre="GovTalent" encendido marcada />
             <FilaConector icono={<Cuadro />} nombre={<span style={{ ...LINEA, width: 74, display: 'block' }}></span>} encendido={false} />
           </div>
