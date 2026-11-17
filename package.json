@@ -9,10 +9,12 @@
     "lint": "next lint"
   },
   "dependencies": {
+    "@modelcontextprotocol/server": "^2.4.0",
     "@supabase/ssr": "^0.5.2",
     "@supabase/supabase-js": "^2.45.4",
     "fflate": "^0.8.2",
     "linkedom": "^0.18.15",
+    "mcp-handler": "^2.4.0",
     "mupdf": "^1.28.1",
     "next": "14.2.35",
     "papaparse": "^5.4.1",
@@ -21,6 +23,7 @@
     "react-dom": "^18",
     "resend": "^4.0.1",
     "stripe": "^22.6.2",
-    "xlsx": "^0.18.5"
+    "xlsx": "^0.18.5",
+    "zod": "^4.6.7"
   }
 }
