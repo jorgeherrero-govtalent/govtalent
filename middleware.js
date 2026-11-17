@@ -42,6 +42,14 @@ export async function middleware(request) {
     return NextResponse.next();
   }
 
+  // El MCP (app/api/mcp) lo llaman Claude, ChatGPT y otros asistentes sin
+  // cookies de sesión: se autentica dentro de la ruta, con el token que
+  // el usuario les concedió. Sus páginas de descripción (/.well-known/…)
+  // son públicas por diseño. Sin esta salida recibirían el login.
+  if (request.nextUrl.pathname === '/api/mcp' || request.nextUrl.pathname.startsWith('/.well-known/')) {
+    return NextResponse.next();
+  }
+
   let response = NextResponse.next({ request });
 
   const supabase = createServerClient(
@@ -135,6 +143,12 @@ export async function middleware(request) {
     // Los precios solo se ven con sesión (28-10-2026). Quien llega a
     // /precios desde un correo o un enlace antiguo vuelve ahí al entrar.
     if (path === '/precios') url.search = '?redirect=/precios';
+    // La pantalla de permiso del MCP llega con el identificador de la
+    // petición en la dirección. Hay que conservarlo al pasar por el login
+    // o, al volver, ya no se sabría qué asistente pedía acceso.
+    if (path === '/oauth/consent') {
+      url.search = `?redirect=${encodeURIComponent(path + request.nextUrl.search)}`;
+    }
     return NextResponse.redirect(url);
   }
 

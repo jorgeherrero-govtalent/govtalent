@@ -18,11 +18,10 @@
 import { NextResponse } from 'next/server';
 import { createClient as crearClienteSesion } from '@/lib/supabase/server';
 import { createClient } from '@supabase/supabase-js';
-import { FUENTES_ALARMA, mensajeError } from '@/lib/alarmas';
+import { mensajeError } from '@/lib/alarmas';
+import { filaDeAlarma, vigilarDesdeAhora } from '@/lib/alarmasServidor';
 
 export const dynamic = 'force-dynamic';
-
-const FRECUENCIAS = new Set(['inmediato', 'diario', 'semanal']);
 
 function admin() {
   return createClient(process.env.NEXT_PUBLIC_SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY, {
@@ -30,12 +29,6 @@ function admin() {
     global: { fetch: (url, options = {}) => fetch(url, { ...options, cache: 'no-store' }) },
   });
 }
-
-const textos = (v, max, largo = 120) =>
-  (Array.isArray(v) ? v : [])
-    .map((x) => String(x || '').trim().slice(0, largo))
-    .filter(Boolean)
-    .slice(0, max);
 
 export async function POST(request) {
   const sesion = crearClienteSesion();
@@ -51,26 +44,9 @@ export async function POST(request) {
     return NextResponse.json({ error: 'Petición no válida.' }, { status: 400 });
   }
 
-  const criterios = a?.criterios || {};
-  const fila = {
-    nombre: String(a?.nombre || '').trim().slice(0, 60) || 'Mi alarma',
-    descripcion: String(a?.descripcion || '').trim().slice(0, 3000),
-    keywords: textos(a?.keywords, 15, 60).map((k) => k.toLowerCase()),
-    sectores: textos(a?.sectores, 6, 60),
-    criterios: {
-      resumen: String(criterios.resumen || '').trim().slice(0, 400),
-      temas: textos(criterios.temas, 8, 60),
-      normativa: textos(criterios.normativa, 8),
-      territorios: textos(criterios.territorios, 10, 60),
-      excluye: textos(criterios.excluye, 8),
-    },
-    fuentes: FUENTES_ALARMA,
-    frecuencia: FRECUENCIAS.has(a?.frecuencia) ? a.frecuencia : 'semanal',
-    activa: a?.activa !== false,
-    // Recordatorios a 30, 14, 7, 3 y 1 días del cierre (sql/60). Solo se
-    // envían en Pro; en Free la opción se guarda pero no tiene efecto.
-    recordar_plazos: a?.recordar_plazos !== false,
-  };
+  // Los campos, limpios y con sus topes (lib/alarmasServidor.js: lo mismo
+  // que usa el MCP cuando la alarma se crea desde un asistente).
+  const fila = filaDeAlarma(a);
 
   if (!fila.descripcion || fila.keywords.length === 0) {
     return NextResponse.json({ error: 'A la alarma le falta la descripción o los criterios.' }, { status: 400 });
@@ -133,19 +109,8 @@ export async function POST(request) {
   }
 
   // Una alarma NUEVA empieza a vigilar desde ahora. Lo que entró en los
-  // últimos siete días ya lo revisó el agente al proponerla; sin esto, la
-  // primera pasada lo volvería a evaluar y mandaría un correo con cosas
-  // de hace una semana como si fueran novedades.
-  if (guardada && !a?.id) {
-    const db = admin();
-    const { data: reciente } = await db.from('regulatorio_reciente').select('kind, ref_id').limit(3000);
-    const filas = (reciente || []).map((r) => ({ alert_id: guardada.id, kind: r.kind, ref_id: r.ref_id }));
-    for (let i = 0; i < filas.length; i += 500) {
-      await db
-        .from('sector_alert_seen')
-        .upsert(filas.slice(i, i + 500), { onConflict: 'alert_id,kind,ref_id', ignoreDuplicates: true });
-    }
-  }
+  // últimos siete días ya lo revisó el agente al proponerla.
+  if (guardada && !a?.id) await vigilarDesdeAhora(admin(), guardada.id);
 
   return NextResponse.json({ alarma: guardada });
 }
