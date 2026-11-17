@@ -5,7 +5,7 @@ import { createPortal } from 'react-dom';
 import { createClient } from '@/lib/supabase/client';
 import { toast } from '@/lib/toast';
 import { Isotipo } from '@/components/Logo';
-import { ASISTENTES, DIRECCION_MCP, EJEMPLOS, asistenteDe } from '@/lib/mcp/textos';
+import { ASISTENTES, DIRECCION_MCP, EJEMPLOS, EJEMPLO_CORTO, asistenteDe } from '@/lib/mcp/textos';
 
 /**
  * Configuración → Asistentes de IA.
@@ -249,7 +249,7 @@ function Dibujo({ tipo, asistente }) {
     dentro = (
       <Ventana asistente={asistente}>
         <div style={{ padding: 14, display: 'flex', flexDirection: 'column', gap: 10, position: 'relative' }}>
-          <div style={{ alignSelf: 'flex-end', maxWidth: '82%', background: '#f0efe9', borderRadius: '12px 12px 3px 12px', padding: '8px 11px', lineHeight: 1.4 }}>{EJEMPLOS[0]}</div>
+          <div style={{ alignSelf: 'flex-end', maxWidth: '82%', background: '#f0efe9', borderRadius: '12px 12px 3px 12px', padding: '8px 11px', lineHeight: 1.4 }}>{EJEMPLO_CORTO}</div>
           <div style={{ border: `1px solid ${BORDE}`, borderRadius: 10, padding: 6, boxShadow: '0 8px 20px rgba(0,0,0,.1)', display: 'flex', flexDirection: 'column', gap: 4 }}>
             <div style={{ fontSize: 10.5, color: GRIS, padding: '2px 9px' }}>{m.lista}</div>
             <FilaConector icono={<Isotipo size={13} />} nombre="GovTalent" encendido marcada />
@@ -362,7 +362,7 @@ function GuiaConexion({ asistente, onClose }) {
           {ultimo && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
               {EJEMPLOS.map((e) => (
-                <FilaEjemplo key={e} texto={e} />
+                <FilaEjemplo key={e.titulo} ejemplo={e} />
               ))}
             </div>
           )}
@@ -389,25 +389,17 @@ function GuiaConexion({ asistente, onClose }) {
   );
 }
 
-function FilaEjemplo({ texto }) {
+/** Un mensaje de ejemplo: título, el texto entero y «Copiar». */
+function FilaEjemplo({ ejemplo }) {
   return (
-    <div
-      style={{
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        gap: 10,
-        border: `1px solid ${BORDE}`,
-        background: '#fafaf7',
-        borderRadius: 9,
-        padding: '8px 8px 8px 13px',
-        fontSize: 13.5,
-      }}
-    >
-      <span>{texto}</span>
-      <button type="button" style={BOTON_FILA} onClick={() => copiar(texto, 'Mensaje copiado')}>
-        Copiar
-      </button>
+    <div style={{ border: `1px solid ${BORDE}`, background: '#fff', borderRadius: 10, padding: '14px 16px', display: 'flex', flexDirection: 'column', gap: 8 }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
+        <div style={{ fontSize: 14, fontWeight: 600 }}>{ejemplo.titulo}</div>
+        <button type="button" style={BOTON_FILA} onClick={() => copiar(ejemplo.texto, 'Mensaje copiado')}>
+          Copiar
+        </button>
+      </div>
+      <div style={{ fontSize: 13.5, color: '#57534e', lineHeight: 1.55 }}>{ejemplo.texto}</div>
     </div>
   );
 }
@@ -521,7 +513,7 @@ export default function BloqueAsistentes() {
       <Seccion titulo="Prueba a pedirle">
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
           {EJEMPLOS.map((e) => (
-            <FilaEjemplo key={e} texto={e} />
+            <FilaEjemplo key={e.titulo} ejemplo={e} />
           ))}
         </div>
       </Seccion>
