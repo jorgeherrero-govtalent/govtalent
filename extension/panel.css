@@ -61,3 +61,19 @@ a { color: inherit; }
 .nota:empty { display: none; }
 .boton.ia { flex: none; min-height: 40px; padding: 0 12px; font-weight: 600; }
 .boton.ia .coste { font-weight: 500; }
+
+/* Buscador y webs públicas (0.4.0) */
+.contenido { display: flex; flex-direction: column; gap: 14px; }
+.busca { display: flex; align-items: center; gap: 9px; min-height: 44px; border: 1px solid #e0dfd8; border-radius: 9px; padding: 0 11px; background: #fff; }
+.busca:focus-within { border-color: #a8a49c; }
+.busca svg { flex-shrink: 0; }
+.busca input { flex: 1; min-width: 0; border: 0; outline: 0; font: inherit; font-size: 14px; color: #1a1a18; background: transparent; min-height: 42px; }
+.busca input::placeholder { color: #6e6a63; }
+.busca input::-webkit-search-cancel-button { cursor: pointer; }
+.logo { width: 52px; height: 52px; border-radius: 12px; border: 1px solid #ecebe5; background: #fff; display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; overflow: hidden; }
+.logo img { width: 32px; height: 32px; object-fit: contain; }
+button.fila { width: 100%; background: none; border: 0; border-top: 1px solid #f1f0ea; text-align: left; color: inherit; min-height: 44px; }
+button.fila:hover b { text-decoration: underline; }
+.fila span { min-width: 0; }
+.volver { align-self: flex-start; display: inline-flex; align-items: center; gap: 6px; min-height: 44px; padding: 0; border: 0; background: none; font-size: 13px; color: #6e6a63; }
+.volver:hover { color: #1a1a18; }

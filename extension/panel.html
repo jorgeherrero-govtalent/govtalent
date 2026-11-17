@@ -8,7 +8,13 @@
   </head>
   <body>
     <header class="cab" style="display:none"><span id="creditos" class="cab-creditos"></span></header>
-    <main id="raiz" class="cuerpo" aria-live="polite"></main>
+    <main class="cuerpo">
+      <form id="buscador" class="busca" role="search">
+        <svg aria-hidden="true" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#6e6a63" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7" /><path d="M20 20l-3.500-3.500" /></svg>
+        <input id="q" type="search" placeholder="Buscar en GovTalent" aria-label="Buscar en GovTalent" maxlength="160" autocomplete="off" />
+      </form>
+      <div id="raiz" class="contenido" aria-live="polite"></div>
+    </main>
     <script src="panel.js"></script>
   </body>
 </html>
