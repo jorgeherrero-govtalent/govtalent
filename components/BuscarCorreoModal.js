@@ -28,6 +28,11 @@ import {
  * 6 créditos, esté o no en el directorio (11-11-2026), y solo se descuentan si lo encuentra; si alguien ya lo había
  * buscado, sale al momento y gratis (caché compartida, sql/76).
  *
+ * Antes de buscar fuera, se mira dentro (17-11-2026): si el nombre escrito
+ * coincide con alguien del directorio, se enseña esa persona con su correo
+ * y no se cobra nada. Solo si el usuario dice que no es ninguna de ellas se
+ * ofrece la búsqueda de 6 créditos.
+ *
  * persona: { id (de directorio_pro), nombre, cargo }
  *       o, si no está en el directorio: { libre: true, nombre, institucion }
  * onResultado(resultado): cuando hay respuesta, para pintarla en la ficha.
@@ -39,7 +44,11 @@ const GRIS = '#6b6b70';
 export default function BuscarCorreoModal({ persona, onClose, onResultado }) {
   const [saldo, setSaldo] = useState(null);
   const [packs, setPacks] = useState([]);
-  const [fase, setFase] = useState('inicio'); // inicio | buscando | hecho | error
+  // mirando (¿está ya en el directorio?) | dentro | inicio | buscando | hecho | error
+  const [fase, setFase] = useState(persona.libre ? 'mirando' : 'inicio');
+  // Quienes coinciden dentro del directorio, y si el usuario los ha descartado.
+  const [dentro, setDentro] = useState([]);
+  const [descartados, setDescartados] = useState(false);
   const [resultado, setResultado] = useState(null);
   const [cobrado, setCobrado] = useState(false);
   const [error, setError] = useState('');
@@ -74,6 +83,29 @@ export default function BuscarCorreoModal({ persona, onClose, onResultado }) {
     };
   }, []);
 
+  // Antes de ofrecer la búsqueda de pago: ¿está ya en el directorio?
+  useEffect(() => {
+    if (!persona.libre) return undefined;
+    let vivo = true;
+    fetch('/api/contactos/enriquecer', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ persona: { nombre: persona.nombre, institucion: persona.institucion }, soloDentro: true }),
+    })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((j) => {
+        if (!vivo) return;
+        const lista = Array.isArray(j?.dentro) ? j.dentro : [];
+        setDentro(lista);
+        setFase((f) => (f === 'mirando' ? (lista.length ? 'dentro' : 'inicio') : f));
+      })
+      .catch(() => vivo && setFase((f) => (f === 'mirando' ? 'inicio' : f)));
+    return () => {
+      vivo = false;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   async function buscar() {
     setFase('buscando');
     setError('');
@@ -82,11 +114,19 @@ export default function BuscarCorreoModal({ persona, onClose, onResultado }) {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(
-          persona.libre ? { persona: { nombre: persona.nombre, institucion: persona.institucion } } : { id: persona.id }
+          persona.libre
+            ? { persona: { nombre: persona.nombre, institucion: persona.institucion }, ...(descartados ? { forzar: true } : {}) }
+            : { id: persona.id }
         ),
       });
       const json = await res.json().catch(() => ({}));
       if (json.saldo) setSaldo(json.saldo);
+      // El servidor la ha encontrado dentro: se enseña y no se cobra.
+      if (res.ok && Array.isArray(json.dentro) && json.dentro.length) {
+        setDentro(json.dentro);
+        setFase('dentro');
+        return;
+      }
       if (json.sinCreditos) {
         // Sin créditos suficientes: la compra, sin dejar un error.
         setFase('inicio');
@@ -142,6 +182,8 @@ export default function BuscarCorreoModal({ persona, onClose, onResultado }) {
   const sinCreditos = disponibles !== null && disponibles < coste;
   const email = probable?.email || (resultado?.estado === 'encontrado' ? limpiarEmail(resultado.email) : null);
   const buscando = fase === 'buscando';
+  const mirando = fase === 'mirando';
+  const enDentro = fase === 'dentro';
 
   return createPortal(
     <div className="modal-ov on" onClick={(e) => e.target === e.currentTarget && !buscando && onClose()}>
@@ -160,7 +202,52 @@ export default function BuscarCorreoModal({ persona, onClose, onResultado }) {
           <div style={{ fontSize: 12, color: GRIS, marginTop: 2 }}>{persona.libre ? persona.institucion : persona.cargo}</div>
         ) : null}
 
-        {fase === 'hecho' ? (
+        {enDentro ? (
+          <>
+            <p style={{ fontSize: 13, color: '#555', margin: '14px 0 0', lineHeight: 1.6 }}>
+              {dentro.length === 1 ? 'Ya está en GovTalent.' : `Hay ${dentro.length} personas en GovTalent que coinciden.`} No se ha descontado ningún crédito.
+            </p>
+            <div style={{ marginTop: 12, border: `.5px solid ${BORDE}`, borderRadius: 10 }}>
+              {dentro.map((d, i) => {
+                const correo = d.email || d.probable?.email || null;
+                return (
+                  <div key={d.id} style={{ padding: '12px 14px', borderTop: i ? `.5px solid ${BORDE}` : 'none', display: 'flex', alignItems: 'flex-start', gap: 10 }}>
+                    <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 3 }}>
+                      <div style={{ fontSize: 13, color: '#1a1a18', fontWeight: 600 }}>{d.nombre}</div>
+                      <div style={{ fontSize: 12, color: GRIS, lineHeight: 1.45 }}>{[d.cargo, d.institucion].filter(Boolean).join(', ')}</div>
+                      {correo ? (
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginTop: 2 }}>
+                          <i className="ti ti-mail" style={{ fontSize: 15, color: '#6d5aef' }} aria-hidden="true"></i>
+                          <a href={`mailto:${correo}`} style={{ fontSize: 13, color: '#1a1a18', textDecoration: 'none', fontWeight: 600, overflowWrap: 'anywhere' }}>
+                            {correo}
+                          </a>
+                          {!d.email && d.probable ? (
+                            <span style={{ fontSize: 10.5, fontWeight: 600, borderRadius: 999, padding: '1px 7px', ...estiloEtiquetaProbable(d.probable) }}>
+                              {etiquetaProbable(d.probable)}
+                            </span>
+                          ) : null}
+                        </div>
+                      ) : null}
+                    </div>
+                    <button
+                      type="button"
+                      className="btn-g"
+                      onClick={() => {
+                        setPersonaId(d.id);
+                        setALista(true);
+                      }}
+                      title="Añadir a una lista"
+                      aria-label={`Añadir a ${d.nombre} a una lista`}
+                      style={{ display: 'inline-flex', alignItems: 'center', padding: '6px 8px', flexShrink: 0 }}
+                    >
+                      <i className="ti ti-list-check" aria-hidden="true"></i>
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+          </>
+        ) : fase === 'hecho' ? (
           <div style={{ marginTop: 16, border: `.5px solid ${BORDE}`, borderRadius: 10, padding: 14, display: 'flex', flexDirection: 'column', gap: 6 }}>
             {email ? (
               <>
@@ -230,18 +317,42 @@ export default function BuscarCorreoModal({ persona, onClose, onResultado }) {
           </div>
         ) : (
           <p style={{ fontSize: 13, color: '#555', margin: '14px 0 0', lineHeight: 1.6 }}>
-            Buscamos su correo y lo comprobamos. Cuesta {creditosTexto(coste)} y solo se {coste === 1 ? 'descuenta' : 'descuentan'} si lo encontramos.
+            {mirando
+              ? 'Comprobando si ya está en GovTalent…'
+              : `Buscamos su correo y lo comprobamos. Cuesta ${creditosTexto(coste)} y solo se ${coste === 1 ? 'descuenta' : 'descuentan'} si lo encontramos.`}
           </p>
         )}
 
         {fase === 'error' ? <p style={{ fontSize: 12.5, color: '#3a3a3d', margin: '12px 0 0' }}>{error}</p> : null}
 
-        {fase !== 'hecho' ? (
+        {enDentro ? (
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8, marginTop: 16, flexWrap: 'wrap' }}>
+            {listaHecha ? (
+              <Link href={`/contactos/listas/${listaHecha}`} style={{ fontSize: 12.5, color: '#5443d6', textDecoration: 'none' }}>
+                Añadido a la lista. Ver lista →
+              </Link>
+            ) : (
+              <button
+                type="button"
+                className="btn-g"
+                onClick={() => {
+                  setDescartados(true);
+                  setFase('inicio');
+                }}
+              >
+                {dentro.length === 1 ? 'No es esta persona' : 'No es ninguna de ellas'}
+              </button>
+            )}
+            <button type="button" className="btn-ai-o" onClick={onClose}>
+              Cerrar
+            </button>
+          </div>
+        ) : fase !== 'hecho' ? (
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, marginTop: 18, flexWrap: 'wrap' }}>
             <span style={{ fontSize: 12, color: GRIS }}>
               {disponibles === null ? '' : sinCreditos ? (disponibles > 0 ? `Te quedan ${miles(disponibles)}: no llegan` : 'No te quedan créditos') : `Te quedan ${miles(disponibles)} ${disponibles === 1 ? 'crédito' : 'créditos'}`}
             </span>
-            <button type="button" className="btn-ai" onClick={sinCreditos ? () => setComprar(true) : buscar} disabled={buscando} style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+            <button type="button" className="btn-ai" onClick={sinCreditos ? () => setComprar(true) : buscar} disabled={buscando || mirando} style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
                 {buscando ? (
                   'Buscando…'
                 ) : (

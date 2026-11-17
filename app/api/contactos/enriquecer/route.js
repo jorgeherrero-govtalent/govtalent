@@ -10,10 +10,17 @@ import { correoPorServidor, dominioDe } from '@/lib/correoPorServidor';
 import { probableParaDominio, correosProbables, puedeVerProbables } from '@/lib/correosProbables';
 import { limpiar } from '@/lib/patronesCorreo';
 import { reveladosDe, revelar } from '@/lib/revelados';
+import { buscarDentro } from '@/lib/dentroDelDirectorio';
 
 // POST /api/contactos/enriquecer
 //   body: { id }                                   (id de directorio_pro)
 //   body: { persona: { nombre, institucion } }     (alguien que no está en el directorio)
+//   body: { persona, soloDentro: true }            (solo mira si ya está en el directorio; gratis)
+//   body: { persona, forzar: true }                (el usuario ha dicho que no es ninguna de las de dentro)
+//
+// 0. Antes de buscar fuera, se mira dentro (17-11-2026): si el nombre y la
+//    organización escritos coinciden con alguien del directorio, se
+//    devuelven esas personas en `dentro`, sin caché, sin IA y sin cobrar.
 //
 // Una persona por llamada (la búsqueda tarda 20–40 s); «Enriquecer todos»
 // las lanza desde el navegador de pocas en pocas.
@@ -112,6 +119,32 @@ export async function POST(request) {
   const id = libre ? libre.id : String(body.id || '').slice(0, 120);
   const coste = libre ? CREDITOS_CORREO_FUERA : CREDITOS_CORREO;
   if (!id) return NextResponse.json({ error: 'Falta la persona' }, { status: 400 });
+
+  // 0. Antes de buscar fuera, mirar dentro. Va delante de la caché: lo que
+  // se dedujo en su día para alguien que sí estaba no se vuelve a servir.
+  if (libre && body.forzar !== true) {
+    const dentro = await buscarDentro(admin, libre.nombre, libre.institucion).catch((e) => {
+      console.error('[contactos/enriquecer] dentro:', e.message);
+      return [];
+    });
+    if (dentro.length || body.soloDentro === true) {
+      // Con una sola persona y correo publicado, la respuesta lleva también
+      // la forma de siempre (resultado y persona_id), para quien no lee
+      // `dentro` (la extensión ya instalada).
+      const unica = dentro.length === 1 && dentro[0].email ? dentro[0] : null;
+      return NextResponse.json({
+        dentro,
+        resultado: unica
+          ? { estado: 'encontrado', email: unica.email, telefono: null, tipo: 'personal', verificado: true, calidad: 'verificado' }
+          : null,
+        persona_id: unica ? unica.id : null,
+        cobrado: false,
+        cache: false,
+        saldo: await saldoCreditos(admin, userId),
+      });
+    }
+  }
+  if (body.soloDentro === true) return NextResponse.json({ dentro: [], cobrado: false });
 
   // 1. Caché compartida.
   const { data: cache } = await admin.from('contactos_enriquecidos').select('*').eq('persona_id', id).maybeSingle();
