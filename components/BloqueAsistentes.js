@@ -362,7 +362,7 @@ function GuiaConexion({ asistente, onClose }) {
           {ultimo && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
               {EJEMPLOS.map((e) => (
-                <FilaEjemplo key={e.titulo} ejemplo={e} />
+                <TarjetaEjemplo key={e.titulo} ejemplo={e} compacto />
               ))}
             </div>
           )}
@@ -389,17 +389,118 @@ function GuiaConexion({ asistente, onClose }) {
   );
 }
 
-/** Un mensaje de ejemplo: título, el texto entero y «Copiar». */
-function FilaEjemplo({ ejemplo }) {
+// ---------------------------------------------------------------------
+// Los mensajes de ejemplo
+// ---------------------------------------------------------------------
+
+const TRAZO = { fill: 'none', stroke: 'currentColor', strokeWidth: 1.6, strokeLinecap: 'round', strokeLinejoin: 'round' };
+const ICONOS = {
+  calendario: (
+    <g {...TRAZO}>
+      <rect x="3.5" y="5" width="17" height="15" rx="2.5" />
+      <path d="M3.5 9.5h17M8 3v4M16 3v4M8.5 14l2.2 2.2 4.8-4.7" />
+    </g>
+  ),
+  campana: (
+    <g {...TRAZO}>
+      <path d="M6 16.5V11a6 6 0 0 1 12 0v5.5l1.5 2h-15zM10 20.5a2.2 2.2 0 0 0 4 0" />
+      <path d="M12 3v2" />
+    </g>
+  ),
+  personas: (
+    <g {...TRAZO}>
+      <circle cx="9" cy="8.5" r="3.2" />
+      <path d="M3 19.5c.5-3.3 3-5 6-5s5.5 1.7 6 5M16 5.5a3.2 3.2 0 0 1 0 6.2M17.5 14.8c2 .6 3.2 2.2 3.5 4.7" />
+    </g>
+  ),
+  proyecto: (
+    <g {...TRAZO}>
+      <path d="M3.5 7a2 2 0 0 1 2-2h4l2 2.5h7a2 2 0 0 1 2 2V17a2 2 0 0 1-2 2h-13a2 2 0 0 1-2-2z" />
+      <path d="M12 11v5M9.5 13.5h5" />
+    </g>
+  ),
+};
+
+function Icono({ nombre, lado = 18 }) {
   return (
-    <div style={{ border: `1px solid ${BORDE}`, background: '#fff', borderRadius: 10, padding: '14px 16px', display: 'flex', flexDirection: 'column', gap: 8 }}>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
-        <div style={{ fontSize: 14, fontWeight: 600 }}>{ejemplo.titulo}</div>
-        <button type="button" style={BOTON_FILA} onClick={() => copiar(ejemplo.texto, 'Mensaje copiado')}>
-          Copiar
-        </button>
+    <svg width={lado} height={lado} viewBox="0 0 24 24" aria-hidden="true">
+      {ICONOS[nombre] || ICONOS.calendario}
+    </svg>
+  );
+}
+
+/** El texto, con lo que el usuario tiene que cambiar ([…]) resaltado. */
+function TextoConHuecos({ texto }) {
+  const partes = String(texto).split(/(\[[^\]]+\])/g);
+  return (
+    <>
+      {partes.map((t, i) =>
+        t.startsWith('[') ? (
+          <span key={i} style={{ background: '#f0eefe', color: '#3c3489', borderRadius: 5, padding: '1px 3px', fontWeight: 500, boxDecorationBreak: 'clone', WebkitBoxDecorationBreak: 'clone' }}>
+            {t.slice(1, -1)}
+          </span>
+        ) : (
+          <span key={i}>{t}</span>
+        )
+      )}
+    </>
+  );
+}
+
+function BotonCopiar({ texto }) {
+  const [copiado, setCopiado] = useState(false);
+  return (
+    <button
+      type="button"
+      style={{ ...BOTON_FILA, display: 'inline-flex', alignItems: 'center', gap: 6, color: copiado ? '#1d6f5c' : '#1a1a18' }}
+      onClick={async () => {
+        await copiar(texto, 'Mensaje copiado');
+        setCopiado(true);
+        setTimeout(() => setCopiado(false), 1600);
+      }}
+    >
+      <svg width="14" height="14" viewBox="0 0 24 24" aria-hidden="true">
+        {copiado ? (
+          <path d="M5 12.5l4.5 4.5L19 7.5" {...TRAZO} strokeWidth="2" />
+        ) : (
+          <g {...TRAZO}>
+            <rect x="8.5" y="8.5" width="11" height="11" rx="2" />
+            <path d="M15.5 8.5v-2a2 2 0 0 0-2-2h-7a2 2 0 0 0-2 2v7a2 2 0 0 0 2 2h2" />
+          </g>
+        )}
+      </svg>
+      {copiado ? 'Copiado' : 'Copiar'}
+    </button>
+  );
+}
+
+/**
+ * Un mensaje de ejemplo. En la pestaña sale entero: icono, título, qué
+ * deja hecho, el texto con los huecos resaltados y «Copiar». En la guía
+ * (compacto) solo el título y «Copiar», para no alargar la ventana.
+ */
+function TarjetaEjemplo({ ejemplo, compacto }) {
+  const cabecera = (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 11 }}>
+      <span style={{ width: 34, height: 34, borderRadius: 9, background: '#f0eefe', color: MORADO, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+        <Icono nombre={ejemplo.icono} />
+      </span>
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ fontSize: 14.5, fontWeight: 600 }}>{ejemplo.titulo}</div>
+        <div style={{ fontSize: 12, color: GRIS, marginTop: 1 }}>{ejemplo.hace}</div>
       </div>
-      <div style={{ fontSize: 13.5, color: '#57534e', lineHeight: 1.55 }}>{ejemplo.texto}</div>
+      <BotonCopiar texto={ejemplo.texto} />
+    </div>
+  );
+  if (compacto) {
+    return <div style={{ border: `1px solid ${BORDE}`, borderRadius: 10, padding: '10px 12px' }}>{cabecera}</div>;
+  }
+  return (
+    <div className="asi-ej" style={{ ...CAJA, padding: 16, display: 'flex', flexDirection: 'column', gap: 12 }}>
+      {cabecera}
+      <div style={{ fontSize: 13.5, color: '#3d3a35', lineHeight: 1.7, background: '#faf9f5', border: `1px solid ${BORDE}`, borderRadius: 9, padding: '11px 13px', flex: 1 }}>
+        <TextoConHuecos texto={ejemplo.texto} />
+      </div>
     </div>
   );
 }
@@ -482,6 +583,9 @@ export default function BloqueAsistentes() {
       <style>{`
         .asi-tarjetas { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
         @media (max-width: 640px) { .asi-tarjetas { grid-template-columns: 1fr; } }
+        .asi-ejemplos { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+        .asi-ejemplos .asi-ej:last-child:nth-child(odd) { grid-column: 1 / -1; }
+        @media (max-width: 760px) { .asi-ejemplos { grid-template-columns: 1fr; } }
       `}</style>
 
       <Seccion titulo="Conecta tu asistente">
@@ -493,7 +597,7 @@ export default function BloqueAsistentes() {
                 <LogoAsistente asistente={a} />
                 <div style={{ fontSize: 15, fontWeight: 600 }}>{a.nombre}</div>
                 <div style={{ fontSize: 13, color: GRIS, lineHeight: 1.5 }}>
-                  Consulta tu normativa y crea alarmas hablando con {a.nombre}.
+                  Se acabó el trabajo admin manual. Conecta GovTalent y trabaja desde tu AI Chat favorito.
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, marginTop: 'auto', paddingTop: 6 }}>
                   <span style={{ fontSize: 12.5, color: si ? '#1d6f5c' : GRIS, fontWeight: si ? 500 : 400, display: 'inline-flex', alignItems: 'center', gap: 5 }}>
@@ -511,9 +615,9 @@ export default function BloqueAsistentes() {
       </Seccion>
 
       <Seccion titulo="Prueba a pedirle">
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+        <div className="asi-ejemplos">
           {EJEMPLOS.map((e) => (
-            <FilaEjemplo key={e.titulo} ejemplo={e} />
+            <TarjetaEjemplo key={e.titulo} ejemplo={e} />
           ))}
         </div>
       </Seccion>
