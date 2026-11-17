@@ -77,3 +77,4 @@ button.fila:hover b { text-decoration: underline; }
 .fila span { min-width: 0; }
 .volver { align-self: flex-start; display: inline-flex; align-items: center; gap: 6px; min-height: 44px; padding: 0; border: 0; background: none; font-size: 13px; color: #6e6a63; }
 .volver:hover { color: #1a1a18; }
+img.avatar { object-position: center top; }

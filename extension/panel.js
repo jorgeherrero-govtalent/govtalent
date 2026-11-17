@@ -392,7 +392,7 @@ function pantallaFicha(perfil, d) {
     linea('lugar', 'Ubicación', perfil.ubicacion ? h('span', { class: 'texto' }, perfil.ubicacion) : sinDato()),
   );
 
-  const filaPersona = (c, detalle) => h('div', { class: 'fila' }, avatar(c.nombre, null, true), h('span', {}, h('b', {}, c.nombre), h('small', {}, detalle || '')));
+  const filaPersona = (c, detalle) => h('div', { class: 'fila' }, avatar(c.nombre, c.foto, true), h('span', {}, h('b', {}, c.nombre), h('small', {}, detalle || '')));
 
   const organizacion =
     p && d.colegas?.length > 0
@@ -456,7 +456,7 @@ function logo(nombre, src) {
 }
 
 function filaBoton(c, detalle, alPulsar, primera) {
-  const b = h('button', { type: 'button', class: 'fila', style: primera ? 'border-top:0' : null }, avatar(c.nombre, null, true), h('span', {}, h('b', {}, c.nombre), h('small', {}, detalle || '')));
+  const b = h('button', { type: 'button', class: 'fila', style: primera ? 'border-top:0' : null }, avatar(c.nombre, c.foto, true), h('span', {}, h('b', {}, c.nombre), h('small', {}, detalle || '')));
   b.addEventListener('click', alPulsar);
   return b;
 }

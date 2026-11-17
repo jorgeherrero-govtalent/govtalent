@@ -4,6 +4,7 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { puedeVerContactos } from '@/lib/accesoContactos';
 import { saldoCreditos } from '@/lib/creditos';
 import { correosProbables, puedeVerProbables } from '@/lib/correosProbables';
+import { fotosPorIds } from '@/lib/fotosDirectorio';
 
 // POST /api/extension/persona  body: { nombre, organizacion?, titular? }
 //
@@ -128,6 +129,8 @@ export async function POST(request) {
   // no hay nadie más con ese nombre en el directorio.
   const { data: fotoFila } = await admin.from('directorio_fotos').select('url').eq('persona_id', mejor.id).maybeSingle();
   const segura = (ordenadas[0]?.p || 0) > 0 || (personasDistintas === 1 && palabras.length >= 3);
+  // Las fotos oficiales (diputados) de la persona y de sus colegas.
+  const fotos = await fotosPorIds(admin, [mejor.id, ...(colegas || []).map((c) => c.id)]).catch(() => ({}));
 
   // Sin correo publicado: el probable de su organismo, como en las fichas.
   let probable = null;
@@ -139,8 +142,8 @@ export async function POST(request) {
   return NextResponse.json(
     {
       ...base,
-      persona: { ...publica(mejor, directorio), probable, foto_url: fotoFila?.url || null, guardar_foto: directorio && segura && !fotoFila?.url },
-      colegas: (colegas || []).map((c) => ({ id: c.id, nombre: c.nombre, cargo: c.cargo })),
+      persona: { ...publica(mejor, directorio), probable, foto_url: fotoFila?.url || fotos[mejor.id] || null, guardar_foto: directorio && segura && !fotoFila?.url },
+      colegas: (colegas || []).map((c) => ({ id: c.id, nombre: c.nombre, cargo: c.cargo, foto: fotos[c.id] || null })),
       total_organizacion: count ?? 0,
     },
     { headers: { 'Cache-Control': 'private, no-store' } },

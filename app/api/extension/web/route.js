@@ -3,6 +3,7 @@ import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { puedeVerContactos } from '@/lib/accesoContactos';
 import { saldoCreditos } from '@/lib/creditos';
+import { fotosPorIds } from '@/lib/fotosDirectorio';
 
 // POST /api/extension/web
 //   body: { dominio }  → la organización de la web abierta y sus personas
@@ -63,7 +64,11 @@ async function organizacionDe(admin, host) {
   return null;
 }
 
-const fila = (f) => ({ id: f.id, nombre: f.nombre, cargo: f.cargo || null, institucion: f.institucion || null });
+const fila = (f, fotos) => ({ id: f.id, nombre: f.nombre, cargo: f.cargo || null, institucion: f.institucion || null, foto: fotos?.[f.id] || null });
+const conFotos = async (admin, filas) => {
+  const fotos = await fotosPorIds(admin, filas.map((f) => f.id)).catch(() => ({}));
+  return filas.map((f) => fila(f, fotos));
+};
 
 export async function POST(request) {
   const supabase = createClient();
@@ -91,14 +96,15 @@ export async function POST(request) {
     // Primero quien lleva las palabras en el nombre; una persona, una vez.
     const enNombre = (f) => (palabras.every((w) => (f.nombre_norm || '').includes(w)) ? 0 : 1);
     const vistos = new Set();
-    const resultados = [];
+    const elegidas = [];
     for (const f of (data || []).sort((a, b) => enNombre(a) - enNombre(b))) {
       const clave = `${f.nombre_norm}|${f.institucion}`;
       if (vistos.has(clave)) continue;
       vistos.add(clave);
-      resultados.push(fila(f));
-      if (resultados.length >= 8) break;
+      elegidas.push(f);
+      if (elegidas.length >= 8) break;
     }
+    const resultados = await conFotos(admin, elegidas);
     return NextResponse.json({ ...base, resultados }, cabeceras);
   }
 
@@ -121,5 +127,5 @@ export async function POST(request) {
   ]);
   if (!count) return NextResponse.json({ ...base, organizacion: null }, cabeceras);
 
-  return NextResponse.json({ ...base, organizacion: { nombre: institucion, total: count, personas: (personas || []).map(fila) } }, cabeceras);
+  return NextResponse.json({ ...base, organizacion: { nombre: institucion, total: count, personas: await conFotos(admin, personas || []) } }, cabeceras);
 }
