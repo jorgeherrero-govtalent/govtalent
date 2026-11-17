@@ -202,7 +202,7 @@ export default function PermisoPage() {
               </div>
 
               {esPago === false && (
-                <div style={{ fontSize: 13, color: GRIS }}>Con tu plan actual: una alarma, con resumen los lunes.</div>
+                <div style={{ fontSize: 13, color: GRIS }}>Con tu plan actual: una alarma, con resumen los lunes, y un proyecto.</div>
               )}
               {vuelta && (
                 <div style={{ fontSize: 13, color: GRIS, overflowWrap: 'anywhere' }}>

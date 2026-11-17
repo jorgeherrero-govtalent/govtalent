@@ -17,7 +17,7 @@ import AnclasProyecto from '@/components/AnclasProyecto';
 import CambiarProyecto from '@/components/CambiarProyecto';
 import ActorAvatar from '@/components/ActorAvatar';
 import ProyectoDemo from '@/components/ProyectoDemo';
-import { limiteProyectos, puedeCrearProyecto, tieneProyectos, upsellProyectos } from '@/lib/proyectos';
+import { limiteProyectos, puedeCrearProyecto, tieneProyectos, upsellProyectos, veProyectos } from '@/lib/proyectos';
 
 /**
  * Proyectos.
@@ -136,7 +136,11 @@ function Proyectos() {
   // aviso se quedaría para siempre.
   const [avisoRegistro, setAvisoRegistro] = useState(false);
 
-  const esPro = tieneProyectos(user);
+  // Los proyectos reales se enseñan a quien tiene el plan y también a
+  // quien ya tiene alguno: en Free se puede abrir uno desde el asistente
+  // (MCP, 17-11-2026) y no puede quedar escondido detrás de la demo.
+  // Crear más desde aquí sigue siendo de pago (crear y crearDesde).
+  const esPro = veProyectos(user, proyectos.length);
 
   const cargar = useCallback(async () => {
     const { data: auth } = await supabase.auth.getUser();
@@ -327,6 +331,10 @@ function Proyectos() {
   async function crear() {
     const t = nombre.trim();
     if (!t) return;
+    if (!tieneProyectos(user)) {
+      setModalUpsell(true);
+      return;
+    }
     if (!puedeCrearProyecto(user, proyectos.length)) {
       toast(`Has llegado al máximo de ${limiteProyectos()} proyectos`);
       return;
@@ -350,6 +358,10 @@ function Proyectos() {
   // El proyecto nace con el asunto dentro, así que trae su histórico de
   // avisos y sus plazos sin que haya que añadir nada.
   async function crearDesde(f) {
+    if (!tieneProyectos(user)) {
+      setModalUpsell(true);
+      return;
+    }
     const { data, error } = await supabase
       .from('projects')
       .insert({ user_id: user.id, created_by: user.id, name: f.label || 'Proyecto sin título' })

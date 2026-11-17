@@ -305,6 +305,31 @@ function FilaEjemplo({ texto }) {
 }
 
 // ---------------------------------------------------------------------
+// El logotipo de cada asistente
+// ---------------------------------------------------------------------
+
+/**
+ * El logotipo oficial, si su archivo está en public/asistentes/ (se sube
+ * el que publica cada empresa, sin redibujarlo). Mientras no esté, o si
+ * no carga, sale la inicial.
+ */
+function LogoAsistente({ asistente }) {
+  const [falla, setFalla] = useState(false);
+  const base = { width: 40, height: 40, borderRadius: 10, flexShrink: 0 };
+  if (asistente.logo && !falla) {
+    return <img src={asistente.logo} alt="" onError={() => setFalla(true)} style={{ ...base, objectFit: 'contain', display: 'block' }} />;
+  }
+  return (
+    <div
+      aria-hidden="true"
+      style={{ ...base, background: '#1a1a18', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 600, fontSize: 17 }}
+    >
+      {asistente.inicial}
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------
 // La pestaña
 // ---------------------------------------------------------------------
 
@@ -365,23 +390,7 @@ export default function BloqueAsistentes() {
             const si = conexiones !== null && conectado(a);
             return (
               <div key={a.id} style={{ ...CAJA, padding: 16, display: 'flex', flexDirection: 'column', gap: 10 }}>
-                <div
-                  aria-hidden="true"
-                  style={{
-                    width: 40,
-                    height: 40,
-                    borderRadius: 10,
-                    background: '#1a1a18',
-                    color: '#fff',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    fontWeight: 600,
-                    fontSize: 17,
-                  }}
-                >
-                  {a.inicial}
-                </div>
+                <LogoAsistente asistente={a} />
                 <div style={{ fontSize: 15, fontWeight: 600 }}>{a.nombre}</div>
                 <div style={{ fontSize: 13, color: GRIS, lineHeight: 1.5 }}>
                   Consulta tu normativa y crea alarmas hablando con {a.nombre}.
