@@ -32,7 +32,7 @@ export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 export const fetchCache = 'force-no-store';
-export const maxDuration = 60;
+export const maxDuration = 180; // buscar_correo tarda hasta un minuto
 
 const servidor = createMcpHandler((server) => registrarHerramientas(server), {
   serverInfo: { name: 'GovTalent', version: '1.0.0' },
