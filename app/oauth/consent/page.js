@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { Isotipo } from '@/components/Logo';
-import { PODRA, vueltaPermitida } from '@/lib/mcp/textos';
+import { PODRA, asistenteDeLaVuelta, vueltaPermitida } from '@/lib/mcp/textos';
 
 /**
  * Pantalla de permiso del MCP (/oauth/consent).
@@ -122,6 +122,8 @@ export default function PermisoPage() {
 
   const nombre = peticion?.client?.name || 'El asistente';
   const permitida = vueltaPermitida(peticion?.redirect_uri);
+  // El logotipo, solo si la vuelta es de verdad la de ese asistente.
+  const asistente = asistenteDeLaVuelta(peticion?.redirect_uri);
   const vuelta = permitida.tipo === 'local' ? 'una aplicación de este ordenador' : dominio(peticion?.redirect_uri);
 
   return (
@@ -173,7 +175,11 @@ export default function PermisoPage() {
               flexShrink: 0,
             }}
           >
-            {nombre.trim().charAt(0).toUpperCase()}
+            {asistente?.logo ? (
+              <img src={asistente.logo} alt="" style={{ width: 26, height: 26, objectFit: 'contain', display: 'block' }} />
+            ) : (
+              nombre.trim().charAt(0).toUpperCase()
+            )}
           </span>
           )}
           <span style={{ fontSize: 15, fontWeight: 600, minWidth: 0, overflowWrap: 'anywhere' }}>
