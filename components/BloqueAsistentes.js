@@ -419,12 +419,6 @@ const ICONOS = {
       <path d="M12 11v5M9.5 13.5h5" />
     </g>
   ),
-  noticias: (
-    <g {...TRAZO}>
-      <path d="M4 5.5h12.5V18a1.5 1.5 0 0 0 3 0V9h-3" />
-      <path d="M4 5.5V17a2.5 2.5 0 0 0 2.5 2.5H18M7.5 9.5h5.5M7.5 13h5.5M7.5 16h3" />
-    </g>
-  ),
 };
 
 function Icono({ nombre, lado = 18 }) {
