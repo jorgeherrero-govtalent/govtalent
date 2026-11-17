@@ -2,6 +2,9 @@
 //
 // Pregunta a la pestaña activa qué perfil hay abierto (linkedin.js) y a
 // GovTalent si esa persona está en el directorio (/api/extension/persona).
+// Fuera de LinkedIn (0.4.0) reconoce de qué organización es la web abierta
+// y deja buscar en GovTalent (/api/extension/web), también lo que el
+// usuario selecciona en la página.
 // Va con la sesión de GovTalent del navegador: si no hay, lo dice.
 //
 // Todo se pinta con nodos y textContent, nunca con HTML montado a mano:
@@ -15,6 +18,14 @@ const elCreditos = document.getElementById('creditos');
 
 let turno = 0; // para descartar respuestas de un perfil que ya no está abierto
 let estado = { perfil: null, datos: null };
+
+// Fuera de LinkedIn (0.4.0): la web de la pestaña activa y lo que hay pintado.
+const formBusca = document.getElementById('buscador');
+const campoBusca = document.getElementById('q');
+let sitio = { host: '', icono: '', organizacion: null };
+let vista = 'inicio'; // inicio | resultados | ficha (las dos últimas, abiertas desde el panel)
+let claveVista = '';
+let conDirectorio = false;
 
 /* ---------- Utilidades ---------- */
 
@@ -44,6 +55,7 @@ const TRAZOS = {
   lugar: '<path d="M12 21s-7-6.2-7-11a7 7 0 0 1 14 0c0 4.800-7 11-7 11z"/><circle cx="12" cy="10" r="2.500"/>',
   copiar: '<rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2"/>',
   ia: '<path d="M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8z"/>',
+  atras: '<path d="M15 6l-6 6 6 6"/>',
 };
 function icono(nombre, color = '#57534e', lado = 15) {
   const ns = 'http://www.w3.org/2000/svg';
@@ -117,8 +129,17 @@ async function pestanaActiva() {
   return tab || null;
 }
 
-async function leerPerfil() {
-  const tab = await pestanaActiva();
+/** El dominio de una dirección web, sin «www.»; '' si no es una web. */
+function hostDe(url) {
+  try {
+    const u = new URL(url);
+    return /^https?:$/.test(u.protocol) ? u.hostname.replace(/^www\./, '') : '';
+  } catch {
+    return '';
+  }
+}
+
+async function leerPerfil(tab) {
   if (!tab?.id || !/^https:\/\/www\.linkedin\.com\//.test(tab.url || '')) return { fuera: true };
   try {
     return (await chrome.tabs.sendMessage(tab.id, { tipo: 'gt-leer-perfil' })) || { perfil: false };
@@ -299,7 +320,8 @@ function pantallaFicha(perfil, d) {
   async function buscar() {
     // Sin organización no se puede buscar a alguien de fuera: se pide.
     if (!p && !empresa) {
-      const campo = h('input', { type: 'text', placeholder: 'Su organización', maxlength: '160' });
+      // En una web pública se propone la organización de esa web; el usuario la confirma o la cambia.
+      const campo = h('input', { type: 'text', placeholder: 'Su organización', maxlength: '160', value: perfil.sugerirEmpresa || null });
       const form = h('form', { class: 'tarjeta pila' }, h('label', { class: 'campo' }, '¿En qué organización trabaja?', campo), h('button', { type: 'submit', class: 'boton negro' }, 'Buscar correo'));
       form.addEventListener('submit', (e) => {
         e.preventDefault();
@@ -397,6 +419,7 @@ function pantallaFicha(perfil, d) {
 
   pintarAcciones();
   pintar(
+    perfil.volver ? botonVolver(perfil.volver) : null,
     cabeceraPersona({
       nombre: p?.nombre || perfil.nombre,
       cargo,
@@ -412,28 +435,191 @@ function pantallaFicha(perfil, d) {
   );
 }
 
-/* ---------- Arranque ---------- */
+/* ---------- Fuera de LinkedIn: la web abierta y el buscador ---------- */
 
-async function actualizar() {
+const cargando = () => h('section', { class: 'tarjeta' }, h('span', { class: 'gris' }, 'Cargando…'));
+
+function botonVolver(alVolver) {
+  const b = h('button', { type: 'button', class: 'volver' }, icono('atras', '#6e6a63', 16), 'Volver');
+  b.addEventListener('click', alVolver);
+  return b;
+}
+
+/** El logo de la web abierta (su icono); si no carga, las iniciales. */
+function logo(nombre, src) {
+  if (!src || !/^(https?:\/\/|data:image\/)/.test(src)) return avatar(nombre);
+  const caja = h('span', { class: 'logo' });
+  const img = h('img', { src, alt: '' });
+  img.addEventListener('error', () => caja.replaceWith(avatar(nombre)));
+  caja.append(img);
+  return caja;
+}
+
+function filaBoton(c, detalle, alPulsar, primera) {
+  const b = h('button', { type: 'button', class: 'fila', style: primera ? 'border-top:0' : null }, avatar(c.nombre, null, true), h('span', {}, h('b', {}, c.nombre), h('small', {}, detalle || '')));
+  b.addEventListener('click', alPulsar);
+  return b;
+}
+
+function errorDe(e, titulo) {
+  if (e.sinSesion) return pantallaSinSesion();
+  pintar(aviso(titulo, e.mensaje || ''));
+}
+
+/** La ficha de alguien del directorio, abierta desde una lista del panel. */
+async function abrirFicha(c, alVolver) {
   const n = ++turno;
-  pintar(h('section', { class: 'tarjeta' }, h('span', { class: 'gris' }, 'Cargando…')));
+  vista = 'ficha';
+  pintar(cargando());
+  const perfil = { nombre: c.nombre, empresa: c.institucion || '', titular: c.cargo || '', volver: alVolver };
+  try {
+    const d = await api('/api/extension/persona', { nombre: perfil.nombre, organizacion: perfil.empresa, titular: perfil.titular });
+    if (n !== turno) return;
+    ponerCreditos(d.saldo);
+    pantallaFicha(perfil, d);
+  } catch (e) {
+    if (n !== turno) return;
+    errorDe(e, 'No se pudo consultar GovTalent');
+  }
+}
 
-  const perfil = await leerPerfil();
+/** La ficha de alguien que no está en GovTalent, para buscar su correo. */
+function abrirFichaFuera(nombre, alVolver) {
+  ++turno;
+  vista = 'ficha';
+  pantallaFicha({ nombre, empresa: '', sugerirEmpresa: sitio.organizacion?.nombre || '', titular: '', volver: alVolver }, { persona: null, directorio: conDirectorio, candidatas: [] });
+}
+
+async function buscarEnGovTalent(q) {
+  const texto = String(q || '').replace(/\s+/g, ' ').trim();
+  if (texto.length < 3) return;
+  const n = ++turno;
+  vista = 'resultados';
+  pintar(cargando());
+  let d;
+  try {
+    d = await api('/api/extension/web', { q: texto });
+  } catch (e) {
+    if (n !== turno) return;
+    return errorDe(e, 'No se pudo consultar GovTalent');
+  }
   if (n !== turno) return;
-  if (perfil.fuera || perfil.perfil === false) {
-    // Fuera de un perfil: al menos se comprueba la sesión y se enseña el saldo.
-    try {
-      const d = await api('/api/extension/persona', { nombre: '' });
-      if (n !== turno) return;
-      ponerCreditos(d.saldo);
-      pintar(aviso('Abre un perfil de LinkedIn', 'Con un perfil abierto, aquí verás si esa persona está en GovTalent, su cargo y su correo.'));
-    } catch (e) {
-      if (n !== turno) return;
-      if (e.sinSesion) return pantallaSinSesion();
-      pintar(aviso('No se pudo conectar', e.mensaje || ''));
-    }
+  ponerCreditos(d.saldo);
+  conDirectorio = d.directorio === true;
+  const otraVez = () => buscarEnGovTalent(texto);
+  const filas = (d.resultados || []).map((c, i) => filaBoton(c, [c.cargo, c.institucion].filter(Boolean).join(', '), () => abrirFicha(c, otraVez), i === 0));
+
+  // Quien no está en GovTalent (17-11-2026): con nombre y apellido se
+  // ofrece buscar su correo, haya o no resultados parecidos.
+  const esNombre = texto.split(' ').length >= 2 && texto.split(' ').length <= 6;
+  let fuera = null;
+  if (esNombre) {
+    const b = h('button', { type: 'button', class: 'boton ia' }, icono('ia', '#6d5aef', 15), 'Buscar su correo', h('span', { class: 'coste' }, creditosTexto(CREDITOS_CORREO)));
+    b.addEventListener('click', () => {
+      if (!conDirectorio) return window.open(`${WEB}/precios`, '_blank', 'noopener');
+      abrirFichaFuera(texto, otraVez);
+    });
+    fuera = h(
+      'section',
+      { class: 'bloque pila' },
+      h('h2', { class: 'titulo', style: 'margin:0' }, filas.length ? '¿No es ninguna de estas personas?' : `${texto} no está en GovTalent`),
+      h('span', { class: 'gris' }, 'Buscamos su correo y lo comprobamos. Solo se descuenta si lo encontramos.'),
+      h('div', {}, b),
+    );
+  }
+
+  pintar(
+    filas.length ? h('section', {}, h('h2', { class: 'titulo' }, filas.length === 1 ? '1 resultado' : `${filas.length} resultados`), filas) : null,
+    !filas.length && !fuera ? aviso('Sin resultados', 'Prueba con el nombre y un apellido, un cargo o una organización.') : null,
+    fuera,
+  );
+}
+
+const AYUDA = 'Busca a cualquier persona, cargo u organización. También puedes seleccionar un nombre en la página y elegir «Buscar en GovTalent» con el botón derecho.';
+
+/** Fuera de un perfil de LinkedIn: la organización de la web abierta. */
+async function pantallaWeb(tab, n) {
+  const host = hostDe(tab?.url || '');
+  const enLinkedin = /(^|\.)linkedin\.com$/.test(host);
+  sitio = { host, icono: tab?.favIconUrl || '', organizacion: null };
+  let d;
+  try {
+    d = await api('/api/extension/web', { dominio: enLinkedin ? '' : host });
+  } catch (e) {
+    if (n !== turno) return;
+    return errorDe(e, 'No se pudo conectar');
+  }
+  conDirectorio = d.directorio === true;
+  sitio.organizacion = d.organizacion || null;
+  if (n !== turno) return;
+  ponerCreditos(d.saldo);
+  const ayuda = h('p', { class: 'gris', style: 'margin:0' }, AYUDA);
+  const org = d.organizacion;
+  if (!org) {
+    pintar(enLinkedin ? aviso('Abre un perfil de LinkedIn', 'Con un perfil abierto, aquí verás si esa persona está en GovTalent, su cargo y su correo.') : null, ayuda);
     return;
   }
+  const enlace = `${WEB}/instituciones/directorio?b=${encodeURIComponent(org.nombre)}`;
+  const alVolver = () => actualizar(true);
+  pintar(
+    h('section', { class: 'persona' }, logo(org.nombre, sitio.icono), h('div', { class: 'persona-datos' }, h('span', { class: 'nombre' }, org.nombre), h('span', { class: 'org' }, host), h('span', { class: 'etq' }, 'En GovTalent'))),
+    h('div', { class: 'acciones' }, h('a', { class: 'boton', href: enlace, target: '_blank', rel: 'noopener' }, icono('abrir'), 'Ver ficha')),
+    h(
+      'section',
+      { class: 'bloque' },
+      h('h2', { class: 'titulo' }, `En esta organización (${miles(org.total)})`),
+      org.personas.map((c, i) => filaBoton(c, c.cargo, () => abrirFicha(c, alVolver), i === 0)),
+      org.total > org.personas.length ? h('a', { class: 'gris', style: 'display:block;margin-top:10px', href: enlace, target: '_blank', rel: 'noopener' }, `Ver las ${miles(org.total)} personas`) : null,
+    ),
+    ayuda,
+  );
+}
+
+/* ---------- Buscador y texto seleccionado ---------- */
+
+let espera = null;
+formBusca.addEventListener('submit', (e) => {
+  e.preventDefault();
+  clearTimeout(espera);
+  buscarEnGovTalent(campoBusca.value);
+});
+campoBusca.addEventListener('input', () => {
+  clearTimeout(espera);
+  const texto = campoBusca.value.trim();
+  if (!texto) return actualizar(true); // al vaciarlo, vuelve lo de la pestaña
+  if (texto.length >= 3) espera = setTimeout(() => buscarEnGovTalent(texto), 350);
+});
+
+/** Lo que el usuario ha elegido con «Buscar en GovTalent» (fondo.js). */
+async function atenderSeleccion() {
+  const { gtSeleccion } = await chrome.storage.session.get('gtSeleccion');
+  if (!gtSeleccion?.texto || Date.now() - gtSeleccion.en > 20000) return;
+  await chrome.storage.session.remove('gtSeleccion');
+  campoBusca.value = gtSeleccion.texto;
+  buscarEnGovTalent(gtSeleccion.texto);
+}
+chrome.storage.session.onChanged.addListener((cambios) => {
+  if (cambios.gtSeleccion?.newValue) atenderSeleccion();
+});
+
+/* ---------- Arranque ---------- */
+
+async function actualizar(forzar = false) {
+  const tab = await pestanaActiva();
+  // Una búsqueda o una ficha abiertas desde el panel no se pisan mientras
+  // la pestaña siga en la misma página.
+  const clave = `${tab?.id || ''}|${String(tab?.url || '').split(/[?#]/)[0]}`;
+  if (!forzar && clave === claveVista && vista !== 'inicio') return;
+  claveVista = clave;
+  vista = 'inicio';
+  campoBusca.value = '';
+
+  const n = ++turno;
+  pintar(cargando());
+
+  const perfil = await leerPerfil(tab);
+  if (n !== turno) return;
+  if (perfil.fuera || perfil.perfil === false) return pantallaWeb(tab, n);
   if (perfil.recargar) {
     pintar(aviso('Recarga esta pestaña', 'La página se abrió antes de instalar la extensión. Recárgala y vuelve a abrir el panel.'));
     return;
@@ -464,4 +650,4 @@ chrome.tabs.onUpdated.addListener((_id, cambio, tab) => {
   if (cambio.status === 'complete' && tab.active) actualizar();
 });
 
-actualizar();
+actualizar(true).then(atenderSeleccion);
