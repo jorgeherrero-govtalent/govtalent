@@ -6,6 +6,7 @@ import { toast } from '@/lib/toast';
 import BloquePlanCuenta from '@/components/BloquePlanCuenta';
 import CreditosPlan from '@/components/CreditosPlan';
 import BloqueSeguridad from '@/components/BloqueSeguridad';
+import BloqueAsistentes from '@/components/BloqueAsistentes';
 import SelectorFecha from '@/components/SelectorFecha';
 
 /**
@@ -19,6 +20,8 @@ import SelectorFecha from '@/components/SelectorFecha';
  *   Seguridad   contraseña y eliminar la cuenta.
  *   Equipo      los miembros de la organización.
  *   Plan        Vigilancia, Directorio y la suscripción.
+ *   Asistentes de IA   conectar Claude o ChatGPT a la cuenta (el MCP) y
+ *               revocar las conexiones (17-11-2026).
  *
  * Absorbe lo que quedaba útil de /organizations/admin/settings, que ahora
  * redirige aquí. Lo de empleo (teléfono para candidaturas, información
@@ -87,6 +90,7 @@ const PESTANAS = [
   { id: 'seguridad', label: 'Seguridad' },
   { id: 'equipo', label: 'Equipo' },
   { id: 'plan', label: 'Plan' },
+  { id: 'asistentes', label: 'Asistentes de IA' },
 ];
 
 const ROLES = { admin: 'Administrador', editor: 'Miembro' };
@@ -871,6 +875,9 @@ export default function AccountPage() {
           <BloquePlanCuenta user={user} />
         </>
       )}
+
+      {/* --- Asistentes de IA --------------------------------------------- */}
+      {tab === 'asistentes' && <BloqueAsistentes />}
     </div>
   );
 }

@@ -1,5 +1,5 @@
 -- =====================================================================
--- 133 · MCP — REGISTRO DE LLAMADAS
+-- 133 - MCP — REGISTRO DE LLAMADAS
 -- sql/133-mcp.sql
 --
 -- El MCP de GovTalent (app/api/mcp) deja que Claude, ChatGPT y otros
@@ -8,10 +8,10 @@
 -- herramienta y cuándo.
 --
 -- Sirve para:
---   · el tope diario por usuario (lib/mcp/cuota.js), que es lo que
+--   - el tope diario por usuario (lib/mcp/cuota.js), que es lo que
 --     impide usar el MCP para llevarse el directorio;
---   · enseñar al usuario la última vez que se usó cada conexión;
---   · saber qué se pide de verdad.
+--   - enseñar al usuario la última vez que se usó cada conexión;
+--   - saber qué se pide de verdad.
 --
 -- Solo escribe y lee el servidor (service_role). El usuario ve lo suyo.
 --
