@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { Isotipo } from '@/components/Logo';
-import { PODRA } from '@/lib/mcp/textos';
+import { PODRA, vueltaPermitida } from '@/lib/mcp/textos';
 
 /**
  * Pantalla de permiso del MCP (/oauth/consent).
@@ -18,10 +18,14 @@ import { PODRA } from '@/lib/mcp/textos';
  * nombres y, debajo, la pregunta, la cuenta, lo que podrá hacer y los
  * dos botones.
  *
- * DOS COSAS QUE PROTEGEN AL USUARIO:
- *   - Se enseña a qué dirección volverá al permitir. Cualquiera puede
- *     registrar un asistente con el nombre «Claude»; la dirección de
- *     vuelta no se puede falsear, así que es lo que permite comprobarlo.
+ * TRES COSAS QUE PROTEGEN AL USUARIO:
+ *   - Solo se puede dar acceso a una aplicación comprobada o del propio
+ *     ordenador (lib/mcp/textos.js, vueltaPermitida). Cualquiera puede
+ *     registrar una aplicación y llamarla «Claude»; lo que no puede
+ *     falsear es a dónde vuelve el permiso. Si vuelve a un sitio que no
+ *     se reconoce, aquí no hay botón «Permitir»: la petición se rechaza
+ *     y al usuario NO se le manda a ese sitio.
+ *   - Se enseña a qué dirección volverá al permitir.
  *   - Sin sesión no se llega aquí: el middleware manda antes al login y
  *     devuelve a esta misma dirección.
  *
@@ -54,7 +58,7 @@ function dominio(url) {
 
 export default function PermisoPage() {
   const supabase = createClient();
-  const [estado, setEstado] = useState('cargando'); // cargando | listo | error
+  const [estado, setEstado] = useState('cargando'); // cargando | listo | desconocida | error
   const [peticion, setPeticion] = useState(null);
   const [esPago, setEsPago] = useState(null);
   const [enviando, setEnviando] = useState(null); // 'permitir' | 'cancelar' | null
@@ -82,6 +86,14 @@ export default function PermisoPage() {
         return;
       }
       setPeticion(data);
+
+      // Una aplicación que no se reconoce: se rechaza ya, sin seguir su
+      // redirección, y se explica. No hay nada que decidir.
+      if (!vueltaPermitida(data.redirect_uri).ok) {
+        setEstado('desconocida');
+        supabase.auth.oauth.denyAuthorization(data.authorization_id, { skipBrowserRedirect: true }).catch(() => {});
+        return;
+      }
       setEstado('listo');
 
       const { data: nivel } = await supabase.rpc('nivel_avisos');
@@ -109,7 +121,8 @@ export default function PermisoPage() {
   }
 
   const nombre = peticion?.client?.name || 'El asistente';
-  const vuelta = dominio(peticion?.redirect_uri);
+  const permitida = vueltaPermitida(peticion?.redirect_uri);
+  const vuelta = permitida.tipo === 'local' ? 'una aplicación de este ordenador' : dominio(peticion?.redirect_uri);
 
   return (
     <div
@@ -176,6 +189,25 @@ export default function PermisoPage() {
               <h1 style={{ fontSize: 20, fontWeight: 600, margin: 0, letterSpacing: '-.3px' }}>Esta petición de acceso ya no es válida</h1>
               <div style={{ fontSize: 14, color: GRIS, lineHeight: 1.5 }}>
                 Ha caducado o el enlace está incompleto. Vuelve a tu asistente y conecta GovTalent de nuevo.
+              </div>
+              <a href="/" style={{ ...BOTON, background: '#e9e8e2', color: '#1a1a18', textDecoration: 'none', textAlign: 'center', boxSizing: 'border-box' }}>
+                Ir a GovTalent
+              </a>
+            </>
+          )}
+
+          {estado === 'desconocida' && (
+            <>
+              <h1 style={{ fontSize: 20, fontWeight: 600, margin: 0, letterSpacing: '-.3px', lineHeight: 1.25 }}>
+                GovTalent no reconoce esta aplicación
+              </h1>
+              <div style={{ fontSize: 14, color: GRIS, lineHeight: 1.5, overflowWrap: 'anywhere' }}>
+                Dice llamarse <strong style={{ color: '#1a1a18', fontWeight: 600 }}>{nombre}</strong>, pero el acceso se enviaría a{' '}
+                <strong style={{ color: '#1a1a18', fontWeight: 600 }}>{permitida.dominio || 'una dirección desconocida'}</strong>, que no es la de
+                ningún asistente comprobado. Por seguridad, no se ha concedido el acceso.
+              </div>
+              <div style={{ fontSize: 13, color: GRIS, lineHeight: 1.5 }}>
+                Si es una herramienta que usas y quieres conectarla, escríbenos a hola@govtalent.app.
               </div>
               <a href="/" style={{ ...BOTON, background: '#e9e8e2', color: '#1a1a18', textDecoration: 'none', textAlign: 'center', boxSizing: 'border-box' }}>
                 Ir a GovTalent
