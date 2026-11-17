@@ -24,9 +24,8 @@ import { ASISTENTES, DIRECCION_MCP, EJEMPLOS, asistenteDe } from '@/lib/mcp/text
  * permisos aún no está activo o la tabla no existe, la pantalla sale
  * igual, sin conexiones.
  *
- * Los dibujos de la guía son esquemas, no capturas: las pantallas de
- * Claude y de ChatGPT cambian a menudo y una captura vieja confunde más
- * que ayuda.
+ * Cada paso de la guía lleva la captura real de la pantalla
+ * (public/asistentes/guia/); si falta alguna, sale un esquema.
  */
 
 const BORDE = '#e8e6df';
@@ -185,6 +184,26 @@ function Dibujo({ tipo, resaltado, asistente }) {
   );
 }
 
+/**
+ * La imagen de un paso: la captura real de la pantalla si está en
+ * public/asistentes/guia/<asistente>-<paso>.png (decisión del
+ * 17-11-2026: capturas, no dibujos). Mientras falte la de algún paso,
+ * sale su esquema para que la guía no se quede sin imagen.
+ */
+function Ilustracion({ asistente, paso }) {
+  const [falla, setFalla] = useState(false);
+  const p = asistente.pasos[paso];
+  if (falla) return <Dibujo tipo={p.dibujo} resaltado={p.resaltado} asistente={asistente.nombre} />;
+  return (
+    <img
+      src={`/asistentes/guia/${asistente.id}-${paso + 1}.png`}
+      alt=""
+      onError={() => setFalla(true)}
+      style={{ width: '100%', display: 'block', borderRadius: 10, border: `1px solid ${BORDE}`, background: '#f0efe9' }}
+    />
+  );
+}
+
 // ---------------------------------------------------------------------
 // La guía de conexión
 // ---------------------------------------------------------------------
@@ -249,7 +268,7 @@ function GuiaConexion({ asistente, onClose }) {
           )}
           {p.conDireccion && <Direccion />}
 
-          <Dibujo tipo={p.dibujo} resaltado={p.resaltado} asistente={asistente.nombre} />
+          <Ilustracion key={`${asistente.id}-${paso}`} asistente={asistente} paso={paso} />
 
           {ultimo && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
