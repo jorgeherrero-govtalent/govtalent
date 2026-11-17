@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { createClient } from '@/lib/supabase/client';
 import { toast } from '@/lib/toast';
+import { Isotipo } from '@/components/Logo';
 import { ASISTENTES, DIRECCION_MCP, EJEMPLOS, asistenteDe } from '@/lib/mcp/textos';
 
 /**
@@ -24,8 +25,9 @@ import { ASISTENTES, DIRECCION_MCP, EJEMPLOS, asistenteDe } from '@/lib/mcp/text
  * permisos aún no está activo o la tabla no existe, la pantalla sale
  * igual, sin conexiones.
  *
- * Cada paso de la guía lleva la captura real de la pantalla
- * (public/asistentes/guia/); si falta alguna, sale un esquema.
+ * Cada paso de la guía lleva su imagen: la captura real de la pantalla
+ * si está en public/asistentes/guia/ y, si no, una ilustración de la
+ * ventana del asistente con lo que hay que pulsar marcado.
  */
 
 const BORDE = '#e8e6df';
@@ -88,97 +90,165 @@ function Seccion({ titulo, children }) {
 const CAJA = { background: '#fff', border: `1px solid ${BORDE}`, borderRadius: 10, overflow: 'hidden' };
 
 // ---------------------------------------------------------------------
-// Los dibujos de la guía
+// Las ilustraciones de la guía
 // ---------------------------------------------------------------------
+//
+// Cada paso enseña una ventana del asistente sobre el fondo «aurora» del
+// login, con lo que hay que pulsar marcado en morado y el cursor encima.
+// No copian la pantalla real de Claude ni de ChatGPT: enseñan dónde está
+// cada cosa, con los nombres que el usuario va a encontrar.
 
-const LINEA = { height: 8, borderRadius: 4, background: '#e0dfd8' };
-const MARCO = {
-  background: '#fff',
-  border: `1px solid ${BORDE}`,
-  borderRadius: 10,
-  padding: 14,
-  width: '100%',
-  maxWidth: 330,
-  boxSizing: 'border-box',
-  fontSize: 12,
-  color: '#1a1a18',
+const TINTA = '#1a1a18';
+const LINEA = { height: 7, borderRadius: 4, background: '#e6e4dd' };
+const MARCA = { boxShadow: `0 0 0 2px ${MORADO}, 0 0 0 6px rgba(109,90,239,.18)`, background: '#f0eefe', borderRadius: 8 };
+
+// Los nombres de los menús de cada asistente.
+const MENUS = {
+  claude: { lateral: ['General', 'Perfil', 'Conectores', 'Skills'], titulo: 'Conectores', boton: 'Añadir', opciones: ['Explorar conectores', 'Añadir conector personalizado'], ventana: 'Añadir conector personalizado', aceptar: 'Añadir' },
+  chatgpt: { lateral: ['General', 'Notificaciones', 'Aplicaciones y conectores', 'Seguridad'], titulo: 'Aplicaciones y conectores', boton: 'Crear', opciones: ['Explorar aplicaciones', 'Crear'], ventana: 'Nuevo conector', aceptar: 'Crear' },
 };
-const RESALTE = { border: `1.5px solid ${MORADO}`, background: '#f0eefe', borderRadius: 7, padding: '6px 9px', fontWeight: 600 };
 
-function Dibujo({ tipo, resaltado, asistente }) {
+function Cursor({ style }) {
+  return (
+    <svg width="22" height="24" viewBox="0 0 22 24" aria-hidden="true" style={{ position: 'absolute', filter: 'drop-shadow(0 2px 3px rgba(0,0,0,.35))', ...style }}>
+      <path d="M3 2l15 9.5-6.6 1.3 4 7.6-2.9 1.5-4-7.7L3 18.5z" fill="#fff" stroke={TINTA} strokeWidth="1.4" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+/** La ventana del asistente: barra con los tres puntos, su logotipo y su nombre. */
+function Ventana({ asistente, children, ancho = 372 }) {
+  return (
+    <div style={{ position: 'relative', width: '100%', maxWidth: ancho, background: '#fff', borderRadius: 12, boxShadow: '0 18px 40px rgba(0,0,0,.35)', overflow: 'hidden', fontSize: 12, color: TINTA }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '9px 12px', borderBottom: `1px solid ${BORDE}`, background: '#faf9f5' }}>
+        <span style={{ width: 9, height: 9, borderRadius: '50%', background: '#d9d6cd' }}></span>
+        <span style={{ width: 9, height: 9, borderRadius: '50%', background: '#d9d6cd' }}></span>
+        <span style={{ width: 9, height: 9, borderRadius: '50%', background: '#d9d6cd' }}></span>
+        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, marginLeft: 8, fontWeight: 600 }}>
+          <img src={asistente.logo} alt="" style={{ width: 15, height: 15, objectFit: 'contain' }} />
+          {asistente.nombre}
+        </span>
+      </div>
+      {children}
+    </div>
+  );
+}
+
+/** Una fila de conector: icono, nombre y, si se indica, un interruptor. */
+function FilaConector({ icono, nombre, encendido, marcada }) {
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 9, padding: '7px 9px', ...(marcada ? MARCA : {}) }}>
+      <span style={{ width: 22, height: 22, borderRadius: 6, background: '#fff', border: `1px solid ${BORDE}`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+        {icono}
+      </span>
+      <span style={{ flex: 1, fontWeight: marcada ? 600 : 400 }}>{nombre}</span>
+      {encendido !== undefined && (
+        <span style={{ width: 28, height: 16, borderRadius: 8, background: encendido ? MORADO : '#d9d6cd', position: 'relative', flexShrink: 0 }}>
+          <span style={{ position: 'absolute', top: 2, left: encendido ? 14 : 2, width: 12, height: 12, borderRadius: '50%', background: '#fff' }}></span>
+        </span>
+      )}
+    </div>
+  );
+}
+
+const Cuadro = () => <span style={{ width: 10, height: 10, borderRadius: 3, background: '#d9d6cd' }}></span>;
+
+function Dibujo({ tipo, asistente }) {
+  const m = MENUS[asistente.id] || MENUS.claude;
   let dentro = null;
 
   if (tipo === 'ajustes') {
+    // Los ajustes del asistente, con la entrada de conectores marcada.
     dentro = (
-      <div style={{ ...MARCO, display: 'flex', gap: 12 }}>
-        <div style={{ width: 150, display: 'flex', flexDirection: 'column', gap: 9, flexShrink: 0 }}>
-          <div style={{ ...LINEA, width: 70 }}></div>
-          <div style={{ ...LINEA, width: 96 }}></div>
-          <div style={RESALTE}>{resaltado}</div>
-          <div style={{ ...LINEA, width: 84 }}></div>
-        </div>
-        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 9, paddingTop: 2 }}>
-          <div style={{ ...LINEA, width: '90%' }}></div>
-          <div style={{ ...LINEA, width: '70%' }}></div>
-          <div style={{ ...LINEA, width: '80%' }}></div>
-        </div>
-      </div>
-    );
-  } else if (tipo === 'anadir') {
-    dentro = (
-      <div style={{ ...MARCO, display: 'flex', flexDirection: 'column', gap: 10 }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <div style={{ ...LINEA, width: 90 }}></div>
-          <div style={{ border: `1px solid ${BORDE}`, borderRadius: 7, padding: '4px 10px', fontWeight: 600 }}>+</div>
-        </div>
-        <div style={{ alignSelf: 'flex-end', ...RESALTE }}>{resaltado}</div>
-        <div style={{ display: 'flex', gap: 8 }}>
-          <div style={{ ...LINEA, flex: 1, height: 26, borderRadius: 7 }}></div>
-          <div style={{ ...LINEA, flex: 1, height: 26, borderRadius: 7 }}></div>
-        </div>
-      </div>
-    );
-  } else if (tipo === 'direccion') {
-    dentro = (
-      <div style={{ ...MARCO, display: 'flex', flexDirection: 'column', gap: 9 }}>
-        <div style={{ ...LINEA, width: 120 }}></div>
-        <div style={{ border: `1px solid ${BORDE}`, borderRadius: 7, padding: '6px 9px' }}>GovTalent</div>
-        <div style={{ ...RESALTE, fontFamily: 'ui-monospace, Menlo, monospace', fontWeight: 500, fontSize: 11.5 }}>{DIRECCION_MCP}</div>
-        <div style={{ alignSelf: 'flex-end', background: '#1a1a18', color: '#fff', borderRadius: 7, padding: '5px 12px' }}>Añadir</div>
-      </div>
-    );
-  } else if (tipo === 'permiso') {
-    dentro = (
-      <div style={{ ...MARCO, padding: 0, overflow: 'hidden' }}>
-        <div style={{ background: '#1a1a18', color: '#fff', padding: '10px 14px', fontWeight: 600 }}>GovTalent y {asistente}</div>
-        <div style={{ padding: 14, display: 'flex', flexDirection: 'column', gap: 9 }}>
-          <div style={{ ...LINEA, width: '85%' }}></div>
-          <div style={{ ...LINEA, width: '65%' }}></div>
-          <div style={{ background: MORADO, color: '#fff', borderRadius: 7, padding: '6px 12px', textAlign: 'center', fontWeight: 600, outline: `2px solid ${MORADO}`, outlineOffset: 2 }}>
-            Permitir
+      <Ventana asistente={asistente}>
+        <div style={{ display: 'flex', minHeight: 150 }}>
+          <div style={{ width: 168, padding: '12px 10px', borderRight: `1px solid ${BORDE}`, display: 'flex', flexDirection: 'column', gap: 4, flexShrink: 0, position: 'relative' }}>
+            <div style={{ fontSize: 10.5, color: GRIS, padding: '0 8px 4px' }}>Ajustes</div>
+            {m.lateral.map((t, i) => (
+              <div key={t} style={{ padding: '6px 8px', borderRadius: 8, fontWeight: i === 2 ? 600 : 400, color: i === 2 ? TINTA : '#57534e', ...(i === 2 ? MARCA : {}) }}>
+                {t}
+              </div>
+            ))}
+            <Cursor style={{ left: 118, top: 92 }} />
+          </div>
+          <div style={{ flex: 1, padding: 14, display: 'flex', flexDirection: 'column', gap: 10 }}>
+            <div style={{ fontWeight: 600, fontSize: 13 }}>{m.titulo}</div>
+            <FilaConector icono={<Cuadro />} nombre={<span style={{ ...LINEA, width: 70, display: 'block' }}></span>} />
+            <FilaConector icono={<Cuadro />} nombre={<span style={{ ...LINEA, width: 92, display: 'block' }}></span>} />
+            <FilaConector icono={<Cuadro />} nombre={<span style={{ ...LINEA, width: 56, display: 'block' }}></span>} />
           </div>
         </div>
-      </div>
+      </Ventana>
+    );
+  } else if (tipo === 'anadir') {
+    // El botón de añadir, con su menú abierto y la opción marcada.
+    dentro = (
+      <Ventana asistente={asistente}>
+        <div style={{ padding: 14, minHeight: 150, position: 'relative' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <div style={{ fontWeight: 600, fontSize: 13 }}>{m.titulo}</div>
+            <div style={{ border: `1px solid ${BORDE}`, borderRadius: 8, padding: '5px 10px', fontWeight: 600, display: 'inline-flex', gap: 6, alignItems: 'center' }}>
+              <span style={{ fontSize: 14, lineHeight: 1 }}>+</span>
+              {m.boton}
+            </div>
+          </div>
+          <div style={{ marginTop: 12, display: 'flex', flexDirection: 'column', gap: 6, opacity: 0.55 }}>
+            <FilaConector icono={<Cuadro />} nombre={<span style={{ ...LINEA, width: 80, display: 'block' }}></span>} />
+            <FilaConector icono={<Cuadro />} nombre={<span style={{ ...LINEA, width: 60, display: 'block' }}></span>} />
+          </div>
+          <div style={{ position: 'absolute', right: 14, top: 46, width: 214, background: '#fff', border: `1px solid ${BORDE}`, borderRadius: 10, boxShadow: '0 10px 24px rgba(0,0,0,.14)', padding: 6, display: 'flex', flexDirection: 'column', gap: 4 }}>
+            <div style={{ padding: '7px 9px', color: '#57534e' }}>{m.opciones[0]}</div>
+            <div style={{ padding: '7px 9px', fontWeight: 600, ...MARCA }}>{m.opciones[1]}</div>
+            <Cursor style={{ right: -4, top: 62 }} />
+          </div>
+        </div>
+      </Ventana>
+    );
+  } else if (tipo === 'direccion') {
+    // La ventana de añadir, con el nombre y la dirección ya escritos.
+    dentro = (
+      <Ventana asistente={asistente}>
+        <div style={{ padding: 16, display: 'flex', flexDirection: 'column', gap: 9, position: 'relative' }}>
+          <div style={{ fontWeight: 600, fontSize: 13 }}>{m.ventana}</div>
+          <div style={{ fontSize: 10.5, color: GRIS }}>Nombre</div>
+          <div style={{ border: `1px solid ${BORDE}`, borderRadius: 8, padding: '7px 10px', display: 'flex', alignItems: 'center', gap: 7 }}>
+            <Isotipo size={13} />
+            GovTalent
+          </div>
+          <div style={{ fontSize: 10.5, color: GRIS }}>URL del servidor</div>
+          <div style={{ padding: '7px 10px', fontFamily: 'ui-monospace, Menlo, monospace', fontSize: 11.5, ...MARCA }}>{DIRECCION_MCP}</div>
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 4 }}>
+            <span style={{ border: `1px solid ${BORDE}`, borderRadius: 8, padding: '6px 12px' }}>Cancelar</span>
+            <span style={{ background: TINTA, color: '#fff', borderRadius: 8, padding: '6px 14px', fontWeight: 600 }}>{m.aceptar}</span>
+          </div>
+          <Cursor style={{ right: 26, bottom: 6 }} />
+        </div>
+      </Ventana>
     );
   } else {
+    // El chat, con GovTalent encendido y un mensaje de ejemplo.
     dentro = (
-      <div style={{ ...MARCO, display: 'flex', flexDirection: 'column', gap: 10 }}>
-        <div style={{ border: `1px solid ${BORDE}`, borderRadius: 8, padding: '9px 10px', color: GRIS }}>¿En qué te ayudo?</div>
-        <div style={{ ...RESALTE, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <span>GovTalent</span>
-          <span style={{ width: 28, height: 16, borderRadius: 8, background: MORADO, position: 'relative', display: 'inline-block' }}>
-            <span style={{ position: 'absolute', top: 2, left: 14, width: 12, height: 12, borderRadius: '50%', background: '#fff' }}></span>
-          </span>
+      <Ventana asistente={asistente}>
+        <div style={{ padding: 14, display: 'flex', flexDirection: 'column', gap: 10, position: 'relative' }}>
+          <div style={{ alignSelf: 'flex-end', maxWidth: '82%', background: '#f0efe9', borderRadius: '12px 12px 3px 12px', padding: '8px 11px', lineHeight: 1.4 }}>{EJEMPLOS[0]}</div>
+          <div style={{ border: `1px solid ${BORDE}`, borderRadius: 10, padding: 6, boxShadow: '0 8px 20px rgba(0,0,0,.1)', display: 'flex', flexDirection: 'column', gap: 4 }}>
+            <div style={{ fontSize: 10.5, color: GRIS, padding: '2px 9px' }}>Conectores</div>
+            <FilaConector icono={<Isotipo size={13} />} nombre="GovTalent" encendido marcada />
+            <FilaConector icono={<Cuadro />} nombre={<span style={{ ...LINEA, width: 74, display: 'block' }}></span>} encendido={false} />
+          </div>
+          <Cursor style={{ right: 30, top: 92 }} />
         </div>
-      </div>
+      </Ventana>
     );
   }
 
   return (
     <div
       aria-hidden="true"
-      style={{ background: '#f0efe9', borderRadius: 10, padding: 20, display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: 170 }}
+      style={{ position: 'relative', overflow: 'hidden', background: '#0f1b33', borderRadius: 12, padding: '26px 22px', display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: 230 }}
     >
+      <span style={{ position: 'absolute', width: 260, height: 260, borderRadius: '50%', background: '#1d6f5c', filter: 'blur(64px)', opacity: 0.75, left: -80, top: -90 }}></span>
+      <span style={{ position: 'absolute', width: 280, height: 280, borderRadius: '50%', background: MORADO, filter: 'blur(72px)', opacity: 0.7, right: -100, bottom: -110 }}></span>
       {dentro}
     </div>
   );
@@ -193,7 +263,7 @@ function Dibujo({ tipo, resaltado, asistente }) {
 function Ilustracion({ asistente, paso }) {
   const [falla, setFalla] = useState(false);
   const p = asistente.pasos[paso];
-  if (falla) return <Dibujo tipo={p.dibujo} resaltado={p.resaltado} asistente={asistente.nombre} />;
+  if (falla) return <Dibujo tipo={p.dibujo} asistente={asistente} />;
   return (
     <img
       src={`/asistentes/guia/${asistente.id}-${paso + 1}.png`}
