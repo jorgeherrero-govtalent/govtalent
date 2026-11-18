@@ -37,12 +37,13 @@ const OPCIONES = [
 
 // Búsquedas recomendadas: con filtros fijos (no pasan por la IA), así que
 // siempre dan el mismo resultado. Comprobadas contra los datos el
-// 07-10-2026; si cambia una fuente, revisar que sigan devolviendo gente.
+// 07-10-2026 (la del Grupo Popular, el 18-11-2026); si cambia una fuente, revisar que sigan devolviendo gente.
 export const IDEAS = [
   {
-    texto: 'Embajadores y cuerpo diplomático en España',
-    resumen: 'Personal de las embajadas extranjeras acreditadas en España (Lista del Cuerpo Diplomático).',
-    filtros: { tipos: ['diplomático'] },
+    // 18-11-2026: sustituye a «Embajadores y cuerpo diplomático en España».
+    texto: 'Asistentes y asesores del Grupo Parlamentario Popular en el Congreso',
+    resumen: 'Los asistentes y asesores del Grupo Parlamentario Popular en el Congreso de los Diputados.',
+    filtros: { unidades: ['Grupo Parlamentario Popular en el Congreso'], cargos: ['asistente', 'asesor'] },
   },
   {
     texto: 'Eurodiputados españoles y sus asistentes',
