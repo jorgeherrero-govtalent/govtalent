@@ -6,28 +6,26 @@ import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import TextoCreciente, { enviarConIntro } from '@/components/TextoCreciente';
 
-// La misma clave que exporta AlarmasTab. Se repite aquí para no cargar
-// ese componente entero en la home solo por una cadena.
-const CLAVE_PEDIDO = 'govtalent.alarmas.pedido';
-
 /**
- * Home: el «Asistente» del menú lateral, calcado de la de Enginy.
+ * Home: «AI Finder» en el menú lateral, calcada de la de Enginy.
  *
  * Un saludo, una sola caja en el centro y las acciones arriba a la
- * derecha. La caja crea una alarma: lo que se escribe no se procesa
- * aquí, se guarda en la pestaña y se abre /alarmas, que se lo pide al
- * agente con su progreso a la vista (AlarmasTab lee CLAVE_PEDIDO al
- * cargar). Los límites por plan también se aplican allí, que es donde
- * está el aviso de Pro.
+ * derecha. La caja busca personas (18-11-2026: el directorio es el
+ * producto estrella; antes creaba una alarma). Lo que se escribe no se
+ * procesa aquí: se abre la Base de datos con la frase en ?q=, y allí la
+ * ventana «Búsqueda de contactos» la interpreta con su progreso a la
+ * vista. El acceso por plan también se resuelve allí.
  *
- * Lo que antes enseñaba el mosaico vive ahora en el menú: lo nuevo en
- * Novedades, con su contador, y los plazos en Regulatorio.
+ * Crear una alarma sigue en /alarmas, a un clic desde arriba a la derecha.
  */
 
 const MORADO = '#6d5aef';
 
-// Las mismas ideas que en la página de Alarmas: el mismo agente.
-const IDEAS = ['Todo lo que afecte a mi sector', 'Los cambios de una ley concreta', 'Consultas públicas de un ministerio'];
+// Las mismas búsquedas recomendadas que en «Búsqueda de contactos»: llegan
+// con su texto exacto y allí se resuelven con filtros fijos, sin IA.
+const IDEAS = ['Embajadores y cuerpo diplomático en España', 'Eurodiputados españoles y sus asistentes'];
+
+const BASE_DE_DATOS = '/instituciones/directorio';
 
 function saludo() {
   const h = new Date().getHours();
@@ -61,29 +59,19 @@ export default function Home() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  const buscar = (frase) => router.push(`${BASE_DE_DATOS}?q=${encodeURIComponent(frase)}`);
+
   function enviar() {
     const t = texto.trim();
-    if (!t) {
+    // La búsqueda necesita al menos 3 letras, como en la ventana.
+    if (t.length < 3) {
       cajaRef.current?.focus();
       return;
     }
-    try {
-      window.sessionStorage.setItem(CLAVE_PEDIDO, t);
-    } catch {}
-    router.push('/alarmas');
+    buscar(t);
   }
 
-  function usarIdea(idea) {
-    setTexto(`${idea}: `);
-    setTimeout(() => {
-      const el = cajaRef.current;
-      if (!el) return;
-      el.focus();
-      el.setSelectionRange(el.value.length, el.value.length);
-    }, 0);
-  }
-
-  const listo = texto.trim().length > 0;
+  const listo = texto.trim().length >= 3;
 
   return (
     <div className="gt-home">
@@ -147,7 +135,7 @@ export default function Home() {
       <div className="gt-home-centro">
         <h1>
           {hola}
-          {nombre ? ` ${nombre}` : ''}, describe lo que quieres vigilar.
+          {nombre ? `, ${nombre}` : ''}, ¿a quién estás buscando?
         </h1>
 
         <form
@@ -165,8 +153,8 @@ export default function Home() {
               value={texto}
               onChange={(e) => setTexto(e.target.value)}
               onKeyDown={enviarConIntro(enviar)}
-              placeholder="Normas y consultas que afecten a una aseguradora con sede en Madrid"
-              aria-label="Describe lo que quieres vigilar"
+              placeholder="Subdirectores generales del Ministerio de Industria, o Ana López de la CNMC"
+              aria-label="Describe a quién buscas"
               rows={3}
               maxAltura={260}
             />
@@ -175,8 +163,8 @@ export default function Home() {
             <button
               type="submit"
               className={`gt-home-enviar${listo ? ' listo' : ''}`}
-              aria-label="Crear la alarma"
-              title="Crear la alarma"
+              aria-label="Buscar"
+              title="Buscar"
             >
               <i className="ti ti-arrow-up" aria-hidden="true"></i>
             </button>
@@ -185,7 +173,7 @@ export default function Home() {
 
         <div className="gt-home-ideas">
           {IDEAS.map((idea) => (
-            <button key={idea} type="button" className="gt-home-idea" onClick={() => usarIdea(idea)}>
+            <button key={idea} type="button" className="gt-home-idea" onClick={() => buscar(idea)}>
               <i className="ti ti-sparkles" aria-hidden="true"></i>
               {idea}
             </button>
