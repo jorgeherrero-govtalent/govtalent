@@ -38,7 +38,7 @@ const OPCIONES = [
 // Búsquedas recomendadas: con filtros fijos (no pasan por la IA), así que
 // siempre dan el mismo resultado. Comprobadas contra los datos el
 // 07-10-2026; si cambia una fuente, revisar que sigan devolviendo gente.
-const IDEAS = [
+export const IDEAS = [
   {
     texto: 'Embajadores y cuerpo diplomático en España',
     resumen: 'Personal de las embajadas extranjeras acreditadas en España (Lista del Cuerpo Diplomático).',
@@ -261,7 +261,9 @@ function PanelIA({ bloqueado, onUpsell, onAplicar, inicial = '' }) {
   useEffect(() => {
     if (arrancado.current || inicial.trim().length < 3) return;
     arrancado.current = true;
-    lanzar(inicial.trim());
+    // Una idea recomendada (también llega así desde la home) no pasa por la IA.
+    const idea = IDEAS.find((x) => x.texto === inicial.trim());
+    lanzar(inicial.trim(), idea || null);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 

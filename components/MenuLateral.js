@@ -12,8 +12,10 @@ import MenuUsuario from '@/components/MenuUsuario';
  *
  * Arriba, el contexto (tu organización o tú) con el menú de usuario y el
  * botón de plegar. Debajo, el buscador y la entrada principal destacada:
- * «Asistente», que es la home con la caja del agente. Después Novedades,
- * Alarmas y Seguimiento, y los módulos agrupados en secciones con título.
+ * «AI Finder», que es la home con la caja para buscar personas. Después
+ * Directorio, Base de datos y Listas, y el resto de módulos en secciones
+ * con título; «Monitorización» reúne Novedades, Alarmas, Seguimiento y
+ * Regulatorio (18-11-2026: el directorio pasa a ser el producto estrella).
  * Abajo, la tarjeta del plan con las alarmas en uso y la ayuda.
  *
  * En móvil (08-10-2026) es el mismo menú, en cajón: el botón de menú de
@@ -41,12 +43,7 @@ const enEspana = (p) =>
   p.startsWith('/boe') ||
   p.startsWith('/parlamentos-autonomicos');
 
-const PRINCIPALES = [
-  { href: '/', etiqueta: 'Asistente', icono: 'ti-sparkles', activo: (p) => p === '/' },
-  { href: '/novedades', etiqueta: 'Novedades', icono: 'ti-inbox', activo: (p) => p.startsWith('/novedades'), contador: true },
-  { href: '/alarmas', etiqueta: 'Alarmas', icono: 'ti-bell', activo: (p) => p.startsWith('/alarmas') },
-  { href: '/seguimiento', etiqueta: 'Seguimiento', icono: 'ti-eye', activo: (p) => p.startsWith('/seguimiento') },
-];
+const PRINCIPALES = [{ href: '/', etiqueta: 'AI Finder', icono: 'ti-sparkles', activo: (p) => p === '/' }];
 
 // Menú del 10-11-2026 (canvas «GovTalent: navegación con tres productos»,
 // maqueta F): como mucho 15 entradas. Regulatorio es una sola entrada con
@@ -62,17 +59,6 @@ const enDirectorio = (p) =>
 
 const SECCIONES = [
   {
-    titulo: 'Vigilancia',
-    items: [
-      {
-        href: '/regulatorio/espana',
-        etiqueta: 'Regulatorio',
-        icono: 'ti-timeline-event',
-        activo: (p) => enEspana(p) || enUnionEuropea(p),
-      },
-    ],
-  },
-  {
     titulo: 'Directorio y contactos',
     items: [
       { href: '/directorio', etiqueta: 'Directorio', icono: 'ti-building-bank', activo: enDirectorio },
@@ -82,9 +68,23 @@ const SECCIONES = [
         icono: 'ti-database',
         activo: (p) => p.startsWith('/instituciones/directorio'),
       },
-      // El Buscador ya no tiene entrada propia (11-11-2026): se abre desde
-      // Base de datos, con el botón «Nueva búsqueda».
+      // El Buscador no tiene entrada propia (11-11-2026): se abre desde
+      // AI Finder y desde Base de datos, con el botón «Nueva búsqueda».
       { href: '/contactos/listas', etiqueta: 'Listas', icono: 'ti-list-details', activo: (p) => p.startsWith('/contactos/listas') },
+    ],
+  },
+  {
+    titulo: 'Monitorización',
+    items: [
+      { href: '/novedades', etiqueta: 'Novedades', icono: 'ti-inbox', activo: (p) => p.startsWith('/novedades'), contador: true },
+      { href: '/alarmas', etiqueta: 'Alarmas', icono: 'ti-bell', activo: (p) => p.startsWith('/alarmas') },
+      { href: '/seguimiento', etiqueta: 'Seguimiento', icono: 'ti-eye', activo: (p) => p.startsWith('/seguimiento') },
+      {
+        href: '/regulatorio/espana',
+        etiqueta: 'Regulatorio',
+        icono: 'ti-timeline-event',
+        activo: (p) => enEspana(p) || enUnionEuropea(p),
+      },
     ],
   },
   {
