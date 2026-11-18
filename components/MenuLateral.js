@@ -15,7 +15,7 @@ import AgenteAlarmasModal from '@/components/AgenteAlarmasModal';
  * botón de plegar. Debajo, el buscador y la entrada principal destacada:
  * «AI Finder», que es la home con la caja para buscar personas. Después
  * Directorio, Base de datos y Listas, sin título, y el resto de módulos en
- * secciones con título. «Monitorización» lleva Regulatorio y «AI Agent»
+ * secciones con título. «Monitorización» lleva «AI Agent» y Regulatorio
  * (BETA), que no navega: abre la ventana para crear una alarma
  * (AgenteAlarmasModal). 18-11-2026: el directorio es el producto estrella.
  * Abajo, la tarjeta del plan con las alarmas en uso y la ayuda.
@@ -79,14 +79,14 @@ const SECCIONES = [
   {
     titulo: 'Monitorización',
     items: [
+      // Abre la ventana de crear una alarma; encendida en /alarmas.
+      { href: '/alarmas', etiqueta: 'AI Agent', icono: 'ti-sparkles', activo: (p) => p.startsWith('/alarmas'), beta: true, agente: true },
       {
         href: '/regulatorio/espana',
         etiqueta: 'Regulatorio',
         icono: 'ti-timeline-event',
         activo: (p) => enEspana(p) || enUnionEuropea(p),
       },
-      // Abre la ventana de crear una alarma; encendida en /alarmas.
-      { href: '/alarmas', etiqueta: 'AI Agent', icono: 'ti-sparkles', activo: (p) => p.startsWith('/alarmas'), beta: true, agente: true },
       // La pantalla se llama Seguimiento (18-11-2026) y reúne las novedades
       // y lo que sigues; la ruta sigue siendo /novedades.
       { href: '/novedades', etiqueta: 'Seguimiento', icono: 'ti-inbox', activo: (p) => p.startsWith('/novedades') || p.startsWith('/seguimiento'), contador: true },
