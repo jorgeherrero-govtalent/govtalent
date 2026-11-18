@@ -492,8 +492,9 @@ const ESTILOS_CORREO = `
 
 /* ---------- El modal ---------- */
 
-export default function NuevaBusquedaContactos({ bloqueado = false, inicial = '', onUpsell, onAplicar, onCorreo, onDescubiertos, onSinCreditos, onClose }) {
-  const [opcion, setOpcion] = useState('ia');
+export default function NuevaBusquedaContactos({ bloqueado = false, inicial = '', opcionInicial = 'ia', onUpsell, onAplicar, onCorreo, onDescubiertos, onSinCreditos, onClose }) {
+  // La home (AI Finder) puede abrir la ventana ya en «correo» o en «fuera».
+  const [opcion, setOpcion] = useState(() => (OPCIONES.some((o) => o.v === opcionInicial) ? opcionInicial : 'ia'));
 
   useEffect(() => {
     const tecla = (e) => e.key === 'Escape' && onClose();
