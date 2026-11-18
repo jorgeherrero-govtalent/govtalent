@@ -15,7 +15,7 @@ const MORADO = '#6d5aef';
 const IDEAS = ['Todo lo que afecte a mi sector', 'Los cambios de una ley concreta', 'Consultas públicas de un ministerio'];
 
 const OPCIONES = [
-  { v: 'crear', label: 'Describe lo que quieres vigilar', icono: 'ti-sparkles' },
+  { v: 'crear', label: 'Describe la normativa a monitorizar', icono: 'ti-sparkles' },
   { v: 'alarmas', label: 'Tus alarmas', icono: 'ti-bell', href: '/alarmas' },
   { v: 'novedades', label: 'Lo que han detectado', icono: 'ti-inbox', href: '/novedades' },
 ];
@@ -112,7 +112,7 @@ export default function AgenteAlarmasModal({ onClose }) {
             <i className="ti ti-sparkles" style={{ color: MORADO }} aria-hidden="true" /> Alarma con IA
           </span>
           <div className="gt-nb-centro">
-            <b className="gt-nb-pregunta">¿Qué quieres vigilar?</b>
+            <b className="gt-nb-pregunta">¿Qué normativa quieres monitorizar?</b>
             <form onSubmit={enviar} className="gt-nb-caja">
               <span style={{ display: 'flex', gap: 10, alignItems: 'flex-start' }}>
                 <i className="ti ti-sparkles" style={{ color: MORADO, fontSize: 18, marginTop: 2 }} aria-hidden="true" />
@@ -126,7 +126,7 @@ export default function AgenteAlarmasModal({ onClose }) {
                     if (e.key === 'Enter' && !e.shiftKey) enviar(e);
                   }}
                   placeholder="Normas y consultas que afecten a una aseguradora con sede en Madrid"
-                  aria-label="Describe lo que quieres vigilar"
+                  aria-label="Describe la normativa a monitorizar"
                   maxLength={600}
                 />
               </span>
