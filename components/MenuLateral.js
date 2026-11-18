@@ -51,7 +51,7 @@ const PRINCIPALES = [{ href: '/', etiqueta: 'AI Finder', icono: 'ti-sparkles', a
 // maqueta F): como mucho 15 entradas. Regulatorio es una sola entrada con
 // pestañas España y Unión Europea; Directorio es una portada que lleva a
 // Instituciones y Organizaciones; Contactos pasa a llamarse Buscador.
-// Licitaciones va al final, en «Contratación pública», marcada BETA
+// Licitaciones iba al final, en «Contratación pública», marcada BETA
 // (10-11-2026).
 const enDirectorio = (p) =>
   p === '/directorio' ||

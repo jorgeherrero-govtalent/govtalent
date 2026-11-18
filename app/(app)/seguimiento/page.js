@@ -116,7 +116,7 @@ export default function SeguimientoPage() {
   return (
     <Suspense
       fallback={
-        <div className="sec" style={{ maxWidth: 880 }}>
+        <div className="sec" style={{ maxWidth: 1040 }}>
           <div className="spinner"></div>
         </div>
       }
@@ -452,7 +452,7 @@ function Seguimiento() {
 
   if (sinSesion) {
     return (
-      <div className="sec" style={{ maxWidth: 880 }}>
+      <div className="sec" style={{ maxWidth: 1040 }}>
         <div className="card">
           <div className="empty-state">
             <i className="ti ti-bell"></i>
@@ -477,7 +477,7 @@ function Seguimiento() {
   });
 
   return (
-    <div className="sec" style={{ maxWidth: 880 }}>
+    <div className="sec" style={{ maxWidth: 1040 }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', gap: 16, flexWrap: 'wrap', marginBottom: 16 }}>
         <div>
           <h1 style={{ fontSize: 21, fontWeight: 600, margin: 0, letterSpacing: '-.3px' }}>Seguimiento</h1>
