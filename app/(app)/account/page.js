@@ -19,8 +19,7 @@ import SelectorFecha from '@/components/SelectorFecha';
  *   General     la organización (logo, nombre, datos legales, registro) y
  *               el usuario (foto, nombre, correo, novedades).
  *   Seguridad   contraseña y eliminar la cuenta.
- *   Equipo      los miembros de la organización.
- *   Plan        Vigilancia, Directorio y la suscripción.
+ *   Plan        Vigilancia, Directorio, la suscripción y el equipo.
  *   Asistentes de IA   conectar Claude o ChatGPT a la cuenta (el MCP) y
  *               revocar las conexiones (17-11-2026).
  *
@@ -89,7 +88,6 @@ const TIPOS_ORG = [
 const PESTANAS = [
   { id: 'general', label: 'General' },
   { id: 'seguridad', label: 'Seguridad' },
-  { id: 'equipo', label: 'Equipo' },
   { id: 'plan', label: 'Plan' },
   { id: 'asistentes', label: 'Asistentes de IA' },
   { id: 'extension', label: 'Extensión de Chrome' },
@@ -246,7 +244,8 @@ export default function AccountPage() {
     // aquí y no con useSearchParams, que obliga a envolver la página en
     // Suspense.
     const inicial = new URLSearchParams(window.location.search).get('tab');
-    if (PESTANAS.some((p) => p.id === inicial)) setTab(inicial);
+    if (inicial === 'equipo') setTab('plan');
+    else if (PESTANAS.some((p) => p.id === inicial)) setTab(inicial);
     load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -561,20 +560,6 @@ export default function AccountPage() {
             onClick={() => cambiarTab(p.id)}
           >
             {p.label}
-            {p.id === 'equipo' && esAdmin && (
-              <span
-                style={{
-                  fontSize: 11,
-                  fontWeight: 500,
-                  color: '#3c3489',
-                  background: '#f0eefe',
-                  borderRadius: 6,
-                  padding: '2px 7px',
-                }}
-              >
-                Admin
-              </span>
-            )}
           </button>
         ))}
       </div>
@@ -799,82 +784,79 @@ export default function AccountPage() {
         </>
       )}
 
-      {/* --- Equipo ------------------------------------------------------- */}
-      {tab === 'equipo' &&
-        (org ? (
-          <Seccion titulo={`Miembros de ${org.name}`}>
-            {miembros === null ? (
-              <div style={{ padding: 18 }}>
-                <div className="spinner"></div>
-              </div>
-            ) : (
-              miembros.map((m, i) => {
-                const p = m.users || {};
-                const nombre = `${p.first_name || ''} ${p.last_name || ''}`.trim();
-                return (
-                  <Fila
-                    key={m.user_id}
-                    primera={i === 0}
-                    titulo={
-                      <span style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                        <Circulo url={p.avatar_url} texto={nombre || p.email} />
-                        <span style={{ minWidth: 0 }}>
-                          <span style={{ display: 'block' }}>{nombre || p.email}</span>
-                          {nombre && (
-                            <span style={{ display: 'block', fontSize: 12.5, fontWeight: 400, color: '#8b8780' }}>
-                              {p.email}
-                            </span>
-                          )}
-                        </span>
-                      </span>
-                    }
-                    accion={
-                      <span
-                        style={{
-                          fontSize: 12,
-                          background: '#f5f4f1',
-                          color: '#57534e',
-                          borderRadius: 6,
-                          padding: '5px 10px',
-                          whiteSpace: 'nowrap',
-                        }}
-                      >
-                        {ROLES[m.role] || m.role}
-                      </span>
-                    }
-                  />
-                );
-              })
-            )}
-            <div style={{ padding: '14px 18px', borderTop: `1px solid ${BORDE}`, fontSize: 12.5, color: '#6f6c64', lineHeight: 1.6 }}>
-              {usuariosPlan > 1 ? `Tu suscripción incluye ${usuariosPlan} usuarios. ` : ''}
-              Para añadir a alguien a tu equipo, escríbenos a{' '}
-              <a href="mailto:hola@govtalent.app" style={{ color: MORADO, textDecoration: 'none' }}>
-                hola@govtalent.app
-              </a>{' '}
-              con su correo y le damos de alta.
-            </div>
-          </Seccion>
-        ) : (
-          <Seccion titulo="Equipo">
-            <Fila
-              primera
-              titulo="Trabaja con tu equipo"
-              detalle="Con los planes de hasta 3, 6, 10 o 15 usuarios, tu equipo comparte los créditos, las alarmas, los proyectos y las tareas. Para darlos de alta, escríbenos a hola@govtalent.app."
-              accion={
-                <a href="/precios" target="_blank" rel="noreferrer" style={{ ...BOTON_FILA, textDecoration: 'none' }}>
-                  Ver planes
-                </a>
-              }
-            />
-          </Seccion>
-        ))}
-
       {/* --- Plan --------------------------------------------------------- */}
       {tab === 'plan' && (
         <>
           <CreditosPlan user={user} />
           <BloquePlanCuenta user={user} />
+          {org ? (
+            <Seccion titulo={`Miembros de ${org.name}`}>
+              {miembros === null ? (
+                <div style={{ padding: 18 }}>
+                  <div className="spinner"></div>
+                </div>
+              ) : (
+                miembros.map((m, i) => {
+                  const p = m.users || {};
+                  const nombre = `${p.first_name || ''} ${p.last_name || ''}`.trim();
+                  return (
+                    <Fila
+                      key={m.user_id}
+                      primera={i === 0}
+                      titulo={
+                        <span style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                          <Circulo url={p.avatar_url} texto={nombre || p.email} />
+                          <span style={{ minWidth: 0 }}>
+                            <span style={{ display: 'block' }}>{nombre || p.email}</span>
+                            {nombre && (
+                              <span style={{ display: 'block', fontSize: 12.5, fontWeight: 400, color: '#8b8780' }}>
+                                {p.email}
+                              </span>
+                            )}
+                          </span>
+                        </span>
+                      }
+                      accion={
+                        <span
+                          style={{
+                            fontSize: 12,
+                            background: '#f5f4f1',
+                            color: '#57534e',
+                            borderRadius: 6,
+                            padding: '5px 10px',
+                            whiteSpace: 'nowrap',
+                          }}
+                        >
+                          {ROLES[m.role] || m.role}
+                        </span>
+                      }
+                    />
+                  );
+                })
+              )}
+              <div style={{ padding: '14px 18px', borderTop: `1px solid ${BORDE}`, fontSize: 12.5, color: '#6f6c64', lineHeight: 1.6 }}>
+                {usuariosPlan > 1 ? `Tu suscripción incluye ${usuariosPlan} usuarios. ` : ''}
+                Para añadir a alguien a tu equipo, escríbenos a{' '}
+                <a href="mailto:hola@govtalent.app" style={{ color: MORADO, textDecoration: 'none' }}>
+                  hola@govtalent.app
+                </a>{' '}
+                con su correo y le damos de alta.
+              </div>
+            </Seccion>
+          ) : (
+            <Seccion titulo="Equipo">
+              <Fila
+                primera
+                titulo="Trabaja con tu equipo"
+                detalle="Con los planes de hasta 3, 6, 10 o 15 usuarios, tu equipo comparte los créditos, las alarmas, los proyectos y las tareas. Para darlos de alta, escríbenos a hola@govtalent.app."
+                accion={
+                  <a href="/precios" target="_blank" rel="noreferrer" style={{ ...BOTON_FILA, textDecoration: 'none' }}>
+                    Ver planes
+                  </a>
+                }
+              />
+            </Seccion>
+          )}
         </>
       )}
 

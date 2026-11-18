@@ -294,7 +294,7 @@ export default function BloqueExtension() {
         <div style={{ flex: 1, minWidth: 220 }}>
           <div style={{ fontSize: 15.5, fontWeight: 600 }}>GovTalent para Chrome</div>
           <div style={{ fontSize: 13.5, color: GRIS, marginTop: 3, lineHeight: 1.55 }}>
-            Consulta GovTalent desde LinkedIn o desde cualquier web: quién es, su cargo, su correo y su organización.
+            Consulta GovTalent desde LinkedIn o desde cualquier web institucional: acceso a nombre, cargo y correo de cualquier contacto.
           </div>
         </div>
         <button type="button" className="btn-ai" onClick={() => setGuia(true)}>
