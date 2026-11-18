@@ -89,6 +89,8 @@ const SECCIONES = [
       { href: '/alarmas', etiqueta: 'AI Agent', icono: 'ti-sparkles', activo: (p) => p.startsWith('/alarmas'), beta: true, agente: true },
       { href: '/novedades', etiqueta: 'Novedades', icono: 'ti-inbox', activo: (p) => p.startsWith('/novedades'), contador: true },
       { href: '/seguimiento', etiqueta: 'Seguimiento', icono: 'ti-eye', activo: (p) => p.startsWith('/seguimiento') },
+      // Licitaciones entra en Monitorización (18-11-2026); sigue en BETA.
+      { href: '/licitaciones', etiqueta: 'Licitaciones', icono: 'ti-file-description', activo: (p) => p.startsWith('/licitaciones'), beta: true },
     ],
   },
   {
@@ -97,12 +99,6 @@ const SECCIONES = [
       // Tareas (04-10-2026, sql/68): las sueltas y las acciones de Proyectos.
       { href: '/tareas', etiqueta: 'Tareas', icono: 'ti-checkbox', activo: (p) => p.startsWith('/tareas') },
       { href: '/projects', etiqueta: 'Proyectos', icono: 'ti-folder', activo: (p) => p.startsWith('/projects') },
-    ],
-  },
-  {
-    titulo: 'Contratación pública',
-    items: [
-      { href: '/licitaciones', etiqueta: 'Licitaciones', icono: 'ti-file-description', activo: (p) => p.startsWith('/licitaciones'), beta: true },
     ],
   },
 ];
