@@ -8,7 +8,6 @@ import { toast } from '@/lib/toast';
 import Interruptor from '@/components/Interruptor';
 import TextoCreciente from '@/components/TextoCreciente';
 import UpgradeModal from '@/components/UpgradeModal';
-import CalendarioElectoral from '@/components/CalendarioElectoral';
 import AvisoCaducadas from '@/components/AvisoCaducadas';
 import { FRECUENCIAS, limitesDe, mensajeError } from '@/lib/alarmas';
 import { PARLAMENTOS } from '@/lib/parlamentosAutonomicos';
@@ -2065,14 +2064,9 @@ export default function AlarmasTab({ seccion = 'alarmas', sinTitulo = false, age
         )}
       </div>
 
-      {/* Disolución de las Cortes (06-10-2026): el calendario electoral y
-          el aviso de leyes caducadas. Cada uno decide si se enseña. */}
-      {enNovedades && (
-        <>
-          <CalendarioElectoral />
-          <AvisoCaducadas />
-        </>
-      )}
+      {/* El calendario electoral se quitó el 18-11-2026. El aviso de leyes
+          caducadas por la disolución de las Cortes decide él si se enseña. */}
+      {enNovedades && <AvisoCaducadas />}
 
       {!enNovedades && mostrarCaja && (
       <div style={{ maxWidth: 680, margin: '0 auto 28px', padding: '6px 0 0' }}>
