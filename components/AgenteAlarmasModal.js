@@ -112,7 +112,7 @@ export default function AgenteAlarmasModal({ onClose }) {
             <i className="ti ti-sparkles" style={{ color: MORADO }} aria-hidden="true" /> Alarma con IA
           </span>
           <div className="gt-nb-centro">
-            <b className="gt-nb-pregunta">¿Qué normativa quieres monitorizar?</b>
+            <b className="gt-nb-pregunta">Describe la normativa a monitorizar</b>
             <form onSubmit={enviar} className="gt-nb-caja">
               <span style={{ display: 'flex', gap: 10, alignItems: 'flex-start' }}>
                 <i className="ti ti-sparkles" style={{ color: MORADO, fontSize: 18, marginTop: 2 }} aria-hidden="true" />
