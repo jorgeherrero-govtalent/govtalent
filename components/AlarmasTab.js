@@ -568,7 +568,7 @@ export const CLAVE_PEDIDO = 'govtalent.alarmas.pedido';
  * para dos tareas distintas; separarlas en dos componentes duplicaría
  * toda la lectura.
  */
-export default function AlarmasTab({ seccion = 'alarmas' }) {
+export default function AlarmasTab({ seccion = 'alarmas', sinTitulo = false }) {
   const enNovedades = seccion === 'novedades';
   const supabase = createClient();
 
@@ -1635,7 +1635,8 @@ export default function AlarmasTab({ seccion = 'alarmas' }) {
 
       <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: 16, marginBottom: 16, flexWrap: 'wrap' }}>
         <div>
-          <h1 style={{ fontSize: 22, fontWeight: 600, margin: 0, letterSpacing: '-.3px' }}>{enNovedades ? 'Novedades' : 'Alarmas'}</h1>
+          {/* En /novedades el título son las pestañas de la página. */}
+          {!sinTitulo && <h1 style={{ fontSize: 22, fontWeight: 600, margin: 0, letterSpacing: '-.3px' }}>{enNovedades ? 'Novedades' : 'Alarmas'}</h1>}
         </div>
         {enNovedades && (
           <Link
