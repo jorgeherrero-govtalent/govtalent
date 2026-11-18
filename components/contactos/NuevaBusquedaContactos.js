@@ -41,7 +41,7 @@ const OPCIONES = [
 export const IDEAS = [
   {
     // 18-11-2026: sustituye a «Embajadores y cuerpo diplomático en España».
-    texto: 'Asistentes del Grupo Parlamentario Popular en el Congreso',
+    texto: 'Asistentes y asesores del Grupo Parlamentario Popular en el Congreso',
     resumen: 'Los asistentes y asesores del Grupo Parlamentario Popular en el Congreso de los Diputados.',
     filtros: { unidades: ['Grupo Parlamentario Popular en el Congreso'], cargos: ['asistente', 'asesor'] },
   },
