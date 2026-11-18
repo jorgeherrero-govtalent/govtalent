@@ -16,7 +16,7 @@ const IDEAS = ['Todo lo que afecte a mi sector', 'Los cambios de una ley concret
 
 const OPCIONES = [
   { v: 'crear', label: 'Crea y configura tu propio agente', icono: 'ti-sparkles' },
-  { v: 'alarmas', label: 'Tus alarmas', icono: 'ti-bell', href: '/alarmas' },
+  { v: 'alarmas', label: 'Tus agentes', icono: 'ti-adjustments-horizontal', href: '/novedades?agentes=1' },
   { v: 'novedades', label: 'Lo que han detectado', icono: 'ti-inbox', href: '/novedades' },
 ];
 
@@ -131,7 +131,7 @@ export default function AgenteAlarmasModal({ onClose }) {
                 />
               </span>
               <span style={{ display: 'flex', justifyContent: 'flex-end' }}>
-                <button type="submit" className="gt-nb-enviar" disabled={!texto.trim()} aria-label="Crear la alarma">
+                <button type="submit" className="gt-nb-enviar" disabled={!texto.trim()} aria-label="Crear el agente">
                   <i className="ti ti-arrow-up" aria-hidden="true" />
                 </button>
               </span>
