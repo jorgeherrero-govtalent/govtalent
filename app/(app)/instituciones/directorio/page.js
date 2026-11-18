@@ -415,7 +415,9 @@ function DirectorioInstitucional() {
   // con esas filas. Los filtros de siempre (pestañas, institución, área…)
   // siguen funcionando encima.
   const qInicial = params.get('q') || '';
-  const [nueva, setNueva] = useState(() => qInicial.trim().length >= 3);
+  // ?modo=correo|fuera: la home abre la ventana en esa forma de buscar.
+  const modoInicial = params.get('modo') || 'ia';
+  const [nueva, setNueva] = useState(() => qInicial.trim().length >= 3 || modoInicial === 'correo' || modoInicial === 'fuera');
   const cerrarNueva = useCallback(() => setNueva(false), []);
   const [ia, setIa] = useState(null); // { filtros, consulta, origen, persona }
   const [iaIds, setIaIds] = useState(null); // Set de ids, o null sin búsqueda
@@ -1525,6 +1527,7 @@ function DirectorioInstitucional() {
       {nueva && (
         <NuevaBusquedaContactos
           inicial={qInicial}
+          opcionInicial={modoInicial}
           onUpsell={() => setModalUpsell(true)}
           onAplicar={aplicarBusqueda}
           onCorreo={setCorreoLibre}

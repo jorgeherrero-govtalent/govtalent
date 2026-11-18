@@ -27,6 +27,13 @@ const IDEAS = ['Embajadores y cuerpo diplomático en España', 'Eurodiputados es
 
 const BASE_DE_DATOS = '/instituciones/directorio';
 
+// Las otras dos formas de buscar de «Búsqueda de contactos»: abren la
+// misma ventana, ya en esa opción.
+const MODOS = [
+  { modo: 'correo', etiqueta: 'El correo de una persona concreta', icono: 'ti-mail-search' },
+  { modo: 'fuera', etiqueta: 'Personas que no están en la base de datos', icono: 'ti-world-search' },
+];
+
 function saludo() {
   const h = new Date().getHours();
   if (h >= 6 && h < 14) return 'Buenos días';
@@ -115,6 +122,12 @@ export default function Home() {
         }
         .gt-home-idea i { font-size: 16px; color: ${MORADO}; }
         .gt-home-idea:hover { border-color: #d8d3f5; }
+        .gt-home-sug {
+          border: 1px solid #e0dfd8; background: transparent; border-radius: 999px; padding: 7px 13px;
+          font-family: inherit; font-size: 13px; color: #57534e; cursor: pointer;
+        }
+        .gt-home-sug:hover { border-color: #c9c7bd; color: #1a1a18; }
+        .gt-home-sug:focus-visible { outline: 2px solid ${MORADO}; outline-offset: 2px; }
         @media (max-width: 720px) {
           .gt-home { min-height: auto; }
           .gt-home-centro { padding: 32px 16px 96px; justify-content: flex-start; }
@@ -135,7 +148,7 @@ export default function Home() {
       <div className="gt-home-centro">
         <h1>
           {hola}
-          {nombre ? `, ${nombre}` : ''}, ¿a quién estás buscando?
+          {nombre ? `, ${nombre}` : ''}, describe a quién buscas.
         </h1>
 
         <form
@@ -172,9 +185,17 @@ export default function Home() {
         </form>
 
         <div className="gt-home-ideas">
+          {MODOS.map((m) => (
+            <Link key={m.modo} href={`${BASE_DE_DATOS}?modo=${m.modo}`} className="gt-home-idea" style={{ textDecoration: 'none' }}>
+              <i className={`ti ${m.icono}`} aria-hidden="true"></i>
+              {m.etiqueta}
+            </Link>
+          ))}
+        </div>
+
+        <div className="gt-home-ideas">
           {IDEAS.map((idea) => (
-            <button key={idea} type="button" className="gt-home-idea" onClick={() => buscar(idea)}>
-              <i className="ti ti-sparkles" aria-hidden="true"></i>
+            <button key={idea} type="button" className="gt-home-sug" onClick={() => buscar(idea)}>
               {idea}
             </button>
           ))}
