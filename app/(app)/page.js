@@ -31,7 +31,8 @@ const IDEAS = [
   'Asistentes y asesores del Grupo Parlamentario Popular en el Congreso',
   'Presidentes y secretarios de las Cámaras de Comercio de España',
   'Eurodiputados españoles y sus asistentes',
-];
+  // Una debajo de otra, de la más larga a la más corta (18-11-2026).
+].sort((a, b) => b.length - a.length);
 
 const BASE_DE_DATOS = '/instituciones/directorio';
 
@@ -207,7 +208,7 @@ export default function Home() {
           </div>
         </form>
 
-        <div className="gt-home-ideas">
+        <div className="gt-home-ideas" style={{ flexDirection: 'column', alignItems: 'center' }}>
           {IDEAS.map((idea) => (
             <button key={idea} type="button" className="gt-home-sug" onClick={() => buscar(idea)}>
               {idea}
