@@ -12,6 +12,7 @@ import CalendarioElectoral from '@/components/CalendarioElectoral';
 import AvisoCaducadas from '@/components/AvisoCaducadas';
 import { FRECUENCIAS, limitesDe, mensajeError } from '@/lib/alarmas';
 import { PARLAMENTOS } from '@/lib/parlamentosAutonomicos';
+import { etapaDe } from '@/lib/etapaNormativa';
 import TareaModal from '@/components/TareaModal';
 import { ESTILOS as ESTILOS_VENTANA } from '@/components/licitaciones/NuevaBusqueda';
 
@@ -410,6 +411,62 @@ function EncajaPlegable({ items, onDescartar, inicial = 8 }) {
   );
 }
 
+// «En trámite» y «Ya publicado» en dos pestañas (18-11-2026): lo que aún
+// no está en vigor y se puede influir, y lo que ya rige.
+function EncajaPestanas({ items, inicial = 8, vacioEdicion = false }) {
+  const todos = items || [];
+  const tramite = todos.filter((m) => etapaDe(m.kind, m.titulo) === 'tramite');
+  const publicado = todos.filter((m) => etapaDe(m.kind, m.titulo) !== 'tramite');
+  const [pestana, setPestana] = useState(tramite.length === 0 && publicado.length > 0 ? 'publicado' : 'tramite');
+  const lista = pestana === 'tramite' ? tramite : publicado;
+  const PESTANAS = [
+    { v: 'tramite', t: 'En trámite', n: tramite.length },
+    { v: 'publicado', t: 'Ya publicado', n: publicado.length },
+  ];
+  return (
+    <div>
+      <div role="tablist" style={{ display: 'flex', gap: 20, borderBottom: `1px solid ${LINEA2}`, marginBottom: 4 }}>
+        {PESTANAS.map((p) => {
+          const activa = pestana === p.v;
+          return (
+            <button
+              key={p.v}
+              type="button"
+              role="tab"
+              aria-selected={activa}
+              onClick={() => setPestana(p.v)}
+              style={{
+                background: 'none',
+                border: 'none',
+                borderBottom: `2px solid ${activa ? TINTA : 'transparent'}`,
+                marginBottom: -1,
+                padding: '10px 0',
+                cursor: 'pointer',
+                fontFamily: 'inherit',
+                fontSize: 13,
+                fontWeight: activa ? 600 : 500,
+                color: activa ? TINTA : GRIS,
+              }}
+            >
+              {p.t}
+              <span style={{ marginLeft: 6, fontSize: 12, color: GRIS2, fontWeight: 500 }}>{p.n}</span>
+            </button>
+          );
+        })}
+      </div>
+      {lista.length > 0 ? (
+        <EncajaPlegable key={pestana} items={lista} inicial={inicial} />
+      ) : (
+        <div style={{ fontSize: 12.5, color: GRIS, lineHeight: 1.55, padding: '12px 0 8px' }}>
+          {pestana === 'tramite'
+            ? `Ahora mismo no hay nada en trámite que te afecte. ${vacioEdicion ? 'Te avisará en cuanto aparezca.' : 'El agente te avisará en cuanto aparezca.'}`
+            : `Ahora mismo no hay nada publicado que te afecte. ${vacioEdicion ? 'Te avisará en cuanto aparezca.' : 'El agente te avisará en cuanto aparezca.'}`}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function Encaja({ items, onDescartar, vacio = 'Nada abierto encaja ahora mismo. Te avisaré cuando aparezca algo.' }) {
   if (!items || items.length === 0) {
     return <div style={{ fontSize: 12.5, color: GRIS, lineHeight: 1.55 }}>{vacio}</div>;
@@ -721,7 +778,7 @@ export default function AlarmasTab({ seccion = 'alarmas', sinTitulo = false, age
       supabase.from('sector_alerts').select('*').eq('user_id', uid).order('created_at', { ascending: true }),
       supabase
         .from('sector_alert_matches')
-        .select('id, alert_id, kind, ref_id, titulo, motivo, relevancia, plazo, ruta, fuente, avisado_at, created_at, descartado, visto')
+        .select('id, alert_id, kind, ref_id, titulo, motivo, relevancia, plazo, ruta, fuente, avisado_at, created_at, descartado, visto, revisado')
         .eq('user_id', uid)
         .order('relevancia', { ascending: false })
         .order('created_at', { ascending: false })
@@ -809,6 +866,26 @@ export default function AlarmasTab({ seccion = 'alarmas', sinTitulo = false, age
     } catch {}
     const { error } = await supabase.from('follows').update({ seen_at: new Date().toISOString() }).in('id', ids);
     if (error) toast.error('No se ha podido guardar');
+  }
+
+  // El tic de «Por revisar»: el asunto sale de la bandeja y no se descarta.
+  // Se marca en todas las filas del mismo asunto (varios agentes pueden
+  // haberlo encontrado).
+  async function marcarRevisado(x) {
+    const { kind, ref_id } = x.m;
+    const mismo = (r) => r.kind === kind && r.ref_id === ref_id;
+    setEncaja((prev) => prev.map((r) => (mismo(r) ? { ...r, revisado: true } : r)));
+    const { data: { user } = {} } = await supabase.auth.getUser();
+    const { error } = await supabase
+      .from('sector_alert_matches')
+      .update({ revisado: true })
+      .eq('user_id', user?.id)
+      .eq('kind', kind)
+      .eq('ref_id', ref_id);
+    if (error || !user) {
+      setEncaja((prev) => prev.map((r) => (mismo(r) ? { ...r, revisado: false } : r)));
+      toast.error('No se ha podido guardar');
+    }
   }
 
   useEffect(() => {
@@ -1340,7 +1417,7 @@ export default function AlarmasTab({ seccion = 'alarmas', sinTitulo = false, age
               titulo="Qué te afecta hoy"
               texto={
                 b.encaja.length > 0
-                  ? `El agente ha revisado ${b.revisados} asuntos abiertos y ${b.encaja.length === 1 ? 'uno te afecta' : `${b.encaja.length} te afectan`}${
+                  ? `El agente ha revisado ${b.revisados} asuntos y ${b.encaja.length === 1 ? 'uno te afecta' : `${b.encaja.length} te afectan`}${
                       conPlazo > 0 ? `; ${conPlazo === 1 ? 'uno tiene' : `${conPlazo} tienen`} plazo abierto` : ''
                     }.`
                   : 'Ahora mismo no hay nada abierto que te afecte. El agente te avisará en cuanto aparezca.'
@@ -1348,7 +1425,7 @@ export default function AlarmasTab({ seccion = 'alarmas', sinTitulo = false, age
             />
             {b.encaja.length > 0 && (
               <div style={{ ...CARD, padding: '6px 16px' }}>
-                <EncajaPlegable items={b.encaja} />
+                <EncajaPestanas items={b.encaja} />
               </div>
             )}
           </>
@@ -1473,7 +1550,11 @@ export default function AlarmasTab({ seccion = 'alarmas', sinTitulo = false, age
           <>
             <CabeceraPaso titulo="Qué te afecta hoy" texto="Lo que este agente ha encontrado hasta ahora." />
             <div style={{ ...CARD, padding: '6px 16px' }}>
-              <Encaja items={suyas.slice(0, 50)} vacio="Todavía no ha encontrado nada. Te avisará en cuanto aparezca." />
+              {suyas.length > 0 ? (
+                <EncajaPestanas items={suyas.slice(0, 80)} vacioEdicion />
+              ) : (
+                <Encaja items={[]} vacio="Todavía no ha encontrado nada. Te avisará en cuanto aparezca." />
+              )}
             </div>
           </>
         )}
@@ -1512,6 +1593,7 @@ export default function AlarmasTab({ seccion = 'alarmas', sinTitulo = false, age
     const previo = porClave.get(k);
     if (previo) {
       previo.alertas.add(m.alert_id);
+      previo.revisado = previo.revisado && !!m.revisado;
       continue;
     }
     porClave.set(k, {
@@ -1529,6 +1611,7 @@ export default function AlarmasTab({ seccion = 'alarmas', sinTitulo = false, age
       nuevo: !m.visto,
       sigues: seguidos.has(k),
       descartado: !!m.descartado,
+      revisado: !!m.revisado,
       m,
     });
   }
@@ -1557,7 +1640,7 @@ export default function AlarmasTab({ seccion = 'alarmas', sinTitulo = false, age
     {
       id: 'revisar',
       label: 'Por revisar',
-      lista: [...encontrados.filter((x) => !x.descartado && !x.sigues), ...cambios.filter((x) => x.nuevo)],
+      lista: [...encontrados.filter((x) => !x.descartado && !x.sigues && !x.revisado), ...cambios.filter((x) => x.nuevo)],
       vacio: 'Nada por revisar. Cuando tus agentes encuentren algo o cambie algo que sigues, aparecerá aquí.',
     },
     {
@@ -1705,6 +1788,20 @@ export default function AlarmasTab({ seccion = 'alarmas', sinTitulo = false, age
     }
     return (
       <>
+        {tab.id === 'revisar' && (
+          <button
+            type="button"
+            className="alarmas-accion"
+            onClick={() => marcarRevisado(x)}
+            aria-label="Marcar como revisado"
+            title="Marcar como revisado"
+            style={{ border: 'none', background: 'none', color: '#a8a49c', width: 28, height: 28, borderRadius: 7, cursor: 'pointer', fontSize: 16, display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}
+            onMouseEnter={(e) => (e.currentTarget.style.color = '#1a1a18')}
+            onMouseLeave={(e) => (e.currentTarget.style.color = '#a8a49c')}
+          >
+            <i className="ti ti-check" aria-hidden="true"></i>
+          </button>
+        )}
         {/* Un trámite autonómico (sql/107) es un paso de una ley que la
             alarma ya vigila: no se sigue el trámite, solo la ley. */}
         {x.m.kind !== 'ccaa_tramite' && (
