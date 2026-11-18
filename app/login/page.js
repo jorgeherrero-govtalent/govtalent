@@ -328,14 +328,14 @@ export default function LoginPage() {
                 width: 60,
                 height: 60,
                 borderRadius: '50%',
-                background: '#e8f4f0',
+                background: '#f2f1ec',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
                 margin: '0 auto 14px',
               }}
             >
-              <i className="ti ti-mail-check" style={{ fontSize: 26, color: '#1d6f5c' }}></i>
+              <i className="ti ti-mail-check" style={{ fontSize: 26, color: '#1a1a18' }}></i>
             </div>
             {/* Aquí solo pasan dos cosas: que el correo no llegue o que
                 te hayas equivocado al escribirlo. Antes esta pantalla no
@@ -355,11 +355,11 @@ export default function LoginPage() {
             {reenviado && (
               <div
                 style={{
-                  background: '#e8f4f0',
+                  background: '#f2f1ec',
                   borderRadius: 9,
                   padding: '10px 13px',
                   fontSize: 12.5,
-                  color: '#1d6f5c',
+                  color: '#1a1a18',
                   marginBottom: 20,
                 }}
               >
@@ -411,14 +411,14 @@ export default function LoginPage() {
                 width: 60,
                 height: 60,
                 borderRadius: '50%',
-                background: '#e8f4f0',
+                background: '#f2f1ec',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
                 margin: '0 auto 14px',
               }}
             >
-              <i className="ti ti-mail-check" style={{ fontSize: 26, color: '#1d6f5c' }}></i>
+              <i className="ti ti-mail-check" style={{ fontSize: 26, color: '#1a1a18' }}></i>
             </div>
             <h1 style={{ fontSize: 19, fontWeight: 700, marginBottom: 6 }}>Revisa tu email</h1>
             <p style={{ fontSize: 13, color: '#888', marginBottom: 12 }}>
@@ -426,11 +426,11 @@ export default function LoginPage() {
             </p>
             <div
               style={{
-                background: '#f0f8f5',
-                border: '1px solid #c0e4d8',
+                background: '#f7f6f2',
+                border: '1px solid #d9d7cf',
                 borderRadius: 8,
                 padding: 10,
-                color: '#1d6f5c',
+                color: '#1a1a18',
                 fontWeight: 500,
                 marginBottom: 18,
               }}
