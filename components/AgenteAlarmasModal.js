@@ -11,20 +11,61 @@ const CLAVE_PEDIDO = 'govtalent.alarmas.pedido';
 
 const MORADO = '#6d5aef';
 
-// Las mismas ideas que en la página de Alarmas: el mismo agente.
-const IDEAS = ['Todo lo que afecte a mi sector', 'Los cambios de una ley concreta', 'Consultas públicas de un ministerio'];
-
+// Las rutas para configurar el agente. Cada una cambia lo que se pide en
+// la caja y sus ejemplos; «prefijo» se antepone a lo escrito para que el
+// agente sepa qué tipo de monitorización se le pide.
 const OPCIONES = [
-  { v: 'crear', label: 'Crea y configura tu propio agente', icono: 'ti-sparkles' },
-  { v: 'alarmas', label: 'Tus agentes', icono: 'ti-adjustments-horizontal', href: '/novedades?agentes=1' },
-  { v: 'novedades', label: 'Lo que han detectado', icono: 'ti-inbox', href: '/novedades' },
+  {
+    v: 'propio',
+    label: 'Crea tu propio agente',
+    icono: 'ti-sparkles',
+    titulo: 'Describe la normativa a monitorizar',
+    hueco: 'Normas y consultas que afecten a una aseguradora con sede en Madrid',
+    ejemplos: ['Ayudas y subvenciones a la rehabilitación de vivienda', 'Fiscalidad de las bebidas azucaradas', 'Regulación de la inteligencia artificial'],
+  },
+  {
+    v: 'sector',
+    label: 'Todo lo que afecte a un sector',
+    icono: 'ti-building-factory-2',
+    titulo: 'Describe el sector a monitorizar',
+    hueco: 'Aseguradoras de salud con actividad en toda España',
+    prefijo: 'Todo lo que afecte a este sector',
+    ejemplos: ['Energías renovables', 'Industria farmacéutica', 'Banca y medios de pago'],
+  },
+  {
+    v: 'ley',
+    label: 'Los cambios de una ley concreta',
+    icono: 'ti-file-text',
+    titulo: 'Escribe la ley a monitorizar',
+    hueco: 'Ley de Servicios de Atención a la Clientela',
+    prefijo: 'Los cambios y la tramitación de esta ley',
+    ejemplos: ['Ley de Vivienda', 'Reglamento europeo de IA', 'Ley General de Telecomunicaciones'],
+  },
+  {
+    v: 'consultas',
+    label: 'Consultas públicas de un organismo',
+    icono: 'ti-messages',
+    titulo: 'Escribe el ministerio u organismo',
+    hueco: 'Ministerio para la Transición Ecológica y el Reto Demográfico',
+    prefijo: 'Las consultas y audiencias públicas de este organismo',
+    ejemplos: ['Ministerio de Sanidad', 'CNMC', 'Comisión Europea'],
+  },
+  {
+    v: 'territorio',
+    label: 'Normativa de un territorio',
+    icono: 'ti-map-pin',
+    titulo: 'Escribe la comunidad autónoma y el tema',
+    hueco: 'Turismo y vivienda de uso turístico en Canarias',
+    prefijo: 'La normativa de este territorio',
+    ejemplos: ['Comercio en Cataluña', 'Juego en la Comunidad de Madrid', 'Energía en Andalucía'],
+  },
 ];
 
 /**
- * «AI Agent» del menú (18-11-2026): la ventana para crear una alarma, con
+ * «AI Agent» del menú (18-11-2026): la ventana para crear un agente, con
  * el mismo diseño que «Búsqueda de contactos» (components/contactos/
- * NuevaBusquedaContactos.js): opciones a la izquierda y una sola caja a la
- * derecha.
+ * NuevaBusquedaContactos.js): a la izquierda las rutas para configurarlo y a
+ * la derecha una sola caja.
  *
  * Lo que se escribe no se procesa aquí: se guarda en la pestaña y se abre
  * /alarmas, que se lo pide al agente con su progreso a la vista
@@ -36,6 +77,8 @@ export default function AgenteAlarmasModal({ onClose }) {
   const pathname = usePathname() || '/';
   const cajaRef = useRef(null);
   const [texto, setTexto] = useState('');
+  const [ruta, setRuta] = useState('propio');
+  const op = OPCIONES.find((o) => o.v === ruta) || OPCIONES[0];
   const [montado, setMontado] = useState(false);
 
   useEffect(() => {
@@ -50,9 +93,10 @@ export default function AgenteAlarmasModal({ onClose }) {
     };
   }, [onClose]);
 
-  function ir(href) {
-    onClose();
-    router.push(href);
+  function elegir(v) {
+    setRuta(v);
+    setTexto('');
+    setTimeout(() => cajaRef.current?.focus(), 0);
   }
 
   function enviar(e) {
@@ -63,7 +107,7 @@ export default function AgenteAlarmasModal({ onClose }) {
       return;
     }
     try {
-      window.sessionStorage.setItem(CLAVE_PEDIDO, t);
+      window.sessionStorage.setItem(CLAVE_PEDIDO, op.prefijo ? `${op.prefijo}: ${t}` : t);
     } catch {}
     onClose();
     // AlarmasTab solo lee el pedido al cargar: si ya estamos allí, se recarga.
@@ -72,7 +116,7 @@ export default function AgenteAlarmasModal({ onClose }) {
   }
 
   function usarIdea(idea) {
-    setTexto(`${idea}: `);
+    setTexto(idea);
     setTimeout(() => {
       const el = cajaRef.current;
       if (!el) return;
@@ -87,15 +131,15 @@ export default function AgenteAlarmasModal({ onClose }) {
     <div className="modal-ov on" onClick={(e) => e.target === e.currentTarget && onClose()}>
       <style>{ESTILOS}</style>
       <div className="gt-nb" role="dialog" aria-modal="true" aria-label="AI Agent">
-        <nav className="gt-nb-izq" aria-label="Alarmas">
+        <nav className="gt-nb-izq" aria-label="Tipo de agente">
           <b className="gt-nb-h">AI Agent</b>
           {OPCIONES.map((o) => (
             <button
               key={o.v}
               type="button"
-              className={`gt-nb-op${o.v === 'crear' ? ' on' : ''}`}
-              onClick={() => (o.href ? ir(o.href) : cajaRef.current?.focus())}
-              aria-current={o.v === 'crear' ? 'true' : undefined}
+              className={`gt-nb-op${o.v === ruta ? ' on' : ''}`}
+              onClick={() => elegir(o.v)}
+              aria-current={o.v === ruta ? 'true' : undefined}
             >
               <span className="gt-nb-op-ic">
                 <i className={`ti ${o.icono}`} aria-hidden="true" />
@@ -109,10 +153,10 @@ export default function AgenteAlarmasModal({ onClose }) {
             <i className="ti ti-x" aria-hidden="true" />
           </button>
           <span className="gt-nb-etq">
-            <i className="ti ti-sparkles" style={{ color: MORADO }} aria-hidden="true" /> Alarma con IA
+            <i className="ti ti-sparkles" style={{ color: MORADO }} aria-hidden="true" /> Agente con IA
           </span>
           <div className="gt-nb-centro">
-            <b className="gt-nb-pregunta">Describe la normativa a monitorizar</b>
+            <b className="gt-nb-pregunta">{op.titulo}</b>
             <form onSubmit={enviar} className="gt-nb-caja">
               <span style={{ display: 'flex', gap: 10, alignItems: 'flex-start' }}>
                 <i className="ti ti-sparkles" style={{ color: MORADO, fontSize: 18, marginTop: 2 }} aria-hidden="true" />
@@ -125,8 +169,8 @@ export default function AgenteAlarmasModal({ onClose }) {
                   onKeyDown={(e) => {
                     if (e.key === 'Enter' && !e.shiftKey) enviar(e);
                   }}
-                  placeholder="Normas y consultas que afecten a una aseguradora con sede en Madrid"
-                  aria-label="Describe la normativa a monitorizar"
+                  placeholder={op.hueco}
+                  aria-label={op.titulo}
                   maxLength={600}
                 />
               </span>
@@ -137,7 +181,7 @@ export default function AgenteAlarmasModal({ onClose }) {
               </span>
             </form>
             <span style={{ display: 'flex', gap: 8, flexWrap: 'wrap', justifyContent: 'center', maxWidth: 640 }}>
-              {IDEAS.map((idea) => (
+              {op.ejemplos.map((idea) => (
                 <button key={idea} type="button" className="gt-nb-sug" onClick={() => usarIdea(idea)}>
                   {idea}
                 </button>
