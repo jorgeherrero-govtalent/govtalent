@@ -30,7 +30,7 @@ const OPCIONES = [
     titulo: 'Describe el sector a monitorizar',
     hueco: 'Aseguradoras de salud con actividad en toda España',
     prefijo: 'Todo lo que afecte a este sector',
-    ejemplos: ['Energías renovables', 'Industria farmacéutica', 'Banca y medios de pago'],
+    ejemplos: ['Energías renovables', 'Industria farmacéutica', 'Centros de datos'],
   },
   {
     v: 'ley',
@@ -57,7 +57,7 @@ const OPCIONES = [
     titulo: 'Escribe la comunidad autónoma y el tema',
     hueco: 'Turismo y vivienda de uso turístico en Canarias',
     prefijo: 'La normativa de este territorio',
-    ejemplos: ['Comercio en Cataluña', 'Juego en la Comunidad de Madrid', 'Energía en Andalucía'],
+    ejemplos: ['Alquiler turístico en Cataluña', 'Movilidad y transportes en Madrid', 'Energía en Andalucía'],
   },
 ];
 
