@@ -15,7 +15,7 @@ const MORADO = '#6d5aef';
 const IDEAS = ['Todo lo que afecte a mi sector', 'Los cambios de una ley concreta', 'Consultas públicas de un ministerio'];
 
 const OPCIONES = [
-  { v: 'crear', label: 'Describe la normativa a monitorizar', icono: 'ti-sparkles' },
+  { v: 'crear', label: 'Crea y configura tu propio agente', icono: 'ti-sparkles' },
   { v: 'alarmas', label: 'Tus alarmas', icono: 'ti-bell', href: '/alarmas' },
   { v: 'novedades', label: 'Lo que han detectado', icono: 'ti-inbox', href: '/novedades' },
 ];

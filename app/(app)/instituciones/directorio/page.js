@@ -991,8 +991,9 @@ function DirectorioInstitucional() {
       <style>{ESTILOS_CONTACTOS}</style>
       <div style={{ marginBottom: 16, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
         <h1 style={{ fontSize: 19, fontWeight: 700, margin: 0 }}>Base de datos</h1>
-        <button type="button" className="gt-filtro" onClick={() => setNueva(true)}>
-          <i className="ti ti-sparkles" style={{ color: '#6d5aef' }} aria-hidden="true"></i> Búsqueda de contactos
+        {/* Morado: lo que hace la plataforma. Se llama como la home (18-11-2026). */}
+        <button type="button" className="btn-ai" onClick={() => setNueva(true)} style={{ display: 'inline-flex', alignItems: 'center', gap: 7 }}>
+          <i className="ti ti-sparkles" aria-hidden="true"></i> AI Finder
         </button>
       </div>
 
@@ -1123,11 +1124,25 @@ function DirectorioInstitucional() {
         </button>
         <button
           type="button"
-          className="btn-ai"
           onClick={abrirGuardarLista}
           disabled={!puedeGuardarLista}
           title={puedeGuardarLista ? '' : 'Haz una búsqueda, filtra o marca filas para guardarlas como lista'}
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 7,
+            border: '.5px solid #e0dfd8',
+            background: '#fff',
+            borderRadius: 9,
+            padding: '8px 13px',
+            fontFamily: 'inherit',
+            fontSize: 12.5,
+            color: puedeGuardarLista ? '#3a3a36' : '#a8a79c',
+            fontWeight: 600,
+            cursor: puedeGuardarLista ? 'pointer' : 'default',
+          }}
         >
+          <i className="ti ti-list-details" style={{ fontSize: 15, color: '#a8a79c' }} aria-hidden="true"></i>
           {selectedIds.size > 0 ? 'Añadir a lista' : 'Guardar como lista'}
         </button>
       </div>
