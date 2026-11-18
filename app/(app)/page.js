@@ -17,8 +17,9 @@ import HistorialBusquedas from '@/components/HistorialBusquedas';
  * ventana «Búsqueda de contactos» la interpreta con su progreso a la
  * vista. El acceso por plan también se resuelve allí.
  *
- * Arriba a la derecha (18-11-2026): «El correo de una persona concreta»,
- * que abre esa misma ventana en su opción de correo, y el reloj, que
+ * Arriba a la derecha (18-11-2026): «Crear una lista de contactos» y «El
+ * correo de una persona concreta», que abren esa misma ventana en su
+ * opción, y el reloj, que
  * despliega a la derecha el historial de búsquedas.
  */
 
@@ -36,6 +37,8 @@ const BASE_DE_DATOS = '/instituciones/directorio';
 
 // «El correo de una persona concreta»: la ventana, ya en esa opción.
 const CORREO = `${BASE_DE_DATOS}?modo=correo`;
+// «Crear una lista de contactos»: la misma ventana, en su tercera opción.
+const CREAR_LISTA = `${BASE_DE_DATOS}?modo=fuera`;
 
 function saludo() {
   const h = new Date().getHours();
@@ -143,6 +146,10 @@ export default function Home() {
       `}</style>
 
       <div className="gt-acciones">
+        <Link href={CREAR_LISTA} className="gt-accion">
+          <i className="ti ti-list-details" aria-hidden="true"></i>
+          Crear una lista de contactos
+        </Link>
         <Link href={CORREO} className="gt-accion">
           <i className="ti ti-mail-search" aria-hidden="true"></i>
           El correo de una persona concreta
