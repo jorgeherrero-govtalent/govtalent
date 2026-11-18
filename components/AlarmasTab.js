@@ -119,6 +119,7 @@ export function VentanaAgente({ titulo, pasos, actual, hasta, onIr, onCerrar, pi
         .gt-nb-op:disabled { cursor: default; color: #8b8780; }
         .gt-nb-op:disabled:hover { background: none; }
         .gt-ag-cuerpo { flex: 1; min-height: 0; overflow-y: auto; padding: 28px 32px 20px; display: flex; flex-direction: column; gap: 18px; }
+        .gt-ag-cuerpo > * { flex-shrink: 0; }
         .gt-ag-pie { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding: 14px 32px; border-top: 1px solid #ecebe5; }
         @media (max-width: 760px) {
           .gt-nb { flex-direction: column; height: 92vh; }
