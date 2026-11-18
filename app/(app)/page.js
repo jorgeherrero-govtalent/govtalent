@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import TextoCreciente, { enviarConIntro } from '@/components/TextoCreciente';
+import HistorialBusquedas from '@/components/HistorialBusquedas';
 
 /**
  * Home: «AI Finder» en el menú lateral, calcada de la de Enginy.
@@ -16,7 +17,9 @@ import TextoCreciente, { enviarConIntro } from '@/components/TextoCreciente';
  * ventana «Búsqueda de contactos» la interpreta con su progreso a la
  * vista. El acceso por plan también se resuelve allí.
  *
- * Crear una alarma sigue en /alarmas, a un clic desde arriba a la derecha.
+ * Arriba a la derecha (18-11-2026): «El correo de una persona concreta»,
+ * que abre esa misma ventana en su opción de correo, y el reloj, que
+ * despliega a la derecha el historial de búsquedas.
  */
 
 const MORADO = '#6d5aef';
@@ -27,12 +30,8 @@ const IDEAS = ['Asistentes y asesores del Grupo Parlamentario Popular en el Cong
 
 const BASE_DE_DATOS = '/instituciones/directorio';
 
-// Las otras dos formas de buscar de «Búsqueda de contactos»: abren la
-// misma ventana, ya en esa opción.
-const MODOS = [
-  { modo: 'correo', etiqueta: 'El correo de una persona concreta', icono: 'ti-mail-search' },
-  { modo: 'fuera', etiqueta: 'Personas que no están en la base de datos', icono: 'ti-world-search' },
-];
+// «El correo de una persona concreta»: la ventana, ya en esa opción.
+const CORREO = `${BASE_DE_DATOS}?modo=correo`;
 
 function saludo() {
   const h = new Date().getHours();
@@ -47,6 +46,7 @@ export default function Home() {
   const cajaRef = useRef(null);
   const [nombre, setNombre] = useState('');
   const [texto, setTexto] = useState('');
+  const [historial, setHistorial] = useState(false);
   // El saludo depende de la hora del navegador: se calcula tras montar
   // para que el primer render coincida con el del servidor.
   const [hola, setHola] = useState('Hola');
@@ -81,9 +81,11 @@ export default function Home() {
   const listo = texto.trim().length >= 3;
 
   return (
+    <div className="gt-home-fila">
     <div className="gt-home">
       <style>{`
-        .gt-home { min-height: 100vh; display: flex; flex-direction: column; }
+        .gt-home-fila { display: flex; align-items: flex-start; }
+        .gt-home { flex: 1; min-width: 0; min-height: 100vh; display: flex; flex-direction: column; }
         .gt-home-centro {
           flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center;
           gap: 22px; padding: 0 24px 12vh;
@@ -137,12 +139,22 @@ export default function Home() {
       `}</style>
 
       <div className="gt-acciones">
-        <Link href="/alarmas" className="gt-accion-ic" title="Tus alarmas" aria-label="Tus alarmas">
-          <i className="ti ti-bell" aria-hidden="true"></i>
+        <Link href={CORREO} className="gt-accion">
+          <i className="ti ti-mail-search" aria-hidden="true"></i>
+          El correo de una persona concreta
         </Link>
-        <Link href="/novedades" className="gt-accion-ic" title="Novedades" aria-label="Novedades">
+        <span className="gt-accion-sep" aria-hidden="true"></span>
+        <button
+          type="button"
+          className="gt-accion-ic"
+          style={{ border: 'none', cursor: 'pointer' }}
+          title="Historial de búsquedas"
+          aria-label="Historial de búsquedas"
+          aria-expanded={historial}
+          onClick={() => setHistorial((v) => !v)}
+        >
           <i className="ti ti-clock" aria-hidden="true"></i>
-        </Link>
+        </button>
       </div>
 
       <div className="gt-home-centro">
@@ -185,15 +197,6 @@ export default function Home() {
         </form>
 
         <div className="gt-home-ideas">
-          {MODOS.map((m) => (
-            <Link key={m.modo} href={`${BASE_DE_DATOS}?modo=${m.modo}`} className="gt-home-idea" style={{ textDecoration: 'none' }}>
-              <i className={`ti ${m.icono}`} aria-hidden="true"></i>
-              {m.etiqueta}
-            </Link>
-          ))}
-        </div>
-
-        <div className="gt-home-ideas">
           {IDEAS.map((idea) => (
             <button key={idea} type="button" className="gt-home-sug" onClick={() => buscar(idea)}>
               {idea}
@@ -201,6 +204,8 @@ export default function Home() {
           ))}
         </div>
       </div>
+    </div>
+    {historial && <HistorialBusquedas onElegir={buscar} onCerrar={() => setHistorial(false)} />}
     </div>
   );
 }
