@@ -266,7 +266,7 @@ export default function MenuLateral({
           </div>
         ))}
         {SECCIONES.map((s) => (
-          <div key={s.titulo || s.clave} className="gt-lat-grupo" style={s.titulo ? undefined : { marginTop: 6 }}>
+          <div key={s.titulo || s.clave} className="gt-lat-grupo" style={s.titulo ? undefined : { marginTop: -6 }}>
             {s.titulo && <div className="gt-lat-sec">{s.titulo}</div>}
             {s.items.map((it) => (
               <Entrada key={it.href} item={it} pathname={pathname} plegado={plegado} novedades={novedades} onAgente={abrirAgente} />
