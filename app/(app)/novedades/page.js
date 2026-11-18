@@ -1,7 +1,6 @@
 'use client';
 
-import { Suspense, useState } from 'react';
-import Link from 'next/link';
+import { Suspense, useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import AlarmasTab from '@/components/AlarmasTab';
 import SeguimientoLista from '@/components/SeguimientoLista';
@@ -10,7 +9,8 @@ import AgenteAlarmasModal from '@/components/AgenteAlarmasModal';
 /**
  * Seguimiento (así se llama la pantalla desde el 18-11-2026; la ruta sigue
  * siendo /novedades): la bandeja de lo que te afecta y lo que sigues.
- * Arriba, «Tus agentes» y «Nuevo agente», que abre la ventana del agente.
+ * Arriba, «Tus agentes» (una ventana con la lista: pausar, editar y
+ * eliminar) y «Nuevo agente», que abre la ventana del agente.
  *
  *   «Novedades»      lo que encuentran tus alarmas y lo que cambia en lo
  *                    que sigues, en una lista. Comparte componente con
@@ -31,6 +31,17 @@ function Novedades() {
   const sp = useSearchParams();
   const ver = sp?.get('ver') === 'seguimiento' ? 'seguimiento' : 'novedades';
   const [agente, setAgente] = useState(false);
+  // «Tus agentes»: una ventana sobre la bandeja (también con ?agentes=1).
+  const [agentes, setAgentes] = useState(() => sp?.get('agentes') === '1');
+  // Si se llega con ?agentes=1 estando ya en la página (desde AI Agent).
+  const pideAgentes = sp?.get('agentes') === '1';
+  useEffect(() => {
+    if (pideAgentes) setAgentes(true);
+  }, [pideAgentes]);
+  const abrirAgentes = () => {
+    if (ver === 'seguimiento') router.replace('/novedades', { scroll: false });
+    setAgentes(true);
+  };
 
   return (
     <>
@@ -38,10 +49,10 @@ function Novedades() {
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap', marginBottom: 14 }}>
           <h1 style={{ fontSize: 22, fontWeight: 700, margin: 0, letterSpacing: '-.3px' }}>Seguimiento</h1>
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-            <Link href="/alarmas" className="btn-o" style={{ textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 7 }}>
+            <button type="button" className="btn-o" onClick={abrirAgentes} style={{ display: 'inline-flex', alignItems: 'center', gap: 7 }}>
               <i className="ti ti-adjustments-horizontal" aria-hidden="true"></i>
               Tus agentes
-            </Link>
+            </button>
             <button type="button" className="btn-ai" onClick={() => setAgente(true)}>
               <i className="ti ti-sparkles" aria-hidden="true"></i>
               Nuevo agente
@@ -81,7 +92,7 @@ function Novedades() {
         <SeguimientoLista />
       ) : (
         <div className="sec" style={{ maxWidth: 1040 }}>
-          <AlarmasTab seccion="novedades" sinTitulo />
+          <AlarmasTab seccion="novedades" sinTitulo agentesAbierto={agentes} onCerrarAgentes={() => setAgentes(false)} onNuevoAgente={() => setAgente(true)} />
         </div>
       )}
       {agente && <AgenteAlarmasModal onClose={() => setAgente(false)} />}

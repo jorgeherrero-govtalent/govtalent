@@ -504,7 +504,7 @@ function fraseDelPaso(p) {
     case 'evaluando':
       return `Leyendo ${p.n} asuntos uno a uno con la descripción de tu organización. Es el paso más lento.`;
     default:
-      return 'Preparando la alarma…';
+      return 'Preparando el agente…';
   }
 }
 
@@ -578,7 +578,7 @@ function AgenteTrabajando({ p }) {
       {/* El nombre de la alarma, en cuanto lo tiene */}
       {p.nombre && (
         <div style={{ fontSize: 12, color: GRIS, marginTop: 8 }}>
-          Alarma: <b style={{ color: TINTA, fontWeight: 500 }}>{p.nombre}</b>
+          Agente: <b style={{ color: TINTA, fontWeight: 500 }}>{p.nombre}</b>
           {(p.temas || []).length > 0 ? `, ${p.temas.slice(0, 4).join(', ')}` : ''}
         </div>
       )}
@@ -645,7 +645,7 @@ export const CLAVE_PEDIDO = 'govtalent.alarmas.pedido';
  * para dos tareas distintas; separarlas en dos componentes duplicaría
  * toda la lectura.
  */
-export default function AlarmasTab({ seccion = 'alarmas', sinTitulo = false }) {
+export default function AlarmasTab({ seccion = 'alarmas', sinTitulo = false, agentesAbierto = false, onCerrarAgentes, onNuevoAgente }) {
   const enNovedades = seccion === 'novedades';
   const supabase = createClient();
 
@@ -934,7 +934,7 @@ export default function AlarmasTab({ seccion = 'alarmas', sinTitulo = false }) {
       if (!res.ok || !res.body?.getReader) {
         const datos = await res.json().catch(() => ({}));
         if (datos?.limite && !esPro) setUpsell(true);
-        toast.error(datos?.error || 'El agente no ha podido preparar la alarma.');
+        toast.error(datos?.error || 'No se ha podido preparar el agente.');
         return null;
       }
 
@@ -997,7 +997,7 @@ export default function AlarmasTab({ seccion = 'alarmas', sinTitulo = false }) {
     }
     if (enLimite) {
       if (!esPro) setUpsell(true);
-      else toast.info(`Tienes ${limites.alarmas} alarmas activas. Desactiva una para crear otra.`);
+      else toast.info(`Tienes ${limites.alarmas} agentes activos. Pon uno en pausa para crear otro.`);
       return;
     }
     const r = await pedirPropuesta({ textoPedido: t, webPedida: w });
@@ -1028,7 +1028,7 @@ export default function AlarmasTab({ seccion = 'alarmas', sinTitulo = false }) {
     });
     const datos = await res.json().catch(() => ({}));
     if (!res.ok) {
-      toast.error(datos?.error || 'No se ha podido guardar la alarma.');
+      toast.error(datos?.error || 'No se ha podido guardar el agente.');
       if (!esPro && String(datos?.error || '').includes('máximo')) setUpsell(true);
       return null;
     }
@@ -1037,7 +1037,7 @@ export default function AlarmasTab({ seccion = 'alarmas', sinTitulo = false }) {
 
   async function activarBorrador() {
     const b = borrador;
-    setTrabajando('Activando la alarma…');
+    setTrabajando('Activando el agente…');
     const guardada = await guardar({
       nombre: b.nombre,
       descripcion: b.descripcion,
@@ -1053,8 +1053,8 @@ export default function AlarmasTab({ seccion = 'alarmas', sinTitulo = false }) {
     if (!guardada) return;
     toast(
       b.frecuencia === 'semanal'
-        ? 'Alarma activada. Te escribiré los lunes con lo que encuentre.'
-        : 'Alarma activada. Te avisaré en cuanto encuentre algo.'
+        ? 'Agente activado. Te escribirá los lunes con lo que encuentre.'
+        : 'Agente activado. Te avisará en cuanto encuentre algo.'
     );
     setBorrador(null);
     setTexto('');
@@ -1068,7 +1068,7 @@ export default function AlarmasTab({ seccion = 'alarmas', sinTitulo = false }) {
   async function alternar(a) {
     if (!a.activa && enLimite) {
       if (!esPro) setUpsell(true);
-      else toast.info(`Tienes ${limites.alarmas} alarmas activas. Desactiva una para activar esta.`);
+      else toast.info(`Tienes ${limites.alarmas} agentes activos. Pon uno en pausa para activar este.`);
       return;
     }
     const activa = !a.activa;
@@ -1079,7 +1079,7 @@ export default function AlarmasTab({ seccion = 'alarmas', sinTitulo = false }) {
       toast.error(mensajeError(error));
       return;
     }
-    toast.info(activa ? 'Alarma activada' : 'Alarma en pausa. No te avisará hasta que la actives.');
+    toast.info(activa ? 'Agente activado' : 'Agente en pausa. No te avisará hasta que lo actives.');
   }
 
   async function borrar(a) {
@@ -1093,7 +1093,7 @@ export default function AlarmasTab({ seccion = 'alarmas', sinTitulo = false }) {
     setEncaja((prev) => prev.filter((m) => m.alert_id !== a.id));
     setEditando(null);
     setVista('lista');
-    toast.info('Alarma eliminada');
+    toast.info('Agente eliminado');
   }
 
   // Descartar (antes, el botón «No me afecta», retirado el 18-11-2026; hoy
@@ -1110,7 +1110,7 @@ export default function AlarmasTab({ seccion = 'alarmas', sinTitulo = false }) {
       setEncaja((prev) => prev.map((x) => (x.id === m.id ? { ...x, descartado: !valor } : x)));
       toast.error('No se ha podido guardar');
     } else {
-      toast.info(valor ? 'Descartado. No volverá a salir en esta alarma.' : 'Recuperado. Vuelve a «Por revisar».');
+      toast.info(valor ? 'Descartado. No volverá a salir en este agente.' : 'Recuperado. Vuelve a «Por revisar».');
     }
   }
 
@@ -1151,7 +1151,7 @@ export default function AlarmasTab({ seccion = 'alarmas', sinTitulo = false }) {
       toast.error('No se ha podido guardar');
       return;
     }
-    toast.info(nuevo ? 'Volverás a recibir los correos de tus alarmas.' : 'No recibirás correos. Lo que encuentren tus alarmas seguirá aquí.');
+    toast.info(nuevo ? 'Volverás a recibir los correos de tus agentes.' : 'No recibirás correos. Lo que encuentren tus agentes seguirá aquí.');
   }
 
   // --- Edición ---------------------------------------------------------------
@@ -1206,7 +1206,7 @@ export default function AlarmasTab({ seccion = 'alarmas', sinTitulo = false }) {
     });
     setTrabajando(null);
     if (!guardada) return;
-    toast('Alarma actualizada');
+    toast('Agente actualizado');
     setEditando(null);
     setVista('lista');
     cargar();
@@ -1524,7 +1524,7 @@ export default function AlarmasTab({ seccion = 'alarmas', sinTitulo = false }) {
       fuenteLarga: m.fuente,
       texto: m.motivo,
       dias: diasHasta(m.plazo),
-      alarma: nombreDe.get(m.alert_id) || 'tu alarma',
+      alarma: nombreDe.get(m.alert_id) || 'tu agente',
       alertas: new Set([m.alert_id]),
       nuevo: !m.visto,
       sigues: seguidos.has(k),
@@ -1558,7 +1558,7 @@ export default function AlarmasTab({ seccion = 'alarmas', sinTitulo = false }) {
       id: 'revisar',
       label: 'Por revisar',
       lista: [...encontrados.filter((x) => !x.descartado && !x.sigues), ...cambios.filter((x) => x.nuevo)],
-      vacio: 'Nada por revisar. Cuando tus alarmas encuentren algo o cambie algo que sigues, aparecerá aquí.',
+      vacio: 'Nada por revisar. Cuando tus agentes encuentren algo o cambie algo que sigues, aparecerá aquí.',
     },
     {
       id: 'plazo',
@@ -1618,7 +1618,7 @@ export default function AlarmasTab({ seccion = 'alarmas', sinTitulo = false }) {
 
   // Añadir la siguiente condición que falte, con un valor por defecto.
   const CAMPOS = [
-    { id: 'alarma', label: 'Alarma' },
+    { id: 'alarma', label: 'Agente' },
     { id: 'fuente', label: 'Fuente' },
     { id: 'fecha', label: 'Fecha' },
   ];
@@ -1719,6 +1719,89 @@ export default function AlarmasTab({ seccion = 'alarmas', sinTitulo = false }) {
   return (
     <div>
       {modalUpsell}
+      {agentesAbierto &&
+        typeof document !== 'undefined' &&
+        createPortal(
+          <div className="modal-ov on" onClick={(e) => e.target === e.currentTarget && onCerrarAgentes?.()}>
+            <div
+              role="dialog"
+              aria-modal="true"
+              aria-label="Tus agentes"
+              style={{ background: '#fff', borderRadius: 18, width: '100%', maxWidth: 760, maxHeight: '88vh', display: 'flex', flexDirection: 'column', position: 'relative', boxShadow: '0 20px 60px rgba(0,0,0,.25)' }}
+            >
+              <button type="button" className="modal-x" onClick={() => onCerrarAgentes?.()} aria-label="Cerrar" style={{ position: 'absolute', top: 18, right: 18 }}>
+                <i className="ti ti-x" aria-hidden="true"></i>
+              </button>
+              <div style={{ padding: '26px 30px 14px', paddingRight: 70 }}>
+                <h2 style={{ margin: 0, fontSize: 21, fontWeight: 700, letterSpacing: '-.3px' }}>Tus agentes</h2>
+                <div style={{ fontSize: 13, color: GRIS, marginTop: 5 }}>
+                  {activas.length} de {limites.alarmas} {limites.alarmas === 1 ? 'agente activo' : 'agentes activos'}
+                </div>
+              </div>
+              <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', padding: '0 30px' }}>
+                {alarmas.length === 0 ? (
+                  <div style={{ fontSize: 13.5, color: GRIS, lineHeight: 1.6, padding: '14px 0 20px' }}>Todavía no tienes ningún agente. Crea el primero y te avisará de lo que te afecte.</div>
+                ) : (
+                  alarmas.map((a, i) => {
+                    const freq = esPro ? a.frecuencia : 'semanal';
+                    const suyos = encajaDe(a.id).length;
+                    return (
+                      <div key={a.id} style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '14px 0', borderTop: i === 0 ? `1px solid ${LINEA}` : `1px solid ${LINEA2}`, flexWrap: 'wrap' }}>
+                        <div style={{ flex: 1, minWidth: 200 }}>
+                          <div style={{ fontSize: 14.5, fontWeight: 600, color: a.activa ? TINTA : GRIS }}>{a.nombre}</div>
+                          <div style={{ fontSize: 12.5, color: GRIS, marginTop: 3, lineHeight: 1.5 }}>
+                            {a.activa ? FRASE_FRECUENCIA[freq] || 'Los lunes' : a.pausada_por_plan ? 'En pausa por tu plan' : 'En pausa'}
+                            {`, ${suyos === 1 ? '1 detectado' : `${suyos} detectados`}`}
+                          </div>
+                        </div>
+                        <Interruptor activo={a.activa} onChange={() => alternar(a)} etiqueta={`Agente ${a.nombre}`} />
+                        <button type="button" className="btn-o" onClick={() => abrirEdicion(a)} style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                          <i className="ti ti-pencil" aria-hidden="true"></i>
+                          Editar
+                        </button>
+                        <button type="button" className="btn-g" onClick={() => setConfirmando({ id: a.id, nombre: a.nombre })} aria-label={`Eliminar ${a.nombre}`} title="Eliminar">
+                          <i className="ti ti-trash" aria-hidden="true"></i>
+                        </button>
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', padding: '14px 30px', borderTop: `1px solid ${LINEA}` }}>
+                <span style={{ fontSize: 12.5, color: GRIS }}>{esPro ? 'La frecuencia se elige en cada agente.' : 'Con tu plan, el resumen llega los lunes.'}</span>
+                {onNuevoAgente && (
+                  <button
+                    type="button"
+                    className="btn-ai"
+                    style={{ marginLeft: 'auto' }}
+                    onClick={() => {
+                      if (enLimite) {
+                        if (!esPro) setUpsell(true);
+                        else toast.info(`Tienes los ${limites.alarmas} agentes activos de tu plan. Para crear otro, pon uno en pausa.`);
+                        return;
+                      }
+                      onCerrarAgentes?.();
+                      onNuevoAgente();
+                    }}
+                  >
+                    <i className="ti ti-sparkles" aria-hidden="true"></i>
+                    Nuevo agente
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>,
+          document.body,
+        )}
+      {confirmando && !ventana && (
+        <Confirmar
+          titulo={`¿Eliminar «${confirmando.nombre}»?`}
+          texto="Dejará de monitorizar y se borrará lo que ha encontrado. No se puede deshacer."
+          accion="Eliminar"
+          onConfirmar={() => borrar(confirmando)}
+          onCancelar={() => setConfirmando(null)}
+        />
+      )}
       {ventana}
       {detalle &&
         typeof document !== 'undefined' &&
@@ -1853,7 +1936,7 @@ export default function AlarmasTab({ seccion = 'alarmas', sinTitulo = false }) {
       <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: 16, marginBottom: 16, flexWrap: 'wrap' }}>
         <div>
           {/* En /novedades el título son las pestañas de la página. */}
-          {!sinTitulo && <h1 style={{ fontSize: 22, fontWeight: 600, margin: 0, letterSpacing: '-.3px' }}>{enNovedades ? 'Novedades' : 'Alarmas'}</h1>}
+          {!sinTitulo && <h1 style={{ fontSize: 22, fontWeight: 600, margin: 0, letterSpacing: '-.3px' }}>{enNovedades ? 'Novedades' : 'Tus agentes'}</h1>}
         </div>
         {enNovedades && !sinTitulo && (
           <Link
@@ -1861,7 +1944,7 @@ export default function AlarmasTab({ seccion = 'alarmas', sinTitulo = false }) {
             style={{ display: 'flex', alignItems: 'center', gap: 7, borderRadius: 10, background: MORADO_S, color: MORADO_O, fontSize: 13, fontWeight: 600, padding: '10px 16px', textDecoration: 'none' }}
           >
             <i className="ti ti-bell" style={{ fontSize: 15 }} aria-hidden="true"></i>
-            Tus alarmas
+            Tus agentes
           </Link>
         )}
         {!enNovedades && !mostrarCaja && (
@@ -1870,7 +1953,7 @@ export default function AlarmasTab({ seccion = 'alarmas', sinTitulo = false }) {
             onClick={() => {
               if (enLimite) {
                 if (!esPro) setUpsell(true);
-                else toast.info(`Tienes las ${limites.alarmas} alarmas activas de tu plan. Para crear otra, pon una en pausa.`);
+                else toast.info(`Tienes los ${limites.alarmas} agentes activos de tu plan. Para crear otro, pon uno en pausa.`);
                 return;
               }
               setVista('nueva');
@@ -1879,7 +1962,7 @@ export default function AlarmasTab({ seccion = 'alarmas', sinTitulo = false }) {
             style={{ display: 'flex', alignItems: 'center', gap: 7, border: 'none', borderRadius: 10, background: MORADO, color: '#fff', fontSize: 13, fontWeight: 600, padding: '10px 16px', cursor: 'pointer', fontFamily: 'inherit' }}
           >
             <i className="ti ti-sparkles" style={{ fontSize: 15 }} aria-hidden="true"></i>
-            Nueva alarma
+            Nuevo agente
           </button>
         )}
       </div>
@@ -1902,16 +1985,16 @@ export default function AlarmasTab({ seccion = 'alarmas', sinTitulo = false }) {
             disabled={!!trabajando || !!progreso}
             style={{ fontSize: 12.5, color: GRIS, background: 'none', border: 'none', cursor: 'pointer', padding: 0, marginBottom: 10 }}
           >
-            ← Volver a tus alarmas
+            ← Volver a tus agentes
           </button>
         )}
         {!enLimite ? (
           <>
             <h2 style={{ fontSize: 24, fontWeight: 600, letterSpacing: '-.4px', textAlign: 'center', margin: '4px 0 6px', textWrap: 'balance' }}>
-              ¿Qué quieres que vigile?
+              Describe la normativa a monitorizar
             </h2>
             <p style={{ fontSize: 13, color: GRIS, textAlign: 'center', margin: '0 0 20px', lineHeight: 1.6 }}>
-              Cuéntame a qué se dedica tu organización o qué normativa te preocupa. Yo me encargo de buscar y de avisarte.
+              Cuenta a qué se dedica tu organización o qué normativa te preocupa. El agente se encarga de buscar y de avisarte.
             </p>
             <div style={{ ...CARD, borderRadius: 20, padding: '16px 18px 12px', boxShadow: '0 1px 2px rgba(0,0,0,.03), 0 10px 30px rgba(26,26,24,.05)' }}>
               <TextoCreciente
@@ -1930,7 +2013,7 @@ export default function AlarmasTab({ seccion = 'alarmas', sinTitulo = false }) {
                 rows={2}
                 maxAltura={320}
                 placeholder="Por ejemplo: somos una empresa de centros de datos con proyectos en Aragón y Madrid; nos preocupa el acceso a la red eléctrica…"
-                aria-label="Describe tu organización o lo que quieres vigilar"
+                aria-label="Describe tu organización o lo que quieres monitorizar"
                 style={{ width: '100%', border: 'none', outline: 'none', fontSize: 14.5, lineHeight: 1.6, fontFamily: 'inherit', color: TINTA, padding: 0, background: 'transparent', minHeight: 48 }}
               />
               {conWeb && (
@@ -1982,8 +2065,8 @@ export default function AlarmasTab({ seccion = 'alarmas', sinTitulo = false }) {
             {alarmas.length > 0 && !trabajando && !progreso && (
               <p style={{ fontSize: 12.5, color: GRIS, textAlign: 'center', margin: '16px 0 0' }}>
                 {limites.alarmas - activas.length === 1
-                  ? `Te queda 1 de ${limites.alarmas} alarmas en tu plan.`
-                  : `Te quedan ${Math.max(0, limites.alarmas - activas.length)} de ${limites.alarmas} alarmas en tu plan.`}
+                  ? `Te queda 1 de ${limites.alarmas} agentes en tu plan.`
+                  : `Te quedan ${Math.max(0, limites.alarmas - activas.length)} de ${limites.alarmas} agentes en tu plan.`}
               </p>
             )}
           </>
@@ -1993,7 +2076,7 @@ export default function AlarmasTab({ seccion = 'alarmas', sinTitulo = false }) {
               ✦
             </span>
             <div style={{ flex: 1 }}>
-              <div style={{ fontSize: 13.5, fontWeight: 500 }}>Con suscripción, más alarmas y avisos al momento</div>
+              <div style={{ fontSize: 13.5, fontWeight: 500 }}>Con suscripción, más agentes y avisos al momento</div>
               <div style={{ fontSize: 12.5, color: GRIS, lineHeight: 1.55, marginTop: 3 }}>
                 Entérate el mismo día en que se abre un plazo, no el lunes siguiente.
               </div>
@@ -2017,9 +2100,9 @@ export default function AlarmasTab({ seccion = 'alarmas', sinTitulo = false }) {
           debajo le quitaría protagonismo a lo único que hay que hacer. */}
       {enNovedades && !hayBandeja && (
         <div style={{ ...CARD, padding: '22px 22px', fontSize: 13, color: GRIS, lineHeight: 1.6 }}>
-          Aún no hay novedades. Aparecerán aquí cuando tus alarmas encuentren algo o cambie algo que sigues.{' '}
+          Aún no hay novedades. Aparecerán aquí cuando tus agentes encuentren algo o cambie algo que sigues.{' '}
           <Link href="/alarmas" style={{ color: MORADO, textDecoration: 'none' }}>
-            {alarmas.length ? 'Ver tus alarmas' : 'Crear una alarma'}
+            {alarmas.length ? 'Ver tus agentes' : 'Crear un agente'}
           </Link>
         </div>
       )}
@@ -2104,7 +2187,7 @@ export default function AlarmasTab({ seccion = 'alarmas', sinTitulo = false }) {
                     </select>
                     <span style={{ fontSize: 12.5, color: '#3a3935', width: 64, flexShrink: 0 }}>{c === 'fecha' ? 'está en' : 'es'}</span>
                     {c === 'alarma' && (
-                      <select value={filtroAlarma} onChange={(e) => cambiar(setFiltroAlarma)(e.target.value)} aria-label="Alarma" style={{ ...CAMPO, flex: 1 }}>
+                      <select value={filtroAlarma} onChange={(e) => cambiar(setFiltroAlarma)(e.target.value)} aria-label="Agente" style={{ ...CAMPO, flex: 1 }}>
                         {opcionesAlarma.map((o) => (
                           <option key={o.id} value={o.id}>
                             {o.label} ({o.n})
@@ -2302,7 +2385,7 @@ export default function AlarmasTab({ seccion = 'alarmas', sinTitulo = false }) {
                   >
                     Editar
                   </button>
-                  <Interruptor activo={a.activa} onChange={() => alternar(a)} etiqueta={`Alarma ${a.nombre}`} />
+                  <Interruptor activo={a.activa} onChange={() => alternar(a)} etiqueta={`Agente ${a.nombre}`} />
                 </div>
                 {a.activa && (
                   <div style={{ padding: '0 18px 14px', display: 'flex', flexDirection: 'column', gap: 2 }}>
@@ -2361,7 +2444,7 @@ export default function AlarmasTab({ seccion = 'alarmas', sinTitulo = false }) {
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap', fontSize: 12.5, color: GRIS, padding: '2px 4px' }}>
             <span>
               {esPro
-                ? 'La frecuencia y los recordatorios de plazo se eligen en cada alarma.'
+                ? 'La frecuencia y los recordatorios de plazo se eligen en cada agente.'
                 : 'En Free te escribo los lunes con el resumen de la semana.'}
               {!esPro && (
                 <>
@@ -2374,7 +2457,7 @@ export default function AlarmasTab({ seccion = 'alarmas', sinTitulo = false }) {
             </span>
             <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
               Avisos por correo
-              <Interruptor activo={correos} onChange={cambiarCorreos} size="pequeno" etiqueta="Recibir correos de las alarmas y de lo que sigues" />
+              <Interruptor activo={correos} onChange={cambiarCorreos} size="pequeno" etiqueta="Recibir correos de los agentes y de lo que sigues" />
             </span>
           </div>
         </div>
