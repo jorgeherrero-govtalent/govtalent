@@ -7,6 +7,7 @@ import BloquePlanCuenta from '@/components/BloquePlanCuenta';
 import CreditosPlan from '@/components/CreditosPlan';
 import BloqueSeguridad from '@/components/BloqueSeguridad';
 import BloqueAsistentes from '@/components/BloqueAsistentes';
+import BloqueExtension from '@/components/BloqueExtension';
 import SelectorFecha from '@/components/SelectorFecha';
 
 /**
@@ -91,6 +92,7 @@ const PESTANAS = [
   { id: 'equipo', label: 'Equipo' },
   { id: 'plan', label: 'Plan' },
   { id: 'asistentes', label: 'Asistentes de IA' },
+  { id: 'extension', label: 'Extensión de Chrome' },
 ];
 
 const ROLES = { admin: 'Administrador', editor: 'Miembro' };
@@ -878,6 +880,7 @@ export default function AccountPage() {
 
       {/* --- Asistentes de IA --------------------------------------------- */}
       {tab === 'asistentes' && <BloqueAsistentes />}
+      {tab === 'extension' && <BloqueExtension />}
     </div>
   );
 }
