@@ -307,7 +307,7 @@ export default function ConsolaAlarmas() {
           ))}
           <Link
             href="/precios"
-            style={{ alignSelf: 'flex-start', marginTop: 4, background: VERDE, color: '#fff', borderRadius: 9, padding: '9px 14px', fontSize: 12.5, fontWeight: 600, textDecoration: 'none' }}
+            style={{ alignSelf: 'flex-start', marginTop: 4, background: '#1a1a18', color: '#fff', borderRadius: 9, padding: '9px 14px', fontSize: 12.5, fontWeight: 600, textDecoration: 'none' }}
           >
             Ver planes
           </Link>
