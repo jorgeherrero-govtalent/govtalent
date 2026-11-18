@@ -26,7 +26,11 @@ const MORADO = '#6d5aef';
 
 // Las mismas búsquedas recomendadas que en «Búsqueda de contactos»: llegan
 // con su texto exacto y allí se resuelven con filtros fijos, sin IA.
-const IDEAS = ['Asistentes y asesores del Grupo Parlamentario Popular en el Congreso', 'Eurodiputados españoles y sus asistentes'];
+const IDEAS = [
+  'Asistentes y asesores del Grupo Parlamentario Popular en el Congreso',
+  'Presidentes y secretarios de las Cámaras de Comercio de España',
+  'Eurodiputados españoles y sus asistentes',
+];
 
 const BASE_DE_DATOS = '/instituciones/directorio';
 
