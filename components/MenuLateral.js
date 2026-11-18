@@ -87,8 +87,9 @@ const SECCIONES = [
       },
       // Abre la ventana de crear una alarma; encendida en /alarmas.
       { href: '/alarmas', etiqueta: 'AI Agent', icono: 'ti-sparkles', activo: (p) => p.startsWith('/alarmas'), beta: true, agente: true },
-      // Seguimiento es una pestaña de Novedades desde el 18-11-2026.
-      { href: '/novedades', etiqueta: 'Novedades', icono: 'ti-inbox', activo: (p) => p.startsWith('/novedades') || p.startsWith('/seguimiento'), contador: true },
+      // La pantalla se llama Seguimiento (18-11-2026) y reúne las novedades
+      // y lo que sigues; la ruta sigue siendo /novedades.
+      { href: '/novedades', etiqueta: 'Seguimiento', icono: 'ti-inbox', activo: (p) => p.startsWith('/novedades') || p.startsWith('/seguimiento'), contador: true },
       // Licitaciones entra en Monitorización (18-11-2026); sigue en BETA.
       { href: '/licitaciones', etiqueta: 'Licitaciones', icono: 'ti-file-description', activo: (p) => p.startsWith('/licitaciones'), beta: true },
     ],

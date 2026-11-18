@@ -11,8 +11,8 @@ import UpgradeModal from '@/components/UpgradeModal';
 import CalendarioElectoral from '@/components/CalendarioElectoral';
 import AvisoCaducadas from '@/components/AvisoCaducadas';
 import { FRECUENCIAS, limitesDe, mensajeError } from '@/lib/alarmas';
-import { cifraPlazo } from '@/lib/plazos';
 import { PARLAMENTOS } from '@/lib/parlamentosAutonomicos';
+import TareaModal from '@/components/TareaModal';
 
 /**
  * Alarmas.
@@ -594,6 +594,10 @@ export default function AlarmasTab({ seccion = 'alarmas', sinTitulo = false }) {
   const [nSeguidos, setNSeguidos] = useState(0);
   // La bandeja: pestaña, filtros y página.
   const [pestana, setPestana] = useState('revisar'); // revisar | plazo | siguiendo | descartado
+  // Seguimiento (18-11-2026): una novedad se abre en una ventana, y desde
+  // ella se sigue, se crea una tarea o se va a la ficha.
+  const [detalleId, setDetalleId] = useState(null);
+  const [tareaDe, setTareaDe] = useState(null);
   const [filtroAlarma, setFiltroAlarma] = useState('todas'); // todas | <alert_id> | sigo
   const [filtroFuente, setFiltroFuente] = useState('todas');
   const [periodo, setPeriodo] = useState('30');
@@ -1471,6 +1475,9 @@ export default function AlarmasTab({ seccion = 'alarmas', sinTitulo = false }) {
     // que pueda recuperarlo.
   ].filter((t) => t.id !== 'descartado' || t.lista.length > 0);
   const tab = PESTANAS.find((t) => t.id === pestana) || PESTANAS[0];
+  // La novedad abierta en su ventana. Se busca cada vez para que «Seguir»
+  // o «Visto» se reflejen sin cerrarla.
+  const detalle = detalleId ? [...encontrados, ...cambios].find((x) => x.id === detalleId) || null : null;
   // Sin alarmas y sin nada que enseñar, Novedades no pinta una bandeja
   // vacía de pestañas: dice qué aparecerá y lleva a crear una alarma.
   const hayBandeja = alarmas.length > 0 || encontrados.length > 0 || cambios.length > 0 || nSeguidos > 0;
@@ -1546,11 +1553,19 @@ export default function AlarmasTab({ seccion = 'alarmas', sinTitulo = false }) {
     setPagina(1);
   };
 
+  // El plazo en palabras, para la fila y para la ventana de detalle.
+  const plazoDe = (x) => {
+    if (x.dias === null || x.dias === undefined || x.dias < 0) return null;
+    if (x.dias === 0) return 'Cierra hoy';
+    if (x.dias === 1) return 'Cierra mañana';
+    return `Cierra en ${x.dias} días`;
+  };
+
   const etiquetaOrigen = (x) =>
     x.tipo === 'enc' ? (
       <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 11, fontWeight: 500, color: MORADO_O, background: MORADO_S, borderRadius: 20, padding: '3px 9px', maxWidth: '100%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
         <i className="ti ti-sparkles" style={{ fontSize: 11 }} aria-hidden="true"></i>
-        {x.alertas.size > 1 ? `Encontrado por ${x.alertas.size} alarmas` : `Encontrado por ${x.alarma}`}
+        {x.alertas.size > 1 ? `${x.alertas.size} agentes` : x.alarma}
       </span>
     ) : (
       <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 11, fontWeight: 500, color: '#3a3935', background: '#efeee9', borderRadius: 20, padding: '3px 9px', maxWidth: '100%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
@@ -1609,11 +1624,122 @@ export default function AlarmasTab({ seccion = 'alarmas', sinTitulo = false }) {
   return (
     <div>
       {modalUpsell}
+      {detalle &&
+        typeof document !== 'undefined' &&
+        createPortal(
+          <div className="modal-ov on" onClick={(e) => e.target === e.currentTarget && setDetalleId(null)}>
+            <div className="modal-box" role="dialog" aria-modal="true" aria-label={detalle.titulo} style={{ maxWidth: 680, position: 'relative' }}>
+              <button type="button" className="modal-x" onClick={() => setDetalleId(null)} aria-label="Cerrar" style={{ position: 'absolute', top: 18, right: 18 }}>
+                <i className="ti ti-x" aria-hidden="true"></i>
+              </button>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8, paddingRight: 44 }}>
+                <span style={{ fontSize: 12.5, color: '#5f5c55' }}>{detalle.fuenteLarga || detalle.fuente}</span>
+                <h2 style={{ margin: 0, fontSize: 20, fontWeight: 700, lineHeight: 1.35, letterSpacing: '-.2px' }}>{detalle.titulo}</h2>
+                {detalle.subtitulo && <span style={{ fontSize: 13.5, color: '#5f5c55', lineHeight: 1.5 }}>{detalle.subtitulo}</span>}
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 14, margin: '20px 0' }}>
+                {plazoDe(detalle) && (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+                    <span style={{ fontSize: 12, fontWeight: 600, color: '#5f5c55' }}>Plazo</span>
+                    <span style={{ fontSize: 14.5, fontWeight: 600 }}>{plazoDe(detalle)}</span>
+                  </div>
+                )}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+                  <span style={{ fontSize: 12, fontWeight: 600, color: '#5f5c55' }}>{detalle.tipo === 'enc' ? 'Lo ha detectado' : 'Te llega porque'}</span>
+                  <span style={{ fontSize: 14.5 }}>
+                    {detalle.tipo === 'enc'
+                      ? detalle.alertas.size > 1
+                        ? `${detalle.alertas.size} agentes`
+                        : detalle.alarma
+                      : detalle.proyecto
+                        ? `Está en el proyecto ${detalle.proyecto}`
+                        : 'Lo sigues'}
+                  </span>
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+                  <span style={{ fontSize: 12, fontWeight: 600, color: '#5f5c55' }}>Detectado</span>
+                  <span style={{ fontSize: 14.5 }}>{haceCuanto(detalle.fecha)}</span>
+                </div>
+              </div>
+              {detalle.texto && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 6, padding: 14, background: '#faf9f6', border: `1px solid ${LINEA}`, borderRadius: 10 }}>
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 12, fontWeight: 600, color: MORADO }}>
+                    <i className="ti ti-sparkles" style={{ fontSize: 13 }} aria-hidden="true"></i>
+                    Por qué te llega
+                  </span>
+                  <span style={{ fontSize: 14, lineHeight: 1.55 }}>{detalle.texto}</span>
+                </div>
+              )}
+              {detalle.cita && detalle.citaUrl && (
+                <a href={detalle.citaUrl} target="_blank" rel="noopener noreferrer" style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 13, color: MORADO, textDecoration: 'none', marginTop: 12 }}>
+                  {detalle.cita}
+                  <i className="ti ti-external-link" style={{ fontSize: 13 }} aria-hidden="true"></i>
+                </a>
+              )}
+              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 20, alignItems: 'center' }}>
+                {detalle.ruta && (
+                  <Link href={detalle.ruta} className="btn-p" style={{ textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 7 }}>
+                    <i className="ti ti-external-link" aria-hidden="true"></i>
+                    Abrir la ficha
+                  </Link>
+                )}
+                {detalle.tipo === 'enc' && !detalle.descartado && !detalle.sigues && detalle.m.kind !== 'ccaa_tramite' && (
+                  <button type="button" className="btn-o" onClick={() => seguir({ kind: detalle.m.kind, ref_id: detalle.m.ref_id, titulo: detalle.titulo })} style={{ display: 'inline-flex', alignItems: 'center', gap: 7 }}>
+                    <i className="ti ti-eye" aria-hidden="true"></i>
+                    Seguir
+                  </button>
+                )}
+                {detalle.tipo === 'seg' && detalle.nuevo && (
+                  <button type="button" className="btn-o" onClick={() => marcarVisto([detalle.followId])}>
+                    Marcar como visto
+                  </button>
+                )}
+                <button
+                  type="button"
+                  className="btn-o"
+                  onClick={() => {
+                    setTareaDe(detalle);
+                    setDetalleId(null);
+                  }}
+                  style={{ display: 'inline-flex', alignItems: 'center', gap: 7 }}
+                >
+                  <i className="ti ti-checkbox" aria-hidden="true"></i>
+                  Crear tarea
+                </button>
+                {detalle.sigues && (
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 13, color: '#5f5c55' }}>
+                    <i className="ti ti-check" style={{ fontSize: 14 }} aria-hidden="true"></i>
+                    Lo sigues
+                  </span>
+                )}
+              </div>
+            </div>
+          </div>,
+          document.body,
+        )}
+      {tareaDe && (
+        <TareaModal
+          tarea={{
+            titulo: String(tareaDe.titulo || '').slice(0, 200),
+            ...(tareaDe.ruta ? { vinculo_titulo: tareaDe.titulo, vinculo_kind: tareaDe.m?.kind || null, vinculo_ref: tareaDe.m?.ref_id ? String(tareaDe.m.ref_id) : null, vinculo_contexto: tareaDe.fuente, vinculo_ruta: tareaDe.ruta } : {}),
+          }}
+          yo={userId}
+          orgId={null}
+          onClose={() => setTareaDe(null)}
+          onGuardada={() => setTareaDe(null)}
+        />
+      )}
       <style>{`
         .alarmas-rejilla { display: grid; grid-template-columns: minmax(0, 1fr) 300px; gap: 18px; align-items: start; }
         .alarmas-fila { display: flex; gap: 14px; align-items: center; padding: 12px 0; border-top: 1px solid ${LINEA2}; }
         .alarmas-acciones { display: flex; gap: 6px; flex-shrink: 0; align-items: center; }
         .alarmas-accion { height: 32px; }
+        .alarmas-abrir {
+          flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 5px; text-align: left;
+          border: none; background: none; padding: 0; cursor: pointer; font-family: inherit;
+        }
+        .alarmas-abrir:hover .alarmas-titulo { text-decoration: underline; }
+        .alarmas-abrir:focus-visible { outline: 2px solid #6d5aef; outline-offset: 3px; border-radius: 6px; }
         .alarmas-titulo { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
         .alarmas-texto { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
         .alarmas-pestanas { display: flex; gap: 4px; border-bottom: 1px solid ${LINEA}; overflow-x: auto; }
@@ -1622,7 +1748,7 @@ export default function AlarmasTab({ seccion = 'alarmas', sinTitulo = false }) {
         @media (max-width: 860px) {
           .alarmas-rejilla { grid-template-columns: 1fr; }
           .alarmas-fila { flex-wrap: wrap; align-items: flex-start; }
-          .alarmas-acciones { width: 100%; padding-left: 68px; }
+          .alarmas-acciones { width: 100%; padding-left: 22px; }
           .alarmas-accion { height: 40px; flex: 1; }
           .alarmas-texto { white-space: normal; }
         }
@@ -1633,7 +1759,7 @@ export default function AlarmasTab({ seccion = 'alarmas', sinTitulo = false }) {
           {/* En /novedades el título son las pestañas de la página. */}
           {!sinTitulo && <h1 style={{ fontSize: 22, fontWeight: 600, margin: 0, letterSpacing: '-.3px' }}>{enNovedades ? 'Novedades' : 'Alarmas'}</h1>}
         </div>
-        {enNovedades && (
+        {enNovedades && !sinTitulo && (
           <Link
             href="/alarmas"
             style={{ display: 'flex', alignItems: 'center', gap: 7, borderRadius: 10, background: MORADO_S, color: MORADO_O, fontSize: 13, fontWeight: 600, padding: '10px 16px', textDecoration: 'none' }}
@@ -1976,57 +2102,29 @@ export default function AlarmasTab({ seccion = 'alarmas', sinTitulo = false }) {
                   {tab.lista.length > 0 ? 'Nada con estos filtros.' : tab.vacio}
                 </div>
               ) : (
-                visibles.map((x, i) => {
-                  const pz = x.dias !== null && x.dias >= 0 ? cifraPlazo(x.dias) : null;
-                  return (
-                    <article key={x.id} className="alarmas-fila" style={i === 0 && !(tab.id === 'revisar' && cambiosPendientes.length > 1) ? { borderTop: 'none' } : undefined}>
-                      <div style={{ width: 54, flexShrink: 0, position: 'relative', alignSelf: 'flex-start', paddingTop: 2 }}>
-                        {x.nuevo && (
-                          <span
-                            title="Nuevo"
-                            aria-label="Nuevo"
-                            style={{ position: 'absolute', left: -12, top: 8, width: 6, height: 6, borderRadius: '50%', background: MORADO }}
-                          />
-                        )}
-                        {pz ? (
-                          <>
-                            <div style={{ fontSize: pz.tam, fontWeight: 600, color: MORADO, lineHeight: 1 }}>{pz.cifra}</div>
-                            {pz.unidad && <div style={{ fontSize: 10.5, color: GRIS, marginTop: 2 }}>{pz.unidad}</div>}
-                          </>
-                        ) : (
-                          <div style={{ fontSize: 11, color: GRIS2, lineHeight: 1.35 }}>{haceCuanto(x.fecha)}</div>
-                        )}
-                      </div>
-                      <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 4 }}>
-                        <div style={{ display: 'flex', gap: 8, alignItems: 'center', minWidth: 0 }}>
-                          {etiquetaOrigen(x)}
-                          <span style={{ fontSize: 11.5, color: '#6f6b64', whiteSpace: 'nowrap' }}>{x.fuente}</span>
-                        </div>
-                        {x.ruta ? (
-                          <Link href={x.ruta} className="alarmas-titulo" title={x.titulo} style={{ fontSize: 13.5, fontWeight: 500, color: TINTA, textDecoration: 'none', lineHeight: 1.4 }}>
-                            {x.titulo}
-                          </Link>
-                        ) : (
-                          <div className="alarmas-titulo" title={x.titulo} style={{ fontSize: 13.5, fontWeight: 500, color: TINTA, lineHeight: 1.4 }}>
-                            {x.titulo}
-                          </div>
-                        )}
-                        {(x.texto || x.subtitulo) && (
-                          <div className="alarmas-texto" title={x.texto || x.subtitulo} style={{ fontSize: 12, color: GRIS, lineHeight: 1.5 }}>
-                            {x.texto || x.subtitulo}
-                          </div>
-                        )}
-                        {x.cita && x.citaUrl && (
-                          <a href={x.citaUrl} target="_blank" rel="noopener noreferrer" style={{ display: 'inline-flex', alignItems: 'center', gap: 3, fontSize: 12, color: MORADO, textDecoration: 'none', alignSelf: 'flex-start' }}>
-                            {x.cita}
-                            <i className="ti ti-external-link" style={{ fontSize: 12 }} aria-hidden="true"></i>
-                          </a>
-                        )}
-                      </div>
-                      <div className="alarmas-acciones">{acciones(x)}</div>
-                    </article>
-                  );
-                })
+                visibles.map((x, i) => (
+                  <article key={x.id} className="alarmas-fila" style={i === 0 && !(tab.id === 'revisar' && cambiosPendientes.length > 1) ? { borderTop: 'none' } : undefined}>
+                    <span
+                      title={x.nuevo ? 'Sin leer' : undefined}
+                      aria-label={x.nuevo ? 'Sin leer' : undefined}
+                      style={{ width: 8, height: 8, borderRadius: '50%', flexShrink: 0, alignSelf: 'flex-start', marginTop: 7, background: x.nuevo ? MORADO : 'transparent', border: x.nuevo ? 'none' : '1px solid #c9c7bd' }}
+                    />
+                    <button type="button" className="alarmas-abrir" onClick={() => setDetalleId(x.id)} title={x.titulo}>
+                      <span className="alarmas-titulo" style={{ fontSize: 14, fontWeight: x.nuevo ? 600 : 500, color: TINTA, lineHeight: 1.4 }}>
+                        {x.titulo}
+                      </span>
+                      <span style={{ display: 'flex', flexWrap: 'wrap', gap: '6px 12px', alignItems: 'center' }}>
+                        <span style={{ fontSize: 12.5, color: '#5f5c55', whiteSpace: 'nowrap' }}>{x.fuente}</span>
+                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 12.5, color: '#5f5c55', whiteSpace: 'nowrap' }}>
+                          <i className="ti ti-clock" style={{ fontSize: 13 }} aria-hidden="true"></i>
+                          {plazoDe(x) || haceCuanto(x.fecha)}
+                        </span>
+                        {etiquetaOrigen(x)}
+                      </span>
+                    </button>
+                    <div className="alarmas-acciones">{acciones(x)}</div>
+                  </article>
+                ))
               )}
 
               {paginas > 1 && (
