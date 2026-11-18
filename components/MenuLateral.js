@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import BuscadorGlobal from '@/components/BuscadorGlobal';
 import MenuUsuario from '@/components/MenuUsuario';
+import AgenteAlarmasModal from '@/components/AgenteAlarmasModal';
 
 /**
  * El menú lateral, calcado del de Enginy.
@@ -13,9 +14,10 @@ import MenuUsuario from '@/components/MenuUsuario';
  * Arriba, el contexto (tu organización o tú) con el menú de usuario y el
  * botón de plegar. Debajo, el buscador y la entrada principal destacada:
  * «AI Finder», que es la home con la caja para buscar personas. Después
- * Directorio, Base de datos y Listas, y el resto de módulos en secciones
- * con título; «Monitorización» reúne Novedades, Alarmas, Seguimiento y
- * Regulatorio (18-11-2026: el directorio pasa a ser el producto estrella).
+ * Directorio, Base de datos y Listas, sin título, y el resto de módulos en
+ * secciones con título. «Monitorización» lleva Regulatorio y «AI Agent»
+ * (BETA), que no navega: abre la ventana para crear una alarma
+ * (AgenteAlarmasModal). 18-11-2026: el directorio es el producto estrella.
  * Abajo, la tarjeta del plan con las alarmas en uso y la ayuda.
  *
  * En móvil (08-10-2026) es el mismo menú, en cajón: el botón de menú de
@@ -59,7 +61,8 @@ const enDirectorio = (p) =>
 
 const SECCIONES = [
   {
-    titulo: 'Directorio y contactos',
+    // Sin título: va justo debajo de AI Finder.
+    clave: 'directorio',
     items: [
       { href: '/directorio', etiqueta: 'Directorio', icono: 'ti-building-bank', activo: enDirectorio },
       {
@@ -76,15 +79,16 @@ const SECCIONES = [
   {
     titulo: 'Monitorización',
     items: [
-      { href: '/novedades', etiqueta: 'Novedades', icono: 'ti-inbox', activo: (p) => p.startsWith('/novedades'), contador: true },
-      { href: '/alarmas', etiqueta: 'Alarmas', icono: 'ti-bell', activo: (p) => p.startsWith('/alarmas') },
-      { href: '/seguimiento', etiqueta: 'Seguimiento', icono: 'ti-eye', activo: (p) => p.startsWith('/seguimiento') },
       {
         href: '/regulatorio/espana',
         etiqueta: 'Regulatorio',
         icono: 'ti-timeline-event',
         activo: (p) => enEspana(p) || enUnionEuropea(p),
       },
+      // Abre la ventana de crear una alarma; encendida en /alarmas.
+      { href: '/alarmas', etiqueta: 'AI Agent', icono: 'ti-sparkles', activo: (p) => p.startsWith('/alarmas'), beta: true, agente: true },
+      { href: '/novedades', etiqueta: 'Novedades', icono: 'ti-inbox', activo: (p) => p.startsWith('/novedades'), contador: true },
+      { href: '/seguimiento', etiqueta: 'Seguimiento', icono: 'ti-eye', activo: (p) => p.startsWith('/seguimiento') },
     ],
   },
   {
@@ -128,9 +132,18 @@ function Anillo({ usadas, limite, tam = 40 }) {
   );
 }
 
-function Entrada({ item, pathname, plegado, novedades }) {
+function Entrada({ item, pathname, plegado, novedades, onAgente }) {
   const on = item.activo(pathname);
   const n = item.contador ? novedades : 0;
+  if (item.agente) {
+    return (
+      <button type="button" className={`gt-lat-it${on ? ' on' : ''}`} title={plegado ? item.etiqueta : undefined} onClick={onAgente}>
+        <i className={`ti ${item.icono}`} aria-hidden="true"></i>
+        <span className="gt-lat-txt">{item.etiqueta}</span>
+        {item.beta && <span className="gt-lat-beta">BETA</span>}
+      </button>
+    );
+  }
   return (
     <Link
       href={item.href}
@@ -160,6 +173,12 @@ export default function MenuLateral({
 }) {
   const pathname = usePathname() || '/';
   const [plegadoGuardado, setPlegado] = useState(false);
+  // «AI Agent»: la ventana de crear una alarma. En móvil cierra el cajón.
+  const [agente, setAgente] = useState(false);
+  const abrirAgente = () => {
+    onCerrarMovil?.();
+    setAgente(true);
+  };
   // En el cajón del móvil siempre desplegado: plegado no cabe el texto.
   const plegado = plegadoGuardado && !movilAbierto;
 
@@ -187,6 +206,7 @@ export default function MenuLateral({
   const disponiblesTotal = disponibles(creditosTotal, usadosTotal);
 
   return (
+    <>
     <aside
       id="gt-menu-principal"
       className={`gt-lat${plegado ? ' plegado' : ''}${movilAbierto ? ' movil-abierto' : ''}`}
@@ -250,10 +270,10 @@ export default function MenuLateral({
           </div>
         ))}
         {SECCIONES.map((s) => (
-          <div key={s.titulo} className="gt-lat-grupo">
-            <div className="gt-lat-sec">{s.titulo}</div>
+          <div key={s.titulo || s.clave} className="gt-lat-grupo" style={s.titulo ? undefined : { marginTop: 6 }}>
+            {s.titulo && <div className="gt-lat-sec">{s.titulo}</div>}
             {s.items.map((it) => (
-              <Entrada key={it.href} item={it} pathname={pathname} plegado={plegado} novedades={novedades} />
+              <Entrada key={it.href} item={it} pathname={pathname} plegado={plegado} novedades={novedades} onAgente={abrirAgente} />
             ))}
           </div>
         ))}
@@ -337,5 +357,7 @@ export default function MenuLateral({
         </a>
       </div>
     </aside>
+    {agente && <AgenteAlarmasModal onClose={() => setAgente(false)} />}
+    </>
   );
 }
