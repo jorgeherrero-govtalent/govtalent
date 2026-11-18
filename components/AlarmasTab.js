@@ -349,15 +349,9 @@ function Encaja({ items, onDescartar, vacio = 'Nada abierto encaja ahora mismo. 
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 6, flexShrink: 0 }}>
               {plazo && <span style={{ fontSize: 11.5, color: MORADO_O, whiteSpace: 'nowrap' }}>{plazo}</span>}
-              {onDescartar && (
-                <button
-                  type="button"
-                  onClick={() => onDescartar(m)}
-                  style={{ fontSize: 11.5, color: GRIS2, background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
-                >
-                  No me afecta
-                </button>
-              )}
+              {/* Sin «No me afecta» (18-11-2026): los resultados del agente
+                  ya no se descartan uno a uno. onDescartar se conserva en
+                  la firma para no tocar a quien lo pasa. */}
             </div>
           </div>
         );
@@ -1010,7 +1004,8 @@ export default function AlarmasTab({ seccion = 'alarmas', sinTitulo = false }) {
     toast.info('Alarma eliminada');
   }
 
-  // «No me afecta»: pasa a Descartado, enseña a la alarma a no volver a
+  // Descartar (antes, el botón «No me afecta», retirado el 18-11-2026; hoy
+  // solo se usa para «Recuperar»): pasa a Descartado, enseña a la alarma a no volver a
   // traerlo y se puede recuperar desde esa pestaña.
   async function descartar(m, valor = true) {
     setEncaja((prev) => prev.map((x) => (x.id === m.id ? { ...x, descartado: valor } : x)));
@@ -1468,10 +1463,13 @@ export default function AlarmasTab({ seccion = 'alarmas', sinTitulo = false }) {
       id: 'descartado',
       label: 'Descartado',
       lista: encontrados.filter((x) => x.descartado),
-      vacio: 'Lo que marques como «No me afecta» queda aquí, por si quieres recuperarlo.',
+      vacio: 'Aquí queda lo que descartaste, por si quieres recuperarlo.',
       sinPeriodo: true,
     },
-  ];
+    // «No me afecta» se quitó el 18-11-2026: ya no se descarta nada nuevo.
+    // La pestaña solo sale a quien tenga algo descartado de antes, para
+    // que pueda recuperarlo.
+  ].filter((t) => t.id !== 'descartado' || t.lista.length > 0);
   const tab = PESTANAS.find((t) => t.id === pestana) || PESTANAS[0];
   // Sin alarmas y sin nada que enseñar, Novedades no pinta una bandeja
   // vacía de pestañas: dice qué aparecerá y lleva a crear una alarma.
@@ -1604,9 +1602,6 @@ export default function AlarmasTab({ seccion = 'alarmas', sinTitulo = false }) {
             Seguir
           </button>
         )}
-        <button type="button" className="alarmas-accion" onClick={() => descartar(x.m)} style={BOTON_S}>
-          No me afecta
-        </button>
       </>
     );
   };
