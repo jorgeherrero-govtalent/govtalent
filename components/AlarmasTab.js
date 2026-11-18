@@ -1561,7 +1561,7 @@ export default function AlarmasTab({ seccion = 'alarmas', sinTitulo = false }) {
       </span>
     );
 
-  const BOTON_V = { border: 'none', background: '#1d6f5c', color: '#fff', borderRadius: 8, padding: '0 12px', fontSize: 12, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' };
+  const BOTON_V = { border: 'none', background: '#1a1a18', color: '#fff', borderRadius: 8, padding: '0 12px', fontSize: 12, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' };
   const BOTON_S = { border: `1px solid ${LINEA}`, background: '#fff', color: '#57534e', borderRadius: 8, padding: '0 12px', fontSize: 12, cursor: 'pointer', fontFamily: 'inherit' };
   const BARRA_BOTON = { display: 'inline-flex', alignItems: 'center', gap: 6, height: 32, padding: '0 10px', fontSize: 13, color: '#3a3935', background: 'none', border: 'none', borderRadius: 7, cursor: 'pointer', fontFamily: 'inherit', whiteSpace: 'nowrap' };
   const PANEL = { position: 'absolute', top: 38, left: 0, zIndex: 30, width: 520, maxWidth: 'calc(100vw - 32px)', boxSizing: 'border-box', background: '#fff', border: `1px solid ${LINEA}`, borderRadius: 10, boxShadow: '0 8px 28px rgba(26,26,24,.12)', padding: '14px 14px 10px' };
