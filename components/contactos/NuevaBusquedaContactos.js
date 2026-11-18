@@ -387,8 +387,10 @@ function PanelCorreo({ bloqueado, onUpsell, onCorreo }) {
           <input value={institucion} onChange={(e) => setInstitucion(e.target.value)} placeholder="CNMC" maxLength={160} />
         </label>
         <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, marginTop: 4 }}>
-          <span style={{ fontSize: 12.5, color: '#5443d6', fontWeight: 600 }}>
-            {creditosTexto(CREDITOS_CORREO_FUERA)}, solo si lo encontramos
+          <span style={{ display: 'flex', flexDirection: 'column', gap: 2, fontSize: 12.5, lineHeight: 1.35 }}>
+            <span style={{ color: '#5443d6', fontWeight: 600 }}>{creditosTexto(CREDITOS_CORREO_FUERA)}, solo si lo encontramos</span>
+            {/* Antes de buscar se mira en el directorio (lib/dentroDelDirectorio.js): si ya está, no se cobra. */}
+            <span style={{ color: '#57534e' }}>Gratis si ya lo tenemos</span>
           </span>
           <button type="submit" className="gt-nb-ok" disabled={!listo}>
             Buscar correo

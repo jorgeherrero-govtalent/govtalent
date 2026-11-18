@@ -1511,7 +1511,7 @@ function DirectorioInstitucional() {
             El correo de una persona concreta
           </b>
           <span style={{ fontSize: 12.5, color: '#3d3a35', lineHeight: 1.45 }}>
-            ¿No aparece en la tabla? Escribe su nombre y su organización y te damos su correo. {creditosTexto(CREDITOS_CORREO_FUERA)}, solo si lo encontramos.
+            ¿No aparece en la tabla? Escribe su nombre y su organización y te damos su correo. {creditosTexto(CREDITOS_CORREO_FUERA)}, solo si lo encontramos. Gratis si ya lo tenemos.
           </span>
         </div>
         <label style={{ display: 'flex', flexDirection: 'column', gap: 4, fontSize: 12, color: '#57534e', flex: '0 1 230px' }}>
