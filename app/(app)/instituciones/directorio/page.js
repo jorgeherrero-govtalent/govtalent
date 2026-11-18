@@ -1,5 +1,6 @@
 'use client';
 
+import PruebaAIFinder from '@/components/contactos/PruebaAIFinder';
 import CampoBusqueda from '@/components/CampoBusqueda';
 
 import BuscarCorreo, { useCorreosEncontrados, CorreoEncontrado } from '@/components/BuscarCorreo';
@@ -8,8 +9,6 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import * as XLSX from 'xlsx';
 import { createClient } from '@/lib/supabase/client';
 import FilterableHeader from '@/components/FilterableHeader';
-import UpgradeModal from '@/components/UpgradeModal';
-import DirectorioDemo from '@/components/DirectorioDemo';
 import { useTotalDirectorio, masDe } from '@/lib/useTotalDirectorio';
 import NuevaBusquedaContactos, { etiquetasContactos } from '@/components/contactos/NuevaBusquedaContactos';
 import BuscarCorreoModal from '@/components/BuscarCorreoModal';
@@ -501,7 +500,6 @@ function DirectorioInstitucional() {
   const [pageSize, setPageSize] = useState(50);
   const [selectedIds, setSelectedIds] = useState(new Set());
 
-  const [modalUpsell, setModalUpsell] = useState(false);
   const totalDirectorio = useTotalDirectorio();
   const cuantosDirectorio = masDe(totalDirectorio);
   const [showExportConfirm, setShowExportConfirm] = useState(false);
@@ -949,34 +947,9 @@ function DirectorioInstitucional() {
   // así que no tiene por qué esperar a que lleguen.
   if (!planChecked) return <div className="spinner"></div>;
 
-  // Free ve la demo, no un muro: el mismo criterio que en Proyectos.
-  // Cualquier clic sobre la tabla abre el modal, que es donde se explica
-  // que es de Pro — despues de haber ensenado el valor, no antes.
-  if (!planAllowed) {
-    return (
-      <div
-        style={{ padding: '24px 28px', maxWidth: 1320, margin: '0 auto' }}
-      >
-        <div style={{ marginBottom: 16 }}>
-          <h1 style={{ fontSize: 19, fontWeight: 700, margin: 0 }}>Base de datos</h1>
-        </div>
-
-        <div onClick={() => setModalUpsell(true)} style={{ cursor: 'pointer' }}>
-          <DirectorioDemo />
-        </div>
-
-        {/* El Directorio se contrata aparte del plan de vigilancia. */}
-        {modalUpsell && (
-          <UpgradeModal
-            title="El directorio institucional se contrata aparte"
-            message={`${cuantosDirectorio ? cuantosDirectorio.replace(/^m/, 'M') : 'Miles de'} personas de las instituciones de España y la UE, el cuerpo diplomático, los medios y las organizaciones, con su correo, su teléfono y la fuente de cada dato. Filtra, guarda listas que te avisan de los cambios y exporta a Excel. Incluye 25 créditos de contacto al mes para buscar los correos que falten.`}
-            href="/precios"
-            onClose={() => setModalUpsell(false)}
-          />
-        )}
-      </div>
-    );
-  }
+  // Sin el Directorio: la prueba de AI Finder (18-11-2026). Unas pocas
+  // búsquedas reales sin correos y, al agotarlas, la tabla de demostración.
+  if (!planAllowed) return <PruebaAIFinder qInicial={qInicial} cuantos={cuantosDirectorio || ''} />;
 
   if (filas === null) return <div className="spinner"></div>;
 
@@ -1543,7 +1516,8 @@ function DirectorioInstitucional() {
         <NuevaBusquedaContactos
           inicial={qInicial}
           opcionInicial={modoInicial}
-          onUpsell={() => setModalUpsell(true)}
+          // Aquí solo se llega con el Directorio: no hay nada que vender.
+          onUpsell={() => {}}
           onAplicar={aplicarBusqueda}
           onCorreo={setCorreoLibre}
           onDescubiertos={(nuevas) => {
