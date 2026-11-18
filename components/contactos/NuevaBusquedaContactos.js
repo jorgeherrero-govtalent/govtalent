@@ -46,6 +46,12 @@ export const IDEAS = [
     filtros: { unidades: ['Grupo Parlamentario Popular en el Congreso'], cargos: ['asistente', 'asesor'] },
   },
   {
+    // 18-11-2026. 85 cámaras y 159 personas ese día.
+    texto: 'Presidentes y secretarios de las Cámaras de Comercio de España',
+    resumen: 'Quien preside y quien ocupa la secretaría general de cada Cámara de Comercio.',
+    filtros: { instituciones: ['Cámara de Comercio'], cargos: ['president', 'secretari'] },
+  },
+  {
     texto: 'Eurodiputados españoles y sus asistentes',
     resumen: 'Los 60 eurodiputados elegidos en España y los asistentes de sus equipos.',
     filtros: { jurisdiccion: 'UE', tipos: ['legislativo'], paises: ['ES'] },
