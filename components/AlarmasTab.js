@@ -1768,7 +1768,7 @@ export default function AlarmasTab({ seccion = 'alarmas', sinTitulo = false, age
                 )}
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', padding: '14px 30px', borderTop: `1px solid ${LINEA}` }}>
-                <span style={{ fontSize: 12.5, color: GRIS }}>{esPro ? 'La frecuencia se elige en cada agente.' : 'Con tu plan, el resumen llega los lunes.'}</span>
+                {!esPro && <span style={{ fontSize: 12.5, color: GRIS }}>Con tu plan, el resumen llega los lunes.</span>}
                 {onNuevoAgente && (
                   <button
                     type="button"
