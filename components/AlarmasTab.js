@@ -13,6 +13,7 @@ import AvisoCaducadas from '@/components/AvisoCaducadas';
 import { FRECUENCIAS, limitesDe, mensajeError } from '@/lib/alarmas';
 import { PARLAMENTOS } from '@/lib/parlamentosAutonomicos';
 import TareaModal from '@/components/TareaModal';
+import { ESTILOS as ESTILOS_VENTANA } from '@/components/licitaciones/NuevaBusqueda';
 
 /**
  * Alarmas.
@@ -86,6 +87,88 @@ const FRASE_FRECUENCIA = { inmediato: 'Al momento', diario: 'Cada mañana', sema
 // ---------------------------------------------------------------------
 // Piezas pequeñas
 // ---------------------------------------------------------------------
+
+/**
+ * La ventana del agente (18-11-2026): crear o editar un agente por pasos,
+ * con el mismo diseño que «Búsqueda de contactos». A la izquierda, los
+ * pasos; a la derecha, el paso actual y, abajo, «Atrás» y «Siguiente».
+ * `hasta` es el último paso al que se puede saltar desde la lista.
+ */
+export function VentanaAgente({ titulo, pasos, actual, hasta, onIr, onCerrar, pie, children }) {
+  useEffect(() => {
+    const tecla = (e) => e.key === 'Escape' && !document.querySelector('.modal-box') && onCerrar();
+    window.addEventListener('keydown', tecla);
+    const antes = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      window.removeEventListener('keydown', tecla);
+      document.body.style.overflow = antes;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  if (typeof document === 'undefined') return null;
+  return createPortal(
+    <div className="modal-ov on" onClick={(e) => e.target === e.currentTarget && onCerrar()}>
+      <style>{ESTILOS_VENTANA}</style>
+      <style>{`
+        .gt-ag-n { font-size: 12.5px; font-weight: 600; color: #55524c; }
+        .gt-nb-op.on .gt-ag-n { color: #6d5aef; }
+        .gt-nb-op.hecho .gt-nb-op-ic { background: #1a1a18; border-color: #1a1a18; }
+        .gt-nb-op.hecho .gt-nb-op-ic i { color: #fff; }
+        .gt-nb-op:disabled { cursor: default; color: #8b8780; }
+        .gt-nb-op:disabled:hover { background: none; }
+        .gt-ag-cuerpo { flex: 1; min-height: 0; overflow-y: auto; padding: 28px 32px 20px; display: flex; flex-direction: column; gap: 18px; }
+        .gt-ag-pie { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding: 14px 32px; border-top: 1px solid #ecebe5; }
+        @media (max-width: 760px) {
+          .gt-nb { flex-direction: column; height: 92vh; }
+          .gt-nb-izq { width: auto; flex: 0 0 auto; border-right: none; border-bottom: 1px solid #ecebe5; padding: 16px 12px 10px; }
+          .gt-ag-cuerpo { padding: 20px 18px 16px; }
+          .gt-ag-pie { padding: 12px 18px; }
+        }
+      `}</style>
+      <div className="gt-nb" role="dialog" aria-modal="true" aria-label={titulo}>
+        <nav className="gt-nb-izq" aria-label="Pasos">
+          <b className="gt-nb-h">{titulo}</b>
+          {pasos.map((nombre, k) => {
+            const n = k + 1;
+            const on = n === actual;
+            const hecho = n < actual;
+            return (
+              <button key={nombre} type="button" className={`gt-nb-op${on ? ' on' : ''}${hecho ? ' hecho' : ''}`} onClick={() => onIr(n)} disabled={n > hasta} aria-current={on ? 'step' : undefined}>
+                <span className="gt-nb-op-ic">{hecho ? <i className="ti ti-check" aria-hidden="true" /> : <span className="gt-ag-n">{n}</span>}</span>
+                <span style={{ flex: 1 }}>{nombre}</span>
+              </button>
+            );
+          })}
+        </nav>
+        <div className="gt-nb-der" style={{ padding: 0, gap: 0, overflow: 'hidden' }}>
+          <button type="button" className="modal-x gt-nb-cerrar" onClick={onCerrar} aria-label="Cerrar">
+            <i className="ti ti-x" aria-hidden="true" />
+          </button>
+          <div className="gt-ag-cuerpo">
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 12, fontWeight: 600, color: '#6d5aef' }}>
+              <i className="ti ti-sparkles" style={{ fontSize: 13 }} aria-hidden="true" />
+              Paso {actual} de {pasos.length}
+            </span>
+            {children}
+          </div>
+          <div className="gt-ag-pie">{pie}</div>
+        </div>
+      </div>
+    </div>,
+    document.body,
+  );
+}
+
+/** El título y la frase de cada paso de la ventana del agente. */
+export function CabeceraPaso({ titulo, texto }) {
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginTop: -8, paddingRight: 44 }}>
+      <h2 style={{ margin: 0, fontSize: 22, fontWeight: 700, letterSpacing: '-.3px' }}>{titulo}</h2>
+      {texto && <p style={{ margin: 0, fontSize: 13.5, color: '#5f5c55', lineHeight: 1.55 }}>{texto}</p>}
+    </div>
+  );
+}
 
 function Chip({ texto, onQuitar }) {
   return (
@@ -593,10 +676,12 @@ export default function AlarmasTab({ seccion = 'alarmas', sinTitulo = false }) {
   const [rutaDeSeguido, setRutaDeSeguido] = useState(() => new Map()); // follow_id -> ruta
   const [nSeguidos, setNSeguidos] = useState(0);
   // La bandeja: pestaña, filtros y página.
-  const [pestana, setPestana] = useState('revisar'); // revisar | plazo | siguiendo | descartado
+  const [pestana, setPestana] = useState('revisar'); // revisar | plazo | siguiendo
   // Seguimiento (18-11-2026): una novedad se abre en una ventana, y desde
   // ella se sigue, se crea una tarea o se va a la ficha.
   const [detalleId, setDetalleId] = useState(null);
+  // El paso de la ventana del agente (crear: 2 a 4; editar: 1 a 3).
+  const [paso, setPaso] = useState(1);
   const [tareaDe, setTareaDe] = useState(null);
   const [filtroAlarma, setFiltroAlarma] = useState('todas'); // todas | <alert_id> | sigo
   const [filtroFuente, setFiltroFuente] = useState('todas');
@@ -786,9 +871,11 @@ export default function AlarmasTab({ seccion = 'alarmas', sinTitulo = false }) {
     if (g.conWeb) setConWeb(true);
     if (g.vista === 'borrador' && g.borrador) {
       setBorrador(g.borrador);
+      setPaso(2);
       setVista('borrador');
     } else if (g.vista === 'editar' && g.editando && lista.some((a) => a.id === g.editando.id)) {
       setEditando(g.editando);
+      setPaso(1);
       setVista('editar');
     } else if (g.vista === 'nueva' && g.texto) {
       setVista('nueva');
@@ -928,6 +1015,7 @@ export default function AlarmasTab({ seccion = 'alarmas', sinTitulo = false }) {
       recordar_plazos: true,
       restantes: r.propuestas_restantes,
     });
+    setPaso(2);
     setVista('borrador');
   }
 
@@ -1081,6 +1169,7 @@ export default function AlarmasTab({ seccion = 'alarmas', sinTitulo = false }) {
       activa: a.activa,
       pausada_por_plan: a.pausada_por_plan,
     });
+    setPaso(1);
     setVista('editar');
   }
 
@@ -1157,218 +1246,239 @@ export default function AlarmasTab({ seccion = 'alarmas', sinTitulo = false }) {
     </div>
   ));
 
-  // ============================ BORRADOR ============================
+  // ============================ VENTANA DEL AGENTE ============================
+  //
+  // (18-11-2026) Crear y editar un agente ya no ocupan la página: van en
+  // una ventana por pasos (VentanaAgente) sobre la lista. Aquí solo se
+  // prepara la ventana; se pinta al final, junto a lo demás.
+  let ventana = null;
+  const ocupado = !!trabajando || !!progreso;
   if (vista === 'borrador' && borrador) {
     const b = borrador;
     const setB = (cambios) => setBorrador((prev) => ({ ...prev, ...cambios }));
     const setC = (campo, valor) => setBorrador((prev) => ({ ...prev, criterios: { ...prev.criterios, [campo]: valor } }));
     const conPlazo = b.encaja.filter((m) => etiquetaPlazo(m.plazo)).length;
-    return (
-      <div style={{ maxWidth: 680, margin: '0 auto' }}>
-        {modalUpsell}
-        <div style={{ background: '#ebe9e2', borderRadius: 16, padding: '11px 15px', fontSize: 13.5, lineHeight: 1.6, marginLeft: 'auto', maxWidth: '88%', marginBottom: 18, whiteSpace: 'pre-wrap' }}>
-          {b.pedido}
-        </div>
-        <div style={{ fontSize: 14, lineHeight: 1.7, color: '#2b2a26', marginBottom: 12 }}>
-          <span
-            aria-hidden="true"
-            style={{ display: 'inline-flex', width: 22, height: 22, borderRadius: 7, background: MORADO_S, color: MORADO, alignItems: 'center', justifyContent: 'center', fontSize: 12, marginBottom: 8 }}
-          >
-            ✦
-          </span>
-          <div>
-            Te propongo esta alarma.{' '}
-            {b.encaja.length > 0
-              ? `He revisado ${b.revisados} asuntos abiertos y ${b.encaja.length === 1 ? 'uno encaja' : `${b.encaja.length} encajan`}${
-                  conPlazo > 0 ? `; ${conPlazo === 1 ? 'uno tiene' : `${conPlazo} tienen`} plazo abierto` : ''
-                }.`
-              : 'Ahora mismo no hay nada abierto que encaje; te avisaré en cuanto aparezca.'}
-          </div>
-        </div>
-
-        <div style={{ ...CARD, overflow: 'hidden', margin: '6px 0 14px' }}>
-          <div style={{ padding: '14px 16px', borderBottom: `1px solid ${LINEA2}` }}>
-            <input
-              value={b.nombre}
-              onChange={(e) => setB({ nombre: e.target.value })}
-              aria-label="Nombre de la alarma"
-              style={{ fontSize: 14.5, fontWeight: 500, border: 'none', outline: 'none', width: '100%', fontFamily: 'inherit', color: TINTA, padding: 0 }}
+    const n = Math.min(Math.max(paso, 2), 4);
+    // Volver al paso 1 es escribir otra frase: el agente la entiende de nuevo.
+    const otraFrase = () => {
+      setTexto(b.pedido);
+      setBorrador(null);
+      setVista('nueva');
+      setTimeout(() => cajaRef.current?.focus(), 50);
+    };
+    const cancelar = () => {
+      if (ocupado) return;
+      setBorrador(null);
+      setVista('lista');
+    };
+    ventana = (
+      <VentanaAgente
+        titulo="AI Agent"
+        pasos={['Qué quieres monitorizar', 'Afina lo que ha entendido', 'Cómo te avisa', 'Qué te afecta hoy']}
+        actual={n}
+        hasta={4}
+        onIr={(k) => !ocupado && (k === 1 ? otraFrase() : setPaso(k))}
+        onCerrar={cancelar}
+        pie={
+          <>
+            <button type="button" className="btn-o" onClick={() => (n === 2 ? otraFrase() : setPaso(n - 1))} disabled={ocupado}>
+              Atrás
+            </button>
+            <span style={{ fontSize: 12.5, color: GRIS }}>
+              Usarás {activas.length + 1} de {limites.alarmas} {limites.alarmas === 1 ? 'agente' : 'agentes'}
+            </span>
+            {n < 4 ? (
+              <button type="button" className="btn-p" style={{ marginLeft: 'auto' }} onClick={() => setPaso(n + 1)} disabled={ocupado}>
+                Siguiente
+              </button>
+            ) : (
+              <button type="button" className="btn-ai" style={{ marginLeft: 'auto' }} onClick={activarBorrador} disabled={ocupado}>
+                Activar agente
+              </button>
+            )}
+          </>
+        }
+      >
+        {n === 2 && (
+          <>
+            <CabeceraPaso titulo="Afina lo que ha entendido" texto="Esto es lo que el agente va a monitorizar a partir de tu descripción. Quita o añade lo que haga falta." />
+            <div style={{ ...CARD, overflow: 'hidden' }}>
+              <div style={{ padding: '14px 16px', borderBottom: `1px solid ${LINEA2}` }}>
+                <div style={{ ...ETIQUETA, marginBottom: 6 }}>Nombre</div>
+                <input
+                  value={b.nombre}
+                  onChange={(e) => setB({ nombre: e.target.value })}
+                  aria-label="Nombre del agente"
+                  style={{ fontSize: 14.5, fontWeight: 500, border: 'none', outline: 'none', width: '100%', fontFamily: 'inherit', color: TINTA, padding: 0 }}
+                />
+                {b.criterios.resumen && <div style={{ fontSize: 12.5, color: GRIS, marginTop: 4, lineHeight: 1.5 }}>{b.criterios.resumen}</div>}
+              </div>
+              <GrupoChips titulo="Temas" valores={b.criterios.temas} onCambiar={(v) => setC('temas', v)} placeholder="añadir tema" />
+              <GrupoChips titulo="Normativa de referencia" valores={b.criterios.normativa} onCambiar={(v) => setC('normativa', v)} placeholder="añadir norma" />
+              <GrupoChips titulo="Dónde" valores={b.criterios.territorios} onCambiar={(v) => setC('territorios', v)} placeholder="añadir territorio" />
+              <GrupoChips titulo="Fuera del alcance" valores={b.criterios.excluye || []} onCambiar={(v) => setC('excluye', v)} placeholder="añadir" />
+            </div>
+          </>
+        )}
+        {n === 3 && (
+          <>
+            <CabeceraPaso titulo="Cómo te avisa" texto="Elige cada cuánto quieres que te escriba el agente." />
+            <div style={{ ...CARD, padding: '14px 16px' }}>
+              <Frecuencias valor={b.frecuencia} onCambiar={(f) => setB({ frecuencia: f })} esPro={esPro} onUpsell={() => setUpsell(true)} />
+              {b.frecuencia === 'inmediato' && (
+                <div style={{ fontSize: 12, color: GRIS2, marginTop: 8, lineHeight: 1.5 }}>Revisa lo nuevo tres veces al día y te escribe en cuanto encuentra algo.</div>
+              )}
+              <div style={{ borderTop: `1px solid ${LINEA2}`, marginTop: 12, paddingTop: 12 }}>
+                <RecordarPlazos valor={b.recordar_plazos} onCambiar={(v) => setB({ recordar_plazos: v })} esPro={esPro} onUpsell={() => setUpsell(true)} />
+              </div>
+            </div>
+          </>
+        )}
+        {n === 4 && (
+          <>
+            <CabeceraPaso
+              titulo="Qué te afecta hoy"
+              texto={
+                b.encaja.length > 0
+                  ? `El agente ha revisado ${b.revisados} asuntos abiertos y ${b.encaja.length === 1 ? 'uno te afecta' : `${b.encaja.length} te afectan`}${
+                      conPlazo > 0 ? `; ${conPlazo === 1 ? 'uno tiene' : `${conPlazo} tienen`} plazo abierto` : ''
+                    }.`
+                  : 'Ahora mismo no hay nada abierto que te afecte. El agente te avisará en cuanto aparezca.'
+              }
             />
-            {b.criterios.resumen && <div style={{ fontSize: 12.5, color: GRIS, marginTop: 4, lineHeight: 1.5 }}>{b.criterios.resumen}</div>}
-          </div>
-          <GrupoChips titulo="Temas" valores={b.criterios.temas} onCambiar={(v) => setC('temas', v)} placeholder="añadir tema" />
-          <GrupoChips titulo="Normativa de referencia" valores={b.criterios.normativa} onCambiar={(v) => setC('normativa', v)} placeholder="añadir norma" />
-          <GrupoChips titulo="Dónde" valores={b.criterios.territorios} onCambiar={(v) => setC('territorios', v)} placeholder="añadir territorio" />
-          {(b.criterios.excluye || []).length > 0 && (
-            <GrupoChips titulo="No te interesa" valores={b.criterios.excluye} onCambiar={(v) => setC('excluye', v)} placeholder="añadir" />
-          )}
-          <div style={{ padding: '12px 16px', borderBottom: `1px solid ${LINEA2}` }}>
-            <div style={{ ...ETIQUETA, marginBottom: 8 }}>Ya abierto ahora</div>
-            <EncajaPlegable items={b.encaja} onDescartar={(m) => setB({ encaja: b.encaja.filter((x) => x !== m) })} />
-          </div>
-          <div style={{ padding: '12px 16px' }}>
-            <div style={{ ...ETIQUETA, marginBottom: 8 }}>Cuándo te aviso</div>
-            <Frecuencias valor={b.frecuencia} onCambiar={(f) => setB({ frecuencia: f })} esPro={esPro} onUpsell={() => setUpsell(true)} />
-            {b.frecuencia === 'inmediato' && (
-              <div style={{ fontSize: 11.5, color: GRIS2, marginTop: 8, lineHeight: 1.5 }}>
-                Reviso lo nuevo tres veces al día y te escribo en cuanto encuentro algo.
+            {b.encaja.length > 0 && (
+              <div style={{ ...CARD, padding: '6px 16px' }}>
+                <EncajaPlegable items={b.encaja} />
               </div>
             )}
-            <div style={{ borderTop: `1px solid ${LINEA2}`, marginTop: 12, paddingTop: 12 }}>
-              <RecordarPlazos valor={b.recordar_plazos} onCambiar={(v) => setB({ recordar_plazos: v })} esPro={esPro} onUpsell={() => setUpsell(true)} />
-            </div>
-          </div>
-        </div>
-
+          </>
+        )}
         {trabajandoAviso}
-        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
-          <Boton tipo="principal" onClick={activarBorrador} disabled={!!trabajando || !!progreso}>
-            Activar alarma
-          </Boton>
-          <Boton
-            onClick={() => {
-              setTexto(b.pedido);
-              setBorrador(null);
-              setVista('nueva');
-              setTimeout(() => cajaRef.current?.focus(), 50);
-            }}
-            disabled={!!trabajando || !!progreso}
-          >
-            Ajustar con otra frase
-          </Boton>
-          <Boton
-            onClick={() => {
-              setBorrador(null);
-              setVista('lista');
-            }}
-            disabled={!!trabajando || !!progreso}
-          >
-            Cancelar
-          </Boton>
-          <span style={{ fontSize: 12, color: GRIS, marginLeft: 'auto' }}>
-            Usarás {activas.length + 1} de {limites.alarmas} {limites.alarmas === 1 ? 'alarma' : 'alarmas'}
-          </span>
-        </div>
-      </div>
+      </VentanaAgente>
     );
-  }
-
-  // ============================ EDITAR ============================
-  if (vista === 'editar' && editando) {
+  } else if (vista === 'editar' && editando) {
     const e = editando;
     const setE = (cambios) => setEditando((prev) => ({ ...prev, ...cambios }));
     const textoCambiado = e.descripcion.trim() !== e.descripcionOriginal.trim();
     const suyas = encajaDe(e.id);
-    return (
-      <div>
-        {modalUpsell}
+    const n = Math.min(Math.max(paso, 1), 3);
+    const cerrar = () => {
+      if (ocupado) return;
+      setEditando(null);
+      setVista('lista');
+    };
+    const entendido = [
+      ['Temas', e.criterios.temas],
+      ['Normativa', e.criterios.normativa],
+      ['Dónde', e.criterios.territorios],
+      ['Fuera del alcance', e.criterios.excluye],
+    ].filter(([, v]) => Array.isArray(v) && v.length > 0);
+    ventana = (
+      <VentanaAgente
+        titulo="AI Agent"
+        pasos={['Qué quieres monitorizar', 'Cómo te avisa', 'Qué te afecta hoy']}
+        actual={n}
+        hasta={3}
+        onIr={(k) => !ocupado && setPaso(k)}
+        onCerrar={cerrar}
+        pie={
+          <>
+            {n > 1 && (
+              <button type="button" className="btn-o" onClick={() => setPaso(n - 1)} disabled={ocupado}>
+                Atrás
+              </button>
+            )}
+            <button type="button" className="btn-o" onClick={() => setConfirmando({ id: e.id, nombre: e.nombre })} disabled={ocupado}>
+              Eliminar agente
+            </button>
+            <span style={{ fontSize: 12.5, color: GRIS }}>{e.activa ? 'Activo' : e.pausada_por_plan ? 'En pausa por tu plan' : 'En pausa'}</span>
+            {n < 3 && (
+              <button type="button" className="btn-o" style={{ marginLeft: 'auto' }} onClick={() => setPaso(n + 1)} disabled={ocupado}>
+                Siguiente
+              </button>
+            )}
+            <button type="button" className="btn-p" style={n < 3 ? undefined : { marginLeft: 'auto' }} onClick={guardarEdicion} disabled={ocupado}>
+              {textoCambiado ? 'Guardar y volver a entender' : 'Guardar cambios'}
+            </button>
+          </>
+        }
+      >
         {confirmando && (
           <Confirmar
             titulo={`¿Eliminar «${confirmando.nombre}»?`}
-            texto="Dejará de vigilar y se borrará lo que ha encontrado. No se puede deshacer."
+            texto="Dejará de monitorizar y se borrará lo que ha encontrado. No se puede deshacer."
             accion="Eliminar"
             onConfirmar={() => borrar(confirmando)}
             onCancelar={() => setConfirmando(null)}
           />
         )}
-        <button
-          type="button"
-          onClick={() => {
-            setEditando(null);
-            setVista('lista');
-          }}
-          style={{ fontSize: 12.5, color: GRIS, background: 'none', border: 'none', cursor: 'pointer', padding: 0, marginBottom: 14 }}
-        >
-          ← Tus alarmas
-        </button>
-
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, marginBottom: 14, flexWrap: 'wrap' }}>
-          <input
-            value={e.nombre}
-            onChange={(ev) => setE({ nombre: ev.target.value })}
-            aria-label="Nombre de la alarma"
-            style={{ fontSize: 20, fontWeight: 600, letterSpacing: '-.3px', border: 'none', outline: 'none', background: 'transparent', fontFamily: 'inherit', color: TINTA, padding: 0, flex: 1, minWidth: 200 }}
-          />
-          <span style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 12, color: GRIS }}>
-            {e.activa ? 'Vigilando' : e.pausada_por_plan ? 'En pausa por tu plan' : 'En pausa'}
-          </span>
-        </div>
-
-        <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1fr) 230px', gap: 20, alignItems: 'start' }} className="alarma-edicion">
-          <div>
-            <div style={{ ...CARD, padding: '16px 18px' }}>
-              <div style={{ ...ETIQUETA, marginBottom: 10 }}>Instrucciones</div>
+        {n === 1 && (
+          <>
+            <CabeceraPaso titulo="Qué quieres monitorizar" texto="Escribe qué hace tu organización, qué quieres monitorizar y qué queda fuera. Si cambias el texto, el agente lo vuelve a entender al guardar." />
+            <div style={{ ...CARD, padding: '14px 16px' }}>
+              <div style={{ ...ETIQUETA, marginBottom: 6 }}>Nombre</div>
+              <input
+                value={e.nombre}
+                onChange={(ev) => setE({ nombre: ev.target.value })}
+                aria-label="Nombre del agente"
+                style={{ fontSize: 14.5, fontWeight: 500, border: 'none', outline: 'none', width: '100%', fontFamily: 'inherit', color: TINTA, padding: 0 }}
+              />
+            </div>
+            <div style={{ ...CARD, padding: '14px 16px' }}>
+              <div style={{ ...ETIQUETA, marginBottom: 8 }}>Instrucciones</div>
               <TextoCreciente
                 value={e.descripcion}
                 onChange={(ev) => setE({ descripcion: ev.target.value })}
                 rows={4}
-                maxAltura={480}
-                aria-label="Instrucciones de la alarma"
+                maxAltura={300}
+                aria-label="Instrucciones del agente"
                 style={{ width: '100%', border: 'none', outline: 'none', fontSize: 14, lineHeight: 1.7, fontFamily: 'inherit', color: '#2b2a26', padding: 0, background: 'transparent' }}
               />
-              <div style={{ fontSize: 11.5, color: GRIS2, marginTop: 8, lineHeight: 1.5 }}>
-                Escribe qué hace tu organización, qué quieres vigilar y qué no te interesa. Si cambias el texto, el agente lo vuelve a entender al guardar.
-              </div>
             </div>
-
-            <div style={{ ...CARD, padding: '14px 18px', marginTop: 12 }}>
-              <div style={{ ...ETIQUETA, marginBottom: 10 }}>Cuándo te aviso</div>
+            {textoCambiado ? (
+              <div style={{ fontSize: 12.5, color: MORADO_O, background: MORADO_S, borderRadius: 10, padding: '9px 11px', lineHeight: 1.5 }}>
+                Has cambiado las instrucciones. Al guardar, el agente las volverá a entender.
+              </div>
+            ) : (
+              entendido.length > 0 && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                  <div style={ETIQUETA}>Lo ha entendido así</div>
+                  {entendido.map(([t, v]) => (
+                    <div key={t} style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
+                      <span style={{ fontSize: 12.5, color: GRIS, minWidth: 130 }}>{t}</span>
+                      {v.map((x) => (
+                        <span key={x} style={{ fontSize: 12, border: `1px solid ${LINEA}`, borderRadius: 14, padding: '3px 9px', color: '#444' }}>
+                          {x}
+                        </span>
+                      ))}
+                    </div>
+                  ))}
+                </div>
+              )
+            )}
+          </>
+        )}
+        {n === 2 && (
+          <>
+            <CabeceraPaso titulo="Cómo te avisa" texto="Elige cada cuánto quieres que te escriba el agente." />
+            <div style={{ ...CARD, padding: '14px 16px' }}>
               <Frecuencias valor={e.frecuencia} onCambiar={(f) => setE({ frecuencia: f })} esPro={esPro} onUpsell={() => setUpsell(true)} />
               <div style={{ borderTop: `1px solid ${LINEA2}`, marginTop: 12, paddingTop: 12 }}>
                 <RecordarPlazos valor={e.recordar_plazos} onCambiar={(v) => setE({ recordar_plazos: v })} esPro={esPro} onUpsell={() => setUpsell(true)} />
               </div>
             </div>
-
-            {trabajandoAviso}
-            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 12 }}>
-              <Boton tipo="principal" onClick={guardarEdicion} disabled={!!trabajando || !!progreso}>
-                {textoCambiado ? 'Guardar y volver a entender' : 'Guardar cambios'}
-              </Boton>
-              <Boton onClick={() => setConfirmando({ id: e.id, nombre: e.nombre })} disabled={!!trabajando || !!progreso}>
-                Eliminar alarma
-              </Boton>
+          </>
+        )}
+        {n === 3 && (
+          <>
+            <CabeceraPaso titulo="Qué te afecta hoy" texto="Lo que este agente ha encontrado hasta ahora." />
+            <div style={{ ...CARD, padding: '6px 16px' }}>
+              <Encaja items={suyas.slice(0, 50)} vacio="Todavía no ha encontrado nada. Te avisará en cuanto aparezca." />
             </div>
-
-            <div style={{ ...CARD, padding: '14px 18px', marginTop: 16 }}>
-              <div style={{ ...ETIQUETA, marginBottom: 10 }}>Lo que ha encontrado</div>
-              <Encaja items={suyas.slice(0, 50)} onDescartar={descartar} vacio="Todavía no ha encontrado nada. Te avisaré en cuanto aparezca." />
-            </div>
-          </div>
-
-          <div>
-            <div style={{ ...ETIQUETA, marginBottom: 12 }}>Lo he entendido así</div>
-            {[
-              ['Temas', e.criterios.temas],
-              ['Normativa', e.criterios.normativa],
-              ['Dónde', e.criterios.territorios],
-              ['Excluye', e.criterios.excluye],
-            ]
-              .filter(([, v]) => Array.isArray(v) && v.length > 0)
-              .map(([t, v]) => (
-                <div key={t} style={{ marginBottom: 16 }}>
-                  <div style={{ ...ETIQUETA, marginBottom: 7 }}>{t}</div>
-                  <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap' }}>
-                    {v.map((x) => (
-                      <span key={x} style={{ fontSize: 11.5, border: `1px solid ${LINEA}`, borderRadius: 14, padding: '3px 9px', color: '#444' }}>
-                        {x}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-              ))}
-            <div style={{ marginBottom: 16 }}>
-              <div style={{ ...ETIQUETA, marginBottom: 7 }}>Palabras que busca</div>
-              <div style={{ fontSize: 12, color: '#444', lineHeight: 1.6 }}>{(e.keywords || []).join(', ') || '—'}</div>
-            </div>
-            {textoCambiado && (
-              <div style={{ fontSize: 12, color: MORADO_O, background: MORADO_S, borderRadius: 10, padding: '9px 11px', lineHeight: 1.5 }}>
-                Has cambiado las instrucciones. Al guardar, el agente las volverá a entender.
-              </div>
-            )}
-          </div>
-        </div>
-        <style>{`@media (max-width: 720px) { .alarma-edicion { grid-template-columns: 1fr !important; } }`}</style>
-      </div>
+          </>
+        )}
+        {trabajandoAviso}
+      </VentanaAgente>
     );
   }
 
@@ -1463,17 +1573,9 @@ export default function AlarmasTab({ seccion = 'alarmas', sinTitulo = false }) {
       lista: [...encontrados.filter((x) => !x.descartado && x.sigues), ...cambios.filter((x) => !x.nuevo)],
       vacio: 'Aquí verás lo que sigues y lo que ha cambiado en ello.',
     },
-    {
-      id: 'descartado',
-      label: 'Descartado',
-      lista: encontrados.filter((x) => x.descartado),
-      vacio: 'Aquí queda lo que descartaste, por si quieres recuperarlo.',
-      sinPeriodo: true,
-    },
-    // «No me afecta» se quitó el 18-11-2026: ya no se descarta nada nuevo.
-    // La pestaña solo sale a quien tenga algo descartado de antes, para
-    // que pueda recuperarlo.
-  ].filter((t) => t.id !== 'descartado' || t.lista.length > 0);
+    // «Descartado» se quitó el 18-11-2026, con «No me afecta». Lo que se
+    // descartó antes sigue oculto (descartado = true) y no vuelve a salir.
+  ];
   const tab = PESTANAS.find((t) => t.id === pestana) || PESTANAS[0];
   // La novedad abierta en su ventana. Se busca cada vez para que «Seguir»
   // o «Visto» se reflejen sin cerrarla.
@@ -1593,13 +1695,6 @@ export default function AlarmasTab({ seccion = 'alarmas', sinTitulo = false }) {
         </button>
       ) : null;
     }
-    if (x.descartado) {
-      return (
-        <button type="button" className="alarmas-accion" onClick={() => descartar(x.m, false)} style={BOTON_S}>
-          Recuperar
-        </button>
-      );
-    }
     if (x.sigues) {
       return (
         <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 12, color: '#1d6f5c', whiteSpace: 'nowrap' }}>
@@ -1624,6 +1719,7 @@ export default function AlarmasTab({ seccion = 'alarmas', sinTitulo = false }) {
   return (
     <div>
       {modalUpsell}
+      {ventana}
       {detalle &&
         typeof document !== 'undefined' &&
         createPortal(
