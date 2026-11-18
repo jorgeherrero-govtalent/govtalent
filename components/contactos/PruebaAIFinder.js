@@ -186,7 +186,7 @@ export default function PruebaAIFinder({ qInicial = '', cuantos = '' }) {
 
           {r.total === 0 ? (
             <div style={{ border: `1px solid ${LINEA}`, borderRadius: 12, padding: '22px 18px', fontSize: 14, color: GRIS, background: '#fff' }}>
-              No hay nadie que encaje con esa descripción. Prueba a decirlo de otra forma.
+              No hay nadie que encaje con esa descripción. Prueba a decirlo de otra forma: no has gastado ninguna búsqueda.
             </div>
           ) : (
             <div style={{ border: `1px solid ${LINEA}`, borderRadius: 12, background: '#fff', overflow: 'hidden' }}>

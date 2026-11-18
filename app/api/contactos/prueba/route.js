@@ -21,7 +21,8 @@ import { PRUEBA_BUSQUEDAS, PRUEBA_FILAS } from '@/lib/pruebaAIFinder';
 //
 // Las búsquedas se cuentan en contactos_busquedas (sql/114): quien no
 // tiene el Directorio no puede crear filas allí por ningún otro camino.
-// Repetir una frase ya buscada (recargar la página) no gasta otra.
+// Repetir una frase ya buscada (recargar la página) no gasta otra, y una
+// búsqueda sin resultados tampoco cuenta.
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -33,13 +34,16 @@ const igual = (a, b) => String(a || '').trim().toLowerCase() === String(b || '')
 async function previas(admin, userId) {
   const { data, error } = await admin
     .from('contactos_busquedas')
-    .select('consulta, filtros, created_at')
+    .select('consulta, filtros, total, created_at')
     .eq('user_id', userId)
     .order('created_at', { ascending: true })
     .limit(50);
   if (error) throw new Error(error.message);
   return data || [];
 }
+
+// Una búsqueda sin resultados no enseña nada, así que no cuenta.
+const gastadas = (hechas) => hechas.filter((h) => Number(h.total) > 0).length;
 
 async function sesion() {
   const supabase = createClient();
@@ -54,7 +58,7 @@ export async function GET() {
   try {
     const hechas = await previas(admin, user.id);
     return NextResponse.json(
-      { quedan: Math.max(0, PRUEBA_BUSQUEDAS - hechas.length), de: PRUEBA_BUSQUEDAS },
+      { quedan: Math.max(0, PRUEBA_BUSQUEDAS - gastadas(hechas)), de: PRUEBA_BUSQUEDAS },
       { headers: { 'Cache-Control': 'no-store' } },
     );
   } catch (e) {
@@ -85,7 +89,7 @@ export async function POST(request) {
     return NextResponse.json({ error: 'No se pudo hacer la búsqueda' }, { status: 500 });
   }
   const repetida = hechas.find((h) => igual(h.consulta, q));
-  if (!repetida && hechas.length >= PRUEBA_BUSQUEDAS) {
+  if (!repetida && gastadas(hechas) >= PRUEBA_BUSQUEDAS) {
     return NextResponse.json({ error: 'Has usado tus búsquedas de prueba', agotadas: true, quedan: 0, de: PRUEBA_BUSQUEDAS }, { status: 402 });
   }
 
@@ -147,7 +151,7 @@ export async function POST(request) {
     if (e2) console.error('[contactos/prueba] registrar:', e2.message);
   }
 
-  const usadas = hechas.length + (repetida ? 0 : 1);
+  const usadas = gastadas(hechas) + (!repetida && total > 0 ? 1 : 0);
   return NextResponse.json(
     { consulta: q, filas, total, conCorreo, quedan: Math.max(0, PRUEBA_BUSQUEDAS - usadas), de: PRUEBA_BUSQUEDAS },
     { headers: { 'Cache-Control': 'no-store' } },
