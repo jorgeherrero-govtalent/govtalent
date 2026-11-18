@@ -1,13 +1,16 @@
 'use client';
 
-import { Suspense } from 'react';
+import { Suspense, useState } from 'react';
+import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import AlarmasTab from '@/components/AlarmasTab';
 import SeguimientoLista from '@/components/SeguimientoLista';
+import AgenteAlarmasModal from '@/components/AgenteAlarmasModal';
 
 /**
- * Novedades: la bandeja de lo que te afecta y, desde el 18-11-2026, también
- * lo que sigues (antes, la página Seguimiento).
+ * Seguimiento (así se llama la pantalla desde el 18-11-2026; la ruta sigue
+ * siendo /novedades): la bandeja de lo que te afecta y lo que sigues.
+ * Arriba, «Tus agentes» y «Nuevo agente», que abre la ventana del agente.
  *
  *   «Novedades»      lo que encuentran tus alarmas y lo que cambia en lo
  *                    que sigues, en una lista. Comparte componente con
@@ -15,7 +18,7 @@ import SeguimientoLista from '@/components/SeguimientoLista';
  *   «Lo que sigues»  las normas, personas e instituciones que sigues, por
  *                    fuente (?ver=seguimiento).
  *
- * Las dos pestañas hacen de título de la página.
+ * Cada novedad se abre en una ventana (AlarmasTab), no en otra página.
  */
 
 const PESTANAS = [
@@ -27,11 +30,25 @@ function Novedades() {
   const router = useRouter();
   const sp = useSearchParams();
   const ver = sp?.get('ver') === 'seguimiento' ? 'seguimiento' : 'novedades';
+  const [agente, setAgente] = useState(false);
 
   return (
     <>
       <div className="sec" style={{ maxWidth: 1040, paddingBottom: 0 }}>
-        <div role="tablist" aria-label="Novedades" style={{ display: 'flex', gap: 22, borderBottom: '1px solid #e5e4de' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap', marginBottom: 14 }}>
+          <h1 style={{ fontSize: 22, fontWeight: 700, margin: 0, letterSpacing: '-.3px' }}>Seguimiento</h1>
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+            <Link href="/alarmas" className="btn-o" style={{ textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 7 }}>
+              <i className="ti ti-adjustments-horizontal" aria-hidden="true"></i>
+              Tus agentes
+            </Link>
+            <button type="button" className="btn-ai" onClick={() => setAgente(true)}>
+              <i className="ti ti-sparkles" aria-hidden="true"></i>
+              Nuevo agente
+            </button>
+          </div>
+        </div>
+        <div role="tablist" aria-label="Seguimiento" style={{ display: 'flex', gap: 22, borderBottom: '1px solid #e5e4de' }}>
           {PESTANAS.map((p) => {
             const on = ver === p.v;
             return (
@@ -43,10 +60,9 @@ function Novedades() {
                 onClick={() => router.replace(p.v === 'seguimiento' ? '/novedades?ver=seguimiento' : '/novedades', { scroll: false })}
                 style={{
                   font: 'inherit',
-                  fontSize: 21,
-                  fontWeight: 600,
-                  letterSpacing: '-.3px',
-                  padding: '4px 0 12px',
+                  fontSize: 14.5,
+                  fontWeight: on ? 600 : 500,
+                  padding: '4px 0 10px',
                   border: 'none',
                   borderBottom: `2px solid ${on ? '#1a1a18' : 'transparent'}`,
                   marginBottom: -1,
@@ -68,6 +84,7 @@ function Novedades() {
           <AlarmasTab seccion="novedades" sinTitulo />
         </div>
       )}
+      {agente && <AgenteAlarmasModal onClose={() => setAgente(false)} />}
     </>
   );
 }

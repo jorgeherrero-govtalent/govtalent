@@ -38,7 +38,7 @@ const MODULOS = [
   // Seguimiento se alcanzan desde su cabecera y la marcan activa.
   {
     href: '/novedades',
-    etiqueta: 'Novedades',
+    etiqueta: 'Seguimiento',
     icono: 'ti-inbox',
     color: MORADO,
     contador: true,
