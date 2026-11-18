@@ -38,7 +38,7 @@ const PASOS = [
 
 const USOS = [
   { logo: '/extension/linkedin.png', titulo: 'En LinkedIn', texto: 'Con un perfil abierto, te dice si esa persona está en GovTalent y te enseña su cargo, su correo y su organización.' },
-  { icono: 'ti-world', titulo: 'En cualquier web', texto: 'Reconoce de qué organización es la página y te enseña sus personas. El buscador está siempre visible.' },
+  { icono: 'ti-world', titulo: 'En cualquier web', texto: 'Reconoce de qué organización es la página y te enseña los cargos y sus correos.' },
   { icono: 'ti-pointer', titulo: 'Con el botón derecho', texto: 'Selecciona un nombre en cualquier página y elige «Buscar en GovTalent».' },
   { icono: 'ti-mail-search', titulo: 'Quien no está en GovTalent', texto: 'Puedes buscar su correo desde el panel, con tus créditos, y guardarlo en una lista.' },
 ];
