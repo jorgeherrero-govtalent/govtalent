@@ -32,7 +32,8 @@ const GRIS = '#8b8780';
 const OPCIONES = [
   { v: 'ia', label: 'Describe a quién buscas', icono: 'ti-sparkles' },
   { v: 'correo', label: 'El correo de una persona concreta', icono: 'ti-mail-search' },
-  { v: 'fuera', label: 'Personas que no están en la base de datos', icono: 'ti-world-search' },
+  // 18-11-2026: antes «Personas que no están en la base de datos».
+  { v: 'fuera', label: 'Crear una lista de contactos', icono: 'ti-list-details' },
 ];
 
 // Búsquedas recomendadas: con filtros fijos (no pasan por la IA), así que
@@ -463,9 +464,9 @@ function PanelFuera({ bloqueado, onUpsell, onDescubiertos, onSinCreditos }) {
 
   return (
     <div className="gt-nb-centro">
-      <b className="gt-nb-pregunta">¿Quién falta en la base de datos?</b>
+      <b className="gt-nb-pregunta">Crea una lista de contactos</b>
       <span style={{ fontSize: 13.5, color: '#3d3a35', textAlign: 'center', maxWidth: 520, lineHeight: 1.55, marginTop: -8 }}>
-        Dinos qué cargos buscas y de qué institución. Los buscamos en sus fuentes oficiales y te enseñamos a quién hemos encontrado.
+        Dinos qué cargos buscas y de qué institución. Los buscamos en sus fuentes oficiales y te los dejamos listos para guardar en una lista.
       </span>
       <form onSubmit={enviar} className="gt-nb-caja" style={{ maxWidth: 520, gap: 12, padding: 18 }}>
         <label className="gt-nb-campo">
