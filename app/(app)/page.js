@@ -147,7 +147,7 @@ export default function Home() {
 
       <div className="gt-acciones">
         <a href={URL_EXTENSION} target="_blank" rel="noopener noreferrer" className="gt-accion">
-          <i className="ti ti-brand-chrome" aria-hidden="true"></i>
+          <img src="/extension/google.png" alt="" width={15} height={15} style={{ width: 15, height: 15, objectFit: 'contain' }} />
           Extensión de Chrome
         </a>
         <Link href={CORREO} className="gt-accion">

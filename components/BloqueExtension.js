@@ -11,7 +11,8 @@ import { URL_EXTENSION } from '@/lib/extension';
  * La misma idea que «Asistentes de IA» (components/BloqueAsistentes.js):
  * una tarjeta con lo que es y el botón «Instalar», que abre una guía por
  * pasos con el mismo diseño que la de Claude y ChatGPT, cada paso con su
- * dibujo. Debajo, lo que se puede hacer con ella.
+ * dibujo. Debajo, lo que se puede hacer con ella. Los logotipos de Google
+ * y de LinkedIn (public/extension/) son los archivos que aportó Jorge.
  *
  * La extensión usa la sesión de GovTalent del propio navegador, así que
  * no hay nada que conectar ni que revocar desde aquí.
@@ -36,7 +37,7 @@ const PASOS = [
 ];
 
 const USOS = [
-  { icono: 'ti-brand-linkedin', color: '#0a66c2', fondo: '#e8f1fa', titulo: 'En LinkedIn', texto: 'Con un perfil abierto, te dice si esa persona está en GovTalent y te enseña su cargo, su correo y su organización.' },
+  { logo: '/extension/linkedin.png', titulo: 'En LinkedIn', texto: 'Con un perfil abierto, te dice si esa persona está en GovTalent y te enseña su cargo, su correo y su organización.' },
   { icono: 'ti-world', titulo: 'En cualquier web', texto: 'Reconoce de qué organización es la página y te enseña sus personas. El buscador está siempre visible.' },
   { icono: 'ti-pointer', titulo: 'Con el botón derecho', texto: 'Selecciona un nombre en cualquier página y elige «Buscar en GovTalent».' },
   { icono: 'ti-mail-search', titulo: 'Quien no está en GovTalent', texto: 'Puedes buscar su correo desde el panel, con tus créditos, y guardarlo en una lista.' },
@@ -246,7 +247,7 @@ function GuiaExtension({ onClose }) {
 
           {paso === 0 && (
             <a href={URL_EXTENSION} target="_blank" rel="noopener noreferrer" style={{ ...BOTON_FILA, alignSelf: 'flex-start', textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-              <i className="ti ti-brand-chrome" aria-hidden="true"></i>
+              <img src="/extension/google.png" alt="" width={14} height={14} style={{ width: 14, height: 14, objectFit: 'contain' }} />
               Abrir Chrome Web Store
             </a>
           )}
@@ -287,8 +288,8 @@ export default function BloqueExtension() {
       `}</style>
 
       <div style={{ ...CAJA, padding: 20, display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap' }}>
-        <span style={{ width: 46, height: 46, borderRadius: 11, background: '#f7f6f2', border: `1px solid ${BORDE}`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-          <i className="ti ti-brand-chrome" style={{ fontSize: 26, color: TINTA }} aria-hidden="true"></i>
+        <span style={{ width: 46, height: 46, borderRadius: 11, background: '#fff', border: `1px solid ${BORDE}`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+          <img src="/extension/google.png" alt="" width={26} height={26} style={{ width: 26, height: 26, objectFit: 'contain' }} />
         </span>
         <div style={{ flex: 1, minWidth: 220 }}>
           <div style={{ fontSize: 15.5, fontWeight: 600 }}>GovTalent para Chrome</div>
@@ -306,9 +307,13 @@ export default function BloqueExtension() {
         <div className="ext-usos">
           {USOS.map((u) => (
             <div key={u.titulo} style={{ ...CAJA, padding: 16, display: 'flex', gap: 12, alignItems: 'flex-start' }}>
-              <span style={{ width: 34, height: 34, borderRadius: 9, background: u.fondo || '#f0eefe', color: u.color || MORADO, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                <i className={`ti ${u.icono}`} style={{ fontSize: 19 }} aria-hidden="true"></i>
-              </span>
+              {u.logo ? (
+                <img src={u.logo} alt="" width={34} height={34} style={{ width: 34, height: 34, borderRadius: 8, flexShrink: 0, display: 'block' }} />
+              ) : (
+                <span style={{ width: 34, height: 34, borderRadius: 9, background: '#f0eefe', color: MORADO, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                  <i className={`ti ${u.icono}`} style={{ fontSize: 19 }} aria-hidden="true"></i>
+                </span>
+              )}
               <div>
                 <div style={{ fontSize: 14, fontWeight: 600 }}>{u.titulo}</div>
                 <div style={{ fontSize: 13.5, color: GRIS, marginTop: 2, lineHeight: 1.55 }}>{u.texto}</div>
