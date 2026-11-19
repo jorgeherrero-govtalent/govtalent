@@ -31,8 +31,9 @@ const VACIAS = new Set([
 ]);
 
 // Secciones del directorio que enseñan logo en lugar del icono: patronales
-// y asociaciones sectoriales, y Cámaras de Comercio y colegios profesionales.
-export const CATEGORIAS_CON_LOGO = new Set(['patronal', 'corporacion_derecho_publico']);
+// y asociaciones sectoriales, Cámaras de Comercio y colegios profesionales,
+// y sociedades estatales.
+export const CATEGORIAS_CON_LOGO = new Set(['patronal', 'corporacion_derecho_publico', 'sociedad_estatal']);
 
 export function inicialesOrg(nombre = "") {
   // Siglas entre paréntesis o tras un guion, si las hay: (ANDEMA) → AN
