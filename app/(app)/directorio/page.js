@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import DirectorioCaras from '@/components/DirectorioCaras';
+import LogoOrg from '@/components/LogoOrg';
 
 /**
  * Portada de Directorio (10-11-2026; canvas «GovTalent: navegación con
@@ -50,20 +51,20 @@ function IlustracionInstituciones() {
 }
 
 function IlustracionOrganizaciones() {
-  // Ejemplos reales del directorio (directorio_entidades).
+  // Ejemplos reales del directorio (directorio_entidades), con su logo
+  // redondo como en los listados (19-11-2026; ids 2669, 574 y 2777).
+  const LOGOS = 'https://ozerphqxzpinqedlxwvs.supabase.co/storage/v1/object/public/directorio-logos/';
   const filas = [
-    ['CEOE', 'Patronal', 'ti-building-factory-2'],
-    ['Cámara de Comercio de España', 'Cámara de Comercio', 'ti-building-store'],
-    ['Consejo General de la Abogacía Española', 'Consejo General', 'ti-scale'],
+    ['CEOE', 'Patronal', `${LOGOS}2669.png`],
+    ['Cámara de Comercio de España', 'Cámara de Comercio', `${LOGOS}574-v2.png`],
+    ['Consejo General de la Abogacía Española', 'Consejo General', `${LOGOS}2777-v2.png`],
   ];
   return (
     <div className="gt-dir-ilu" style={PUNTOS} aria-hidden="true">
       <div className="gt-dir-mini" style={{ padding: '8px 14px', gap: 0 }}>
-        {filas.map(([t, tipo, icono], i) => (
+        {filas.map(([t, tipo, logo], i) => (
           <div key={t} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 0', borderTop: i ? '1px solid #efeee8' : 'none' }}>
-            <span style={{ width: 28, height: 28, borderRadius: 7, background: '#f0efe9', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <i className={`ti ${icono}`} style={{ fontSize: 15, color: '#55524c' }} />
-            </span>
+            <LogoOrg nombre={t} logo={logo} tam={28} />
             <span style={{ display: 'flex', flexDirection: 'column', gap: 1, flex: 1, minWidth: 0 }}>
               <span style={{ fontSize: 13, fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{t}</span>
               <span style={{ fontSize: 11.5, color: '#6e6a63' }}>{tipo}</span>
