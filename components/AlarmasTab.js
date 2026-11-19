@@ -2018,6 +2018,7 @@ export default function AlarmasTab({ seccion = 'alarmas', sinTitulo = false, age
         }
         .alarmas-abrir:hover .alarmas-titulo { text-decoration: underline; }
         .alarmas-abrir:focus-visible { outline: 2px solid #6d5aef; outline-offset: 3px; border-radius: 6px; }
+        .alarmas-subtitulo { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
         .alarmas-titulo { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
         .alarmas-texto { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
         .alarmas-pestanas { display: flex; gap: 4px; border-bottom: 1px solid ${LINEA}; overflow-x: auto; }
@@ -2386,6 +2387,13 @@ export default function AlarmasTab({ seccion = 'alarmas', sinTitulo = false, age
                       <span className="alarmas-titulo" style={{ fontSize: 14, fontWeight: x.nuevo ? 600 : 500, color: TINTA, lineHeight: 1.4 }}>
                         {x.titulo}
                       </span>
+                      {/* La ley a la que se refiere el cambio (19-11-2026): sin ella,
+                          «Quedan 14 días de plazo» no dice de qué. */}
+                      {x.subtitulo && (
+                        <span className="alarmas-subtitulo" style={{ fontSize: 13, color: '#5f5c55', lineHeight: 1.4 }}>
+                          {x.subtitulo}
+                        </span>
+                      )}
                       <span style={{ display: 'flex', flexWrap: 'wrap', gap: '6px 12px', alignItems: 'center' }}>
                         <span style={{ fontSize: 12.5, color: '#5f5c55', whiteSpace: 'nowrap' }}>{x.fuente}</span>
                         <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 12.5, color: '#5f5c55', whiteSpace: 'nowrap' }}>
