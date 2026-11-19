@@ -186,7 +186,7 @@ async function listadoAgenda(admin, cat, subcategoria = null, grupo = null) {
   const entidades = await todas(() => {
     let q = admin
       .from('directorio_entidades')
-      .select('id, organizacion, subcategoria, ccaa, direccion, orden')
+      .select('id, organizacion, subcategoria, ccaa, direccion, orden, logo_url')
       .eq('categoria', cat)
       .eq('activo', true);
     if (subcategoria) q = q.eq('subcategoria', subcategoria);
@@ -218,10 +218,12 @@ async function listadoAgenda(admin, cat, subcategoria = null, grupo = null) {
         unidades: 0,
         personas: 0,
         titular: null,
+        logo: null,
       });
     }
     const f = filas.get(k);
     f.unidades += 1;
+    if (!f.logo && e.logo_url) f.logo = e.logo_url;
     if (!f.ciudad) Object.assign(f, lugar(e.direccion));
     const ps = porEntidad.get(e.id) || [];
     f.personas += ps.length;
@@ -270,7 +272,7 @@ async function ficha(admin, cat, id, conContacto, subcategoria = null, grupo = n
   const entidades = await todas(() =>
     admin
       .from('directorio_entidades')
-      .select('id, organizacion, unidad, grupo, subcategoria, ccaa, web, email_general, telefono, direccion, orden')
+      .select('id, organizacion, unidad, grupo, subcategoria, ccaa, web, email_general, telefono, direccion, orden, logo_url')
       .eq('categoria', cat)
       .eq('organizacion', base.organizacion)
       .eq('activo', true)
@@ -298,6 +300,7 @@ async function ficha(admin, cat, id, conContacto, subcategoria = null, grupo = n
     tipo: principal.subcategoria || null,
     ccaa: principal.ccaa || null,
     grupo: principal.grupo || null,
+    logo: entidades.find((e) => e.logo_url)?.logo_url || null,
     ciudad: ciudad(principal.direccion),
     web: primeraWeb(entidades.find((e) => e.web)?.web),
     // Dirección, correo y teléfono generales: los del primer bloque. La

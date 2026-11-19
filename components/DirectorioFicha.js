@@ -8,6 +8,7 @@ import { BotonSoloProyecto } from '@/components/FollowButton';
 import UpgradeModal from '@/components/UpgradeModal';
 import BuscarCorreo, { useCorreosEncontrados } from '@/components/BuscarCorreo';
 import FotoPersona, { useFotos } from '@/components/FotoPersona';
+import LogoOrg from '@/components/LogoOrg';
 import CorreoCargo from '@/components/CorreoCargo';
 import Paginacion, { usePaginacion } from '@/components/Paginacion';
 import { seccionPorSlug } from '@/lib/directorio';
@@ -278,21 +279,25 @@ export default function DirectorioFicha({ slug, id, volverA, volverEtiqueta }) {
 
       <div className="card" style={{ padding: 20, marginBottom: 12 }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap', alignItems: 'flex-start' }}>
-          <div style={{ minWidth: 0, flex: '1 1 320px' }}>
-            <div style={{ fontSize: 10.5, color: '#a8a49c', letterSpacing: '.4px', marginBottom: 6 }}>{etiquetaSup}</div>
-            <h1 style={{ fontSize: 19, fontWeight: 700, margin: 0 }}>{ficha.organizacion}</h1>
-            {meta ? <div style={{ fontSize: 12.5, color: '#888', marginTop: 4 }}>{meta}</div> : null}
-            {/* Parlamentos con composición cargada (sql/91): diputados,
-                grupos y comisiones con las pantallas del Congreso. */}
-            {slug === 'comunidades' && parlamentoDe(ficha.organizacion) ? (
-              <Link
-                href={`/institutions/parlamentos/${parlamentoDe(ficha.organizacion)}/diputados`}
-                style={{ display: 'inline-flex', alignItems: 'center', gap: 6, marginTop: 10, fontSize: 12.5, fontWeight: 600, color: '#1d6f5c', textDecoration: 'none' }}
-              >
-                Diputados, grupos y comisiones
-                <i className="ti ti-arrow-right" style={{ fontSize: 14 }}></i>
-              </Link>
-            ) : null}
+          <div style={{ minWidth: 0, flex: '1 1 320px', display: 'flex', gap: 14, alignItems: 'flex-start' }}>
+            {/* Logo redondo o iniciales (maqueta C, 19-11-2026). */}
+            {seccion.cat === 'patronal' ? <LogoOrg nombre={ficha.organizacion} logo={ficha.logo} tam={56} /> : null}
+            <div style={{ minWidth: 0, flex: 1 }}>
+              <div style={{ fontSize: 10.5, color: '#a8a49c', letterSpacing: '.4px', marginBottom: 6 }}>{etiquetaSup}</div>
+              <h1 style={{ fontSize: 19, fontWeight: 700, margin: 0 }}>{ficha.organizacion}</h1>
+              {meta ? <div style={{ fontSize: 12.5, color: '#888', marginTop: 4 }}>{meta}</div> : null}
+              {/* Parlamentos con composición cargada (sql/91): diputados,
+                  grupos y comisiones con las pantallas del Congreso. */}
+              {slug === 'comunidades' && parlamentoDe(ficha.organizacion) ? (
+                <Link
+                  href={`/institutions/parlamentos/${parlamentoDe(ficha.organizacion)}/diputados`}
+                  style={{ display: 'inline-flex', alignItems: 'center', gap: 6, marginTop: 10, fontSize: 12.5, fontWeight: 600, color: '#1d6f5c', textDecoration: 'none' }}
+                >
+                  Diputados, grupos y comisiones
+                  <i className="ti ti-arrow-right" style={{ fontSize: 14 }}></i>
+                </Link>
+              ) : null}
+            </div>
           </div>
           <div style={{ flexShrink: 0 }}>
             <BotonSoloProyecto kind="entidad" refId={String(ficha.id)} label={ficha.organizacion} />
