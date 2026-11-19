@@ -218,7 +218,10 @@ const CHIP = { fontSize: 11, padding: '3px 10px', borderRadius: 12, background: 
 
 export default function DirectorioListado({ slug, base, volverA, volverEtiqueta }) {
   const seccion = seccionPorSlug(slug);
-  const esAsociaciones = slug === 'asociaciones';
+  // Las asociaciones salían de organizations, sin ficha y con su sector. Desde
+  // el 19-11-2026 tienen ficha como las patronales y el sector va en el tipo:
+  // la fila especial solo queda para una sección sin categoría.
+  const esAsociaciones = slug === 'asociaciones' && !seccion?.cat;
   const esCcaa = slug === 'comunidades';
   const fusion = seccion?.fusion ? FUSIONES[seccion.fusion] : null;
 
@@ -302,7 +305,7 @@ export default function DirectorioListado({ slug, base, volverA, volverEtiqueta 
         <CampoBusqueda estilo={{ flex: tiposVisibles ? '0 1 520px' : 1, minWidth: 200 }} value={q} onChange={(e) => setQ(e.target.value)} placeholder={`Buscar en ${seccion.titulo.toLowerCase()}…`} aria-label={`Buscar en ${seccion.titulo}`} />
         {valoresTipo.length > 1 && !tiposVisibles ? (
           <MultiSelectFilter
-            label={esAsociaciones ? 'Sector' : 'Tipo'}
+            label={slug === 'asociaciones' ? 'Sector' : 'Tipo'}
             values={valoresTipo}
             selected={tipos}
             onApply={(s) => setTipos(new Set(s))}
