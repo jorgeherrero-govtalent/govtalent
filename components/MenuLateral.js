@@ -277,6 +277,20 @@ export default function MenuLateral({
       </nav>
 
       <div className="gt-lat-pie">
+        {/* «Conecta con» (19-11-2026): lleva a Configuración, Asistentes de IA.
+            Con la barra plegada no se enseña. */}
+        {!plegado && (
+          <Link href="/account?tab=asistentes" className="gt-lat-conecta" aria-label="Conectar GovTalent con Claude o ChatGPT">
+            <span>Conecta con</span>
+            <span className="gt-lat-conecta-logos">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src="/asistentes/claude.png" alt="Claude" width={20} height={20} />
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src="/asistentes/chatgpt.png" alt="ChatGPT" width={20} height={20} />
+            </span>
+            <i className="ti ti-chevron-right" aria-hidden="true"></i>
+          </Link>
+        )}
         {alarmas &&
           (plegado ? (
             <Link
