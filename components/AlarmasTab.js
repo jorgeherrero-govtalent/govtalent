@@ -1646,8 +1646,10 @@ export default function AlarmasTab({ seccion = 'alarmas', sinTitulo = false, age
     {
       id: 'plazo',
       label: 'Con plazo',
-      lista: encontrados.filter((x) => !x.descartado && x.dias !== null && x.dias >= 0),
-      vacio: 'Nada de lo tuyo tiene un plazo abierto ahora mismo.',
+      // Solo lo que sigues (19-11-2026): si dejas de seguirlo desde su ficha
+      // sale de aquí; lo que aún no has decidido está en «Por revisar».
+      lista: encontrados.filter((x) => !x.descartado && x.sigues && x.dias !== null && x.dias >= 0),
+      vacio: 'Nada de lo que sigues tiene un plazo abierto ahora mismo.',
       porPlazo: true,
     },
     {
