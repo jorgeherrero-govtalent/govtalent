@@ -8,7 +8,7 @@ import { BotonSoloProyecto } from '@/components/FollowButton';
 import UpgradeModal from '@/components/UpgradeModal';
 import BuscarCorreo, { useCorreosEncontrados } from '@/components/BuscarCorreo';
 import FotoPersona, { useFotos } from '@/components/FotoPersona';
-import LogoOrg from '@/components/LogoOrg';
+import LogoOrg, { CATEGORIAS_CON_LOGO } from '@/components/LogoOrg';
 import CorreoCargo from '@/components/CorreoCargo';
 import Paginacion, { usePaginacion } from '@/components/Paginacion';
 import { seccionPorSlug } from '@/lib/directorio';
@@ -281,7 +281,7 @@ export default function DirectorioFicha({ slug, id, volverA, volverEtiqueta }) {
         <div style={{ display: 'flex', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap', alignItems: 'flex-start' }}>
           <div style={{ minWidth: 0, flex: '1 1 320px', display: 'flex', gap: 14, alignItems: 'flex-start' }}>
             {/* Logo redondo o iniciales (maqueta C, 19-11-2026). */}
-            {seccion.cat === 'patronal' ? <LogoOrg nombre={ficha.organizacion} logo={ficha.logo} tam={56} /> : null}
+            {CATEGORIAS_CON_LOGO.has(seccion.cat) ? <LogoOrg nombre={ficha.organizacion} logo={ficha.logo} tam={56} /> : null}
             <div style={{ minWidth: 0, flex: 1 }}>
               <div style={{ fontSize: 10.5, color: '#a8a49c', letterSpacing: '.4px', marginBottom: 6 }}>{etiquetaSup}</div>
               <h1 style={{ fontSize: 19, fontWeight: 700, margin: 0 }}>{ficha.organizacion}</h1>

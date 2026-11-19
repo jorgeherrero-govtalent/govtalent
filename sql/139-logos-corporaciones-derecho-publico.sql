@@ -1,0 +1,9 @@
+-- 139: logos de Cámaras de Comercio y colegios profesionales (19-11-2026).
+--
+-- Ya aplicado en producción. Mismo modelo que sql/138 (patronales y
+-- asociaciones): la edge function logos-directorio con
+--   POST {"limite":40,"categoria":"corporacion_derecho_publico"}
+-- Las Cámaras comparten la marca de la red de Cámaras, así que muchas
+-- tienen el mismo logo: es correcto y no se anulan por repetidos.
+-- Descartados a mano: iconos de framework (Symfony, Laravel) y un
+-- engranaje de plantilla que salían como logo de algunas webs.
