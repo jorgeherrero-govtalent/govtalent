@@ -6,7 +6,7 @@ import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { parlamentoPorNombre } from '@/lib/ccaa/parlamentosUI';
 import BanderaCcaa, { claveBandera } from '@/components/BanderaCcaa';
-import LogoOrg from '@/components/LogoOrg';
+import LogoOrg, { CATEGORIAS_CON_LOGO } from '@/components/LogoOrg';
 import BackLink from '@/components/BackLink';
 import MultiSelectFilter from '@/components/MultiSelectFilter';
 import Paginacion, { usePaginacion } from '@/components/Paginacion';
@@ -101,7 +101,7 @@ function Fila({ it, seccion, base, ultima }) {
         <div style={{ width: 30, height: 30, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
           <BanderaCcaa ccaa={it.ccaa} ancho={28} />
         </div>
-      ) : seccion.cat === 'patronal' ? (
+      ) : CATEGORIAS_CON_LOGO.has(seccion.cat) ? (
         <LogoOrg nombre={it.organizacion} logo={it.logo} />
       ) : (
         <Icono nombre={seccion.icono} />

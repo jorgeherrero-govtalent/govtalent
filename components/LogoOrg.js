@@ -5,7 +5,7 @@ import { useState } from "react";
 // Logo redondo de una organización (maqueta C, 19-11-2026): como las fotos
 // de las personas. Sin logo, o si no carga, las iniciales en un círculo gris.
 // Los logos salen de la web de cada organización (edge function
-// logos-directorio, sql/138).
+// logos-directorio, sql/138 y sql/139).
 
 const VACIAS = new Set([
   "de",
@@ -29,6 +29,10 @@ const VACIAS = new Set([
   "federación",
   "federacion",
 ]);
+
+// Secciones del directorio que enseñan logo en lugar del icono: patronales
+// y asociaciones sectoriales, y Cámaras de Comercio y colegios profesionales.
+export const CATEGORIAS_CON_LOGO = new Set(['patronal', 'corporacion_derecho_publico']);
 
 export function inicialesOrg(nombre = "") {
   // Siglas entre paréntesis o tras un guion, si las hay: (ANDEMA) → AN

@@ -23,6 +23,10 @@ const MAX_IMG = 1_000_000;
 const BLOQUEADOS = new Set([
   "6bdb369337ac2496761c6f063bffea0aa6a91d4662279c399071a468251f51f0", // favicon de WordPress por defecto
   "2b7b83fa64b393285bb581e767b905f472761843864a1522c4927e239127029f", // logo de WordPress
+  "88baf40feb43463a8f6aa6543e88bdbe33f0db9a317486e786eee1e5c76a9544", // engranaje de plantilla
+  "c965a500f698483526faf92ac286047cecd825608cd1d83276de392b30a13a83", // icono de plantilla
+  "7e37ac130fe9582df9b2633e9ed259ed193dd059bc430014ddee291d3aaa57e4", // logo de Symfony
+  "4001aa032ff113e1a268a9bbf1ab0fd9949439f9f54a85895956eb323aba977d", // logo de Laravel
 ]);
 
 async function sha256(b: Uint8Array): Promise<string> {
