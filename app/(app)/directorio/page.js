@@ -30,7 +30,7 @@ const MAS_CONSULTADOS = [
 function IlustracionInstituciones() {
   return (
     <div className="gt-dir-ilu" style={PUNTOS} aria-hidden="true">
-      <span className="gt-dir-chip">Al día con el BOE</span>
+      <span className="gt-dir-chip">Actualizado semanalmente</span>
       <div className="gt-dir-mini">
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
           <span style={{ width: 30, height: 30, borderRadius: 8, background: '#f0efe9', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
