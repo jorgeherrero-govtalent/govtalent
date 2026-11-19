@@ -107,14 +107,7 @@ function Fila({ it, seccion, base, ultima }) {
         <Icono nombre={seccion.icono} />
       )}
       <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{ fontSize: 12.5, fontWeight: 600 }}>
-          {it.organizacion}
-          {parl ? (
-            <span style={{ fontSize: 10.5, fontWeight: 500, color: '#1d6f5c', background: '#e8f4f0', padding: '2px 8px', borderRadius: 10, marginLeft: 8 }}>
-              Diputados, grupos y comisiones
-            </span>
-          ) : null}
-        </div>
+        <div style={{ fontSize: 12.5, fontWeight: 600 }}>{it.organizacion}</div>
         {meta ? (
           <div
             style={{ fontSize: 11, color: '#a8a49c', marginTop: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
