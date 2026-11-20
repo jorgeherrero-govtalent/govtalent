@@ -8,17 +8,16 @@ import { createClient } from '@/lib/supabase/client';
 import MultiSelectFilter from '@/components/MultiSelectFilter';
 import { FASE1 } from '@/lib/parlamentosAutonomicos';
 import {
-  VERDE, MORADO, GRIS, CCAA, PROXIMAMENTE, FASES, NOMBRE_FASE, ETIQUETA_TIPO,
-  fechaCorta, tituloLegible, plazoCorto, anioPresupuestos,
+  MORADO, GRIS, CCAA, PROXIMAMENTE, FASES, NOMBRE_FASE, ETIQUETA_TIPO,
+  fechaCorta, tituloLegible, plazoCorto,
 } from '@/lib/ccaa/vista';
 
 /**
  * Parlamentos autonómicos — portada.
  *
  * Diseño elegido el 04-10-2026 (opción C con la tabla de la A):
- *   1. Franja de presupuestos del año que se tramita, por comunidad.
- *   2. «Esta semana»: los últimos movimientos.
- *   3. Filtros por parlamento y por sector, y dos vistas: Tabla (por
+ *   1. «Esta semana»: los últimos movimientos.
+ *   2. Filtros por parlamento y por sector, y dos vistas: Tabla (por
  *      defecto, paginada como el Congreso) y Por fase.
  *
  * Los sectores son los del directorio del BOE; los asigna la IA a cada
@@ -29,14 +28,6 @@ import {
  */
 
 const PAGE_SIZES = [20, 50, 100, 200];
-
-// Presupuestos ya registrados en el parlamento que aún no tenemos como ley
-// porque no se han publicado en el boletín. Se ponen a mano y, en cuanto
-// llega la ley de verdad, manda ella (este dato deja de usarse solo).
-// Madrid 2027: registrados el 30-10-2026; la Asamblea los publica días después.
-const REGISTRADOS_SIN_FICHA = {
-  2027: { madrid: '2026-10-30' },
-};
 
 const CARD = { background: '#fff', borderRadius: 16, boxShadow: '0 1px 2px rgba(0,0,0,.04)' };
 // Mismo aspecto que .gt-filtro (globals.css).
@@ -189,16 +180,6 @@ export default function ParlamentosAutonomicosPage() {
     return [1, '…', current, '…', totalPages];
   }, [current, totalPages]);
 
-  // Presupuestos del año en tramitación: registrados o no, por comunidad.
-  const anio = anioPresupuestos();
-  const presupuestos = useMemo(() => {
-    const m = {};
-    for (const e of expedientes || []) {
-      if (e.tipo_norm === 'presupuestos' && String(e.titulo).includes(String(anio))) m[e.parlamento] = e;
-    }
-    return m;
-  }, [expedientes, anio]);
-
   return (
     <div className="sec" style={{ maxWidth: 1080 }}>
       <div style={{ marginBottom: 18, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', gap: 16, flexWrap: 'wrap' }}>
@@ -206,41 +187,6 @@ export default function ParlamentosAutonomicosPage() {
           <h1 style={{ fontSize: 21, fontWeight: 600, margin: 0, letterSpacing: '-.3px' }}>Parlamentos autonómicos</h1>
         </div>
         <CampoBusqueda estilo={{ minWidth: 260 }} value={busca} onChange={(ev) => setBusca(ev.target.value)} placeholder="Buscar por título o número" aria-label="Buscar por título o número" />
-      </div>
-
-      {/* Presupuestos del año: lo primero que se mira en otoño. */}
-      <div style={{ background: '#15140f', color: '#f0efe9', borderRadius: 16, padding: '18px 22px', marginBottom: 14 }}>
-        <div style={{ fontSize: 11.5, color: '#b9b6ad', letterSpacing: '.3px', marginBottom: 12 }}>PRESUPUESTOS {anio}</div>
-        <div className="ccaa-presu" style={{ display: 'grid', gridTemplateColumns: `repeat(${FASE1.length}, minmax(0, 1fr))`, gap: 8, fontSize: 12.5 }}>
-          {FASE1.map((p) => {
-            const e = presupuestos[p];
-            const sinFicha = !e ? REGISTRADOS_SIN_FICHA[anio]?.[p] : null;
-            const contenido = (
-              <>
-                <div style={{ fontWeight: 600 }}>{CCAA[p]}</div>
-                <div style={{ color: e || sinFicha ? '#d5ece5' : '#b9b6ad', marginTop: 3 }}>
-                  {e ? `Registrados ${fechaCorta(e.fecha_presentacion) || ''}` : sinFicha ? `Registrados ${fechaCorta(sinFicha)}` : 'Sin registrar'}
-                </div>
-              </>
-            );
-            if (sinFicha) {
-              return (
-                <div key={p} title="Registrados en el parlamento; la ficha aparece cuando se publique en el boletín" style={{ background: VERDE, borderRadius: 10, padding: 10, color: '#fff' }}>
-                  {contenido}
-                </div>
-              );
-            }
-            return e ? (
-              <Link key={p} href={`/parlamentos-autonomicos/${e.slug}`} style={{ background: VERDE, borderRadius: 10, padding: 10, color: '#fff', textDecoration: 'none' }}>
-                {contenido}
-              </Link>
-            ) : (
-              <div key={p} style={{ background: '#26241d', borderRadius: 10, padding: 10 }}>
-                {contenido}
-              </div>
-            );
-          })}
-        </div>
       </div>
 
       {movimientos.length > 0 && (
@@ -463,7 +409,6 @@ export default function ParlamentosAutonomicosPage() {
 
       <style>{`
         @media (max-width: 900px) {
-          .ccaa-presu { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
           .ccaa-semana { grid-template-columns: minmax(0, 1fr) !important; }
           .ccaa-fases { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
         }
