@@ -278,6 +278,48 @@ function cuentas(supabase, ambito) {
   };
 }
 
+/**
+ * Pestañas de Regulatorio (20-11-2026): «Panel», la portada nueva con lo
+ * que hacen tus agentes (/regulatorio), y las dos portadas de fuentes de
+ * siempre, España y Unión Europea. Las usan las tres páginas.
+ */
+export function PestanasRegulatorio({ activa }) {
+  const pestanas = [
+    { id: 'panel', href: '/regulatorio', titulo: 'Panel' },
+    { id: 'espana', href: '/regulatorio/espana', titulo: AMBITOS.espana.titulo, pais: AMBITOS.espana.pais },
+    { id: 'ue', href: '/regulatorio/union-europea', titulo: AMBITOS.ue.titulo, pais: AMBITOS.ue.pais },
+  ];
+  return (
+    <nav aria-label="Secciones de Regulatorio" style={{ display: 'flex', gap: 4, borderBottom: '1px solid #e5e4de', marginBottom: 18 }}>
+      {pestanas.map((t) => {
+        const on = t.id === activa;
+        return (
+          <Link
+            key={t.id}
+            href={t.href}
+            aria-current={on ? 'page' : undefined}
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 7,
+              fontSize: 13.5,
+              fontWeight: on ? 600 : 500,
+              color: on ? '#1a1a18' : '#57534e',
+              borderBottom: `2px solid ${on ? '#1a1a18' : 'transparent'}`,
+              marginBottom: -1,
+              padding: '9px 12px',
+              textDecoration: 'none',
+            }}
+          >
+            {t.pais ? <Bandera pais={t.pais} size={15} /> : <i className="ti ti-layout-dashboard" aria-hidden="true" style={{ fontSize: 15 }}></i>}
+            {t.titulo}
+          </Link>
+        );
+      })}
+    </nav>
+  );
+}
+
 export default function RegulatorioPortada({ ambito }) {
   const supabase = createClient();
   const a = AMBITOS[ambito];
@@ -305,36 +347,7 @@ export default function RegulatorioPortada({ ambito }) {
       {/* Regulatorio es una sola entrada del menú desde el 10-11-2026:
           España y Unión Europea pasan a ser pestañas. Sin subtítulo. */}
       <h1 style={{ fontSize: 21, fontWeight: 600, margin: '0 0 12px', letterSpacing: '-.3px' }}>Regulatorio</h1>
-      <nav aria-label="Ámbito" style={{ display: 'flex', gap: 4, borderBottom: '1px solid #e5e4de', marginBottom: 18 }}>
-        {[
-          ['espana', '/regulatorio/espana'],
-          ['ue', '/regulatorio/union-europea'],
-        ].map(([id, href]) => {
-          const on = id === ambito;
-          return (
-            <Link
-              key={id}
-              href={href}
-              aria-current={on ? 'page' : undefined}
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: 7,
-                fontSize: 13.5,
-                fontWeight: on ? 600 : 500,
-                color: on ? '#1a1a18' : '#57534e',
-                borderBottom: `2px solid ${on ? '#1a1a18' : 'transparent'}`,
-                marginBottom: -1,
-                padding: '9px 12px',
-                textDecoration: 'none',
-              }}
-            >
-              <Bandera pais={AMBITOS[id].pais} size={15} />
-              {AMBITOS[id].titulo}
-            </Link>
-          );
-        })}
-      </nav>
+      <PestanasRegulatorio activa={ambito} />
 
       <div className="reg-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 14 }}>
         {ambito === 'ue' ? (
