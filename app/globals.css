@@ -772,3 +772,8 @@ a{color:inherit}
 .gt-seg{display:inline-flex;align-items:stretch;gap:2px;box-sizing:border-box;min-height:38px;padding:3px;background:#fff;border:1px solid #e0dfd8;border-radius:9px}
 .gt-seg-it{display:inline-flex;align-items:center;padding:0 11px;border:none;border-radius:6px;background:transparent;font-family:inherit;font-size:13px;color:#57534e;cursor:pointer;white-space:nowrap;user-select:none}
 .gt-seg-it.on{background:#1a1a18;color:#fff}
+/* Un correo no se parte nunca en dos líneas. Los enlaces de correo se
+   quedan en una línea y, si no caben en su hueco, se cortan con puntos
+   suspensivos en vez de saltar de línea. */
+a[href^="mailto:"]{display:inline-block;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap!important;word-break:normal!important;overflow-wrap:normal!important;vertical-align:bottom}
+.gt-correo{white-space:nowrap;flex-shrink:0;word-break:normal}

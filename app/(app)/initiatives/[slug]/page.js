@@ -349,7 +349,12 @@ export default function InitiativeDetailPage() {
         n: resumenMeps?.total || null,
         activa: !!resumenMeps?.total,
       },
-      { id: 'docs', label: 'Documentos', n: documentos.length || null, activa: documentos.length > 0 },
+      // Sin documentos la pestaña no existe: una pestaña siempre vacía
+      // promete algo que no hay. En los expedientes abiertos lo explica
+      // la nota del pie.
+      ...(documentos.length > 0
+        ? [{ id: 'docs', label: 'Documentos', n: documentos.length, activa: true }]
+        : []),
     ];
   }, [item, actors, recorrido, comisario, esPro, nActoresBloqueado]);
 
@@ -764,7 +769,7 @@ export default function InitiativeDetailPage() {
                   sub="Responsable del expediente"
                   extra={
                     item.author_email && (
-                      <span style={{ fontSize: 10.5, color: '#999', textAlign: 'right', maxWidth: 190, wordBreak: 'break-all' }}>
+                      <span className="gt-correo" style={{ fontSize: 10.5, color: '#999', textAlign: 'right' }}>
                         {item.author_email}
                       </span>
                     )
@@ -788,7 +793,7 @@ export default function InitiativeDetailPage() {
                   href={a.ambito === 'parlamento' && a.person_slug ? `/institutions/eu-parliament/${a.person_slug}` : null}
                   extra={
                     a.email && (
-                      <span style={{ fontSize: 10.5, color: '#999', textAlign: 'right', maxWidth: 175, wordBreak: 'break-all' }}>
+                      <span className="gt-correo" style={{ fontSize: 10.5, color: '#999', textAlign: 'right' }}>
                         {a.email}
                       </span>
                     )
@@ -972,6 +977,18 @@ export default function InitiativeDetailPage() {
               </div>
             );
           })}
+        </div>
+      )}
+
+      {documentos.length === 0 && item.is_open && (
+        <div style={{ marginTop: 14, fontSize: 11.5, color: '#888', display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+          <i className="ti ti-file-info" style={{ fontSize: 14 }}></i>
+          Los documentos se publican cuando la Comisión adopta la propuesta.
+          {item.source_url && (
+            <a href={item.source_url} target="_blank" rel="noreferrer" style={{ color: '#6d5aef', textDecoration: 'none' }}>
+              Ver el expediente en la web de la Comisión
+            </a>
+          )}
         </div>
       )}
 
