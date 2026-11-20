@@ -189,7 +189,7 @@ function Area({ serie }) {
       viewBox={`0 0 ${W} ${H}`}
       preserveAspectRatio="none"
       role="img"
-      aria-label={`Movimientos diarios en los últimos 30 días: ${miles(total)} en total`}
+      aria-label={`Movimientos diarios en los últimos ${serie.length} días: ${miles(total)} en total`}
       style={{ width: '100%', height: H, display: 'block' }}
     >
       <defs>
@@ -543,8 +543,12 @@ export default function PanelRegulatorio() {
       ['estado', 'ccaa', 'ue'].reduce((s, a) => s + (enAmbito(a) && o?.[`${a}${sufijo}`] != null ? Number(o[`${a}${sufijo}`]) : 0), 0);
     const tiene = (o) => ['estado', 'ccaa', 'ue'].some((a) => enAmbito(a) && o?.[a] != null);
     const serie = (general.serie || []).map((x) => ({ d: x.d, n: suma(x) }));
-    const ult = serie.slice(-30);
-    const prev = serie.slice(-60, -30);
+    // El total y la comparación siguen al periodo: hoy frente a ayer, 7
+    // frente a los 7 anteriores, 30 frente a los 30 anteriores. El gráfico
+    // enseña el periodo; con «Hoy», los últimos 7 días para que haya forma.
+    const ult = serie.slice(-dias);
+    const prev = serie.slice(-2 * dias, -dias);
+    const grafico = serie.slice(-Math.max(7, dias));
     const total = ult.reduce((s, x) => s + x.n, 0);
     const totalPrev = prev.reduce((s, x) => s + x.n, 0);
     const contador = (clave, etiqueta, icono, abierto, href) => {
@@ -560,7 +564,7 @@ export default function PanelRegulatorio() {
       };
     };
     return {
-      serie: ult,
+      serie: grafico,
       total,
       cambio: totalPrev > 0 ? Math.round(((total - totalPrev) / totalPrev) * 100) : null,
       contadores: [
@@ -570,7 +574,7 @@ export default function PanelRegulatorio() {
         contador('iniciativas', 'Iniciativas en Congreso, parlamentos autonómicos, PE y CE', 'ti-activity', false, '/regulatorio/espana'),
       ],
     };
-  }, [general, ambitos]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [general, ambitos, dias]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const opcionesAgentes = (mio?.alertas || []).map((a) => ({ value: a.id, label: a.nombre }));
   const hayFiltros = ambitos.size > 0 || agentesSel.size > 0 || dias !== 7;
@@ -636,7 +640,7 @@ export default function PanelRegulatorio() {
         ) : (
           <section aria-labelledby="pr-general" className="pr-general" style={{ ...CARD, display: 'grid', gridTemplateColumns: 'minmax(0,3fr) minmax(0,2fr)', overflow: 'hidden' }}>
             <div style={{ padding: '20px 22px', display: 'flex', flexDirection: 'column', gap: 10, borderRight: '.5px solid #ecebe5' }}>
-              <Titulo derecha={<span style={{ fontSize: 12, color: '#888' }}>Movimientos detectados, últimos 30 días</span>}>
+              <Titulo derecha={<span style={{ fontSize: 12, color: '#888' }}>Movimientos detectados {periodo.texto}</span>}>
                 <span id="pr-general">Actividad general</span>
               </Titulo>
               <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, flexWrap: 'wrap' }}>
@@ -644,7 +648,7 @@ export default function PanelRegulatorio() {
                 {gen.cambio !== null && (
                   <Chip morado={gen.cambio >= 0}>
                     {gen.cambio >= 0 ? '+' : '−'}
-                    {Math.abs(gen.cambio)} % frente a los 30 días anteriores
+                    {Math.abs(gen.cambio)} % frente a {dias === 1 ? 'ayer' : `los ${dias} días anteriores`}
                   </Chip>
                 )}
               </div>
