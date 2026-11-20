@@ -23,8 +23,8 @@ import AgenteAlarmasModal from '@/components/AgenteAlarmasModal';
  * En móvil (08-10-2026) es el mismo menú, en cajón: el botón de menú de
  * la barra superior lo abre por encima de la página (movilAbierto) y se
  * cierra al tocar un enlace, el fondo, la X o Escape. Así el móvil tiene
- * todas las entradas sin mantener una segunda lista. BarraMovil sigue
- * abajo como atajos.
+ * todas las entradas sin mantener una segunda lista. La barra inferior
+ * de atajos (BarraMovil) se quitó el 20-11-2026.
  *
  * Plegado se recuerda en este navegador: es una comodidad de cada uno,
  * no un ajuste de la cuenta.

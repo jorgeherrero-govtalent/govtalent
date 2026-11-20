@@ -11,7 +11,6 @@ import Footer from '@/components/Footer';
 import MenuUsuario from '@/components/MenuUsuario';
 import { creditosIncluidos, CREDITOS_POR_ALARMA } from '@/lib/precios';
 import MenuLateral from '@/components/MenuLateral';
-import BarraMovil from '@/components/BarraMovil';
 import BuscadorGlobal from '@/components/BuscadorGlobal';
 import Logo from '@/components/Logo';
 import { limitesDe } from '@/lib/alarmas';
@@ -257,7 +256,8 @@ export default function AppLayout({ children }) {
       <div className="gt-lienzo">
         {/* En móvil el menú lateral va en cajón: lo abre el botón de menú
             de esta barra. Arriba quedan también el logotipo, el buscador y
-            el menú de usuario; los atajos, en BarraMovil. */}
+            el menú de usuario. La barra inferior de atajos se quitó el
+            20-11-2026: todo está en el menú. */}
         <nav className="nav gt-movil-top">
           <div className="nav-inner" style={{ padding: '0 14px', gap: 2, overflow: 'visible' }}>
             <button
@@ -288,7 +288,6 @@ export default function AppLayout({ children }) {
         <main style={{ flex: 1, minWidth: 0 }}>{children}</main>
       </div>
 
-      <BarraMovil alarmas={novedades} />
       <Toast />
 
       {/* Registro de páginas visitadas: solo con sesión iniciada. */}

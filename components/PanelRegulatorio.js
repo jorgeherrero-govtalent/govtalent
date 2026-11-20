@@ -583,7 +583,7 @@ export default function PanelRegulatorio() {
   return (
     <div className="sec" style={{ maxWidth: 1180 }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap', marginBottom: 12 }}>
-        <h1 style={{ fontSize: 21, fontWeight: 600, margin: 0, letterSpacing: '-.3px' }}>Regulatorio</h1>
+        <h1 style={{ fontSize: 21, fontWeight: 600, margin: 0, letterSpacing: '-.3px' }}>Actividad legislativa</h1>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
           {tuyo?.ultimaPasada && (
             <span style={{ fontSize: 12, color: '#888' }}>
