@@ -19,8 +19,9 @@
 --                                + iniciativas de la Comisión con el plazo
 --                                de comentarios abierto (UE)
 --   Audiencias públicas abiertas audiencia_publica abierta o urgente (Estado)
---   Leyes publicadas             normas con rango de ley del BOE (también
---                                las autonómicas que reproduce) y de los
+--   Normas publicadas            leyes, decretos (reales decretos incluidos)
+--                                y órdenes del BOE, sección I (también las
+--                                autonómicas que reproduce), y de los
 --                                boletines autonómicos, una vez por
 --                                comunidad, tipo y número (20-11-2026)
 --   Iniciativas                  presentadas en el Congreso; expedientes
@@ -41,25 +42,27 @@ as $$
            (now() at time zone 'Europe/Madrid')::date as hoy
   ),
   per as (select hoy - dias + 1 as desde, hoy from lim),
-  -- Leyes: las del BOE (estatales y autonómicas) y las de los boletines
-  -- autonómicos. Una ley autonómica sale primero en su boletín y semanas
-  -- después en el BOE: se cuenta una vez por comunidad, tipo y número.
+  -- Normas: leyes, decretos (también reales decretos) y órdenes del BOE,
+  -- sección I, estatales y autonómicas, y de los boletines autonómicos.
+  -- Una norma autonómica sale primero en su boletín y semanas después en
+  -- el BOE: se cuenta una vez por comunidad, tipo y número.
   leyes_todas as (
-    select fecha_publicacion as d, departamento as org, rango, titulo from boe_documents, per
+    select fecha_publicacion as d, departamento as org, rango, titulo, 'boe' as src from boe_documents, per
      where seccion = '1'
        and rango in ('Ley', 'Ley Orgánica', 'Ley Foral', 'Real Decreto-ley', 'Decreto-ley',
-                     'Real Decreto Legislativo', 'Decreto Legislativo', 'Decreto Foral Legislativo')
+                     'Real Decreto Legislativo', 'Decreto Legislativo', 'Decreto Foral Legislativo',
+                     'Real Decreto', 'Decreto', 'Decreto Foral', 'Orden', 'Circular', 'Instrucción', 'Reglamento')
        and fecha_publicacion >= per.desde
     union all
-    select fecha, comunidad, rango, titulo from diarios_ccaa, per
-     where rango in ('Ley', 'Decreto-ley', 'Decreto Legislativo')
+    select fecha, comunidad, rango, titulo, 'diario' from diarios_ccaa, per
+     where rango in ('Ley', 'Decreto-ley', 'Decreto Legislativo', 'Decreto', 'Orden')
        and fecha >= per.desde
   ),
   leyes as (
-    select case when org ilike 'Jefatura%' or org ilike 'Cortes Generales%' or org ilike 'Ministerio%'
-                then 'estado' else 'ccaa' end as ambito,
+    select case when src = 'diario' or org ~* '^(Comunidad|Comunitat|Principado|Región|Illes|Ciudad Autónoma|Diputación Foral|Junta de|Generalitat|Gobierno de |Xunta)'
+                then 'ccaa' else 'estado' end as ambito,
            lower(regexp_replace(coalesce(org, ''), '^(Comunidad Autónoma|Comunidad Foral|Comunidad|Comunitat) (de la |de las |del |de )?', '', 'i'))
-             || '|' || case when rango ilike '%decreto%' then 'decreto' when rango ilike '%orgánica%' then 'organica' else 'ley' end
+             || '|' || case when rango ilike '%decreto-ley%' then 'decreto-ley' when rango ilike '%legislativo%' then 'decreto-legislativo' when rango ilike '%decreto%' then 'decreto' when rango ilike 'orden%' then 'orden' when rango ilike '%orgánica%' then 'organica' when rango ilike 'ley%' then 'ley' else lower(rango) end
              || '|' || coalesce(substring(titulo from '(\d+/\d{4})'), titulo) as clave,
            min(d) as primera,
            max(d) as ultima
