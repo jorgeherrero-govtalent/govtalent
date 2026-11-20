@@ -329,7 +329,7 @@ export default function PanelRegulatorio() {
           .order('created_at', { ascending: true }),
         supabase
           .from('sector_alert_matches')
-          .select('alert_id, kind, ref_id, titulo, fuente, ruta, plazo, relevancia, created_at, descartado, revisado')
+          .select('alert_id, kind, ref_id, titulo, motivo, fuente, ruta, plazo, relevancia, created_at, descartado, revisado')
           .eq('user_id', uid)
           .order('created_at', { ascending: false })
           .limit(3000),
@@ -373,6 +373,7 @@ export default function PanelRegulatorio() {
         porAsunto.set(k, { ...m, clave: k, dia: diaMadrid(m.created_at), alertas: new Set([m.alert_id]) });
       } else {
         p.alertas.add(m.alert_id);
+        if ((m.relevancia || 0) > (p.relevancia || 0)) p.motivo = m.motivo || p.motivo;
         p.relevancia = Math.max(p.relevancia || 0, m.relevancia || 0);
         p.revisado = p.revisado && m.revisado;
         if (m.created_at < p.created_at) {
@@ -414,6 +415,11 @@ export default function PanelRegulatorio() {
     const etapa = (x) => etapaDe(x.kind, x.titulo);
     const tramite = teAfectan.filter((x) => etapa(x) === 'tramite');
     const publicado = teAfectan.filter((x) => etapa(x) === 'publicado');
+    // Lo ya publicado del periodo, con todo lo que encontraron los agentes:
+    // lo que te afecta primero y, debajo, lo que es contexto (relevancia 1).
+    const publicadoLista = asuntos
+      .filter((x) => enPeriodo(x) && etapa(x) === 'publicado')
+      .sort((p, q) => (q.relevancia || 0) - (p.relevancia || 0) || String(q.created_at).localeCompare(String(p.created_at)));
     const porFuente = (lista) => {
       const c = new Map();
       for (const x of lista) {
@@ -489,6 +495,7 @@ export default function PanelRegulatorio() {
       publicado: publicado.length,
       fuentesTramite: porFuente(tramite),
       fuentesPublicado: porFuente(publicado),
+      publicadoLista,
       foco,
       agentes,
       ultimaPasada,
@@ -832,6 +839,9 @@ export default function PanelRegulatorio() {
               </div>
             </section>
 
+            {/* 3b. Ya publicado */}
+            <YaPublicado lista={tuyo.publicadoLista} periodo={periodo} />
+
             {/* 4. Foco */}
             <section style={{ ...CARD, padding: '20px 22px', display: 'flex', flexDirection: 'column', gap: 16 }}>
               <Titulo
@@ -882,6 +892,76 @@ export default function PanelRegulatorio() {
         }
       `}</style>
     </div>
+  );
+}
+
+const RELEVANCIA = {
+  3: { texto: 'Te afecta directamente', morado: true },
+  2: { texto: 'Te afecta', morado: true },
+  1: { texto: 'Contexto', morado: false },
+};
+
+/**
+ * Lo ya publicado que han encontrado tus agentes en el periodo (BOE,
+ * boletines autonómicos, Consejo de Ministros y CNMC). Primero lo que te
+ * afecta, con el motivo; debajo, lo que es contexto. Como mucho seis: el
+ * resto, en Seguimiento.
+ */
+function YaPublicado({ lista, periodo }) {
+  const [todo, setTodo] = useState(false);
+  const afectan = lista.filter((x) => (x.relevancia || 0) >= 2).length;
+  const visibles = todo ? lista : lista.slice(0, 6);
+  return (
+    <section style={{ ...CARD, padding: '20px 22px', display: 'flex', flexDirection: 'column', gap: 6 }}>
+      <Titulo derecha={<Link href="/novedades" style={{ fontSize: 12, color: '#888', textDecoration: 'none' }}>Ver en Seguimiento</Link>}>
+        Ya publicado
+      </Titulo>
+      <span style={{ fontSize: 12, color: '#888', paddingBottom: 6 }}>
+        {lista.length === 0
+          ? `Tus agentes no han encontrado nada publicado ${periodo.texto}.`
+          : `${lista.length} ${lista.length === 1 ? 'norma publicada' : 'normas publicadas'} ${periodo.texto}${
+              afectan ? `, ${afectan} te ${afectan === 1 ? 'afecta' : 'afectan'}` : ''
+            }. BOE, boletines autonómicos, Consejo de Ministros y CNMC.`}
+      </span>
+      {visibles.map((x) => {
+        const r = RELEVANCIA[x.relevancia] || RELEVANCIA[1];
+        const fuente = FUENTE_DE_KIND[x.kind] || String(x.fuente || '').split(', ')[0];
+        const cuerpo = (
+          <>
+            <span style={{ width: 8, height: 8, borderRadius: 4, marginTop: 6, flex: 'none', background: r.morado ? MORADO : '#c9c6bd' }} />
+            <span style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 4 }}>
+              <span style={{ fontSize: 13, fontWeight: 600, lineHeight: 1.4 }}>{x.titulo}</span>
+              {x.motivo && <span style={{ fontSize: 12.5, color: '#555', lineHeight: 1.45 }}>{x.motivo}</span>}
+              <span style={{ fontSize: 11.5, color: '#888' }}>
+                {fuente}, {fechaCorta(x.dia)}
+              </span>
+            </span>
+            <span style={{ flex: 'none' }}>
+              <Chip morado={r.morado}>{r.texto}</Chip>
+            </span>
+          </>
+        );
+        const estilo = { display: 'flex', alignItems: 'flex-start', gap: 12, padding: '12px 0', borderTop: '.5px solid #ecebe5', textDecoration: 'none', color: 'inherit' };
+        return x.ruta ? (
+          <Link key={x.clave} href={x.ruta} style={estilo}>
+            {cuerpo}
+          </Link>
+        ) : (
+          <div key={x.clave} style={estilo}>
+            {cuerpo}
+          </div>
+        );
+      })}
+      {lista.length > 6 && (
+        <button
+          type="button"
+          onClick={() => setTodo((v) => !v)}
+          style={{ alignSelf: 'flex-start', border: 'none', background: 'transparent', fontFamily: 'inherit', fontSize: 12.5, color: '#57534e', cursor: 'pointer', padding: '8px 0 0' }}
+        >
+          {todo ? 'Ver menos' : `Ver las ${lista.length}`}
+        </button>
+      )}
+    </section>
   );
 }
 
