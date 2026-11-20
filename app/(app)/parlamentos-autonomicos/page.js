@@ -30,25 +30,6 @@ import {
 const PAGE_SIZES = [20, 50, 100, 200];
 
 const CARD = { background: '#fff', borderRadius: 16, boxShadow: '0 1px 2px rgba(0,0,0,.04)' };
-// Mismo aspecto que .gt-filtro (globals.css).
-const CHIP = (on) => ({
-  display: 'inline-flex',
-  alignItems: 'center',
-  gap: 6,
-  boxSizing: 'border-box',
-  minHeight: 38,
-  padding: '8px 12px',
-  background: on ? '#f4f3ef' : '#fff',
-  border: `1px solid ${on ? '#1a1a18' : '#e0dfd8'}`,
-  borderRadius: 9,
-  fontFamily: 'inherit',
-  fontSize: 13,
-  color: on ? '#1a1a18' : '#57534e',
-  fontWeight: on ? 600 : 400,
-  cursor: 'pointer',
-  whiteSpace: 'nowrap',
-});
-
 function Etiqueta({ tipo }) {
   if (tipo !== 'presupuestos' && tipo !== 'acompanamiento') return null;
   return <span style={{ color: MORADO }}>{ETIQUETA_TIPO[tipo]}</span>;
@@ -89,7 +70,7 @@ export default function ParlamentosAutonomicosPage() {
   const supabase = createClient();
   const [expedientes, setExpedientes] = useState(null);
   const [movimientos, setMovimientos] = useState([]);
-  const [parlamento, setParlamento] = useState('todos');
+  const [parlFilter, setParlFilter] = useState(new Set());
   const [vista, setVista] = useState('tabla');
   const [conCerradas, setConCerradas] = useState(false);
   const [busca, setBusca] = useState('');
@@ -141,12 +122,12 @@ export default function ParlamentosAutonomicosPage() {
     return (expedientes || []).filter(
       (e) =>
         (conCerradas || !e.is_closed) &&
-        (parlamento === 'todos' || e.parlamento === parlamento) &&
+        (parlFilter.size === 0 || parlFilter.has(e.parlamento)) &&
         // Varios sectores a la vez suman: energía o medio ambiente.
         (sectorFilter.size === 0 || (e.sectores || []).some((s) => sectorFilter.has(s))) &&
         (!q || `${e.titulo} ${e.titulo_es || ''} ${e.num_expediente}`.toLowerCase().includes(q)),
     );
-  }, [expedientes, parlamento, conCerradas, busca, sectorFilter]);
+  }, [expedientes, parlFilter, conCerradas, busca, sectorFilter]);
 
   // Sectores con el recuento de lo que se ve con el resto de filtros, para
   // que el número diga de antemano cuánto vas a encontrar. Solo aparecen
@@ -155,18 +136,35 @@ export default function ParlamentosAutonomicosPage() {
     const n = new Map();
     for (const e of expedientes || []) {
       if (!conCerradas && e.is_closed) continue;
-      if (parlamento !== 'todos' && e.parlamento !== parlamento) continue;
+      if (parlFilter.size > 0 && !parlFilter.has(e.parlamento)) continue;
       for (const s of e.sectores || []) n.set(s, (n.get(s) || 0) + 1);
     }
     for (const s of sectorFilter) if (!n.has(s)) n.set(s, 0);
     return [...n.entries()]
       .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0], 'es'))
       .map(([s, c]) => ({ value: s, label: `${s} (${c})` }));
-  }, [expedientes, conCerradas, parlamento, sectorFilter]);
+  }, [expedientes, conCerradas, parlFilter, sectorFilter]);
 
   useEffect(() => {
     setPage(1);
-  }, [parlamento, conCerradas, busca, sectorFilter]);
+  }, [parlFilter, conCerradas, busca, sectorFilter]);
+
+  // Los recuentos de «En tramitación» y «Todas», como en el Congreso.
+  const nAbiertas = (expedientes || []).filter((e) => !e.is_closed).length;
+  const nTodas = (expedientes || []).length;
+  const parlamentoOptions = useMemo(() => {
+    const n = new Map(FASE1.map((p) => [p, 0]));
+    for (const e of expedientes || []) {
+      if (!conCerradas && e.is_closed) continue;
+      if (n.has(e.parlamento)) n.set(e.parlamento, n.get(e.parlamento) + 1);
+    }
+    return FASE1.map((p) => ({ value: p, label: `${CCAA[p]} (${n.get(p)})` }));
+  }, [expedientes, conCerradas]);
+  const activeCount = parlFilter.size + sectorFilter.size;
+  const limpiar = () => {
+    setParlFilter(new Set());
+    setSectorFilter(new Set());
+  };
 
   const totalPages = Math.max(1, Math.ceil(visibles.length / pageSize));
   const current = Math.min(page, totalPages);
@@ -186,7 +184,6 @@ export default function ParlamentosAutonomicosPage() {
         <div>
           <h1 style={{ fontSize: 21, fontWeight: 600, margin: 0, letterSpacing: '-.3px' }}>Parlamentos autonómicos</h1>
         </div>
-        <CampoBusqueda estilo={{ minWidth: 260 }} value={busca} onChange={(ev) => setBusca(ev.target.value)} placeholder="Buscar por título o número" aria-label="Buscar por título o número" />
       </div>
 
       {movimientos.length > 0 && (
@@ -206,63 +203,63 @@ export default function ParlamentosAutonomicosPage() {
         </div>
       )}
 
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, flexWrap: 'wrap', marginBottom: 12 }}>
-        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-          <button type="button" onClick={() => setParlamento('todos')} style={CHIP(parlamento === 'todos')}>
-            Todos
-          </button>
-          {FASE1.map((p) => (
-            <button key={p} type="button" onClick={() => setParlamento(p)} style={CHIP(parlamento === p)}>
-              {CCAA[p]}
-            </button>
+      {/* Los mismos filtros que el Congreso (LeyesList): buscador, selector
+          de estado con recuentos y desplegables con casillas. */}
+      <div style={{ display: 'flex', gap: 8, marginBottom: 13, flexWrap: 'wrap' }}>
+        <CampoBusqueda estilo={{ flex: '1 1 180px' }} value={busca} onChange={(ev) => setBusca(ev.target.value)} placeholder="Buscar por título o número..." aria-label="Buscar iniciativa" />
+
+        <div className="gt-seg">
+          {[
+            { id: false, label: `En tramitación (${nAbiertas})` },
+            { id: true, label: `Todas (${nTodas})` },
+          ].map((o) => (
+            <span key={String(o.id)} onClick={() => setConCerradas(o.id)} className={`gt-seg-it${conCerradas === o.id ? ' on' : ''}`}>
+              {o.label}
+            </span>
           ))}
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
-          {sectorOptions.length > 0 && (
-            <MultiSelectFilter label="Sector" values={sectorOptions} selected={sectorFilter} onApply={setSectorFilter} />
-          )}
-          <label style={{ fontSize: 12.5, color: GRIS, display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer' }}>
-            <input type="checkbox" checked={conCerradas} onChange={(ev) => setConCerradas(ev.target.checked)} />
-            Incluir cerradas
-          </label>
-          <div role="group" aria-label="Vista" style={{ display: 'flex', background: '#e6e4dc', borderRadius: 9, padding: 3, fontSize: 12.5 }}>
-            {[
-              ['tabla', 'Tabla'],
-              ['fases', 'Por fase'],
-            ].map(([id, txt]) => (
-              <button
-                key={id}
-                type="button"
-                aria-pressed={vista === id}
-                onClick={() => setVista(id)}
-                style={{
-                  font: 'inherit',
-                  padding: '6px 12px',
-                  borderRadius: 7,
-                  border: 'none',
-                  cursor: 'pointer',
-                  background: vista === id ? '#fff' : 'transparent',
-                  boxShadow: vista === id ? '0 1px 2px rgba(0,0,0,.08)' : 'none',
-                  color: '#1a1a18',
-                }}
-              >
-                {txt}
-              </button>
-            ))}
-          </div>
+
+        <MultiSelectFilter label="Parlamento" values={parlamentoOptions} selected={parlFilter} onApply={setParlFilter} />
+        {sectorOptions.length > 0 && (
+          <MultiSelectFilter label="Sector" values={sectorOptions} selected={sectorFilter} onApply={setSectorFilter} />
+        )}
+
+        <div className="gt-seg" role="group" aria-label="Vista">
+          {[
+            ['tabla', 'Tabla'],
+            ['fases', 'Por fase'],
+          ].map(([id, txt]) => (
+            <span key={id} aria-pressed={vista === id} onClick={() => setVista(id)} className={`gt-seg-it${vista === id ? ' on' : ''}`}>
+              {txt}
+            </span>
+          ))}
         </div>
       </div>
+
+      {activeCount > 0 && (
+        <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap', marginBottom: 12 }}>
+          {[...[...parlFilter].map((p) => CCAA[p] || p), ...sectorFilter].map((v) => (
+            <span key={v} style={{ fontSize: 11, background: '#f0efe9', color: '#666', padding: '3px 10px', borderRadius: 14 }}>
+              {v}
+            </span>
+          ))}
+          <span style={{ fontSize: 11, color: '#888' }}>{visibles.length} resultados</span>
+          <span onClick={limpiar} style={{ fontSize: 11, color: '#999', textDecoration: 'underline', cursor: 'pointer' }}>
+            Limpiar filtros
+          </span>
+        </div>
+      )}
 
       {expedientes === null ? (
         <div style={{ ...CARD, padding: 24, fontSize: 13, color: GRIS }}>Cargando…</div>
       ) : visibles.length === 0 ? (
         <div style={{ ...CARD, padding: 24, fontSize: 13, color: GRIS }}>
           No hay leyes que coincidan.
-          {sectorFilter.size > 0 && (
+          {activeCount > 0 && (
             <>
               {' '}
-              <button type="button" onClick={() => setSectorFilter(new Set())} style={{ font: 'inherit', fontSize: 13, color: MORADO, background: 'none', border: 'none', padding: 0, cursor: 'pointer' }}>
-                Quitar el filtro de sector
+              <button type="button" onClick={limpiar} style={{ font: 'inherit', fontSize: 13, color: MORADO, background: 'none', border: 'none', padding: 0, cursor: 'pointer' }}>
+                Limpiar filtros
               </button>
             </>
           )}
