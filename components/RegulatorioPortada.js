@@ -279,13 +279,13 @@ function cuentas(supabase, ambito) {
 }
 
 /**
- * Pestañas de Regulatorio (20-11-2026): «Panel», la portada nueva con lo
+ * Pestañas de Regulatorio (20-11-2026): «Dashboard», la portada nueva con lo
  * que hacen tus agentes (/regulatorio), y las dos portadas de fuentes de
  * siempre, España y Unión Europea. Las usan las tres páginas.
  */
 export function PestanasRegulatorio({ activa }) {
   const pestanas = [
-    { id: 'panel', href: '/regulatorio', titulo: 'Panel' },
+    { id: 'panel', href: '/regulatorio', titulo: 'Dashboard' },
     { id: 'espana', href: '/regulatorio/espana', titulo: AMBITOS.espana.titulo, pais: AMBITOS.espana.pais },
     { id: 'ue', href: '/regulatorio/union-europea', titulo: AMBITOS.ue.titulo, pais: AMBITOS.ue.pais },
   ];

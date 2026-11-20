@@ -82,7 +82,7 @@ const SECCIONES = [
       // Abre la ventana de crear una alarma; encendida en /alarmas.
       { href: '/alarmas', etiqueta: 'AI Agent', icono: 'ti-sparkles', activo: (p) => p.startsWith('/alarmas'), beta: true, agente: true },
       {
-        // Abre el Panel (20-11-2026); España y Unión Europea son pestañas.
+        // Abre el Dashboard (20-11-2026); España y Unión Europea son pestañas.
         href: '/regulatorio',
         etiqueta: 'Regulatorio',
         icono: 'ti-timeline-event',

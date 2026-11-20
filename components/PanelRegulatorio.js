@@ -9,7 +9,7 @@ import { PestanasRegulatorio } from '@/components/RegulatorioPortada';
 import { etapaDe } from '@/lib/etapaNormativa';
 
 /**
- * Panel de Regulatorio (20-11-2026, canvas «Regulatorio, Panel de
+ * Dashboard de Regulatorio (20-11-2026, la pestaña se llamaba «Panel» en el canvas «Regulatorio, Panel de
  * monitorización»). Es la portada de /regulatorio; España y Unión
  * Europea, las portadas de fuentes de siempre, son las otras pestañas.
  *

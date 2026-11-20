@@ -2,7 +2,7 @@
 -- 140. Panel de Regulatorio (20-11-2026)
 --
 -- Dos funciones para la nueva portada de Regulatorio (/regulatorio,
--- pestaña «Panel»). Solo leen: no crean tablas ni cambian datos.
+-- pestaña «Dashboard»). Solo leen: no crean tablas ni cambian datos.
 --
 --   panel_regulatorio_general(p_dias)
 --     Actividad general de la plataforma, igual para todos los usuarios.
