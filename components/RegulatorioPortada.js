@@ -346,7 +346,7 @@ export default function RegulatorioPortada({ ambito }) {
     <div className="sec" style={{ maxWidth: 1080 }}>
       {/* Regulatorio es una sola entrada del menú desde el 10-11-2026:
           España y Unión Europea pasan a ser pestañas. Sin subtítulo. */}
-      <h1 style={{ fontSize: 21, fontWeight: 600, margin: '0 0 12px', letterSpacing: '-.3px' }}>Regulatorio</h1>
+      <h1 style={{ fontSize: 21, fontWeight: 600, margin: '0 0 12px', letterSpacing: '-.3px' }}>Actividad legislativa</h1>
       <PestanasRegulatorio activa={ambito} />
 
       <div className="reg-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 14 }}>
