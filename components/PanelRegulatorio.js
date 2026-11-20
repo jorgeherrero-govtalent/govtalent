@@ -570,7 +570,7 @@ export default function PanelRegulatorio() {
       contadores: [
         contador('consultas', 'Consultas públicas abiertas', 'ti-message-2', true, '/regulatorio/consultas'),
         contador('audiencias', 'Audiencias públicas abiertas', 'ti-clipboard-text', true, '/regulatorio/consultas'),
-        contador('leyes', 'Leyes publicadas en BOE y boletines autonómicos', 'ti-file-text', false, '/boe'),
+        contador('leyes', 'Normas publicadas en BOE y boletines autonómicos', 'ti-file-text', false, '/boe'),
         contador('iniciativas', 'Iniciativas en Congreso, parlamentos autonómicos, PE y CE', 'ti-activity', false, '/regulatorio/espana'),
       ],
     };
