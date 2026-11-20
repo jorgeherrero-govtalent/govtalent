@@ -93,9 +93,9 @@ export default function PruebaAIFinder({ qInicial = '', cuantos = '' }) {
   return (
     <div style={{ padding: '24px 28px 40px', maxWidth: 1320, margin: '0 auto', display: 'flex', flexDirection: 'column', gap: 16 }}>
       <style>{`
-        .pf-caja { border: 1px solid ${LINEA}; border-radius: 14px; background: #fff; padding: 14px 14px 10px; display: flex; flex-direction: column; gap: 8px; box-shadow: 0 6px 24px rgba(109,90,239,.07); }
-        .pf-caja textarea { border: 0; outline: 0; resize: none; font: inherit; font-size: 15px; color: ${TINTA}; width: 100%; background: transparent; line-height: 1.5; }
-        .pf-enviar { width: 36px; height: 36px; border-radius: 50%; border: 0; background: ${TINTA}; color: #fff; display: inline-flex; align-items: center; justify-content: center; cursor: pointer; }
+        .pf-caja { border: 1px solid ${LINEA}; border-radius: 12px; background: #fff; padding: 8px 8px 8px 14px; display: flex; align-items: center; gap: 10px; }
+        .pf-caja textarea { border: 0; outline: 0; resize: none; font: inherit; font-size: 14.5px; color: ${TINTA}; flex: 1; min-width: 0; background: transparent; line-height: 1.5; padding: 6px 0; }
+        .pf-enviar { width: 32px; height: 32px; flex-shrink: 0; border-radius: 50%; border: 0; background: ${TINTA}; color: #fff; display: inline-flex; align-items: center; justify-content: center; cursor: pointer; }
         .pf-enviar:disabled { background: #e3e1da; color: #a5a299; cursor: default; }
         .pf-tabla { width: 100%; border-collapse: collapse; font-size: 13.5px; min-width: 760px; }
         .pf-tabla th { text-align: left; padding: 11px 16px; border-bottom: 1px solid ${LINEA}; background: #faf9f6; font-size: 12.5px; font-weight: 600; color: ${GRIS}; white-space: nowrap; }
@@ -105,7 +105,7 @@ export default function PruebaAIFinder({ qInicial = '', cuantos = '' }) {
       `}</style>
 
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
-        <h1 style={{ fontSize: 19, fontWeight: 700, margin: 0 }}>AI Finder</h1>
+        <h1 style={{ fontSize: 19, fontWeight: 700, margin: 0 }}>Base de datos</h1>
         {quedan !== null && (
           <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 12.5, background: '#f1effe', color: TINTA, borderRadius: 8, padding: '5px 10px' }}>
             <i className="ti ti-sparkles" style={{ color: MORADO }} aria-hidden="true"></i>
@@ -126,29 +126,25 @@ export default function PruebaAIFinder({ qInicial = '', cuantos = '' }) {
             buscar(texto);
           }}
         >
-          <span style={{ display: 'flex', gap: 10, alignItems: 'flex-start' }}>
-            <i className="ti ti-sparkles" style={{ color: MORADO, fontSize: 18, marginTop: 2 }} aria-hidden="true"></i>
-            <textarea
-              rows={2}
-              value={texto}
-              onChange={(e) => setTexto(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' && !e.shiftKey) {
-                  e.preventDefault();
-                  buscar(texto);
-                }
-              }}
-              placeholder="Describe a quién buscas"
-              aria-label="Describe a quién buscas"
-              maxLength={500}
-              disabled={buscando}
-            />
-          </span>
-          <span style={{ display: 'flex', justifyContent: 'flex-end' }}>
-            <button type="submit" className="pf-enviar" disabled={buscando || texto.trim().length < 3} aria-label="Buscar">
-              <i className="ti ti-arrow-up" aria-hidden="true"></i>
-            </button>
-          </span>
+          <i className="ti ti-sparkles" style={{ color: MORADO, fontSize: 18 }} aria-hidden="true"></i>
+          <textarea
+            rows={1}
+            value={texto}
+            onChange={(e) => setTexto(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                buscar(texto);
+              }
+            }}
+            placeholder="Describe a quién buscas, por ejemplo: directores de comunicación de ministerios"
+            aria-label="Describe a quién buscas"
+            maxLength={500}
+            disabled={buscando}
+          />
+          <button type="submit" className="pf-enviar" disabled={buscando || texto.trim().length < 3} aria-label="Buscar">
+            <i className="ti ti-arrow-up" aria-hidden="true"></i>
+          </button>
         </form>
       )}
 
