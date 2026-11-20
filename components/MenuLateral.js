@@ -335,7 +335,7 @@ export default function MenuLateral({
                       {alarmas.usadas} de {alarmas.limite} {alarmas.limite === 1 ? 'alarma' : 'alarmas'}
                     </b>
                     <small>
-                      Plan Free, resumen los lunes
+                      Plan Free
                       {contacto && (
                         <>
                           <br />
