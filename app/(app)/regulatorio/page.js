@@ -1,11 +1,14 @@
-import { redirect } from 'next/navigation';
+import PanelRegulatorio from '@/components/PanelRegulatorio';
 
 /**
- * Desde el 05-10-2026 Regulatorio se divide en Unión Europea y España,
- * cada una con su portada (components/RegulatorioPortada.js). Esta
- * dirección se mantiene porque la enlazan correos, alarmas y migas de
- * pan: lleva a España.
+ * Regulatorio abre en su Dashboard (20-11-2026): lo que hacen tus agentes y la
+ * actividad general. España y Unión Europea, las portadas de fuentes, son
+ * las otras dos pestañas (components/RegulatorioPortada.js).
+ *
+ * Hasta ahora esta dirección redirigía a /regulatorio/espana. La enlazan
+ * correos, alarmas y migas de pan: ahora llevan al Dashboard, que tiene a un
+ * clic la pestaña España.
  */
-export default function RegulatorioRedirige() {
-  redirect('/regulatorio/espana');
+export default function Regulatorio() {
+  return <PanelRegulatorio />;
 }
