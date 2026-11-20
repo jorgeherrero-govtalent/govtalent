@@ -84,7 +84,7 @@ const SECCIONES = [
       {
         // Abre el Dashboard (20-11-2026); España y Unión Europea son pestañas.
         href: '/regulatorio',
-        etiqueta: 'Regulatorio',
+        etiqueta: 'Actividad legislativa',
         icono: 'ti-timeline-event',
         activo: (p) => enEspana(p) || enUnionEuropea(p),
       },
