@@ -16,8 +16,7 @@ import {
  * Parlamentos autonómicos — portada.
  *
  * Diseño elegido el 04-10-2026 (opción C con la tabla de la A):
- *   1. «Esta semana»: los últimos movimientos.
- *   2. Filtros por parlamento y por sector, y dos vistas: Tabla (por
+ *   1. Filtros por parlamento y por sector, y dos vistas: Tabla (por
  *      defecto, paginada como el Congreso) y Por fase.
  *
  * Los sectores son los del directorio del BOE; los asigna la IA a cada
@@ -69,7 +68,6 @@ function Subtitulo({ e }) {
 export default function ParlamentosAutonomicosPage() {
   const supabase = createClient();
   const [expedientes, setExpedientes] = useState(null);
-  const [movimientos, setMovimientos] = useState([]);
   const [parlFilter, setParlFilter] = useState(new Set());
   const [vista, setVista] = useState('tabla');
   const [conCerradas, setConCerradas] = useState(false);
@@ -99,21 +97,12 @@ export default function ParlamentosAutonomicosPage() {
   }
 
   useEffect(() => {
-    const hace7 = new Date(Date.now() - 7 * 86400000).toISOString().slice(0, 10);
-    Promise.all([
-      supabase.from('ccaa_resumen').select('*').order('ultimo_fecha', { ascending: false, nullsFirst: false }).limit(1000),
-      supabase
-        .from('ccaa_movimientos')
-        .select('id, parlamento, titulo, slug, tipo, fecha, descripcion')
-        .eq('is_closed', false)
-        .gte('fecha', hace7)
-        .neq('tipo', 'otro')
-        .order('fecha', { ascending: false })
-        .limit(9),
-    ]).then(([{ data: exps }, { data: movs }]) => {
-      setExpedientes(exps || []);
-      setMovimientos(movs || []);
-    });
+    supabase
+      .from('ccaa_resumen')
+      .select('*')
+      .order('ultimo_fecha', { ascending: false, nullsFirst: false })
+      .limit(1000)
+      .then(({ data }) => setExpedientes(data || []));
   }, []);
 
 
@@ -185,23 +174,6 @@ export default function ParlamentosAutonomicosPage() {
           <h1 style={{ fontSize: 21, fontWeight: 600, margin: 0, letterSpacing: '-.3px' }}>Parlamentos autonómicos</h1>
         </div>
       </div>
-
-      {movimientos.length > 0 && (
-        <div style={{ ...CARD, padding: '18px 22px', marginBottom: 18 }}>
-          <h2 style={{ fontSize: 15, fontWeight: 600, margin: '0 0 4px' }}>Esta semana</h2>
-          <div className="ccaa-semana" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', columnGap: 20 }}>
-            {movimientos.map((m) => (
-              <Link key={m.id} href={`/parlamentos-autonomicos/${m.slug}`} style={{ padding: '12px 0', borderTop: '1px solid #efeee8', textDecoration: 'none', color: 'inherit', display: 'block' }}>
-                <div style={{ fontSize: 12, color: GRIS }}>
-                  {CCAA[m.parlamento]}, {fechaCorta(m.fecha)}
-                </div>
-                <div style={{ fontSize: 13, marginTop: 2, fontWeight: 600 }}>{tituloLegible(m.titulo)}</div>
-                {m.descripcion && <div style={{ fontSize: 12.5, color: '#3a3a36', marginTop: 2 }}>{m.descripcion.slice(0, 120)}</div>}
-              </Link>
-            ))}
-          </div>
-        </div>
-      )}
 
       {/* Los mismos filtros que el Congreso (LeyesList): buscador, selector
           de estado con recuentos y desplegables con casillas. */}
@@ -406,7 +378,6 @@ export default function ParlamentosAutonomicosPage() {
 
       <style>{`
         @media (max-width: 900px) {
-          .ccaa-semana { grid-template-columns: minmax(0, 1fr) !important; }
           .ccaa-fases { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
         }
       `}</style>
