@@ -55,6 +55,20 @@ const HITOS = [
   { tipos: ['PUBLICATION_OFFICIAL_JOURNAL'], label: 'DOUE', icon: 'news' },
 ];
 
+// Las actuaciones que son una votación, con el órgano que vota. Se
+// guardan las fechas y el tipo, no los resultados: el Parlamento publica
+// los votos nominales en otro conjunto de datos que aún no se sincroniza.
+const VOTACIONES = {
+  COMMITTEE_ADOPTING_REPORT: { ambito: 'Comisión', label: 'Votación del informe en comisión' },
+  COMMITTEE_ADOPTING_OPINION: { ambito: 'Comisión', label: 'Votación de la opinión en comisión' },
+  COMMITTEE_APPROVE_PROVISIONAL_AGREEMENT: { ambito: 'Comisión', label: 'Aprobación del acuerdo provisional en comisión' },
+  PLENARY_ENDORSE_COMMITTEE_INTERINSTITUTIONAL_NEGOTIATIONS: { ambito: 'Pleno', label: 'Pleno respalda abrir negociaciones' },
+  PLENARY_VOTE: { ambito: 'Pleno', label: 'Votación en pleno' },
+  PLENARY_VOTE_RESULTS: { ambito: 'Pleno', label: 'Votación en pleno' },
+  PLENARY_ADOPT_POSITION: { ambito: 'Pleno', label: 'Pleno adopta su posición' },
+  PLENARY_APPROVE_COUNCIL_POSITION: { ambito: 'Pleno', label: 'Pleno aprueba la posición del Consejo' },
+};
+
 function Avatar({ nombre, url, size = 28 }) {
   const [falla, setFalla] = useState(false);
   const base = { width: size, height: size, borderRadius: '50%', flexShrink: 0, objectFit: 'cover', background: '#ece9e2' };
@@ -166,6 +180,8 @@ export default function ProcedureDetailPage() {
   const [people, setPeople] = useState([]);
   const [committees, setCommittees] = useState([]);
   const [events, setEvents] = useState([]);
+  // Votación en pleno ya calendarizada, si la hay.
+  const [prevista, setPrevista] = useState([]);
   const [userId, setUserId] = useState(null);
   const [tab, setTab] = useState('recorrido');
   const [esPro, setEsPro] = useState(null);
@@ -210,7 +226,7 @@ export default function ProcedureDetailPage() {
       if (cancelled) return;
       setEsPro(pro);
 
-      const [personasRes, comisionesRes, { data: ev }] = await Promise.all([
+      const [personasRes, comisionesRes, { data: ev }, { data: calendario }] = await Promise.all([
         // Sin plan, el recuento y no las filas. head:true no devuelve
         // ninguna, así que la pestaña puede decir "Actores (14)" sin que
         // los catorce nombres salgan del servidor.
@@ -242,10 +258,19 @@ export default function ProcedureDetailPage() {
           .select('*')
           .eq('process_id', data.process_id)
           .order('activity_date', { ascending: false }),
+        // Las votaciones que el Parlamento ya ha puesto en el orden del día.
+        supabase.from('ep_procedures').select('prevista:raw->was_scheduled_in').eq('process_id', data.process_id).limit(1).maybeSingle(),
       ]);
 
       if (cancelled) return;
       setEvents(ev || []);
+      const hoy = new Date().toISOString().slice(0, 10);
+      setPrevista(
+        (Array.isArray(calendario?.prevista) ? calendario.prevista : [])
+          .filter((x) => String(x.had_activity_type || '').endsWith('PLENARY_VOTE') && String(x.activity_date || '') >= hoy)
+          .map((x) => x.activity_date)
+          .sort()
+      );
 
       if (pro) {
         setPeople(personasRes.data || []);
@@ -270,6 +295,23 @@ export default function ProcedureDetailPage() {
   // hay ninguna, el hito aparece apagado: el procedimiento aún no ha
   // llegado ahí.
   const agrupados = useMemo(() => agrupar(events || []), [events]);
+
+  // Las votaciones celebradas, de la más reciente a la más antigua. El
+  // Parlamento registra a veces dos eventos para la misma votación en
+  // pleno (la votación y su resultado): se deja uno por órgano y día.
+  const votaciones = useMemo(() => {
+    const vistos = new Set();
+    const lista = [];
+    for (const e of events || []) {
+      const v = VOTACIONES[e.activity_type];
+      if (!v || !e.activity_date) continue;
+      const clave = `${v.ambito}-${v.label}-${e.activity_date}`;
+      if (vistos.has(clave)) continue;
+      vistos.add(clave);
+      lista.push({ id: e.id, fecha: e.activity_date, ...v });
+    }
+    return lista.sort((a, b) => String(b.fecha).localeCompare(String(a.fecha)));
+  }, [events]);
 
   const hitos = useMemo(() => {
     return HITOS.map((h) => {
@@ -322,10 +364,13 @@ export default function ProcedureDetailPage() {
       // ve el panel, que es justo lo que se quiere enseñar.
       { id: 'actores', label: `Actores${nActores ? ` (${nActores})` : ''}`, activa: nActores > 0 },
       { id: 'comisiones', label: `Comisiones${nComisiones ? ` (${nComisiones})` : ''}`, activa: nComisiones > 0 },
-      { id: 'resumen', label: 'Resumen', activa: false },
-      { id: 'votaciones', label: 'Votaciones', activa: false },
+      {
+        id: 'votaciones',
+        label: `Votaciones${votaciones.length + prevista.length ? ` (${votaciones.length + prevista.length})` : ''}`,
+        activa: votaciones.length + prevista.length > 0,
+      },
     ],
-    [events.length, nActores, nComisiones]
+    [events.length, nActores, nComisiones, votaciones.length, prevista.length]
   );
 
   useEffect(() => {
@@ -626,6 +671,60 @@ export default function ProcedureDetailPage() {
             filas={FILAS_COMISIONES_PE}
             forma="organo"
           />
+        </div>
+      )}
+
+      {tab === 'votaciones' && (
+        <div style={CARD}>
+          {prevista.length > 0 && (
+            <div style={{ marginBottom: votaciones.length > 0 ? 18 : 0 }}>
+              <div style={LABEL}>Prevista</div>
+              {prevista.map((f) => (
+                <div
+                  key={f}
+                  style={{ display: 'flex', justifyContent: 'space-between', gap: 10, padding: '8px 0', borderBottom: '.5px solid #f0f0eb' }}
+                >
+                  <span style={{ fontSize: 12.5, fontWeight: 600 }}>
+                    Votación en pleno
+                    <span
+                      style={{
+                        marginLeft: 8,
+                        fontSize: 10,
+                        fontWeight: 600,
+                        color: '#6d5aef',
+                        background: '#f1eefe',
+                        borderRadius: 999,
+                        padding: '2px 8px',
+                      }}
+                    >
+                      En el orden del día
+                    </span>
+                  </span>
+                  <span style={{ fontSize: 11.5, color: '#1a1a18', flexShrink: 0 }}>{fechaCorta(f)}</span>
+                </div>
+              ))}
+            </div>
+          )}
+          {votaciones.length > 0 && (
+            <div>
+              <div style={LABEL}>Celebradas</div>
+              {votaciones.map((v) => (
+                <div
+                  key={v.id}
+                  style={{ display: 'flex', justifyContent: 'space-between', gap: 10, padding: '8px 0', borderBottom: '.5px solid #f0f0eb' }}
+                >
+                  <span style={{ fontSize: 12, minWidth: 0 }}>
+                    {v.label}
+                    <span style={{ color: '#aaa' }}>, {v.ambito.toLowerCase()}</span>
+                  </span>
+                  <span style={{ fontSize: 11, color: '#aaa', flexShrink: 0 }}>{fechaCorta(v.fecha) || '—'}</span>
+                </div>
+              ))}
+            </div>
+          )}
+          <div style={{ fontSize: 10.5, color: '#aaa', marginTop: 12 }}>
+            Se muestran las fechas y el órgano que vota. El resultado de cada votación está en el acta del Parlamento Europeo.
+          </div>
         </div>
       )}
 
