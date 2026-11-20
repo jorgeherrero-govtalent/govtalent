@@ -16,8 +16,7 @@ import {
  * Parlamentos autonómicos — portada.
  *
  * Diseño elegido el 04-10-2026 (opción C con la tabla de la A):
- *   1. «Esta semana»: los últimos movimientos.
- *   2. Filtros por parlamento y por sector, y dos vistas: Tabla (por
+ *   1. Filtros por parlamento y por sector, y dos vistas: Tabla (por
  *      defecto, paginada como el Congreso) y Por fase.
  *
  * Los sectores son los del directorio del BOE; los asigna la IA a cada
@@ -69,8 +68,9 @@ function Subtitulo({ e }) {
 export default function ParlamentosAutonomicosPage() {
   const supabase = createClient();
   const [expedientes, setExpedientes] = useState(null);
-  const [movimientos, setMovimientos] = useState([]);
   const [parlFilter, setParlFilter] = useState(new Set());
+  const [faseFilter, setFaseFilter] = useState(new Set());
+  const [orden, setOrden] = useState('recientes'); // recientes | cierre
   const [vista, setVista] = useState('tabla');
   const [conCerradas, setConCerradas] = useState(false);
   const [busca, setBusca] = useState('');
@@ -99,35 +99,39 @@ export default function ParlamentosAutonomicosPage() {
   }
 
   useEffect(() => {
-    const hace7 = new Date(Date.now() - 7 * 86400000).toISOString().slice(0, 10);
-    Promise.all([
-      supabase.from('ccaa_resumen').select('*').order('ultimo_fecha', { ascending: false, nullsFirst: false }).limit(1000),
-      supabase
-        .from('ccaa_movimientos')
-        .select('id, parlamento, titulo, slug, tipo, fecha, descripcion')
-        .eq('is_closed', false)
-        .gte('fecha', hace7)
-        .neq('tipo', 'otro')
-        .order('fecha', { ascending: false })
-        .limit(9),
-    ]).then(([{ data: exps }, { data: movs }]) => {
-      setExpedientes(exps || []);
-      setMovimientos(movs || []);
-    });
+    supabase
+      .from('ccaa_resumen')
+      .select('*')
+      .order('ultimo_fecha', { ascending: false, nullsFirst: false })
+      .limit(1000)
+      .then(({ data }) => setExpedientes(data || []));
   }, []);
 
 
   const visibles = useMemo(() => {
     const q = busca.trim().toLowerCase();
-    return (expedientes || []).filter(
+    const lista = (expedientes || []).filter(
       (e) =>
         (conCerradas || !e.is_closed) &&
         (parlFilter.size === 0 || parlFilter.has(e.parlamento)) &&
+        (faseFilter.size === 0 || faseFilter.has(e.fase || 'sin')) &&
         // Varios sectores a la vez suman: energía o medio ambiente.
         (sectorFilter.size === 0 || (e.sectores || []).some((s) => sectorFilter.has(s))) &&
         (!q || `${e.titulo} ${e.titulo_es || ''} ${e.num_expediente}`.toLowerCase().includes(q)),
     );
-  }, [expedientes, parlFilter, conCerradas, busca, sectorFilter]);
+    if (orden !== 'cierre') return lista;
+    // Cierre más próximo: primero los que tienen un plazo de enmiendas
+    // abierto, el que cierra antes arriba; el resto, como venían.
+    const cierra = (e) => (e.plazo_abierto && e.plazo_enmiendas ? String(e.plazo_enmiendas) : null);
+    return [...lista].sort((a, b) => {
+      const ca = cierra(a);
+      const cb = cierra(b);
+      if (ca && cb) return ca.localeCompare(cb);
+      if (ca) return -1;
+      if (cb) return 1;
+      return 0;
+    });
+  }, [expedientes, parlFilter, faseFilter, conCerradas, busca, sectorFilter, orden]);
 
   // Sectores con el recuento de lo que se ve con el resto de filtros, para
   // que el número diga de antemano cuánto vas a encontrar. Solo aparecen
@@ -137,17 +141,18 @@ export default function ParlamentosAutonomicosPage() {
     for (const e of expedientes || []) {
       if (!conCerradas && e.is_closed) continue;
       if (parlFilter.size > 0 && !parlFilter.has(e.parlamento)) continue;
+      if (faseFilter.size > 0 && !faseFilter.has(e.fase || 'sin')) continue;
       for (const s of e.sectores || []) n.set(s, (n.get(s) || 0) + 1);
     }
     for (const s of sectorFilter) if (!n.has(s)) n.set(s, 0);
     return [...n.entries()]
       .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0], 'es'))
       .map(([s, c]) => ({ value: s, label: `${s} (${c})` }));
-  }, [expedientes, conCerradas, parlFilter, sectorFilter]);
+  }, [expedientes, conCerradas, parlFilter, faseFilter, sectorFilter]);
 
   useEffect(() => {
     setPage(1);
-  }, [parlFilter, conCerradas, busca, sectorFilter]);
+  }, [parlFilter, faseFilter, conCerradas, busca, sectorFilter, orden]);
 
   // Los recuentos de «En tramitación» y «Todas», como en el Congreso.
   const nAbiertas = (expedientes || []).filter((e) => !e.is_closed).length;
@@ -160,9 +165,24 @@ export default function ParlamentosAutonomicosPage() {
     }
     return FASE1.map((p) => ({ value: p, label: `${CCAA[p]} (${n.get(p)})` }));
   }, [expedientes, conCerradas]);
-  const activeCount = parlFilter.size + sectorFilter.size;
+  // Fases, con el recuento de lo que se ve con el resto de filtros.
+  const faseOptions = useMemo(() => {
+    const n = new Map();
+    for (const e of expedientes || []) {
+      if (!conCerradas && e.is_closed) continue;
+      if (parlFilter.size > 0 && !parlFilter.has(e.parlamento)) continue;
+      const f = e.fase || 'sin';
+      n.set(f, (n.get(f) || 0) + 1);
+    }
+    return [...FASES.map((f) => [f.id, f.nombre]), ['cerrada', 'Cerrada'], ['sin', 'Sin trámites todavía']]
+      .filter(([id]) => n.has(id) || faseFilter.has(id))
+      .map(([id, nombre]) => ({ value: id, label: `${nombre} (${n.get(id) || 0})` }));
+  }, [expedientes, conCerradas, parlFilter, faseFilter]);
+  const nombreFiltroFase = (id) => (id === 'cerrada' ? 'Cerrada' : id === 'sin' ? 'Sin trámites todavía' : NOMBRE_FASE[id] || id);
+  const activeCount = parlFilter.size + faseFilter.size + sectorFilter.size;
   const limpiar = () => {
     setParlFilter(new Set());
+    setFaseFilter(new Set());
     setSectorFilter(new Set());
   };
 
@@ -186,23 +206,6 @@ export default function ParlamentosAutonomicosPage() {
         </div>
       </div>
 
-      {movimientos.length > 0 && (
-        <div style={{ ...CARD, padding: '18px 22px', marginBottom: 18 }}>
-          <h2 style={{ fontSize: 15, fontWeight: 600, margin: '0 0 4px' }}>Esta semana</h2>
-          <div className="ccaa-semana" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', columnGap: 20 }}>
-            {movimientos.map((m) => (
-              <Link key={m.id} href={`/parlamentos-autonomicos/${m.slug}`} style={{ padding: '12px 0', borderTop: '1px solid #efeee8', textDecoration: 'none', color: 'inherit', display: 'block' }}>
-                <div style={{ fontSize: 12, color: GRIS }}>
-                  {CCAA[m.parlamento]}, {fechaCorta(m.fecha)}
-                </div>
-                <div style={{ fontSize: 13, marginTop: 2, fontWeight: 600 }}>{tituloLegible(m.titulo)}</div>
-                {m.descripcion && <div style={{ fontSize: 12.5, color: '#3a3a36', marginTop: 2 }}>{m.descripcion.slice(0, 120)}</div>}
-              </Link>
-            ))}
-          </div>
-        </div>
-      )}
-
       {/* Los mismos filtros que el Congreso (LeyesList): buscador, selector
           de estado con recuentos y desplegables con casillas. */}
       <div style={{ display: 'flex', gap: 8, marginBottom: 13, flexWrap: 'wrap' }}>
@@ -220,9 +223,21 @@ export default function ParlamentosAutonomicosPage() {
         </div>
 
         <MultiSelectFilter label="Parlamento" values={parlamentoOptions} selected={parlFilter} onApply={setParlFilter} />
+        <MultiSelectFilter label="Fase" values={faseOptions} selected={faseFilter} onApply={setFaseFilter} />
         {sectorOptions.length > 0 && (
           <MultiSelectFilter label="Sector" values={sectorOptions} selected={sectorFilter} onApply={setSectorFilter} />
         )}
+
+        <div className="gt-seg" role="group" aria-label="Orden">
+          {[
+            ['recientes', 'Más recientes'],
+            ['cierre', 'Cierre más próximo'],
+          ].map(([id, txt]) => (
+            <span key={id} aria-pressed={orden === id} onClick={() => setOrden(id)} className={`gt-seg-it${orden === id ? ' on' : ''}`}>
+              {txt}
+            </span>
+          ))}
+        </div>
 
         <div className="gt-seg" role="group" aria-label="Vista">
           {[
@@ -238,7 +253,7 @@ export default function ParlamentosAutonomicosPage() {
 
       {activeCount > 0 && (
         <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap', marginBottom: 12 }}>
-          {[...[...parlFilter].map((p) => CCAA[p] || p), ...sectorFilter].map((v) => (
+          {[...[...parlFilter].map((p) => CCAA[p] || p), ...[...faseFilter].map(nombreFiltroFase), ...sectorFilter].map((v) => (
             <span key={v} style={{ fontSize: 11, background: '#f0efe9', color: '#666', padding: '3px 10px', borderRadius: 14 }}>
               {v}
             </span>
@@ -406,7 +421,6 @@ export default function ParlamentosAutonomicosPage() {
 
       <style>{`
         @media (max-width: 900px) {
-          .ccaa-semana { grid-template-columns: minmax(0, 1fr) !important; }
           .ccaa-fases { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
         }
       `}</style>
