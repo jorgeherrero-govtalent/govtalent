@@ -43,7 +43,7 @@ function iniciales(nombre) {
 // no, o si falla al cargar, las iniciales. Mismas medidas que Ministerios.
 function Foto({ nombre, url, size = 56, radius = 10 }) {
   const [fallo, setFallo] = useState(false);
-  const base = { width: size, height: size, borderRadius: radius, flexShrink: 0, objectFit: 'cover', background: '#ece9e2' };
+  const base = { width: size, height: size, borderRadius: radius, flexShrink: 0, objectFit: 'cover', objectPosition: 'center top', background: '#ece9e2' };
   if (url && !fallo) return <img src={url} alt="" width={size} height={size} style={base} onError={() => setFallo(true)} />;
   return (
     <div

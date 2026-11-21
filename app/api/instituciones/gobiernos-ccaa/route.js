@@ -30,6 +30,7 @@ import {
   PARLAMENTO_DE,
   buscadorDeFotos,
 } from '@/lib/ccaa/gobiernos';
+import { emparejarFotos } from '@/lib/ccaa/fotosGobierno';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -200,18 +201,36 @@ async function ficha(admin, g, conContacto) {
   const agenda = porCcaa.get(g.ccaa) || [];
   const { presidente, vicepresidentes, consejeros } = componer(agenda, filas);
 
-  // Fotos: las del parlamento de la comunidad, para quien es diputado (el
-  // presidente y muchos consejeros). Al resto, las iniciales.
-  let fotoDe = () => null;
+  // Fotos: primero la oficial del gobierno (ccaa_gobierno_fotos, sql/142,
+  // lib/ccaa/fotosGobierno.js); si no, la del parlamento, para quien es
+  // diputado; al resto, las iniciales.
+  let fotoParlamento = () => null;
   if (PARLAMENTO_DE[g.slug]) {
     const { data: diputados } = await admin
       .from('ccaa_diputados')
       .select('nombre, foto_url, foto_storage_url')
       .eq('parlamento', PARLAMENTO_DE[g.slug])
       .eq('activo', true);
-    fotoDe = buscadorDeFotos(diputados || []);
+    fotoParlamento = buscadorDeFotos(diputados || []);
   }
-  for (const p of [presidente, ...vicepresidentes, ...consejeros]) if (p) p.foto = fotoDe(p.nombre);
+  const miembros = [presidente, ...vicepresidentes, ...consejeros].filter(Boolean);
+  let oficiales = new Map();
+  {
+    // Si la tabla aún no existe (sql/142 sin aplicar), sigue sin ellas.
+    const { data: imagenes, error } = await admin
+      .from('ccaa_gobierno_fotos')
+      .select('foto_url, alt, antes, despues, orden')
+      .eq('gobierno', g.slug)
+      .order('orden', { ascending: true });
+    if (!error && imagenes?.length) {
+      oficiales = emparejarFotos(
+        miembros.map((p) => ({ clave: clavePersona(p.nombre), nombre: p.nombre })),
+        imagenes.map((i) => ({ ...i, alt: i.alt || '', antes: i.antes || '', despues: i.despues || '' }))
+      );
+    }
+  }
+  const fotoDe = (nombre) => oficiales.get(clavePersona(nombre)) || fotoParlamento(nombre);
+  for (const p of miembros) p.foto = fotoDe(p.nombre);
 
   // Consejería de cada persona: el departamento si la fuente lo trae
   // (Cataluña), la propia unidad si es una consejería, o la del consejero.

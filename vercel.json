@@ -179,6 +179,10 @@
     {
       "path": "/api/sync/contratacion-historico",
       "schedule": "7,22,37,52 0-5 * * *"
+    },
+    {
+      "path": "/api/sync/fotos-gobiernos-ccaa",
+      "schedule": "25 6 * * 1"
     }
   ]
 }
