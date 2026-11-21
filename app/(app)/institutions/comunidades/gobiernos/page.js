@@ -6,6 +6,7 @@ import BackLink from '@/components/BackLink';
 import CampoBusqueda from '@/components/CampoBusqueda';
 import BanderaCcaa from '@/components/BanderaCcaa';
 import PestanasComunidades from '@/components/PestanasComunidades';
+import MultiSelectFilter from '@/components/MultiSelectFilter';
 import { norm } from '@/lib/ccaa/gobiernos';
 
 // =====================================================================
@@ -13,18 +14,15 @@ import { norm } from '@/lib/ccaa/gobiernos';
 //
 // Maqueta B (21-11-2026): una tarjeta por gobierno, como la pestaña
 // Ministerios: bandera y nombre arriba, filete, y debajo el presidente,
-// las consejerías, los contactos y «Ver organigrama →». Los datos, de
+// las consejerías, los contactos y «Ver organigrama →». Buscador y filtro
+// por comunidad, como Parlamentos. Los datos, de
 // /api/instituciones/gobiernos-ccaa (lib/ccaa/gobiernos.js).
 // =====================================================================
-
-const ORDENES = [
-  { id: 'alfabetico', label: 'A–Z' },
-  { id: 'equipo', label: 'Equipo más grande' },
-];
 
 const cuenta = (n, uno, varios) => `${n.toLocaleString('es-ES')} ${n === 1 ? uno : varios}`;
 
 const ICONO = { fontSize: 12, verticalAlign: -1, color: '#aaa' };
+const CHIP = { fontSize: 11, padding: '3px 10px', borderRadius: 12, background: '#f5f4f1', color: '#666', border: 'none', cursor: 'pointer' };
 
 function Tarjeta({ g }) {
   return (
@@ -71,7 +69,7 @@ export default function GobiernosPage() {
   const [gobiernos, setGobiernos] = useState(null);
   const [error, setError] = useState(false);
   const [q, setQ] = useState('');
-  const [orden, setOrden] = useState('alfabetico');
+  const [comunidades, setComunidades] = useState(new Set());
 
   useEffect(() => {
     let vivo = true;
@@ -84,14 +82,23 @@ export default function GobiernosPage() {
     };
   }, []);
 
-  // Se busca por gobierno, comunidad y presidente a la vez.
+  // Por orden alfabético de la comunidad. Se busca por gobierno, comunidad
+  // y presidente a la vez; el filtro, por comunidad (21-11-2026: sin
+  // «A–Z» ni «Equipo más grande»).
+  const valoresComunidad = useMemo(
+    () =>
+      [...(gobiernos || [])]
+        .sort((a, b) => a.ccaa.localeCompare(b.ccaa, 'es'))
+        .map((g) => ({ value: g.ccaa, label: g.ccaa })),
+    [gobiernos]
+  );
   const visibles = useMemo(() => {
     const t = norm(q.trim());
-    const lista = (gobiernos || []).filter((g) => !t || norm(`${g.nombre} ${g.ccaa} ${g.presidente || ''}`).includes(t));
-    return [...lista].sort((a, b) =>
-      orden === 'equipo' ? b.personas - a.personas || a.nombre.localeCompare(b.nombre, 'es') : a.ccaa.localeCompare(b.ccaa, 'es')
-    );
-  }, [gobiernos, q, orden]);
+    return (gobiernos || [])
+      .filter((g) => comunidades.size === 0 || comunidades.has(g.ccaa))
+      .filter((g) => !t || norm(`${g.nombre} ${g.ccaa} ${g.presidente || ''}`).includes(t))
+      .sort((a, b) => a.ccaa.localeCompare(b.ccaa, 'es'));
+  }, [gobiernos, q, comunidades]);
 
   return (
     <div className="sec">
@@ -109,16 +116,20 @@ export default function GobiernosPage() {
           placeholder="Buscar gobierno o presidente…"
           aria-label="Buscar en los gobiernos autonómicos"
         />
-        {/* Pastillas y no un desplegable, como en Ministerios: son dos
-            opciones y con un desplegable el criterio activo queda escondido. */}
-        <div style={{ display: 'flex', gap: 6 }}>
-          {ORDENES.map((o) => (
-            <button key={o.id} type="button" onClick={() => setOrden(o.id)} className={`gt-filtro${orden === o.id ? ' on' : ''}`}>
-              {o.label}
+        {valoresComunidad.length > 1 ? (
+          <MultiSelectFilter label="Comunidad" values={valoresComunidad} selected={comunidades} onApply={(s) => setComunidades(new Set(s))} />
+        ) : null}
+      </div>
+
+      {comunidades.size > 0 ? (
+        <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap', marginBottom: 12 }}>
+          {[...comunidades].map((c) => (
+            <button key={c} type="button" onClick={() => setComunidades(new Set([...comunidades].filter((x) => x !== c)))} style={CHIP}>
+              {c} ×
             </button>
           ))}
         </div>
-      </div>
+      ) : null}
 
       {error ? (
         <div className="card">

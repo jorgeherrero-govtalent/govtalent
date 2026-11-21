@@ -27,6 +27,8 @@ import {
   esPresidente,
   consejeriaDe,
   rolCorto,
+  PARLAMENTO_DE,
+  buscadorDeFotos,
 } from '@/lib/ccaa/gobiernos';
 
 export const dynamic = 'force-dynamic';
@@ -198,6 +200,19 @@ async function ficha(admin, g, conContacto) {
   const agenda = porCcaa.get(g.ccaa) || [];
   const { presidente, vicepresidentes, consejeros } = componer(agenda, filas);
 
+  // Fotos: las del parlamento de la comunidad, para quien es diputado (el
+  // presidente y muchos consejeros). Al resto, las iniciales.
+  let fotoDe = () => null;
+  if (PARLAMENTO_DE[g.slug]) {
+    const { data: diputados } = await admin
+      .from('ccaa_diputados')
+      .select('nombre, foto_url, foto_storage_url')
+      .eq('parlamento', PARLAMENTO_DE[g.slug])
+      .eq('activo', true);
+    fotoDe = buscadorDeFotos(diputados || []);
+  }
+  for (const p of [presidente, ...vicepresidentes, ...consejeros]) if (p) p.foto = fotoDe(p.nombre);
+
   // Consejería de cada persona: el departamento si la fuente lo trae
   // (Cataluña), la propia unidad si es una consejería, o la del consejero.
   const nombresConsejeria = new Map(consejeros.map((c) => [norm(c.consejeria), c.consejeria]));
@@ -216,6 +231,7 @@ async function ficha(admin, g, conContacto) {
       departamento: null,
       nivel: esPresidente(c.cargo) ? 'alta_direccion' : 'direccion',
       email: c.email || null,
+      foto: fotoDe(c.nombre),
     })),
     ...filas.map((f) => ({
       id: `fuente:${f.id}`,
@@ -225,6 +241,7 @@ async function ficha(admin, g, conContacto) {
       departamento: departamento(f),
       nivel: f.banda || 'mando_intermedio',
       email: f.email || null,
+      foto: f.banda === 'alta_direccion' ? fotoDe(f.nombre) : null,
     })),
   ];
   // Los consejeros llevan su consejería también en Personas.
