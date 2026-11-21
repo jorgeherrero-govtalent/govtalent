@@ -212,7 +212,10 @@ function TiposVisibles({ valores, total, seleccion, onCambio }) {
 
 const CHIP = { fontSize: 11, padding: '3px 10px', borderRadius: 12, background: '#f5f4f1', color: '#666', border: 'none', cursor: 'pointer' };
 
-export default function DirectorioListado({ slug, base, volverA, volverEtiqueta }) {
+// `pestanas` (opcional): pestañas propias bajo el título, [{ href, titulo,
+// activa }]. Comunidades autónomas las usa para Parlamentos y Gobiernos
+// (21-11-2026).
+export default function DirectorioListado({ slug, base, volverA, volverEtiqueta, pestanas = null }) {
   const seccion = seccionPorSlug(slug);
   // Las asociaciones salían de organizations, sin ficha y con su sector. Desde
   // el 19-11-2026 tienen ficha como las patronales y el sector va en el tipo:
@@ -294,6 +297,14 @@ export default function DirectorioListado({ slug, base, volverA, volverEtiqueta 
               </Link>
             );
           })}
+        </nav>
+      ) : pestanas ? (
+        <nav aria-label={seccion.titulo} style={PESTANAS}>
+          {pestanas.map((p) => (
+            <Link key={p.href} href={p.href} aria-current={p.activa ? 'page' : undefined} style={p.activa ? PESTANA_ON : PESTANA}>
+              {p.titulo}
+            </Link>
+          ))}
         </nav>
       ) : null}
 
