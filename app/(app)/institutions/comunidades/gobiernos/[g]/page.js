@@ -39,21 +39,22 @@ function iniciales(nombre) {
   return `${p[0]?.[0] || ''}${p[1]?.[0] || ''}`.toUpperCase();
 }
 
-function Foto({ nombre }) {
+// La foto, si la tenemos (la del parlamento para quien es diputado); si
+// no, o si falla al cargar, las iniciales. Mismas medidas que Ministerios.
+function Foto({ nombre, url, size = 56, radius = 10 }) {
+  const [fallo, setFallo] = useState(false);
+  const base = { width: size, height: size, borderRadius: radius, flexShrink: 0, objectFit: 'cover', background: '#ece9e2' };
+  if (url && !fallo) return <img src={url} alt="" width={size} height={size} style={base} onError={() => setFallo(true)} />;
   return (
     <div
       aria-hidden="true"
       style={{
-        width: 56,
-        height: 56,
-        borderRadius: 10,
-        flexShrink: 0,
-        background: '#ece9e2',
+        ...base,
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
         color: '#8d8b83',
-        fontSize: 17,
+        fontSize: Math.round(size * 0.3),
         fontWeight: 700,
       }}
     >
@@ -63,11 +64,11 @@ function Foto({ nombre }) {
 }
 
 /** Tarjeta del organigrama, la de Ministerios con el correo al pie. */
-function TarjetaCargo({ nombre, rol, detalle, correo }) {
+function TarjetaCargo({ nombre, foto, rol, detalle, correo }) {
   return (
     <div className="card" style={{ padding: 14, display: 'flex', flexDirection: 'column' }}>
       <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start', flex: 1 }}>
-        <Foto nombre={nombre} />
+        <Foto nombre={nombre} url={foto} />
         <div style={{ minWidth: 0, flex: 1 }}>
           <div style={{ fontSize: 13, fontWeight: 700, lineHeight: 1.3 }}>{nombre}</div>
           {rol ? <div style={{ fontSize: 10.5, color: '#999', marginTop: 2 }}>{rol}</div> : null}
@@ -259,6 +260,7 @@ export default function GobiernoAutonomicoPage({ params }) {
             {org.presidente ? (
               <TarjetaCargo
                 nombre={org.presidente.nombre}
+                foto={org.presidente.foto}
                 rol={org.presidente.cargo}
                 detalle={g.nombre}
                 correo={correoDe(org.presidente)}
@@ -267,12 +269,12 @@ export default function GobiernoAutonomicoPage({ params }) {
           </Bloque>
           <Bloque titulo="Vicepresidencias" vacio={org.vices.length === 0}>
             {org.vices.map((v) => (
-              <TarjetaCargo key={v.id} nombre={v.nombre} rol={v.rol} detalle={v.detalle} correo={correoDe(v, v.cargo)} />
+              <TarjetaCargo key={v.id} nombre={v.nombre} foto={v.foto} rol={v.rol} detalle={v.detalle} correo={correoDe(v, v.cargo)} />
             ))}
           </Bloque>
           <Bloque titulo="Consejerías" vacio={org.consejeros.length === 0}>
             {org.consejeros.map((c) => (
-              <TarjetaCargo key={c.id} nombre={c.nombre} rol={c.rol} detalle={c.consejeria} correo={correoDe(c, c.cargo)} />
+              <TarjetaCargo key={c.id} nombre={c.nombre} foto={c.foto} rol={c.rol} detalle={c.consejeria} correo={correoDe(c, c.cargo)} />
             ))}
           </Bloque>
 
@@ -424,24 +426,7 @@ export default function GobiernoAutonomicoPage({ params }) {
                   {personas.slice(pag.desde, pag.hasta).map((p) => (
                     <div key={p.id} style={FILA}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
-                        <div
-                          aria-hidden="true"
-                          style={{
-                            width: 28,
-                            height: 28,
-                            borderRadius: 7,
-                            background: '#ece9e2',
-                            color: '#8d8b83',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            fontSize: 10,
-                            fontWeight: 700,
-                            flexShrink: 0,
-                          }}
-                        >
-                          {iniciales(p.nombre)}
-                        </div>
+                        <Foto nombre={p.nombre} url={p.foto} size={28} radius={7} />
                         <div style={{ fontSize: 12.5, fontWeight: 600, minWidth: 0 }}>{p.nombre}</div>
                       </div>
                       <div style={{ fontSize: 12, color: '#3d3a35', minWidth: 0 }}>{p.cargo}</div>
