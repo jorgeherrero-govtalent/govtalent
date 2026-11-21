@@ -20,7 +20,7 @@
 import { createClient } from '@supabase/supabase-js';
 import { conRegistro } from '@/lib/syncLog';
 import { HEADERS_BOT } from '@/lib/govtalentBot';
-import { FUENTES_FOTOS, extraerImagenes, enlaceQueDice } from '@/lib/ccaa/fotosGobierno';
+import { FUENTES_FOTOS, extraerImagenes, enlacesQueDicen } from '@/lib/ccaa/fotosGobierno';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 300;
@@ -74,9 +74,10 @@ async function handler(request) {
       try {
         const { html, final } = await leer(url, navegador);
         if (seguir && k < urls.length) {
-          const otra = enlaceQueDice(html, final, seguir);
-          if (otra && !pendientes.includes(otra)) pendientes.push(otra);
-          fila.enlace = otra || 'no encontrado';
+          const enlaces = enlacesQueDicen(html, final, seguir);
+          // Hasta dos: si el primero es un menú, el segundo suele ser el bueno.
+          for (const otra of enlaces.slice(0, 2)) if (!pendientes.includes(otra)) pendientes.push(otra);
+          fila.enlaces = enlaces.length ? enlaces.slice(0, 6) : 'ninguno';
         }
         for (const img of extraerImagenes(html, final)) {
           if (vistas.has(img.foto_url)) continue;
