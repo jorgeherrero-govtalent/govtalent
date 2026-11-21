@@ -76,6 +76,7 @@ async function handler(request) {
         if (seguir && k < urls.length) {
           const otra = enlaceQueDice(html, final, seguir);
           if (otra && !pendientes.includes(otra)) pendientes.push(otra);
+          fila.enlace = otra || 'no encontrado';
         }
         for (const img of extraerImagenes(html, final)) {
           if (vistas.has(img.foto_url)) continue;
