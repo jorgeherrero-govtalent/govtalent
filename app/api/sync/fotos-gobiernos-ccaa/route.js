@@ -20,7 +20,7 @@
 import { createClient } from '@supabase/supabase-js';
 import { conRegistro } from '@/lib/syncLog';
 import { HEADERS_BOT } from '@/lib/govtalentBot';
-import { FUENTES_FOTOS, extraerImagenes } from '@/lib/ccaa/fotosGobierno';
+import { FUENTES_FOTOS, extraerImagenes, enlaceQueDice } from '@/lib/ccaa/fotosGobierno';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 300;
@@ -64,13 +64,19 @@ async function handler(request) {
   const informe = [];
 
   for (const slug of slugs) {
-    const { urls, navegador } = FUENTES_FOTOS[slug];
+    const { urls, navegador, seguir } = FUENTES_FOTOS[slug];
     const fila = { gobierno: slug, imagenes: 0, errores: [] };
     const todas = [];
     const vistas = new Set();
-    for (const url of urls) {
+    const pendientes = [...urls];
+    for (let k = 0; k < pendientes.length && k < 4; k++) {
+      const url = pendientes[k];
       try {
         const { html, final } = await leer(url, navegador);
+        if (seguir && k < urls.length) {
+          const otra = enlaceQueDice(html, final, seguir);
+          if (otra && !pendientes.includes(otra)) pendientes.push(otra);
+        }
         for (const img of extraerImagenes(html, final)) {
           if (vistas.has(img.foto_url)) continue;
           vistas.add(img.foto_url);
