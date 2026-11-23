@@ -30,7 +30,7 @@
 import { createClient } from '@supabase/supabase-js';
 import { conRegistro } from '@/lib/syncLog';
 import { FUENTES, leerExportacion, leerFicha, textoDelProyecto, pedir } from '@/lib/ccaa/consultasMadrid';
-import { leerConsultas as leerCataluna } from '@/lib/ccaa/consultasCataluna';
+import { leerConsultas as leerCataluna, departamentoDe } from '@/lib/ccaa/consultasCataluna';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -38,6 +38,11 @@ export const fetchCache = 'force-no-store';
 export const maxDuration = 300;
 
 const PRESUPUESTO_MS = 240_000;
+// Cataluña: fichas web que se abren por ejecución para leer el
+// departamento (la API solo lo da en algunos procesos), con pausa.
+const FICHAS_CATALUNA = 150;
+const PAUSA_FICHAS_MS = 500;
+const GENERICO_CATALUNA = 'Generalitat de Catalunya';
 const COMUNIDADES = ['cataluna', 'madrid'];
 
 // Cliente con fetch sin caché: sin esto las lecturas de Supabase pueden
@@ -97,7 +102,7 @@ async function handler(request) {
 async function guardadasDe(supabase, ccaa) {
   const { data, error } = await supabase
     .from('consultas_publicas')
-    .select('id, url_origen, tipo, titulo, fecha_fin, resumen')
+    .select('id, url_origen, tipo, titulo, fecha_fin, resumen, ministerio')
     .eq('ambito', 'ccaa')
     .eq('ccaa', ccaa);
   if (error) throw new Error(error.message);
@@ -133,18 +138,35 @@ async function syncCataluna({ supabase, dry, hoy }) {
   if (dry) return { ok: true, n_leidos: filas.length, n_escritos: 0, muestra: filas.slice(0, 40) };
   let nuevas = 0;
   let actualizadas = 0;
+  let fichas = 0;
   const errores = [];
   for (const f of filas) {
     const { url, ...resto } = f;
     const g = porUrl.get(url);
     const cambios = { ...resto, fecha_captura: new Date().toISOString() };
+    // Sin departamento en la API: el que ya se leyó de la ficha, o se lee
+    // ahora de la ficha web (hasta FICHAS_CATALUNA por ejecución; lo que
+    // quede, en la siguiente).
+    if (f.ministerio === GENERICO_CATALUNA) {
+      if (g?.ministerio && g.ministerio !== GENERICO_CATALUNA) cambios.ministerio = g.ministerio;
+      else if (fichas < FICHAS_CATALUNA) {
+        fichas += 1;
+        try {
+          if (fichas > 1) await new Promise((r) => setTimeout(r, PAUSA_FICHAS_MS));
+          const d = await departamentoDe(url);
+          if (d) cambios.ministerio = d;
+        } catch (e) {
+          if (errores.length < 5) errores.push(`ficha ${url.split('/').pop()}: ${e.message}`);
+        }
+      }
+    }
     if (f.resumen && f.resumen !== g?.resumen) cambios.resumen_generado_at = new Date().toISOString();
     const r = await guardar(supabase, 'cataluna', g, url, cambios);
     if (r === 'nueva') nuevas += 1;
     else if (r === 'actualizada') actualizadas += 1;
     else errores.push(`${r} (${url.split('/').pop()})`);
   }
-  return { ok: !errores.length, n_leidos: filas.length, n_escritos: nuevas + actualizadas, nuevas, actualizadas, errores: errores.slice(0, 20) };
+  return { ok: !errores.length, n_leidos: filas.length, n_escritos: nuevas + actualizadas, nuevas, actualizadas, fichas_leidas: fichas, errores: errores.slice(0, 20) };
 }
 
 // ---------------------------------------------------------------------
