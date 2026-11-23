@@ -27,6 +27,18 @@ const TIPOS = {
 
 const tipoLabel = (c) => TIPOS[c] || c || 'Trámite de participación';
 
+// Quién publica las consultas de cada comunidad, para los textos de la ficha.
+const AUTOR_CCAA = {
+  madrid: 'la Comunidad de Madrid',
+  cataluna: 'la Generalitat de Catalunya',
+};
+
+// Dónde se presentan las aportaciones, cuando la comunidad no da buzón.
+const PARTICIPAR_CCAA = {
+  madrid: { portal: 'Portal de Participación de la Comunidad de Madrid', url: 'https://participa.comunidad.madrid', extra: true },
+  cataluna: { portal: 'Participa gencat', url: null, extra: false },
+};
+
 function iniciales(n) {
   const p = (n || '').replace(',', '').trim().split(' ');
   return `${p[0]?.[0] || ''}${p[p.length - 1]?.[0] || ''}`.toUpperCase();
@@ -275,7 +287,7 @@ export default function ConsultaDetallePage() {
   const autonomica = item.ambito === 'ccaa';
   const comunidad = autonomica ? CCAA[item.ccaa] || 'la comunidad autónoma' : null;
   // Quién publica el trámite, para los textos de la ficha.
-  const autor = autonomica ? (comunidad.startsWith('Comunidad') ? `la ${comunidad}` : comunidad) : 'el ministerio';
+  const autor = autonomica ? AUTOR_CCAA[item.ccaa] || comunidad : 'el ministerio';
 
   return (
     <div className="sec" style={{ maxWidth: 900 }}>
@@ -492,16 +504,18 @@ export default function ConsultaDetallePage() {
                 <span>Solo se consideran las aportaciones en las que el remitente esté identificado.</span>
               </div>
             </div>
-          ) : autonomica && item.ccaa === 'madrid' ? (
+          ) : autonomica && PARTICIPAR_CCAA[item.ccaa] ? (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10, fontSize: 12.5, color: '#555' }}>
               <div style={{ display: 'flex', alignItems: 'flex-start', gap: 9 }}>
                 <i className="ti ti-world" style={{ color: '#6d5aef', fontSize: 14, marginTop: 2 }}></i>
                 <span>
-                  En el{' '}
-                  <a href="https://participa.comunidad.madrid" target="_blank" rel="noreferrer" style={{ color: '#555' }}>
-                    Portal de Participación de la Comunidad de Madrid
+                  En{' '}
+                  <a href={PARTICIPAR_CCAA[item.ccaa].url || item.url_origen} target="_blank" rel="noreferrer" style={{ color: '#555' }}>
+                    {PARTICIPAR_CCAA[item.ccaa].portal}
                   </a>
-                  , o por los demás medios del artículo 16.4 de la Ley 39/2015, dirigidos a {item.ministerio}.
+                  {PARTICIPAR_CCAA[item.ccaa].extra
+                    ? `, o por los demás medios del artículo 16.4 de la Ley 39/2015, dirigidos a ${item.ministerio}.`
+                    : ', en la página del trámite.'}
                 </span>
               </div>
               {item.fecha_fin && (
