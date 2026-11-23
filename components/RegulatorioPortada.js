@@ -262,8 +262,9 @@ function cuentas(supabase, ambito) {
       .neq('tipo', 'Proposición de ley de Comunidades y Ciudades Autónomas'),
     // Sobre la vista y no sobre la tabla: el estado se calcula allí a
     // partir de fecha_fin.
-    consultasAbiertas: supabase.from('consultas_estado').select('id', { count: 'exact', head: true }).in('estado', ['abierta', 'urgente']),
-    consultasUrgentes: supabase.from('consultas_estado').select('id', { count: 'exact', head: true }).eq('estado', 'urgente'),
+    // La tarjeta lleva a /regulatorio/consultas, que es solo del Estado.
+    consultasAbiertas: supabase.from('consultas_estado').select('id', { count: 'exact', head: true }).eq('ambito', 'estado').in('estado', ['abierta', 'urgente']),
+    consultasUrgentes: supabase.from('consultas_estado').select('id', { count: 'exact', head: true }).eq('ambito', 'estado').eq('estado', 'urgente'),
     // La misma vista que alimenta /parlamentos-autonomicos, que cuenta
     // como «en tramitación» lo que no está cerrado.
     ccaaVivas: supabase.from('ccaa_resumen').select('*', { count: 'exact', head: true }).eq('is_closed', false),

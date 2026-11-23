@@ -59,6 +59,9 @@ export default function ConsultasPublicasPage() {
     supabase
       .from('consultas_estado')
       .select('*')
+      // Solo las de los ministerios: las de los gobiernos autonómicos se
+      // ven en /parlamentos-autonomicos, con la fase «Consulta pública».
+      .eq('ambito', 'estado')
       .order('fecha_fin', { ascending: true, nullsFirst: false })
       .then(({ data }) => setItems(data || []));
   }, []);
