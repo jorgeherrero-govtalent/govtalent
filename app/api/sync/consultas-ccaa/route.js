@@ -73,7 +73,7 @@ async function handler(request) {
     try {
       resultados[c] =
         c === 'cataluna'
-          ? await syncCataluna({ supabase, dry })
+          ? await syncCataluna({ supabase, dry, hoy })
           : await syncMadrid({ supabase, dry, hoy, t0, todasLasFichas });
     } catch (e) {
       resultados[c] = { ok: false, errores: [e.message], n_leidos: 0, n_escritos: 0 };
@@ -125,12 +125,12 @@ async function guardar(supabase, ccaa, g, url, cambios) {
 // ---------------------------------------------------------------------
 // Cataluña: la API trae todo en una petición.
 // ---------------------------------------------------------------------
-async function syncCataluna({ supabase, dry }) {
-  const filas = await leerCataluna();
-  if (dry) return { ok: true, n_leidos: filas.length, n_escritos: 0, muestra: filas.slice(0, 40) };
+async function syncCataluna({ supabase, dry, hoy }) {
   // Un proceso puede cambiar de tipo si la Generalitat retoca el
   // subtítulo: se busca por la ficha, sea cual sea el tipo guardado.
   const porUrl = new Map([...(await guardadasDe(supabase, 'cataluna')).values()].map((g) => [g.url_origen, g]));
+  const filas = await leerCataluna({ conocidas: new Set(porUrl.keys()), hoy });
+  if (dry) return { ok: true, n_leidos: filas.length, n_escritos: 0, muestra: filas.slice(0, 40) };
   let nuevas = 0;
   let actualizadas = 0;
   const errores = [];
