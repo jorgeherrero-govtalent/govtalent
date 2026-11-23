@@ -8,6 +8,7 @@ import BackLink from '@/components/BackLink';
 import FollowButton from '@/components/FollowButton';
 import PanelBloqueado, { FILAS_CONTACTO_UNIDAD } from '@/components/PanelBloqueado';
 import UpgradeModal from '@/components/UpgradeModal';
+import { CCAA } from '@/lib/ccaa/vista';
 
 const CARD = { background: '#fff', border: '.5px solid #e0dfd8', borderRadius: 12, padding: 18 };
 const LABEL = {
@@ -25,6 +26,18 @@ const TIPOS = {
 };
 
 const tipoLabel = (c) => TIPOS[c] || c || 'Trámite de participación';
+
+// Quién publica las consultas de cada comunidad, para los textos de la ficha.
+const AUTOR_CCAA = {
+  madrid: 'la Comunidad de Madrid',
+  cataluna: 'la Generalitat de Catalunya',
+};
+
+// Dónde se presentan las aportaciones, cuando la comunidad no da buzón.
+const PARTICIPAR_CCAA = {
+  madrid: { portal: 'Portal de Participación de la Comunidad de Madrid', url: 'https://participa.comunidad.madrid', extra: true },
+  cataluna: { portal: 'Participa gencat', url: null, extra: false },
+};
 
 function iniciales(n) {
   const p = (n || '').replace(',', '').trim().split(' ');
@@ -232,13 +245,17 @@ export default function ConsultaDetallePage() {
 
   const pestanas = useMemo(() => {
     if (!item) return [];
+    // Las consultas autonómicas (sql/143) no tienen organigrama detrás:
+    // sin pestaña de actores, y con todos los documentos de la ficha.
+    const autonomica = item.ambito === 'ccaa';
+    const nDocs = autonomica ? (item.documentos || []).length : item.url_documento ? 1 : 0;
     return [
       { id: 'resumen', label: 'Resumen', n: null, activa: !!item.resumen },
       { id: 'participar', label: 'Cómo participar', n: null, activa: true },
       // Con plan se sabe cuántos hay; sin plan la pestaña se ofrece igual
       // y al entrar aparece el panel de mejora, como en Expedientes.
-      { id: 'actores', label: 'Actores', n: nActores || null, activa: true },
-      { id: 'docs', label: 'Documentos', n: item.url_documento ? 1 : null, activa: !!item.url_documento },
+      ...(autonomica ? [] : [{ id: 'actores', label: 'Actores', n: nActores || null, activa: true }]),
+      { id: 'docs', label: 'Documentos', n: nDocs || null, activa: nDocs > 0 },
     ];
   }, [item, nActores]);
 
@@ -267,23 +284,41 @@ export default function ConsultaDetallePage() {
   }
 
   const abierta = item.estado === 'abierta' || item.estado === 'urgente';
+  const autonomica = item.ambito === 'ccaa';
+  const comunidad = autonomica ? CCAA[item.ccaa] || 'la comunidad autónoma' : null;
+  // Quién publica el trámite, para los textos de la ficha.
+  const autor = autonomica ? AUTOR_CCAA[item.ccaa] || comunidad : 'el ministerio';
 
   return (
     <div className="sec" style={{ maxWidth: 900 }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 10, flexWrap: 'wrap' }}>
-        <BackLink fallbackHref="/regulatorio/consultas" fallbackLabel="Consultas públicas" />
+        {autonomica ? (
+          <BackLink fallbackHref="/parlamentos-autonomicos" fallbackLabel="Parlamentos autonómicos" />
+        ) : (
+          <BackLink fallbackHref="/regulatorio/consultas" fallbackLabel="Consultas públicas" />
+        )}
         <span style={{ fontSize: 11.5, color: '#ddd' }}>|</span>
-        <span style={{ fontSize: 11.5, color: '#999' }}>
-          <Link href="/regulatorio/espana" style={{ color: '#999', textDecoration: 'none' }}>
-            España
-          </Link>
-          {' › '}
-          <Link href="/regulatorio/consultas" style={{ color: '#999', textDecoration: 'none' }}>
-            Consultas públicas
-          </Link>
-          {' › '}
-          <span style={{ color: '#666' }}>{item.referencia || item.ministerio}</span>
-        </span>
+        {autonomica ? (
+          <span style={{ fontSize: 11.5, color: '#999' }}>
+            <Link href="/parlamentos-autonomicos" style={{ color: '#999', textDecoration: 'none' }}>
+              Parlamentos autonómicos
+            </Link>
+            {' › '}
+            <span style={{ color: '#666' }}>{comunidad}</span>
+          </span>
+        ) : (
+          <span style={{ fontSize: 11.5, color: '#999' }}>
+            <Link href="/regulatorio/espana" style={{ color: '#999', textDecoration: 'none' }}>
+              España
+            </Link>
+            {' › '}
+            <Link href="/regulatorio/consultas" style={{ color: '#999', textDecoration: 'none' }}>
+              Consultas públicas
+            </Link>
+            {' › '}
+            <span style={{ color: '#666' }}>{item.referencia || item.ministerio}</span>
+          </span>
+        )}
       </div>
 
       <div style={{ ...CARD, padding: 16, marginBottom: 12 }}>
@@ -292,6 +327,7 @@ export default function ConsultaDetallePage() {
             <h1 style={{ fontSize: 16, fontWeight: 700, margin: 0, lineHeight: 1.35 }}>{item.titulo}</h1>
             <div style={{ fontSize: 11.5, color: '#666', marginTop: 5 }}>
               {tipoLabel(item.tipo)}, {item.ministerio}
+              {autonomica ? `, ${comunidad}` : ''}
               {unidad ? `, ${unidad.nombre}` : ''}
             </div>
             {item.referencia && (
@@ -426,7 +462,7 @@ export default function ConsultaDetallePage() {
         <div style={CARD}>
           <p style={{ margin: 0, fontSize: 13, lineHeight: 1.75, whiteSpace: 'pre-wrap' }}>{item.resumen}</p>
           <p style={{ margin: '14px 0 0', fontSize: 11, color: '#a8a49c' }}>
-            Texto publicado por el ministerio en la ficha del trámite.
+            Texto publicado por {autor} en la ficha del trámite.
           </p>
         </div>
       )}
@@ -468,9 +504,31 @@ export default function ConsultaDetallePage() {
                 <span>Solo se consideran las aportaciones en las que el remitente esté identificado.</span>
               </div>
             </div>
+          ) : autonomica && PARTICIPAR_CCAA[item.ccaa] ? (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10, fontSize: 12.5, color: '#555' }}>
+              <div style={{ display: 'flex', alignItems: 'flex-start', gap: 9 }}>
+                <i className="ti ti-world" style={{ color: '#6d5aef', fontSize: 14, marginTop: 2 }}></i>
+                <span>
+                  En{' '}
+                  <a href={PARTICIPAR_CCAA[item.ccaa].url || item.url_origen} target="_blank" rel="noreferrer" style={{ color: '#555' }}>
+                    {PARTICIPAR_CCAA[item.ccaa].portal}
+                  </a>
+                  {PARTICIPAR_CCAA[item.ccaa].extra
+                    ? `, o por los demás medios del artículo 16.4 de la Ley 39/2015, dirigidos a ${item.ministerio}.`
+                    : ', en la página del trámite.'}
+                </span>
+              </div>
+              {item.fecha_fin && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: 9 }}>
+                  <i className="ti ti-calendar" style={{ color: '#6d5aef', fontSize: 14 }}></i>
+                  Hasta el {formatDate(item.fecha_fin)}
+                  {item.fecha_inicio ? `, desde el ${formatDate(item.fecha_inicio)}` : ''}
+                </div>
+              )}
+            </div>
           ) : (
             <div style={{ fontSize: 12.5, color: '#888', lineHeight: 1.7 }}>
-              El ministerio no publica el buzón de aportaciones en la web de este trámite. Consúltalo en
+              {autonomica ? 'La comunidad' : 'El ministerio'} no publica el buzón de aportaciones en la web de este trámite. Consúltalo en
               el trámite original antes de enviar nada.
             </div>
           )}
@@ -490,7 +548,7 @@ export default function ConsultaDetallePage() {
               style={{ fontSize: 12, color: '#6d5aef', textDecoration: 'none' }}
             >
               <i className="ti ti-external-link" style={{ fontSize: 13, verticalAlign: -2, marginRight: 5 }}></i>
-              Ver el trámite en la web del ministerio
+              {autonomica ? `Ver el trámite en la web de ${autor}` : 'Ver el trámite en la web del ministerio'}
             </a>
           </div>
         </div>
@@ -574,7 +632,27 @@ export default function ConsultaDetallePage() {
         </div>
       )}
 
-      {tab === 'docs' && item.url_documento && (
+      {tab === 'docs' && autonomica && (item.documentos || []).length > 0 && (
+        <div style={CARD}>
+          <div style={LABEL}>Documentos</div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+            {item.documentos.map((d) => (
+              <a
+                key={d.url}
+                href={d.url}
+                target="_blank"
+                rel="noreferrer"
+                style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 12.5, color: '#555', textDecoration: 'none' }}
+              >
+                <i className="ti ti-file-text" style={{ color: '#6d5aef', fontSize: 16, flexShrink: 0 }}></i>
+                {d.nombre}
+              </a>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {tab === 'docs' && !autonomica && item.url_documento && (
         <div style={CARD}>
           <div style={LABEL}>Documentos</div>
           <a

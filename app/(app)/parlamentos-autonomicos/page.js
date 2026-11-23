@@ -24,7 +24,46 @@ import {
  *
  * Los datos salen de las vistas ccaa_resumen y ccaa_movimientos (sql/65),
  * que llena el sync de parlamentos autonómicos tres veces al día.
+ *
+ * Consultas públicas de los gobiernos autonómicos (23-11-2026): entran en
+ * la misma tabla, con la fase «Consulta pública», la primera de la
+ * tramitación (antes de que el proyecto llegue al parlamento). Salen de
+ * consultas_estado con ambito = 'ccaa' (sql/143, sync consultas-ccaa) y
+ * abren la ficha de consulta, la misma que las de los ministerios.
  */
+
+// La consulta pública va antes de las fases parlamentarias.
+const FASES_LISTADO = [{ id: 'consulta', nombre: 'Consulta pública' }, ...FASES];
+const NOMBRE_FASE_LISTADO = Object.fromEntries(FASES_LISTADO.map((f) => [f.id, f.nombre]));
+const TRAMITE_CONSULTA = {
+  consulta_previa: 'Consulta pública previa',
+  audiencia_publica: 'Audiencia e información pública',
+};
+
+/** Una consulta de consultas_estado con la forma de una fila de ccaa_resumen. */
+function filaDeConsulta(c) {
+  const abierta = c.estado === 'abierta' || c.estado === 'urgente';
+  return {
+    id: `consulta-${c.id}`,
+    consulta: true,
+    href: `/regulatorio/consultas/${c.id}`,
+    parlamento: c.ccaa,
+    titulo: c.titulo,
+    autor: c.ministerio,
+    fase: c.estado === 'cerrada' ? 'cerrada' : 'consulta',
+    is_closed: c.estado === 'cerrada',
+    plazo_abierto: abierta,
+    fecha_fin: c.fecha_fin,
+    sectores: [],
+    ultimo_descripcion: TRAMITE_CONSULTA[c.tipo] || 'Consulta pública',
+    ultimo_fecha: c.fecha_inicio,
+  };
+}
+
+/** Texto corto del plazo de una consulta: 'hasta 1 dic'. */
+function plazoConsulta(e) {
+  return e.plazo_abierto && e.fecha_fin ? `hasta ${fechaCorta(e.fecha_fin)}` : null;
+}
 
 const PAGE_SIZES = [20, 50, 100, 200];
 
@@ -35,6 +74,18 @@ function Etiqueta({ tipo }) {
 }
 
 function Fase({ e }) {
+  if (e.consulta) {
+    const plazo = plazoConsulta(e);
+    return plazo ? (
+      <span style={{ fontSize: 12, padding: '4px 9px', borderRadius: 6, background: '#f3f0fe', color: '#4b3bc4', whiteSpace: 'nowrap' }}>
+        Consulta pública: {plazo}
+      </span>
+    ) : (
+      <span style={{ fontSize: 12, padding: '4px 9px', borderRadius: 6, background: '#f4f3ee', color: '#3a3a36', whiteSpace: 'nowrap' }}>
+        {e.is_closed ? 'Cerrada' : 'Consulta pública'}
+      </span>
+    );
+  }
   const plazo = plazoCorto(e);
   if (e.fase === 'enmiendas' && plazo) {
     return (
@@ -51,6 +102,7 @@ function Fase({ e }) {
 }
 
 function Subtitulo({ e }) {
+  if (e.consulta) return <div style={{ fontSize: 12, color: GRIS, marginTop: 3 }}>{e.autor}</div>;
   const partes = [e.num_expediente && !/^[IVX]+-[0-9A-F]{12}$/.test(e.num_expediente) ? e.num_expediente : null, e.autor].filter(Boolean);
   return (
     <div style={{ fontSize: 12, color: GRIS, marginTop: 3 }}>
@@ -99,12 +151,24 @@ export default function ParlamentosAutonomicosPage() {
   }
 
   useEffect(() => {
-    supabase
-      .from('ccaa_resumen')
-      .select('*')
-      .order('ultimo_fecha', { ascending: false, nullsFirst: false })
-      .limit(1000)
-      .then(({ data }) => setExpedientes(data || []));
+    Promise.all([
+      supabase
+        .from('ccaa_resumen')
+        .select('*')
+        .order('ultimo_fecha', { ascending: false, nullsFirst: false })
+        .limit(1000),
+      supabase
+        .from('consultas_estado')
+        .select('id, ccaa, tipo, titulo, ministerio, fecha_inicio, fecha_fin, estado')
+        .eq('ambito', 'ccaa')
+        .limit(1000),
+    ]).then(([leyes, consultas]) => {
+      // Las consultas se intercalan por fecha con las leyes: el orden
+      // «Más recientes» es el del último movimiento de cada una.
+      const todas = [...(leyes.data || []), ...(consultas.data || []).map(filaDeConsulta)];
+      todas.sort((a, b) => String(b.ultimo_fecha || '').slice(0, 10).localeCompare(String(a.ultimo_fecha || '').slice(0, 10)));
+      setExpedientes(todas);
+    });
   }, []);
 
 
@@ -122,7 +186,10 @@ export default function ParlamentosAutonomicosPage() {
     if (orden !== 'cierre') return lista;
     // Cierre más próximo: primero los que tienen un plazo de enmiendas
     // abierto, el que cierra antes arriba; el resto, como venían.
-    const cierra = (e) => (e.plazo_abierto && e.plazo_enmiendas ? String(e.plazo_enmiendas) : null);
+    const cierra = (e) =>
+      e.consulta
+        ? e.plazo_abierto && e.fecha_fin ? String(e.fecha_fin) : null
+        : e.plazo_abierto && e.plazo_enmiendas ? String(e.plazo_enmiendas) : null;
     return [...lista].sort((a, b) => {
       const ca = cierra(a);
       const cb = cierra(b);
@@ -174,11 +241,11 @@ export default function ParlamentosAutonomicosPage() {
       const f = e.fase || 'sin';
       n.set(f, (n.get(f) || 0) + 1);
     }
-    return [...FASES.map((f) => [f.id, f.nombre]), ['cerrada', 'Cerrada'], ['sin', 'Sin trámites todavía']]
+    return [...FASES_LISTADO.map((f) => [f.id, f.nombre]), ['cerrada', 'Cerrada'], ['sin', 'Sin trámites todavía']]
       .filter(([id]) => n.has(id) || faseFilter.has(id))
       .map(([id, nombre]) => ({ value: id, label: `${nombre} (${n.get(id) || 0})` }));
   }, [expedientes, conCerradas, parlFilter, faseFilter]);
-  const nombreFiltroFase = (id) => (id === 'cerrada' ? 'Cerrada' : id === 'sin' ? 'Sin trámites todavía' : NOMBRE_FASE[id] || id);
+  const nombreFiltroFase = (id) => (id === 'cerrada' ? 'Cerrada' : id === 'sin' ? 'Sin trámites todavía' : NOMBRE_FASE_LISTADO[id] || id);
   const activeCount = parlFilter.size + faseFilter.size + sectorFilter.size;
   const limpiar = () => {
     setParlFilter(new Set());
@@ -295,7 +362,7 @@ export default function ParlamentosAutonomicosPage() {
                 <tr key={e.id} style={{ borderTop: '1px solid #efeee8' }}>
                   <td style={{ padding: '14px 20px', color: GRIS, whiteSpace: 'nowrap', verticalAlign: 'top' }}>{CCAA[e.parlamento]}</td>
                   <td style={{ padding: '14px 12px', verticalAlign: 'top' }}>
-                    <Link href={`/parlamentos-autonomicos/${e.slug}`} style={{ color: '#1a1a18', textDecoration: 'none', fontWeight: 600 }}>
+                    <Link href={e.href || `/parlamentos-autonomicos/${e.slug}`} style={{ color: '#1a1a18', textDecoration: 'none', fontWeight: 600 }}>
                       {tituloLegible(e.titulo_es || e.titulo)}
                     </Link>
                     <Subtitulo e={e} />
@@ -376,8 +443,8 @@ export default function ParlamentosAutonomicosPage() {
         </div>
       ) : (
         <div style={{ ...CARD, padding: '18px 20px' }}>
-          <div className="ccaa-fases" style={{ display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0, 1fr))', gap: 10 }}>
-            {FASES.map((f) => {
+          <div className="ccaa-fases" style={{ display: 'grid', gridTemplateColumns: `repeat(${FASES_LISTADO.length}, minmax(0, 1fr))`, gap: 10 }}>
+            {FASES_LISTADO.map((f) => {
               const lista = visibles.filter((e) => e.fase === f.id);
               return (
                 <div key={f.id} style={{ display: 'flex', flexDirection: 'column', gap: 8, minWidth: 0 }}>
@@ -385,11 +452,11 @@ export default function ParlamentosAutonomicosPage() {
                     {f.nombre}: <b style={{ color: '#1a1a18' }}>{lista.length}</b>
                   </div>
                   {lista.slice(0, 12).map((e) => {
-                    const plazo = f.id === 'enmiendas' ? plazoCorto(e) : null;
+                    const plazo = f.id === 'enmiendas' ? plazoCorto(e) : f.id === 'consulta' ? plazoConsulta(e) : null;
                     return (
                       <Link
                         key={e.id}
-                        href={`/parlamentos-autonomicos/${e.slug}`}
+                        href={e.href || `/parlamentos-autonomicos/${e.slug}`}
                         style={{ background: plazo ? '#f3f0fe' : '#f7f6f2', borderRadius: 10, padding: 10, fontSize: 12.5, color: '#1a1a18', textDecoration: 'none' }}
                       >
                         <div style={{ color: plazo ? '#4b3bc4' : GRIS, fontSize: 11.5 }}>
